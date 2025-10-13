@@ -18,38 +18,13 @@ struct TokenView: View {
     
     var body: some View {
         
-        HStack{
+        // Main content WITHOUT the color bar in HStack
+        HStack {
+            // Empty space where color bar will overlay
+            Color.clear
+                .frame(width: 10)
             
-            VStack(spacing:0){
-                if (item.colors.contains("W")){
-                    ZStack{Color.yellow}.frame(maxWidth:10)
-                }
-                if (item.colors.contains("U")){
-                    ZStack{Color.blue}.frame(maxWidth:10)
-                }
-                if (item.colors.contains("B")){
-                    ZStack{Color.purple}.frame(maxWidth:10)
-                }
-                if (item.colors.contains("R")){
-                    ZStack{Color.red}.frame(maxWidth:10)
-                }
-                if (item.colors.contains("G")){
-                    ZStack{Color.green}.frame(maxWidth:10)
-                }
-                if (item.colors == "" || (
-                        !item.colors.contains("W") &&
-                        !item.colors.contains("U") &&
-                        !item.colors.contains("B") &&
-                        !item.colors.contains("R") &&
-                        !item.colors.contains("G")
-                    )
-                ){
-                    ZStack{Color.gray}.frame(maxWidth:10)
-                }
-            }
             VStack {
-                // Banner Row - Colors
-                
                 // Top Row - Name, Color, Tapped/Untapped
                 HStack {
                     Text(item.name).font(.title2)
@@ -135,82 +110,98 @@ struct TokenView: View {
                     Spacer()
                     Text(item.pt).font(.title2)
                 }
-                .alert("Add Tokens", isPresented: $isShowingAddAlert){
-                    TextField("Value", text: $tempAlertValue)
-                    Button("Submit"){
-                        let n: Int? = Int(tempAlertValue)
-                      //  if(n ?? 0 < 0){
-                       //     n = 0
-                       // }
-                        item.amount += n ?? 0
-                        tempAlertValue = ""
-                    }
-                }message:{
-                    Text("How many \(item.name)?")
-                }
-                .alert("Remove Tokens", isPresented: $isShowingRemoveAlert){
-                    TextField("Value", text: $tempAlertValue)
-                    Button("Remove"){
-                        var n: Int? = Int(tempAlertValue)
-                    //    if(n ?? 0 < 0){
-                     //       n = 0
-                     //   }
-                        if(n ?? 0 > item.amount){
-                            n = item.amount
-                        }
-                        item.amount -= n ?? 0
-                        tempAlertValue = ""
-                    }
-                    Button("Reset", role: .destructive){
-                        item.amount = 0
-                        item.tapped = 0
-                    }
-                }message:{
-                    Text("Remove tokens \(item.name)?")
-                }
-                .alert("Untap", isPresented: $isShowingUntapAlert){
-                    TextField("Value", text: $tempAlertValue)
-                    Button("Untap"){
-                        var n: Int? = Int(tempAlertValue)
-                      //  if(n ?? 0 < 0){
-                      //      n = 0
-                      //  }
-                        if(n ?? 0 > item.tapped){
-                            n = item.tapped
-                        }
-                        item.tapped -= n ?? 0
-                        tempAlertValue = ""
-                    }
-                }message:{
-                    Text("Untap tokens \(item.name)?")
-                }
-                .alert("Tap Tokens", isPresented: $isShowingTapAlert){
-                    TextField("Value", text: $tempAlertValue)
-                    Button("Tap"){
-                        let n: Int? = Int(tempAlertValue)
-                     //   if(n ?? 0 < 0){
-                     //       n = 0
-                     //   }
-                        if(n ?? 0 > item.amount - item.tapped){
-                            item.tapped = item.amount
-                        }
-                        else{
-                            item.tapped += n ?? 0
-                        }
-                        tempAlertValue = ""
-                    }
-                }message:{
-                    Text("How many \(item.name)?")
-                }
-                
-            }.padding([.top, .bottom, .trailing], 10)
+            }.padding([.top, .bottom, .trailing], 10).opacity(item.amount == 0 ? 0.5 : 1.0)
+                .animation(.easeInOut(duration: 0.3), value: item.amount == 0)
         }
-
+        .overlay(alignment: .leading) {
+            // Color bar as overlay - completely independent of layout
+            VStack(spacing: 0) {
+                if item.colors.contains("W") {
+                    Color.yellow
+                }
+                if item.colors.contains("U") {
+                    Color.blue
+                }
+                if item.colors.contains("B") {
+                    Color.purple
+                }
+                if item.colors.contains("R") {
+                    Color.red
+                }
+                if item.colors.contains("G") {
+                    Color.green
+                }
+                if item.colors.isEmpty ||
+                   (!item.colors.contains("W") &&
+                    !item.colors.contains("U") &&
+                    !item.colors.contains("B") &&
+                    !item.colors.contains("R") &&
+                    !item.colors.contains("G")) {
+                    Color.gray
+                }
+            }
+            .frame(width: 10)
+            .allowsHitTesting(false) // Important: don't block touches
+        }
+        .alert("Add Tokens", isPresented: $isShowingAddAlert){
+            TextField("Value", text: $tempAlertValue)
+            Button("Submit"){
+                let n: Int? = Int(tempAlertValue)
+                item.amount += n ?? 0
+                tempAlertValue = ""
+            }
+        }message:{
+            Text("How many \(item.name)?")
+        }
+        .alert("Remove Tokens", isPresented: $isShowingRemoveAlert){
+            TextField("Value", text: $tempAlertValue)
+            Button("Remove"){
+                var n: Int? = Int(tempAlertValue)
+                if(n ?? 0 > item.amount){
+                    n = item.amount
+                }
+                item.amount -= n ?? 0
+                tempAlertValue = ""
+            }
+            Button("Reset", role: .destructive){
+                item.amount = 0
+                item.tapped = 0
+            }
+        }message:{
+            Text("Remove tokens \(item.name)?")
+        }
+        .alert("Untap", isPresented: $isShowingUntapAlert){
+            TextField("Value", text: $tempAlertValue)
+            Button("Untap"){
+                var n: Int? = Int(tempAlertValue)
+                if(n ?? 0 > item.tapped){
+                    n = item.tapped
+                }
+                item.tapped -= n ?? 0
+                tempAlertValue = ""
+            }
+        }message:{
+            Text("Untap tokens \(item.name)?")
+        }
+        .alert("Tap Tokens", isPresented: $isShowingTapAlert){
+            TextField("Value", text: $tempAlertValue)
+            Button("Tap"){
+                let n: Int? = Int(tempAlertValue)
+                if(n ?? 0 > item.amount - item.tapped){
+                    item.tapped = item.amount
+                }
+                else{
+                    item.tapped += n ?? 0
+                }
+                tempAlertValue = ""
+            }
+        }message:{
+            Text("How many \(item.name)?")
+        }
     }
 }
 
 
 #Preview {
     TokenView(item: Item(abilities:"This is a block of text representing a lot of abilities", name: "Scute Swarm", pt: "1/1", colors:"WUBRG", amount: 1, createTapped: false))
-    
 }

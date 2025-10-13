@@ -11,132 +11,158 @@ import SwiftData
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [Item]
-    @State private var isShowingNewTokenAlert = false
+    //@Query private var utilityItems: [Item]
+    @State private var isShowingNewTokenSheet = false
     @State private var activeItem: Item?
     @State private var isShowingTokenSearch = false
     @State private var isShowingUntapAlert = false
     @State private var isShowingWrathAlert = false
+    @State private var isShowingSaveDeckAlert = false
+    @State private var isShowingLoadDeckSheet = false
+    @State private var showAbout = false
     @State private var tempName = ""
     @State private var tempColors = ""
     @State private var tempAmount = ""
     @State private var tempPowerToughness = ""
     @State private var tempAbilities = ""
-
+    @Query private var decks: [Deck]
 
     var body: some View {
         
             NavigationStack{
                 List{
-                    ForEach(items){item in
-                        TokenView(item: item).listRowSeparator(.hidden).listRowInsets(EdgeInsets())
-                                                
+                    if items.isEmpty {
+                        // Empty state view
+                        
+                        VStack(spacing:20) {
+                        
+                            Text("No tokens to display")
+                                .font(.title2)
+                                .foregroundColor(.secondary)
+                                .opacity(0.5)
+                            
+                            VStack(alignment: .leading, spacing: 12) {
+                                Label("Create a Token", systemImage: "plus")
+                               // Label("Search for a Token", systemImage: "plus.magnifyingglass")
+                                Label("Untap Everything", systemImage: "arrow.counterclockwise.circle")
+                                Label("Save Current Deck", systemImage: "folder.badge.plus")
+                                Label("Load a Deck", systemImage: "rectangle.portrait.on.rectangle.portrait.angled")
+                                Label("Board Wipe", systemImage: "trash.fill")
+                            }
+                            .font(.callout)
+                            .foregroundColor(.secondary)
+                            .opacity(0.5)
+                            Text("Long press the +/- and tap/untap buttons to mass edit a token group.")
+                                .padding(15)
+                                .italic(true)
+                                .foregroundColor(.secondary)
+                                .opacity(0.5)
+                            
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets())
+                        .padding(.vertical, 15)
+                    } else {
+                        ForEach(items){item in
+                            TokenView(item: item).listRowSeparator(.hidden).listRowInsets(EdgeInsets())
+                                .deleteDisabled(true)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                            Button(role: .destructive) {
+                                                withAnimation {
+                                                    modelContext.delete(item)
+                                                }
+                                            } label: {
+                                                Label("Delete", systemImage: "trash")
+                                            }
+                                        }
+                        }
                     }
-                    .onDelete(perform: deleteItems)
-                    
-                    
                 }.listRowSpacing(8.0)
 
-                .toolbar {
+                    .toolbar {
+                        ToolbarItemGroup(placement: .principal) {
+                            HStack(spacing: 20) {
 
-    #if os(iOS)
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        EditButton()
-                    }
-    #endif
-                    ToolbarItem(){
-                        Button(action:{isShowingWrathAlert = true}){
-                            Label("Wrath", systemImage:"trash.fill")
+                                Button(action: { isShowingTokenSearch = true }) {
+                                    Image(systemName: "plus")
+                                }
+                                
+                                Button(action: { isShowingUntapAlert = true }) {
+                                    Image(systemName: "arrow.counterclockwise.circle")
+                                }
+                                
+                                Button(action: { isShowingSaveDeckAlert = true }) {
+                                    Image(systemName: "folder.badge.plus")
+                                }
+                                
+                                Button(action: { isShowingLoadDeckSheet = true }) {
+                                    Image(systemName: "rectangle.portrait.on.rectangle.portrait.angled")
+                                }
+                                
+                                Button(action: { isShowingWrathAlert = true }) {
+                                    Image(systemName: "trash.fill")
+                                }
+                            }
                         }
-                    }
-                    /*
-                     TODO: Put these in another toolbar somewhere else.
-                    ToolbarItem(){
-                        Button(action:{saveDeck()}){
-                            Label("SAVE", systemImage:"folder.badge.plus")
-                        }
-                    }
-                    
-                    ToolbarItem(){
-                        Button(action:{loadDeck()}){
-                            Label("SAVE", systemImage:"rectangle.portrait.on.rectangle.portrait.angled")
-                        }
-                    }
-                    */
-                    ToolbarItem(){
-                        Button(action:{isShowingUntapAlert = true}){
-                            Label("Untap", systemImage:"arrow.counterclockwise.circle")
-                        }
-                    }
-
-
-                    ToolbarItem (){
-                        Button(action:{isShowingNewTokenAlert = true}) {
-                            Label("Add Item", systemImage: "plus")
-                        }
-                    }
-                    ToolbarItem(){
-                        Button(action:{isShowingTokenSearch = true}){
-                            Label("Search", systemImage: "plus.magnifyingglass")
-                        }
-                    }
-                    
-
+                    }    .sheet(isPresented: $isShowingLoadDeckSheet) {
+                    LoadDeckSheet()
                 }
-                            .alert("Untap Everything?", isPresented: $isShowingUntapAlert){
+                .alert("Save Deck?", isPresented: $isShowingSaveDeckAlert){
+                    TextField("Name", text: $tempName)
+                    Button("Save"){
+                        if !tempName.isEmpty{
+                            let name = tempName
+                            saveDeck(name:name)
+                            resetTemp()
+                        }
+                    }
+                    Button("Cancel",role:.cancel, action:{})
+                }
+                .alert("Untap Everything?", isPresented: $isShowingUntapAlert){
                                 Button("Untap"){
                                     untapEverything()
                                 }
                                 Button("Cancel",role:.cancel, action:{})
                             }
                             .alert("Are you sure?", isPresented: $isShowingWrathAlert){
-                                Button("Destroy all tokens"){
+                                Button("Set tokens to zero"){
                                     wrathOfGod()
                                 }
-                                Button("Reset your board"){
+                                Button("Remove all tokens"){
                                     farewell()
                                 }
                                 Button("Cancel",role:.cancel, action:{})
                             }
-                .alert("New Token", isPresented: $isShowingNewTokenAlert){
-                    TextField("Name", text: $tempName)
-                    TextField("Colors (WUBRG)", text: $tempColors)
-                    TextField("How Many", text: $tempAmount)
-                    TextField("Abilities", text: $tempAbilities)
-                    TextField("X/X", text: $tempPowerToughness)
-                    
-                    Button("Create"){
-                        let n: Int? = Int(tempAmount)
-                        addItem(
-                            abilities: tempAbilities,
-                            name: tempName,
-                            pt: tempPowerToughness,
-                            colors: tempColors,
-                            amount: n ?? 0,
-                            createTapped: false
-                        )
-                        resetTemp()
-                    }
-                    Button("Create Tapped"){
-                        let n: Int? = Int(tempAmount)
-                        addItem(
-                            abilities: tempAbilities,
-                            name: tempName,
-                            pt: tempPowerToughness,
-                            colors: tempColors,
-                            amount: n ?? 0,
-                            createTapped: true
-                        )
-                        resetTemp()
-                    }
-                    Button("Cancel", role: .cancel, action:{})
-                   
+                .sheet(isPresented: $isShowingNewTokenSheet) {
+                    NewTokenSheet()
                 }
+                .sheet(isPresented: $isShowingTokenSearch) {
+                    TokenSearchView(showManualEntry: $isShowingNewTokenSheet)
+                }
+                
 
+            }.onAppear{
+                //This is an incredibly inelegant solution to the view timer
+                //problem that I don't want to have to worry about. This app
+                //doesn't go to sleep. If you waste your battery that's
+                //your fault not mine.
+                disableViewTimer()
             }
             
+            HStack{
+                Button("About Doubling Season"){
+                    showAbout.toggle()
+                }.fullScreenCover(isPresented: $showAbout, content: AboutView.init)
+                
+            }
     }
     
-
+    // No more timing out my phone please.
+    private func disableViewTimer(){
+        UIApplication.shared.isIdleTimerDisabled = true
+    }
+    
     private func untapEverything(){
         items.forEach { Item in
             Item.tapped = 0;
@@ -156,13 +182,51 @@ struct ContentView: View {
         }
     }
     
-    private func saveDeck(){
-       
+    private func saveDeck(name: String) {
+        // Create templates from current items (not Item instances)
+        let templates = items.map { TokenTemplate(from: $0) }
+        
+        // Create and save the deck with templates
+        let newDeck = Deck(name: name, templates: templates)
+        modelContext.insert(newDeck)
+        
+        // Save context
+        do {
+            try modelContext.save()
+        } catch {
+            print("Failed to save deck: \(error)")
+        }
     }
     
-    private func loadDeck(){
-       
+    
+    private func loadDeck(deck: Deck) {
+        // Clear current items
+        items.forEach { item in
+            modelContext.delete(item)
+        }
+        
+        // Create new items from the deck
+        deck.templates.forEach { deckItem in
+            let newItem = Item(
+                abilities: deckItem.abilities,
+                name: deckItem.name,
+                pt: deckItem.pt,
+                colors: deckItem.colors,
+                amount: 1,  // Start with 1 of each token
+                createTapped: false
+            )
+            modelContext.insert(newItem)
+        }
+        
+        // Save context
+        do {
+            try modelContext.save()
+        } catch {
+            print("Failed to load deck: \(error)")
+        }
     }
+    
+
 
 
     private func addItem(abilities: String, name: String, pt: String, colors: String, amount: Int, createTapped: Bool) {
@@ -197,7 +261,10 @@ struct ContentView: View {
 
 }
 
+
+
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .modelContainer(for: [Item.self, Deck.self], inMemory: true )
 }
+
