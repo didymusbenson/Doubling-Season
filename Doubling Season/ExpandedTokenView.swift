@@ -91,16 +91,27 @@ struct ExpandedTokenView: View {
     
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if isEditingToken {
-                TextField("Token Name", text: $editableName)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .font(.title2)
-            } else {
-                Text(item.name)
-                    .font(.title2)
-                    .fontWeight(.bold)
+            HStack{
+                if isEditingToken {
+                    TextField("Token Name", text: $editableName)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .font(.title2)
+                } else {
+                    Text(item.name)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                }
+                Spacer()
+                if !item.isEmblem {
+                    // Tapped/Untapped indicators (not for emblems)
+                    HStack {
+                        Text(Image(systemName:"rectangle.portrait.bottomhalf.inset.filled"))
+                        Text(String(item.amount - item.tapped)).font(.title2)
+                        Text(Image(systemName:"rectangle.landscape.rotate"))
+                        Text(String(item.tapped)).font(.title2)
+                    }
+                }
             }
-            
             HStack {
                 if isEditingToken {
                     TextField("Colors", text: $editableColors)
@@ -121,17 +132,8 @@ struct ExpandedTokenView: View {
                     .cornerRadius(4)
                 }
                 
-                Spacer()
                 
-                if !item.isEmblem {
-                    // Tapped/Untapped indicators (not for emblems)
-                    HStack {
-                        Text(Image(systemName:"rectangle.portrait.bottomhalf.inset.filled"))
-                        Text(String(item.amount - item.tapped)).font(.title2)
-                        Text(Image(systemName:"rectangle.landscape.rotate"))
-                        Text(String(item.tapped)).font(.title2)
-                    }
-                }
+
             }
         }
     }
@@ -221,16 +223,13 @@ struct ExpandedTokenView: View {
     private var countersSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Counter Management")
-                    .font(.headline)
                 
-                Spacer()
                 
                 Button(action: {
                     isShowingCounterSearch = true
                 }) {
-                    Image(systemName: "plus")
-                        .foregroundColor(.blue)
+                    Text("Add Counters")
+                        .font(.headline)
                 }
             }
             
@@ -371,4 +370,8 @@ struct CounterPillView: View {
                 .stroke(Color.blue.opacity(0.3), lineWidth: 1)
         )
     }
+}
+
+#Preview {
+    TokenView(item: Item(abilities:"This is a block of text representing a lot of abilities", name: "Scute Swarm", pt: "1/1", colors:"WUBRG", amount: 1, createTapped: false))
 }

@@ -88,6 +88,20 @@ struct TokenView: View {
                         .simultaneousGesture(TapGesture().onEnded {
                             item.amount += multiplier
                         })
+                        // tap
+                        Button(action:{
+                            
+                        }){
+                            Text(Image(systemName:"arrow.clockwise.circle")).font(.title2)
+                        }.buttonStyle(BorderlessButtonStyle())
+                        .simultaneousGesture(LongPressGesture().onEnded { _ in
+                            isShowingTapAlert = true
+                        })
+                        .simultaneousGesture(TapGesture().onEnded {
+                            if(item.tapped < item.amount){
+                                item.tapped += 1
+                            }
+                        })
                         
                         // untap
                         Button(action:{
@@ -103,20 +117,7 @@ struct TokenView: View {
                             }
                             
                         })
-                        // tap
-                        Button(action:{
-                            
-                        }){
-                            Text(Image(systemName:"arrow.clockwise.circle")).font(.title2)
-                        }.buttonStyle(BorderlessButtonStyle())
-                        .simultaneousGesture(LongPressGesture().onEnded { _ in
-                            isShowingTapAlert = true
-                        })
-                        .simultaneousGesture(TapGesture().onEnded {
-                            if(item.tapped < item.amount){
-                                item.tapped += 1
-                            }
-                        })
+
                         //SCUTE SWARM
                         if (item.name.uppercased() == "SCUTE SWARM"){
                             Button (action:{
