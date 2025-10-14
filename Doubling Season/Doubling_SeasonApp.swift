@@ -13,7 +13,8 @@ struct Doubling_SeasonApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,
-            Deck.self  // Added Deck to schema
+            Deck.self,  // Added Deck to schema
+            TokenCounter.self  // Added TokenCounter to schema
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

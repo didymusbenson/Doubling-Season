@@ -26,9 +26,12 @@ struct ContentView: View {
     @State private var tempPowerToughness = ""
     @State private var tempAbilities = ""
     @Query private var decks: [Deck]
+    
+    // For multiplier support
+    @AppStorage("tokenMultiplier") private var multiplier: Int = 1
 
     var body: some View {
-        
+        VStack {
             NavigationStack{
                 List{
                     if items.isEmpty {
@@ -105,6 +108,12 @@ struct ContentView: View {
                                 }
                             }
                         }
+                        
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button(action: { showAbout.toggle() }) {
+                                Image(systemName: "questionmark.circle")
+                            }
+                        }
                     }    .sheet(isPresented: $isShowingLoadDeckSheet) {
                     LoadDeckSheet()
                 }
@@ -140,6 +149,7 @@ struct ContentView: View {
                 .sheet(isPresented: $isShowingTokenSearch) {
                     TokenSearchView(showManualEntry: $isShowingNewTokenSheet)
                 }
+                .fullScreenCover(isPresented: $showAbout, content: AboutView.init)
                 
 
             }.onAppear{
@@ -150,12 +160,9 @@ struct ContentView: View {
                 disableViewTimer()
             }
             
-            HStack{
-                Button("About Doubling Season"){
-                    showAbout.toggle()
-                }.fullScreenCover(isPresented: $showAbout, content: AboutView.init)
-                
-            }
+            MultiplierView()
+                .padding(.bottom)
+        }
     }
     
     // No more timing out my phone please.
@@ -230,12 +237,13 @@ struct ContentView: View {
 
 
     private func addItem(abilities: String, name: String, pt: String, colors: String, amount: Int, createTapped: Bool) {
+        let finalAmount = amount * multiplier
         let newItem = Item(
             abilities: abilities,
             name: name,
             pt: pt,
             colors: colors,
-            amount: amount,
+            amount: finalAmount,
             createTapped: createTapped
         )
         withAnimation {
@@ -265,6 +273,6 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: [Item.self, Deck.self], inMemory: true )
+        .modelContainer(for: [Item.self, Deck.self, TokenCounter.self], inMemory: true )
 }
 

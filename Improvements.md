@@ -65,3 +65,6 @@ A nontrivial amount of tokens in the token database appear to have duplicate ent
 
 ## Emblems
 Tokens with the type "Emblem" should be visually represented as distinct from normal tokens. They do not have a p/t value and cannot be tapped, so the indicators for tapped amount, tap and untap buttons, and p/t sections of the token should not be rendered. Emblems should not have the color indicator border. Their name and ability text should be centered. 
+
+
+

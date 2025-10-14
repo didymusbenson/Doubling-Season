@@ -26,6 +26,9 @@ struct TokenSearchView: View {
     @State private var tokenQuantity = 1
     @State private var createTapped = false
     
+    // For multiplier support
+    @AppStorage("tokenMultiplier") private var multiplier: Int = 1
+    
     // MARK: - Enums
     enum SearchTab: String, CaseIterable {
         case all = "All"
@@ -399,6 +402,14 @@ struct TokenSearchView: View {
                         .background(Color.gray.opacity(0.1))
                         .cornerRadius(10)
                         
+                        // Multiplier reminder
+                        if multiplier > 1 {
+                            Text("Current multiplier: x\(multiplier) - Final amount will be \(tokenQuantity * multiplier)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal)
+                        }
+                        
                         // Quick select buttons
                         HStack(spacing: 10) {
                             ForEach([1, 2, 3, 4, 5], id: \.self) { num in
@@ -468,8 +479,9 @@ struct TokenSearchView: View {
     private func createTokens() {
         guard let token = selectedToken else { return }
         
-        // Create the Item from the selected token
-        let item = token.toItem(amount: tokenQuantity, createTapped: createTapped)
+        // Create the Item from the selected token with multiplier applied
+        let finalAmount = tokenQuantity * multiplier
+        let item = token.toItem(amount: finalAmount, createTapped: createTapped)
         
         // Add to model context
         modelContext.insert(item)

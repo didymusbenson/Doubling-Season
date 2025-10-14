@@ -7,24 +7,34 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		CB6978F12E996319007A4256 /* LoadDeckSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB6978F02E996311007A4256 /* LoadDeckSheet.swift */; };
-		CB6978F32E996338007A4256 /* NewTokenSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB6978F22E996330007A4256 /* NewTokenSheet.swift */; };
-		CB6979222E999F0C007A4256 /* TokenDatabase.json in Resources */ = {isa = PBXBuildFile; fileRef = CB69791D2E999F0C007A4256 /* TokenDatabase.json */; };
-		CB6979232E999F0C007A4256 /* TokenDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB69791E2E999F0C007A4256 /* TokenDatabase.swift */; };
-		CB6979242E999F0C007A4256 /* TokenSearchRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB6979202E999F0C007A4256 /* TokenSearchRow.swift */; };
-		CB6979252E999F0C007A4256 /* TokenSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB6979212E999F0C007A4256 /* TokenSearchView.swift */; };
-		CB6979262E999F0C007A4256 /* TokenDefinition.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB69791F2E999F0C007A4256 /* TokenDefinition.swift */; };
-		CBA8B7902C5F02DF0063B87A /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBA8B78F2C5F02DF0063B87A /* AboutView.swift */; };
-		CBBCDA7A2C0FA48F000ED260 /* Doubling_SeasonApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBBCDA792C0FA48F000ED260 /* Doubling_SeasonApp.swift */; };
-		CBBCDA7C2C0FA48F000ED260 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBBCDA7B2C0FA48F000ED260 /* ContentView.swift */; };
-		CBBCDA7E2C0FA48F000ED260 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBBCDA7D2C0FA48F000ED260 /* Item.swift */; };
-		CBBCDA802C0FA491000ED260 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CBBCDA7F2C0FA491000ED260 /* Assets.xcassets */; };
-		CBBCDA842C0FA491000ED260 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CBBCDA832C0FA491000ED260 /* Preview Assets.xcassets */; };
+		5C2C0D912E9DF23A00BB3BCC /* CullTokenData.sh in Resources */ = {isa = PBXBuildFile; fileRef = 5C2C0D7D2E9DF23A00BB3BCC /* CullTokenData.sh */; };
+		5C2C0D922E9DF23A00BB3BCC /* soldier.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 5C2C0D862E9DF23A00BB3BCC /* soldier.jpg */; };
+		5C2C0D932E9DF23A00BB3BCC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5C2C0D782E9DF23A00BB3BCC /* Assets.xcassets */; };
+		5C2C0D942E9DF23A00BB3BCC /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5C2C0D752E9DF23A00BB3BCC /* Preview Assets.xcassets */; };
+		5C2C0D952E9DF23A00BB3BCC /* TokenLookup.json in Resources */ = {isa = PBXBuildFile; fileRef = 5C2C0D8B2E9DF23A00BB3BCC /* TokenLookup.json */; };
+		5C2C0D962E9DF23A00BB3BCC /* TokenDatabase.json in Resources */ = {isa = PBXBuildFile; fileRef = 5C2C0D882E9DF23A00BB3BCC /* TokenDatabase.json */; };
+		5C2C0D972E9DF23A00BB3BCC /* MultiplierView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D842E9DF23A00BB3BCC /* MultiplierView.swift */; };
+		5C2C0D982E9DF23A00BB3BCC /* TokenDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D892E9DF23A00BB3BCC /* TokenDatabase.swift */; };
+		5C2C0D992E9DF23A00BB3BCC /* Deck.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D7E2E9DF23A00BB3BCC /* Deck.swift */; };
+		5C2C0D9A2E9DF23A00BB3BCC /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D822E9DF23A00BB3BCC /* Item.swift */; };
+		5C2C0D9B2E9DF23A00BB3BCC /* NewTokenSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D852E9DF23A00BB3BCC /* NewTokenSheet.swift */; };
+		5C2C0D9C2E9DF23A00BB3BCC /* ExpandedTokenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D812E9DF23A00BB3BCC /* ExpandedTokenView.swift */; };
+		5C2C0D9D2E9DF23A00BB3BCC /* TokenSearchRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D8C2E9DF23A00BB3BCC /* TokenSearchRow.swift */; };
+		5C2C0D9E2E9DF23A00BB3BCC /* TokenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D8E2E9DF23A00BB3BCC /* TokenView.swift */; };
+		5C2C0D9F2E9DF23A00BB3BCC /* UtilityTokenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D8F2E9DF23A00BB3BCC /* UtilityTokenView.swift */; };
+		5C2C0DA02E9DF23A00BB3BCC /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D772E9DF23A00BB3BCC /* AboutView.swift */; };
+		5C2C0DA12E9DF23A00BB3BCC /* CounterSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D7C2E9DF23A00BB3BCC /* CounterSearchView.swift */; };
+		5C2C0DA22E9DF23A00BB3BCC /* CounterDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D7B2E9DF23A00BB3BCC /* CounterDatabase.swift */; };
+		5C2C0DA32E9DF23A00BB3BCC /* LoadDeckSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D832E9DF23A00BB3BCC /* LoadDeckSheet.swift */; };
+		5C2C0DA42E9DF23A00BB3BCC /* Counter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D7A2E9DF23A00BB3BCC /* Counter.swift */; };
+		5C2C0DA52E9DF23A00BB3BCC /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D792E9DF23A00BB3BCC /* ContentView.swift */; };
+		5C2C0DA62E9DF23A00BB3BCC /* Doubling_SeasonApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D802E9DF23A00BB3BCC /* Doubling_SeasonApp.swift */; };
+		5C2C0DA72E9DF23A00BB3BCC /* TokenDefinition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D8A2E9DF23A00BB3BCC /* TokenDefinition.swift */; };
+		5C2C0DA82E9DF23A00BB3BCC /* TokenSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D8D2E9DF23A00BB3BCC /* TokenSearchView.swift */; };
+		5C2C0DA92E9DF23A00BB3BCC /* SplitStackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D872E9DF23A00BB3BCC /* SplitStackView.swift */; };
 		CBBCDA8E2C0FA491000ED260 /* Doubling_SeasonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBBCDA8D2C0FA491000ED260 /* Doubling_SeasonTests.swift */; };
 		CBBCDA982C0FA491000ED260 /* Doubling_SeasonUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBBCDA972C0FA491000ED260 /* Doubling_SeasonUITests.swift */; };
 		CBBCDA9A2C0FA491000ED260 /* Doubling_SeasonUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBBCDA992C0FA491000ED260 /* Doubling_SeasonUITestsLaunchTests.swift */; };
-		CBBCDAA92C0FA7B7000ED260 /* Deck.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBBCDAA82C0FA7B7000ED260 /* Deck.swift */; };
-		CBC1E2F22C1A2E7500F080CD /* TokenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBC1E2F12C1A2E7500F080CD /* TokenView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -45,31 +55,39 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		CB0ADF792C7688C0004203B1 /* CullTokenData.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = CullTokenData.sh; sourceTree = "<group>"; };
-		CB4E68AD2C56F8DC003D6048 /* TokenLookup.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = TokenLookup.json; sourceTree = "<group>"; };
-		CB6978F02E996311007A4256 /* LoadDeckSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadDeckSheet.swift; sourceTree = "<group>"; };
-		CB6978F22E996330007A4256 /* NewTokenSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewTokenSheet.swift; sourceTree = "<group>"; };
-		CB69791D2E999F0C007A4256 /* TokenDatabase.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = TokenDatabase.json; sourceTree = "<group>"; };
-		CB69791E2E999F0C007A4256 /* TokenDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenDatabase.swift; sourceTree = "<group>"; };
-		CB69791F2E999F0C007A4256 /* TokenDefinition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenDefinition.swift; sourceTree = "<group>"; };
-		CB6979202E999F0C007A4256 /* TokenSearchRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenSearchRow.swift; sourceTree = "<group>"; };
-		CB6979212E999F0C007A4256 /* TokenSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenSearchView.swift; sourceTree = "<group>"; };
-		CBA8B78F2C5F02DF0063B87A /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
+		5C2C0D752E9DF23A00BB3BCC /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		5C2C0D772E9DF23A00BB3BCC /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
+		5C2C0D782E9DF23A00BB3BCC /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		5C2C0D792E9DF23A00BB3BCC /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		5C2C0D7A2E9DF23A00BB3BCC /* Counter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Counter.swift; sourceTree = "<group>"; };
+		5C2C0D7B2E9DF23A00BB3BCC /* CounterDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CounterDatabase.swift; sourceTree = "<group>"; };
+		5C2C0D7C2E9DF23A00BB3BCC /* CounterSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CounterSearchView.swift; sourceTree = "<group>"; };
+		5C2C0D7D2E9DF23A00BB3BCC /* CullTokenData.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = CullTokenData.sh; sourceTree = "<group>"; };
+		5C2C0D7E2E9DF23A00BB3BCC /* Deck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Deck.swift; sourceTree = "<group>"; };
+		5C2C0D7F2E9DF23A00BB3BCC /* Doubling_Season.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Doubling_Season.entitlements; sourceTree = "<group>"; };
+		5C2C0D802E9DF23A00BB3BCC /* Doubling_SeasonApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Doubling_SeasonApp.swift; sourceTree = "<group>"; };
+		5C2C0D812E9DF23A00BB3BCC /* ExpandedTokenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpandedTokenView.swift; sourceTree = "<group>"; };
+		5C2C0D822E9DF23A00BB3BCC /* Item.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Item.swift; sourceTree = "<group>"; };
+		5C2C0D832E9DF23A00BB3BCC /* LoadDeckSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadDeckSheet.swift; sourceTree = "<group>"; };
+		5C2C0D842E9DF23A00BB3BCC /* MultiplierView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiplierView.swift; sourceTree = "<group>"; };
+		5C2C0D852E9DF23A00BB3BCC /* NewTokenSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewTokenSheet.swift; sourceTree = "<group>"; };
+		5C2C0D862E9DF23A00BB3BCC /* soldier.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = soldier.jpg; sourceTree = "<group>"; };
+		5C2C0D872E9DF23A00BB3BCC /* SplitStackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitStackView.swift; sourceTree = "<group>"; };
+		5C2C0D882E9DF23A00BB3BCC /* TokenDatabase.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = TokenDatabase.json; sourceTree = "<group>"; };
+		5C2C0D892E9DF23A00BB3BCC /* TokenDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenDatabase.swift; sourceTree = "<group>"; };
+		5C2C0D8A2E9DF23A00BB3BCC /* TokenDefinition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenDefinition.swift; sourceTree = "<group>"; };
+		5C2C0D8B2E9DF23A00BB3BCC /* TokenLookup.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = TokenLookup.json; sourceTree = "<group>"; };
+		5C2C0D8C2E9DF23A00BB3BCC /* TokenSearchRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenSearchRow.swift; sourceTree = "<group>"; };
+		5C2C0D8D2E9DF23A00BB3BCC /* TokenSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenSearchView.swift; sourceTree = "<group>"; };
+		5C2C0D8E2E9DF23A00BB3BCC /* TokenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenView.swift; sourceTree = "<group>"; };
+		5C2C0D8F2E9DF23A00BB3BCC /* UtilityTokenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilityTokenView.swift; sourceTree = "<group>"; };
 		CBBCDA762C0FA48F000ED260 /* Doubling Season.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Doubling Season.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		CBBCDA792C0FA48F000ED260 /* Doubling_SeasonApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Doubling_SeasonApp.swift; sourceTree = "<group>"; };
-		CBBCDA7B2C0FA48F000ED260 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		CBBCDA7D2C0FA48F000ED260 /* Item.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Item.swift; sourceTree = "<group>"; };
-		CBBCDA7F2C0FA491000ED260 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		CBBCDA812C0FA491000ED260 /* Doubling_Season.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Doubling_Season.entitlements; sourceTree = "<group>"; };
-		CBBCDA832C0FA491000ED260 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		CBBCDA892C0FA491000ED260 /* Doubling SeasonTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Doubling SeasonTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CBBCDA8D2C0FA491000ED260 /* Doubling_SeasonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Doubling_SeasonTests.swift; sourceTree = "<group>"; };
 		CBBCDA932C0FA491000ED260 /* Doubling SeasonUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Doubling SeasonUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CBBCDA972C0FA491000ED260 /* Doubling_SeasonUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Doubling_SeasonUITests.swift; sourceTree = "<group>"; };
 		CBBCDA992C0FA491000ED260 /* Doubling_SeasonUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Doubling_SeasonUITestsLaunchTests.swift; sourceTree = "<group>"; };
-		CBBCDAA82C0FA7B7000ED260 /* Deck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Deck.swift; sourceTree = "<group>"; };
-		CBC1E2F12C1A2E7500F080CD /* TokenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenView.swift; sourceTree = "<group>"; };
-		CBC1E2F32C1B4B3100F080CD /* NOTES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = NOTES.md; sourceTree = "<group>"; };
+		CBC1E2F32C1B4B3100F080CD /* Improvements.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = Improvements.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -97,14 +115,55 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		5C2C0D762E9DF23A00BB3BCC /* Preview Content */ = {
+			isa = PBXGroup;
+			children = (
+				5C2C0D752E9DF23A00BB3BCC /* Preview Assets.xcassets */,
+			);
+			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		5C2C0D902E9DF23A00BB3BCC /* Doubling Season */ = {
+			isa = PBXGroup;
+			children = (
+				5C2C0D762E9DF23A00BB3BCC /* Preview Content */,
+				5C2C0D772E9DF23A00BB3BCC /* AboutView.swift */,
+				5C2C0D782E9DF23A00BB3BCC /* Assets.xcassets */,
+				5C2C0D792E9DF23A00BB3BCC /* ContentView.swift */,
+				5C2C0D7A2E9DF23A00BB3BCC /* Counter.swift */,
+				5C2C0D7B2E9DF23A00BB3BCC /* CounterDatabase.swift */,
+				5C2C0D7C2E9DF23A00BB3BCC /* CounterSearchView.swift */,
+				5C2C0D7D2E9DF23A00BB3BCC /* CullTokenData.sh */,
+				5C2C0D7E2E9DF23A00BB3BCC /* Deck.swift */,
+				5C2C0D7F2E9DF23A00BB3BCC /* Doubling_Season.entitlements */,
+				5C2C0D802E9DF23A00BB3BCC /* Doubling_SeasonApp.swift */,
+				5C2C0D812E9DF23A00BB3BCC /* ExpandedTokenView.swift */,
+				5C2C0D822E9DF23A00BB3BCC /* Item.swift */,
+				5C2C0D832E9DF23A00BB3BCC /* LoadDeckSheet.swift */,
+				5C2C0D842E9DF23A00BB3BCC /* MultiplierView.swift */,
+				5C2C0D852E9DF23A00BB3BCC /* NewTokenSheet.swift */,
+				5C2C0D862E9DF23A00BB3BCC /* soldier.jpg */,
+				5C2C0D872E9DF23A00BB3BCC /* SplitStackView.swift */,
+				5C2C0D882E9DF23A00BB3BCC /* TokenDatabase.json */,
+				5C2C0D892E9DF23A00BB3BCC /* TokenDatabase.swift */,
+				5C2C0D8A2E9DF23A00BB3BCC /* TokenDefinition.swift */,
+				5C2C0D8B2E9DF23A00BB3BCC /* TokenLookup.json */,
+				5C2C0D8C2E9DF23A00BB3BCC /* TokenSearchRow.swift */,
+				5C2C0D8D2E9DF23A00BB3BCC /* TokenSearchView.swift */,
+				5C2C0D8E2E9DF23A00BB3BCC /* TokenView.swift */,
+				5C2C0D8F2E9DF23A00BB3BCC /* UtilityTokenView.swift */,
+			);
+			path = "Doubling Season";
+			sourceTree = "<group>";
+		};
 		CBBCDA6D2C0FA48F000ED260 = {
 			isa = PBXGroup;
 			children = (
-				CBC1E2F32C1B4B3100F080CD /* NOTES.md */,
-				CBBCDA782C0FA48F000ED260 /* Doubling Season */,
+				CBC1E2F32C1B4B3100F080CD /* Improvements.md */,
 				CBBCDA8C2C0FA491000ED260 /* Doubling SeasonTests */,
 				CBBCDA962C0FA491000ED260 /* Doubling SeasonUITests */,
 				CBBCDA772C0FA48F000ED260 /* Products */,
+				5C2C0D902E9DF23A00BB3BCC /* Doubling Season */,
 			);
 			sourceTree = "<group>";
 		};
@@ -116,39 +175,6 @@
 				CBBCDA932C0FA491000ED260 /* Doubling SeasonUITests.xctest */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		CBBCDA782C0FA48F000ED260 /* Doubling Season */ = {
-			isa = PBXGroup;
-			children = (
-				CB69791D2E999F0C007A4256 /* TokenDatabase.json */,
-				CB69791E2E999F0C007A4256 /* TokenDatabase.swift */,
-				CB69791F2E999F0C007A4256 /* TokenDefinition.swift */,
-				CB6979202E999F0C007A4256 /* TokenSearchRow.swift */,
-				CB6979212E999F0C007A4256 /* TokenSearchView.swift */,
-				CB6978F22E996330007A4256 /* NewTokenSheet.swift */,
-				CB6978F02E996311007A4256 /* LoadDeckSheet.swift */,
-				CBBCDA792C0FA48F000ED260 /* Doubling_SeasonApp.swift */,
-				CBBCDA7B2C0FA48F000ED260 /* ContentView.swift */,
-				CBBCDA7D2C0FA48F000ED260 /* Item.swift */,
-				CBBCDA7F2C0FA491000ED260 /* Assets.xcassets */,
-				CBBCDA812C0FA491000ED260 /* Doubling_Season.entitlements */,
-				CBBCDA822C0FA491000ED260 /* Preview Content */,
-				CBBCDAA82C0FA7B7000ED260 /* Deck.swift */,
-				CBC1E2F12C1A2E7500F080CD /* TokenView.swift */,
-				CB4E68AD2C56F8DC003D6048 /* TokenLookup.json */,
-				CBA8B78F2C5F02DF0063B87A /* AboutView.swift */,
-				CB0ADF792C7688C0004203B1 /* CullTokenData.sh */,
-			);
-			path = "Doubling Season";
-			sourceTree = "<group>";
-		};
-		CBBCDA822C0FA491000ED260 /* Preview Content */ = {
-			isa = PBXGroup;
-			children = (
-				CBBCDA832C0FA491000ED260 /* Preview Assets.xcassets */,
-			);
-			path = "Preview Content";
 			sourceTree = "<group>";
 		};
 		CBBCDA8C2C0FA491000ED260 /* Doubling SeasonTests */ = {
@@ -232,7 +258,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1520;
-				LastUpgradeCheck = 1540;
+				LastUpgradeCheck = 2600;
 				TargetAttributes = {
 					CBBCDA752C0FA48F000ED260 = {
 						CreatedOnToolsVersion = 15.2;
@@ -272,9 +298,12 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CBBCDA842C0FA491000ED260 /* Preview Assets.xcassets in Resources */,
-				CB6979222E999F0C007A4256 /* TokenDatabase.json in Resources */,
-				CBBCDA802C0FA491000ED260 /* Assets.xcassets in Resources */,
+				5C2C0D912E9DF23A00BB3BCC /* CullTokenData.sh in Resources */,
+				5C2C0D922E9DF23A00BB3BCC /* soldier.jpg in Resources */,
+				5C2C0D932E9DF23A00BB3BCC /* Assets.xcassets in Resources */,
+				5C2C0D942E9DF23A00BB3BCC /* Preview Assets.xcassets in Resources */,
+				5C2C0D952E9DF23A00BB3BCC /* TokenLookup.json in Resources */,
+				5C2C0D962E9DF23A00BB3BCC /* TokenDatabase.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -299,18 +328,25 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CBBCDA7C2C0FA48F000ED260 /* ContentView.swift in Sources */,
-				CBA8B7902C5F02DF0063B87A /* AboutView.swift in Sources */,
-				CB6978F32E996338007A4256 /* NewTokenSheet.swift in Sources */,
-				CB6978F12E996319007A4256 /* LoadDeckSheet.swift in Sources */,
-				CBC1E2F22C1A2E7500F080CD /* TokenView.swift in Sources */,
-				CB6979232E999F0C007A4256 /* TokenDatabase.swift in Sources */,
-				CB6979242E999F0C007A4256 /* TokenSearchRow.swift in Sources */,
-				CB6979252E999F0C007A4256 /* TokenSearchView.swift in Sources */,
-				CB6979262E999F0C007A4256 /* TokenDefinition.swift in Sources */,
-				CBBCDA7E2C0FA48F000ED260 /* Item.swift in Sources */,
-				CBBCDAA92C0FA7B7000ED260 /* Deck.swift in Sources */,
-				CBBCDA7A2C0FA48F000ED260 /* Doubling_SeasonApp.swift in Sources */,
+				5C2C0D972E9DF23A00BB3BCC /* MultiplierView.swift in Sources */,
+				5C2C0D982E9DF23A00BB3BCC /* TokenDatabase.swift in Sources */,
+				5C2C0D992E9DF23A00BB3BCC /* Deck.swift in Sources */,
+				5C2C0D9A2E9DF23A00BB3BCC /* Item.swift in Sources */,
+				5C2C0D9B2E9DF23A00BB3BCC /* NewTokenSheet.swift in Sources */,
+				5C2C0D9C2E9DF23A00BB3BCC /* ExpandedTokenView.swift in Sources */,
+				5C2C0D9D2E9DF23A00BB3BCC /* TokenSearchRow.swift in Sources */,
+				5C2C0D9E2E9DF23A00BB3BCC /* TokenView.swift in Sources */,
+				5C2C0D9F2E9DF23A00BB3BCC /* UtilityTokenView.swift in Sources */,
+				5C2C0DA02E9DF23A00BB3BCC /* AboutView.swift in Sources */,
+				5C2C0DA12E9DF23A00BB3BCC /* CounterSearchView.swift in Sources */,
+				5C2C0DA22E9DF23A00BB3BCC /* CounterDatabase.swift in Sources */,
+				5C2C0DA32E9DF23A00BB3BCC /* LoadDeckSheet.swift in Sources */,
+				5C2C0DA42E9DF23A00BB3BCC /* Counter.swift in Sources */,
+				5C2C0DA52E9DF23A00BB3BCC /* ContentView.swift in Sources */,
+				5C2C0DA62E9DF23A00BB3BCC /* Doubling_SeasonApp.swift in Sources */,
+				5C2C0DA72E9DF23A00BB3BCC /* TokenDefinition.swift in Sources */,
+				5C2C0DA82E9DF23A00BB3BCC /* TokenSearchView.swift in Sources */,
+				5C2C0DA92E9DF23A00BB3BCC /* SplitStackView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -383,6 +419,7 @@
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 84W8Q8DV3S;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -404,6 +441,7 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -445,6 +483,7 @@
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 84W8Q8DV3S;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -459,6 +498,7 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 			};
 			name = Release;
@@ -473,9 +513,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"Doubling Season/Preview Content\"";
-				DEVELOPMENT_TEAM = 84W8Q8DV3S;
+				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Doubling Season";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.card-games";
@@ -516,9 +557,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"Doubling Season/Preview Content\"";
-				DEVELOPMENT_TEAM = 84W8Q8DV3S;
+				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Doubling Season";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.card-games";
@@ -552,12 +594,10 @@
 		CBBCDAA12C0FA491000ED260 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = 84W8Q8DV3S;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				MACOSX_DEPLOYMENT_TARGET = 13.6;
@@ -577,12 +617,10 @@
 		CBBCDAA22C0FA491000ED260 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = 84W8Q8DV3S;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				MACOSX_DEPLOYMENT_TARGET = 13.6;
@@ -602,11 +640,9 @@
 		CBBCDAA42C0FA491000ED260 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = 84W8Q8DV3S;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				MACOSX_DEPLOYMENT_TARGET = 13.6;
@@ -626,11 +662,9 @@
 		CBBCDAA52C0FA491000ED260 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = 84W8Q8DV3S;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				MACOSX_DEPLOYMENT_TARGET = 13.6;
