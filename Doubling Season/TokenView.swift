@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct TokenView: View {
     
@@ -19,6 +20,10 @@ struct TokenView: View {
     
     // For multiplier support
     @AppStorage("tokenMultiplier") private var multiplier: Int = 1
+    @AppStorage("summoningSicknessEnabled") private var summoningSicknessEnabled = true
+    
+    // Environment for copying tokens
+    @Environment(\.modelContext) private var modelContext
     
     var body: some View {
         
@@ -31,13 +36,18 @@ struct TokenView: View {
             }
             
             VStack {
-                // Top Row - Name, Color, Tapped/Untapped (not for emblems)
+                // Top Row - Name, Color, Summoning Sick, Tapped/Untapped (not for emblems)
                 HStack {
                     Text(item.name).font(.title2)
                         .frame(maxWidth: .infinity, alignment: item.isEmblem ? .center : .leading)
 
                     if !item.isEmblem {
                         Spacer()
+                        // Summoning sick indicator (only show if > 0 and setting is enabled)
+                        if item.summoningSick > 0 && summoningSicknessEnabled {
+                            Text(Image(systemName:"circle.hexagonpath"))
+                            Text(String(item.summoningSick)).font(.title2)
+                        }
                         Text(Image(systemName:"rectangle.portrait.bottomhalf.inset.filled"))
                         Text(String(item.amount - item.tapped)).font(.title2)
                         Text(Image(systemName:"rectangle.landscape.rotate"))
@@ -45,10 +55,11 @@ struct TokenView: View {
                     }
                 }
                 
-                // Counter pills (all counters except +1/+1 and -1/-1)
-                if !item.counters.isEmpty {
+                // Counter pills (all counters including +1/+1 and -1/-1)
+                let allCounters = getAllCountersForDisplay(item: item)
+                if !allCounters.isEmpty {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 60))], spacing: 4) {
-                        ForEach(item.counters, id: \.name) { counter in
+                        ForEach(allCounters, id: \.name) { counter in
                             CounterPillView(name: counter.name, amount: counter.amount)
                         }
                     }
@@ -74,6 +85,9 @@ struct TokenView: View {
                                 if (item.amount - item.tapped <= 0){
                                     item.tapped -= 1
                                 }
+                                if (item.amount - item.summoningSick <= 0){
+                                    item.summoningSick -= 1
+                                }
                                 item.amount -= 1
                             }
                         })
@@ -86,7 +100,10 @@ struct TokenView: View {
                             isShowingAddAlert = true
                         })
                         .simultaneousGesture(TapGesture().onEnded {
-                            item.amount += multiplier
+                            let tokensToAdd = multiplier
+                            item.amount += tokensToAdd
+                            // Always track summoning sickness when adding tokens, regardless of setting
+                            item.summoningSick += tokensToAdd
                         })
                         // tap
                         Button(action:{
@@ -117,6 +134,13 @@ struct TokenView: View {
                             }
                             
                         })
+                        
+                        // copy
+                        Button(action:{
+                            copyToken()
+                        }){
+                            Text(Image(systemName:"document.on.document")).font(.title2)
+                        }.buttonStyle(BorderlessButtonStyle())
 
                         //SCUTE SWARM
                         if (item.name.uppercased() == "SCUTE SWARM"){
@@ -130,7 +154,18 @@ struct TokenView: View {
                             Spacer()
                         }
                         Spacer()
-                        Text(item.formattedPowerToughness).font(.title2)
+                        // Power/Toughness with styling for modifications
+                        if item.isPowerToughnessModified {
+                            Text(item.formattedPowerToughness)
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.blue.opacity(0.2))
+                                .cornerRadius(4)
+                        } else {
+                            Text(item.formattedPowerToughness).font(.title2)
+                        }
                     }
                 }
             }.padding([.top, .bottom, .trailing], 10).opacity(item.amount == 0 ? 0.5 : 1.0)
@@ -168,6 +203,10 @@ struct TokenView: View {
                 .allowsHitTesting(false) // Important: don't block touches
             }
         }
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.12), radius: 6, x: 0, y: 3)
+        .shadow(color: .black.opacity(0.04), radius: 1, x: 0, y: 1)
         .contentShape(Rectangle())
         .onTapGesture {
             isShowingExpandedView = true
@@ -179,7 +218,10 @@ struct TokenView: View {
             TextField("Value", text: $tempAlertValue)
             Button("Submit"){
                 let n: Int? = Int(tempAlertValue)
-                item.amount += (n ?? 0) * multiplier
+                let tokensToAdd = (n ?? 0) * multiplier
+                item.amount += tokensToAdd
+                // Always track summoning sickness when adding tokens, regardless of setting
+                item.summoningSick += tokensToAdd
                 tempAlertValue = ""
             }
         }message:{
@@ -192,12 +234,20 @@ struct TokenView: View {
                 if(n ?? 0 > item.amount){
                     n = item.amount
                 }
-                item.amount -= n ?? 0
+                let tokensToRemove = n ?? 0
+                item.amount -= tokensToRemove
+                // Reduce summoning sick count proportionally
+                if item.summoningSick > tokensToRemove {
+                    item.summoningSick -= tokensToRemove
+                } else {
+                    item.summoningSick = 0
+                }
                 tempAlertValue = ""
             }
             Button("Reset", role: .destructive){
                 item.amount = 0
                 item.tapped = 0
+                item.summoningSick = 0
             }
         }message:{
             Text("Remove tokens \(item.name)?")
@@ -231,6 +281,50 @@ struct TokenView: View {
             Text("How many \(item.name)?")
         }
     }
+    
+    // MARK: - Copy Token Function
+    private func copyToken() {
+        // Create a new token with the same properties but amount = 1 * multiplier
+        let copyAmount = 1 * multiplier
+        let newItem = Item(
+            abilities: item.abilities,
+            name: item.name,
+            pt: item.pt,
+            colors: item.colors,
+            amount: copyAmount,
+            createTapped: false,
+            applySummoningSickness: true  // Copied tokens should always have summoning sickness, regardless of setting
+        )
+        
+        // Copy counters from the original
+        newItem.plusOneCounters = item.plusOneCounters
+        newItem.minusOneCounters = item.minusOneCounters
+        newItem.counters = item.counters.map { TokenCounter(name: $0.name, amount: $0.amount) }
+        
+        withAnimation {
+            modelContext.insert(newItem)
+        }
+    }
+}
+
+// Helper function to get all counters including +1/+1 and -1/-1
+func getAllCountersForDisplay(item: Item) -> [TokenCounter] {
+    var allCounters: [TokenCounter] = []
+    
+    // Add regular counters
+    allCounters.append(contentsOf: item.counters)
+    
+    // Add +1/+1 counters if any
+    if item.plusOneCounters > 0 {
+        allCounters.append(TokenCounter(name: "+1/+1", amount: item.plusOneCounters))
+    }
+    
+    // Add -1/-1 counters if any
+    if item.minusOneCounters > 0 {
+        allCounters.append(TokenCounter(name: "-1/-1", amount: item.minusOneCounters))
+    }
+    
+    return allCounters
 }
 
 

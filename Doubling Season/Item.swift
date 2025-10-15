@@ -28,6 +28,7 @@ final class Item {
     var colors: String
     var amount: Int
     var tapped: Int
+    var summoningSick: Int = 0  // Number of tokens with summoning sickness
     var removeAlert = false
     var addAlert = false
     var untapAlert = false
@@ -35,18 +36,21 @@ final class Item {
     var counters: [TokenCounter] = []
     var plusOneCounters: Int = 0  // +1/+1 counters
     var minusOneCounters: Int = 0  // -1/-1 counters
+    var createdAt: Date = Date()  // Track creation time for consistent ordering
     
-    init(abilities: String, name: String, pt: String, colors: String, amount: Int, createTapped: Bool) {
+    init(abilities: String, name: String, pt: String, colors: String, amount: Int, createTapped: Bool, applySummoningSickness: Bool = true) {
         
         self.abilities = abilities
         self.name = name
         self.pt = pt
         self.amount = amount
         self.tapped = createTapped ? amount : 0
+        self.summoningSick = applySummoningSickness ? amount : 0  // Apply summoning sickness based on parameter
         self.colors = colors.uppercased(with: .autoupdatingCurrent)
         self.counters = []
         self.plusOneCounters = 0
         self.minusOneCounters = 0
+        self.createdAt = Date()  // Set creation time
     }
     
     // MARK: - Counter Management
@@ -111,11 +115,39 @@ final class Item {
         let net = netPlusOneCounters
         if net == 0 {
             return pt
-        } else if net > 0 {
+        }
+        
+        // Check if p/t is in "number/number" format for counter modifications
+        if canBeModifiedByCounters {
+            let components = pt.split(separator: "/")
+            if components.count == 2,
+               let power = Int(components[0]),
+               let toughness = Int(components[1]) {
+                let modifiedPower = power + net
+                let modifiedToughness = toughness + net
+                return "\(modifiedPower)/\(modifiedToughness)"
+            }
+        }
+        
+        // For non-integer p/t values, show as "[original] +x/+x"
+        if net > 0 {
             return "\(pt) (+\(net)/+\(net))"
         } else {
             return "\(pt) (\(net)/\(net))"
         }
+    }
+    
+    /// Returns true if this token's p/t can be modified by +1/+1 counters
+    var canBeModifiedByCounters: Bool {
+        let components = pt.split(separator: "/")
+        return components.count == 2 && 
+               Int(components[0]) != nil && 
+               Int(components[1]) != nil
+    }
+    
+    /// Returns true if the p/t is modified by counters (for styling)
+    var isPowerToughnessModified: Bool {
+        return netPlusOneCounters != 0
     }
     
     /// Creates a duplicate of this item for stack splitting
@@ -126,13 +158,16 @@ final class Item {
             pt: pt,
             colors: colors,
             amount: 0, // Amount will be set during split
-            createTapped: false // Tapped will be set during split
+            createTapped: false, // Tapped will be set during split
+            applySummoningSickness: false // Summoning sickness is reset during split
         )
         
         // Copy counters
         duplicate.plusOneCounters = plusOneCounters
         duplicate.minusOneCounters = minusOneCounters
         duplicate.counters = counters.map { TokenCounter(name: $0.name, amount: $0.amount) }
+        
+        // Note: createdAt will be set to current time, making the duplicate appear after the original
         
         return duplicate
     }

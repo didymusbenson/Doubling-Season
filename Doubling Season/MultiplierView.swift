@@ -14,8 +14,9 @@ struct MultiplierView: View {
     @State private var manualInputValue = ""
     
     var body: some View {
-        VStack {
+        HStack {
             if showControls {
+                // Expanded pill shape with controls
                 HStack(spacing: 16) {
                     Button(action: {
                         if multiplier > 1 {
@@ -29,9 +30,10 @@ struct MultiplierView: View {
                     .disabled(multiplier <= 1)
                     
                     Text("x\(multiplier)")
-                        .font(.title2)
+                        .font(.largeTitle)
                         .fontWeight(.semibold)
-                        .frame(minWidth: 60)
+                        .foregroundColor(.blue)
+                        .frame(minWidth: 80)
                         .onLongPressGesture {
                             manualInputValue = String(multiplier)
                             showManualInput = true
@@ -45,17 +47,29 @@ struct MultiplierView: View {
                             .foregroundColor(.blue)
                     }
                 }
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(12)
-                .transition(.scale.combined(with: .opacity))
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
+                .background(Color(.systemBackground))
+                .clipShape(Capsule())
+                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                .transition(.asymmetric(
+                    insertion: .scale.combined(with: .opacity),
+                    removal: .scale.combined(with: .opacity)
+                ))
             } else {
+                // Collapsed circular badge
                 Text("x\(multiplier)")
-                    .font(.title2)
+                    .font(.largeTitle) // About twice the size of .title2
                     .fontWeight(.semibold)
                     .foregroundColor(.blue)
+                    .frame(width: 80, height: 80)
+                    .background(Color(.systemBackground))
+                    .clipShape(Circle())
+                    .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                    .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
                     .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.2)) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
                             showControls.toggle()
                         }
                     }
@@ -63,11 +77,15 @@ struct MultiplierView: View {
                         manualInputValue = String(multiplier)
                         showManualInput = true
                     }
+                    .transition(.asymmetric(
+                        insertion: .scale.combined(with: .opacity),
+                        removal: .scale.combined(with: .opacity)
+                    ))
             }
         }
         .onTapGesture {
             if showControls {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(.easeInOut(duration: 0.3)) {
                     showControls = false
                 }
             }

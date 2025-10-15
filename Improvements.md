@@ -57,3 +57,4 @@ When a user "splits the stack", the number of summoning sick tokens in both stac
 If the user does a long press on the summoning sickness toolbar button, they should be given an alert that allows them to enable/disable the summoning sickness feature. When disabled, summoning sickness is ignored for creating new tokens and all existing tokens have their summoning sick counts set to 0.
 
 
+

@@ -28,6 +28,7 @@ struct NewTokenSheet: View {
     @State private var greenSelected = false
     
     @FocusState private var focusedField: Field?
+    @AppStorage("summoningSicknessEnabled") private var summoningSicknessEnabled = true
     
     enum Field {
         case name, type, powerToughness, abilities
@@ -211,10 +212,17 @@ struct NewTokenSheet: View {
                 
                 Spacer()
                 
-                Text("\(tokenQuantity)")
+                TextField("Quantity", value: $tokenQuantity, format: .number)
                     .font(.title)
                     .fontWeight(.bold)
                     .frame(minWidth: 50)
+                    .multilineTextAlignment(.center)
+                    .onChange(of: tokenQuantity) { _, newValue in
+                        // Ensure quantity is never less than 1
+                        if newValue < 1 {
+                            tokenQuantity = 1
+                        }
+                    }
                 
                 Spacer()
                 
@@ -281,7 +289,8 @@ struct NewTokenSheet: View {
             pt: powerToughness,
             colors: colorString,
             amount: max(1, tokenQuantity),
-            createTapped: createTapped
+            createTapped: createTapped,
+            applySummoningSickness: summoningSicknessEnabled
         )
         
         // Add to model context with animation

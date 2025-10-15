@@ -9,49 +9,51 @@ import SwiftUI
 import SwiftData
 
 /// Expanded token view sheet for detailed token management
-/// Note: This design may be changed in the future to a different presentation style
 struct ExpandedTokenView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Bindable var item: Item
     @StateObject private var counterDatabase = CounterDatabase()
     
-    @State private var isEditingToken = false
     @State private var isShowingCounterSearch = false
     @State private var isShowingSplitView = false
-    @State private var editableName: String = ""
-    @State private var editableColors: String = ""
-    @State private var editablePT: String = ""
-    @State private var editableAbilities: String = ""
+    
+    // Editing states for tap-to-edit functionality
+    @State private var editingField: EditableField? = nil
+    @State private var tempEditValue: String = ""
+    
+    // Color selection states
+    @State private var whiteSelected = false
+    @State private var blueSelected = false
+    @State private var blackSelected = false
+    @State private var redSelected = false
+    @State private var greenSelected = false
+    
+    @FocusState private var isTextFieldFocused: Bool
     
     // For multiplier support
     @AppStorage("tokenMultiplier") private var multiplier: Int = 1
+    @AppStorage("summoningSicknessEnabled") private var summoningSicknessEnabled = true
+    
+    enum EditableField {
+        case name, abilities, powerToughness, amount
+    }
     
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Header section with name and basic info
-                    headerSection
+                VStack(alignment: .leading, spacing: 20) {
+                    // Token Details Section - Similar to NewTokenSheet
+                    tokenDetailsSection
                     
-                    // Counter pills section
-                    if !item.counters.isEmpty || item.plusOneCounters > 0 || item.minusOneCounters > 0 {
-                        counterPillsSection
-                    }
+                    // Token Controls Section
+                    tokenControlsSection
                     
-                    // Abilities section
-                    abilitiesSection
-                    
-                    // Power/Toughness section (not for emblems)
-                    if !item.isEmblem && !item.pt.isEmpty {
-                        powerToughnessSection
-                    }
+                    // Color Selection Section
+                    colorSelectionSection
                     
                     // Counters management section
                     countersSection
-                    
-                    // Action buttons section
-                    actionButtonsSection
                     
                     // Stack management section
                     stackManagementSection
@@ -63,18 +65,16 @@ struct ExpandedTokenView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Done") {
+                        saveAnyPendingEdits()
                         dismiss()
                     }
                 }
                 
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(isEditingToken ? "Save" : "Edit") {
-                        if isEditingToken {
-                            saveTokenEdits()
-                        } else {
-                            startEditing()
-                        }
-                        isEditingToken.toggle()
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        saveAnyPendingEdits()
+                        isTextFieldFocused = false
                     }
                 }
             }
@@ -85,225 +85,381 @@ struct ExpandedTokenView: View {
         .sheet(isPresented: $isShowingSplitView) {
             SplitStackView(item: item)
         }
+        .onChange(of: isShowingSplitView) { _, newValue in
+            // When the split view is dismissed (becomes false), dismiss this expanded view too
+            if !newValue {
+                dismiss()
+            }
+        }
+        .onAppear {
+            updateColorSelection()
+        }
     }
     
-    // MARK: - Header Section
+    // MARK: - Token Details Section (like NewTokenSheet)
     
-    private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack{
-                if isEditingToken {
-                    TextField("Token Name", text: $editableName)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .font(.title2)
-                } else {
-                    Text(item.name)
-                        .font(.title2)
-                        .fontWeight(.bold)
-                }
-                Spacer()
-                if !item.isEmblem {
-                    // Tapped/Untapped indicators (not for emblems)
+    private var tokenDetailsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Token Details")
+                .font(.headline)
+                .padding(.bottom, 4)
+             
+            VStack(alignment: .leading, spacing: 16) {
+                // Name Field with P/T Badge and Amount
+                VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text(Image(systemName:"rectangle.portrait.bottomhalf.inset.filled"))
-                        Text(String(item.amount - item.tapped)).font(.title2)
-                        Text(Image(systemName:"rectangle.landscape.rotate"))
-                        Text(String(item.tapped)).font(.title2)
-                    }
-                }
-            }
-            HStack {
-                if isEditingToken {
-                    TextField("Colors", text: $editableColors)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .frame(width: 80)
-                } else if !item.isEmblem {
-                    // Color indicator for non-emblems
-                    HStack(spacing: 0) {
-                        if item.colors.contains("W") { Color.yellow.frame(width: 8, height: 20) }
-                        if item.colors.contains("U") { Color.blue.frame(width: 8, height: 20) }
-                        if item.colors.contains("B") { Color.purple.frame(width: 8, height: 20) }
-                        if item.colors.contains("R") { Color.red.frame(width: 8, height: 20) }
-                        if item.colors.contains("G") { Color.green.frame(width: 8, height: 20) }
-                        if item.colors.isEmpty || (!item.colors.contains("W") && !item.colors.contains("U") && !item.colors.contains("B") && !item.colors.contains("R") && !item.colors.contains("G")) {
-                            Color.gray.frame(width: 8, height: 20)
+                        // Tap to edit name
+                        if editingField == .name {
+                            TextField("Token Name", text: $tempEditValue)
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .focused($isTextFieldFocused)
+                                .onSubmit {
+                                    item.name = tempEditValue.isEmpty ? item.name : tempEditValue
+                                    editingField = nil
+                                }
+                                .onChange(of: isTextFieldFocused) { _, isFocused in
+                                    if !isFocused && editingField == .name {
+                                        item.name = tempEditValue.isEmpty ? item.name : tempEditValue
+                                        editingField = nil
+                                    }
+                                }
+                        } else {
+                            Text(item.name)
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .onTapGesture {
+                                    startEditing(field: .name, currentValue: item.name)
+                                }
                         }
-                    }
-                    .cornerRadius(4)
-                }
-                
-                
-
-            }
-        }
-    }
-    
-    // MARK: - Counter Pills Section
-    
-    private var counterPillsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Counters")
-                .font(.headline)
-            
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 8) {
-                // Regular counters (excluding +1/+1 and -1/-1)
-                ForEach(item.counters, id: \.name) { counter in
-                    CounterPillView(name: counter.name, amount: counter.amount)
-                }
-            }
-        }
-    }
-    
-    // MARK: - Abilities Section
-    
-    private var abilitiesSection: some View {
-        VStack(alignment: item.isEmblem ? .center : .leading, spacing: 8) {
-            Text("Abilities")
-                .font(.headline)
-                .frame(maxWidth: .infinity, alignment: item.isEmblem ? .center : .leading)
-            
-            if isEditingToken {
-                TextEditor(text: $editableAbilities)
-                    .frame(minHeight: 100)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                    )
-            } else {
-                Text(item.abilities)
-                    .font(.body)
-                    .frame(maxWidth: .infinity, alignment: item.isEmblem ? .center : .leading)
-            }
-        }
-    }
-    
-    // MARK: - Power/Toughness Section
-    
-    private var powerToughnessSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Power/Toughness")
-                .font(.headline)
-            
-            HStack {
-                if isEditingToken {
-                    TextField("P/T", text: $editablePT)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .frame(width: 80)
-                } else {
-                    Text(item.formattedPowerToughness)
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                }
-                
-                Spacer()
-                
-                // +1/+1 counter stepper
-                HStack {
-                    Text("+1/+1:")
-                    Stepper(
-                        value: Binding(
-                            get: { item.netPlusOneCounters },
-                            set: { newValue in
-                                let difference = newValue - item.netPlusOneCounters
-                                item.addPowerToughnessCounters(difference)
-                            }
-                        ),
-                        in: -99...99
-                    ) {
-                        Text("\(item.netPlusOneCounters)")
-                            .frame(minWidth: 30)
-                    }
-                }
-            }
-        }
-    }
-    
-    // MARK: - Counters Section
-    
-    private var countersSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                
-                
-                Button(action: {
-                    isShowingCounterSearch = true
-                }) {
-                    Text("Add Counters")
-                        .font(.headline)
-                }
-            }
-            
-            // List of all counters with increment/decrement
-            if !item.counters.isEmpty {
-                ForEach(item.counters, id: \.name) { counter in
-                    HStack {
-                        Text(counter.name)
-                            .font(.body)
                         
                         Spacer()
                         
-                        HStack {
-                            Button(action: {
-                                item.removeCounter(name: counter.name, amount: 1)
-                            }) {
-                                Image(systemName: "minus.circle.fill")
-                                    .foregroundColor(.red)
+                        // P/T display (tap to edit)
+                        if !item.pt.isEmpty && !item.isEmblem {
+                            HStack {
+                                if editingField == .powerToughness {
+                                    TextField("P/T", text: $tempEditValue)
+                                        .font(.title3)
+                                        .fontWeight(.semibold)
+                                        .frame(width: 60)
+                                        .multilineTextAlignment(.center)
+                                        .focused($isTextFieldFocused)
+                                        .onSubmit {
+                                            item.pt = tempEditValue.isEmpty ? item.pt : tempEditValue
+                                            editingField = nil
+                                        }
+                                        .onChange(of: isTextFieldFocused) { _, isFocused in
+                                            if !isFocused && editingField == .powerToughness {
+                                                item.pt = tempEditValue.isEmpty ? item.pt : tempEditValue
+                                                editingField = nil
+                                            }
+                                        }
+                                } else {
+                                    Text(item.pt)
+                                        .font(.title3)
+                                        .fontWeight(.semibold)
+                                        .onTapGesture {
+                                            startEditing(field: .powerToughness, currentValue: item.pt)
+                                        }
+                                }
+                                
+                                // Show +1/+1 counter modification
+                                if item.netPlusOneCounters != 0 {
+                                    let net = item.netPlusOneCounters
+                                    Text(net > 0 ? "(+\(net)/+\(net))" : "(\(net)/\(net))")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                             }
-                            .disabled(counter.amount <= 1)
-                            
-                            Text("\(counter.amount)")
-                                .frame(minWidth: 30)
-                            
-                            Button(action: {
-                                item.addCounter(name: counter.name, amount: 1)
-                            }) {
-                                Image(systemName: "plus.circle.fill")
-                                    .foregroundColor(.green)
-                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.gray.opacity(0.2))
+                            .cornerRadius(8)
                         }
                     }
-                    .padding(.vertical, 4)
+                    
+                    // Amount and status indicators
+                    HStack {
+                        // Tap to edit amount
+                        HStack {
+                            Text("Amount:")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            
+                            if editingField == .amount {
+                                TextField("Amount", text: $tempEditValue)
+                                    .font(.subheadline)
+                                    .frame(width: 60)
+                                    .keyboardType(.numberPad)
+                                    .focused($isTextFieldFocused)
+                                    .onSubmit {
+                                        if let newAmount = Int(tempEditValue), newAmount >= 0 {
+                                            updateAmountWithSummoningSickness(newAmount: newAmount)
+                                        }
+                                        editingField = nil
+                                    }
+                                    .onChange(of: isTextFieldFocused) { _, isFocused in
+                                        if !isFocused && editingField == .amount {
+                                            if let newAmount = Int(tempEditValue), newAmount >= 0 {
+                                                updateAmountWithSummoningSickness(newAmount: newAmount)
+                                            }
+                                            editingField = nil
+                                        }
+                                    }
+                            } else {
+                                Text("\(item.amount)")
+                                    .font(.subheadline)
+                                    .onTapGesture {
+                                        startEditing(field: .amount, currentValue: String(item.amount))
+                                    }
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        if !item.isEmblem {
+                            // Status indicators (summoning sick, tapped/untapped)
+                            HStack {
+                                if item.summoningSick > 0 && summoningSicknessEnabled {
+                                    Text(Image(systemName:"circle.hexagonpath"))
+                                    Text(String(item.summoningSick)).font(.subheadline)
+                                }
+                                Text(Image(systemName:"rectangle.portrait.bottomhalf.inset.filled"))
+                                Text(String(item.amount - item.tapped)).font(.subheadline)
+                                Text(Image(systemName:"rectangle.landscape.rotate"))
+                                Text(String(item.tapped)).font(.subheadline)
+                            }
+                            .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                
+                // Type Field (if available, not editable for now)
+                if !item.name.lowercased().contains("creature") {
+                    Text("Creature")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                
+                // Abilities Field (tap to edit)
+                VStack(alignment: .leading, spacing: 4) {
+                    if editingField == .abilities {
+                        TextEditor(text: $tempEditValue)
+                            .font(.caption)
+                            .frame(minHeight: 60)
+                            .focused($isTextFieldFocused)
+                            .onChange(of: isTextFieldFocused) { _, isFocused in
+                                if !isFocused && editingField == .abilities {
+                                    item.abilities = tempEditValue
+                                    editingField = nil
+                                }
+                            }
+                    } else {
+                        Text(item.abilities.isEmpty ? "Tap to add abilities..." : item.abilities)
+                            .font(.caption)
+                            .foregroundColor(item.abilities.isEmpty ? .secondary.opacity(0.7) : .secondary)
+                            .lineLimit(3)
+                            .onTapGesture {
+                                startEditing(field: .abilities, currentValue: item.abilities)
+                            }
+                    }
                 }
             }
+            .padding()
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(10)
         }
     }
     
-    // MARK: - Action Buttons Section
+    // MARK: - Color Selection Section
     
-    private var actionButtonsSection: some View {
-        VStack(spacing: 12) {
+    private var colorSelectionSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Color Identity")
+                .font(.headline)
+            
+            HStack() {
+                ColorSelectionButton(
+                    symbol: "W",
+                    isSelected: $whiteSelected,
+                    color: Color.yellow,
+                    label: "White"
+                )
+                .onChange(of: whiteSelected) { _, _ in updateColorsFromSelection() }
+                
+                Spacer()
+                
+                ColorSelectionButton(
+                    symbol: "U",
+                    isSelected: $blueSelected,
+                    color: Color.blue,
+                    label: "Blue"
+                )
+                .onChange(of: blueSelected) { _, _ in updateColorsFromSelection() }
+                
+                Spacer()
+                
+                ColorSelectionButton(
+                    symbol: "B",
+                    isSelected: $blackSelected,
+                    color: Color.purple,
+                    label: "Black"
+                )
+                .onChange(of: blackSelected) { _, _ in updateColorsFromSelection() }
+                
+                Spacer()
+                
+                ColorSelectionButton(
+                    symbol: "R",
+                    isSelected: $redSelected,
+                    color: Color.red,
+                    label: "Red"
+                )
+                .onChange(of: redSelected) { _, _ in updateColorsFromSelection() }
+                
+                Spacer()
+                
+                ColorSelectionButton(
+                    symbol: "G",
+                    isSelected: $greenSelected,
+                    color: Color.green,
+                    label: "Green"
+                )
+                .onChange(of: greenSelected) { _, _ in updateColorsFromSelection() }
+            }
+            .padding()
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(10)
+        }
+    }
+    
+    // MARK: - Token Controls Section
+    
+    private var tokenControlsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Token Controls")
+                .font(.headline)
+            
             HStack(spacing: 16) {
-                Button("Remove 1") {
+                // Remove/Add buttons (following condensed view style)
+                Button(action: {
                     if item.amount > 0 {
                         if item.amount - item.tapped <= 0 {
                             item.tapped -= 1
                         }
+                        if item.amount - item.summoningSick <= 0 {
+                            item.summoningSick -= 1
+                        }
                         item.amount -= 1
                     }
+                }) {
+                    Text(Image(systemName:"minus"))
+                        .font(.title2)
+                        .frame(width: 44, height: 44)
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(8)
                 }
-                .buttonStyle(.bordered)
                 
-                Button("Add 1") {
-                    item.amount += multiplier
+                Button(action: {
+                    let tokensToAdd = multiplier
+                    item.amount += tokensToAdd
+                    // Always track summoning sickness when adding tokens, regardless of setting
+                    item.summoningSick += tokensToAdd
+                }) {
+                    Text(Image(systemName:"plus"))
+                        .font(.title2)
+                        .frame(width: 44, height: 44)
+                        .background(Color.blue.opacity(0.2))
+                        .cornerRadius(8)
                 }
-                .buttonStyle(.borderedProminent)
-            }
-            
-            if !item.isEmblem {
-                HStack(spacing: 16) {
-                    Button("Untap") {
-                        if item.tapped > 0 {
-                            item.tapped -= 1
-                        }
-                    }
-                    .buttonStyle(.bordered)
+                
+                if !item.isEmblem {
+                    Spacer()
+                    // Tap/Untap buttons
+
                     
-                    Button("Tap") {
+                    Button(action: {
                         if item.tapped < item.amount {
                             item.tapped += 1
                         }
+                    }) {
+                        Text(Image(systemName:"arrow.clockwise.circle"))
+                            .font(.title2)
+                            .frame(width: 44, height: 44)
+                            .background(Color.gray.opacity(0.2))
+                            .cornerRadius(8)
                     }
-                    .buttonStyle(.bordered)
+                    
+                    Button(action: {
+                        if item.tapped > 0 {
+                            item.tapped -= 1
+                        }
+                    }) {
+                        Text(Image(systemName:"arrow.counterclockwise.circle"))
+                            .font(.title2)
+                            .frame(width: 44, height: 44)
+                            .background(Color.gray.opacity(0.2))
+                            .cornerRadius(8)
+                    }
+                }
+            }
+        }
+    }
+    
+
+    
+    // MARK: - Counters Management Section
+    
+    private var countersSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Counters")
+                .font(.headline)
+            
+            // Display counters as larger pills with steppers, plus add counter button
+            let allCounters = getAllCountersForDisplay(item: item)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 180))], spacing: 12) {
+                // Existing counter pills
+                ForEach(allCounters, id: \.name) { counter in
+                    CounterManagementPillView(
+                        counter: counter,
+                        onDecrement: {
+                            if counter.name == "+1/+1" {
+                                item.addPowerToughnessCounters(-1)
+                            } else if counter.name == "-1/-1" {
+                                item.minusOneCounters = max(0, item.minusOneCounters - 1)
+                            } else {
+                                item.removeCounter(name: counter.name, amount: 1)
+                            }
+                        },
+                        onIncrement: {
+                            if counter.name == "+1/+1" {
+                                item.addPowerToughnessCounters(1)
+                            } else if counter.name == "-1/-1" {
+                                item.minusOneCounters += 1
+                            } else {
+                                item.addCounter(name: counter.name, amount: 1)
+                            }
+                        }
+                    )
+                }
+                
+                // Add counter button styled as a pill
+                Button(action: {
+                    isShowingCounterSearch = true
+                }) {
+                    Image(systemName: "plus")
+                        .font(.title2)
+                        .foregroundColor(.blue)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(Color.white)
+                        .cornerRadius(16)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.blue.opacity(0.5), style: StrokeStyle(lineWidth: 2, dash: [5]))
+                        )
                 }
             }
         }
@@ -316,28 +472,119 @@ struct ExpandedTokenView: View {
             Text("Stack Management")
                 .font(.headline)
             
-            Button("Split Stack") {
-                isShowingSplitView = true
+            HStack(spacing: 12) {
+                Button("Split Stack") {
+                    isShowingSplitView = true
+                }
+                .buttonStyle(.bordered)
+                .frame(maxWidth: .infinity)
+                
+                Button("Copy Token") {
+                    copyToken()
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+                .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.bordered)
-            .frame(maxWidth: .infinity)
         }
     }
     
     // MARK: - Helper Methods
     
-    private func startEditing() {
-        editableName = item.name
-        editableColors = item.colors
-        editablePT = item.pt
-        editableAbilities = item.abilities
+    private func startEditing(field: EditableField, currentValue: String) {
+        editingField = field
+        tempEditValue = currentValue
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            isTextFieldFocused = true
+        }
     }
     
-    private func saveTokenEdits() {
-        item.name = editableName
-        item.colors = editableColors.uppercased()
-        item.pt = editablePT
-        item.abilities = editableAbilities
+    private func updateAmountWithSummoningSickness(newAmount: Int) {
+        let oldAmount = item.amount
+        
+        // Update the amount first
+        item.amount = newAmount
+        
+        // Handle summoning sickness adjustments
+        if newAmount > oldAmount {
+            // Amount increased - always add summoning sick tokens for the difference (tracking regardless of setting)
+            let difference = newAmount - oldAmount
+            item.summoningSick += difference
+        } else if newAmount < item.summoningSick {
+            // Amount decreased below summoning sick count - cap summoning sick to new amount
+            item.summoningSick = newAmount
+        }
+        
+        // Also ensure tapped count doesn't exceed new amount
+        if item.tapped > newAmount {
+            item.tapped = newAmount
+        }
+    }
+    
+    private func saveAnyPendingEdits() {
+        guard let field = editingField else { return }
+        
+        switch field {
+        case .name:
+            if !tempEditValue.isEmpty {
+                item.name = tempEditValue
+            }
+        case .abilities:
+            item.abilities = tempEditValue
+        case .powerToughness:
+            if !tempEditValue.isEmpty {
+                item.pt = tempEditValue
+            }
+        case .amount:
+            if let newAmount = Int(tempEditValue), newAmount >= 0 {
+                updateAmountWithSummoningSickness(newAmount: newAmount)
+            }
+        }
+        
+        editingField = nil
+    }
+    
+    private func updateColorSelection() {
+        whiteSelected = item.colors.contains("W")
+        blueSelected = item.colors.contains("U")
+        blackSelected = item.colors.contains("B")
+        redSelected = item.colors.contains("R")
+        greenSelected = item.colors.contains("G")
+    }
+    
+    private func updateColorsFromSelection() {
+        var newColors = ""
+        if whiteSelected { newColors += "W" }
+        if blueSelected { newColors += "U" }
+        if blackSelected { newColors += "B" }
+        if redSelected { newColors += "R" }
+        if greenSelected { newColors += "G" }
+        
+        item.colors = newColors
+    }
+    
+    // MARK: - Copy Token Function
+    private func copyToken() {
+        // Create a new token with the same properties but amount = 1 * multiplier
+        let copyAmount = 1 * multiplier
+        let newItem = Item(
+            abilities: item.abilities,
+            name: item.name,
+            pt: item.pt,
+            colors: item.colors,
+            amount: copyAmount,
+            createTapped: false,
+            applySummoningSickness: true  // Copied tokens should always have summoning sickness, regardless of setting
+        )
+        
+        // Copy counters from the original
+        newItem.plusOneCounters = item.plusOneCounters
+        newItem.minusOneCounters = item.minusOneCounters
+        newItem.counters = item.counters.map { TokenCounter(name: $0.name, amount: $0.amount) }
+        
+        withAnimation {
+            modelContext.insert(newItem)
+        }
     }
 }
 
@@ -368,6 +615,52 @@ struct CounterPillView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - Counter Management Pill View
+
+struct CounterManagementPillView: View {
+    let counter: TokenCounter
+    let onDecrement: () -> Void
+    let onIncrement: () -> Void
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Button(action: onDecrement) {
+                Image(systemName: "minus.circle.fill")
+                    .font(.title3)
+                    .foregroundColor(.red)
+            }
+            .disabled(counter.amount <= 1)
+            
+            VStack(spacing: 2) {
+                Text(counter.name)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .lineLimit(1)
+                
+                Text("\(counter.amount)")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.blue)
+            }
+            .frame(maxWidth: .infinity)
+            
+            Button(action: onIncrement) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.title3)
+                    .foregroundColor(.green)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.blue.opacity(0.08))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.blue.opacity(0.2), lineWidth: 1)
         )
     }
 }

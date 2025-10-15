@@ -125,6 +125,15 @@ struct SplitStackView: View {
                     .foregroundColor(.secondary)
                 }
                 
+                // Summoning sickness footnote
+                if item.summoningSick > 0 {
+                    Text("Note: Splitting will remove summoning sickness from both stacks.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .italic()
+                        .padding(.top, 8)
+                }
+                
                 Spacer()
                 
                 // Split button
@@ -187,10 +196,12 @@ struct SplitStackView: View {
         let newItem = item.createDuplicate()
         newItem.amount = newAmount
         newItem.tapped = newTapped
+        newItem.summoningSick = 0  // Reset summoning sickness for new stack
         
         // Update original item
         item.amount = originalAmount
         item.tapped = originalTapped
+        item.summoningSick = 0  // Reset summoning sickness for original stack
         
         // Insert new item into model context
         modelContext.insert(newItem)

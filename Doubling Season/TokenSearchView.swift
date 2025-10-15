@@ -28,6 +28,7 @@ struct TokenSearchView: View {
     
     // For multiplier support
     @AppStorage("tokenMultiplier") private var multiplier: Int = 1
+    @FocusState private var isQuantityFieldFocused: Bool
     
     // MARK: - Enums
     enum SearchTab: String, CaseIterable {
@@ -383,10 +384,18 @@ struct TokenSearchView: View {
                             
                             Spacer()
                             
-                            Text("\(tokenQuantity)")
+                            TextField("Quantity", value: $tokenQuantity, format: .number)
                                 .font(.title)
                                 .fontWeight(.bold)
                                 .frame(minWidth: 50)
+                                .multilineTextAlignment(.center)
+                                .focused($isQuantityFieldFocused)
+                                .onChange(of: tokenQuantity) { _, newValue in
+                                    // Ensure quantity is never less than 1
+                                    if newValue < 1 {
+                                        tokenQuantity = 1
+                                    }
+                                }
                             
                             Spacer()
                             
@@ -459,6 +468,13 @@ struct TokenSearchView: View {
                         createTokens()
                     }
                     .fontWeight(.bold)
+                }
+                
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        isQuantityFieldFocused = false
+                    }
                 }
             }
         }

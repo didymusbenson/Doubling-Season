@@ -10,7 +10,7 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @Query(sort: \Item.createdAt, order: .forward) private var items: [Item]
     //@Query private var utilityItems: [Item]
     @State private var isShowingNewTokenSheet = false
     @State private var activeItem: Item?
@@ -20,6 +20,8 @@ struct ContentView: View {
     @State private var isShowingSaveDeckAlert = false
     @State private var isShowingLoadDeckSheet = false
     @State private var showAbout = false
+    @AppStorage("summoningSicknessEnabled") private var summoningSicknessEnabled = true
+    @State private var isShowingSummoningSicknessAlert = false
     @State private var tempName = ""
     @State private var tempColors = ""
     @State private var tempAmount = ""
@@ -31,7 +33,7 @@ struct ContentView: View {
     @AppStorage("tokenMultiplier") private var multiplier: Int = 1
 
     var body: some View {
-        VStack {
+        ZStack {
             NavigationStack{
                 List{
                     if items.isEmpty {
@@ -48,6 +50,7 @@ struct ContentView: View {
                                 Label("Create a Token", systemImage: "plus")
                                // Label("Search for a Token", systemImage: "plus.magnifyingglass")
                                 Label("Untap Everything", systemImage: "arrow.counterclockwise.circle")
+                                Label("Clear Summoning Sickness", systemImage: "circle.hexagonpath")
                                 Label("Save Current Deck", systemImage: "folder.badge.plus")
                                 Label("Load a Deck", systemImage: "rectangle.portrait.on.rectangle.portrait.angled")
                                 Label("Board Wipe", systemImage: "trash.fill")
@@ -94,6 +97,15 @@ struct ContentView: View {
                                 Button(action: { isShowingUntapAlert = true }) {
                                     Image(systemName: "arrow.counterclockwise.circle")
                                 }
+                                
+                                Button(action: { clearSummoningSickness() }) {
+                                    Image(systemName: "circle.hexagonpath")
+                                }
+                                .simultaneousGesture(
+                                    LongPressGesture().onEnded { _ in
+                                        isShowingSummoningSicknessAlert = true
+                                    }
+                                )
                                 
                                 Button(action: { isShowingSaveDeckAlert = true }) {
                                     Image(systemName: "folder.badge.plus")
@@ -143,6 +155,18 @@ struct ContentView: View {
                                 }
                                 Button("Cancel",role:.cancel, action:{})
                             }
+                .alert("Summoning Sickness", isPresented: $isShowingSummoningSicknessAlert) {
+                    Button("Enable") {
+                        summoningSicknessEnabled = true
+                    }
+                    Button("Disable") {
+                        summoningSicknessEnabled = false
+                        clearSummoningSickness()
+                    }
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text("When disabled, summoning sickness will not be displayed in the UI. Current summoning sickness will be cleared.")
+                }
                 .sheet(isPresented: $isShowingNewTokenSheet) {
                     NewTokenSheet()
                 }
@@ -160,14 +184,28 @@ struct ContentView: View {
                 disableViewTimer()
             }
             
-            MultiplierView()
+            // MultiplierView positioned at the bottom
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    MultiplierView()
+                    Spacer()
+                }
                 .padding(.bottom)
+            }
         }
     }
     
     // No more timing out my phone please.
     private func disableViewTimer(){
         UIApplication.shared.isIdleTimerDisabled = true
+    }
+    
+    private func clearSummoningSickness() {
+        items.forEach { item in
+            item.summoningSick = 0
+        }
     }
     
     private func untapEverything(){
@@ -180,6 +218,7 @@ struct ContentView: View {
         items.forEach { Item in
             Item.tapped = 0;
             Item.amount = 0;
+            Item.summoningSick = 0;
         }
     }
     
@@ -244,7 +283,8 @@ struct ContentView: View {
             pt: pt,
             colors: colors,
             amount: finalAmount,
-            createTapped: createTapped
+            createTapped: createTapped,
+            applySummoningSickness: summoningSicknessEnabled
         )
         withAnimation {
             modelContext.insert(newItem)
