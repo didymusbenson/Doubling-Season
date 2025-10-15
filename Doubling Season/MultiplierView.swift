@@ -49,7 +49,7 @@ struct MultiplierView: View {
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
-                .background(Color(.systemBackground))
+                .background(Color(.tertiarySystemBackground))
                 .clipShape(Capsule())
                 .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
                 .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
@@ -64,7 +64,7 @@ struct MultiplierView: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.blue)
                     .frame(width: 80, height: 80)
-                    .background(Color(.systemBackground))
+                    .background(Color(.tertiarySystemBackground))
                     .clipShape(Circle())
                     .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
                     .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
