@@ -83,11 +83,7 @@ struct ExpandedTokenView: View {
             CounterSearchView(item: item)
         }
         .sheet(isPresented: $isShowingSplitView) {
-            SplitStackView(item: item)
-        }
-        .onChange(of: isShowingSplitView) { _, newValue in
-            // When the split view is dismissed (becomes false), dismiss this expanded view too
-            if !newValue {
+            SplitStackView(item: item) {
                 dismiss()
             }
         }

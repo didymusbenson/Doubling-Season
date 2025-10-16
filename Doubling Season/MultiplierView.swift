@@ -20,7 +20,7 @@ struct MultiplierView: View {
                 HStack(spacing: 16) {
                     Button(action: {
                         if multiplier > 1 {
-                            multiplier = max(1, multiplier / 2)
+                            multiplier = max(1, multiplier - 1)
                         }
                     }) {
                         Image(systemName: "minus")
@@ -40,7 +40,7 @@ struct MultiplierView: View {
                         }
                     
                     Button(action: {
-                        multiplier = min(1024, multiplier * 2) // Cap at reasonable limit
+                        multiplier = min(1024, multiplier + 1) // Cap at reasonable limit
                     }) {
                         Image(systemName: "plus")
                             .font(.title2)

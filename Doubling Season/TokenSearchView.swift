@@ -29,6 +29,7 @@ struct TokenSearchView: View {
     // For multiplier support
     @AppStorage("tokenMultiplier") private var multiplier: Int = 1
     @FocusState private var isQuantityFieldFocused: Bool
+    @FocusState private var isSearchFieldFocused: Bool
     
     // MARK: - Enums
     enum SearchTab: String, CaseIterable {
@@ -98,8 +99,8 @@ struct TokenSearchView: View {
                 // Create Custom Token Button
                 customTokenButton
             }
-            .navigationTitle("Select Token")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationTitle(isSearchFieldFocused ? "" : "Select Token")
+            .navigationBarTitleDisplayMode(isSearchFieldFocused ? .inline : .large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
@@ -137,6 +138,7 @@ struct TokenSearchView: View {
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .autocapitalization(.none)
                 .disableAutocorrection(true)
+                .focused($isSearchFieldFocused)
                 .onChange(of: searchText) { newValue in
                     tokenDatabase.searchQuery = newValue
                 }

@@ -133,8 +133,22 @@
     "type": "Token Creature — Angel"
   },
   {
+    "name": "Angel",
+    "abilities": "Flying, vigilance",
+    "pt": "4/4",
+    "colors": "W",
+    "type": "Token Creature — Angel"
+  },
+  {
     "name": "Angel Warrior",
     "abilities": "Flying",
+    "pt": "4/4",
+    "colors": "W",
+    "type": "Token Creature — Angel Warrior"
+  },
+  {
+    "name": "Angel Warrior",
+    "abilities": "Flying, vigilance",
     "pt": "4/4",
     "colors": "W",
     "type": "Token Creature — Angel Warrior"
@@ -191,6 +205,27 @@
   {
     "name": "Assassin",
     "abilities": "Whenever this creature deals combat damage to a player, that player loses the game.",
+    "pt": "1/1",
+    "colors": "B",
+    "type": "Token Creature — Assassin"
+  },
+  {
+    "name": "Assassin",
+    "abilities": "Deathtouch, haste",
+    "pt": "1/1",
+    "colors": "B",
+    "type": "Token Creature — Assassin"
+  },
+  {
+    "name": "Assassin",
+    "abilities": "Deathtouch Whenever this creature deals damage to a planeswalker, destroy that planeswalker.",
+    "pt": "1/1",
+    "colors": "B",
+    "type": "Token Creature — Assassin"
+  },
+  {
+    "name": "Assassin",
+    "abilities": "Menace",
     "pt": "1/1",
     "colors": "B",
     "type": "Token Creature — Assassin"
@@ -372,6 +407,13 @@
   },
   {
     "name": "Beast",
+    "abilities": "Trample",
+    "pt": "5/5",
+    "colors": "G",
+    "type": "Token Creature — Beast"
+  },
+  {
+    "name": "Beast",
     "abilities": "Deathtouch",
     "pt": "3/3",
     "colors": "B",
@@ -477,9 +519,23 @@
   },
   {
     "name": "Bird",
+    "abilities": "Flying This creature can block only creatures with flying.",
+    "pt": "1/1",
+    "colors": "U",
+    "type": "Token Creature — Bird"
+  },
+  {
+    "name": "Bird",
     "abilities": "Flying This creature can't block.",
     "pt": "1/1",
     "colors": "B",
+    "type": "Token Creature — Bird"
+  },
+  {
+    "name": "Bird",
+    "abilities": "Flying Whenever this creature attacks, target attacking creature gains flying until end of turn.",
+    "pt": "3/3",
+    "colors": "W",
     "type": "Token Creature — Bird"
   },
   {
@@ -494,6 +550,13 @@
     "abilities": "Whenever a land you control enters, this token gets +1/+0 until end of turn.",
     "pt": "2/2",
     "colors": "G",
+    "type": "Token Creature — Bird"
+  },
+  {
+    "name": "Bird",
+    "abilities": "Flying, vigilance",
+    "pt": "1/1",
+    "colors": "U",
     "type": "Token Creature — Bird"
   },
   {
@@ -728,6 +791,27 @@
     "type": "Token Creature — Cat"
   },
   {
+    "name": "Cat",
+    "abilities": "",
+    "pt": "1/1",
+    "colors": "W",
+    "type": "Token Creature — Cat"
+  },
+  {
+    "name": "Cat",
+    "abilities": "Haste",
+    "pt": "2/2",
+    "colors": "G",
+    "type": "Token Creature — Cat"
+  },
+  {
+    "name": "Cat",
+    "abilities": "Flying",
+    "pt": "2/2",
+    "colors": "W",
+    "type": "Token Creature — Cat"
+  },
+  {
     "name": "Cat Beast",
     "abilities": "",
     "pt": "2/2",
@@ -772,6 +856,13 @@
   {
     "name": "Centaur",
     "abilities": "",
+    "pt": "3/3",
+    "colors": "G",
+    "type": "Token Creature — Centaur"
+  },
+  {
+    "name": "Centaur",
+    "abilities": "Protection from black",
     "pt": "3/3",
     "colors": "G",
     "type": "Token Creature — Centaur"
@@ -954,6 +1045,13 @@
   {
     "name": "Construct",
     "abilities": "",
+    "pt": "1/1",
+    "colors": "",
+    "type": "Token Artifact Creature — Construct"
+  },
+  {
+    "name": "Construct",
+    "abilities": "",
     "pt": "2/2",
     "colors": "",
     "type": "Token Artifact Creature — Construct"
@@ -1078,6 +1176,13 @@
     "type": "Token Creature — Demon"
   },
   {
+    "name": "Demon",
+    "abilities": "Flying",
+    "pt": "6/6",
+    "colors": "B",
+    "type": "Token Creature — Demon"
+  },
+  {
     "name": "Demon Berserker",
     "abilities": "Menace",
     "pt": "2/3",
@@ -1138,6 +1243,13 @@
     "abilities": "Flying, haste",
     "pt": "2/2",
     "colors": "RW",
+    "type": "Token Creature — Dinosaur"
+  },
+  {
+    "name": "Dinosaur",
+    "abilities": "",
+    "pt": "3/3",
+    "colors": "G",
     "type": "Token Creature — Dinosaur"
   },
   {
@@ -1562,6 +1674,13 @@
   },
   {
     "name": "Elemental",
+    "abilities": "Trample, haste",
+    "pt": "3/1",
+    "colors": "R",
+    "type": "Token Creature — Elemental"
+  },
+  {
+    "name": "Elemental",
     "abilities": "",
     "pt": "5/5",
     "colors": "RG",
@@ -1597,6 +1716,13 @@
   },
   {
     "name": "Elemental",
+    "abilities": "Trample This creature's power and toughness are each equal to the number of instant and sorcery cards in your graveyard plus the number of cards with flashback you own in exile.",
+    "pt": "*/*",
+    "colors": "R",
+    "type": "Token Creature — Elemental"
+  },
+  {
+    "name": "Elemental",
     "abilities": "Trample, haste",
     "pt": "2/1",
     "colors": "R",
@@ -1607,6 +1733,27 @@
     "abilities": "",
     "pt": "1/1",
     "colors": "RU",
+    "type": "Token Creature — Elemental"
+  },
+  {
+    "name": "Elemental",
+    "abilities": "Whenever this creature becomes tapped, it deals 1 damage to target player.",
+    "pt": "1/1",
+    "colors": "R",
+    "type": "Token Creature — Elemental"
+  },
+  {
+    "name": "Elemental",
+    "abilities": "Haste",
+    "pt": "1/1",
+    "colors": "R",
+    "type": "Token Creature — Elemental"
+  },
+  {
+    "name": "Elemental",
+    "abilities": "Haste",
+    "pt": "3/1",
+    "colors": "R",
     "type": "Token Creature — Elemental"
   },
   {
@@ -1757,6 +1904,13 @@
     "type": "Token Creature — Faerie"
   },
   {
+    "name": "Faerie",
+    "abilities": "Flying This creature can block only creatures with flying.",
+    "pt": "1/1",
+    "colors": "U",
+    "type": "Token Creature — Faerie"
+  },
+  {
     "name": "Faerie Dragon (Token)",
     "abilities": "Flying",
     "pt": "1/1",
@@ -1836,6 +1990,13 @@
   {
     "name": "Fish",
     "abilities": "This creature can't be blocked.",
+    "pt": "1/1",
+    "colors": "U",
+    "type": "Token Creature — Fish"
+  },
+  {
+    "name": "Fish",
+    "abilities": "",
     "pt": "1/1",
     "colors": "U",
     "type": "Token Creature — Fish"
@@ -2052,8 +2213,22 @@
   },
   {
     "name": "Goblin",
+    "abilities": "This creature can't block.",
+    "pt": "1/1",
+    "colors": "R",
+    "type": "Token Creature — Goblin"
+  },
+  {
+    "name": "Goblin",
     "abilities": "Haste",
     "pt": "2/1",
+    "colors": "R",
+    "type": "Token Creature — Goblin"
+  },
+  {
+    "name": "Goblin",
+    "abilities": "Creatures you control attack each combat if able.",
+    "pt": "1/1",
     "colors": "R",
     "type": "Token Creature — Goblin"
   },
@@ -2157,6 +2332,27 @@
   },
   {
     "name": "Golem",
+    "abilities": "Flying",
+    "pt": "3/3",
+    "colors": "",
+    "type": "Token Artifact Creature — Golem"
+  },
+  {
+    "name": "Golem",
+    "abilities": "Trample",
+    "pt": "3/3",
+    "colors": "",
+    "type": "Token Artifact Creature — Golem"
+  },
+  {
+    "name": "Golem",
+    "abilities": "Vigilance",
+    "pt": "3/3",
+    "colors": "",
+    "type": "Token Artifact Creature — Golem"
+  },
+  {
+    "name": "Golem",
     "abilities": "",
     "pt": "*/*",
     "colors": "",
@@ -2167,6 +2363,13 @@
     "abilities": "",
     "pt": "4/4",
     "colors": "RW",
+    "type": "Token Artifact Creature — Golem"
+  },
+  {
+    "name": "Golem",
+    "abilities": "Haste",
+    "pt": "*/*",
+    "colors": "",
     "type": "Token Artifact Creature — Golem"
   },
   {
@@ -2401,6 +2604,20 @@
     "type": "Token Creature — Human"
   },
   {
+    "name": "Human",
+    "abilities": "Ward {2}",
+    "pt": "1/1",
+    "colors": "W",
+    "type": "Token Creature — Human"
+  },
+  {
+    "name": "Human",
+    "abilities": "Doctor spells you cast cost {1} less to cast.",
+    "pt": "1/1",
+    "colors": "W",
+    "type": "Token Creature — Human"
+  },
+  {
     "name": "Human Citizen",
     "abilities": "",
     "pt": "1/1",
@@ -2570,6 +2787,13 @@
   },
   {
     "name": "Illusion",
+    "abilities": "When this creature becomes the target of a spell, sacrifice it.",
+    "pt": "2/2",
+    "colors": "U",
+    "type": "Token Creature — Illusion"
+  },
+  {
+    "name": "Illusion",
     "abilities": "Whenever this creature blocks a creature, that creature doesn't untap during its controller's next untap step.",
     "pt": "0/2",
     "colors": "U",
@@ -2579,6 +2803,13 @@
     "name": "Illusion",
     "abilities": "",
     "pt": "*/*",
+    "colors": "U",
+    "type": "Token Creature — Illusion"
+  },
+  {
+    "name": "Illusion",
+    "abilities": "This creature gets +1/+0 for each other Illusion you control.",
+    "pt": "1/1",
     "colors": "U",
     "type": "Token Creature — Illusion"
   },
@@ -2620,6 +2851,13 @@
   {
     "name": "Insect",
     "abilities": "Flying, deathtouch",
+    "pt": "1/1",
+    "colors": "G",
+    "type": "Token Creature — Insect"
+  },
+  {
+    "name": "Insect",
+    "abilities": "",
     "pt": "1/1",
     "colors": "G",
     "type": "Token Creature — Insect"
@@ -2670,8 +2908,22 @@
     "name": "Insect",
     "abilities": "Flying",
     "pt": "1/1",
+    "colors": "B",
+    "type": "Token Creature — Insect"
+  },
+  {
+    "name": "Insect",
+    "abilities": "Flying",
+    "pt": "1/1",
     "colors": "",
     "type": "Token Artifact Creature — Insect"
+  },
+  {
+    "name": "Insect",
+    "abilities": "Flying",
+    "pt": "1/1",
+    "colors": "BG",
+    "type": "Token Creature — Insect"
   },
   {
     "name": "Insect",
@@ -2857,6 +3109,20 @@
   },
   {
     "name": "Knight",
+    "abilities": "First strike",
+    "pt": "2/2",
+    "colors": "W",
+    "type": "Token Creature — Knight"
+  },
+  {
+    "name": "Knight",
+    "abilities": "",
+    "pt": "2/2",
+    "colors": "W",
+    "type": "Token Creature — Knight"
+  },
+  {
+    "name": "Knight",
     "abilities": "Banding",
     "pt": "1/1",
     "colors": "W",
@@ -2867,6 +3133,13 @@
     "abilities": "Protection from white, haste Flanking",
     "pt": "2/2",
     "colors": "B",
+    "type": "Token Creature — Knight"
+  },
+  {
+    "name": "Knight",
+    "abilities": "Protection from red",
+    "pt": "2/2",
+    "colors": "W",
     "type": "Token Creature — Knight"
   },
   {
@@ -2956,6 +3229,13 @@
   {
     "name": "Kraken",
     "abilities": "Hexproof",
+    "pt": "8/8",
+    "colors": "U",
+    "type": "Token Creature — Kraken"
+  },
+  {
+    "name": "Kraken",
+    "abilities": "",
     "pt": "8/8",
     "colors": "U",
     "type": "Token Creature — Kraken"
@@ -3138,6 +3418,13 @@
   {
     "name": "Merfolk",
     "abilities": "",
+    "pt": "1/1",
+    "colors": "U",
+    "type": "Token Creature — Merfolk"
+  },
+  {
+    "name": "Merfolk",
+    "abilities": "Hexproof",
     "pt": "1/1",
     "colors": "U",
     "type": "Token Creature — Merfolk"
@@ -3452,6 +3739,13 @@
   },
   {
     "name": "Ooze",
+    "abilities": "This creature's power and toughness are each equal to the number of slime counters on Gutter Grime.",
+    "pt": "*/*",
+    "colors": "G",
+    "type": "Token Creature — Ooze"
+  },
+  {
+    "name": "Ooze",
     "abilities": "When this creature dies, create two 1/1 green Ooze creature tokens.",
     "pt": "2/2",
     "colors": "G",
@@ -3468,6 +3762,13 @@
     "name": "Ooze",
     "abilities": "",
     "pt": "3/3",
+    "colors": "G",
+    "type": "Token Creature — Ooze"
+  },
+  {
+    "name": "Ooze",
+    "abilities": "",
+    "pt": "2/2",
     "colors": "G",
     "type": "Token Creature — Ooze"
   },
@@ -3668,6 +3969,13 @@
     "type": "Token Creature — Phyrexian Hydra"
   },
   {
+    "name": "Phyrexian Hydra",
+    "abilities": "Reach",
+    "pt": "3/3",
+    "colors": "GW",
+    "type": "Token Creature — Phyrexian Hydra"
+  },
+  {
     "name": "Phyrexian Insect",
     "abilities": "Infect",
     "pt": "1/1",
@@ -3718,6 +4026,13 @@
   },
   {
     "name": "Phyrexian Wurm",
+    "abilities": "Deathtouch",
+    "pt": "3/3",
+    "colors": "",
+    "type": "Token Artifact Creature — Phyrexian Wurm"
+  },
+  {
+    "name": "Phyrexian Wurm",
     "abilities": "Trample Toxic 1",
     "pt": "*/*",
     "colors": "G",
@@ -3752,6 +4067,13 @@
     "type": "Token Creature — Pilot"
   },
   {
+    "name": "Pilot",
+    "abilities": "This token saddles Mounts and crews Vehicles as though its power were 2 greater.",
+    "pt": "1/1",
+    "colors": "",
+    "type": "Token Creature — Pilot"
+  },
+  {
     "name": "Pincher",
     "abilities": "",
     "pt": "2/2",
@@ -3768,6 +4090,13 @@
   {
     "name": "Pirate",
     "abilities": "This creature can't block. Creatures you control attack each combat if able.",
+    "pt": "1/1",
+    "colors": "R",
+    "type": "Token Creature — Pirate"
+  },
+  {
+    "name": "Pirate",
+    "abilities": "Menace, haste",
     "pt": "1/1",
     "colors": "R",
     "type": "Token Creature — Pirate"
@@ -3913,6 +4242,34 @@
     "type": "Token Creature — Rat"
   },
   {
+    "name": "Rat",
+    "abilities": "Deathtouch",
+    "pt": "1/1",
+    "colors": "B",
+    "type": "Token Creature — Rat"
+  },
+  {
+    "name": "Rat",
+    "abilities": "This creature can't block.",
+    "pt": "1/1",
+    "colors": "B",
+    "type": "Token Creature — Rat"
+  },
+  {
+    "name": "Rat",
+    "abilities": "Lifelink",
+    "pt": "1/1",
+    "colors": "B",
+    "type": "Token Creature — Rat"
+  },
+  {
+    "name": "Rat",
+    "abilities": "This creature gets +1/+1 for each other Rat you control.",
+    "pt": "1/1",
+    "colors": "B",
+    "type": "Token Creature — Rat"
+  },
+  {
     "name": "Rat Rogue",
     "abilities": "",
     "pt": "1/1",
@@ -4039,6 +4396,20 @@
     "type": "Token Creature — Rogue"
   },
   {
+    "name": "Rogue",
+    "abilities": "Menace",
+    "pt": "2/2",
+    "colors": "B",
+    "type": "Token Creature — Rogue"
+  },
+  {
+    "name": "Rogue",
+    "abilities": "Hexproof",
+    "pt": "2/2",
+    "colors": "B",
+    "type": "Token Creature — Rogue"
+  },
+  {
     "name": "Rowan Kenrith Emblem",
     "abilities": "Whenever you activate an ability that isn't a mana ability, copy it. You may choose new targets for the copy.",
     "pt": "",
@@ -4097,6 +4468,13 @@
   {
     "name": "Samurai",
     "abilities": "Vigilance",
+    "pt": "2/2",
+    "colors": "W",
+    "type": "Token Creature — Samurai"
+  },
+  {
+    "name": "Samurai",
+    "abilities": "Double strike",
     "pt": "2/2",
     "colors": "W",
     "type": "Token Creature — Samurai"
@@ -4327,8 +4705,22 @@
   },
   {
     "name": "Skeleton",
+    "abilities": "",
+    "pt": "1/1",
+    "colors": "B",
+    "type": "Token Creature — Skeleton"
+  },
+  {
+    "name": "Skeleton",
     "abilities": "Menace",
     "pt": "4/1",
+    "colors": "B",
+    "type": "Token Creature — Skeleton"
+  },
+  {
+    "name": "Skeleton",
+    "abilities": "When this creature dies, each opponent gains 2 life.",
+    "pt": "1/1",
     "colors": "B",
     "type": "Token Creature — Skeleton"
   },
@@ -4432,6 +4824,13 @@
   },
   {
     "name": "Snake",
+    "abilities": "Deathtouch",
+    "pt": "1/1",
+    "colors": "G",
+    "type": "Token Creature — Snake"
+  },
+  {
+    "name": "Snake",
     "abilities": "",
     "pt": "5/4",
     "colors": "G",
@@ -4455,6 +4854,13 @@
     "name": "Soldier",
     "abilities": "Defender",
     "pt": "1/2",
+    "colors": "W",
+    "type": "Token Creature — Soldier"
+  },
+  {
+    "name": "Soldier",
+    "abilities": "Lifelink",
+    "pt": "1/1",
     "colors": "W",
     "type": "Token Creature — Soldier"
   },
@@ -4485,6 +4891,13 @@
     "pt": "1/1",
     "colors": "",
     "type": "Token Artifact Creature — Soldier"
+  },
+  {
+    "name": "Soldier",
+    "abilities": "",
+    "pt": "2/2",
+    "colors": "W",
+    "type": "Token Creature — Soldier"
   },
   {
     "name": "Soldier Ally",
@@ -4735,6 +5148,27 @@
     "name": "Spirit",
     "abilities": "",
     "pt": "*/*",
+    "colors": "W",
+    "type": "Token Creature — Spirit"
+  },
+  {
+    "name": "Spirit",
+    "abilities": "",
+    "pt": "1/1",
+    "colors": "W",
+    "type": "Token Creature — Spirit"
+  },
+  {
+    "name": "Spirit",
+    "abilities": "",
+    "pt": "2/2",
+    "colors": "W",
+    "type": "Token Creature — Spirit"
+  },
+  {
+    "name": "Spirit",
+    "abilities": "",
+    "pt": "3/3",
     "colors": "W",
     "type": "Token Creature — Spirit"
   },
@@ -5180,6 +5614,13 @@
     "type": "Token Creature — Treefolk"
   },
   {
+    "name": "Treefolk",
+    "abilities": "Reach This creature's power and toughness are each equal to the number of lands you control.",
+    "pt": "*/*",
+    "colors": "G",
+    "type": "Token Creature — Treefolk"
+  },
+  {
     "name": "Treefolk Shaman",
     "abilities": "",
     "pt": "2/5",
@@ -5316,6 +5757,13 @@
     "name": "Vampire",
     "abilities": "",
     "pt": "*/*",
+    "colors": "B",
+    "type": "Token Creature — Vampire"
+  },
+  {
+    "name": "Vampire",
+    "abilities": "",
+    "pt": "1/1",
     "colors": "B",
     "type": "Token Creature — Vampire"
   },
@@ -5497,6 +5945,13 @@
   {
     "name": "Wall",
     "abilities": "Defender",
+    "pt": "0/4",
+    "colors": "W",
+    "type": "Token Creature — Wall"
+  },
+  {
+    "name": "Wall",
+    "abilities": "Defender",
     "pt": "1/3",
     "colors": "W",
     "type": "Token Creature — Wall"
@@ -5534,6 +5989,13 @@
     "abilities": "",
     "pt": "2/1",
     "colors": "B",
+    "type": "Token Creature — Warrior"
+  },
+  {
+    "name": "Warrior",
+    "abilities": "Vigilance",
+    "pt": "1/1",
+    "colors": "W",
     "type": "Token Creature — Warrior"
   },
   {
@@ -5609,6 +6071,13 @@
   {
     "name": "Wizard",
     "abilities": "{1}, Sacrifice this creature: Counter target noncreature spell unless its controller pays {1}.",
+    "pt": "1/1",
+    "colors": "U",
+    "type": "Token Creature — Wizard"
+  },
+  {
+    "name": "Wizard",
+    "abilities": "Flying",
     "pt": "1/1",
     "colors": "U",
     "type": "Token Creature — Wizard"
@@ -5742,6 +6211,13 @@
   {
     "name": "Wurm",
     "abilities": "",
+    "pt": "5/5",
+    "colors": "G",
+    "type": "Token Creature — Wurm"
+  },
+  {
+    "name": "Wurm",
+    "abilities": "",
     "pt": "4/4",
     "colors": "G",
     "type": "Token Creature — Wurm"
@@ -5793,6 +6269,13 @@
     "abilities": "",
     "pt": "*/*",
     "colors": "U",
+    "type": "Token Creature — Zombie"
+  },
+  {
+    "name": "Zombie",
+    "abilities": "Decayed",
+    "pt": "2/2",
+    "colors": "B",
     "type": "Token Creature — Zombie"
   },
   {

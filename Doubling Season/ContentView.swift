@@ -40,12 +40,12 @@ struct ContentView: View {
                         // Empty state view
                         
                         VStack(spacing:20) {
-                        
+
                             Text("No tokens to display")
                                 .font(.title2)
                                 .foregroundColor(.secondary)
                                 .opacity(0.5)
-                            
+
                             VStack(alignment: .leading, spacing: 12) {
                                 Label("Create a Token", systemImage: "plus")
                                // Label("Search for a Token", systemImage: "plus.magnifyingglass")
@@ -63,7 +63,7 @@ struct ContentView: View {
                                 .italic(true)
                                 .foregroundColor(.secondary)
                                 .opacity(0.5)
-                            
+
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .listRowSeparator(.hidden)
@@ -84,7 +84,8 @@ struct ContentView: View {
                                         }
                         }
                     }
-                }.listRowSpacing(8.0)
+                }
+                .listRowSpacing(8.0)
 
                     .toolbar {
                         ToolbarItemGroup(placement: .principal) {

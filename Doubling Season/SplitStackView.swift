@@ -12,6 +12,7 @@ struct SplitStackView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Bindable var item: Item
+    var onSplitCompleted: (() -> Void)?
     
     @State private var splitAmount: Int = 1
     @State private var tappedFirst: Bool = false
@@ -44,43 +45,47 @@ struct SplitStackView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Number of tokens to split off:")
                         .font(.headline)
-                    
-                    // Slider
-                    VStack {
-                        Slider(
-                            value: Binding(
-                                get: { Double(splitAmount) },
-                                set: { splitAmount = Int($0) }
-                            ),
-                            in: 1...Double(maxSplit),
-                            step: 1
-                        )
-                        
-                        HStack {
-                            Text("1")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            Text("\(maxSplit)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    
-                    // Manual entry
+
                     HStack {
-                        Text("Amount:")
-                        TextField(
-                            "Amount",
-                            value: $splitAmount,
-                            format: .number
-                        )
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .frame(width: 80)
-                        .onChange(of: splitAmount) { _, newValue in
-                            splitAmount = max(1, min(newValue, maxSplit))
+                        Button(action: {
+                            if splitAmount > 1 {
+                                splitAmount -= 1
+                            }
+                        }) {
+                            Image(systemName: "minus.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(splitAmount > 1 ? .blue : .gray)
                         }
+                        .disabled(splitAmount <= 1)
+
+                        Spacer()
+
+                        TextField("Amount", value: $splitAmount, format: .number)
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .frame(minWidth: 50)
+                            .multilineTextAlignment(.center)
+                            .onChange(of: splitAmount) { _, newValue in
+                                // Ensure amount is within valid range
+                                splitAmount = max(1, min(newValue, maxSplit))
+                            }
+
+                        Spacer()
+
+                        Button(action: {
+                            if splitAmount < maxSplit {
+                                splitAmount += 1
+                            }
+                        }) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(splitAmount < maxSplit ? .blue : .gray)
+                        }
+                        .disabled(splitAmount >= maxSplit)
                     }
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(10)
                 }
                 
                 Divider()
@@ -138,8 +143,11 @@ struct SplitStackView: View {
                 
                 // Split button
                 Button("Split Stack") {
-                    performSplit()
                     dismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        performSplit()
+                        onSplitCompleted?()
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(splitAmount >= item.amount)
@@ -155,8 +163,14 @@ struct SplitStackView: View {
                 }
             }
         }
+        .onAppear {
+            // Initialize splitAmount based on maxSplit to prevent crashes
+            if splitAmount > maxSplit {
+                splitAmount = max(1, maxSplit)
+            }
+        }
     }
-    
+
     private func calculateSplit() -> (originalAmount: Int, originalTapped: Int, newAmount: Int, newTapped: Int) {
         let splitAmount = self.splitAmount
         let currentTapped = item.tapped

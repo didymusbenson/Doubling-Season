@@ -115,7 +115,7 @@ def clean_token_data(tokens: List[Dict]) -> List[Dict]:
             abilities = abilities.strip()
         
         # Create unique identifier for deduplication
-        unique_key = f"{name}|{token['pt']}|{token['colors']}|{type_text}"
+        unique_key = f"{name}|{token['pt']}|{token['colors']}|{type_text}|{abilities}"
         
         # Skip duplicates
         if unique_key in seen_tokens:

@@ -33,6 +33,7 @@
 		5C2C0DA82E9DF23A00BB3BCC /* TokenSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D8D2E9DF23A00BB3BCC /* TokenSearchView.swift */; };
 		5C2C0DA92E9DF23A00BB3BCC /* SplitStackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0D872E9DF23A00BB3BCC /* SplitStackView.swift */; };
 		5C2C0DAC2E9F1DDE00BB3BCC /* SummoningSicknessSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2C0DAB2E9F1DDE00BB3BCC /* SummoningSicknessSettings.swift */; };
+		CB62A41F2EA15AB400447E2B /* CLAUDE.md in Resources */ = {isa = PBXBuildFile; fileRef = CB62A41E2EA15AB400447E2B /* CLAUDE.md */; };
 		CBBCDA8E2C0FA491000ED260 /* Doubling_SeasonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBBCDA8D2C0FA491000ED260 /* Doubling_SeasonTests.swift */; };
 		CBBCDA982C0FA491000ED260 /* Doubling_SeasonUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBBCDA972C0FA491000ED260 /* Doubling_SeasonUITests.swift */; };
 		CBBCDA9A2C0FA491000ED260 /* Doubling_SeasonUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBBCDA992C0FA491000ED260 /* Doubling_SeasonUITestsLaunchTests.swift */; };
@@ -85,6 +86,7 @@
 		5C2C0DAB2E9F1DDE00BB3BCC /* SummoningSicknessSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummoningSicknessSettings.swift; sourceTree = "<group>"; };
 		CB62A41C2EA0438000447E2B /* FeedbackAndIdeas.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = FeedbackAndIdeas.md; sourceTree = "<group>"; };
 		CB62A41D2EA04C1700447E2B /* Premium.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = Premium.md; sourceTree = "<group>"; };
+		CB62A41E2EA15AB400447E2B /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
 		CBBCDA762C0FA48F000ED260 /* Doubling Season.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Doubling Season.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CBBCDA892C0FA491000ED260 /* Doubling SeasonTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Doubling SeasonTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CBBCDA8D2C0FA491000ED260 /* Doubling_SeasonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Doubling_SeasonTests.swift; sourceTree = "<group>"; };
@@ -164,6 +166,7 @@
 		CBBCDA6D2C0FA48F000ED260 = {
 			isa = PBXGroup;
 			children = (
+				CB62A41E2EA15AB400447E2B /* CLAUDE.md */,
 				CB62A41D2EA04C1700447E2B /* Premium.md */,
 				CBC1E2F32C1B4B3100F080CD /* Improvements.md */,
 				CB62A41C2EA0438000447E2B /* FeedbackAndIdeas.md */,
@@ -310,6 +313,7 @@
 				5C2C0D932E9DF23A00BB3BCC /* Assets.xcassets in Resources */,
 				5C2C0D942E9DF23A00BB3BCC /* Preview Assets.xcassets in Resources */,
 				5C2C0D952E9DF23A00BB3BCC /* TokenLookup.json in Resources */,
+				CB62A41F2EA15AB400447E2B /* CLAUDE.md in Resources */,
 				5C2C0D962E9DF23A00BB3BCC /* TokenDatabase.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
