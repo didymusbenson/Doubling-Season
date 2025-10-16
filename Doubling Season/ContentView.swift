@@ -71,7 +71,10 @@ struct ContentView: View {
                         .padding(.vertical, 15)
                     } else {
                         ForEach(items){item in
-                            TokenView(item: item).listRowSeparator(.hidden).listRowInsets(EdgeInsets())
+                            TokenView(item: item)
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
+                                .listRowBackground(Color.clear)
                                 .deleteDisabled(true)
                                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                             Button(role: .destructive) {
@@ -86,8 +89,9 @@ struct ContentView: View {
                     }
                 }
                 .listRowSpacing(8.0)
-
-                    .toolbar {
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .toolbar {
                         ToolbarItemGroup(placement: .principal) {
                             HStack(spacing: 20) {
 

@@ -27,15 +27,8 @@ struct TokenView: View {
     
     var body: some View {
         
-        // Main content WITHOUT the color bar in HStack
-        HStack {
-            // Empty space where color bar will overlay (not for emblems)
-            if !item.isEmblem {
-                Color.clear
-                    .frame(width: 10)
-            }
-            
-            VStack {
+        // Main content
+        VStack {
                 // Top Row - Name, Color, Summoning Sick, Tapped/Untapped (not for emblems)
                 HStack {
                     Text(item.name).font(.title2)
@@ -168,45 +161,21 @@ struct TokenView: View {
                         }
                     }
                 }
-            }.padding([.top, .bottom, .trailing], 10).opacity(item.amount == 0 ? 0.5 : 1.0)
-                .animation(.easeInOut(duration: 0.3), value: item.amount == 0)
         }
-        .overlay(alignment: .leading) {
-            // Color bar as overlay - completely independent of layout (not for emblems)
-            if !item.isEmblem {
-                VStack(spacing: 0) {
-                    if item.colors.contains("W") {
-                        Color.yellow
-                    }
-                    if item.colors.contains("U") {
-                        Color.blue
-                    }
-                    if item.colors.contains("B") {
-                        Color.purple
-                    }
-                    if item.colors.contains("R") {
-                        Color.red
-                    }
-                    if item.colors.contains("G") {
-                        Color.green
-                    }
-                    if item.colors.isEmpty ||
-                       (!item.colors.contains("W") &&
-                        !item.colors.contains("U") &&
-                        !item.colors.contains("B") &&
-                        !item.colors.contains("R") &&
-                        !item.colors.contains("G")) {
-                        Color.gray
-                    }
-                }
-                .frame(width: 10)
-                .allowsHitTesting(false) // Important: don't block touches
-            }
-        }
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
+        .padding(10)
+        .opacity(item.amount == 0 ? 0.5 : 1.0)
+        .animation(.easeInOut(duration: 0.3), value: item.amount == 0)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(gradientForColors(), lineWidth: 5)
+        )
         .shadow(color: .black.opacity(0.12), radius: 6, x: 0, y: 3)
         .shadow(color: .black.opacity(0.04), radius: 1, x: 0, y: 1)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .contentShape(Rectangle())
         .onTapGesture {
             isShowingExpandedView = true
@@ -282,6 +251,46 @@ struct TokenView: View {
         }
     }
     
+    // MARK: - Helper Methods
+
+    private func gradientForColors() -> LinearGradient {
+        // Build color array based on token colors
+        var colors: [Color] = []
+
+        if !item.isEmblem {
+            if item.colors.contains("W") {
+                colors.append(.yellow)
+            }
+            if item.colors.contains("U") {
+                colors.append(.blue)
+            }
+            if item.colors.contains("B") {
+                colors.append(.purple)
+            }
+            if item.colors.contains("R") {
+                colors.append(.red)
+            }
+            if item.colors.contains("G") {
+                colors.append(.green)
+            }
+
+            // If no colors or colorless, use gray
+            if colors.isEmpty {
+                colors.append(.gray)
+            }
+        } else {
+            // Emblems have no border gradient
+            colors.append(.clear)
+        }
+
+        // Create gradient from colors
+        return LinearGradient(
+            gradient: Gradient(colors: colors),
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
     // MARK: - Copy Token Function
     private func copyToken() {
         // Create a new token with the same properties but amount = 1 * multiplier
