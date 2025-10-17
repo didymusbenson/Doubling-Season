@@ -47,12 +47,15 @@ All registered in `Doubling_SeasonApp.swift` ModelContainer schema.
 **ContentView** - Main hub
 - Displays token list via `@Query(sort: \Item.createdAt)`
 - Toolbar with game actions (untap, clear summoning sickness, save/load decks, board wipe)
+  - Toolbar icons: plus (new token), arrow.counterclockwise.circle (untap), circle.hexagonpath (summoning sickness), square.and.arrow.down.on.square (save deck), square.and.arrow.up.on.square (load deck), eraser (board wipe)
+- Empty state view with interactive "Create your first token" button (blue text)
 - Manages sheets for token search and manual creation
 - MultiplierView overlay at bottom
 
 **TokenView** - Compact token card
 - Shows name, P/T, abilities, counters, tapped/untapped counts
-- Color identity bar on left edge (W=yellow, U=blue, B=purple, R=red, G=green, colorless=gray)
+- Color identity border gradient (W=yellow, U=blue, B=purple, R=red, G=green, colorless=gray)
+- Counter pills displayed as white text on solid colored background for high contrast
 - Tap to open ExpandedTokenView sheet
 - Quick actions: add/remove (with multiplier), tap/untap, copy
 - Long-press for bulk operations
@@ -61,6 +64,7 @@ All registered in `Doubling_SeasonApp.swift` ModelContainer schema.
 **ExpandedTokenView** - Detailed editor
 - Tap-to-edit fields for all token properties
 - Counter management via CounterSearchView
+- CounterPillView (simple display) and CounterManagementPillView (interactive with +/- buttons)
 - Stack splitting via SplitStackView
 - Shows summoning sickness status
 
@@ -96,6 +100,7 @@ Item {
 ```swift
 TokenDefinition {
     name, abilities, pt, colors, type: String
+    var id: String  // Composite ID: "\(name)|\(pt)|\(colors)|\(type)|\(abilities)"
     func toItem(amount: Int, createTapped: Bool) -> Item
     func matches(query: String) -> Bool
 }
@@ -167,13 +172,19 @@ modelContext.insert(newItem)
 
 ## Important Implementation Notes
 
+### Recent Fixes and Improvements
+Recent changes to the codebase:
+1. **Token Search Fix** - TokenDefinition.id now uses composite key matching deduplication logic to ensure all token variants appear in search results
+2. **UI Icon Updates** - Updated toolbar icons: save deck (square.and.arrow.down.on.square), load deck (square.and.arrow.up.on.square), board wipe (eraser)
+3. **Counter Pill Visibility** - CounterPillView now uses inverted color scheme (solid background, white text, .callout font) for better readability
+4. **Empty State Improvement** - "Create your first token" is now an interactive blue button
+
 ### File References for Current Tasks
 The `Improvements.md` file contains prioritized bug fixes and feature requests:
-1. **Missing Token Types** - `process_tokens.py:118` deduplication includes abilities now
-2. **Search UI Issue** - `TokenSearchView.swift:101-102` navigation title overlap with keyboard
-3. **Multiplier Adjustment** - `MultiplierView.swift:21-48` should increment by 1, not powers of 2
-4. **Split Stack Cancellation** - `ExpandedTokenView.swift:85-93` and `SplitStackView.swift:11-14` callback pattern
-5. **Split Stack App Crashes** - `SplitStackView.swift:55` slider calculations, needs migration to stepper + early dismiss
+1. **Search UI Issue** - `TokenSearchView.swift:101-102` navigation title overlap with keyboard
+2. **Multiplier Adjustment** - `MultiplierView.swift:21-48` should increment by 1, not powers of 2
+3. **Split Stack Cancellation** - `ExpandedTokenView.swift:85-93` and `SplitStackView.swift:11-14` callback pattern
+4. **Split Stack App Crashes** - `SplitStackView.swift:55` slider calculations, needs migration to stepper + early dismiss
 
 ### Code Patterns to Follow
 
@@ -240,9 +251,10 @@ SplitStackView(item: item) {
 - Use `.sheet(isPresented:)` for secondary views (search, expanded view, split stack)
 - Use `.alert()` for quantity inputs and confirmations
 - Use `simultaneousGesture(TapGesture())` + `simultaneousGesture(LongPressGesture())` for dual-action buttons
-- Color bar overlay pattern: `VStack(spacing: 0)` with conditional colors, `.frame(width: 10)`, `.allowsHitTesting(false)`
-- Empty states use `ContentUnavailableView` in search views
-- Emblems have centered layout without color bars or tapped/untapped UI
+- Color border gradient pattern: `gradientForColors()` creates LinearGradient from color identity string
+- Empty states use `ContentUnavailableView` in search views or custom VStack in ContentView
+- Emblems have centered layout without color borders or tapped/untapped UI
+- Counter pills use inverted color scheme (solid background, white text) for high contrast in light/dark mode
 
 ### Python Script Maintenance
 When modifying `process_tokens.py`:
@@ -267,19 +279,19 @@ See `Premium.md` for planned paid features:
 ```
 Doubling Season/
 ├── Doubling_SeasonApp.swift      # Entry point, ModelContainer setup
-├── ContentView.swift              # Main game view
+├── ContentView.swift              # Main game view with toolbar and empty state
 ├── Item.swift                     # Token + TokenCounter models
 ├── Deck.swift                     # Deck + TokenTemplate models
-├── TokenView.swift                # Compact token card
-├── ExpandedTokenView.swift        # Detailed token editor
+├── TokenView.swift                # Compact token card with counter pills
+├── ExpandedTokenView.swift        # Detailed token editor (contains CounterPillView & CounterManagementPillView)
 ├── TokenSearchView.swift          # Database search interface
 ├── TokenSearchRow.swift           # Search result row
-├── TokenDefinition.swift          # Search model + TokenDatabase manager
-├── TokenDatabase.swift            # Database loading logic
+├── TokenDefinition.swift          # Token definition model with composite ID
+├── TokenDatabase.swift            # Database loading and filtering logic
 ├── CounterSearchView.swift        # Counter selection interface
 ├── CounterDatabase.swift          # Predefined counter types
 ├── Counter.swift                  # Counter models
-├── MultiplierView.swift           # Multiplier control
+├── MultiplierView.swift           # Multiplier control overlay
 ├── SplitStackView.swift           # Stack splitting interface
 ├── NewTokenSheet.swift            # Manual token creation
 ├── LoadDeckSheet.swift            # Deck loading interface
