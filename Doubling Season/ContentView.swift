@@ -38,36 +38,40 @@ struct ContentView: View {
                 List{
                     if items.isEmpty {
                         // Empty state view
-                        
+
                         VStack(spacing:20) {
 
                             Text("No tokens to display")
                                 .font(.title2)
                                 .foregroundColor(.secondary)
-                                .opacity(0.5)
 
                             VStack(alignment: .leading, spacing: 12) {
-                                Label("Create a Token", systemImage: "plus")
+                                Button(action: { isShowingTokenSearch = true }) {
+                                    Label("Create your first token", systemImage: "plus")
+                                        .foregroundColor(.blue)
+                                }
+                                .buttonStyle(PlainButtonStyle())
                                // Label("Search for a Token", systemImage: "plus.magnifyingglass")
                                 Label("Untap Everything", systemImage: "arrow.counterclockwise.circle")
                                 Label("Clear Summoning Sickness", systemImage: "circle.hexagonpath")
-                                Label("Save Current Deck", systemImage: "folder.badge.plus")
-                                Label("Load a Deck", systemImage: "rectangle.portrait.on.rectangle.portrait.angled")
-                                Label("Board Wipe", systemImage: "trash.fill")
+                                Label("Save Current Deck", systemImage: "square.and.arrow.down.on.square")
+                                Label("Load a Deck", systemImage: "square.and.arrow.up.on.square")
+                                Label("Board Wipe", systemImage: "eraser")
                             }
                             .font(.callout)
                             .foregroundColor(.secondary)
-                            .opacity(0.5)
                             Text("Long press the +/- and tap/untap buttons to mass edit a token group.")
                                 .padding(15)
                                 .italic(true)
                                 .foregroundColor(.secondary)
-                                .opacity(0.5)
 
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(20)
+                        .frame(maxWidth: .infinity)
+                        .background(Color(uiColor: .secondarySystemGroupedBackground))
+                        .cornerRadius(12)
                         .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets())
+                        .listRowInsets(EdgeInsets(top: 20, leading: 16, bottom: 20, trailing: 16))
                         .padding(.vertical, 15)
                     } else {
                         ForEach(items){item in
@@ -113,15 +117,15 @@ struct ContentView: View {
                                 )
                                 
                                 Button(action: { isShowingSaveDeckAlert = true }) {
-                                    Image(systemName: "folder.badge.plus")
+                                    Image(systemName: "square.and.arrow.down.on.square")
                                 }
-                                
+
                                 Button(action: { isShowingLoadDeckSheet = true }) {
-                                    Image(systemName: "rectangle.portrait.on.rectangle.portrait.angled")
+                                    Image(systemName: "square.and.arrow.up.on.square")
                                 }
                                 
                                 Button(action: { isShowingWrathAlert = true }) {
-                                    Image(systemName: "trash.fill")
+                                    Image(systemName: "eraser")
                                 }
                             }
                         }

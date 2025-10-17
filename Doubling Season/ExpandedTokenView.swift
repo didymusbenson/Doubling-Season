@@ -17,7 +17,9 @@ struct ExpandedTokenView: View {
     
     @State private var isShowingCounterSearch = false
     @State private var isShowingSplitView = false
-    
+    @State private var counterToRemove: String? = nil
+    @State private var showRemoveCounterAlert = false
+
     // Editing states for tap-to-edit functionality
     @State private var editingField: EditableField? = nil
     @State private var tempEditValue: String = ""
@@ -85,6 +87,23 @@ struct ExpandedTokenView: View {
         .sheet(isPresented: $isShowingSplitView) {
             SplitStackView(item: item) {
                 dismiss()
+            }
+        }
+        .alert("Remove \(counterToRemove ?? "counter") counter?", isPresented: $showRemoveCounterAlert) {
+            Button("Remove", role: .destructive) {
+                if let counterName = counterToRemove {
+                    if counterName == "+1/+1" {
+                        item.addPowerToughnessCounters(-1)
+                    } else if counterName == "-1/-1" {
+                        item.minusOneCounters = max(0, item.minusOneCounters - 1)
+                    } else {
+                        item.removeCounter(name: counterName, amount: 1)
+                    }
+                }
+                counterToRemove = nil
+            }
+            Button("Cancel", role: .cancel) {
+                counterToRemove = nil
             }
         }
         .onAppear {
@@ -334,9 +353,6 @@ struct ExpandedTokenView: View {
     
     private var tokenControlsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Token Controls")
-                .font(.headline)
-            
             HStack(spacing: 16) {
                 // Remove/Add buttons (following condensed view style)
                 Button(action: {
@@ -420,12 +436,19 @@ struct ExpandedTokenView: View {
                     CounterManagementPillView(
                         counter: counter,
                         onDecrement: {
-                            if counter.name == "+1/+1" {
-                                item.addPowerToughnessCounters(-1)
-                            } else if counter.name == "-1/-1" {
-                                item.minusOneCounters = max(0, item.minusOneCounters - 1)
+                            // Check if this is the last counter of this type
+                            if counter.amount == 1 {
+                                counterToRemove = counter.name
+                                showRemoveCounterAlert = true
                             } else {
-                                item.removeCounter(name: counter.name, amount: 1)
+                                // Normal decrement
+                                if counter.name == "+1/+1" {
+                                    item.addPowerToughnessCounters(-1)
+                                } else if counter.name == "-1/-1" {
+                                    item.minusOneCounters = max(0, item.minusOneCounters - 1)
+                                } else {
+                                    item.removeCounter(name: counter.name, amount: 1)
+                                }
                             }
                         },
                         onIncrement: {
@@ -589,29 +612,24 @@ struct ExpandedTokenView: View {
 struct CounterPillView: View {
     let name: String
     let amount: Int
-    
+
     var body: some View {
         HStack(spacing: 4) {
             Text(name)
-                .font(.caption)
-                .fontWeight(.medium)
-            
+                .font(.callout)
+                .fontWeight(.semibold)
+
             if amount > 1 {
                 Text("\(amount)")
-                    .font(.caption2)
+                    .font(.caption)
                     .fontWeight(.bold)
-                    .foregroundColor(.secondary)
             }
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color.blue.opacity(0.1))
-        .foregroundColor(.blue)
+        .padding(.vertical, 5)
+        .background(Color.gray)
+        .foregroundColor(.white)
         .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-        )
     }
 }
 
@@ -621,7 +639,7 @@ struct CounterManagementPillView: View {
     let counter: TokenCounter
     let onDecrement: () -> Void
     let onIncrement: () -> Void
-    
+
     var body: some View {
         HStack(spacing: 8) {
             Button(action: onDecrement) {
@@ -629,7 +647,6 @@ struct CounterManagementPillView: View {
                     .font(.title3)
                     .foregroundColor(.red)
             }
-            .disabled(counter.amount <= 1)
             
             VStack(spacing: 2) {
                 Text(counter.name)

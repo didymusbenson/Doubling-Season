@@ -29,11 +29,11 @@ struct TokenDefinition: Codable, Identifiable, Hashable {
     let type: String
     
     // MARK: - Identifiable
-    
+
     /// Unique identifier for SwiftUI list operations
     var id: String {
-        // Use name as the unique identifier since token names are unique
-        return name
+        // Create a composite ID to handle tokens with the same name but different stats/abilities
+        return "\(name)|\(pt)|\(colors)|\(type)|\(abilities)"
     }
     
     // MARK: - Computed Properties
