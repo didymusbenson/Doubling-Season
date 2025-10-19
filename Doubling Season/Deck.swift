@@ -40,19 +40,35 @@ struct TokenTemplate: Codable {
 final class Deck {
     var name: String
     var templatesData: Data? // Store templates as JSON data
-    
+
+    /// Returns the decoded token templates, or empty array if data is nil or decode fails
     var templates: [TokenTemplate] {
         get {
             guard let data = templatesData else { return [] }
-            return (try? JSONDecoder().decode([TokenTemplate].self, from: data)) ?? []
+
+            do {
+                return try JSONDecoder().decode([TokenTemplate].self, from: data)
+            } catch {
+                print("⚠️ Failed to decode deck '\(name)' templates: \(error.localizedDescription)")
+                // Return empty array rather than crash - data may be corrupted
+                return []
+            }
         }
         set {
-            templatesData = try? JSONEncoder().encode(newValue)
+            do {
+                templatesData = try JSONEncoder().encode(newValue)
+            } catch {
+                // This should never happen with TokenTemplate (it's Codable), but log if it does
+                print("🚨 CRITICAL: Failed to encode deck '\(name)' templates: \(error.localizedDescription)")
+                // Leave templatesData unchanged to preserve existing data
+            }
         }
     }
-    
+
     init(name: String, templates: [TokenTemplate] = []) {
-        self.name = name
+        // Ensure deck has a name
+        self.name = name.isEmpty ? "Untitled Deck" : name
+        // Use setter which handles encoding
         self.templates = templates
     }
 }

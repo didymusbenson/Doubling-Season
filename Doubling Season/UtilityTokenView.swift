@@ -6,10 +6,11 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct UtilityTokenView: View {
-    
-    @State var item: Item
+
+    @Bindable var item: Item
     @State private var isShowingRemoveAlert = false
     @State private var isShowingAddAlert = false
     @State private var isShowingUntapAlert = false

@@ -32,9 +32,12 @@ In this case, move the multiplier to the bottom left of the app?
 
 In this case, have the container of the bottom tools (multiplier, combat controls, toolbox) be a fading gradient so that tokens "below the fold" disappear under it. There should be padding at the bottom of the last token that's roughly the height of those bottom tools (so that users can scroll up and not have tokens blocked by floating tool buttons).
 
-## Multiplier
-Users have already indicated that they'd prefer multipler to step instead of skip because of token triplers.
+## Reordering (hold and drag)
+- if the user long-presses the token, have it "pop up" to be dragged to a new spot in the list.
 
-## Split Stack edge/corner cases
-Dealing with splitting stacks of 1 or 2 tokens
+## Individual token setting (inside expanded view) to default to entering tapped
+- on expanded view include a toggle for "new tokens enter tapped"
+
+## Import token list from deck source (moxfield, arkidect)
+- user pastes a link to their deck list and it automatically populates the tokens they need to use
 

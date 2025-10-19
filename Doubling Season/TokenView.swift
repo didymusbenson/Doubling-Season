@@ -9,8 +9,8 @@ import SwiftUI
 import SwiftData
 
 struct TokenView: View {
-    
-    @State var item: Item
+
+    @Bindable var item: Item
     @State private var isShowingRemoveAlert = false
     @State private var isShowingAddAlert = false
     @State private var isShowingUntapAlert = false
@@ -254,36 +254,9 @@ struct TokenView: View {
     // MARK: - Helper Methods
 
     private func gradientForColors() -> LinearGradient {
-        // Build color array based on token colors
-        var colors: [Color] = []
+        // Use ColorIdentity for type-safe color handling
+        let colors = item.isEmblem ? [Color.clear] : item.colorIdentity.swiftUIColors
 
-        if !item.isEmblem {
-            if item.colors.contains("W") {
-                colors.append(.yellow)
-            }
-            if item.colors.contains("U") {
-                colors.append(.blue)
-            }
-            if item.colors.contains("B") {
-                colors.append(.purple)
-            }
-            if item.colors.contains("R") {
-                colors.append(.red)
-            }
-            if item.colors.contains("G") {
-                colors.append(.green)
-            }
-
-            // If no colors or colorless, use gray
-            if colors.isEmpty {
-                colors.append(.gray)
-            }
-        } else {
-            // Emblems have no border gradient
-            colors.append(.clear)
-        }
-
-        // Create gradient from colors
         return LinearGradient(
             gradient: Gradient(colors: colors),
             startPoint: .topLeading,

@@ -22,35 +22,86 @@ final class TokenCounter {
 
 @Model
 final class Item {
+    // MARK: - Basic Properties
+
     var abilities: String
     var name: String
     var pt: String
-    var colors: String
-    var amount: Int
-    var tapped: Int
-    var summoningSick: Int = 0  // Number of tokens with summoning sickness
-    var removeAlert = false
-    var addAlert = false
-    var untapAlert = false
-    var tapAlert = false
+
+    var colors: String {
+        didSet {
+            colors = colors.uppercased()
+        }
+    }
+
+    // MARK: - Amount and State (with validation)
+
+    /// Total number of tokens in this stack
+    var amount: Int {
+        didSet {
+            // Ensure non-negative
+            if amount < 0 { amount = 0 }
+
+            // Auto-correct dependent values when amount decreases
+            if tapped > amount { tapped = amount }
+            if summoningSick > amount { summoningSick = amount }
+        }
+    }
+
+    /// Number of tapped tokens
+    var tapped: Int {
+        didSet {
+            // Clamp tapped to valid range [0, amount]
+            if tapped < 0 { tapped = 0 }
+            if tapped > amount { tapped = amount }
+        }
+    }
+
+    /// Number of tokens with summoning sickness
+    var summoningSick: Int = 0 {
+        didSet {
+            // Clamp summoning sick to valid range [0, amount]
+            if summoningSick < 0 { summoningSick = 0 }
+            if summoningSick > amount { summoningSick = amount }
+        }
+    }
+
+    // MARK: - Counters
+
     var counters: [TokenCounter] = []
-    var plusOneCounters: Int = 0  // +1/+1 counters
-    var minusOneCounters: Int = 0  // -1/-1 counters
-    var createdAt: Date = Date()  // Track creation time for consistent ordering
-    
+
+    /// +1/+1 counters on this token
+    var plusOneCounters: Int = 0 {
+        didSet {
+            if plusOneCounters < 0 { plusOneCounters = 0 }
+        }
+    }
+
+    /// -1/-1 counters on this token
+    var minusOneCounters: Int = 0 {
+        didSet {
+            if minusOneCounters < 0 { minusOneCounters = 0 }
+        }
+    }
+
+    // MARK: - Metadata
+
+    /// Track creation time for consistent ordering
+    var createdAt: Date = Date()
+
+    // MARK: - Initialization
+
     init(abilities: String, name: String, pt: String, colors: String, amount: Int, createTapped: Bool, applySummoningSickness: Bool = true) {
-        
         self.abilities = abilities
         self.name = name
         self.pt = pt
-        self.amount = amount
-        self.tapped = createTapped ? amount : 0
-        self.summoningSick = applySummoningSickness ? amount : 0  // Apply summoning sickness based on parameter
-        self.colors = colors.uppercased(with: .autoupdatingCurrent)
-        self.counters = []
-        self.plusOneCounters = 0
-        self.minusOneCounters = 0
-        self.createdAt = Date()  // Set creation time
+
+        // Initialize with validation
+        let safeAmount = max(0, amount)
+        self.amount = safeAmount
+        self.tapped = createTapped ? safeAmount : 0
+        self.summoningSick = applySummoningSickness ? safeAmount : 0
+        self.colors = colors.uppercased()
     }
     
     // MARK: - Counter Management
@@ -61,22 +112,38 @@ final class Item {
     }
     
     /// Adds a regular counter to the token
-    func addCounter(name: String, amount: Int = 1) {
+    /// - Parameters:
+    ///   - name: Name of the counter to add
+    ///   - amount: Number of counters to add
+    /// - Returns: true if counter was added successfully, false if validation failed
+    @discardableResult
+    func addCounter(name: String, amount: Int = 1) -> Bool {
+        guard !name.isEmpty, amount > 0 else { return false }
+
         if let existingCounter = counters.first(where: { $0.name == name }) {
             existingCounter.amount += amount
         } else {
             counters.append(TokenCounter(name: name, amount: amount))
         }
+        return true
     }
-    
+
     /// Removes a regular counter from the token
-    func removeCounter(name: String, amount: Int = 1) {
-        if let existingCounter = counters.first(where: { $0.name == name }) {
-            existingCounter.amount -= amount
-            if existingCounter.amount <= 0 {
-                counters.removeAll { $0.name == name }
-            }
+    /// - Parameters:
+    ///   - name: Name of the counter to remove
+    ///   - amount: Number of counters to remove
+    /// - Returns: true if counter was found and removed, false if counter not found
+    @discardableResult
+    func removeCounter(name: String, amount: Int = 1) -> Bool {
+        guard let existingCounter = counters.first(where: { $0.name == name }) else {
+            return false
         }
+
+        existingCounter.amount -= amount
+        if existingCounter.amount <= 0 {
+            counters.removeAll { $0.name == name }
+        }
+        return true
     }
     
     /// Adds +1/+1 or -1/-1 counters with proper interaction
@@ -161,14 +228,96 @@ final class Item {
             createTapped: false, // Tapped will be set during split
             applySummoningSickness: false // Summoning sickness is reset during split
         )
-        
+
         // Copy counters
         duplicate.plusOneCounters = plusOneCounters
         duplicate.minusOneCounters = minusOneCounters
         duplicate.counters = counters.map { TokenCounter(name: $0.name, amount: $0.amount) }
-        
+
         // Note: createdAt will be set to current time, making the duplicate appear after the original
-        
+
         return duplicate
+    }
+}
+
+// MARK: - Color Identity Extension
+
+import SwiftUI
+
+extension Item {
+    /// Represents Magic: The Gathering color identity using OptionSet for type-safe color handling
+    struct ColorIdentity: OptionSet, Codable {
+        let rawValue: Int
+
+        static let white = ColorIdentity(rawValue: 1 << 0)
+        static let blue = ColorIdentity(rawValue: 1 << 1)
+        static let black = ColorIdentity(rawValue: 1 << 2)
+        static let red = ColorIdentity(rawValue: 1 << 3)
+        static let green = ColorIdentity(rawValue: 1 << 4)
+
+        static let colorless: ColorIdentity = []
+
+        init(rawValue: Int) {
+            self.rawValue = rawValue
+        }
+
+        /// Parse from WUBRG string (e.g., "WUB" for White-Blue-Black)
+        /// - Parameter wubrgString: Color string using Magic color notation
+        init(from wubrgString: String) {
+            var result: ColorIdentity = []
+            if wubrgString.contains("W") { result.insert(.white) }
+            if wubrgString.contains("U") { result.insert(.blue) }
+            if wubrgString.contains("B") { result.insert(.black) }
+            if wubrgString.contains("R") { result.insert(.red) }
+            if wubrgString.contains("G") { result.insert(.green) }
+            self = result
+        }
+
+        /// Convert to WUBRG string in canonical order
+        var wubrgString: String {
+            var result = ""
+            if contains(.white) { result += "W" }
+            if contains(.blue) { result += "U" }
+            if contains(.black) { result += "B" }
+            if contains(.red) { result += "R" }
+            if contains(.green) { result += "G" }
+            return result
+        }
+
+        /// Returns SwiftUI colors for display (gradient borders, etc.)
+        var swiftUIColors: [Color] {
+            var colors: [Color] = []
+            if contains(.white) { colors.append(.yellow) }
+            if contains(.blue) { colors.append(.blue) }
+            if contains(.black) { colors.append(.purple) }
+            if contains(.red) { colors.append(.red) }
+            if contains(.green) { colors.append(.green) }
+            return colors.isEmpty ? [.gray] : colors
+        }
+
+        /// User-friendly display name for the color identity
+        var displayName: String {
+            if isEmpty {
+                return "Colorless"
+            } else if self == [.white, .blue, .black, .red, .green] {
+                return "All Colors"
+            } else if rawValue.nonzeroBitCount == 1 {
+                // Single color
+                if contains(.white) { return "White" }
+                if contains(.blue) { return "Blue" }
+                if contains(.black) { return "Black" }
+                if contains(.red) { return "Red" }
+                if contains(.green) { return "Green" }
+            }
+            // Multicolor
+            return "Multicolor (\(wubrgString))"
+        }
+    }
+
+    /// Computed property for type-safe color access
+    /// Allows working with colors as a structured type while maintaining String storage
+    var colorIdentity: ColorIdentity {
+        get { ColorIdentity(from: colors) }
+        set { colors = newValue.wubrgString }
     }
 }
