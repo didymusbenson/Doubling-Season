@@ -86,6 +86,7 @@
 		5C2C0D8E2E9DF23A00BB3BCC /* TokenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenView.swift; sourceTree = "<group>"; };
 		5C2C0D8F2E9DF23A00BB3BCC /* UtilityTokenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilityTokenView.swift; sourceTree = "<group>"; };
 		5C2C0DAB2E9F1DDE00BB3BCC /* SummoningSicknessSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummoningSicknessSettings.swift; sourceTree = "<group>"; };
+		5C80CCF22EB1B9650035D8B7 /* LAST TASK.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "LAST TASK.md"; sourceTree = "<group>"; };
 		CB62A41C2EA0438000447E2B /* FeedbackAndIdeas.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = FeedbackAndIdeas.md; sourceTree = "<group>"; };
 		CB62A41D2EA04C1700447E2B /* Premium.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = Premium.md; sourceTree = "<group>"; };
 		CB62A41E2EA15AB400447E2B /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
@@ -171,6 +172,7 @@
 		CBBCDA6D2C0FA48F000ED260 = {
 			isa = PBXGroup;
 			children = (
+				5C80CCF22EB1B9650035D8B7 /* LAST TASK.md */,
 				CB882EF32EB12FF100BAB677 /* EnvironmentSetup.md */,
 				CB882EF42EB12FF100BAB677 /* FlutterOptimizations.md */,
 				CB882EF22EB1151B00BAB677 /* FlutterMigration.md */,
