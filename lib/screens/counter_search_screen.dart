@@ -76,27 +76,29 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
 
           // Counter list
           Expanded(
-            child: ListView.builder(
-              itemCount: _filteredCounters.length,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              itemBuilder: (context, index) {
-                final counter = _filteredCounters[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    title: Text(
-                      counter,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    trailing: const Icon(Icons.add_circle, color: Colors.blue),
-                    onTap: () => _showAddToAllOrOneDialog(counter),
+            child: _filteredCounters.isEmpty && _searchController.text.isNotEmpty
+                ? _buildCreateCustomCounter()
+                : ListView.builder(
+                    itemCount: _filteredCounters.length,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    itemBuilder: (context, index) {
+                      final counter = _filteredCounters[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          title: Text(
+                            counter,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          trailing: const Icon(Icons.add_circle, color: Colors.blue),
+                          onTap: () => _showAddToAllOrOneDialog(counter),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),
@@ -114,6 +116,10 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
           'or split the stack and add to just one token?',
         ),
         actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
@@ -201,9 +207,55 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
     );
   }
 
-  void _addCounter(String name, int amount, {required bool applyToAll}) {
+  Future<void> _addCounter(String name, int amount, {required bool applyToAll}) async {
     final tokenProvider = context.read<TokenProvider>();
 
+    // Special handling for +1/+1 and -1/-1 counters
+    if (name == '+1/+1' || name == '-1/-1') {
+      final counterValue = name == '+1/+1' ? amount : -amount;
+
+      if (applyToAll) {
+        // Add to all tokens in stack
+        widget.item.addPowerToughnessCounters(counterValue);
+        tokenProvider.updateItem(widget.item);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Added $amount $name counter(s) to all tokens')),
+        );
+      } else {
+        // Split stack and add to one token
+        if (widget.item.amount < 2) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cannot split - only 1 token in stack')),
+          );
+          return;
+        }
+
+        // Create new single-token stack
+        final newItem = widget.item.createDuplicate();
+
+        // Add to box FIRST
+        await tokenProvider.insertItem(newItem);
+
+        // Apply counters and set properties
+        newItem.applyDuplicateCounters(widget.item);
+        newItem.amount = 1;
+        newItem.tapped = 0;
+        newItem.summoningSick = 0;
+        newItem.addPowerToughnessCounters(counterValue);
+
+        // Reduce original stack by 1
+        widget.item.amount = widget.item.amount - 1;
+        await tokenProvider.updateItem(widget.item);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Split stack and added $amount $name counter(s) to 1 token')),
+        );
+      }
+      return;
+    }
+
+    // Regular custom counter handling
     if (applyToAll) {
       // Add counter to entire stack
       widget.item.addCounter(name: name, amount: amount);
@@ -223,6 +275,12 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
 
       // Create new single-token stack with counter
       final newItem = widget.item.createDuplicate();
+
+      // Add to box FIRST
+      await tokenProvider.insertItem(newItem);
+
+      // Now apply counters from original
+      newItem.applyDuplicateCounters(widget.item);
       newItem.amount = 1;
       newItem.tapped = 0;
       newItem.summoningSick = 0;
@@ -230,13 +288,47 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
 
       // Reduce original stack by 1
       widget.item.amount = widget.item.amount - 1;
-
-      tokenProvider.updateItem(widget.item);
-      tokenProvider.insertItem(newItem);
+      await tokenProvider.updateItem(widget.item);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Split stack and added $amount $name counter(s) to 1 token')),
       );
     }
+  }
+
+  Widget _buildCreateCustomCounter() {
+    final searchText = _searchController.text.trim();
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.search_off,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No counters found for "$searchText"',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => _showAddToAllOrOneDialog(searchText),
+              icon: const Icon(Icons.add),
+              label: Text('Create "$searchText"'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

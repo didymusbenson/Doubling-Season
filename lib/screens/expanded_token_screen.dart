@@ -95,22 +95,45 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Token Name
-            _buildEditableField(
-              label: 'Name',
-              field: EditableField.name,
-              value: widget.item.name,
-              onSave: (value) => widget.item.name = value,
+            // Name and Stats in a row
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Name (75% width)
+                Expanded(
+                  flex: 3,
+                  child: _buildEditableField(
+                    label: 'Name',
+                    field: EditableField.name,
+                    value: widget.item.name,
+                    onSave: (value) => widget.item.name = value,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Stats (25% width)
+                Expanded(
+                  flex: 1,
+                  child: _buildEditableField(
+                    label: 'Stats',
+                    field: EditableField.powerToughness,
+                    value: widget.item.pt,
+                    onSave: (value) => widget.item.pt = value,
+                    labelAlign: TextAlign.left,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
             ),
 
             const SizedBox(height: 16),
 
-            // Power/Toughness
+            // Abilities
             _buildEditableField(
-              label: 'Power/Toughness',
-              field: EditableField.powerToughness,
-              value: widget.item.pt,
-              onSave: (value) => widget.item.pt = value,
+              label: 'Abilities',
+              field: EditableField.abilities,
+              value: widget.item.abilities,
+              onSave: (value) => widget.item.abilities = value,
+              maxLines: 3,
             ),
 
             const SizedBox(height: 16),
@@ -191,17 +214,6 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                   ),
                 ],
               ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Abilities
-            _buildEditableField(
-              label: 'Abilities',
-              field: EditableField.abilities,
-              value: widget.item.abilities,
-              onSave: (value) => widget.item.abilities = value,
-              maxLines: 3,
             ),
 
             const SizedBox(height: 24),
@@ -293,7 +305,6 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                 }
                               : null,
                         ),
-                        const Divider(height: 24),
                       ],
                     ],
                   ],
@@ -303,19 +314,28 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
 
             const SizedBox(height: 16),
 
-            // Power/Toughness Counters Card
+            // Counters Card (merged Power/Toughness and Custom)
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Power/Toughness Counters',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Counters',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add_circle, color: Colors.blue),
+                          onPressed: () => _showCounterSearch(context),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
 
@@ -413,64 +433,46 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                         ),
                       ),
                     ],
-                  ],
-                ),
-              ),
-            ),
 
-            const SizedBox(height: 16),
-
-            // Custom Counters Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Custom Counters',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add_circle, color: Colors.blue),
-                          onPressed: () => _showCounterSearch(context),
-                        ),
-                      ],
-                    ),
-
-                    if (widget.item.counters.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        child: Center(
-                          child: Text(
-                            'No custom counters',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ),
-                      )
-                    else ...[
+                    // Custom counters (appear below +1/+1 and -1/-1)
+                    if (widget.item.counters.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       ...widget.item.counters.map((counter) {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
-                          child: CounterManagementPillView(
-                            counter: counter,
-                            onDecrement: () {
-                              widget.item.removeCounter(name: counter.name);
-                              tokenProvider.updateItem(widget.item);
-                              setState(() {}); // Rebuild to update UI
-                            },
-                            onIncrement: () {
-                              widget.item.addCounter(name: counter.name);
-                              tokenProvider.updateItem(widget.item);
-                              setState(() {}); // Rebuild to update UI
-                            },
+                          child: Row(
+                            children: [
+                              Expanded(child: Text('${counter.name} Counters')),
+                              IconButton(
+                                onPressed: counter.amount > 0
+                                    ? () {
+                                        widget.item.removeCounter(name: counter.name);
+                                        tokenProvider.updateItem(widget.item);
+                                        setState(() {}); // Rebuild to update UI
+                                      }
+                                    : null,
+                                icon: const Icon(Icons.remove_circle, color: Colors.red),
+                              ),
+                              SizedBox(
+                                width: 40,
+                                child: Text(
+                                  '${counter.amount}',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () {
+                                  widget.item.addCounter(name: counter.name);
+                                  tokenProvider.updateItem(widget.item);
+                                  setState(() {}); // Rebuild to update UI
+                                },
+                                icon: const Icon(Icons.add_circle, color: Colors.green),
+                              ),
+                            ],
                           ),
                         );
                       }),
@@ -492,8 +494,11 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
     required ValueChanged<String> onSave,
     int maxLines = 1,
     TextCapitalization textCapitalization = TextCapitalization.none,
+    TextAlign textAlign = TextAlign.left,
+    TextAlign? labelAlign,
   }) {
     final isEditing = _editingField == field;
+    final effectiveLabelAlign = labelAlign ?? textAlign;
 
     return GestureDetector(
       onTap: isEditing
@@ -516,12 +521,20 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
+            Container(
+              width: double.infinity,
+              alignment: effectiveLabelAlign == TextAlign.center
+                  ? Alignment.center
+                  : (effectiveLabelAlign == TextAlign.right
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft),
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -531,6 +544,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                     focusNode: _focusNodes[field],
                     maxLines: maxLines,
                     textCapitalization: textCapitalization,
+                    textAlign: textAlign,
                     decoration: const InputDecoration(
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.zero,
@@ -544,6 +558,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                   )
                 : Text(
                     value.isEmpty ? 'Tap to edit' : value,
+                    textAlign: textAlign,
                     style: TextStyle(
                       fontSize: 16,
                       color: value.isEmpty ? Colors.grey : null,
@@ -609,7 +624,13 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
   void _showSplitStack(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => SplitStackSheet(item: widget.item),
+        builder: (context) => SplitStackSheet(
+          item: widget.item,
+          onSplitCompleted: () {
+            // Dismiss the ExpandedTokenScreen to return to main list
+            Navigator.of(context).pop();
+          },
+        ),
         fullscreenDialog: true,
       ),
     );

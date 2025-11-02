@@ -107,9 +107,10 @@ class Item extends HiveObject {
     int amount = 1,
     int tapped = 0,
     int summoningSick = 0,
-    this.counters = const [],
+    List<TokenCounter>? counters,
     DateTime? createdAt,
-  })  : _colors = colors.toUpperCase(),
+  })  : counters = counters ?? [],
+        _colors = colors.toUpperCase(),
         _amount = amount < 0 ? 0 : amount,
         _tapped = tapped < 0 ? 0 : tapped,
         _summoningSick = summoningSick < 0 ? 0 : summoningSick,
@@ -199,7 +200,7 @@ class Item extends HiveObject {
   }
 
   Item createDuplicate() {
-    return Item(
+    final newItem = Item(
       name: name,
       pt: pt,
       abilities: abilities,
@@ -207,9 +208,20 @@ class Item extends HiveObject {
       amount: 0,
       tapped: 0,
       summoningSick: 0,
-    )
-      ..plusOneCounters = plusOneCounters
-      ..minusOneCounters = minusOneCounters
-      ..counters = counters.map((c) => TokenCounter(name: c.name, amount: c.amount)).toList();
+    );
+
+    // Store counter values to be applied after item is added to box
+    // Caller must add item to box first, then call applyDuplicateCounters()
+    return newItem;
+  }
+
+  // Call this AFTER adding the item to the Hive box
+  void applyDuplicateCounters(Item source) {
+    plusOneCounters = source.plusOneCounters;
+    minusOneCounters = source.minusOneCounters;
+    for (final counter in source.counters) {
+      counters.add(TokenCounter(name: counter.name, amount: counter.amount));
+    }
+    save();
   }
 }

@@ -19,8 +19,10 @@ class ColorUtils {
     }
 
     final colors = getColorsForIdentity(colorString);
+    // Flutter LinearGradient requires at least 2 colors
+    final gradientColors = colors.length == 1 ? [colors[0], colors[0]] : colors;
     return LinearGradient(
-      colors: colors,
+      colors: gradientColors,
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     );

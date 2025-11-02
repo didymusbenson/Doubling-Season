@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:gradient_borders/gradient_borders.dart';
 import '../models/item.dart';
 import '../models/token_template.dart';
 import '../models/deck.dart';
@@ -10,6 +11,8 @@ import '../providers/deck_provider.dart';
 import '../widgets/token_card.dart';
 import '../widgets/multiplier_view.dart';
 import '../widgets/load_deck_sheet.dart';
+import '../widgets/floating_action_menu.dart';
+import '../utils/color_utils.dart';
 import 'token_search_screen.dart';
 import 'about_screen.dart';
 
@@ -39,67 +42,37 @@ class _ContentScreenState extends State<ContentScreen> {
               child: MultiplierView(),
             ),
           ),
+
+          // Floating action menu (bottom right)
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: FloatingActionMenu(
+              onNewToken: _showTokenSearch,
+              onUntapAll: _showUntapAllDialog,
+              onClearSickness: _handleClearSickness,
+              onSaveDeck: _showSaveDeckDialog,
+              onLoadDeck: _showLoadDeckSheet,
+              onBoardWipe: _showBoardWipeDialog,
+            ),
+          ),
         ],
       ),
     );
   }
 
   AppBar _buildAppBar() {
-    final tokenProvider = context.watch<TokenProvider>();
-
     return AppBar(
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Plus button (create token)
-          IconButton(
-            onPressed: () => _showTokenSearch(),
-            icon: const Icon(Icons.add),
-            tooltip: 'Add Token',
-          ),
-
-          // Untap all
-          IconButton(
-            onPressed: () => _showUntapAllDialog(),
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Untap All',
-          ),
-
-          // Clear summoning sickness
-          GestureDetector(
-            onTap: () => tokenProvider.clearSummoningSickness(),
-            onLongPress: () => _showSummoningSicknessToggle(),
-            child: IconButton(
-              onPressed: null,
-              icon: const Icon(Icons.hexagon_outlined),
-              tooltip: 'Clear Summoning Sickness',
-            ),
-          ),
-
-          // Save deck
-          IconButton(
-            onPressed: () => _showSaveDeckDialog(),
-            icon: const Icon(Icons.save),
-            tooltip: 'Save Deck',
-          ),
-
-          // Load deck
-          IconButton(
-            onPressed: () => _showLoadDeckSheet(),
-            icon: const Icon(Icons.folder_open),
-            tooltip: 'Load Deck',
-          ),
-
-          // Board wipe
-          IconButton(
-            onPressed: () => _showBoardWipeDialog(),
-            icon: const Icon(Icons.delete_sweep),
-            tooltip: 'Board Wipe',
-          ),
-        ],
-      ),
+      title: const Text('Doubling Season'),
+      centerTitle: true,
       actions: [
+        // Settings (long press on summoning sickness icon)
+        IconButton(
+          onPressed: () => _showSummoningSicknessToggle(),
+          icon: const Icon(Icons.settings),
+          tooltip: 'Settings',
+        ),
+        // Help/About
         IconButton(
           onPressed: () => _showAboutPlaceholder(),
           icon: const Icon(Icons.help_outline),
@@ -131,19 +104,44 @@ class _ContentScreenState extends State<ContentScreen> {
                 bottom: 120, // Space for MultiplierView
               ),
               itemBuilder: (context, index) {
+                final item = items[index];
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Dismissible(
-                    key: ValueKey(items[index].key), // Use Hive key
-                    direction: DismissDirection.endToStart,
-                    background: Container(
-                      color: Colors.red,
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.only(right: 16),
-                      child: const Icon(Icons.delete, color: Colors.white),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.12),
+                          blurRadius: 6,
+                          offset: const Offset(0, 3),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 1,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                      border: GradientBoxBorder(
+                        gradient: ColorUtils.gradientForColors(item.colors, isEmblem: item.isEmblem),
+                        width: 3,
+                      ),
                     ),
-                    onDismissed: (_) => provider.deleteItem(items[index]),
-                    child: TokenCard(item: items[index]),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(9), // Slightly smaller to fit inside border
+                      child: Dismissible(
+                        key: ValueKey(item.key), // Use Hive key
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          color: Colors.red,
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 16),
+                          child: const Icon(Icons.delete, color: Colors.white),
+                        ),
+                        onDismissed: (_) => provider.deleteItem(item),
+                        child: TokenCard(item: item),
+                      ),
+                    ),
                   ),
                 );
               },
@@ -220,6 +218,11 @@ class _ContentScreenState extends State<ContentScreen> {
         ),
       ),
     );
+  }
+
+  void _handleClearSickness() {
+    final tokenProvider = context.read<TokenProvider>();
+    tokenProvider.clearSummoningSickness();
   }
 
   void _showTokenSearch() {

@@ -20,12 +20,20 @@ class ColorSelectionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => onChanged(!isSelected),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Stack(
+    // Use desaturated/faded color when not selected
+    final displayColor = isSelected
+        ? color
+        : color.withOpacity(0.3);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => onChanged(!isSelected),
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: 48,
+          height: 48,
+          child: Stack(
             alignment: Alignment.center,
             children: [
               // Circle background
@@ -34,17 +42,17 @@ class ColorSelectionButton extends StatelessWidget {
                 height: 48,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isSelected ? color : Colors.grey.withOpacity(0.3),
+                  color: displayColor,
                 ),
               ),
 
               // Symbol text
               Text(
                 symbol,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: isSelected ? Colors.white : Colors.grey.shade400,
                 ),
               ),
 
@@ -56,22 +64,14 @@ class ColorSelectionButton extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Colors.blue,
-                      width: 3,
+                      color: Colors.grey.shade700,
+                      width: 2,
                     ),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: isSelected ? null : Colors.grey,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

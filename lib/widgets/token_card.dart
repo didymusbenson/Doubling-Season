@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:gradient_borders/gradient_borders.dart';
 import '../models/item.dart';
 import '../providers/settings_provider.dart';
-import '../utils/color_utils.dart';
+import '../providers/token_provider.dart';
 import '../screens/expanded_token_screen.dart';
 import 'counter_pill.dart';
 
@@ -28,29 +27,8 @@ class TokenCard extends StatelessWidget {
       child: Opacity(
       opacity: item.amount == 0 ? 0.5 : 1.0,
       child: Container(
+        color: Theme.of(context).cardColor,
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.12),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
-            ),
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 1,
-              offset: const Offset(0, 1),
-            ),
-          ],
-          border: GradientBoxBorder(
-            gradient: LinearGradient(
-              colors: ColorUtils.getColorsForIdentity(item.colors),
-            ),
-            width: 3,
-          ),
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -155,9 +133,108 @@ class TokenCard extends StatelessWidget {
                       ),
               ),
             ],
+
+            // Quick action buttons
+            const SizedBox(height: 12),
+            _buildActionButtons(context, settings),
           ],
         ),
       ),
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context, SettingsProvider settings) {
+    final tokenProvider = context.read<TokenProvider>();
+    final multiplier = settings.tokenMultiplier;
+    final summoningSicknessEnabled = settings.summoningSicknessEnabled;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        // Remove button
+        _buildActionButton(
+          context,
+          icon: Icons.remove,
+          onTap: () => tokenProvider.removeTokens(item, multiplier),
+          onLongPress: () => tokenProvider.removeTokens(item, item.amount),
+          color: Colors.red,
+        ),
+
+        // Add button
+        _buildActionButton(
+          context,
+          icon: Icons.add,
+          onTap: () => tokenProvider.addTokens(item, multiplier, summoningSicknessEnabled),
+          onLongPress: () => tokenProvider.addTokens(item, multiplier * 10, summoningSicknessEnabled),
+          color: Colors.green,
+        ),
+
+        if (!item.isEmblem) ...[
+          // Untap button
+          _buildActionButton(
+            context,
+            icon: Icons.crop_portrait,
+            onTap: () => tokenProvider.untapTokens(item, multiplier),
+            onLongPress: () => tokenProvider.untapTokens(item, item.tapped),
+            color: Colors.blue,
+          ),
+
+          // Tap button
+          _buildActionButton(
+            context,
+            icon: Icons.crop_landscape,
+            onTap: () => tokenProvider.tapTokens(item, multiplier),
+            onLongPress: () => tokenProvider.tapTokens(item, item.amount - item.tapped),
+            color: Colors.orange,
+          ),
+        ],
+
+        // Copy button
+        _buildActionButton(
+          context,
+          icon: Icons.content_copy,
+          onTap: () => tokenProvider.copyToken(item, summoningSicknessEnabled),
+          onLongPress: null,
+          color: Colors.purple,
+        ),
+
+        // Scute Swarm special button
+        if (item.name.toLowerCase().contains('scute swarm')) ...[
+          _buildActionButton(
+            context,
+            icon: Icons.bug_report,
+            onTap: () => tokenProvider.addTokens(item, item.amount, summoningSicknessEnabled),
+            onLongPress: null,
+            color: Colors.green.shade700,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildActionButton(
+    BuildContext context, {
+    required IconData icon,
+    required VoidCallback? onTap,
+    required VoidCallback? onLongPress,
+    required Color color,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color, width: 1.5),
+        ),
+        child: Icon(
+          icon,
+          color: color,
+          size: 20,
+        ),
       ),
     );
   }

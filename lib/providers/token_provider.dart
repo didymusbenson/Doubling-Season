@@ -38,6 +38,76 @@ class TokenProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Token manipulation methods
+  Future<void> addTokens(Item item, int amount, bool summoningSicknessEnabled) async {
+    item.amount += amount;
+    if (summoningSicknessEnabled) {
+      item.summoningSick += amount;
+    }
+    await item.save();
+    notifyListeners();
+  }
+
+  Future<void> removeTokens(Item item, int amount) async {
+    final toRemove = amount.clamp(0, item.amount);
+    item.amount -= toRemove;
+
+    // Adjust tapped count proportionally
+    if (item.tapped > item.amount) {
+      item.tapped = item.amount;
+    }
+
+    // Adjust summoning sick count
+    if (item.summoningSick > item.amount) {
+      item.summoningSick = item.amount;
+    }
+
+    await item.save();
+    notifyListeners();
+  }
+
+  Future<void> tapTokens(Item item, int amount) async {
+    final untapped = item.amount - item.tapped;
+    final toTap = amount.clamp(0, untapped);
+    item.tapped += toTap;
+    await item.save();
+    notifyListeners();
+  }
+
+  Future<void> untapTokens(Item item, int amount) async {
+    final toUntap = amount.clamp(0, item.tapped);
+    item.tapped -= toUntap;
+    await item.save();
+    notifyListeners();
+  }
+
+  Future<void> copyToken(Item item, bool summoningSicknessEnabled) async {
+    final newItem = Item(
+      name: item.name,
+      pt: item.pt,
+      abilities: item.abilities,
+      colors: item.colors,
+      amount: item.amount,
+      tapped: item.tapped,
+      summoningSick: summoningSicknessEnabled ? item.amount : 0,
+    );
+
+    // Add to box FIRST, then set properties that call save()
+    await _itemsBox.add(newItem);
+
+    // Copy power/toughness counters (these setters call save())
+    newItem.plusOneCounters = item.plusOneCounters;
+    newItem.minusOneCounters = item.minusOneCounters;
+
+    // Copy custom counters
+    for (final counter in item.counters) {
+      newItem.counters.add(counter);
+    }
+    await newItem.save();
+
+    notifyListeners();
+  }
+
   Future<void> untapAll() async {
     for (final item in items) {
       item.tapped = 0;

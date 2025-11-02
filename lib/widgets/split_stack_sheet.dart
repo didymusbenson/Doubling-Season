@@ -294,22 +294,26 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
     Navigator.pop(context);
 
     // CRITICAL: Use Future.delayed to ensure sheet fully dismissed before Hive operations
-    Future.delayed(UIConstants.sheetDismissDelay, () {
+    Future.delayed(UIConstants.sheetDismissDelay, () async {
       final tokenProvider = context.read<TokenProvider>();
 
       // Update original stack
       widget.item.amount = result.originalAmount;
       widget.item.tapped = result.originalTapped;
       widget.item.summoningSick = 0; // Clear summoning sickness
-      tokenProvider.updateItem(widget.item);
+      await tokenProvider.updateItem(widget.item);
 
       // Create new stack
       final newItem = widget.item.createDuplicate();
+
+      // Add to box FIRST
+      await tokenProvider.insertItem(newItem);
+
+      // Now apply counters from original and set amounts
+      newItem.applyDuplicateCounters(widget.item);
       newItem.amount = result.newAmount;
       newItem.tapped = result.newTapped;
       newItem.summoningSick = 0; // Clear summoning sickness
-
-      tokenProvider.insertItem(newItem);
 
       // Call completion callback if provided
       widget.onSplitCompleted?.call();
