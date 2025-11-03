@@ -33,14 +33,11 @@ class _ContentScreenState extends State<ContentScreen> {
           // Token list
           _buildTokenList(),
 
-          // Multiplier view overlay (bottom center)
+          // Multiplier view overlay (bottom left)
           const Positioned(
             bottom: 16,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: MultiplierView(),
-            ),
+            left: 16,
+            child: MultiplierView(),
           ),
 
           // Floating action menu (bottom right)
@@ -153,7 +150,8 @@ class _ContentScreenState extends State<ContentScreen> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
+    return Align(
+      alignment: Alignment.topCenter,
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Container(
@@ -164,54 +162,88 @@ class _ContentScreenState extends State<ContentScreen> {
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'No tokens to display',
-                style: Theme.of(context).textTheme.titleLarge,
+              Align(
+                alignment: Alignment.center,
+                child: Text(
+                  'No tokens to display',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
               ),
               const SizedBox(height: 20),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              TextButton.icon(
+                onPressed: () => _showTokenSearch(),
+                icon: const Icon(Icons.add),
+                label: const Text('Create your first token'),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextButton.icon(
-                    onPressed: () => _showTokenSearch(),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Create your first token'),
+                  Icon(
+                    Icons.menu,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
                   ),
-                  const ListTile(
-                    leading: Icon(Icons.refresh),
-                    title: Text('Untap Everything'),
-                    dense: true,
-                  ),
-                  const ListTile(
-                    leading: Icon(Icons.hexagon_outlined),
-                    title: Text('Clear Summoning Sickness'),
-                    dense: true,
-                  ),
-                  const ListTile(
-                    leading: Icon(Icons.save),
-                    title: Text('Save Current Deck'),
-                    dense: true,
-                  ),
-                  const ListTile(
-                    leading: Icon(Icons.folder_open),
-                    title: Text('Load a Deck'),
-                    dense: true,
-                  ),
-                  const ListTile(
-                    leading: Icon(Icons.delete_sweep),
-                    title: Text('Board Wipe'),
-                    dense: true,
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Text(
+                      'Open tools to add tokens, save decks, and more',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
-              Text(
-                'Long press the +/- and tap/untap buttons to mass edit a token group.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontStyle: FontStyle.italic,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.calculate,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Text(
+                      'Adjust multiplier for token doubling effects',
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
-                textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.settings,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Text(
+                      'Settings',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.help_outline,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Text(
+                      'Help',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -236,26 +268,7 @@ class _ContentScreenState extends State<ContentScreen> {
 
   void _showUntapAllDialog() {
     final tokenProvider = context.read<TokenProvider>();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Untap All'),
-        content: const Text('Untap all tokens?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              tokenProvider.untapAll();
-              Navigator.pop(context);
-            },
-            child: const Text('Untap'),
-          ),
-        ],
-      ),
-    );
+    tokenProvider.untapAll();
   }
 
   void _showSummoningSicknessToggle() {

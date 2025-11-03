@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class FloatingActionMenu extends StatefulWidget {
+class FloatingActionMenu extends StatelessWidget {
   final VoidCallback onNewToken;
   final VoidCallback onUntapAll;
   final VoidCallback onClearSickness;
@@ -19,168 +19,195 @@ class FloatingActionMenu extends StatefulWidget {
   });
 
   @override
-  State<FloatingActionMenu> createState() => _FloatingActionMenuState();
+  Widget build(BuildContext context) {
+    return FloatingActionButton(
+      onPressed: () => _showActionSheet(context),
+      child: const Icon(Icons.menu),
+    );
+  }
+
+  void _showActionSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _ActionBottomSheet(
+        onNewToken: onNewToken,
+        onUntapAll: onUntapAll,
+        onClearSickness: onClearSickness,
+        onSaveDeck: onSaveDeck,
+        onLoadDeck: onLoadDeck,
+        onBoardWipe: onBoardWipe,
+      ),
+    );
+  }
 }
 
-class _FloatingActionMenuState extends State<FloatingActionMenu>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _expandAnimation;
-  bool _isExpanded = false;
+class _ActionBottomSheet extends StatelessWidget {
+  final VoidCallback onNewToken;
+  final VoidCallback onUntapAll;
+  final VoidCallback onClearSickness;
+  final VoidCallback onSaveDeck;
+  final VoidCallback onLoadDeck;
+  final VoidCallback onBoardWipe;
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 250),
-      vsync: this,
-    );
-    _expandAnimation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _toggle() {
-    setState(() {
-      _isExpanded = !_isExpanded;
-      if (_isExpanded) {
-        _controller.forward();
-      } else {
-        _controller.reverse();
-      }
-    });
-  }
-
-  void _handleAction(VoidCallback action) {
-    action();
-    _toggle(); // Close menu after action
-  }
+  const _ActionBottomSheet({
+    required this.onNewToken,
+    required this.onUntapAll,
+    required this.onClearSickness,
+    required this.onSaveDeck,
+    required this.onLoadDeck,
+    required this.onBoardWipe,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        // Menu items
-        if (_isExpanded) ...[
-          _buildMenuItem(
-            icon: Icons.add,
-            label: 'New Token',
-            onTap: () => _handleAction(widget.onNewToken),
-            color: Colors.green,
-          ),
-          const SizedBox(height: 12),
-          _buildMenuItem(
-            icon: Icons.refresh,
-            label: 'Untap All',
-            onTap: () => _handleAction(widget.onUntapAll),
-            color: Colors.blue,
-          ),
-          const SizedBox(height: 12),
-          _buildMenuItem(
-            icon: Icons.hexagon_outlined,
-            label: 'Clear Sickness',
-            onTap: () => _handleAction(widget.onClearSickness),
-            color: Colors.orange,
-          ),
-          const SizedBox(height: 12),
-          _buildMenuItem(
-            icon: Icons.save,
-            label: 'Save Deck',
-            onTap: () => _handleAction(widget.onSaveDeck),
-            color: Colors.purple,
-          ),
-          const SizedBox(height: 12),
-          _buildMenuItem(
-            icon: Icons.folder_open,
-            label: 'Load Deck',
-            onTap: () => _handleAction(widget.onLoadDeck),
-            color: Colors.indigo,
-          ),
-          const SizedBox(height: 12),
-          _buildMenuItem(
-            icon: Icons.delete_sweep,
-            label: 'Board Wipe',
-            onTap: () => _handleAction(widget.onBoardWipe),
-            color: Colors.red,
-          ),
-          const SizedBox(height: 16),
-        ],
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.all(24),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                const Icon(Icons.menu, size: 28),
+                const SizedBox(width: 12),
+                Text(
+                  'Actions',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
 
-        // Main FAB
-        FloatingActionButton(
-          onPressed: _toggle,
-          child: AnimatedIcon(
-            icon: AnimatedIcons.menu_close,
-            progress: _expandAnimation,
-          ),
+            // Actions list
+            _buildActionTile(
+              context: context,
+              icon: Icons.add,
+              label: 'New Token',
+              color: Colors.green,
+              onTap: () {
+                Navigator.pop(context);
+                onNewToken();
+              },
+            ),
+            const SizedBox(height: 4),
+            _buildActionTile(
+              context: context,
+              icon: Icons.refresh,
+              label: 'Untap All',
+              color: Colors.blue,
+              onTap: () {
+                Navigator.pop(context);
+                onUntapAll();
+              },
+            ),
+            const SizedBox(height: 4),
+            _buildActionTile(
+              context: context,
+              icon: Icons.hexagon_outlined,
+              label: 'Clear Summoning Sickness',
+              color: Colors.orange,
+              onTap: () {
+                Navigator.pop(context);
+                onClearSickness();
+              },
+            ),
+            const SizedBox(height: 4),
+            _buildActionTile(
+              context: context,
+              icon: Icons.save,
+              label: 'Save Deck',
+              color: Colors.purple,
+              onTap: () {
+                Navigator.pop(context);
+                onSaveDeck();
+              },
+            ),
+            const SizedBox(height: 4),
+            _buildActionTile(
+              context: context,
+              icon: Icons.folder_open,
+              label: 'Load Deck',
+              color: Colors.indigo,
+              onTap: () {
+                Navigator.pop(context);
+                onLoadDeck();
+              },
+            ),
+            const SizedBox(height: 4),
+            _buildActionTile(
+              context: context,
+              icon: Icons.delete_sweep,
+              label: 'Board Wipe',
+              color: Colors.red,
+              onTap: () {
+                Navigator.pop(context);
+                onBoardWipe();
+              },
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
-  Widget _buildMenuItem({
+  Widget _buildActionTile({
+    required BuildContext context,
     required IconData icon,
     required String label,
-    required VoidCallback onTap,
     required Color color,
+    required VoidCallback onTap,
   }) {
-    return ScaleTransition(
-      scale: _expandAnimation,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Label
-          Material(
-            elevation: 4,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                label,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          // Icon button
-          Material(
-            elevation: 6,
-            borderRadius: BorderRadius.circular(28),
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(28),
-              child: Container(
-                width: 56,
-                height: 56,
+    return Material(
+      color: Theme.of(context).cardColor,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(28),
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   icon,
-                  color: Colors.white,
-                  size: 24,
+                  color: color,
+                  size: 22,
                 ),
               ),
-            ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: Theme.of(context).textTheme.bodySmall?.color,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
