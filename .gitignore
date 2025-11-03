@@ -27,6 +27,7 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
@@ -43,3 +44,95 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# ======================================
+# SECURITY & CREDENTIALS - NEVER COMMIT
+# ======================================
+
+# Android signing keys (CRITICAL)
+android/key.properties
+*.keystore
+*.jks
+
+# iOS signing & certificates (CRITICAL)
+*.p12
+*.pfx
+*.mobileprovision
+*.certSigningRequest
+
+# Environment variables & secrets
+.env
+.env.*
+secrets.yaml
+secrets.json
+credentials.json
+
+# Firebase & Google services (add when needed)
+**/GoogleService-Info.plist
+**/google-services.json
+firebase.json
+.firebaserc
+
+# ======================================
+# iOS SPECIFIC
+# ======================================
+
+# CocoaPods
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/flutter_export_environment.sh
+
+# Xcode user-specific data
+*.xcuserdata
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+DerivedData/
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.pbxuser
+!default.pbxuser
+!default.mode1v3
+!default.mode2v3
+!default.perspectivev3
+
+# Xcode build files
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.swiftpm/
+
+# ======================================
+# ANDROID SPECIFIC
+# ======================================
+
+# Gradle files
+android/local.properties
+android/.gradle/
+android/gradle/
+android/gradlew
+android/gradlew.bat
+android/captures/
+android/.cxx/
+*.hprof
+
+# Android build outputs
+android/app/build/
+android/build/
+
+# ======================================
+# GENERATED FILES
+# ======================================
+
+# Code generation backups
+*.g.dart.bak
+*.freezed.dart.bak
+
+# ======================================
+# CLAUDE CODE
+# ======================================
+
+.claude/

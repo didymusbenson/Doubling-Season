@@ -30,14 +30,77 @@ open ios/Runner.xcworkspace
 ```
 Then press `Cmd+R` to build and run.
 
-### Android Emulator
-```bash
-# List available devices
-flutter devices
+### Android Studio / Android Emulator
 
-# Run on Android
+#### First-Time Android Setup
+
+1. **Install Android SDK Command-line Tools** (required for Flutter):
+   - Open Android Studio
+   - Go to **Settings/Preferences > Appearance & Behavior > System Settings > Android SDK**
+   - Select the **SDK Tools** tab
+   - Check **Android SDK Command-line Tools (latest)**
+   - Click **Apply** and let it install
+
+2. **Accept Android Licenses**:
+   ```bash
+   flutter doctor --android-licenses
+   # Type 'y' to accept all licenses
+   ```
+
+3. **Verify Setup**:
+   ```bash
+   flutter doctor
+   # Should show all green checkmarks for Android toolchain
+   ```
+
+#### Running on Android Emulator
+
+```bash
+# List available emulators
+flutter emulators
+
+# Launch the Android emulator
+flutter emulators --launch Medium_Phone_API_36.1
+
+# Or create a new emulator with a custom name
+flutter emulators --create --name my_emulator
+
+# Once emulator is running, start the app
 flutter run
+
+# Or specify the device explicitly
+flutter run -d emulator-5554
 ```
+
+#### Running in Android Studio
+
+1. Open Android Studio
+2. Click **Open** and select the `Doubling Season` project folder
+3. Wait for Gradle sync to complete
+4. Click the device dropdown in the toolbar and select an emulator (or click **Device Manager** to create one)
+5. Click the green **Run** button (▶️) or press `Shift+F10`
+
+#### Android Build Commands
+
+```bash
+# Build APK for testing
+flutter build apk
+
+# Build app bundle for Play Store release
+flutter build appbundle
+
+# Build debug APK
+flutter build apk --debug
+
+# Build release APK
+flutter build apk --release
+
+# Install APK on connected device
+flutter install
+```
+
+APK files are created in `build/app/outputs/flutter-apk/`
+App bundles are created in `build/app/outputs/bundle/release/`
 
 ### Development Tips
 ```bash
@@ -52,7 +115,9 @@ flutter run -d <device-id>
 flutter run --release
 ```
 
-## App Store Release Preparation
+## Release Preparation
+
+## iOS App Store Release
 
 ### 1. Update Version and Build Number
 
@@ -192,6 +257,159 @@ pod install
 cd ..
 flutter pub get
 flutter build ipa
+```
+
+**Version Already Exists:**
+- Increment the build number in `pubspec.yaml` (e.g., `1.0.0+2`)
+
+## Android Play Store Release
+
+### 1. Update Version and Build Number
+
+Edit `pubspec.yaml`:
+```yaml
+version: 1.0.0+1  # Format: version+build_number
+```
+
+The version number (e.g., `1.0.0`) is what users see. The build number (e.g., `1`) must increment for each upload to Google Play Console.
+
+### 2. Configure App Icons
+
+Android app icons are typically placed in `android/app/src/main/res/`. Flutter can generate these automatically:
+
+```bash
+# Using flutter_launcher_icons package
+flutter pub add dev:flutter_launcher_icons
+```
+
+Add to `pubspec.yaml`:
+```yaml
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/icon.png"  # Your 1024x1024 icon
+```
+
+Then run:
+```bash
+flutter pub run flutter_launcher_icons
+```
+
+### 3. Configure Signing Key
+
+Create a keystore (one-time setup):
+```bash
+keytool -genkey -v -keystore ~/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+
+Create `android/key.properties`:
+```properties
+storePassword=<password>
+keyPassword=<password>
+keyAlias=upload
+storeFile=/Users/YourUsername/upload-keystore.jks
+```
+
+**Important:** Add `android/key.properties` to `.gitignore`
+
+Verify `android/app/build.gradle` has signing configuration:
+```gradle
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    ...
+    signingConfigs {
+        release {
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            storePassword keystoreProperties['storePassword']
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+        }
+    }
+}
+```
+
+### 4. Review Android Configuration
+
+Edit `android/app/build.gradle`:
+- `applicationId` - Must match Google Play Console
+- `minSdkVersion` - Minimum Android version (21+ recommended)
+- `targetSdkVersion` - Latest stable Android API level
+- `versionCode` and `versionName` should match `pubspec.yaml`
+
+Edit `android/app/src/main/AndroidManifest.xml`:
+- `android:label` - App name
+- Add required permissions (internet, etc.)
+
+### 5. Build Release Bundle
+
+```bash
+# Clean previous builds
+flutter clean
+
+# Get dependencies
+flutter pub get
+
+# Build app bundle (recommended for Play Store)
+flutter build appbundle --release
+
+# Or build APK
+flutter build apk --release
+```
+
+The `.aab` file will be created in `build/app/outputs/bundle/release/`
+
+### 6. Upload to Google Play Console
+
+1. Go to [Google Play Console](https://play.google.com/console)
+2. Select your app (or create a new app)
+3. Navigate to **Production > Releases**
+4. Click **Create new release**
+5. Upload the `.aab` file from `build/app/outputs/bundle/release/`
+6. Add release notes
+7. Click **Review release** then **Start rollout to Production**
+
+### Common Release Checklist
+
+- [ ] Version and build number incremented in `pubspec.yaml`
+- [ ] App icons generated for Android
+- [ ] Signing keystore created and `key.properties` configured
+- [ ] Application ID matches Google Play Console
+- [ ] Tested in release mode: `flutter run --release`
+- [ ] Build app bundle successful: `flutter build appbundle`
+- [ ] Uploaded to Google Play Console
+- [ ] Release notes added
+- [ ] Submitted for review
+
+### Troubleshooting
+
+**Signing Issues:**
+```bash
+# Verify keystore
+keytool -list -v -keystore ~/upload-keystore.jks -alias upload
+
+# Check key.properties path is correct
+cat android/key.properties
+```
+
+**Build Fails:**
+```bash
+# Clean and rebuild
+flutter clean
+cd android
+./gradlew clean
+cd ..
+flutter pub get
+flutter build appbundle
 ```
 
 **Version Already Exists:**
