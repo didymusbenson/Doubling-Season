@@ -97,16 +97,18 @@ class LoadDeckSheet extends StatelessWidget {
   }
 
   void _loadDeck(BuildContext context, Deck deck) {
+    // Capture references from outer context BEFORE showing dialog
     final tokenProvider = context.read<TokenProvider>();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Load Deck'),
         content: Text('Load "${deck.name}"?\n\nThis will replace all current tokens.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           TextButton(
@@ -122,11 +124,15 @@ class LoadDeckSheet extends StatelessWidget {
                 await tokenProvider.insertItem(item);
               }
 
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext); // Close dialog
+              }
+
               if (context.mounted) {
-                Navigator.pop(context); // Close dialog
                 Navigator.pop(context); // Close load deck sheet
 
-                ScaffoldMessenger.of(context).showSnackBar(
+                // Use captured ScaffoldMessenger (safe without context)
+                scaffoldMessenger.showSnackBar(
                   SnackBar(content: Text('Loaded deck "${deck.name}"')),
                 );
               }
@@ -143,23 +149,27 @@ class LoadDeckSheet extends StatelessWidget {
     Deck deck,
     DeckProvider provider,
   ) {
+    // Capture ScaffoldMessenger before showing dialog
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Deck'),
         content: Text('Delete "${deck.name}"?\n\nThis cannot be undone.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () async {
               await provider.deleteDeck(deck);
-              if (context.mounted) {
-                Navigator.pop(context);
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext);
 
-                ScaffoldMessenger.of(context).showSnackBar(
+                // Use captured ScaffoldMessenger (safe without context)
+                scaffoldMessenger.showSnackBar(
                   SnackBar(content: Text('Deleted deck "${deck.name}"')),
                 );
               }

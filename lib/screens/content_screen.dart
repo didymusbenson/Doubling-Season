@@ -80,19 +80,22 @@ class _ContentScreenState extends State<ContentScreen> {
   }
 
   Widget _buildTokenList() {
-    return Consumer<TokenProvider>(
-      builder: (context, provider, child) {
-        if (provider.items.isEmpty) {
+    // Use Provider.of with listen: false to get the provider reference once
+    final tokenProvider = Provider.of<TokenProvider>(context, listen: false);
+
+    // Only use ValueListenableBuilder for reactivity - no need for Consumer
+    return ValueListenableBuilder<Box<Item>>(
+      valueListenable: tokenProvider.listenable,
+      builder: (context, box, _) {
+        // Check empty state directly on box (efficient)
+        if (box.isEmpty) {
           return _buildEmptyState();
         }
 
-        return ValueListenableBuilder<Box<Item>>(
-          valueListenable: provider.listenable,
-          builder: (context, box, _) {
-            final items = box.values.toList()
-              ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        final items = box.values.toList()
+          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-            return ListView.builder(
+        return ListView.builder(
               itemCount: items.length,
               padding: const EdgeInsets.only(
                 top: 8,
@@ -135,7 +138,7 @@ class _ContentScreenState extends State<ContentScreen> {
                           padding: const EdgeInsets.only(right: 16),
                           child: const Icon(Icons.delete, color: Colors.white),
                         ),
-                        onDismissed: (_) => provider.deleteItem(item),
+                        onDismissed: (_) => tokenProvider.deleteItem(item),
                         child: TokenCard(item: item),
                       ),
                     ),
@@ -145,8 +148,6 @@ class _ContentScreenState extends State<ContentScreen> {
             );
           },
         );
-      },
-    );
   }
 
   Widget _buildEmptyState() {
@@ -320,25 +321,29 @@ class _ContentScreenState extends State<ContentScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Board Wipe'),
         content: const Text('Choose board wipe action:'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
-              tokenProvider.boardWipeZero();
-              Navigator.pop(context);
+            onPressed: () async {
+              await tokenProvider.boardWipeZero();
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext);
+              }
             },
             child: const Text('Set to 0'),
           ),
           TextButton(
-            onPressed: () {
-              tokenProvider.boardWipeDelete();
-              Navigator.pop(context);
+            onPressed: () async {
+              await tokenProvider.boardWipeDelete();
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext);
+              }
             },
             child: const Text('Delete All'),
           ),
@@ -351,10 +356,11 @@ class _ContentScreenState extends State<ContentScreen> {
     final tokenProvider = context.read<TokenProvider>();
     final deckProvider = context.read<DeckProvider>();
     final controller = TextEditingController();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Save Deck'),
         content: TextField(
           controller: controller,
@@ -366,13 +372,14 @@ class _ContentScreenState extends State<ContentScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
               if (controller.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                // Use captured scaffoldMessenger
+                scaffoldMessenger.showSnackBar(
                   const SnackBar(content: Text('Please enter a deck name')),
                 );
                 return;
@@ -385,9 +392,12 @@ class _ContentScreenState extends State<ContentScreen> {
               final deck = Deck(name: controller.text, templates: templates);
               deckProvider.saveDeck(deck);
 
-              Navigator.pop(context);
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext);
+              }
 
-              ScaffoldMessenger.of(context).showSnackBar(
+              // Use captured scaffoldMessenger (safe after Navigator.pop)
+              scaffoldMessenger.showSnackBar(
                 SnackBar(content: Text('Deck "${controller.text}" saved')),
               );
             },
@@ -395,7 +405,7 @@ class _ContentScreenState extends State<ContentScreen> {
           ),
         ],
       ),
-    );
+    ).then((_) => controller.dispose()); // Dispose controller after dialog closes
   }
 
   void _showLoadDeckSheet() {

@@ -205,7 +205,7 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
     );
   }
 
-  void _createToken() {
+  Future<void> _createToken() async {
     if (_nameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a token name')),
@@ -225,10 +225,12 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
       abilities: _abilitiesController.text,
       amount: finalAmount,
       tapped: _createTapped ? finalAmount : 0,
-      summoningSick: finalAmount,
+      summoningSick: settings.summoningSicknessEnabled ? finalAmount : 0,
     );
 
-    tokenProvider.insertItem(item);
-    Navigator.pop(context);
+    await tokenProvider.insertItem(item);
+    if (context.mounted) {
+      Navigator.pop(context);
+    }
   }
 }

@@ -111,6 +111,7 @@ class TokenProvider extends ChangeNotifier {
   Future<void> untapAll() async {
     for (final item in items) {
       item.tapped = 0;
+      await item.save(); // Explicitly await save for bulk operations
     }
     notifyListeners();
   }
@@ -118,6 +119,7 @@ class TokenProvider extends ChangeNotifier {
   Future<void> clearSummoningSickness() async {
     for (final item in items) {
       item.summoningSick = 0;
+      await item.save(); // Explicitly await save for bulk operations
     }
     notifyListeners();
   }
@@ -127,6 +129,7 @@ class TokenProvider extends ChangeNotifier {
       item.amount = 0;
       item.tapped = 0;
       item.summoningSick = 0;
+      await item.save(); // Explicitly await save for bulk operations
     }
     notifyListeners();
   }

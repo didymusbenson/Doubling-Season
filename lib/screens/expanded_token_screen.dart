@@ -6,6 +6,7 @@ import '../providers/settings_provider.dart';
 import '../widgets/counter_management_pill.dart';
 import '../widgets/color_selection_button.dart';
 import '../widgets/split_stack_sheet.dart';
+import '../utils/constants.dart';
 import 'counter_search_screen.dart';
 
 class ExpandedTokenScreen extends StatefulWidget {
@@ -70,10 +71,14 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tokenProvider = context.watch<TokenProvider>();
-    final settings = context.watch<SettingsProvider>();
+    // Use read instead of watch since tokenProvider is only used in callbacks
+    final tokenProvider = context.read<TokenProvider>();
 
-    return Scaffold(
+    // Use Selector to only rebuild when summoningSicknessEnabled changes
+    return Selector<SettingsProvider, bool>(
+      selector: (context, settings) => settings.summoningSicknessEnabled,
+      builder: (context, summoningSicknessEnabled, child) {
+        return Scaffold(
       appBar: AppBar(
         title: const Text('Token Details'),
         actions: [
@@ -296,7 +301,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                       const Divider(height: 24),
 
                       // Summoning Sickness
-                      if (settings.summoningSicknessEnabled) ...[
+                      if (summoningSicknessEnabled) ...[
                         _buildCountRow(
                           icon: Icons.adjust,
                           label: 'Summoning Sick',
@@ -546,6 +551,8 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
           ],
         ),
       ),
+        );
+      },
     );
   }
 
@@ -701,42 +708,60 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text('Set $label'),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
           autofocus: true,
-          decoration: InputDecoration(
+          decoration: const InputDecoration(
             hintText: 'Enter value',
-            border: const OutlineInputBorder(),
+            border: OutlineInputBorder(),
           ),
           onSubmitted: (text) {
             final value = int.tryParse(text);
             if (value != null && value >= 0) {
-              onSet(value);
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
+              // CRITICAL: Use Future.delayed to ensure dialog fully dismissed before state update
+              Future.delayed(UIConstants.sheetDismissDelay, () {
+                if (mounted) {
+                  onSet(value);
+                }
+                controller.dispose();
+              });
             }
           },
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              // Dispose controller after dialog is dismissed
+              Future.delayed(UIConstants.sheetDismissDelay, () {
+                controller.dispose();
+              });
+            },
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
               final value = int.tryParse(controller.text);
               if (value != null && value >= 0) {
-                onSet(value);
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
+                // CRITICAL: Use Future.delayed to ensure dialog fully dismissed before state update
+                Future.delayed(UIConstants.sheetDismissDelay, () {
+                  if (mounted) {
+                    onSet(value);
+                  }
+                  controller.dispose();
+                });
               }
             },
             child: const Text('Set'),
           ),
         ],
       ),
-    ).then((_) => controller.dispose());
+    );
   }
 
   void _showSplitStack(BuildContext context) {

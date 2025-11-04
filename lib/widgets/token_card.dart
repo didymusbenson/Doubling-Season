@@ -13,10 +13,12 @@ class TokenCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsProvider>();
-    final summoningSicknessEnabled = settings.summoningSicknessEnabled;
-
-    return GestureDetector(
+    // Use Selector to only rebuild when summoningSicknessEnabled changes
+    // This prevents rebuilds when multiplier changes
+    return Selector<SettingsProvider, bool>(
+      selector: (context, settings) => settings.summoningSicknessEnabled,
+      builder: (context, summoningSicknessEnabled, child) {
+        return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -114,7 +116,7 @@ class TokenCard extends StatelessWidget {
               children: [
                 // Action buttons on the left
                 Expanded(
-                  child: _buildActionButtons(context, settings),
+                  child: _buildActionButtons(context, context.read<SettingsProvider>()),
                 ),
                 // P/T display on the right
                 if (!item.isEmblem && item.pt.isNotEmpty) ...[
@@ -146,6 +148,8 @@ class TokenCard extends StatelessWidget {
         ),
       ),
       ),
+        );
+      },
     );
   }
 

@@ -41,6 +41,7 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _tokenDatabase.dispose(); // Fix memory leak
     super.dispose();
   }
 
@@ -668,10 +669,23 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
 
               // Create Button
               ElevatedButton(
-                onPressed: () {
-                  _createTokens(token, multiplier);
-                  Navigator.pop(context); // Close quantity dialog
-                  Navigator.pop(context); // Close search screen
+                onPressed: () async {
+                  // Capture provider reference BEFORE any async operations
+                  final tokenProvider = context.read<TokenProvider>();
+                  final finalAmount = _tokenQuantity * multiplier;
+
+                  // Create item and insert (async operation)
+                  final item = token.toItem(
+                    amount: finalAmount,
+                    createTapped: _createTapped,
+                  );
+                  await tokenProvider.insertItem(item);
+
+                  // Now safe to use context with mounted check
+                  if (context.mounted) {
+                    Navigator.pop(context); // Close quantity dialog
+                    Navigator.pop(context); // Close search screen
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
@@ -692,16 +706,6 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
     );
   }
 
-  void _createTokens(token_models.TokenDefinition token, int multiplier) {
-    final tokenProvider = context.read<TokenProvider>();
-    final finalAmount = _tokenQuantity * multiplier;
-    final item = token.toItem(
-      amount: finalAmount,
-      createTapped: _createTapped,
-    );
-
-    tokenProvider.insertItem(item);
-  }
 
   void _clearFilters() {
     setState(() {

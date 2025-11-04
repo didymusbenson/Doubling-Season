@@ -290,13 +290,15 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
   void _performSplit() {
     final result = _calculateSplit();
 
+    // Capture provider reference BEFORE dismissing and async operations
+    final tokenProvider = context.read<TokenProvider>();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
     // CRITICAL: Dismiss sheet FIRST (early dismiss pattern from SplitStackView.swift:146)
     Navigator.pop(context);
 
     // CRITICAL: Use Future.delayed to ensure sheet fully dismissed before Hive operations
     Future.delayed(UIConstants.sheetDismissDelay, () async {
-      final tokenProvider = context.read<TokenProvider>();
-
       // Update original stack
       widget.item.amount = result.originalAmount;
       widget.item.tapped = result.originalTapped;
@@ -318,7 +320,8 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
       // Call completion callback if provided
       widget.onSplitCompleted?.call();
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      // Use captured ScaffoldMessenger (safe without context)
+      scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('Stack split successfully')),
       );
     });
