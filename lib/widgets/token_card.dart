@@ -45,26 +45,26 @@ class TokenCard extends StatelessWidget {
                 ),
                 if (!item.isEmblem) ...[
                   if (item.summoningSick > 0 && summoningSicknessEnabled) ...[
-                    const Icon(Icons.hexagon_outlined, size: 20),
+                    const Icon(Icons.adjust, size: 20),
                     const SizedBox(width: 4),
                     Text(
                       '${item.summoningSick}',
-                      style: Theme.of(context).textTheme.titleMedium,
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(width: 8),
                   ],
-                  const Icon(Icons.crop_portrait, size: 20),
+                  const Icon(Icons.aod_outlined, size: 20),
                   const SizedBox(width: 4),
                   Text(
                     '${item.amount - item.tapped}',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(width: 8),
-                  const Icon(Icons.crop_landscape, size: 20),
+                  const Icon(Icons.rotate_90_degrees_cw, size: 20),
                   const SizedBox(width: 4),
                   Text(
                     '${item.tapped}',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ],
               ],
@@ -108,35 +108,40 @@ class TokenCard extends StatelessWidget {
               ),
             ],
 
-            // P/T display
-            if (!item.isEmblem && item.pt.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: item.isPowerToughnessModified
-                    ? Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
+            // Action buttons and P/T in same row
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                // Action buttons on the left
+                Expanded(
+                  child: _buildActionButtons(context, settings),
+                ),
+                // P/T display on the right
+                if (!item.isEmblem && item.pt.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  item.isPowerToughnessModified
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            item.formattedPowerToughness,
+                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                        )
+                      : Text(
                           item.formattedPowerToughness,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
                         ),
-                      )
-                    : Text(
-                        item.formattedPowerToughness,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-              ),
-            ],
-
-            // Quick action buttons
-            const SizedBox(height: 12),
-            _buildActionButtons(context, settings),
+                ],
+              ],
+            ),
           ],
         ),
       ),
@@ -149,16 +154,18 @@ class TokenCard extends StatelessWidget {
     final multiplier = settings.tokenMultiplier;
     final summoningSicknessEnabled = settings.summoningSicknessEnabled;
 
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      mainAxisAlignment: MainAxisAlignment.start,
       children: [
         // Remove button
         _buildActionButton(
           context,
           icon: Icons.remove,
-          onTap: () => tokenProvider.removeTokens(item, multiplier),
+          onTap: () => tokenProvider.removeTokens(item, 1),
           onLongPress: () => tokenProvider.removeTokens(item, item.amount),
-          color: Colors.red,
+          color: primaryColor,
         ),
 
         // Add button
@@ -167,26 +174,26 @@ class TokenCard extends StatelessWidget {
           icon: Icons.add,
           onTap: () => tokenProvider.addTokens(item, multiplier, summoningSicknessEnabled),
           onLongPress: () => tokenProvider.addTokens(item, multiplier * 10, summoningSicknessEnabled),
-          color: Colors.green,
+          color: primaryColor,
         ),
 
         if (!item.isEmblem) ...[
           // Untap button
           _buildActionButton(
             context,
-            icon: Icons.crop_portrait,
-            onTap: () => tokenProvider.untapTokens(item, multiplier),
+            icon: Icons.aod_outlined,
+            onTap: () => tokenProvider.untapTokens(item, 1),
             onLongPress: () => tokenProvider.untapTokens(item, item.tapped),
-            color: Colors.blue,
+            color: primaryColor,
           ),
 
           // Tap button
           _buildActionButton(
             context,
-            icon: Icons.crop_landscape,
-            onTap: () => tokenProvider.tapTokens(item, multiplier),
+            icon: Icons.rotate_90_degrees_cw,
+            onTap: () => tokenProvider.tapTokens(item, 1),
             onLongPress: () => tokenProvider.tapTokens(item, item.amount - item.tapped),
-            color: Colors.orange,
+            color: primaryColor,
           ),
         ],
 
@@ -196,7 +203,7 @@ class TokenCard extends StatelessWidget {
           icon: Icons.content_copy,
           onTap: () => tokenProvider.copyToken(item, summoningSicknessEnabled),
           onLongPress: null,
-          color: Colors.purple,
+          color: primaryColor,
         ),
 
         // Scute Swarm special button
@@ -206,7 +213,7 @@ class TokenCard extends StatelessWidget {
             icon: Icons.bug_report,
             onTap: () => tokenProvider.addTokens(item, item.amount, summoningSicknessEnabled),
             onLongPress: null,
-            color: Colors.green.shade700,
+            color: primaryColor,
           ),
         ],
       ],
@@ -220,20 +227,23 @@ class TokenCard extends StatelessWidget {
     required VoidCallback? onLongPress,
     required Color color,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      onLongPress: onLongPress,
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color, width: 1.5),
-        ),
-        child: Icon(
-          icon,
-          color: color,
-          size: 20,
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: color, width: 1.5),
+          ),
+          child: Icon(
+            icon,
+            color: color,
+            size: 20,
+          ),
         ),
       ),
     );

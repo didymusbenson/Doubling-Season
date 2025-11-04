@@ -105,42 +105,9 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
     );
   }
 
-  // CRITICAL: SwiftUI CounterSearchView shows "Add to All" vs "Add to One" choice FIRST
   void _showAddToAllOrOneDialog(String counterName) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Add $counterName Counter'),
-        content: const Text(
-          'Do you want to add this counter to all tokens in the stack, '
-          'or split the stack and add to just one token?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _showQuantityDialog(counterName, applyToAll: true);
-            },
-            child: const Text('Add to All'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _showQuantityDialog(counterName, applyToAll: false);
-            },
-            child: const Text('Split & Add to One'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showQuantityDialog(String counterName, {required bool applyToAll}) {
     int quantity = 1;
+    final controller = TextEditingController(text: quantity.toString());
 
     showDialog(
       context: context,
@@ -150,56 +117,117 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    onPressed: quantity > 1
-                        ? () => setDialogState(() => quantity--)
-                        : null,
-                    icon: const Icon(Icons.remove_circle),
-                    iconSize: 32,
-                  ),
-                  SizedBox(
-                    width: 60,
-                    child: Text(
-                      '$quantity',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                IconButton(
+                  onPressed: quantity > 1
+                      ? () => setDialogState(() {
+                            quantity--;
+                            controller.text = quantity.toString();
+                          })
+                      : null,
+                  icon: const Icon(Icons.remove_circle_outline),
+                  iconSize: 32,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+                const SizedBox(width: 16),
+                GestureDetector(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        title: const Text('Set Quantity'),
+                        content: TextField(
+                          controller: controller,
+                          keyboardType: TextInputType.number,
+                          autofocus: true,
+                          decoration: const InputDecoration(
+                            hintText: 'Enter quantity',
+                            border: OutlineInputBorder(),
+                          ),
+                          onSubmitted: (text) {
+                            final value = int.tryParse(text);
+                            if (value != null && value >= 1) {
+                              setDialogState(() => quantity = value);
+                              Navigator.pop(dialogContext);
+                            }
+                          },
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              final value = int.tryParse(controller.text);
+                              if (value != null && value >= 1) {
+                                setDialogState(() => quantity = value);
+                                Navigator.pop(dialogContext);
+                              }
+                            },
+                            child: const Text('Set'),
+                          ),
+                        ],
                       ),
-                    ),
+                    );
+                  },
+                  child: Text(
+                    '$quantity',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
-                  IconButton(
-                    onPressed: () => setDialogState(() => quantity++),
-                    icon: const Icon(Icons.add_circle),
-                    iconSize: 32,
-                  ),
-                ],
-              ),
-              if (!applyToAll) ...[
-                const SizedBox(height: 16),
-                const Text(
-                  'This will split the stack and add counters to one token only',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(width: 16),
+                IconButton(
+                  onPressed: () => setDialogState(() {
+                        quantity++;
+                        controller.text = quantity.toString();
+                      }),
+                  icon: const Icon(Icons.add_circle_outline),
+                  iconSize: 32,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
                 ),
               ],
+            ),
+              ),
             ],
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                controller.dispose();
+                Navigator.pop(context);
+              },
               child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () {
-                _addCounter(counterName, quantity, applyToAll: applyToAll);
-                Navigator.pop(context); // Close quantity dialog
+                _addCounter(counterName, quantity, applyToAll: true);
+                controller.dispose();
+                Navigator.pop(context); // Close dialog
                 Navigator.pop(context); // Close counter search
               },
-              child: const Text('Add'),
+              child: const Text('Add to All'),
+            ),
+            TextButton(
+              onPressed: () {
+                _addCounter(counterName, quantity, applyToAll: false);
+                controller.dispose();
+                Navigator.pop(context); // Close dialog
+                Navigator.pop(context); // Close counter search
+                Navigator.pop(context); // Close expanded token screen
+              },
+              child: const Text('Split & Add to One'),
             ),
           ],
         ),

@@ -126,7 +126,7 @@ class _AboutScreenState extends State<AboutScreen> {
                       text: 'Track tapped/untapped states',
                     ),
                     _buildFeatureItem(
-                      icon: Icons.hexagon_outlined,
+                      icon: Icons.adjust,
                       text: 'Summoning sickness tracking',
                     ),
                     _buildFeatureItem(
@@ -169,15 +169,6 @@ class _AboutScreenState extends State<AboutScreen> {
                     Text(
                       'Token database sourced from the Cockatrice project.',
                       style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Wizards of the Coast, Magic: The Gathering, and their '
-                      'logos are trademarks of Wizards of the Coast LLC.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontStyle: FontStyle.italic,
-                        color: Colors.grey,
-                      ),
                     ),
                   ],
                 ),

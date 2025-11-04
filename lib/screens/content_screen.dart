@@ -172,12 +172,28 @@ class _ContentScreenState extends State<ContentScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              TextButton.icon(
-                onPressed: () => _showTokenSearch(),
-                icon: const Icon(Icons.add),
-                label: const Text('Create your first token'),
+              GestureDetector(
+                onTap: () => _showTokenSearch(),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.add,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Text(
+                        'Create your first token',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -222,7 +238,7 @@ class _ContentScreenState extends State<ContentScreen> {
                   const SizedBox(width: 12),
                   Flexible(
                     child: Text(
-                      'Settings',
+                      'Adjust Settings',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ),
@@ -239,7 +255,7 @@ class _ContentScreenState extends State<ContentScreen> {
                   const SizedBox(width: 12),
                   Flexible(
                     child: Text(
-                      'Help',
+                      'About Doubling Season',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ),
@@ -272,29 +288,27 @@ class _ContentScreenState extends State<ContentScreen> {
   }
 
   void _showSummoningSicknessToggle() {
-    final settings = context.read<SettingsProvider>();
-    final current = settings.summoningSicknessEnabled;
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Summoning Sickness'),
-        content: Text(
-          current
-              ? 'Disable summoning sickness tracking?'
-              : 'Enable summoning sickness tracking?',
+        title: const Text('Settings'),
+        content: Consumer<SettingsProvider>(
+          builder: (context, settings, child) {
+            return SwitchListTile(
+              title: const Text('Track summoning sickness'),
+              subtitle: const Text('Automatically track summoning sickness on newly created tokens'),
+              value: settings.summoningSicknessEnabled,
+              onChanged: (value) {
+                settings.setSummoningSicknessEnabled(value);
+              },
+              contentPadding: EdgeInsets.zero,
+            );
+          },
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              settings.setSummoningSicknessEnabled(!current);
-              Navigator.pop(context);
-            },
-            child: Text(current ? 'Disable' : 'Enable'),
+            child: const Text('Close'),
           ),
         ],
       ),

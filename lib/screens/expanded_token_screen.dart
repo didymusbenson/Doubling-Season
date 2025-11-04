@@ -249,6 +249,10 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                               tokenProvider.updateItem(widget.item);
                             }
                           : null,
+                      onManualSet: (value) {
+                        widget.item.amount = value;
+                        tokenProvider.updateItem(widget.item);
+                      },
                     ),
 
                     const Divider(height: 24),
@@ -256,7 +260,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                     if (!widget.item.isEmblem) ...[
                       // Untapped
                       _buildCountRow(
-                        icon: Icons.crop_portrait,
+                        icon: Icons.aod_outlined,
                         label: 'Untapped',
                         value: widget.item.amount - widget.item.tapped,
                         showButtons: false,
@@ -266,7 +270,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
 
                       // Tapped
                       _buildCountRow(
-                        icon: Icons.crop_landscape,
+                        icon: Icons.rotate_90_degrees_cw,
                         label: 'Tapped',
                         value: widget.item.tapped,
                         onIncrement: widget.item.tapped < widget.item.amount
@@ -281,6 +285,12 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                 tokenProvider.updateItem(widget.item);
                               }
                             : null,
+                        onManualSet: (value) {
+                          if (value <= widget.item.amount) {
+                            widget.item.tapped = value;
+                            tokenProvider.updateItem(widget.item);
+                          }
+                        },
                       ),
 
                       const Divider(height: 24),
@@ -288,7 +298,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                       // Summoning Sickness
                       if (settings.summoningSicknessEnabled) ...[
                         _buildCountRow(
-                          icon: Icons.hexagon_outlined,
+                          icon: Icons.adjust,
                           label: 'Summoning Sick',
                           value: widget.item.summoningSick,
                           onIncrement:
@@ -304,6 +314,12 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                   tokenProvider.updateItem(widget.item);
                                 }
                               : null,
+                          onManualSet: (value) {
+                            if (value <= widget.item.amount) {
+                              widget.item.summoningSick = value;
+                              tokenProvider.updateItem(widget.item);
+                            }
+                          },
                         ),
                       ],
                     ],
@@ -352,14 +368,29 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                               : null,
                           icon: const Icon(Icons.remove_circle, color: Colors.red),
                         ),
-                        SizedBox(
-                          width: 40,
-                          child: Text(
-                            '${widget.item.plusOneCounters}',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                        GestureDetector(
+                          onTap: () => _showManualInputDialog(
+                            '+1/+1 Counters',
+                            widget.item.plusOneCounters,
+                            (value) {
+                              widget.item.plusOneCounters = value;
+                              tokenProvider.updateItem(widget.item);
+                            },
+                          ),
+                          child: Container(
+                            width: 40,
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(4),
+                              color: Colors.blue.withOpacity(0.1),
+                            ),
+                            child: Text(
+                              '${widget.item.plusOneCounters}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -388,14 +419,29 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                               : null,
                           icon: const Icon(Icons.remove_circle, color: Colors.red),
                         ),
-                        SizedBox(
-                          width: 40,
-                          child: Text(
-                            '${widget.item.minusOneCounters}',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                        GestureDetector(
+                          onTap: () => _showManualInputDialog(
+                            '-1/-1 Counters',
+                            widget.item.minusOneCounters,
+                            (value) {
+                              widget.item.minusOneCounters = value;
+                              tokenProvider.updateItem(widget.item);
+                            },
+                          ),
+                          child: Container(
+                            width: 40,
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(4),
+                              color: Colors.blue.withOpacity(0.1),
+                            ),
+                            child: Text(
+                              '${widget.item.minusOneCounters}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -453,14 +499,30 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                     : null,
                                 icon: const Icon(Icons.remove_circle, color: Colors.red),
                               ),
-                              SizedBox(
-                                width: 40,
-                                child: Text(
-                                  '${counter.amount}',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                              GestureDetector(
+                                onTap: () => _showManualInputDialog(
+                                  '${counter.name} Counters',
+                                  counter.amount,
+                                  (value) {
+                                    counter.amount = value;
+                                    tokenProvider.updateItem(widget.item);
+                                    setState(() {}); // Rebuild to update UI
+                                  },
+                                ),
+                                child: Container(
+                                  width: 40,
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(4),
+                                    color: Colors.blue.withOpacity(0.1),
+                                  ),
+                                  child: Text(
+                                    '${counter.amount}',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -577,6 +639,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
     VoidCallback? onIncrement,
     VoidCallback? onDecrement,
     bool showButtons = true,
+    Function(int)? onManualSet,
   }) {
     return Row(
       children: [
@@ -597,14 +660,26 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
             ),
           ),
         ],
-        SizedBox(
-          width: 40,
-          child: Text(
-            '$value',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+        GestureDetector(
+          onTap: onManualSet != null
+              ? () => _showManualInputDialog(label, value, onManualSet)
+              : null,
+          child: Container(
+            width: 40,
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4),
+              color: onManualSet != null
+                  ? Colors.blue.withOpacity(0.1)
+                  : Colors.transparent,
+            ),
+            child: Text(
+              '$value',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ),
@@ -619,6 +694,49 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
         ],
       ],
     );
+  }
+
+  void _showManualInputDialog(String label, int currentValue, Function(int) onSet) {
+    final controller = TextEditingController(text: currentValue.toString());
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Set $label'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: 'Enter value',
+            border: const OutlineInputBorder(),
+          ),
+          onSubmitted: (text) {
+            final value = int.tryParse(text);
+            if (value != null && value >= 0) {
+              onSet(value);
+              Navigator.pop(context);
+            }
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final value = int.tryParse(controller.text);
+              if (value != null && value >= 0) {
+                onSet(value);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Set'),
+          ),
+        ],
+      ),
+    ).then((_) => controller.dispose());
   }
 
   void _showSplitStack(BuildContext context) {

@@ -244,6 +244,14 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Color indicators
+                if (token.colors.isNotEmpty) ...[
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: _buildColorIndicators(token.colors),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 if (token.pt.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -275,6 +283,39 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
         );
       },
     );
+  }
+
+  List<Widget> _buildColorIndicators(String colors) {
+    final indicators = <Widget>[];
+    final colorMap = {
+      'W': const Color(0xFFE8DDB5), // Cream for white
+      'U': Colors.blue,
+      'B': Colors.purple,
+      'R': Colors.red,
+      'G': Colors.green,
+    };
+
+    for (final colorChar in colors.split('')) {
+      if (colorMap.containsKey(colorChar)) {
+        indicators.add(
+          Container(
+            width: 12,
+            height: 12,
+            margin: const EdgeInsets.only(left: 2),
+            decoration: BoxDecoration(
+              color: colorMap[colorChar],
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.black.withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    return indicators;
   }
 
   Widget _buildLoadingView() {

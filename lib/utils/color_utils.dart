@@ -4,7 +4,7 @@ class ColorUtils {
   static List<Color> getColorsForIdentity(String colorString) {
     final colors = <Color>[];
 
-    if (colorString.contains('W')) colors.add(Colors.yellow);
+    if (colorString.contains('W')) colors.add(const Color(0xFFE8DDB5)); // Cream color for white
     if (colorString.contains('U')) colors.add(Colors.blue);
     if (colorString.contains('B')) colors.add(Colors.purple);
     if (colorString.contains('R')) colors.add(Colors.red);

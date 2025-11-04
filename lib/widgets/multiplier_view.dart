@@ -11,49 +11,18 @@ class MultiplierView extends StatelessWidget {
     final settings = context.watch<SettingsProvider>();
     final multiplier = settings.tokenMultiplier;
 
-    return GestureDetector(
-      onTap: () => _showMultiplierSheet(context),
-      child: Container(
-        height: 56,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 2,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.calculate,
-                color: Colors.blue,
-                size: 24,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'x$multiplier',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.blue,
-                ),
-              ),
-            ],
-          ),
+    return FloatingActionButton.extended(
+      onPressed: () => _showMultiplierSheet(context),
+      heroTag: 'multiplier_fab',
+      icon: const Icon(Icons.calculate, size: 24),
+      label: Text(
+        'x$multiplier',
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
         ),
       ),
+      extendedPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     );
   }
 
@@ -76,7 +45,7 @@ class _MultiplierBottomSheet extends StatefulWidget {
 
 class _MultiplierBottomSheetState extends State<_MultiplierBottomSheet> {
   final TextEditingController _manualInputController = TextEditingController();
-  final List<int> _presets = [1, 2, 3, 4, 6, 8, 9, 12, 16];
+  final List<int> _presets = [1, 2, 3, 4, 6, 8, 9];
 
   @override
   void dispose() {
@@ -118,7 +87,7 @@ class _MultiplierBottomSheetState extends State<_MultiplierBottomSheet> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Set custom token doubling amount.',
+              'Set custom multiplier for newly created tokens.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).textTheme.bodySmall?.color,
                   ),
@@ -166,26 +135,31 @@ class _MultiplierBottomSheetState extends State<_MultiplierBottomSheet> {
             const SizedBox(height: 24),
 
             // Preset values
-            Text(
-              'Quick Presets',
-              style: Theme.of(context).textTheme.titleMedium,
+            Center(
+              child: Text(
+                'Quick Presets',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             ),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _presets.map((preset) {
-                final isSelected = preset == multiplier;
-                return FilterChip(
-                  label: Text('x$preset'),
-                  selected: isSelected,
-                  onSelected: (_) => settings.setTokenMultiplier(preset),
-                  showCheckmark: false,
-                  labelStyle: TextStyle(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  ),
-                );
-              }).toList(),
+            Center(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: _presets.map((preset) {
+                  final isSelected = preset == multiplier;
+                  return FilterChip(
+                    label: Text('x$preset'),
+                    selected: isSelected,
+                    onSelected: (_) => settings.setTokenMultiplier(preset),
+                    showCheckmark: false,
+                    labelStyle: TextStyle(
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  );
+                }).toList(),
+              ),
             ),
             const SizedBox(height: 24),
 

@@ -22,7 +22,8 @@ class FloatingActionMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return FloatingActionButton(
       onPressed: () => _showActionSheet(context),
-      child: const Icon(Icons.menu),
+      heroTag: 'menu_fab',
+      child: const Icon(Icons.menu, size: 28),
     );
   }
 
@@ -115,7 +116,7 @@ class _ActionBottomSheet extends StatelessWidget {
             const SizedBox(height: 4),
             _buildActionTile(
               context: context,
-              icon: Icons.hexagon_outlined,
+              icon: Icons.adjust,
               label: 'Clear Summoning Sickness',
               color: Colors.orange,
               onTap: () {
