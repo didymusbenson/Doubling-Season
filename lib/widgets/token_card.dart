@@ -155,7 +155,6 @@ class TokenCard extends StatelessWidget {
 
   Widget _buildActionButtons(BuildContext context, SettingsProvider settings) {
     final tokenProvider = context.read<TokenProvider>();
-    final multiplier = settings.tokenMultiplier;
     final summoningSicknessEnabled = settings.summoningSicknessEnabled;
 
     final primaryColor = Theme.of(context).colorScheme.primary;
@@ -176,8 +175,18 @@ class TokenCard extends StatelessWidget {
         _buildActionButton(
           context,
           icon: Icons.add,
-          onTap: () => tokenProvider.addTokens(item, multiplier, summoningSicknessEnabled),
-          onLongPress: () => tokenProvider.addTokens(item, multiplier * 10, summoningSicknessEnabled),
+          onTap: () {
+            // Read multiplier at callback time to get current value
+            final multiplier = context.read<SettingsProvider>().tokenMultiplier;
+            final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
+            tokenProvider.addTokens(item, multiplier, summoningSick);
+          },
+          onLongPress: () {
+            // Read multiplier at callback time to get current value
+            final multiplier = context.read<SettingsProvider>().tokenMultiplier;
+            final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
+            tokenProvider.addTokens(item, multiplier * 10, summoningSick);
+          },
           color: primaryColor,
         ),
 
@@ -205,7 +214,11 @@ class TokenCard extends StatelessWidget {
         _buildActionButton(
           context,
           icon: Icons.content_copy,
-          onTap: () => tokenProvider.copyToken(item, summoningSicknessEnabled),
+          onTap: () {
+            // Read summoningSickness at callback time to get current value
+            final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
+            tokenProvider.copyToken(item, summoningSick);
+          },
           onLongPress: null,
           color: primaryColor,
         ),
@@ -215,7 +228,11 @@ class TokenCard extends StatelessWidget {
           _buildActionButton(
             context,
             icon: Icons.bug_report,
-            onTap: () => tokenProvider.addTokens(item, item.amount, summoningSicknessEnabled),
+            onTap: () {
+              // Read summoningSickness at callback time to get current value
+              final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
+              tokenProvider.addTokens(item, item.amount, summoningSick);
+            },
             onLongPress: null,
             color: primaryColor,
           ),

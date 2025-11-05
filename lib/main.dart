@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'database/hive_setup.dart';
+import 'database/database_maintenance.dart';
 import 'providers/token_provider.dart';
 import 'providers/deck_provider.dart';
 import 'providers/settings_provider.dart';
@@ -78,6 +79,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
       settingsProvider = SettingsProvider();
       await settingsProvider.init();
+
+      // Perform database maintenance (compaction) if needed
+      // This runs weekly to reclaim dead space from deleted tokens.
+      // Safe to call on every startup - only compacts if interval has elapsed.
+      // Non-blocking: errors don't affect app startup.
+      await DatabaseMaintenanceService.compactIfNeeded();
 
       _providersReady = true;
       _checkReadyToTransition();

@@ -42,17 +42,12 @@ class _AboutScreenState extends State<AboutScreen> {
             const SizedBox(height: 24),
 
             // App Icon/Title
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.blue,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Icon(
-                Icons.filter_vintage,
-                size: 60,
-                color: Colors.white,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.asset(
+                'assets/AppIconSource.png',
+                width: 100,
+                height: 100,
               ),
             ),
 

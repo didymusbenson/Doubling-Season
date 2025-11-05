@@ -47,10 +47,11 @@ flutter pub run build_runner build --delete-conflicting-outputs
 ### Data Generation
 To regenerate the token database from upstream Magic token data:
 ```bash
-cd "AI STUFF"
-python3 process_tokens.py
+python3 HOUSEKEEPING/process_tokens_with_popularity.py
 ```
 This fetches token data from the Cockatrice GitHub repository, processes it, and outputs `assets/token_database.json`.
+
+**Tip**: Use the `/regen-tokens` slash command for a guided workflow.
 
 The script:
 - Fetches XML from `https://raw.githubusercontent.com/Cockatrice/Magic-Token/master/tokens.xml`
@@ -476,25 +477,27 @@ The `Item` model includes automatic validation in setters:
 **Critical**: TokenDefinition.id must match Python script deduplication logic:
 - Composite ID: `name|pt|colors|type|abilities`
 - This ensures all token variants appear in search results
-- Must match `process_tokens.py` line 118
+- Must match deduplication logic in `HOUSEKEEPING/process_tokens_with_popularity.py`
 
 ### Python Script Maintenance
-When modifying `process_tokens.py`:
-- The deduplication key at line 118 must include abilities: `f"{name}|{token['pt']}|{token['colors']}|{type_text}|{abilities}"`
-- Output path is hardcoded: `"assets/token_database.json"` (changed from `Doubling Season/TokenDatabase.json`)
-- Run from repository root: `python3 "AI STUFF/process_tokens.py"`
+When modifying `process_tokens_with_popularity.py`:
+- The deduplication key must include abilities: `f"{name}|{token['pt']}|{token['colors']}|{type_text}|{abilities}"`
+- Output path is hardcoded: `"assets/token_database.json"`
+- Run from repository root: `python3 HOUSEKEEPING/process_tokens_with_popularity.py`
 
 ## Future Feature Context
 
-See `FeedbackAndIdeas.md` for user-requested features:
+See `docs/FeedbackIdeas.md` for user-requested features:
 - Token artwork (download/on-demand/user upload)
 - Combat tracking interface
 - Condensed view mode
 - New toolbar positioning (floating toolbox already implemented in Flutter version)
 
-See `Premium.md` for planned paid features:
+See `docs/PremiumVersionIdeas.md` for planned paid features:
 - Commander-specific tools (Brudiclad, Krenko, Chatterfang)
 - Token modifier card toggles (Academy Manufactor, etc.)
+
+See `docs/NextFeature.md` for current development focus.
 
 ## Project Structure
 
@@ -542,12 +545,16 @@ lib/
 assets/
 └── token_database.json                 # 300+ bundled tokens
 
-AI STUFF/
-├── process_tokens.py                   # Token database generator
-├── Improvements.md                     # Current bug fixes and tasks
-├── FeedbackAndIdeas.md                 # User feature requests
-├── Premium.md                          # Planned paid features
-└── [other AI documentation]
+docs/
+├── FeedbackIdeas.md                    # User feature requests
+├── NextFeature.md                      # Current development focus
+└── PremiumVersionIdeas.md              # Planned paid features
+
+HOUSEKEEPING/
+├── process_tokens_with_popularity.py   # Token database generator
+├── data_processing_scripts.md          # Documentation for data scripts
+├── xml_token_processing_scripts.md     # XML processing guide
+└── [other development documentation]
 
 android/                                # Android platform files
 ios/                                    # iOS platform files (no native Swift code)

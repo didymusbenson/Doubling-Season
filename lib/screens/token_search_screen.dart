@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/token_definition.dart' as token_models;
@@ -28,21 +29,38 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
   int _tokenQuantity = 1;
   bool _createTapped = false;
 
+  // Search debouncing - prevents excessive filtering while user is typing
+  Timer? _searchDebounceTimer;
+  static const _searchDebounceDuration = Duration(milliseconds: 300);
+
   @override
   void initState() {
     super.initState();
     _tokenDatabase.loadTokens();
-    _searchController.addListener(() {
-      _tokenDatabase.searchQuery = _searchController.text;
-    });
+    _searchController.addListener(_onSearchTextChanged);
   }
 
   @override
   void dispose() {
+    _searchDebounceTimer?.cancel(); // Cancel pending search operations
     _searchController.dispose();
     _searchFocusNode.dispose();
     _tokenDatabase.dispose(); // Fix memory leak
     super.dispose();
+  }
+
+  /// Debounces search input to avoid filtering on every keystroke.
+  /// Waits 300ms after user stops typing before applying the search filter.
+  /// This significantly improves performance when searching through 300+ tokens.
+  void _onSearchTextChanged() {
+    // Cancel any pending search operations
+    _searchDebounceTimer?.cancel();
+
+    // Schedule new search after 300ms delay
+    _searchDebounceTimer = Timer(_searchDebounceDuration, () {
+      // Only update search query after user has stopped typing
+      _tokenDatabase.searchQuery = _searchController.text;
+    });
   }
 
   @override
