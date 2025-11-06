@@ -30,8 +30,11 @@ A way to represent tokens in combat? Not sure how we would handle this. Maybe ha
 
 Combat would also calculate total damage (when possible) or total damage + wildcards based on the tokens that have wildcard p/t.
 
-## General feedback 
+## General feedback
 Usability is unclear for some players. They tap on "create new" in the reminder text on empty screens, and don't know they can long press things in order to customize how many they add/remove. Controls need to be made more usable and users need easy access to understanding things.
+
+## Toast Notifications Blocking UI
+Toast notifications (snackbars) currently appear at the bottom of the screen and block access to buttons/controls. Need to reposition toasts or implement a dismissible overlay pattern that doesn't interfere with user interaction.
 
 ## New Toolbars
 Instead of a top banner, a toolbox icon in a bottom left corner bubble of the app that the user can tap to expand into a larger floating toolbox bubble and interact with. It would have the list of tools. The top right corner of the app can have the info tools (about doubling season, help docs etc.)
