@@ -47,7 +47,7 @@ flutter pub run build_runner build --delete-conflicting-outputs
 ### Data Generation
 To regenerate the token database from upstream Magic token data:
 ```bash
-python3 HOUSEKEEPING/process_tokens_with_popularity.py
+python3 docs/housekeeping/process_tokens_with_popularity.py
 ```
 This fetches token data from the Cockatrice GitHub repository, processes it, and outputs `assets/token_database.json`.
 
@@ -477,27 +477,27 @@ The `Item` model includes automatic validation in setters:
 **Critical**: TokenDefinition.id must match Python script deduplication logic:
 - Composite ID: `name|pt|colors|type|abilities`
 - This ensures all token variants appear in search results
-- Must match deduplication logic in `HOUSEKEEPING/process_tokens_with_popularity.py`
+- Must match deduplication logic in `docs/housekeeping/process_tokens_with_popularity.py`
 
 ### Python Script Maintenance
 When modifying `process_tokens_with_popularity.py`:
 - The deduplication key must include abilities: `f"{name}|{token['pt']}|{token['colors']}|{type_text}|{abilities}"`
 - Output path is hardcoded: `"assets/token_database.json"`
-- Run from repository root: `python3 HOUSEKEEPING/process_tokens_with_popularity.py`
+- Run from repository root: `python3 docs/housekeeping/process_tokens_with_popularity.py`
 
 ## Future Feature Context
 
-See `docs/FeedbackIdeas.md` for user-requested features:
+See `docs/activeDevelopment/FeedbackIdeas.md` for user-requested features:
 - Token artwork (download/on-demand/user upload)
 - Combat tracking interface
 - Condensed view mode
 - New toolbar positioning (floating toolbox already implemented in Flutter version)
 
-See `docs/PremiumVersionIdeas.md` for planned paid features:
+See `docs/activeDevelopment/PremiumVersionIdeas.md` for planned paid features:
 - Commander-specific tools (Brudiclad, Krenko, Chatterfang)
 - Token modifier card toggles (Academy Manufactor, etc.)
 
-See `docs/NextFeature.md` for current development focus.
+See `docs/activeDevelopment/NextFeature.md` for current development focus.
 
 ## Project Structure
 
@@ -546,15 +546,16 @@ assets/
 └── token_database.json                 # 300+ bundled tokens
 
 docs/
-├── FeedbackIdeas.md                    # User feature requests
-├── NextFeature.md                      # Current development focus
-└── PremiumVersionIdeas.md              # Planned paid features
-
-HOUSEKEEPING/
-├── process_tokens_with_popularity.py   # Token database generator
-├── data_processing_scripts.md          # Documentation for data scripts
-├── xml_token_processing_scripts.md     # XML processing guide
-└── [other development documentation]
+├── activeDevelopment/                  # Current planning and feedback
+│   ├── FeedbackIdeas.md                # User feature requests
+│   ├── NextFeature.md                  # Current development focus
+│   └── PremiumVersionIdeas.md          # Planned paid features
+└── housekeeping/                       # Maintenance scripts and guides
+    ├── process_tokens_with_popularity.py   # Token database generator
+    ├── data_processing_scripts.md      # Documentation for data scripts
+    ├── xml_token_processing_scripts.md # XML processing guide
+    ├── AndroidToolchainSetup.md        # Android dev environment setup
+    └── FlutterDevEnvSetup.md           # Flutter dev environment setup
 
 android/                                # Android platform files
 ios/                                    # iOS platform files (no native Swift code)

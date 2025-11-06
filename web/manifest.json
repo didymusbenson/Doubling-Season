@@ -1,11 +1,11 @@
 {
-    "name": "doubling_season",
-    "short_name": "doubling_season",
+    "name": "Doubling Season",
+    "short_name": "Doubling Season",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#E8E4A0",
+    "theme_color": "#E8E4A0",
+    "description": "Track your Magic: The Gathering tokens during gameplay. Manage token stacks with tapped/untapped states, counters, and summoning sickness.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
