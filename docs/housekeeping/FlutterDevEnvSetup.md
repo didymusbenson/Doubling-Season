@@ -329,6 +329,20 @@ If you plan to deploy to physical iOS device:
 brew install ios-deploy
 ```
 
+### App Store Deployment Tools
+For uploading builds to TestFlight and the App Store:
+
+**Apple Transporter** (Recommended for TestFlight uploads)
+- Download from Mac App Store: https://apps.apple.com/us/app/transporter/id1450874784
+- OR install via command:
+  ```bash
+  # Not available via Homebrew - must use Mac App Store
+  open "macappstore://apps.apple.com/app/transporter/id1450874784"
+  ```
+- Used for uploading IPA files to App Store Connect
+- Simpler than command-line tools (altool/xcrun)
+- Provides upload progress and validation feedback
+
 ---
 
 ## Step 9: Set Up Device Testing
@@ -505,6 +519,9 @@ flutter test
 
 # Build for release (iOS)
 flutter build ios --release
+
+# Build IPA for App Store/TestFlight
+flutter build ipa --release
 
 # Build for release (Android)
 flutter build apk --release

@@ -2,11 +2,94 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Maintaining This Document
+
+**CRITICAL**: Claude must proactively maintain this file as a living document.
+
+### When to Update CLAUDE.md
+
+Claude should **proactively offer** to update this file when:
+
+1. **Project Configuration Changes**
+   - Bundle identifiers, application IDs, or package names
+   - Version numbers or build configurations
+   - Platform support changes (adding/removing iOS/Android/Web/etc.)
+   - Deployment targets or minimum SDK versions
+
+2. **Architectural Changes**
+   - New state management patterns
+   - Database schema or persistence changes
+   - Navigation patterns or routing changes
+   - New providers or dependency injection
+
+3. **Development Workflow Changes**
+   - New slash commands created (in `.claude/commands/`)
+   - Build process modifications
+   - Testing or deployment procedures
+   - Code generation requirements
+
+4. **Documentation Gaps Discovered**
+   - Finding undocumented critical configuration (like bundle IDs)
+   - Discovering missing code patterns or conventions
+   - Encountering errors due to outdated instructions
+   - Learning project-specific requirements during work
+
+5. **Dependency Changes**
+   - Major package additions or removals
+   - Build tool updates (Hive, build_runner, etc.)
+   - Platform-specific dependencies
+
+### Update Pattern
+
+After completing significant work, Claude should ask:
+> "Should I update CLAUDE.md to document [specific change/pattern/convention]?"
+
+**Example triggers:**
+- ✓ Created `/shipfortestflight` command → Document it exists
+- ✓ Fixed bundle ID bug → Add "Project Configuration" section
+- ✓ Restructured docs folder → Update "Project Structure" section
+- ✓ Changed build process → Update "Common Development Commands"
+
+### Why This Matters
+
+An outdated CLAUDE.md leads to:
+- Repeated mistakes (like using default bundle IDs)
+- Inconsistent code patterns
+- Missing critical project knowledge
+- Inefficient development workflow
+
+This document is Claude's source of truth - keep it current!
+
 ## Project Overview
 
 **Doubling Season** is a cross-platform Flutter app for tracking Magic: The Gathering tokens during gameplay. It manages token stacks with tapped/untapped states, summoning sickness, counters (+1/+1, -1/-1, and custom counters), and provides a searchable database of 300+ token types.
 
 The app targets iOS, Android, Web, macOS, and Windows platforms using Flutter's single codebase approach.
+
+## Project Configuration
+
+### Critical Identifiers (NEVER use defaults)
+
+**iOS Bundle Identifier:** `LooseTie.Doubling-Season`
+- Location: `ios/Runner.xcodeproj/project.pbxproj`
+- Format: Hyphens in "Doubling-Season"
+- **WARNING**: Flutter defaults to `com.example.doublingSeason` - this MUST be changed to `LooseTie.Doubling-Season`
+
+**Android Application ID:** `LooseTie.DoublingSeason`
+- Location: `android/app/build.gradle.kts`
+- Format: CamelCase "DoublingSeason" (no hyphens)
+- Also set as `namespace` in the same file
+
+**App Version:**
+- Location: `pubspec.yaml` → `version: X.Y.Z+B`
+- Format: `MAJOR.MINOR.PATCH+BUILD_NUMBER`
+- Example: `1.0.1+1` = Version 1.0.1, Build 1
+- **Tip**: Use `/shipfortestflight` command to auto-increment version and build IPA
+
+**Display Name:** `Doubling Season`
+- Shows in app launcher and App Store
+- iOS: `ios/Runner/Info.plist` → `CFBundleDisplayName`
+- Android: `android/app/src/main/AndroidManifest.xml` → `android:label`
 
 ## Common Development Commands
 
@@ -59,6 +142,26 @@ The script:
 - Deduplicates using key: `name|pt|colors|type|abilities` (note: abilities are included in dedup key)
 - Removes reminder text and normalizes formatting
 - Outputs sorted JSON array to `assets/token_database.json`
+
+### TestFlight Deployment
+To build and prepare an IPA for TestFlight upload:
+```bash
+flutter build ipa --release
+```
+The IPA will be output to `build/ios/ipa/Doubling Season.ipa`. Upload via Apple Transporter app.
+
+**Tip**: Use the `/shipfortestflight` slash command for automated workflow:
+- Auto-increments patch version (e.g., 1.0.1 → 1.0.2)
+- Runs `flutter clean` and `flutter build ipa --release`
+- Opens Finder to the IPA location
+- Opens Apple Transporter app for drag-and-drop upload
+
+### Available Slash Commands
+Custom commands located in `.claude/commands/`:
+
+- **`/checkpoint`** - Stage and commit all changes with a descriptive message (no Claude attribution)
+- **`/regen-tokens`** - Regenerate token database from upstream Magic token data
+- **`/shipfortestflight`** - Auto-increment version, build IPA, and prepare for TestFlight upload
 
 ### Testing
 Testing is performed through manual functional testing by human experts. Do not generate automated test code.
