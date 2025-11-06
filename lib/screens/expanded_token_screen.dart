@@ -614,6 +614,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                     maxLines: maxLines,
                     textCapitalization: textCapitalization,
                     textAlign: textAlign,
+                    textInputAction: TextInputAction.done,
                     decoration: const InputDecoration(
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.zero,
