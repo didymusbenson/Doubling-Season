@@ -1,4 +1,4 @@
-package com.example.doubling_season
+package LooseTie.DoublingSeason
 
 import io.flutter.embedding.android.FlutterActivity
 
