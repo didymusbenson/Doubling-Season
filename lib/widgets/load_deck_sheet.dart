@@ -100,7 +100,6 @@ class LoadDeckSheet extends StatelessWidget {
   void _loadDeck(BuildContext context, Deck deck) async {
     // Capture references from outer context BEFORE showing dialog
     final tokenProvider = context.read<TokenProvider>();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
     final currentTokens = tokenProvider.items;
 
     if (currentTokens.isEmpty) {
@@ -109,9 +108,6 @@ class LoadDeckSheet extends StatelessWidget {
 
       if (context.mounted) {
         Navigator.pop(context); // Close load deck sheet
-        scaffoldMessenger.showSnackBar(
-          SnackBar(content: Text('Loaded deck "${deck.name}"')),
-        );
       }
       return;
     }
@@ -154,9 +150,6 @@ class LoadDeckSheet extends StatelessWidget {
 
     if (context.mounted) {
       Navigator.pop(context); // Close load deck sheet
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Loaded deck "${deck.name}"')),
-      );
     }
   }
 
@@ -183,9 +176,6 @@ class LoadDeckSheet extends StatelessWidget {
     Deck deck,
     DeckProvider provider,
   ) {
-    // Capture ScaffoldMessenger before showing dialog
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -201,11 +191,6 @@ class LoadDeckSheet extends StatelessWidget {
               await provider.deleteDeck(deck);
               if (dialogContext.mounted) {
                 Navigator.pop(dialogContext);
-
-                // Use captured ScaffoldMessenger (safe without context)
-                scaffoldMessenger.showSnackBar(
-                  SnackBar(content: Text('Deleted deck "${deck.name}"')),
-                );
               }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),

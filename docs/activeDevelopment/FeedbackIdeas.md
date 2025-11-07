@@ -33,8 +33,36 @@ Combat would also calculate total damage (when possible) or total damage + wildc
 ## General feedback
 Usability is unclear for some players. They tap on "create new" in the reminder text on empty screens, and don't know they can long press things in order to customize how many they add/remove. Controls need to be made more usable and users need easy access to understanding things.
 
-## Toast Notifications Blocking UI
-Toast notifications (snackbars) currently appear at the bottom of the screen and block access to buttons/controls. Need to reposition toasts or implement a dismissible overlay pattern that doesn't interfere with user interaction.
+## Snackbar Notifications (REMOVED)
+**Status:** All snackbar notifications have been removed due to UI/UX issues and intermittent framework bugs.
+
+**Previous Locations (for reference):**
+- `lib/screens/content_screen.dart:467-469` - Save deck validation ("Please enter a deck name")
+- `lib/screens/content_screen.dart:494-496` - Save deck confirmation ("Deck saved")
+- `lib/widgets/load_deck_sheet.dart:112-114` - Load deck confirmation (empty board)
+- `lib/widgets/load_deck_sheet.dart:157-159` - Load deck confirmation (after clear/add)
+- `lib/widgets/load_deck_sheet.dart:206-208` - Delete deck confirmation
+- `lib/widgets/split_stack_sheet.dart:341-343` - Split stack confirmation
+- `lib/widgets/new_token_sheet.dart:210-212` - New token validation ("Please enter a token name")
+- `lib/screens/counter_search_screen.dart:252-254` - Counter added (all tokens)
+- `lib/screens/counter_search_screen.dart:258-260` - Split validation ("Cannot split - only 1 token")
+- `lib/screens/counter_search_screen.dart:281-283` - Split + counter added (1 token)
+- `lib/screens/counter_search_screen.dart:294-296` - Custom counter added (all tokens)
+- `lib/screens/counter_search_screen.dart:300-302` - Split validation (custom counter)
+- `lib/screens/counter_search_screen.dart:323-325` - Split + custom counter added (1 token)
+
+**Issues Encountered:**
+1. Snackbars blocked UI elements at the bottom of the screen
+2. Caused intermittent Flutter framework assertions (`_dependents.isEmpty`) when shown during widget tree transitions
+3. Timing conflicts between dialog dismissal and snackbar display
+4. Race conditions with splash screen to main app transition
+
+**Future Implementation:**
+If user feedback indicates that confirmation/validation messages are needed, consider alternative approaches:
+- Non-blocking toast overlays positioned at top of screen
+- Brief visual feedback animations on affected UI elements
+- Status indicators within the UI context (e.g., deck list updates to show newly saved deck)
+- Dialog-based confirmations for critical operations (already in place for destructive actions)
 
 ## New Toolbars
 Instead of a top banner, a toolbox icon in a bottom left corner bubble of the app that the user can tap to expand into a larger floating toolbox bubble and interact with. It would have the list of tools. The top right corner of the app can have the info tools (about doubling season, help docs etc.)

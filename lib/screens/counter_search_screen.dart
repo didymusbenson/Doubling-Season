@@ -238,7 +238,6 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
   Future<void> _addCounter(String name, int amount, {required bool applyToAll}) async {
     // Capture references BEFORE any async operations
     final tokenProvider = context.read<TokenProvider>();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     // Special handling for +1/+1 and -1/-1 counters
     if (name == '+1/+1' || name == '-1/-1') {
@@ -248,16 +247,9 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
         // Add to all tokens in stack
         widget.item.addPowerToughnessCounters(counterValue);
         tokenProvider.updateItem(widget.item);
-
-        scaffoldMessenger.showSnackBar(
-          SnackBar(content: Text('Added $amount $name counter(s) to all tokens')),
-        );
       } else {
         // Split stack and add to one token
         if (widget.item.amount < 2) {
-          scaffoldMessenger.showSnackBar(
-            const SnackBar(content: Text('Cannot split - only 1 token in stack')),
-          );
           return;
         }
 
@@ -277,10 +269,6 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
         // Reduce original stack by 1
         widget.item.amount = widget.item.amount - 1;
         await tokenProvider.updateItem(widget.item);
-
-        scaffoldMessenger.showSnackBar(
-          SnackBar(content: Text('Split stack and added $amount $name counter(s) to 1 token')),
-        );
       }
       return;
     }
@@ -290,16 +278,9 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
       // Add counter to entire stack
       widget.item.addCounter(name: name, amount: amount);
       tokenProvider.updateItem(widget.item);
-
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Added $amount $name counter(s) to all tokens')),
-      );
     } else {
       // Split stack: create new item with 1 token + counter
       if (widget.item.amount < 2) {
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('Cannot split - only 1 token in stack')),
-        );
         return;
       }
 
@@ -319,10 +300,6 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
       // Reduce original stack by 1
       widget.item.amount = widget.item.amount - 1;
       await tokenProvider.updateItem(widget.item);
-
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Split stack and added $amount $name counter(s) to 1 token')),
-      );
     }
   }
 

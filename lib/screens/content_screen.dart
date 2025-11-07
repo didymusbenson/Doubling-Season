@@ -441,7 +441,6 @@ class _ContentScreenState extends State<ContentScreen> {
     final tokenProvider = context.read<TokenProvider>();
     final deckProvider = context.read<DeckProvider>();
     final controller = TextEditingController();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     showDialog(
       context: context,
@@ -463,10 +462,6 @@ class _ContentScreenState extends State<ContentScreen> {
           TextButton(
             onPressed: () {
               if (controller.text.isEmpty) {
-                // Use captured scaffoldMessenger
-                scaffoldMessenger.showSnackBar(
-                  const SnackBar(content: Text('Please enter a deck name')),
-                );
                 return;
               }
 
@@ -489,11 +484,6 @@ class _ContentScreenState extends State<ContentScreen> {
               if (dialogContext.mounted) {
                 Navigator.pop(dialogContext);
               }
-
-              // Use captured scaffoldMessenger (safe after Navigator.pop)
-              scaffoldMessenger.showSnackBar(
-                SnackBar(content: Text('Deck "${controller.text}" saved')),
-              );
             },
             child: const Text('Save'),
           ),

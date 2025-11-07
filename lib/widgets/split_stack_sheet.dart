@@ -292,7 +292,6 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
 
     // Capture provider reference BEFORE dismissing and async operations
     final tokenProvider = context.read<TokenProvider>();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     // CRITICAL: Dismiss sheet FIRST (early dismiss pattern from SplitStackView.swift:146)
     Navigator.pop(context);
@@ -336,11 +335,6 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
 
       // Call completion callback if provided
       widget.onSplitCompleted?.call();
-
-      // Use captured ScaffoldMessenger (safe without context)
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('Stack split successfully')),
-      );
     });
   }
 }

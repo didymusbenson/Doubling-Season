@@ -207,9 +207,6 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
 
   Future<void> _createToken() async {
     if (_nameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a token name')),
-      );
       return;
     }
 
