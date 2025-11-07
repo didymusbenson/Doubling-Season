@@ -1,27 +1,33 @@
 import 'package:flutter/material.dart';
 
 class CounterDatabase extends ChangeNotifier {
-  // COMPLETE list from CounterDatabase.swift (lines 74-93)
+  // COMPLETE list from CounterDatabase.swift (lines 74-93) + keyword ability counters + comprehensive MTG counters
   static const List<String> predefinedCounters = [
     "+1/+1", "-1/-1", "Acorn", "Aegis", "Age", "Aim", "Arrow", "Arrowhead", "Art", "Awakening",
     "Bait", "Blaze", "Blessing", "Blight", "Blood", "Bloodline", "Bloodstain", "Book", "Bore", "Bounty",
     "Brain", "Bribery", "Brick", "Burden", "Cage", "Carrion", "Charge", "Chip", "Chorus", "Coin",
     "Collection", "Component", "Contested", "Corpse", "Corruption", "CRANK!", "Credit", "Croak", "Crystal", "Cube",
-    "Currency", "Day", "Death", "Defense", "Delay", "Depletion", "Descent", "Despair", "Devotion", "Discovery",
-    "Divinity", "Doom", "Dread", "Dream", "Duty", "Echo", "Egg", "Elixir", "Ember", "Energy",
-    "Enlightened", "Eon", "Eruption", "Everything", "Experience", "Eyeball", "Eyestalk", "Fade", "Fate", "Feather",
-    "Feeding", "Fellowship", "Fetch", "Filibuster", "Finality", "Flame", "Flood", "Foreshadow", "Fungus", "Funk",
-    "Fury", "Fuse", "Gem", "Ghostform", "Glass", "Globe", "Glyph", "Gold", "Growth", "Hack",
-    "Harmony", "Hatching", "Hatchling", "Healing", "Hit", "Hole", "Hone", "Hoofprint", "Hope", "Hour",
-    "Hourglass", "Hunger", "Husk", "Ice", "Impostor", "Incarnation", "Incubation", "Infection", "Influence", "Ingenuity",
-    "Intel", "Intervention", "Invitation", "Isolation", "Javelin", "Judgment", "Ki", "Kick", "Knickknack", "Knowledge",
-    "Landmark", "Level", "Loot", "Lore", "Loyalty", "Luck", "Magnet", "Manabond", "Manifestation", "Mannequin",
-    "Matrix", "Memory", "Midway", "Milk", "Mine", "Mining", "Mire", "Music", "Muster", "Necrodermis",
+    "Currency", "Day", "Death", "Deathtouch", "Defense", "Delay", "Depletion", "Descent", "Despair", "Devotion",
+    "Discovery", "Divinity", "Doom", "Double strike", "Dread", "Dream", "Duty", "Echo", "Egg", "Elixir",
+    "Ember", "Energy", "Enlightened", "Eon", "Eruption", "Everything", "Exalted", "Experience", "Eyeball", "Eyestalk",
+    "Fade", "Fate", "Feather", "Feeding", "Fellowship", "Fetch", "Filibuster", "Finality", "First strike", "Flame",
+    "Flood", "Flying", "Foreshadow", "Fungus", "Funk", "Fury", "Fuse", "Gem", "Ghostform", "Glass",
+    "Globe", "Glyph", "Gold", "Growth", "Hack", "Harmony", "Haste", "Hatching", "Hatchling", "Healing",
+    "Hexproof", "Hit", "Hole", "Hone", "Hoofprint", "Hope", "Hour", "Hourglass", "Hunger", "Husk",
+    "Ice", "Impostor", "Incarnation", "Incubation", "Indestructible", "Infection", "Influence", "Ingenuity", "Intel", "Intervention",
+    "Invitation", "Isolation", "Javelin", "Judgment", "Ki", "Kick", "Knickknack", "Knowledge", "Landmark", "Level",
+    "Lifelink", "Loot", "Lore", "Loyalty", "Luck", "Magnet", "Manabond", "Manifestation", "Mannequin", "Matrix",
+    "Memory", "Menace", "Midway", "Milk", "Mine", "Mining", "Mire", "Music", "Muster", "Necrodermis",
     "Nest", "Net", "Night", "Oil", "Omen", "Ore", "Page", "Pain", "Palliation", "Paralyzation",
     "Pause", "Petal", "Petrification", "Phylactery", "Phyresis", "Pin", "Plague", "Plot", "Point", "Poison",
     "Polyp", "Pop!", "Possession", "Pressure", "Prey", "Primeval", "Punch card", "Pupa", "Quest", "Rad",
-    "Rebuilding", "Rejection", "Release", "Reprieve", "Resonance", "Rev", "Revival", "Ribbon", "Ritual", "Rope",
-    "Rust", "Scream", "Scroll", "Shell", "Shield", "Shoe", "Shred", "Shy", "Silver", "Skewer"
+    "Reach", "Rebuilding", "Rejection", "Release", "Reprieve", "Resonance", "Rev", "Revival", "Ribbon", "Ritual",
+    "Rope", "Rust", "Scream", "Scroll", "Shadow", "Shell", "Shield", "Shoe", "Shred", "Shy",
+    "Silver", "Skewer", "Sleep", "Sleight", "Slime", "Slumber", "Soot", "Soul", "Spark", "Spite",
+    "Spore", "Stash", "Storage", "Story", "Strife", "Study", "Supply", "Suspect", "Takeover", "Task",
+    "Theft", "Third-degree-burn", "Ticket", "Tide", "Tower", "Training", "Trample", "Trap", "Treasure", "Unity",
+    "Unlock", "Valor", "Velocity", "Verse", "Vigilance", "Vitality", "Void", "Vortex", "Vow", "Voyage",
+    "Wage", "Winch", "Wind", "Wish"
   ];
 
   List<String> _filteredCounters = predefinedCounters;

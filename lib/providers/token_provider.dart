@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/item.dart';
@@ -15,18 +16,45 @@ class TokenProvider extends ChangeNotifier {
 
   Future<void> init() async {
     _itemsBox = await Hive.openBox<Item>('items');
+    _ensureOrdersAssigned(); // Silent migration for order field
     _initialized = true;
     notifyListeners();
   }
 
+  void _ensureOrdersAssigned() {
+    final items = _itemsBox.values.toList();
+    bool needsReorder = items.any((item) => item.order == 0);
+
+    if (needsReorder) {
+      // Assign sequential orders based on current position
+      for (int i = 0; i < items.length; i++) {
+        items[i].order = i.toDouble();
+        items[i].save();
+      }
+      debugPrint('TokenProvider: Migrated ${items.length} tokens to use order field');
+    }
+  }
+
   List<Item> get items {
     final allItems = _itemsBox.values.toList();
-    allItems.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    allItems.sort((a, b) => a.order.compareTo(b.order));
     return allItems;
   }
 
   Future<void> insertItem(Item item) async {
     try {
+      // Assign order to new token if not already set
+      if (item.order == 0.0) {
+        final items = _itemsBox.values.toList();
+        if (items.isEmpty) {
+          item.order = 0.0;
+        } else {
+          // Find max order and add 1.0 (whole number for new items)
+          final maxOrder = items.map((i) => i.order).reduce(max);
+          item.order = maxOrder.floor() + 1.0;
+        }
+      }
+
       await _itemsBox.add(item);
       _errorMessage = null; // Clear any previous errors
       notifyListeners();
@@ -43,6 +71,13 @@ class TokenProvider extends ChangeNotifier {
       notifyListeners();
       rethrow;
     }
+  }
+
+  Future<void> insertItemWithExplicitOrder(Item item) async {
+    // Item.order is already set - don't override it
+    await _itemsBox.add(item);
+    _errorMessage = null;
+    notifyListeners();
   }
 
   Future<void> updateItem(Item item) async {
@@ -192,42 +227,59 @@ class TokenProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> copyToken(Item item, bool summoningSicknessEnabled) async {
+  Future<void> copyToken(Item original, bool summoningSicknessEnabled) async {
     try {
+      // Find the next item after the original
+      final items = _itemsBox.values.toList()
+        ..sort((a, b) => a.order.compareTo(b.order));
+
+      final originalIndex = items.indexWhere((i) => i.key == original.key);
+
+      double newOrder;
+      if (originalIndex == items.length - 1) {
+        // Original is last item - add 1.0
+        newOrder = original.order + 1.0;
+      } else {
+        // Insert between original and next item (fractional)
+        final nextOrder = items[originalIndex + 1].order;
+        newOrder = (original.order + nextOrder) / 2.0;
+      }
+
       final newItem = Item(
-        name: item.name,
-        pt: item.pt,
-        abilities: item.abilities,
-        colors: item.colors,
-        amount: item.amount,
-        tapped: item.tapped,
-        summoningSick: summoningSicknessEnabled ? item.amount : 0,
+        name: original.name,
+        pt: original.pt,
+        abilities: original.abilities,
+        colors: original.colors,
+        amount: original.amount,
+        tapped: original.tapped,
+        summoningSick: summoningSicknessEnabled ? original.amount : 0,
+        order: newOrder,
       );
 
       // Add to box FIRST, then set properties that call save()
       await _itemsBox.add(newItem);
 
       // Copy power/toughness counters (these setters call save())
-      newItem.plusOneCounters = item.plusOneCounters;
-      newItem.minusOneCounters = item.minusOneCounters;
+      newItem.plusOneCounters = original.plusOneCounters;
+      newItem.minusOneCounters = original.minusOneCounters;
 
       // Copy custom counters
-      for (final counter in item.counters) {
+      for (final counter in original.counters) {
         newItem.counters.add(counter);
       }
       await newItem.save();
 
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TokenProvider: Successfully copied token "${item.name}" (amount: ${item.amount}, counters: ${item.counters.length})');
+      debugPrint('TokenProvider: Successfully copied token "${original.name}" (amount: ${original.amount}, counters: ${original.counters.length})');
     } on HiveError catch (e) {
       _errorMessage = 'Database error while copying token: Unable to create duplicate. Your device may be low on storage.';
-      debugPrint('TokenProvider.copyToken: HiveError copying "${item.name}". Error: ${e.message}');
+      debugPrint('TokenProvider.copyToken: HiveError copying "${original.name}". Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
       _errorMessage = 'Unexpected error while copying token. The duplicate may not have been created.';
-      debugPrint('TokenProvider.copyToken: Unexpected error copying "${item.name}". Error: $e');
+      debugPrint('TokenProvider.copyToken: Unexpected error copying "${original.name}". Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;

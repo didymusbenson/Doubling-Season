@@ -18,11 +18,15 @@ class TokenTemplate extends HiveObject {
   @HiveField(3)
   String colors;
 
+  @HiveField(4)
+  double order;
+
   TokenTemplate({
     required this.name,
     required this.pt,
     required this.abilities,
     required this.colors,
+    this.order = 0.0,
   });
 
   factory TokenTemplate.fromItem(Item item) {
@@ -31,6 +35,7 @@ class TokenTemplate extends HiveObject {
       pt: item.pt,
       abilities: item.abilities,
       colors: item.colors,
+      order: item.order,
     );
   }
 
@@ -43,6 +48,7 @@ class TokenTemplate extends HiveObject {
       amount: amount,
       tapped: createTapped ? amount : 0,
       summoningSick: 0,
+      order: order, // Preserve order when loading
     );
   }
 }

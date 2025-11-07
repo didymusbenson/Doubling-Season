@@ -20,8 +20,9 @@ class ItemAdapter extends TypeAdapter<Item> {
       name: fields[1] as String,
       pt: fields[2] as String,
       abilities: fields[0] as String,
-      counters: (fields[9] as List).cast<TokenCounter>(),
+      counters: (fields[9] as List?)?.cast<TokenCounter>(),
       createdAt: fields[10] as DateTime?,
+      order: fields[11] as double,
     )
       .._colors = fields[3] as String
       .._amount = fields[4] as int
@@ -34,7 +35,7 @@ class ItemAdapter extends TypeAdapter<Item> {
   @override
   void write(BinaryWriter writer, Item obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.abilities)
       ..writeByte(1)
@@ -56,7 +57,9 @@ class ItemAdapter extends TypeAdapter<Item> {
       ..writeByte(9)
       ..write(obj.counters)
       ..writeByte(10)
-      ..write(obj.createdAt);
+      ..write(obj.createdAt)
+      ..writeByte(11)
+      ..write(obj.order);
   }
 
   @override

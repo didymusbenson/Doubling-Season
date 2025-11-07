@@ -299,6 +299,22 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
 
     // CRITICAL: Use Future.delayed to ensure sheet fully dismissed before Hive operations
     Future.delayed(UIConstants.sheetDismissDelay, () async {
+      // Calculate fractional order for new stack (appears immediately after original)
+      final items = tokenProvider.items
+        ..sort((a, b) => a.order.compareTo(b.order));
+
+      final originalIndex = items.indexWhere((i) => i.key == widget.item.key);
+
+      double newOrder;
+      if (originalIndex == items.length - 1) {
+        // Original is last item - add 1.0
+        newOrder = widget.item.order + 1.0;
+      } else {
+        // Insert between original and next item (fractional)
+        final nextOrder = items[originalIndex + 1].order;
+        newOrder = (widget.item.order + nextOrder) / 2.0;
+      }
+
       // Update original stack
       widget.item.amount = result.originalAmount;
       widget.item.tapped = result.originalTapped;
@@ -307,9 +323,10 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
 
       // Create new stack
       final newItem = widget.item.createDuplicate();
+      newItem.order = newOrder; // Set fractional order
 
       // Add to box FIRST
-      await tokenProvider.insertItem(newItem);
+      await tokenProvider.insertItemWithExplicitOrder(newItem);
 
       // Now apply counters from original and set amounts
       newItem.applyDuplicateCounters(widget.item);

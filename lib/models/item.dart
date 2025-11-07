@@ -98,6 +98,9 @@ class Item extends HiveObject {
   @HiveField(10)
   DateTime createdAt;
 
+  @HiveField(11)
+  double order;
+
   // Constructor
   Item({
     required this.name,
@@ -109,6 +112,7 @@ class Item extends HiveObject {
     int summoningSick = 0,
     List<TokenCounter>? counters,
     DateTime? createdAt,
+    this.order = 0.0,
   })  : counters = counters ?? [],
         _colors = colors.toUpperCase(),
         _amount = amount < 0 ? 0 : amount,
@@ -208,6 +212,7 @@ class Item extends HiveObject {
       amount: 0,
       tapped: 0,
       summoningSick: 0,
+      order: 0.0, // Order will be set by caller
     );
 
     // Store counter values to be applied after item is added to box

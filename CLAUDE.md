@@ -114,6 +114,60 @@ flutter build macos        # macOS
 flutter build windows      # Windows
 ```
 
+### Deploying to Physical iPhone
+
+**Apple Developer Team ID:** `84W8Q8DV3S` (Andrew Benson personal team)
+
+To verify or find team ID:
+```bash
+# Check current team ID in Xcode project
+cat ios/Runner.xcodeproj/project.pbxproj | grep -A 2 "DEVELOPMENT_TEAM"
+```
+
+**CRITICAL: Understanding "Run" vs "Install"**
+
+When the user says "put it on my iPhone", "ship to my phone", "send it to my iPhone", or similar phrases, they mean **INSTALL** (permanent installation), NOT "run" (temporary launch).
+
+- **`flutter run`**: Launches app temporarily while connected. App disappears when the session ends. Use for active development/debugging only.
+- **`flutter install`**: Permanently installs the app on the device. App remains on home screen after disconnecting. Use when user wants the app on their device.
+
+**Installing release build to iPhone (RECOMMENDED):**
+```bash
+# Use the /shiptomyphone slash command for automated workflow
+# OR manually:
+
+# 1. Get list of connected devices
+flutter devices
+
+# 2. Clean build cache
+flutter clean
+
+# 3. Build iOS release
+flutter build ios --release
+
+# 4. Install to device (permanently)
+flutter install -d <device-id>
+```
+
+**Tip**: Use the `/shiptomyphone` slash command to automate the clean → build → install workflow.
+
+**Other deployment methods (use only if specifically requested):**
+```bash
+# Xcode deployment (if user specifically wants to use Xcode)
+open ios/Runner.xcworkspace
+# Then select iPhone device and click Play (▶)
+
+# Development run (temporary, for active debugging)
+flutter run -d <device-id> --release
+```
+
+**Important Notes:**
+- Project uses "Automatically manage signing" with team `84W8Q8DV3S`
+- Team must be selected in Xcode (Signing & Capabilities tab) at least once
+- Wireless connection works but USB cable is more reliable
+- User should delete existing app from iPhone before installing for cleanest results
+- `flutter run` can have issues with wireless deployment (stuck splash screens, doesn't persist after disconnect)
+
 ### Code Generation
 Hive models require generated adapter code:
 ```bash
@@ -162,6 +216,7 @@ Custom commands located in `.claude/commands/`:
 - **`/checkpoint`** - Stage and commit all changes with a descriptive message (no Claude attribution)
 - **`/regen-tokens`** - Regenerate token database from upstream Magic token data
 - **`/shipfortestflight`** - Auto-increment version, build IPA, and prepare for TestFlight upload
+- **`/shiptomyphone`** - Build iOS release and permanently install it on connected iPhone
 
 ### Testing
 Testing is performed through manual functional testing by human experts. Do not generate automated test code.

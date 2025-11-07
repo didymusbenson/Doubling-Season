@@ -21,13 +21,14 @@ class TokenTemplateAdapter extends TypeAdapter<TokenTemplate> {
       pt: fields[1] as String,
       abilities: fields[2] as String,
       colors: fields[3] as String,
+      order: fields[4] as double,
     );
   }
 
   @override
   void write(BinaryWriter writer, TokenTemplate obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
@@ -35,7 +36,9 @@ class TokenTemplateAdapter extends TypeAdapter<TokenTemplate> {
       ..writeByte(2)
       ..write(obj.abilities)
       ..writeByte(3)
-      ..write(obj.colors);
+      ..write(obj.colors)
+      ..writeByte(4)
+      ..write(obj.order);
   }
 
   @override
