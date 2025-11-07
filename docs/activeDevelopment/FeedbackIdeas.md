@@ -30,8 +30,6 @@ A way to represent tokens in combat? Not sure how we would handle this. Maybe ha
 
 Combat would also calculate total damage (when possible) or total damage + wildcards based on the tokens that have wildcard p/t.
 
-## General feedback
-Usability is unclear for some players. They tap on "create new" in the reminder text on empty screens, and don't know they can long press things in order to customize how many they add/remove. Controls need to be made more usable and users need easy access to understanding things.
 
 ## Snackbar Notifications (REMOVED)
 **Status:** All snackbar notifications have been removed due to UI/UX issues and intermittent framework bugs.
@@ -63,16 +61,6 @@ If user feedback indicates that confirmation/validation messages are needed, con
 - Brief visual feedback animations on affected UI elements
 - Status indicators within the UI context (e.g., deck list updates to show newly saved deck)
 - Dialog-based confirmations for critical operations (already in place for destructive actions)
-
-## New Toolbars
-Instead of a top banner, a toolbox icon in a bottom left corner bubble of the app that the user can tap to expand into a larger floating toolbox bubble and interact with. It would have the list of tools. The top right corner of the app can have the info tools (about doubling season, help docs etc.)
-
-In this case, move the multiplier to the bottom left of the app?
-
-In this case, have the container of the bottom tools (multiplier, combat controls, toolbox) be a fading gradient so that tokens "below the fold" disappear under it. There should be padding at the bottom of the last token that's roughly the height of those bottom tools (so that users can scroll up and not have tokens blocked by floating tool buttons).
-
-## Reordering (hold and drag)
-- if the user long-presses the token, have it "pop up" to be dragged to a new spot in the list.
 
 ## Individual token setting (inside expanded view) to default to entering tapped
 - on expanded view include a toggle for "new tokens enter tapped"
