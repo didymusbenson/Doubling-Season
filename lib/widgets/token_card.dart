@@ -125,7 +125,7 @@ class TokenCard extends StatelessWidget {
                       ? Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.2),
+                            color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(

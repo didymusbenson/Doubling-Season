@@ -36,19 +36,53 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Split Stack'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.pop(context),
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      child: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
+            // Drag handle
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Theme.of(context).dividerColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Title with close button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Split Stack',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            // Scrollable content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
             // Header info
             Card(
               child: Padding(
@@ -69,11 +103,11 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
                       children: [
                         Text(
                           'Current amount: ${widget.item.amount}',
-                          style: const TextStyle(color: Colors.grey),
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
                         Text(
                           'Tapped: ${widget.item.tapped}',
-                          style: const TextStyle(color: Colors.grey),
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
                     ),
@@ -94,7 +128,7 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.1),
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -105,7 +139,7 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
                         : null,
                     icon: Icon(
                       Icons.remove_circle,
-                      color: _splitAmount > 1 ? Colors.blue : Colors.grey,
+                      color: _splitAmount > 1 ? Theme.of(context).colorScheme.primary : Theme.of(context).disabledColor,
                     ),
                     iconSize: 32,
                   ),
@@ -114,6 +148,7 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
                       controller: TextEditingController(text: '$_splitAmount'),
                       textAlign: TextAlign.center,
                       keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.done,
                       style: const TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
@@ -126,6 +161,10 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
                           });
                         }
                       },
+                      onSubmitted: (value) {
+                        // Dismiss keyboard when user taps Done
+                        FocusScope.of(context).unfocus();
+                      },
                     ),
                   ),
                   IconButton(
@@ -134,7 +173,7 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
                         : null,
                     icon: Icon(
                       Icons.add_circle,
-                      color: _splitAmount < maxSplit ? Colors.blue : Colors.grey,
+                      color: _splitAmount < maxSplit ? Theme.of(context).colorScheme.primary : Theme.of(context).disabledColor,
                     ),
                     iconSize: 32,
                   ),
@@ -144,19 +183,11 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
 
             const SizedBox(height: 24),
 
-            const Divider(),
-
-            const SizedBox(height: 16),
-
             // Tapped first toggle
             SwitchListTile(
               title: const Text(
-                'Tapped First',
+                'Move Tapped First?',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              subtitle: const Text(
-                'When enabled, tapped tokens will be moved to the new stack first.',
-                style: TextStyle(fontSize: 12),
               ),
               value: _tappedFirst,
               onChanged: (value) => setState(() => _tappedFirst = value),
@@ -164,13 +195,9 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
 
             const SizedBox(height: 24),
 
-            const Divider(),
-
-            const SizedBox(height: 16),
-
             // Preview
             Card(
-              color: Colors.blue.withOpacity(0.1),
+              color: Theme.of(context).colorScheme.primaryContainer,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -194,11 +221,11 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
                             const Text('Original Stack'),
                             Text(
                               'Amount: ${result.originalAmount}',
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: Theme.of(context).textTheme.bodySmall,
                             ),
                             Text(
                               'Tapped: ${result.originalTapped}',
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
                         ),
@@ -209,11 +236,11 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
                             const Text('New Stack'),
                             Text(
                               'Amount: ${result.newAmount}',
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: Theme.of(context).textTheme.bodySmall,
                             ),
                             Text(
                               'Tapped: ${result.newTapped}',
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
                         ),
@@ -226,29 +253,32 @@ class _SplitStackSheetState extends State<SplitStackSheet> {
 
             if (widget.item.summoningSick > 0) ...[
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Note: Splitting will remove summoning sickness from both stacks.',
-                style: TextStyle(
-                  fontSize: 12,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   fontStyle: FontStyle.italic,
-                  color: Colors.grey,
                 ),
               ),
             ],
 
-            const Spacer(),
+                    const SizedBox(height: 24),
 
-            // Split button
-            ElevatedButton(
-              onPressed: _splitAmount >= widget.item.amount ? null : _performSplit,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
-                backgroundColor: Colors.blue,
-                disabledBackgroundColor: Colors.grey,
-              ),
-              child: const Text(
-                'Split Stack',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    // Split button
+                    ElevatedButton(
+                      onPressed: _splitAmount >= widget.item.amount ? null : _performSplit,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(50),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                        disabledBackgroundColor: Theme.of(context).disabledColor,
+                      ),
+                      child: const Text(
+                        'Split Stack',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

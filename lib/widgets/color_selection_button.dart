@@ -26,14 +26,14 @@ class ColorSelectionButton extends StatelessWidget {
     // Use desaturated/faded color when not selected
     final displayColor = isSelected
         ? effectiveColor
-        : effectiveColor.withOpacity(0.3);
+        : Theme.of(context).colorScheme.surfaceContainerHighest;
 
     // Border colors:
-    // When DISABLED: use the same desaturated color as the circle
+    // When DISABLED: use same color as background for seamless appearance
     // When ENABLED: use a darker version of the enabled color
     final borderColor = isSelected
         ? _darkenColor(effectiveColor, 0.3)      // Darken by 30% when selected
-        : effectiveColor.withOpacity(0.3);       // Match the desaturated circle when not selected
+        : displayColor;                           // Match background when disabled
 
     // Text color:
     // When ENABLED: use a lightened/desaturated version (simulating disabled circle appearance)
@@ -61,6 +61,13 @@ class ColorSelectionButton extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: displayColor,
+                  boxShadow: !isSelected ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ] : null,
                 ),
               ),
 
