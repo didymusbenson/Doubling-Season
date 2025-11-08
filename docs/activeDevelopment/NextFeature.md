@@ -1,420 +1,664 @@
 # Next Feature
 
-## WCAG Accessibility Fixes
+## Feature 1: Display Token Types
 
 ### Overview
-Fix contrast and theme inconsistencies in Split Stack View and Expanded Token View to meet WCAG AA standards (4.5:1 for text, 3:1 for UI components) and match the compliant patterns already used in Token Card.
+Add token type display to both list view (TokenCard) and detail view (ExpandedTokenScreen). Types should appear under the name and above abilities, matching the layout of physical Magic cards.
 
-### Problem
-Both Split Stack View and Expanded Token View use hardcoded gray colors that:
-- Fail WCAG contrast requirements in both light and dark modes
-- Don't adapt to system theme changes
-- Are inconsistent with the theme-aware patterns in token_card.dart
+### Current Problem
+Token types (e.g., "Creature — Elf Warrior", "Artifact", "Emblem") are completely missing from the UI:
+- **TokenDefinition** (database model) has `type` field with values like "Creature — Elf Warrior Token"
+- **Item** (active token model) does NOT have a `type` field
+- **TokenTemplate** (deck save/load model) does NOT have a `type` field
+- When converting TokenDefinition → Item via `toItem()`, the type information is lost
+- NewTokenSheet (custom token creation) has no type input field
+- Neither TokenCard nor ExpandedTokenScreen display type information
 
-### Affected Files
-1. `lib/widgets/split_stack_sheet.dart` - 13 changes
-2. `lib/screens/expanded_token_screen.dart` - 14 changes
-3. `lib/widgets/token_card.dart` - 1 change
+### Required Changes
 
-**Exempt (Do Not Modify):**
-- `lib/widgets/color_selection_button.dart` - Contains MTG game mechanic colors
+**Summary:** 6 files need updates to support type display
+1. `lib/models/item.dart` - Add HiveField 12 for type
+2. `lib/models/token_template.dart` - Add HiveField 5 for type
+3. `lib/models/token_definition.dart` - Pass type in toItem()
+4. `lib/widgets/new_token_sheet.dart` - Add type input field
+5. `lib/widgets/token_card.dart` - Display type in list view
+6. `lib/screens/expanded_token_screen.dart` - Display and edit type
 
-### Critical Issues Found
+#### 1. Add Type Field to Item Model
+**File:** `lib/models/item.dart`
 
-#### Split Stack View Issues:
-- **Lines 72, 76, 197, 201, 212, 216**: `TextStyle(color: Colors.grey)` - fails 4.5:1 contrast
-- **Line 234**: `TextStyle(color: Colors.grey)` - fails on italic note text
-- **Line 97**: `Colors.grey.withOpacity(0.1)` - fails 3:1 UI component contrast
-- **Lines 108, 137**: Hardcoded `Colors.grey` and `Colors.blue` for disabled icon states
-- **Line 173**: `Colors.blue.withOpacity(0.1)` for preview card
-- **Line 246**: `backgroundColor: Colors.blue` - button background
-- **Line 247**: `disabledBackgroundColor: Colors.grey` - disabled button
-
-#### Expanded Token View Issues:
-- **Lines 150, 583**: `Colors.grey.withOpacity(0.1)` - container backgrounds
-- **Lines 160, 604**: `Colors.grey[600]` - label text
-- **Line 634**: `Colors.grey` - placeholder text
-- **Lines 390, 441, 468, 522, 681**: `Colors.blue.withOpacity(0.1)` - counter backgrounds
-- **Line 356**: `Icon(Icons.add_circle, color: Colors.blue)` - add counter icon
-- **Line 586**: `color: isEditing ? Colors.blue : Colors.transparent` - border color
-- **Lines 667, 699**: Disabled icon colors using `Colors.grey`
-
-#### Token Card Issues:
-- **Line 128**: `Colors.blue.withOpacity(0.2)` - modified P/T background (highly visible on main screen)
-
-### Semantic Color Handling
-
-**Colors That Should REMAIN Hardcoded:**
-
-These colors convey specific meaning and should NOT be changed to theme colors:
-
-1. **ColorSelectionButton Widget** (`lib/widgets/color_selection_button.dart`):
-   - **ENTIRE FILE EXEMPT** - Do not modify any colors in this file
-   - Uses custom `Color(0xFFE8DDB5)` for White (not `Colors.yellow`)
-   - Line 44: `Colors.grey.shade400` for unselected text - intentional game mechanic
-   - Line 43: `Colors.white` for White symbol text - intentional
-   - **Reason**: MTG color identity is game mechanics with precise color requirements
-   - Widget already handles its own theming via opacity/lightness calculations
-
-2. **ColorSelectionButton Usage** (expanded_token_screen.dart lines ~171-218):
-   - **DO NOT MODIFY** the `color:` parameters passed to ColorSelectionButton instances
-   - Lines include: `Colors.yellow`, `Colors.blue`, `Colors.purple`, `Colors.red`, `Colors.green`
-   - **Reason**: These are parameters for the exempt ColorSelectionButton widget above
-   - The widget handles these internally (e.g., White overrides yellow with custom beige)
-
-3. **Counter Operation Icons** (add/remove buttons):
-   - **Red** for decrement/remove operations (semantic: danger/subtract)
-   - **Green** for increment/add operations (semantic: success/add)
-   - **Reason**: Follow universal UI conventions - these colors communicate action meaning
-
-3. **Delete Icon** (expanded_token_screen.dart line 90):
-   - `Colors.red` for destructive delete action
-   - **Reason**: Standard Material Design pattern for destructive operations
-
-4. **Modified P/T Text** (expanded_token_screen.dart line 480):
-   - `Colors.blue` text to indicate active counter modification
-   - **Reason**: Could optionally use `Theme.of(context).colorScheme.primary` but blue is universally understood for "modified state"
-
-**Colors That MUST Be Changed:**
-
-All gray tones, neutral container backgrounds, disabled states, and non-semantic interactive highlights must use theme-aware colors to ensure:
-- WCAG contrast compliance
-- Dark mode support
-- Theme consistency
-
-### Recommended Fixes (Based on Token Card Patterns)
-
-All fixes should follow the patterns already established in `token_card.dart`:
-
-#### 1. Secondary Text (e.g., "Current amount: 5")
+Add new Hive field for type:
 ```dart
-// ❌ Current
-Text('Current amount: ${widget.item.amount}',
-  style: const TextStyle(color: Colors.grey))
-
-// ✅ Fix - use theme bodySmall
-Text('Current amount: ${widget.item.amount}',
-  style: Theme.of(context).textTheme.bodySmall)
+@HiveField(12)  // Next available field ID
+String type;
 ```
 
-#### 2. Label Text (e.g., "Colors", "Stats")
+**CRITICAL:**
+- Must use next available HiveField ID (currently 12)
+- NEVER change existing field IDs (risk of data corruption)
+- Add to constructor with default value: `this.type = ''`
+- Consider migration strategy for existing tokens without type
+
+#### 2. Add Type Field to TokenTemplate Model
+**File:** `lib/models/token_template.dart`
+
+Add new Hive field for type:
 ```dart
-// ❌ Current
-Text('Colors',
-  style: TextStyle(fontSize: 12, color: Colors.grey[600]))
-
-// ✅ Fix - use theme labelLarge with reduced opacity
-Text('Colors',
-  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7)
-  ))
+@HiveField(5)  // Next available field ID (after order at 4)
+String type;
 ```
 
-#### 3. Container Backgrounds
+Update constructor:
 ```dart
-// ❌ Current
-decoration: BoxDecoration(
-  color: Colors.grey.withOpacity(0.1),
-  borderRadius: BorderRadius.circular(12),
-)
-
-// ✅ Fix - use surfaceContainerHighest (Material 3)
-decoration: BoxDecoration(
-  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-  borderRadius: BorderRadius.circular(12),
-)
+TokenTemplate({
+  required this.name,
+  required this.pt,
+  required this.abilities,
+  required this.colors,
+  this.type = '',  // ← Add with default
+  this.order = 0.0,
+});
 ```
 
-#### 4. Preview/Highlight Card Background
+Update `fromItem()` factory:
 ```dart
-// ❌ Current
-Card(
-  color: Colors.blue.withOpacity(0.1),
-  child: ...
-)
-
-// ✅ Fix - use primaryContainer
-Card(
-  color: Theme.of(context).colorScheme.primaryContainer,
-  child: ...
-)
+factory TokenTemplate.fromItem(Item item) {
+  return TokenTemplate(
+    name: item.name,
+    pt: item.pt,
+    abilities: item.abilities,
+    colors: item.colors,
+    type: item.type,  // ← Add this line
+    order: item.order,
+  );
+}
 ```
 
-#### 5. Disabled Icon Colors
+Update `toItem()` method:
 ```dart
-// ❌ Current
-color: _splitAmount > 1 ? Colors.blue : Colors.grey
-
-// ✅ Fix - use primary color and theme disabled color
-color: _splitAmount > 1
-  ? Theme.of(context).colorScheme.primary
-  : Theme.of(context).disabledColor
+Item toItem({int amount = 1, bool createTapped = false}) {
+  return Item(
+    name: name,
+    pt: pt,
+    abilities: abilities,
+    colors: colors,
+    type: type,  // ← Add this line
+    amount: amount,
+    tapped: createTapped ? amount : 0,
+    summoningSick: 0,
+    order: order,
+  );
+}
 ```
 
-#### 6. Counter Display Backgrounds (Expanded Token View)
+**Why this matters:** TokenTemplate is used for deck saving/loading. Without type, saved decks would lose type information.
+
+#### 3. Preserve Type During Conversion
+**File:** `lib/models/token_definition.dart`
+
+Update `toItem()` method to include type:
 ```dart
-// ❌ Current
-decoration: BoxDecoration(
-  color: Colors.blue.withOpacity(0.1),
-  borderRadius: BorderRadius.circular(4),
-)
-
-// ✅ Fix - use primaryContainer with reduced opacity
-decoration: BoxDecoration(
-  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
-  borderRadius: BorderRadius.circular(4),
-)
+Item toItem({required int amount, required bool createTapped}) {
+  return Item(
+    name: name,
+    pt: pt,
+    abilities: abilities,
+    colors: colors,
+    type: type,  // ← Add this line
+    amount: amount,
+    tapped: createTapped ? amount : 0,
+    summoningSick: amount,
+  );
+}
 ```
 
-#### 7. Button Colors
+#### 4. Display Type in Token Card (List View)
+**File:** `lib/widgets/token_card.dart`
+
+Add type display between name and abilities:
 ```dart
-// ❌ Current (split_stack_sheet.dart:246-247)
-ElevatedButton.styleFrom(
-  backgroundColor: Colors.blue,
-  disabledBackgroundColor: Colors.grey,
-)
+Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    // Name row (existing)
+    Row(...),
 
-// ✅ Fix - use theme primary and disabled colors
-ElevatedButton.styleFrom(
-  backgroundColor: Theme.of(context).colorScheme.primary,
-  disabledBackgroundColor: Theme.of(context).disabledColor,
+    // TYPE - New section
+    if (item.type.isNotEmpty) ...[
+      const SizedBox(height: 4),
+      Text(
+        item.cleanType,  // Use cleanType to remove "Token" suffix
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          fontStyle: FontStyle.italic,
+          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+        ),
+      ),
+    ],
+
+    // Counter pills (existing)
+    if (item.counters.isNotEmpty...) ...[],
+
+    // Abilities (existing)
+    if (item.abilities.isNotEmpty) ...[],
+  ],
 )
 ```
 
-#### 8. Action Icon Colors (Non-Semantic)
+**Design notes:**
+- Use italic font to match Magic card styling
+- Use `bodySmall` for secondary/supporting text
+- Reduce opacity (0.7) to de-emphasize vs name
+- Use `cleanType` helper to strip "Token" suffix
+
+#### 5. Add Type Field to Custom Token Creation
+**File:** `lib/widgets/new_token_sheet.dart`
+
+Add type input field between P/T and Colors:
+
+**Add controller:**
 ```dart
-// ❌ Current (expanded_token_screen.dart:356)
-Icon(Icons.add_circle, color: Colors.blue)
+final _typeController = TextEditingController();
 
-// ✅ Fix - use primary color
-Icon(Icons.add_circle, color: Theme.of(context).colorScheme.primary)
+@override
+void dispose() {
+  _nameController.dispose();
+  _ptController.dispose();
+  _typeController.dispose();  // ← Add this
+  _abilitiesController.dispose();
+  super.dispose();
+}
 ```
 
-#### 9. Border Colors
+**Add TextField in build():**
 ```dart
-// ❌ Current (expanded_token_screen.dart:586)
-border: Border.all(
-  color: isEditing ? Colors.blue : Colors.transparent,
-  width: 2,
-)
+TextField(
+  controller: _ptController,
+  decoration: const InputDecoration(
+    labelText: 'Power/Toughness',
+    hintText: 'e.g., 1/1',
+    border: OutlineInputBorder(),
+  ),
+),
+const SizedBox(height: 16),
 
-// ✅ Fix - use primary for active state
-border: Border.all(
-  color: isEditing ? Theme.of(context).colorScheme.primary : Colors.transparent,
-  width: 2,
-)
+// TYPE FIELD - New
+TextField(
+  controller: _typeController,
+  decoration: const InputDecoration(
+    labelText: 'Type',
+    hintText: 'e.g., Creature — Elf Warrior',
+    border: OutlineInputBorder(),
+  ),
+  textCapitalization: TextCapitalization.words,
+),
+const SizedBox(height: 16),
+
+// Colors section (existing)
+const Text('Colors', ...),
 ```
 
-#### 10. Modified P/T Background (Token Card)
+**Update _createToken() to include type:**
 ```dart
-// ❌ Current (token_card.dart:128)
-decoration: BoxDecoration(
-  color: Colors.blue.withOpacity(0.2),
-  borderRadius: BorderRadius.circular(6),
+void _createToken() {
+  final item = Item(
+    name: _nameController.text.trim(),
+    pt: _ptController.text.trim(),
+    type: _typeController.text.trim(),  // ← Add this
+    abilities: _abilitiesController.text.trim(),
+    colors: _getColorString(),
+    amount: finalAmount,
+    tapped: _createTapped ? finalAmount : 0,
+    summoningSick: settings.summoningSicknessEnabled ? finalAmount : 0,
+  );
+  // ...
+}
+```
+
+**Design notes:**
+- Positioned between P/T and Colors (matches card layout)
+- Use TextCapitalization.words for proper capitalization
+- Placeholder example: "Creature — Elf Warrior"
+- Optional field (can be left empty)
+
+#### 6. Display Type in Expanded View (Detail Screen)
+**File:** `lib/screens/expanded_token_screen.dart`
+
+Add type display after name/stats row:
+```dart
+Column(
+  crossAxisAlignment: CrossAxisAlignment.stretch,
+  children: [
+    // Name and Stats row (existing)
+    Row(...),
+
+    const SizedBox(height: 16),
+
+    // TYPE - New section
+    if (widget.item.type.isNotEmpty)
+      _buildEditableField(
+        label: 'Type',
+        field: EditableField.type,  // Add to enum
+        value: widget.item.type,
+        onSave: (value) => widget.item.type = value,
+      ),
+
+    const SizedBox(height: 16),
+
+    // Abilities (existing)
+    _buildEditableField(...),
+  ],
 )
-
-// ✅ Fix - use primaryContainer with opacity for theme awareness
-decoration: BoxDecoration(
-  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
-  borderRadius: BorderRadius.circular(6),
-)
 ```
 
-### Implementation Plan
-
-#### Order of Operations
-Files can be edited **in parallel** for efficiency, then tested together:
-
-1. **Phase 1 - Implementation** (Parallel):
-   - Fix `lib/widgets/split_stack_sheet.dart` (13 changes)
-   - Fix `lib/screens/expanded_token_screen.dart` (14 changes, excluding semantic colors)
-   - Fix `lib/widgets/token_card.dart` (1 change)
-   - **DO NOT TOUCH**: `lib/widgets/color_selection_button.dart` (entire file exempt)
-
-2. **Phase 2 - Verification**:
-   - Run automated contrast analysis
-   - Manual visual testing in light mode
-   - Manual visual testing in dark mode
-   - Cross-reference with success criteria
-
-#### Change Summary by File
-
-**split_stack_sheet.dart** (13 changes):
-- Lines 72, 76, 197, 201, 212, 216, 234: Secondary text → `Theme.of(context).textTheme.bodySmall` (7 instances)
-- Line 97: Container background → `Theme.of(context).colorScheme.surfaceContainerHighest`
-- Line 108: Icon color (decrement) → `Theme.of(context).colorScheme.primary` or `Theme.of(context).disabledColor`
-- Line 137: Icon color (increment) → `Theme.of(context).colorScheme.primary` or `Theme.of(context).disabledColor`
-- Line 173: Preview card → `Theme.of(context).colorScheme.primaryContainer`
-- Line 246: Button background → `Theme.of(context).colorScheme.primary`
-- Line 247: Disabled button → `Theme.of(context).disabledColor`
-
-**expanded_token_screen.dart** (14 changes, excluding semantic colors):
-- Line 150: Container background → `Theme.of(context).colorScheme.surfaceContainerHighest`
-- Line 583: Container background (editing state) → `Theme.of(context).colorScheme.primaryContainer`
-- Lines 160, 604: Label text → `Theme.of(context).textTheme.labelLarge?.copyWith(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7))` (2 instances)
-- Line 634: Placeholder text → theme color with opacity
-- Lines 390, 441, 468, 522, 681: Counter backgrounds → `Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5)` (5 instances)
-- Line 356: Icon color → `Theme.of(context).colorScheme.primary`
-- Line 586: Border color → `Theme.of(context).colorScheme.primary`
-- Lines 667, 699: Disabled icon gray → `Theme.of(context).disabledColor` (2 instances)
-- **NOTE**: Lines ~171-218 ColorSelectionButton color parameters should NOT be modified (exempt)
-
-**token_card.dart** (1 change):
-- Line 128: Modified P/T background → `Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5)`
-
-**color_selection_button.dart** (0 changes):
-- **ENTIRE FILE EXEMPT** - Do not modify any colors in this file
-
-**Total: 28 changes across 3 files (1 file fully exempt)**
-
-### Testing & Verification
-
-#### Pre-Implementation Checklist
-- [ ] Create test branch from `flutterMigration`
-- [ ] Document current screenshots (light + dark mode) for before/after comparison
-- [ ] Note specific areas where contrast is currently poor
-
-#### Automated Contrast Analysis
-
-After implementation, use this analysis approach:
-
-1. **Screenshot Capture**:
-   - Light mode: Split Stack sheet, Expanded Token screen, Token Card with counters
-   - Dark mode: Same screens
-
-2. **Contrast Verification** (using browser DevTools or online checker):
-   - **Target**: 4.5:1 for text, 3:1 for UI components (WCAG AA)
-   - **Test combinations**:
-     - Secondary text (bodySmall) vs card background
-     - Label text (0.7 opacity) vs container background
-     - Container (`surfaceContainerHighest`) vs card background
-     - Disabled icon (`disabledColor`) vs background
-     - Preview card (`primaryContainer`) text vs background
-     - Counter backgrounds (`primaryContainer` 0.5 opacity) vs card background
-
-3. **Color Extraction Method**:
-   - Use screenshot color picker to get exact RGB values
-   - Calculate contrast ratios: https://webaim.org/resources/contrastchecker/
-   - Document any failures for manual adjustment
-
-#### Manual Visual Testing
-
-1. **Light Mode Testing**:
-   - Open app in light mode
-   - Navigate to Split Stack sheet
-     - Verify all gray text is now readable (no washed out appearance)
-     - Check container backgrounds have subtle but visible distinction
-     - Test disabled button state (should be clearly disabled but visible)
-   - Navigate to Expanded Token View
-     - Click editable fields - verify highlight color is appropriate
-     - Check counter displays are clearly visible
-     - Verify label text is readable but secondary
-   - View Token Card with counters on main screen
-     - Verify modified P/T background is clearly visible but not overwhelming
-
-2. **Dark Mode Testing**:
-   - Switch system to dark mode (or use app theme toggle if available)
-   - Repeat all light mode tests
-   - **Critical checks**:
-     - Verify no "invisible" gray text on dark backgrounds
-     - Check no overly bright/glowing elements
-     - Confirm `primaryContainer` provides sufficient contrast
-     - Verify text doesn't disappear into container backgrounds
-
-3. **Interactive State Testing**:
-   - Split Stack: Increment/decrement split amount - verify disabled states are clear
-   - Expanded Token: Edit name field - verify blue border changes to theme color
-   - Counter buttons: Test disabled states (e.g., decrement at 0)
-   - Preview card: Verify content is clearly readable
-
-#### Success Criteria
-
-After implementation and testing, all of the following must be true:
-
-- ✅ **WCAG Compliance**: All text meets 4.5:1 contrast ratio, all UI components meet 3:1
-- ✅ **No Hardcoded Neutrals**: No instances of `Colors.grey` or `Colors.blue` except semantic colors documented above
-- ✅ **Dark Mode Perfect**: All screens fully functional and readable in dark mode with no visual glitches
-- ✅ **Pattern Consistency**: All changes follow established Material 3 patterns (`surfaceContainerHighest`, `primaryContainer`, etc.)
-- ✅ **Visual Clarity**: All interactive states (disabled, editing, highlighted) are clearly distinguishable
-- ✅ **No Regressions**: Token Card, Split Stack, and Expanded Token View maintain intended visual hierarchy
-
-#### Visual Testing Report Template
-
-After manual testing, report findings:
-
-```
-**Light Mode:**
-- Split Stack Sheet: [PASS/FAIL] - Notes:
-- Expanded Token View: [PASS/FAIL] - Notes:
-- Token Card: [PASS/FAIL] - Notes:
-
-**Dark Mode:**
-- Split Stack Sheet: [PASS/FAIL] - Notes:
-- Expanded Token View: [PASS/FAIL] - Notes:
-- Token Card: [PASS/FAIL] - Notes:
-
-**Contrast Analysis:**
-- Minimum text contrast achieved: [ratio]
-- Minimum component contrast achieved: [ratio]
-- Any failures: [list]
-
-**Decision:** [SHIP / NEEDS ADJUSTMENT]
+**Add to EditableField enum:**
+```dart
+enum EditableField {
+  name,
+  powerToughness,
+  type,      // ← Add this
+  abilities,
+}
 ```
 
-### Known Limitations
+### Implementation Order
+1. Add `type` field to Item model (HiveField 12)
+2. Add `type` field to TokenTemplate model (HiveField 5)
+3. Run `flutter pub run build_runner build --delete-conflicting-outputs` to regenerate Hive adapters
+4. Update `TokenDefinition.toItem()` to pass type
+5. Update `TokenTemplate.fromItem()` to pass type
+6. Update `TokenTemplate.toItem()` to pass type
+7. Add `cleanType` getter to Item model (similar to TokenDefinition)
+8. Update NewTokenSheet to include type input field
+9. Update TokenCard to display type
+10. Update ExpandedTokenScreen to display and edit type
+11. Test with existing tokens (should show empty type initially)
+12. Test with new tokens created from search (should show proper type)
+13. Test with custom tokens created manually (should accept and display type)
+14. Test deck save/load (should preserve type information)
 
-1. **Material 3 Required**:
-   - This fix assumes app uses Material 3 (`useMaterial3: true` in ThemeData)
-   - `surfaceContainerHighest` requires Material 3
-   - **Fallback**: If using Material 2, replace `surfaceContainerHighest` with `surfaceVariant`
-   - **Verification**: Check `main.dart` ThemeData configuration before implementation
+### Data Migration Strategy
 
-2. **Semantic Color Decisions Are Subjective**:
-   - Decision to keep red/green for increment/decrement is a UX choice
-   - Alternative approach: use `colorScheme.error` and `colorScheme.tertiary`
-   - Current approach follows Material Design guidelines and universal conventions
-   - Can be revisited in future if user feedback suggests otherwise
+**Problem:** Existing tokens in Hive don't have type field.
 
-3. **Modified P/T Text Color** (expanded_token_screen.dart:480):
-   - Currently remains `Colors.blue` as documented in semantic colors
-   - Could optionally change to `Theme.of(context).colorScheme.primary` for full theme awareness
-   - Deferred to post-implementation review based on visual testing
+**Solution:**
+- When adding HiveField 12, provide default value `''` (empty string)
+- Existing tokens will automatically get empty type on first load
+- No manual migration needed (Hive handles this gracefully)
+- Users can manually edit type in ExpandedTokenScreen if desired
 
-4. **Opacity Values May Need Tuning**:
-   - Used 0.5 for `primaryContainer` backgrounds to ensure visibility
-   - Used 0.7 for label text opacity
-   - These values may need adjustment based on specific theme configurations
-   - Visual testing will determine if adjustments needed
+### Testing Checklist
+- [ ] Create new token from search → type appears in TokenCard
+- [ ] Create new token from search → type appears in ExpandedTokenScreen
+- [ ] Create custom token with type field → type appears in TokenCard
+- [ ] Create custom token without type (leave empty) → no type shown
+- [ ] Edit type in ExpandedTokenScreen → saves and persists
+- [ ] Type displays with italic styling and reduced opacity
+- [ ] Type doesn't appear if empty string (no visual gap)
+- [ ] cleanType properly removes "Token" suffix
+- [ ] Existing tokens still load without errors (migration successful)
+- [ ] Save deck with tokens → type preserved in saved deck
+- [ ] Load deck → tokens have correct type information
 
-### Expected Outcomes
+### Success Criteria
+After implementation:
+- ✅ Item model has `type` field (HiveField 12)
+- ✅ TokenTemplate model has `type` field (HiveField 5)
+- ✅ TokenDefinition → Item conversion preserves type
+- ✅ TokenTemplate ↔ Item conversions preserve type
+- ✅ NewTokenSheet includes type input field
+- ✅ TokenCard displays type between name and abilities
+- ✅ ExpandedTokenScreen displays and allows editing type
+- ✅ Type styling matches Magic card conventions (italic, de-emphasized)
+- ✅ Existing tokens load without errors
+- ✅ New tokens created from search include type information
+- ✅ Custom tokens created manually can include type information
+- ✅ Saved decks preserve type information when loaded
 
-After successful implementation and verification:
+---
 
-- ✅ **WCAG AA Compliance**: All text achieves 4.5:1 contrast ratio, all UI components achieve 3:1
-- ✅ **Theme Consistency**: All three files use consistent Material 3 design tokens
-- ✅ **Dark Mode Excellence**: Perfect rendering in dark mode with no contrast failures or visibility issues
-- ✅ **Pattern Alignment**: All changes follow established patterns from token_card.dart
-- ✅ **Semantic Clarity**: Action colors (red/green) and game colors (WUBRG) remain meaningful
-- ✅ **Zero Hardcoded Neutrals**: No `Colors.grey` or `Colors.blue` except documented semantic cases
-- ✅ **Maintainable**: Future theme changes automatically propagate to all fixed components
+## Feature 2: Handling for Large P/T Values
 
-### Implementation Readiness
+### Overview
+Implement proper display handling for power/toughness values that exceed 7 characters to prevent overlap with action buttons in the token card list view.
 
-**Current Status: 95%+ Ready for Autonomous Implementation**
+### Problem Statement
 
-**Remaining Pre-Implementation Verification:**
-1. Confirm Material 3 enabled in `main.dart` (check `useMaterial3: true` in ThemeData)
-2. Create test branch and capture baseline screenshots
-3. Review semantic color policy and confirm approach
+The P/T display shares a horizontal row with action buttons (add/remove/tap/untap/copy). When P/T strings become too long, they overlap with buttons, making both the P/T value and the buttons difficult to read and interact with.
 
-**After implementation is complete, user will:**
-1. Run automated contrast analysis on screenshots
-2. Perform manual visual testing in both light and dark modes
-3. Complete Visual Testing Report Template
-4. Make final ship/adjust decision
+**Current Layout:**
+```
+[Buttons: - + ↑ → copy]              [3/3]       ← Normal (works fine)
+[Buttons: - + ↑ → copy]    [*/*+1 (+5/+5)]       ← Overlap (broken)
+[Buttons: - + ↑ → copy]          [1003/1003]     ← Overlap (broken)
+```
+
+### Problem Cases
+
+#### Case 1: Non-Standard P/T with Counters
+**Example:** `*/*+1` with 5 +1/+1 counters
+- **Current display:** `*/*+1 (+5/+5)` (14 characters)
+- **Problem:** The notation for showing both base and modified P/T is too verbose
+- **Frequency:** Uncommon but valid (tokens like "Fractal" or "Construct")
+
+#### Case 2: Extreme Counter Values
+**Example:** `3/3` with 1000 +1/+1 counters
+- **Current display:** `1003/1003` (9 characters)
+- **Problem:** Players adding hundreds or thousands of counters (e.g., infinite combo scenarios)
+- **Frequency:** Rare but legitimate gameplay (combo decks, casual/Commander formats)
+
+#### Case 3: Edge Cases
+**Examples:**
+- `*/1+*` with counters → `*/1+* (+10/+10)` (17 characters)
+- `X/X` with 9999 counters → `9999/9999` (9 characters)
+- `100/100` with 900 counters → `1000/1000` (9 characters)
+
+### Proposed Solutions
+
+#### Option 1: Dynamic Text Scaling
+**Approach:** Reduce font size when P/T exceeds threshold length.
+
+**Implementation:**
+- Measure P/T string length
+- Scale font from `headlineMedium` down to `bodyMedium` or smaller
+- Maintain minimum readable size (don't go below ~14sp)
+
+**Pros:**
+- Always fits in available space
+- No layout changes needed
+- Simple to implement
+
+**Cons:**
+- Inconsistent text sizes across cards look unprofessional
+- Very small text at extreme values (1000+ digits) becomes unreadable
+- Doesn't follow Material Design typography guidelines
+
+**Verdict:** ⚠️ Quick fix but poor UX at scale
+
+---
+
+#### Option 2: Two-Line Display for Long Values
+**Approach:** Stack P/T on a second line when it exceeds threshold.
+
+**Implementation:**
+- Detect P/T length > 7 characters
+- Move P/T to its own line below buttons
+- Keep buttons bottom-aligned to maintain layout consistency
+
+**Example:**
+```
+[Buttons: - + ↑ → copy]
+                    [1003/1003]    ← Bottom-aligned
+
+[Buttons: - + ↑ → copy]
+                [*/*+1 (+5/+5)]    ← Bottom-aligned
+```
+
+**Pros:**
+- Maintains consistent font size
+- Clear visual separation
+- Simple conditional logic
+
+**Cons:**
+- Cards with long P/T become taller (inconsistent card heights in list)
+- More vertical space consumed
+
+**Verdict:** ✅ Clean, readable, follows original design intent
+
+---
+
+#### Option 3: Abbreviated Number Notation
+**Approach:** Use K/M/B notation for large numbers (1K, 1M, 1B).
+
+**Implementation:**
+- Format numbers ≥1000 as "1K", ≥1,000,000 as "1M", etc.
+- Example: `1003/1003` → `1K/1K`
+- Example: `9999/9999` → `10K/10K` (rounded)
+
+**Pros:**
+- Extremely compact representation
+- Common in gaming UIs (MTG Arena uses this)
+- Maintains single-line layout
+
+**Cons:**
+- Loss of precision (shows ~1K instead of exact 1003)
+- Requires tap-to-expand for exact values
+- Doesn't help with non-numeric P/T like `*/*+1 (+5/+5)`
+
+**Verdict:** ⚠️ Good for extreme numbers, doesn't solve all cases
+
+---
+
+#### Option 4: Truncate with Ellipsis + Tap to Expand
+**Approach:** Truncate P/T at 7 characters with "..." and make it tappable.
+
+**Implementation:**
+- Show first 7 chars + "..." (e.g., `1003/10...`)
+- Tap P/T to show full value in a dialog/tooltip
+- Visual indicator (subtle icon or different text color) that it's tappable
+
+**Pros:**
+- Consistent layout, no size changes
+- Full precision available on demand
+- Works for all cases (numbers and non-standard)
+
+**Cons:**
+- Hidden information (user doesn't see full value at a glance)
+- Requires extra interaction
+- Not discoverable without visual cue
+
+**Verdict:** ⚠️ Power-user friendly but hides critical gameplay info
+
+---
+
+#### Option 5: Compact Counter Notation
+**Approach:** Simplify how counters are displayed for non-standard P/T.
+
+**Current:** `*/*+1 (+5/+5)` (14 chars)
+**Proposed:** `*/*+1 +5` (8 chars) - show only the counter delta, not full notation
+
+**Alternative compact formats:**
+- `*/*+1⁺⁵` - use superscript (7 chars)
+- `*/*+1 [+5]` - brackets (11 chars)
+- `*/*+1 ↑5` - arrow indicator (9 chars)
+
+**Pros:**
+- Solves Case 1 (non-standard P/T with counters)
+- Maintains readability
+- Single line layout
+
+**Cons:**
+- Doesn't solve Case 2 (extreme numbers)
+- Less explicit about what the modifier represents
+- May confuse new users
+
+**Verdict:** ✅ Good complement to other solutions for Case 1
+
+---
+
+#### Option 6: Move P/T Above Button Row
+**Approach:** Reflow layout to put P/T on its own line above buttons.
+
+**Implementation:**
+```
+                        [1003/1003]    ← Always on top
+[Buttons: - + ↑ → copy]               ← Always on bottom
+```
+
+**Pros:**
+- Always sufficient space for P/T
+- Consistent layout (P/T always in same position)
+- No conditional logic needed
+
+**Cons:**
+- Breaks current design pattern (P/T traditionally on right)
+- All cards become taller
+- Changes visual hierarchy
+
+**Verdict:** ⚠️ Solves the problem but major layout change
+
+---
+
+#### Option 7: Adaptive Button Layout
+**Approach:** Wrap buttons to a second row when P/T is large.
+
+**Implementation:**
+```
+Normal:
+[Buttons: - + ↑ → copy]              [3/3]
+
+Large P/T:
+[Buttons: - + ↑]         [*/*+1 (+5/+5)]
+[Buttons: → copy]
+```
+
+**Pros:**
+- P/T stays on right (consistent with design)
+- Buttons remain accessible
+- Flexible layout
+
+**Cons:**
+- Complex layout logic
+- Button positions change (UX inconsistency)
+- Cards become taller anyway
+
+**Verdict:** ⚠️ Over-engineered, confusing button reflow
+
+---
+
+#### Option 8: Tap-to-Reveal Full P/T Badge
+**Approach:** Show abbreviated P/T with tap gesture to reveal full value in overlay.
+
+**Implementation:**
+- Display `1003...` in badge/pill
+- Tap P/T area to show floating overlay with full value: `1003/1003`
+- Overlay auto-dismisses after 2 seconds or on tap elsewhere
+
+**Pros:**
+- Elegant, minimal UI impact
+- Full precision available
+- Works for all edge cases
+
+**Cons:**
+- Critical info hidden behind interaction
+- Not accessible without tap
+- May frustrate users who want to see exact values
+
+**Verdict:** ⚠️ Good for extreme edge cases but hides important data
+
+---
+
+#### Option 9: Hybrid Approach - Abbreviated with Tooltip
+**Approach:** Show abbreviated values but with instant visual feedback.
+
+**Implementation:**
+- Display `1K/1K` for large numbers
+- Long-press P/T shows tooltip with exact value: `1003/1003`
+- Tooltip appears immediately on long-press (no navigation)
+
+**Pros:**
+- Clean single-line display
+- Exact values available without dialog
+- Familiar pattern (long-press for more info)
+
+**Cons:**
+- Still hides precision by default
+- Long-press not universally discoverable
+- Doesn't help with `*/*+1 (+5/+5)` case
+
+**Verdict:** ✅ Best balance for Case 2 (extreme numbers)
+
+---
+
+#### Option 10: Maximum P/T Cap with Warning
+**Approach:** Enforce maximum displayable P/T and warn users.
+
+**Implementation:**
+- Cap display at reasonable limit (e.g., 9999/9999)
+- Show `9999+/9999+` for values exceeding cap
+- Add visual indicator (icon, color) that value is capped
+- Tap to see exact value in details view
+
+**Pros:**
+- Prevents extreme display issues
+- Simple implementation
+- Educates users about practical limits
+
+**Cons:**
+- Arbitrary limitation on valid gameplay
+- May frustrate combo players
+- Doesn't solve non-standard P/T case
+
+**Verdict:** ❌ Too restrictive, doesn't respect valid gameplay
+
+---
+
+### Recommended Combination
+
+**Tiered approach based on P/T type and length:**
+
+#### Tier 1: Standard P/T (numeric, no counters)
+- Length ≤7 chars → Display normally: `3/3`
+- Length 8-9 chars → Display normally: `1003/1003`
+- Length ≥10 chars → Abbreviate with K/M notation: `10K/10K`
+  - Long-press shows tooltip with exact value
+
+#### Tier 2: Modified P/T (numeric with counters)
+- Calculable (e.g., `3/3` → `8/8`) → Use highlighted background (current)
+- Length ≤7 chars → Display normally: `8/8`
+- Length ≥8 chars → Abbreviate: `10K/10K`
+  - Long-press shows breakdown: "Base: 3/3, Counters: +9997/+9997"
+
+#### Tier 3: Non-Standard P/T (contains `*`, `X`, etc.)
+- No counters → Display normally: `*/*+1`
+- With counters → Use compact notation: `*/*+1 +5` (instead of `*/*+1 (+5/+5)`)
+  - If still >7 chars → Two-line display (fallback)
+
+### Implementation Checklist
+
+- [ ] Add P/T length detection utility function
+- [ ] Implement K/M/B number formatting helper
+- [ ] Create compact counter notation for non-standard P/T
+- [ ] Add long-press tooltip handler for P/T element
+- [ ] Update `formattedPowerToughness` getter to include length checks
+- [ ] Add unit tests for edge cases (extreme numbers, non-standard formats)
+- [ ] Visual testing with real tokens in various scenarios
+
+### Test Cases
+
+**Standard P/T:**
+- `3/3` → `3/3` (no change)
+- `99/99` → `99/99` (no change)
+- `1003/1003` → `1K/1K` (long-press shows `1003/1003`)
+- `10000/10000` → `10K/10K` (long-press shows `10000/10000`)
+- `1000000/1000000` → `1M/1M` (long-press shows `1000000/1000000`)
+
+**Modified P/T:**
+- `3/3` + 5 counters → `8/8` (highlighted, current behavior)
+- `3/3` + 1000 counters → `1K/1K` (highlighted, abbreviated)
+- `100/100` + 900 counters → `1K/1K` (highlighted, abbreviated)
+
+**Non-Standard P/T:**
+- `*/*` → `*/*` (no change)
+- `*/*+1` → `*/*+1` (no change)
+- `*/*+1` + 5 counters → `*/*+1 +5` (compact notation)
+- `X/X` + 10 counters → `X/X +10` (compact notation)
+- `*/1+*` + 100 counters → Two-line display (fallback if compact still >7 chars)
+
+### Success Criteria
+
+After implementation:
+- ✅ No P/T overlaps with buttons in any scenario
+- ✅ All P/T values ≤7 characters display unchanged
+- ✅ Extreme values (1000+) use K/M notation
+- ✅ Non-standard P/T with counters use compact notation
+- ✅ Long-press tooltip shows exact values for abbreviated numbers
+- ✅ Visual consistency maintained across token cards
+- ✅ Layout doesn't break with any valid P/T combination
 
 ---
 
 ## Completed Features
 
-Token List Reordering feature has been completed and implemented.
+- Token List Reordering
+- WCAG Accessibility Fixes
