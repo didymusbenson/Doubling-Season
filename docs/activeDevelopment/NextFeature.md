@@ -7,7 +7,8 @@ Add token type display to both list view (TokenCard) and detail view (ExpandedTo
 
 ### Current Problem
 Token types (e.g., "Creature — Elf Warrior", "Artifact", "Emblem") are completely missing from the UI:
-- **TokenDefinition** (database model) has `type` field with values like "Creature — Elf Warrior Token"
+- **Source data** contains incorrect type strings like "Token Creature — Goblin" (should be "Creature — Goblin")
+- **TokenDefinition** (database model) has `type` field but needs data to be cleaned first
 - **Item** (active token model) does NOT have a `type` field
 - **TokenTemplate** (deck save/load model) does NOT have a `type` field
 - When converting TokenDefinition → Item via `toItem()`, the type information is lost
@@ -16,13 +17,39 @@ Token types (e.g., "Creature — Elf Warrior", "Artifact", "Emblem") are complet
 
 ### Required Changes
 
-**Summary:** 6 files need updates to support type display
-1. `lib/models/item.dart` - Add HiveField 12 for type
-2. `lib/models/token_template.dart` - Add HiveField 5 for type
-3. `lib/models/token_definition.dart` - Pass type in toItem()
-4. `lib/widgets/new_token_sheet.dart` - Add type input field
-5. `lib/widgets/token_card.dart` - Display type in list view
-6. `lib/screens/expanded_token_screen.dart` - Display and edit type
+**Summary:** 7 files need updates to support type display
+1. `docs/housekeeping/process_tokens_with_popularity.py` - Strip "Token" prefix from types
+2. `lib/models/item.dart` - Add HiveField 12 for type
+3. `lib/models/token_template.dart` - Add HiveField 5 for type
+4. `lib/models/token_definition.dart` - Pass type in toItem()
+5. `lib/widgets/new_token_sheet.dart` - Add type input field
+6. `lib/widgets/token_card.dart` - Display type in list view
+7. `lib/screens/expanded_token_screen.dart` - Display and edit type
+
+#### 0. Update Token Database Processing Script (FIRST)
+**File:** `docs/housekeeping/process_tokens_with_popularity.py`
+
+**Problem:** The source XML data from GitHub contains type strings like "Token Creature — Goblin", "Token Artifact", etc. The word "Token" is not actually a Magic card type and should be stripped during processing.
+
+**Current behavior (lines 109-115):** Script adds "Token " prefix
+**Required behavior:** Strip "Token " prefix from types
+
+Update the `clean_token_data()` function:
+```python
+# Clean type - remove "Token" prefix since it's not a real Magic type
+type_text = token['type']
+# Remove "Token " prefix (case-insensitive, handles "Token Creature", "Token Artifact", etc.)
+type_text = re.sub(r'^Token\s+', '', type_text, flags=re.IGNORECASE)
+type_text = type_text.strip()
+```
+
+**Examples of transformation:**
+- `"Token Creature — Goblin"` → `"Creature — Goblin"`
+- `"Token Artifact"` → `"Artifact"`
+- `"Token Enchantment"` → `"Enchantment"`
+- `"Emblem"` → `"Emblem"` (no "Token" prefix to remove)
+
+**IMPORTANT:** Run this script BEFORE implementing the UI changes to regenerate `assets/token_database.json` with properly cleaned type strings.
 
 #### 1. Add Type Field to Item Model
 **File:** `lib/models/item.dart`
@@ -262,20 +289,22 @@ enum EditableField {
 ```
 
 ### Implementation Order
-1. Add `type` field to Item model (HiveField 12)
-2. Add `type` field to TokenTemplate model (HiveField 5)
-3. Run `flutter pub run build_runner build --delete-conflicting-outputs` to regenerate Hive adapters
-4. Update `TokenDefinition.toItem()` to pass type
-5. Update `TokenTemplate.fromItem()` to pass type
-6. Update `TokenTemplate.toItem()` to pass type
-7. Add `cleanType` getter to Item model (similar to TokenDefinition)
-8. Update NewTokenSheet to include type input field
-9. Update TokenCard to display type
-10. Update ExpandedTokenScreen to display and edit type
-11. Test with existing tokens (should show empty type initially)
-12. Test with new tokens created from search (should show proper type)
-13. Test with custom tokens created manually (should accept and display type)
-14. Test deck save/load (should preserve type information)
+1. **Update Python script** - Modify `process_tokens_with_popularity.py` to strip "Token" prefix from types
+2. **Regenerate token database** - Run the script to update `assets/token_database.json`
+3. Add `type` field to Item model (HiveField 12)
+4. Add `type` field to TokenTemplate model (HiveField 5)
+5. Run `flutter pub run build_runner build --delete-conflicting-outputs` to regenerate Hive adapters
+6. Update `TokenDefinition.toItem()` to pass type
+7. Update `TokenTemplate.fromItem()` to pass type
+8. Update `TokenTemplate.toItem()` to pass type
+9. Add `cleanType` getter to Item model (if needed - may not be necessary since script already cleans)
+10. Update NewTokenSheet to include type input field
+11. Update TokenCard to display type
+12. Update ExpandedTokenScreen to display and edit type
+13. Test with existing tokens (should show empty type initially)
+14. Test with new tokens created from search (should show proper type like "Creature — Goblin", not "Token Creature — Goblin")
+15. Test with custom tokens created manually (should accept and display type)
+16. Test deck save/load (should preserve type information)
 
 ### Data Migration Strategy
 
@@ -317,344 +346,18 @@ After implementation:
 
 ---
 
-## Feature 2: Handling for Large P/T Values
+## Other Features Under Consideration
 
-### Overview
-Implement proper display handling for power/toughness values that exceed 7 characters to prevent overlap with action buttons in the token card list view.
+### Power/Toughness Display Handling
+**Status:** Design phase - see `PtHandlingFeature.md`
 
-### Problem Statement
+Long P/T values (e.g., `*/*+1 (+5/+5)`, `1003/1003`) currently overlap with action buttons. Multiple solutions are being evaluated including:
+- K/M notation for large numbers
+- Compact counter notation for non-standard P/T
+- Two-line display fallback
+- Long-press tooltips for exact values
 
-The P/T display shares a horizontal row with action buttons (add/remove/tap/untap/copy). When P/T strings become too long, they overlap with buttons, making both the P/T value and the buttons difficult to read and interact with.
-
-**Current Layout:**
-```
-[Buttons: - + ↑ → copy]              [3/3]       ← Normal (works fine)
-[Buttons: - + ↑ → copy]    [*/*+1 (+5/+5)]       ← Overlap (broken)
-[Buttons: - + ↑ → copy]          [1003/1003]     ← Overlap (broken)
-```
-
-### Problem Cases
-
-#### Case 1: Non-Standard P/T with Counters
-**Example:** `*/*+1` with 5 +1/+1 counters
-- **Current display:** `*/*+1 (+5/+5)` (14 characters)
-- **Problem:** The notation for showing both base and modified P/T is too verbose
-- **Frequency:** Uncommon but valid (tokens like "Fractal" or "Construct")
-
-#### Case 2: Extreme Counter Values
-**Example:** `3/3` with 1000 +1/+1 counters
-- **Current display:** `1003/1003` (9 characters)
-- **Problem:** Players adding hundreds or thousands of counters (e.g., infinite combo scenarios)
-- **Frequency:** Rare but legitimate gameplay (combo decks, casual/Commander formats)
-
-#### Case 3: Edge Cases
-**Examples:**
-- `*/1+*` with counters → `*/1+* (+10/+10)` (17 characters)
-- `X/X` with 9999 counters → `9999/9999` (9 characters)
-- `100/100` with 900 counters → `1000/1000` (9 characters)
-
-### Proposed Solutions
-
-#### Option 1: Dynamic Text Scaling
-**Approach:** Reduce font size when P/T exceeds threshold length.
-
-**Implementation:**
-- Measure P/T string length
-- Scale font from `headlineMedium` down to `bodyMedium` or smaller
-- Maintain minimum readable size (don't go below ~14sp)
-
-**Pros:**
-- Always fits in available space
-- No layout changes needed
-- Simple to implement
-
-**Cons:**
-- Inconsistent text sizes across cards look unprofessional
-- Very small text at extreme values (1000+ digits) becomes unreadable
-- Doesn't follow Material Design typography guidelines
-
-**Verdict:** ⚠️ Quick fix but poor UX at scale
-
----
-
-#### Option 2: Two-Line Display for Long Values
-**Approach:** Stack P/T on a second line when it exceeds threshold.
-
-**Implementation:**
-- Detect P/T length > 7 characters
-- Move P/T to its own line below buttons
-- Keep buttons bottom-aligned to maintain layout consistency
-
-**Example:**
-```
-[Buttons: - + ↑ → copy]
-                    [1003/1003]    ← Bottom-aligned
-
-[Buttons: - + ↑ → copy]
-                [*/*+1 (+5/+5)]    ← Bottom-aligned
-```
-
-**Pros:**
-- Maintains consistent font size
-- Clear visual separation
-- Simple conditional logic
-
-**Cons:**
-- Cards with long P/T become taller (inconsistent card heights in list)
-- More vertical space consumed
-
-**Verdict:** ✅ Clean, readable, follows original design intent
-
----
-
-#### Option 3: Abbreviated Number Notation
-**Approach:** Use K/M/B notation for large numbers (1K, 1M, 1B).
-
-**Implementation:**
-- Format numbers ≥1000 as "1K", ≥1,000,000 as "1M", etc.
-- Example: `1003/1003` → `1K/1K`
-- Example: `9999/9999` → `10K/10K` (rounded)
-
-**Pros:**
-- Extremely compact representation
-- Common in gaming UIs (MTG Arena uses this)
-- Maintains single-line layout
-
-**Cons:**
-- Loss of precision (shows ~1K instead of exact 1003)
-- Requires tap-to-expand for exact values
-- Doesn't help with non-numeric P/T like `*/*+1 (+5/+5)`
-
-**Verdict:** ⚠️ Good for extreme numbers, doesn't solve all cases
-
----
-
-#### Option 4: Truncate with Ellipsis + Tap to Expand
-**Approach:** Truncate P/T at 7 characters with "..." and make it tappable.
-
-**Implementation:**
-- Show first 7 chars + "..." (e.g., `1003/10...`)
-- Tap P/T to show full value in a dialog/tooltip
-- Visual indicator (subtle icon or different text color) that it's tappable
-
-**Pros:**
-- Consistent layout, no size changes
-- Full precision available on demand
-- Works for all cases (numbers and non-standard)
-
-**Cons:**
-- Hidden information (user doesn't see full value at a glance)
-- Requires extra interaction
-- Not discoverable without visual cue
-
-**Verdict:** ⚠️ Power-user friendly but hides critical gameplay info
-
----
-
-#### Option 5: Compact Counter Notation
-**Approach:** Simplify how counters are displayed for non-standard P/T.
-
-**Current:** `*/*+1 (+5/+5)` (14 chars)
-**Proposed:** `*/*+1 +5` (8 chars) - show only the counter delta, not full notation
-
-**Alternative compact formats:**
-- `*/*+1⁺⁵` - use superscript (7 chars)
-- `*/*+1 [+5]` - brackets (11 chars)
-- `*/*+1 ↑5` - arrow indicator (9 chars)
-
-**Pros:**
-- Solves Case 1 (non-standard P/T with counters)
-- Maintains readability
-- Single line layout
-
-**Cons:**
-- Doesn't solve Case 2 (extreme numbers)
-- Less explicit about what the modifier represents
-- May confuse new users
-
-**Verdict:** ✅ Good complement to other solutions for Case 1
-
----
-
-#### Option 6: Move P/T Above Button Row
-**Approach:** Reflow layout to put P/T on its own line above buttons.
-
-**Implementation:**
-```
-                        [1003/1003]    ← Always on top
-[Buttons: - + ↑ → copy]               ← Always on bottom
-```
-
-**Pros:**
-- Always sufficient space for P/T
-- Consistent layout (P/T always in same position)
-- No conditional logic needed
-
-**Cons:**
-- Breaks current design pattern (P/T traditionally on right)
-- All cards become taller
-- Changes visual hierarchy
-
-**Verdict:** ⚠️ Solves the problem but major layout change
-
----
-
-#### Option 7: Adaptive Button Layout
-**Approach:** Wrap buttons to a second row when P/T is large.
-
-**Implementation:**
-```
-Normal:
-[Buttons: - + ↑ → copy]              [3/3]
-
-Large P/T:
-[Buttons: - + ↑]         [*/*+1 (+5/+5)]
-[Buttons: → copy]
-```
-
-**Pros:**
-- P/T stays on right (consistent with design)
-- Buttons remain accessible
-- Flexible layout
-
-**Cons:**
-- Complex layout logic
-- Button positions change (UX inconsistency)
-- Cards become taller anyway
-
-**Verdict:** ⚠️ Over-engineered, confusing button reflow
-
----
-
-#### Option 8: Tap-to-Reveal Full P/T Badge
-**Approach:** Show abbreviated P/T with tap gesture to reveal full value in overlay.
-
-**Implementation:**
-- Display `1003...` in badge/pill
-- Tap P/T area to show floating overlay with full value: `1003/1003`
-- Overlay auto-dismisses after 2 seconds or on tap elsewhere
-
-**Pros:**
-- Elegant, minimal UI impact
-- Full precision available
-- Works for all edge cases
-
-**Cons:**
-- Critical info hidden behind interaction
-- Not accessible without tap
-- May frustrate users who want to see exact values
-
-**Verdict:** ⚠️ Good for extreme edge cases but hides important data
-
----
-
-#### Option 9: Hybrid Approach - Abbreviated with Tooltip
-**Approach:** Show abbreviated values but with instant visual feedback.
-
-**Implementation:**
-- Display `1K/1K` for large numbers
-- Long-press P/T shows tooltip with exact value: `1003/1003`
-- Tooltip appears immediately on long-press (no navigation)
-
-**Pros:**
-- Clean single-line display
-- Exact values available without dialog
-- Familiar pattern (long-press for more info)
-
-**Cons:**
-- Still hides precision by default
-- Long-press not universally discoverable
-- Doesn't help with `*/*+1 (+5/+5)` case
-
-**Verdict:** ✅ Best balance for Case 2 (extreme numbers)
-
----
-
-#### Option 10: Maximum P/T Cap with Warning
-**Approach:** Enforce maximum displayable P/T and warn users.
-
-**Implementation:**
-- Cap display at reasonable limit (e.g., 9999/9999)
-- Show `9999+/9999+` for values exceeding cap
-- Add visual indicator (icon, color) that value is capped
-- Tap to see exact value in details view
-
-**Pros:**
-- Prevents extreme display issues
-- Simple implementation
-- Educates users about practical limits
-
-**Cons:**
-- Arbitrary limitation on valid gameplay
-- May frustrate combo players
-- Doesn't solve non-standard P/T case
-
-**Verdict:** ❌ Too restrictive, doesn't respect valid gameplay
-
----
-
-### Recommended Combination
-
-**Tiered approach based on P/T type and length:**
-
-#### Tier 1: Standard P/T (numeric, no counters)
-- Length ≤7 chars → Display normally: `3/3`
-- Length 8-9 chars → Display normally: `1003/1003`
-- Length ≥10 chars → Abbreviate with K/M notation: `10K/10K`
-  - Long-press shows tooltip with exact value
-
-#### Tier 2: Modified P/T (numeric with counters)
-- Calculable (e.g., `3/3` → `8/8`) → Use highlighted background (current)
-- Length ≤7 chars → Display normally: `8/8`
-- Length ≥8 chars → Abbreviate: `10K/10K`
-  - Long-press shows breakdown: "Base: 3/3, Counters: +9997/+9997"
-
-#### Tier 3: Non-Standard P/T (contains `*`, `X`, etc.)
-- No counters → Display normally: `*/*+1`
-- With counters → Use compact notation: `*/*+1 +5` (instead of `*/*+1 (+5/+5)`)
-  - If still >7 chars → Two-line display (fallback)
-
-### Implementation Checklist
-
-- [ ] Add P/T length detection utility function
-- [ ] Implement K/M/B number formatting helper
-- [ ] Create compact counter notation for non-standard P/T
-- [ ] Add long-press tooltip handler for P/T element
-- [ ] Update `formattedPowerToughness` getter to include length checks
-- [ ] Add unit tests for edge cases (extreme numbers, non-standard formats)
-- [ ] Visual testing with real tokens in various scenarios
-
-### Test Cases
-
-**Standard P/T:**
-- `3/3` → `3/3` (no change)
-- `99/99` → `99/99` (no change)
-- `1003/1003` → `1K/1K` (long-press shows `1003/1003`)
-- `10000/10000` → `10K/10K` (long-press shows `10000/10000`)
-- `1000000/1000000` → `1M/1M` (long-press shows `1000000/1000000`)
-
-**Modified P/T:**
-- `3/3` + 5 counters → `8/8` (highlighted, current behavior)
-- `3/3` + 1000 counters → `1K/1K` (highlighted, abbreviated)
-- `100/100` + 900 counters → `1K/1K` (highlighted, abbreviated)
-
-**Non-Standard P/T:**
-- `*/*` → `*/*` (no change)
-- `*/*+1` → `*/*+1` (no change)
-- `*/*+1` + 5 counters → `*/*+1 +5` (compact notation)
-- `X/X` + 10 counters → `X/X +10` (compact notation)
-- `*/1+*` + 100 counters → Two-line display (fallback if compact still >7 chars)
-
-### Success Criteria
-
-After implementation:
-- ✅ No P/T overlaps with buttons in any scenario
-- ✅ All P/T values ≤7 characters display unchanged
-- ✅ Extreme values (1000+) use K/M notation
-- ✅ Non-standard P/T with counters use compact notation
-- ✅ Long-press tooltip shows exact values for abbreviated numbers
-- ✅ Visual consistency maintained across token cards
-- ✅ Layout doesn't break with any valid P/T combination
+See the dedicated feature document for full analysis of 10 proposed solutions.
 
 ---
 
