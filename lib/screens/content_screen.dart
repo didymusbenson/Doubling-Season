@@ -128,22 +128,25 @@ class _ContentScreenState extends State<ContentScreen> {
                       ],
                       border: GradientBoxBorder(
                         gradient: ColorUtils.gradientForColors(item.colors, isEmblem: item.isEmblem),
-                        width: 3,
+                        width: 4,
                       ),
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(9), // Slightly smaller to fit inside border
-                      child: Dismissible(
-                        key: ValueKey('dismissible_${item.key}'), // Use different key for Dismissible
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          color: Colors.red,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 16),
-                          child: const Icon(Icons.delete, color: Colors.white),
+                      borderRadius: BorderRadius.circular(8), // Slightly smaller to fit inside border (12 - 4)
+                      child: Container(
+                        color: Theme.of(context).cardColor, // Background inside the clip boundary
+                        child: Dismissible(
+                          key: ValueKey('dismissible_${item.key}'), // Use different key for Dismissible
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            color: Colors.red,
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 16),
+                            child: const Icon(Icons.delete, color: Colors.white),
+                          ),
+                          onDismissed: (_) => tokenProvider.deleteItem(item),
+                          child: TokenCard(item: item),
                         ),
-                        onDismissed: (_) => tokenProvider.deleteItem(item),
-                        child: TokenCard(item: item),
                       ),
                     ),
                   ),
@@ -337,8 +340,8 @@ class _ContentScreenState extends State<ContentScreen> {
     return AnimatedBuilder(
       animation: animation,
       builder: (context, child) {
-        // Scale from 1.0 to 1.05 during drag (5% growth)
-        final scale = lerpDouble(1.0, 1.05, animation.value) ?? 1.0;
+        // Scale from 1.0 to 1.03 during drag (3% growth)
+        final scale = lerpDouble(1.0, 1.03, animation.value) ?? 1.0;
 
         return Transform.scale(
           scale: scale,
@@ -346,6 +349,8 @@ class _ContentScreenState extends State<ContentScreen> {
             elevation: 8.0, // Higher elevation for "floating" effect
             shadowColor: Colors.black.withOpacity(0.3),
             borderRadius: BorderRadius.circular(12),
+            clipBehavior: Clip.antiAlias, // CRITICAL: Actually clip the child content
+            type: MaterialType.transparency, // Don't add a background
             child: child,
           ),
         );

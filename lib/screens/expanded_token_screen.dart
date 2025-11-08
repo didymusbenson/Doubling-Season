@@ -269,7 +269,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                     if (!widget.item.isEmblem) ...[
                       // Untapped
                       _buildCountRow(
-                        icon: Icons.aod_outlined,
+                        icon: Icons.screenshot,
                         label: 'Untapped',
                         value: widget.item.amount - widget.item.tapped,
                         showButtons: false,
@@ -279,7 +279,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
 
                       // Tapped
                       _buildCountRow(
-                        icon: Icons.rotate_90_degrees_cw,
+                        icon: Icons.screen_rotation,
                         label: 'Tapped',
                         value: widget.item.tapped,
                         onIncrement: widget.item.tapped < widget.item.amount

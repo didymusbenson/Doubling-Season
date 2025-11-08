@@ -227,15 +227,14 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
       token_models.Category.emblem,
     ];
 
-    return SizedBox(
-      height: 48,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: allowedCategories.map((category) {
           final isSelected = _selectedCategory == category;
           return Padding(
-            padding: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             child: FilterChip(
               label: Text(category.displayName),
               selected: isSelected,

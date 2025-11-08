@@ -29,7 +29,7 @@ class TokenCard extends StatelessWidget {
       child: Opacity(
       opacity: item.amount == 0 ? 0.5 : 1.0,
       child: Container(
-        color: Theme.of(context).cardColor,
+        color: Colors.transparent, // Background handled by parent Container in ContentScreen
         padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,14 +55,14 @@ class TokenCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                   ],
-                  const Icon(Icons.aod_outlined, size: 20),
+                  const Icon(Icons.screenshot, size: 20),
                   const SizedBox(width: 4),
                   Text(
                     '${item.amount - item.tapped}',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(width: 8),
-                  const Icon(Icons.rotate_90_degrees_cw, size: 20),
+                  const Icon(Icons.screen_rotation, size: 20),
                   const SizedBox(width: 4),
                   Text(
                     '${item.tapped}',
@@ -194,7 +194,7 @@ class TokenCard extends StatelessWidget {
           // Untap button
           _buildActionButton(
             context,
-            icon: Icons.aod_outlined,
+            icon: Icons.screenshot,
             onTap: () => tokenProvider.untapTokens(item, 1),
             onLongPress: () => tokenProvider.untapTokens(item, item.tapped),
             color: primaryColor,
@@ -203,7 +203,7 @@ class TokenCard extends StatelessWidget {
           // Tap button
           _buildActionButton(
             context,
-            icon: Icons.rotate_90_degrees_cw,
+            icon: Icons.screen_rotation,
             onTap: () => tokenProvider.tapTokens(item, 1),
             onLongPress: () => tokenProvider.tapTokens(item, item.amount - item.tapped),
             color: primaryColor,
