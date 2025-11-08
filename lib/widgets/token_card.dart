@@ -300,9 +300,7 @@ class TokenCard extends StatelessWidget {
                   backgroundColor: Colors.transparent,
                   builder: (context) => SplitStackSheet(
                     item: item,
-                    onSplitCompleted: () {
-                      Navigator.of(context).pop();
-                    },
+                    // No onSplitCompleted callback - sheet dismisses itself
                   ),
                 );
               } : null,
