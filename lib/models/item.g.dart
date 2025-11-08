@@ -29,13 +29,14 @@ class ItemAdapter extends TypeAdapter<Item> {
       .._tapped = fields[5] as int
       .._summoningSick = fields[6] as int
       .._plusOneCounters = fields[7] as int
-      .._minusOneCounters = fields[8] as int;
+      .._minusOneCounters = fields[8] as int
+      .._type = fields[12] == null ? '' : fields[12] as String?;
   }
 
   @override
   void write(BinaryWriter writer, Item obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.abilities)
       ..writeByte(1)
@@ -59,7 +60,9 @@ class ItemAdapter extends TypeAdapter<Item> {
       ..writeByte(10)
       ..write(obj.createdAt)
       ..writeByte(11)
-      ..write(obj.order);
+      ..write(obj.order)
+      ..writeByte(12)
+      ..write(obj._type);
   }
 
   @override

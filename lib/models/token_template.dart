@@ -21,13 +21,23 @@ class TokenTemplate extends HiveObject {
   @HiveField(4)
   double order;
 
+  @HiveField(5, defaultValue: '')
+  String? _type;
+
+  String get type => _type ?? '';
+  set type(String value) {
+    _type = value;
+    save();
+  }
+
   TokenTemplate({
     required this.name,
     required this.pt,
     required this.abilities,
     required this.colors,
+    String type = '',
     this.order = 0.0,
-  });
+  }) : _type = type;
 
   factory TokenTemplate.fromItem(Item item) {
     return TokenTemplate(
@@ -35,6 +45,7 @@ class TokenTemplate extends HiveObject {
       pt: item.pt,
       abilities: item.abilities,
       colors: item.colors,
+      type: item.type,
       order: item.order,
     );
   }
@@ -45,6 +56,7 @@ class TokenTemplate extends HiveObject {
       pt: pt,
       abilities: abilities,
       colors: colors,
+      type: type,
       amount: amount,
       tapped: createTapped ? amount : 0,
       summoningSick: 0,

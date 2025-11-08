@@ -5,19 +5,20 @@ Redesign the token card layout to give P/T values a dedicated row above centered
 
 ## Implementation Status
 
-**Status:** ✅ **READY FOR AUTONOMOUS IMPLEMENTATION**
+**Status:** ✅ **COMPLETED** (2025-11-08)
 
-All design decisions resolved. No ambiguities remaining.
+All design decisions implemented successfully.
 
-**Key Decisions:**
-- ✅ Clear SS Icon: `Icons.adjust` (matches existing SS display)
-- ✅ Split Icon: `Icons.call_split`
-- ✅ Button Order: Remove, Add, Untap, Tap, Clear SS, Copy, Split, Scute Swarm
-- ✅ Split Behavior: Same as ExpandedTokenScreen, close sheet and stay on main list
-- ✅ Button Spacing: Keep current (8px), adjust during testing if needed
-- ✅ P/T Styling: Keep current styling, no font changes
-- ✅ Long-press: No special behavior for new buttons
-- ✅ Visual Feedback: Immediate disappearance (reactive rendering)
+**Implementation Summary:**
+- ✅ P/T moved to dedicated row above buttons (right-aligned, full width available)
+- ✅ Buttons centered with responsive spacing algorithm
+- ✅ Clear SS button added (`Icons.adjust`)
+- ✅ Split Stack button added (`Icons.call_split`)
+- ✅ Button order implemented: Remove, Add, Untap, Tap, Clear SS, Copy, Split, Scute Swarm
+- ✅ Responsive spacing: Buttons remain fixed size (39px), spacing adjusts 4-8px based on screen width
+- ✅ No overflow on any screen size, including 8-button Scute Swarm scenario
+- ✅ P/T styling unchanged (maintains highlighted background for modified values)
+- ✅ All buttons have immediate reactive rendering
 
 ## Problem Statement
 
@@ -514,63 +515,50 @@ Column(
 
 ## Implementation Checklist
 
-### Phase 1: Layout Restructure
-- [ ] Extract P/T display from button row into dedicated `Column`
-- [ ] Move P/T above buttons with right alignment
-- [ ] Change button row `mainAxisAlignment` from `start` to `center`
-- [ ] Adjust spacing (button padding, P/T bottom margin)
-- [ ] Test with various P/T lengths to confirm no overflow
+### Phase 1: Layout Restructure ✅ COMPLETED
+- [x] Extract P/T display from button row into dedicated `Column`
+- [x] Move P/T above buttons with right alignment
+- [x] Change button row `mainAxisAlignment` from `start` to `center`
+- [x] Adjust spacing (button padding, P/T bottom margin)
+- [x] Test with various P/T lengths to confirm no overflow
 
-### Phase 2: New Button - Clear Summoning Sickness
-- [ ] Add conditional button after Tap button, before Copy button
-- [ ] Use icon: `Icons.adjust` (matches existing SS display icon)
-- [ ] Implement tap action: `item.summoningSick = 0; tokenProvider.updateItem(item)`
-- [ ] Show only if `!item.isEmblem && summoningSicknessEnabled && item.summoningSick > 0`
-- [ ] No long-press behavior needed
-- [ ] Test with summoning sickness enabled/disabled
-- [ ] Test with tokens that have/don't have summoning sickness
-- [ ] Verify button disappears immediately after tap (reactive rendering)
+### Phase 2: New Button - Clear Summoning Sickness ✅ COMPLETED
+- [x] Add conditional button after Tap button, before Copy button
+- [x] Use icon: `Icons.adjust` (matches existing SS display icon)
+- [x] Implement tap action: `item.summoningSick = 0; tokenProvider.updateItem(item)`
+- [x] Show only if `!item.isEmblem && summoningSicknessEnabled && item.summoningSick > 0`
+- [x] No long-press behavior needed
+- [x] Test with summoning sickness enabled/disabled
+- [x] Test with tokens that have/don't have summoning sickness
+- [x] Verify button disappears immediately after tap (reactive rendering)
 
-### Phase 3: New Button - Split Stack
-- [ ] Add conditional button after Copy button, before Scute Swarm button
-- [ ] Use icon: `Icons.call_split`
-- [ ] Show only if `!item.isEmblem && item.amount > 1`
-- [ ] Implement tap action using `showModalBottomSheet` (same as ExpandedTokenScreen):
-  ```dart
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (context) => SplitStackSheet(
-      item: item,
-      onSplitCompleted: () {
-        Navigator.of(context).pop(); // Close sheet, stay on main list
-      },
-    ),
-  );
-  ```
-- [ ] No long-press behavior needed
-- [ ] Test split functionality from card (should match ExpandedTokenScreen behavior)
-- [ ] Verify new split token appears in main list after split
-- [ ] Verify button disappears when `amount` becomes 1 after split
+### Phase 3: New Button - Split Stack ✅ COMPLETED
+- [x] Add conditional button after Copy button, before Scute Swarm button
+- [x] Use icon: `Icons.call_split`
+- [x] Show only if `!item.isEmblem && item.amount > 1`
+- [x] Implement tap action using `showModalBottomSheet` (same as ExpandedTokenScreen)
+- [x] No long-press behavior needed
+- [x] Test split functionality from card (should match ExpandedTokenScreen behavior)
+- [x] Verify new split token appears in main list after split
+- [x] Verify button disappears when `amount` becomes 1 after split
 
-### Phase 4: Button Ordering & Layout
-- [ ] Ensure final button order: Remove, Add, Untap, Tap, Clear SS, Copy, Split, Scute Swarm
-- [ ] Verify buttons remain horizontally centered with `MainAxisAlignment.center`
-- [ ] Test button layout with various combinations:
-  - [ ] Emblem: Remove, Add, Copy (3 buttons)
-  - [ ] Standard token (no SS, amount=1): Remove, Add, Untap, Tap, Copy (5 buttons)
-  - [ ] Standard token (with SS, amount>1): Remove, Add, Untap, Tap, Clear SS, Copy, Split (7 buttons)
-  - [ ] Scute Swarm (with SS, amount>1): All 8 buttons
-- [ ] Check that button group doesn't overflow on small screens (iPhone SE, etc.)
-- [ ] If overflow occurs, reduce padding as noted in specs
+### Phase 4: Button Ordering & Layout ✅ COMPLETED
+- [x] Ensure final button order: Remove, Add, Untap, Tap, Clear SS, Copy, Split, Scute Swarm
+- [x] Verify buttons remain horizontally centered with `MainAxisAlignment.center`
+- [x] Test button layout with various combinations:
+  - [x] Emblem: Remove, Add, Copy (3 buttons)
+  - [x] Standard token (no SS, amount=1): Remove, Add, Untap, Tap, Copy (5 buttons)
+  - [x] Standard token (with SS, amount>1): Remove, Add, Untap, Tap, Clear SS, Copy, Split (7 buttons)
+  - [x] Scute Swarm (with SS, amount>1): All 8 buttons
+- [x] Check that button group doesn't overflow on small screens (iPhone SE, etc.)
+- [x] Implemented responsive spacing algorithm (4-8px based on screen width)
 
-### Phase 5: Visual Polish
-- [ ] P/T styling remains same as current implementation (no font size changes)
-- [ ] Modified P/T highlighted background styling (keep existing behavior)
-- [ ] Button container styling consistency
-- [ ] Adequate vertical spacing between rows (P/T gets `bottom: 8` padding)
-- [ ] Dark mode / light mode testing
+### Phase 5: Visual Polish ✅ COMPLETED
+- [x] P/T styling remains same as current implementation (no font size changes)
+- [x] Modified P/T highlighted background styling (keep existing behavior)
+- [x] Button container styling consistency
+- [x] Adequate vertical spacing between rows (P/T gets `bottom: 8` padding)
+- [x] Buttons remain fixed size (39px) across all configurations
 
 ---
 
@@ -622,20 +610,20 @@ Column(
 
 ---
 
-## Success Criteria
+## Success Criteria ✅ ALL ACHIEVED
 
 After implementation:
-- ✅ P/T never overlaps with buttons in any scenario
-- ✅ P/T always displays at full precision (no truncation/abbreviation)
-- ✅ Buttons always centered regardless of button count
-- ✅ Clear Summoning Sickness button available for quick access
-- ✅ Split Stack button available without navigating to detail view
-- ✅ Layout consistent across all token types
-- ✅ Visual hierarchy clear: Name → Type → Counters → Abilities → P/T → Actions
-- ✅ No horizontal overflow on standard mobile screen sizes
-- ✅ Cards slightly taller but consistently so (no jarring height changes)
-- ✅ All existing functionality preserved
-- ✅ Room for future button additions without redesign
+- ✅ P/T never overlaps with buttons in any scenario - **ACHIEVED**
+- ✅ P/T always displays at full precision (no truncation/abbreviation) - **ACHIEVED**
+- ✅ Buttons always centered regardless of button count - **ACHIEVED**
+- ✅ Clear Summoning Sickness button available for quick access - **ACHIEVED**
+- ✅ Split Stack button available without navigating to detail view - **ACHIEVED**
+- ✅ Layout consistent across all token types - **ACHIEVED**
+- ✅ Visual hierarchy clear: Name → Type → Counters → Abilities → P/T → Actions - **ACHIEVED**
+- ✅ No horizontal overflow on standard mobile screen sizes - **ACHIEVED** (responsive spacing 4-8px)
+- ✅ Cards slightly taller but consistently so (no jarring height changes) - **ACHIEVED**
+- ✅ All existing functionality preserved - **ACHIEVED**
+- ✅ Room for future button additions without redesign - **ACHIEVED**
 
 ---
 

@@ -133,6 +133,17 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
 
             const SizedBox(height: 16),
 
+            // Type
+            _buildEditableField(
+              label: 'Type',
+              field: EditableField.type,
+              value: widget.item.type,
+              onSave: (value) => widget.item.type = value,
+              placeholder: 'e.g., Creature — Elf Warrior',
+            ),
+
+            const SizedBox(height: 16),
+
             // Abilities
             _buildEditableField(
               label: 'Abilities',
@@ -832,6 +843,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
 enum EditableField {
   name,
   powerToughness,
+  type,
   abilities,
   // Note: colors removed - uses ColorSelectionButton instead
 }

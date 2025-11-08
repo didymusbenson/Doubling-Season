@@ -106,13 +106,11 @@ def clean_token_data(tokens: List[Dict]) -> List[Dict]:
         if not name:
             continue
 
-        # Clean type - ensure it includes "Token" if not already
+        # Clean type - remove "Token" prefix since it's not a real Magic type
         type_text = token['type']
-        if "Token" not in type_text:
-            if "Creature" in type_text:
-                type_text = "Token " + type_text
-            else:
-                type_text = "Token " + type_text
+        # Remove "Token " prefix (case-insensitive, handles "Token Creature", "Token Artifact", etc.)
+        type_text = re.sub(r'^Token\s+', '', type_text, flags=re.IGNORECASE)
+        type_text = type_text.strip()
 
         # Clean abilities text
         abilities = token['abilities']
@@ -287,7 +285,7 @@ def main():
     xml_url = "https://raw.githubusercontent.com/Cockatrice/Magic-Token/master/tokens.xml"
 
     # Output path for the JSON database
-    output_path = "../assets/token_database.json"
+    output_path = "../../assets/token_database.json"
 
     try:
         # Fetch XML data

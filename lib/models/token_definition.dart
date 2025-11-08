@@ -46,6 +46,7 @@ class TokenDefinition {
       pt: pt,
       abilities: abilities,
       colors: colors,
+      type: type,
       amount: amount,
       tapped: createTapped ? amount : 0,
       summoningSick: amount, // Always apply summoning sickness to new tokens

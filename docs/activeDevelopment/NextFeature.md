@@ -348,16 +348,7 @@ After implementation:
 
 ## Other Features Under Consideration
 
-### Power/Toughness Display Handling
-**Status:** Design phase - see `PtHandlingFeature.md`
-
-Long P/T values (e.g., `*/*+1 (+5/+5)`, `1003/1003`) currently overlap with action buttons. Multiple solutions are being evaluated including:
-- K/M notation for large numbers
-- Compact counter notation for non-standard P/T
-- Two-line display fallback
-- Long-press tooltips for exact values
-
-See the dedicated feature document for full analysis of 10 proposed solutions.
+(No features currently under consideration)
 
 ---
 
@@ -365,3 +356,11 @@ See the dedicated feature document for full analysis of 10 proposed solutions.
 
 - Token List Reordering
 - WCAG Accessibility Fixes
+- **Power/Toughness Display Handling & Token Controls Redesign** (2025-11-08)
+  - P/T moved to dedicated row above action buttons (right-aligned, full width)
+  - Added Clear Summoning Sickness quick-action button
+  - Added Split Stack quick-action button
+  - Implemented responsive button spacing (4-8px) to prevent overflow on all screen sizes
+  - Buttons remain fixed size (39px), centered layout
+  - Handles extreme P/T values without truncation (e.g., `*/1+* (+9999/+9999)`)
+  - See `PtHandlingFeature.md` for full implementation details
