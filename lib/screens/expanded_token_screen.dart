@@ -352,229 +352,241 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
             const SizedBox(height: 16),
 
             // Counters Card (merged Power/Toughness and Custom)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            // CRITICAL: Use ValueListenableBuilder to reactively update when counters are added from CounterSearchScreen
+            ValueListenableBuilder(
+              valueListenable: tokenProvider.listenable,
+              builder: (context, box, _) {
+                // Find the current item in the box to get latest values
+                final currentItem = box.values.firstWhere(
+                  (item) => item.key == widget.item.key,
+                  orElse: () => widget.item,
+                );
+
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Counters',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.add_circle, color: Theme.of(context).colorScheme.primary),
-                          onPressed: () => _showCounterSearch(context),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // +1/+1 Counters
-                    Row(
-                      children: [
-                        const Expanded(child: Text('+1/+1 Counters')),
-                        IconButton(
-                          onPressed: widget.item.plusOneCounters > 0
-                              ? () {
-                                  setState(() {
-                                    widget.item.addPowerToughnessCounters(-1);
-                                    tokenProvider.updateItem(widget.item);
-                                  });
-                                }
-                              : null,
-                          icon: const Icon(Icons.remove_circle, color: Colors.red),
-                        ),
-                        GestureDetector(
-                          onTap: () => _showManualInputDialog(
-                            '+1/+1 Counters',
-                            widget.item.plusOneCounters,
-                            (value) {
-                              setState(() {
-                                widget.item.plusOneCounters = value;
-                                tokenProvider.updateItem(widget.item);
-                              });
-                            },
-                          ),
-                          child: Container(
-                            width: 40,
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(4),
-                              color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
-                            ),
-                            child: Text(
-                              '${widget.item.plusOneCounters}',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () {
-                            setState(() {
-                              widget.item.addPowerToughnessCounters(1);
-                              tokenProvider.updateItem(widget.item);
-                            });
-                          },
-                          icon: const Icon(Icons.add_circle, color: Colors.green),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    // -1/-1 Counters
-                    Row(
-                      children: [
-                        const Expanded(child: Text('-1/-1 Counters')),
-                        IconButton(
-                          onPressed: widget.item.minusOneCounters > 0
-                              ? () {
-                                  setState(() {
-                                    widget.item.addPowerToughnessCounters(1);
-                                    tokenProvider.updateItem(widget.item);
-                                  });
-                                }
-                              : null,
-                          icon: const Icon(Icons.remove_circle, color: Colors.red),
-                        ),
-                        GestureDetector(
-                          onTap: () => _showManualInputDialog(
-                            '-1/-1 Counters',
-                            widget.item.minusOneCounters,
-                            (value) {
-                              setState(() {
-                                widget.item.minusOneCounters = value;
-                                tokenProvider.updateItem(widget.item);
-                              });
-                            },
-                          ),
-                          child: Container(
-                            width: 40,
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(4),
-                              color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
-                            ),
-                            child: Text(
-                              '${widget.item.minusOneCounters}',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () {
-                            setState(() {
-                              widget.item.addPowerToughnessCounters(-1);
-                              tokenProvider.updateItem(widget.item);
-                            });
-                          },
-                          icon: const Icon(Icons.add_circle, color: Colors.green),
-                        ),
-                      ],
-                    ),
-
-                    if (widget.item.netPlusOneCounters != 0) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
+                        Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Modified P/T:'),
-                            Text(
-                              widget.item.formattedPowerToughness,
-                              style: const TextStyle(
+                            const Text(
+                              'Counters',
+                              style: TextStyle(
+                                fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.blue,
                               ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.add_circle, color: Theme.of(context).colorScheme.primary),
+                              onPressed: () => _showCounterSearch(context),
                             ),
                           ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 16),
 
-                    // Custom counters (appear below +1/+1 and -1/-1)
-                    if (widget.item.counters.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      ...widget.item.counters.map((counter) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            children: [
-                              Expanded(child: Text('${counter.name} Counters')),
-                              IconButton(
-                                onPressed: counter.amount > 0
-                                    ? () {
-                                        widget.item.removeCounter(name: counter.name);
-                                        tokenProvider.updateItem(widget.item);
-                                        setState(() {}); // Rebuild to update UI
-                                      }
-                                    : null,
-                                icon: const Icon(Icons.remove_circle, color: Colors.red),
+                        // +1/+1 Counters
+                        Row(
+                          children: [
+                            const Expanded(child: Text('+1/+1 Counters')),
+                            IconButton(
+                              onPressed: currentItem.plusOneCounters > 0
+                                  ? () {
+                                      setState(() {
+                                        currentItem.addPowerToughnessCounters(-1);
+                                        tokenProvider.updateItem(currentItem);
+                                      });
+                                    }
+                                  : null,
+                              icon: const Icon(Icons.remove_circle, color: Colors.red),
+                            ),
+                            GestureDetector(
+                              onTap: () => _showManualInputDialog(
+                                '+1/+1 Counters',
+                                currentItem.plusOneCounters,
+                                (value) {
+                                  setState(() {
+                                    currentItem.plusOneCounters = value;
+                                    tokenProvider.updateItem(currentItem);
+                                  });
+                                },
                               ),
-                              GestureDetector(
-                                onTap: () => _showManualInputDialog(
-                                  '${counter.name} Counters',
-                                  counter.amount,
-                                  (value) {
-                                    counter.amount = value;
-                                    tokenProvider.updateItem(widget.item);
-                                    setState(() {}); // Rebuild to update UI
-                                  },
+                              child: Container(
+                                width: 40,
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(4),
+                                  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
                                 ),
-                                child: Container(
-                                  width: 40,
-                                  padding: const EdgeInsets.symmetric(vertical: 4),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(4),
-                                    color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                                child: Text(
+                                  '${currentItem.plusOneCounters}',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                  child: Text(
-                                    '${counter.amount}',
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  currentItem.addPowerToughnessCounters(1);
+                                  tokenProvider.updateItem(currentItem);
+                                });
+                              },
+                              icon: const Icon(Icons.add_circle, color: Colors.green),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        // -1/-1 Counters
+                        Row(
+                          children: [
+                            const Expanded(child: Text('-1/-1 Counters')),
+                            IconButton(
+                              onPressed: currentItem.minusOneCounters > 0
+                                  ? () {
+                                      setState(() {
+                                        currentItem.addPowerToughnessCounters(1);
+                                        tokenProvider.updateItem(currentItem);
+                                      });
+                                    }
+                                  : null,
+                              icon: const Icon(Icons.remove_circle, color: Colors.red),
+                            ),
+                            GestureDetector(
+                              onTap: () => _showManualInputDialog(
+                                '-1/-1 Counters',
+                                currentItem.minusOneCounters,
+                                (value) {
+                                  setState(() {
+                                    currentItem.minusOneCounters = value;
+                                    tokenProvider.updateItem(currentItem);
+                                  });
+                                },
+                              ),
+                              child: Container(
+                                width: 40,
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(4),
+                                  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                                ),
+                                child: Text(
+                                  '${currentItem.minusOneCounters}',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  currentItem.addPowerToughnessCounters(-1);
+                                  tokenProvider.updateItem(currentItem);
+                                });
+                              },
+                              icon: const Icon(Icons.add_circle, color: Colors.green),
+                            ),
+                          ],
+                        ),
+
+                        if (currentItem.netPlusOneCounters != 0) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Modified P/T:'),
+                                Text(
+                                  currentItem.formattedPowerToughness,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        // Custom counters (appear below +1/+1 and -1/-1)
+                        if (currentItem.counters.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          ...currentItem.counters.map((counter) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(
+                                children: [
+                                  Expanded(child: Text('${counter.name} Counters')),
+                                  IconButton(
+                                    onPressed: counter.amount > 0
+                                        ? () {
+                                            currentItem.removeCounter(name: counter.name);
+                                            tokenProvider.updateItem(currentItem);
+                                            setState(() {}); // Rebuild to update UI
+                                          }
+                                        : null,
+                                    icon: const Icon(Icons.remove_circle, color: Colors.red),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () => _showManualInputDialog(
+                                      '${counter.name} Counters',
+                                      counter.amount,
+                                      (value) {
+                                        counter.amount = value;
+                                        tokenProvider.updateItem(currentItem);
+                                        setState(() {}); // Rebuild to update UI
+                                      },
+                                    ),
+                                    child: Container(
+                                      width: 40,
+                                      padding: const EdgeInsets.symmetric(vertical: 4),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(4),
+                                        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                                      ),
+                                      child: Text(
+                                        '${counter.amount}',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
+                                  IconButton(
+                                    onPressed: () {
+                                      currentItem.addCounter(name: counter.name);
+                                      tokenProvider.updateItem(currentItem);
+                                      setState(() {}); // Rebuild to update UI
+                                    },
+                                    icon: const Icon(Icons.add_circle, color: Colors.green),
+                                  ),
+                                ],
                               ),
-                              IconButton(
-                                onPressed: () {
-                                  widget.item.addCounter(name: counter.name);
-                                  tokenProvider.updateItem(widget.item);
-                                  setState(() {}); // Rebuild to update UI
-                                },
-                                icon: const Icon(Icons.add_circle, color: Colors.green),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
-                  ],
-                ),
-              ),
+                            );
+                          }),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
           ],
         ),
