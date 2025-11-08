@@ -9,9 +9,11 @@ class SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
+    final padding = MediaQuery.of(context).padding;
 
     // Calculate optimal font size - test against longest text
-    final availableWidth = screenWidth - 8.0; // 4px padding on each side
+    // Account for safe area insets (notches, rounded corners) plus explicit padding
+    final availableWidth = screenWidth - padding.left - padding.right - 32.0; // Extra margin for safety
     final fontSize = _calculateFontSize(availableWidth);
 
     return GestureDetector(
@@ -66,7 +68,7 @@ class SplashScreen extends StatelessWidget {
           style: TextStyle(
             color: Colors.white,
             fontSize: fontSize,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
@@ -86,7 +88,7 @@ class SplashScreen extends StatelessWidget {
           text: testText,
           style: TextStyle(
             fontSize: fontSize,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
           ),
         ),
         textDirection: TextDirection.ltr,

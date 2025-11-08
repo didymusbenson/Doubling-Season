@@ -2,11 +2,94 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Maintaining This Document
+
+**CRITICAL**: Claude must proactively maintain this file as a living document.
+
+### When to Update CLAUDE.md
+
+Claude should **proactively offer** to update this file when:
+
+1. **Project Configuration Changes**
+   - Bundle identifiers, application IDs, or package names
+   - Version numbers or build configurations
+   - Platform support changes (adding/removing iOS/Android/Web/etc.)
+   - Deployment targets or minimum SDK versions
+
+2. **Architectural Changes**
+   - New state management patterns
+   - Database schema or persistence changes
+   - Navigation patterns or routing changes
+   - New providers or dependency injection
+
+3. **Development Workflow Changes**
+   - New slash commands created (in `.claude/commands/`)
+   - Build process modifications
+   - Testing or deployment procedures
+   - Code generation requirements
+
+4. **Documentation Gaps Discovered**
+   - Finding undocumented critical configuration (like bundle IDs)
+   - Discovering missing code patterns or conventions
+   - Encountering errors due to outdated instructions
+   - Learning project-specific requirements during work
+
+5. **Dependency Changes**
+   - Major package additions or removals
+   - Build tool updates (Hive, build_runner, etc.)
+   - Platform-specific dependencies
+
+### Update Pattern
+
+After completing significant work, Claude should ask:
+> "Should I update CLAUDE.md to document [specific change/pattern/convention]?"
+
+**Example triggers:**
+- ✓ Created `/shipfortestflight` command → Document it exists
+- ✓ Fixed bundle ID bug → Add "Project Configuration" section
+- ✓ Restructured docs folder → Update "Project Structure" section
+- ✓ Changed build process → Update "Common Development Commands"
+
+### Why This Matters
+
+An outdated CLAUDE.md leads to:
+- Repeated mistakes (like using default bundle IDs)
+- Inconsistent code patterns
+- Missing critical project knowledge
+- Inefficient development workflow
+
+This document is Claude's source of truth - keep it current!
+
 ## Project Overview
 
 **Doubling Season** is a cross-platform Flutter app for tracking Magic: The Gathering tokens during gameplay. It manages token stacks with tapped/untapped states, summoning sickness, counters (+1/+1, -1/-1, and custom counters), and provides a searchable database of 300+ token types.
 
 The app targets iOS, Android, Web, macOS, and Windows platforms using Flutter's single codebase approach.
+
+## Project Configuration
+
+### Critical Identifiers (NEVER use defaults)
+
+**iOS Bundle Identifier:** `LooseTie.Doubling-Season`
+- Location: `ios/Runner.xcodeproj/project.pbxproj`
+- Format: Hyphens in "Doubling-Season"
+- **WARNING**: Flutter defaults to `com.example.doublingSeason` - this MUST be changed to `LooseTie.Doubling-Season`
+
+**Android Application ID:** `LooseTie.DoublingSeason`
+- Location: `android/app/build.gradle.kts`
+- Format: CamelCase "DoublingSeason" (no hyphens)
+- Also set as `namespace` in the same file
+
+**App Version:**
+- Location: `pubspec.yaml` → `version: X.Y.Z+B`
+- Format: `MAJOR.MINOR.PATCH+BUILD_NUMBER`
+- Example: `1.0.1+1` = Version 1.0.1, Build 1
+- **Tip**: Use `/shipfortestflight` command to auto-increment version and build IPA
+
+**Display Name:** `Doubling Season`
+- Shows in app launcher and App Store
+- iOS: `ios/Runner/Info.plist` → `CFBundleDisplayName`
+- Android: `android/app/src/main/AndroidManifest.xml` → `android:label`
 
 ## Common Development Commands
 
@@ -31,6 +114,60 @@ flutter build macos        # macOS
 flutter build windows      # Windows
 ```
 
+### Deploying to Physical iPhone
+
+**Apple Developer Team ID:** `84W8Q8DV3S` (Andrew Benson personal team)
+
+To verify or find team ID:
+```bash
+# Check current team ID in Xcode project
+cat ios/Runner.xcodeproj/project.pbxproj | grep -A 2 "DEVELOPMENT_TEAM"
+```
+
+**CRITICAL: Understanding "Run" vs "Install"**
+
+When the user says "put it on my iPhone", "ship to my phone", "send it to my iPhone", or similar phrases, they mean **INSTALL** (permanent installation), NOT "run" (temporary launch).
+
+- **`flutter run`**: Launches app temporarily while connected. App disappears when the session ends. Use for active development/debugging only.
+- **`flutter install`**: Permanently installs the app on the device. App remains on home screen after disconnecting. Use when user wants the app on their device.
+
+**Installing release build to iPhone (RECOMMENDED):**
+```bash
+# Use the /shiptomyphone slash command for automated workflow
+# OR manually:
+
+# 1. Get list of connected devices
+flutter devices
+
+# 2. Clean build cache
+flutter clean
+
+# 3. Build iOS release
+flutter build ios --release
+
+# 4. Install to device (permanently)
+flutter install -d <device-id>
+```
+
+**Tip**: Use the `/shiptomyphone` slash command to automate the clean → build → install workflow.
+
+**Other deployment methods (use only if specifically requested):**
+```bash
+# Xcode deployment (if user specifically wants to use Xcode)
+open ios/Runner.xcworkspace
+# Then select iPhone device and click Play (▶)
+
+# Development run (temporary, for active debugging)
+flutter run -d <device-id> --release
+```
+
+**Important Notes:**
+- Project uses "Automatically manage signing" with team `84W8Q8DV3S`
+- Team must be selected in Xcode (Signing & Capabilities tab) at least once
+- Wireless connection works but USB cable is more reliable
+- User should delete existing app from iPhone before installing for cleanest results
+- `flutter run` can have issues with wireless deployment (stuck splash screens, doesn't persist after disconnect)
+
 ### Code Generation
 Hive models require generated adapter code:
 ```bash
@@ -47,10 +184,11 @@ flutter pub run build_runner build --delete-conflicting-outputs
 ### Data Generation
 To regenerate the token database from upstream Magic token data:
 ```bash
-cd "AI STUFF"
-python3 process_tokens.py
+python3 docs/housekeeping/process_tokens_with_popularity.py
 ```
 This fetches token data from the Cockatrice GitHub repository, processes it, and outputs `assets/token_database.json`.
+
+**Tip**: Use the `/regen-tokens` slash command for a guided workflow.
 
 The script:
 - Fetches XML from `https://raw.githubusercontent.com/Cockatrice/Magic-Token/master/tokens.xml`
@@ -58,6 +196,27 @@ The script:
 - Deduplicates using key: `name|pt|colors|type|abilities` (note: abilities are included in dedup key)
 - Removes reminder text and normalizes formatting
 - Outputs sorted JSON array to `assets/token_database.json`
+
+### TestFlight Deployment
+To build and prepare an IPA for TestFlight upload:
+```bash
+flutter build ipa --release
+```
+The IPA will be output to `build/ios/ipa/Doubling Season.ipa`. Upload via Apple Transporter app.
+
+**Tip**: Use the `/shipfortestflight` slash command for automated workflow:
+- Auto-increments patch version (e.g., 1.0.1 → 1.0.2)
+- Runs `flutter clean` and `flutter build ipa --release`
+- Opens Finder to the IPA location
+- Opens Apple Transporter app for drag-and-drop upload
+
+### Available Slash Commands
+Custom commands located in `.claude/commands/`:
+
+- **`/checkpoint`** - Stage and commit all changes with a descriptive message (no Claude attribution)
+- **`/regen-tokens`** - Regenerate token database from upstream Magic token data
+- **`/shipfortestflight`** - Auto-increment version, build IPA, and prepare for TestFlight upload
+- **`/shiptomyphone`** - Build iOS release and permanently install it on connected iPhone
 
 ### Testing
 Testing is performed through manual functional testing by human experts. Do not generate automated test code.
@@ -476,25 +635,27 @@ The `Item` model includes automatic validation in setters:
 **Critical**: TokenDefinition.id must match Python script deduplication logic:
 - Composite ID: `name|pt|colors|type|abilities`
 - This ensures all token variants appear in search results
-- Must match `process_tokens.py` line 118
+- Must match deduplication logic in `docs/housekeeping/process_tokens_with_popularity.py`
 
 ### Python Script Maintenance
-When modifying `process_tokens.py`:
-- The deduplication key at line 118 must include abilities: `f"{name}|{token['pt']}|{token['colors']}|{type_text}|{abilities}"`
-- Output path is hardcoded: `"assets/token_database.json"` (changed from `Doubling Season/TokenDatabase.json`)
-- Run from repository root: `python3 "AI STUFF/process_tokens.py"`
+When modifying `process_tokens_with_popularity.py`:
+- The deduplication key must include abilities: `f"{name}|{token['pt']}|{token['colors']}|{type_text}|{abilities}"`
+- Output path is hardcoded: `"assets/token_database.json"`
+- Run from repository root: `python3 docs/housekeeping/process_tokens_with_popularity.py`
 
 ## Future Feature Context
 
-See `FeedbackAndIdeas.md` for user-requested features:
+See `docs/activeDevelopment/FeedbackIdeas.md` for user-requested features:
 - Token artwork (download/on-demand/user upload)
 - Combat tracking interface
 - Condensed view mode
 - New toolbar positioning (floating toolbox already implemented in Flutter version)
 
-See `Premium.md` for planned paid features:
+See `docs/activeDevelopment/PremiumVersionIdeas.md` for planned paid features:
 - Commander-specific tools (Brudiclad, Krenko, Chatterfang)
 - Token modifier card toggles (Academy Manufactor, etc.)
+
+See `docs/activeDevelopment/NextFeature.md` for current development focus.
 
 ## Project Structure
 
@@ -542,12 +703,17 @@ lib/
 assets/
 └── token_database.json                 # 300+ bundled tokens
 
-AI STUFF/
-├── process_tokens.py                   # Token database generator
-├── Improvements.md                     # Current bug fixes and tasks
-├── FeedbackAndIdeas.md                 # User feature requests
-├── Premium.md                          # Planned paid features
-└── [other AI documentation]
+docs/
+├── activeDevelopment/                  # Current planning and feedback
+│   ├── FeedbackIdeas.md                # User feature requests
+│   ├── NextFeature.md                  # Current development focus
+│   └── PremiumVersionIdeas.md          # Planned paid features
+└── housekeeping/                       # Maintenance scripts and guides
+    ├── process_tokens_with_popularity.py   # Token database generator
+    ├── data_processing_scripts.md      # Documentation for data scripts
+    ├── xml_token_processing_scripts.md # XML processing guide
+    ├── AndroidToolchainSetup.md        # Android dev environment setup
+    └── FlutterDevEnvSetup.md           # Flutter dev environment setup
 
 android/                                # Android platform files
 ios/                                    # iOS platform files (no native Swift code)

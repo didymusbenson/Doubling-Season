@@ -98,19 +98,34 @@ class Item extends HiveObject {
   @HiveField(10)
   DateTime createdAt;
 
+  @HiveField(11)
+  double order;
+
+  @HiveField(12, defaultValue: '')
+  String? _type;
+
+  String get type => _type ?? '';
+  set type(String value) {
+    _type = value;
+    save();
+  }
+
   // Constructor
   Item({
     required this.name,
     required this.pt,
     this.abilities = '',
     String colors = '',
+    String type = '',
     int amount = 1,
     int tapped = 0,
     int summoningSick = 0,
     List<TokenCounter>? counters,
     DateTime? createdAt,
+    this.order = 0.0,
   })  : counters = counters ?? [],
         _colors = colors.toUpperCase(),
+        _type = type,
         _amount = amount < 0 ? 0 : amount,
         _tapped = tapped < 0 ? 0 : tapped,
         _summoningSick = summoningSick < 0 ? 0 : summoningSick,
@@ -205,9 +220,11 @@ class Item extends HiveObject {
       pt: pt,
       abilities: abilities,
       colors: colors,
+      type: type,
       amount: 0,
       tapped: 0,
       summoningSick: 0,
+      order: 0.0, // Order will be set by caller
     );
 
     // Store counter values to be applied after item is added to box

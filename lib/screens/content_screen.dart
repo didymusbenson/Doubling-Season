@@ -1,3 +1,4 @@
+import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
@@ -93,9 +94,9 @@ class _ContentScreenState extends State<ContentScreen> {
         }
 
         final items = box.values.toList()
-          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+          ..sort((a, b) => a.order.compareTo(b.order));
 
-        return ListView.builder(
+        return ReorderableListView.builder(
               itemCount: items.length,
               padding: const EdgeInsets.only(
                 top: 8,
@@ -103,9 +104,12 @@ class _ContentScreenState extends State<ContentScreen> {
                 right: 8,
                 bottom: 120, // Space for MultiplierView
               ),
+              onReorder: (oldIndex, newIndex) => _handleReorder(items, oldIndex, newIndex),
+              proxyDecorator: _buildDragProxy,
               itemBuilder: (context, index) {
                 final item = items[index];
                 return Padding(
+                  key: ValueKey(item.key), // Required for ReorderableListView
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Container(
                     decoration: BoxDecoration(
@@ -124,22 +128,25 @@ class _ContentScreenState extends State<ContentScreen> {
                       ],
                       border: GradientBoxBorder(
                         gradient: ColorUtils.gradientForColors(item.colors, isEmblem: item.isEmblem),
-                        width: 3,
+                        width: 4,
                       ),
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(9), // Slightly smaller to fit inside border
-                      child: Dismissible(
-                        key: ValueKey(item.key), // Use Hive key
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          color: Colors.red,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 16),
-                          child: const Icon(Icons.delete, color: Colors.white),
+                      borderRadius: BorderRadius.circular(8), // Slightly smaller to fit inside border (12 - 4)
+                      child: Container(
+                        color: Theme.of(context).cardColor, // Background inside the clip boundary
+                        child: Dismissible(
+                          key: ValueKey('dismissible_${item.key}'), // Use different key for Dismissible
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            color: Colors.red,
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 16),
+                            child: const Icon(Icons.delete, color: Colors.white),
+                          ),
+                          onDismissed: (_) => tokenProvider.deleteItem(item),
+                          child: TokenCard(item: item),
                         ),
-                        onDismissed: (_) => tokenProvider.deleteItem(item),
-                        child: TokenCard(item: item),
                       ),
                     ),
                   ),
@@ -269,6 +276,89 @@ class _ContentScreenState extends State<ContentScreen> {
     );
   }
 
+  void _handleReorder(List<Item> items, int oldIndex, int newIndex) {
+    // Track if moving down before adjustment
+    final movingDown = newIndex > oldIndex;
+
+    if (newIndex > oldIndex) {
+      newIndex -= 1;
+    }
+
+    final item = items[oldIndex];
+
+    // Calculate new fractional order
+    double newOrder;
+    if (newIndex == 0) {
+      // Moving to top
+      newOrder = items.first.order - 1.0;
+    } else if (newIndex == items.length - 1) {
+      // Moving to bottom
+      newOrder = items.last.order + 1.0;
+    } else {
+      // Moving between two items
+      if (movingDown) {
+        // Item moves after items[newIndex]
+        final prevOrder = items[newIndex].order;
+        final nextOrder = items[newIndex + 1].order;
+        newOrder = (prevOrder + nextOrder) / 2.0;
+      } else {
+        // Item moves before items[newIndex]
+        final prevOrder = items[newIndex - 1].order;
+        final nextOrder = items[newIndex].order;
+        newOrder = (prevOrder + nextOrder) / 2.0;
+      }
+    }
+
+    item.order = newOrder;
+    item.save();
+
+    // Check if we need compacting (when gap becomes too small)
+    _checkAndCompactOrders(items);
+  }
+
+  void _checkAndCompactOrders(List<Item> items) {
+    // If any two adjacent items have order difference < 0.001, compact all orders
+    items.sort((a, b) => a.order.compareTo(b.order));
+
+    for (int i = 0; i < items.length - 1; i++) {
+      if ((items[i + 1].order - items[i].order) < 0.001) {
+        _compactOrders(items);
+        return;
+      }
+    }
+  }
+
+  void _compactOrders(List<Item> items) {
+    items.sort((a, b) => a.order.compareTo(b.order));
+    for (int i = 0; i < items.length; i++) {
+      items[i].order = i.toDouble();
+      items[i].save();
+    }
+  }
+
+  Widget _buildDragProxy(Widget child, int index, Animation<double> animation) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        // Scale from 1.0 to 1.03 during drag (3% growth)
+        final scale = lerpDouble(1.0, 1.03, animation.value) ?? 1.0;
+
+        return Transform.scale(
+          scale: scale,
+          child: Material(
+            elevation: 8.0, // Higher elevation for "floating" effect
+            shadowColor: Colors.black.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(12),
+            clipBehavior: Clip.antiAlias, // CRITICAL: Actually clip the child content
+            type: MaterialType.transparency, // Don't add a background
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+
   void _handleClearSickness() {
     final tokenProvider = context.read<TokenProvider>();
     tokenProvider.clearSummoningSickness();
@@ -356,7 +446,6 @@ class _ContentScreenState extends State<ContentScreen> {
     final tokenProvider = context.read<TokenProvider>();
     final deckProvider = context.read<DeckProvider>();
     final controller = TextEditingController();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     showDialog(
       context: context,
@@ -378,16 +467,21 @@ class _ContentScreenState extends State<ContentScreen> {
           TextButton(
             onPressed: () {
               if (controller.text.isEmpty) {
-                // Use captured scaffoldMessenger
-                scaffoldMessenger.showSnackBar(
-                  const SnackBar(content: Text('Please enter a deck name')),
-                );
                 return;
               }
 
-              final templates = tokenProvider.items
-                  .map((item) => TokenTemplate.fromItem(item))
-                  .toList();
+              // Sort by order and compact to sequential integers for clean deck storage
+              final sortedItems = tokenProvider.items
+                  ..sort((a, b) => a.order.compareTo(b.order));
+
+              final templates = sortedItems.asMap().entries.map((entry) {
+                final index = entry.key;
+                final item = entry.value;
+                final template = TokenTemplate.fromItem(item);
+                // Override order with compacted sequential values
+                template.order = index.toDouble();
+                return template;
+              }).toList();
 
               final deck = Deck(name: controller.text, templates: templates);
               deckProvider.saveDeck(deck);
@@ -395,11 +489,6 @@ class _ContentScreenState extends State<ContentScreen> {
               if (dialogContext.mounted) {
                 Navigator.pop(dialogContext);
               }
-
-              // Use captured scaffoldMessenger (safe after Navigator.pop)
-              scaffoldMessenger.showSnackBar(
-                SnackBar(content: Text('Deck "${controller.text}" saved')),
-              );
             },
             child: const Text('Save'),
           ),

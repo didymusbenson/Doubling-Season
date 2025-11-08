@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../models/token_definition.dart' as token_models;
+import '../providers/settings_provider.dart';
 import '../utils/constants.dart';
 
 class TokenDatabase extends ChangeNotifier {
@@ -10,19 +11,34 @@ class TokenDatabase extends ChangeNotifier {
   String? _loadError;
   String _searchQuery = '';
   token_models.Category? _selectedCategory;
+  Set<String> _selectedColors = {};
 
   bool get isLoading => _isLoading;
   String? get loadError => _loadError;
   List<token_models.TokenDefinition> get allTokens => _allTokens;
 
-  // Filtered tokens based on search and category
+  // Filtered tokens based on search, category, and color
   List<token_models.TokenDefinition> get filteredTokens {
-    return _allTokens.where((token) {
+    final filtered = _allTokens.where((token) {
       final matchesSearch = token.matches(searchQuery: _searchQuery);
       final matchesCategory =
           _selectedCategory == null || token.category == _selectedCategory;
-      return matchesSearch && matchesCategory;
+      final matchesColor = _matchesColorFilter(token);
+      return matchesSearch && matchesCategory && matchesColor;
     }).toList();
+
+    // Sort: popularity DESC (highest first), then name ASC (alphabetical)
+    // This automatically creates bracket-based sorting
+    filtered.sort((a, b) {
+      // Higher popularity first
+      final popularityCompare = b.popularity.compareTo(a.popularity);
+      if (popularityCompare != 0) return popularityCompare;
+
+      // Same popularity: alphabetical
+      return a.name.compareTo(b.name);
+    });
+
+    return filtered;
   }
 
   String get searchQuery => _searchQuery;
@@ -35,6 +51,27 @@ class TokenDatabase extends ChangeNotifier {
   set selectedCategory(token_models.Category? value) {
     _selectedCategory = value;
     notifyListeners();
+  }
+
+  Set<String> get selectedColors => _selectedColors;
+  set selectedColors(Set<String> value) {
+    _selectedColors = value;
+    notifyListeners();
+  }
+
+  // Helper method to check if token matches color filter
+  bool _matchesColorFilter(token_models.TokenDefinition token) {
+    if (_selectedColors.isEmpty) return true; // No filter = show all
+
+    // Handle colorless filter (C selected)
+    if (_selectedColors.contains('C')) {
+      return token.colors.isEmpty;
+    }
+
+    // Exact color match for WUBRG
+    final tokenColors = token.colors.split('').toSet();
+    return tokenColors.length == _selectedColors.length &&
+        tokenColors.containsAll(_selectedColors);
   }
 
   Future<void> loadTokens() async {
@@ -67,32 +104,47 @@ class TokenDatabase extends ChangeNotifier {
   void clearFilters() {
     _searchQuery = '';
     _selectedCategory = null;
+    _selectedColors = {};
     notifyListeners();
   }
 
-  // Recent and favorites logic (uses SettingsProvider)
-  List<token_models.TokenDefinition> recentTokens = [];
-  Set<String> _favoriteIds = {};
+  // Recent and favorites logic - delegates to SettingsProvider for persistence
 
-  bool isFavorite(token_models.TokenDefinition token) => _favoriteIds.contains(token.id);
+  void addToRecent(token_models.TokenDefinition token, SettingsProvider settingsProvider) {
+    settingsProvider.addRecent(token.id); // Persist to SharedPreferences
+    notifyListeners(); // Trigger UI update
+  }
 
-  void toggleFavorite(token_models.TokenDefinition token) {
-    if (_favoriteIds.contains(token.id)) {
-      _favoriteIds.remove(token.id);
+  // Reconstruct recent tokens from IDs stored in SettingsProvider
+  List<token_models.TokenDefinition> getRecentTokens(SettingsProvider settingsProvider) {
+    final recentIds = settingsProvider.recentTokens;
+    return recentIds
+        .map((id) {
+          try {
+            return _allTokens.firstWhere((t) => t.id == id);
+          } catch (e) {
+            return null;
+          }
+        })
+        .whereType<token_models.TokenDefinition>()
+        .toList();
+  }
+
+  bool isFavorite(token_models.TokenDefinition token, SettingsProvider settingsProvider) {
+    return settingsProvider.favoriteTokens.contains(token.id);
+  }
+
+  void toggleFavorite(token_models.TokenDefinition token, SettingsProvider settingsProvider) {
+    if (settingsProvider.favoriteTokens.contains(token.id)) {
+      settingsProvider.removeFavorite(token.id);
     } else {
-      _favoriteIds.add(token.id);
+      settingsProvider.addFavorite(token.id);
     }
     notifyListeners();
   }
 
-  void addToRecent(token_models.TokenDefinition token) {
-    recentTokens.remove(token);
-    recentTokens.insert(0, token);
-    if (recentTokens.length > 20) recentTokens.removeLast();
-    notifyListeners();
-  }
-
-  List<token_models.TokenDefinition> getFavoriteTokens() {
-    return _allTokens.where((t) => _favoriteIds.contains(t.id)).toList();
+  List<token_models.TokenDefinition> getFavoriteTokens(SettingsProvider settingsProvider) {
+    final favoriteIds = settingsProvider.favoriteTokens;
+    return _allTokens.where((t) => favoriteIds.contains(t.id)).toList();
   }
 }

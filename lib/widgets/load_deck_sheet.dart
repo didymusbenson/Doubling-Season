@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/deck.dart';
@@ -96,52 +97,78 @@ class LoadDeckSheet extends StatelessWidget {
     );
   }
 
-  void _loadDeck(BuildContext context, Deck deck) {
+  void _loadDeck(BuildContext context, Deck deck) async {
     // Capture references from outer context BEFORE showing dialog
     final tokenProvider = context.read<TokenProvider>();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final currentTokens = tokenProvider.items;
 
-    showDialog(
+    if (currentTokens.isEmpty) {
+      // Board is empty - load directly without confirmation
+      await _loadDeckTokens(tokenProvider, deck, startOrder: 0.0);
+
+      if (context.mounted) {
+        Navigator.pop(context); // Close load deck sheet
+      }
+      return;
+    }
+
+    // Board has tokens - show confirmation dialog
+    final result = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Load Deck'),
-        content: Text('Load "${deck.name}"?\n\nThis will replace all current tokens.'),
+        title: Text('Loading ${deck.name}'),
+        content: const Text('Would you like to:'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
+            onPressed: () => Navigator.pop(dialogContext, 'cancel'),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () async {
-              // Clear current tokens
-              await tokenProvider.boardWipeDelete();
-
-              // Load deck templates
-              // BUG FIX: SwiftUI LoadDeckSheet has a bug where it creates
-              // items with amount: 0. This implementation properly uses template values.
-              for (final template in deck.templates) {
-                final item = template.toItem();
-                await tokenProvider.insertItem(item);
-              }
-
-              if (dialogContext.mounted) {
-                Navigator.pop(dialogContext); // Close dialog
-              }
-
-              if (context.mounted) {
-                Navigator.pop(context); // Close load deck sheet
-
-                // Use captured ScaffoldMessenger (safe without context)
-                scaffoldMessenger.showSnackBar(
-                  SnackBar(content: Text('Loaded deck "${deck.name}"')),
-                );
-              }
-            },
-            child: const Text('Load'),
+            onPressed: () => Navigator.pop(dialogContext, 'clear'),
+            child: const Text('Clear tokens and load'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, 'add'),
+            child: const Text('Add deck tokens to board'),
           ),
         ],
       ),
     );
+
+    if (result == null || result == 'cancel') return;
+
+    if (result == 'clear') {
+      await tokenProvider.boardWipeDelete();
+      await _loadDeckTokens(tokenProvider, deck, startOrder: 0.0);
+    } else if (result == 'add') {
+      // Find max order and append deck tokens after it
+      final maxOrder = currentTokens.isEmpty
+          ? 0.0
+          : currentTokens.map((i) => i.order).reduce(max);
+      await _loadDeckTokens(tokenProvider, deck, startOrder: maxOrder.floor() + 1.0);
+    }
+
+    if (context.mounted) {
+      Navigator.pop(context); // Close load deck sheet
+    }
+  }
+
+  Future<void> _loadDeckTokens(TokenProvider tokenProvider, Deck deck, {required double startOrder}) async {
+    // Sort templates by order
+    final sortedTemplates = deck.templates.toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
+
+    // Create items preserving relative order
+    for (int i = 0; i < sortedTemplates.length; i++) {
+      final template = sortedTemplates[i];
+      final item = template.toItem(
+        amount: 1, // Default amount
+        createTapped: false,
+      );
+      // Override order to position correctly (clear: 0,1,2... or add: maxOrder+1, maxOrder+2...)
+      item.order = startOrder + i.toDouble();
+      await tokenProvider.insertItemWithExplicitOrder(item);
+    }
   }
 
   void _showDeleteConfirmation(
@@ -149,9 +176,6 @@ class LoadDeckSheet extends StatelessWidget {
     Deck deck,
     DeckProvider provider,
   ) {
-    // Capture ScaffoldMessenger before showing dialog
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -167,11 +191,6 @@ class LoadDeckSheet extends StatelessWidget {
               await provider.deleteDeck(deck);
               if (dialogContext.mounted) {
                 Navigator.pop(dialogContext);
-
-                // Use captured ScaffoldMessenger (safe without context)
-                scaffoldMessenger.showSnackBar(
-                  SnackBar(content: Text('Deleted deck "${deck.name}"')),
-                );
               }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),

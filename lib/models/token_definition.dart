@@ -6,6 +6,7 @@ class TokenDefinition {
   final String pt;
   final String colors;
   final String type;
+  final int popularity;
 
   TokenDefinition({
     required this.name,
@@ -13,6 +14,7 @@ class TokenDefinition {
     required this.pt,
     required this.colors,
     required this.type,
+    required this.popularity,
   });
 
   // CRITICAL: Composite ID must match deduplication logic in process_tokens.py
@@ -25,6 +27,7 @@ class TokenDefinition {
       pt: json['pt'] as String? ?? '',
       colors: json['colors'] as String? ?? '',
       type: json['type'] as String? ?? '',
+      popularity: json['popularity'] as int? ?? 0, // Default to 0 for backwards compat
     );
   }
 
@@ -43,6 +46,7 @@ class TokenDefinition {
       pt: pt,
       abilities: abilities,
       colors: colors,
+      type: type,
       amount: amount,
       tapped: createTapped ? amount : 0,
       summoningSick: amount, // Always apply summoning sickness to new tokens

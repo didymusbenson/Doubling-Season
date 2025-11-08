@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/token_definition.dart' as token_models;
@@ -5,6 +6,7 @@ import '../database/token_database.dart';
 import '../providers/token_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/new_token_sheet.dart';
+import '../widgets/color_filter_button.dart';
 import '../utils/constants.dart';
 
 enum SearchTab { all, recent, favorites }
@@ -23,26 +25,44 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
 
   SearchTab _selectedTab = SearchTab.all;
   token_models.Category? _selectedCategory;
+  Set<String> _selectedColors = {};
 
   // Quantity dialog state
   int _tokenQuantity = 1;
   bool _createTapped = false;
 
+  // Search debouncing - prevents excessive filtering while user is typing
+  Timer? _searchDebounceTimer;
+  static const _searchDebounceDuration = Duration(milliseconds: 300);
+
   @override
   void initState() {
     super.initState();
     _tokenDatabase.loadTokens();
-    _searchController.addListener(() {
-      _tokenDatabase.searchQuery = _searchController.text;
-    });
+    _searchController.addListener(_onSearchTextChanged);
   }
 
   @override
   void dispose() {
+    _searchDebounceTimer?.cancel(); // Cancel pending search operations
     _searchController.dispose();
     _searchFocusNode.dispose();
     _tokenDatabase.dispose(); // Fix memory leak
     super.dispose();
+  }
+
+  /// Debounces search input to avoid filtering on every keystroke.
+  /// Waits 300ms after user stops typing before applying the search filter.
+  /// This significantly improves performance when searching through 300+ tokens.
+  void _onSearchTextChanged() {
+    // Cancel any pending search operations
+    _searchDebounceTimer?.cancel();
+
+    // Schedule new search after 300ms delay
+    _searchDebounceTimer = Timer(_searchDebounceDuration, () {
+      // Only update search query after user has stopped typing
+      _tokenDatabase.searchQuery = _searchController.text;
+    });
   }
 
   @override
@@ -57,7 +77,7 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          if (_selectedCategory != null || _searchController.text.isNotEmpty)
+          if (_selectedCategory != null || _searchController.text.isNotEmpty || _selectedColors.isNotEmpty)
             TextButton(
               onPressed: _clearFilters,
               child: const Text('Clear'),
@@ -68,6 +88,9 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
         children: [
           // Search Bar
           _buildSearchBar(),
+
+          // Color Filter (only in "All" tab)
+          if (_selectedTab == SearchTab.all) _buildColorFilter(),
 
           // Tab Selector
           _buildTabSelector(),
@@ -137,6 +160,34 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
     );
   }
 
+  Widget _buildColorFilter() {
+    const colors = ['W', 'U', 'B', 'R', 'G', 'C'];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: colors.map((color) {
+          final isSelected = _selectedColors.contains(color);
+          return ColorFilterButton(
+            symbol: color,
+            isSelected: isSelected,
+            onTap: () {
+              setState(() {
+                if (isSelected) {
+                  _selectedColors.remove(color);
+                } else {
+                  _selectedColors.add(color);
+                }
+                _tokenDatabase.selectedColors = _selectedColors;
+              });
+            },
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   Widget _buildTabSelector() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -169,15 +220,21 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
   }
 
   Widget _buildCategoryFilter() {
-    return SizedBox(
-      height: 48,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        children: token_models.Category.values.map((category) {
+    // Only show Creature, Artifact, and Emblem categories
+    const allowedCategories = [
+      token_models.Category.creature,
+      token_models.Category.artifact,
+      token_models.Category.emblem,
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: allowedCategories.map((category) {
           final isSelected = _selectedCategory == category;
           return Padding(
-            padding: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             child: FilterChip(
               label: Text(category.displayName),
               selected: isSelected,
@@ -198,16 +255,18 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
   }
 
   List<token_models.TokenDefinition> _getDisplayedTokens() {
+    final settingsProvider = context.read<SettingsProvider>();
+
     switch (_selectedTab) {
       case SearchTab.all:
         return _tokenDatabase.filteredTokens;
       case SearchTab.recent:
-        return _tokenDatabase.recentTokens.where((token) {
+        return _tokenDatabase.getRecentTokens(settingsProvider).where((token) {
           return _searchController.text.isEmpty ||
               token.matches(searchQuery: _searchController.text);
         }).toList();
       case SearchTab.favorites:
-        return _tokenDatabase.getFavoriteTokens().where((token) {
+        return _tokenDatabase.getFavoriteTokens(settingsProvider).where((token) {
           return _searchController.text.isEmpty ||
               token.matches(searchQuery: _searchController.text);
         }).toList();
@@ -215,12 +274,14 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
   }
 
   Widget _buildTokenList(List<token_models.TokenDefinition> tokens) {
+    final settingsProvider = context.read<SettingsProvider>();
+
     return ListView.builder(
       itemCount: tokens.length,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       itemBuilder: (context, index) {
         final token = tokens[index];
-        final isFavorite = _tokenDatabase.isFavorite(token);
+        final isFavorite = _tokenDatabase.isFavorite(token, settingsProvider);
 
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
@@ -273,7 +334,7 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                   ),
                   onPressed: () {
                     setState(() {
-                      _tokenDatabase.toggleFavorite(token);
+                      _tokenDatabase.toggleFavorite(token, settingsProvider);
                     });
                   },
                 ),
@@ -462,7 +523,8 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
       _createTapped = false;
     });
 
-    _tokenDatabase.addToRecent(token);
+    final settingsProvider = context.read<SettingsProvider>();
+    _tokenDatabase.addToRecent(token, settingsProvider);
     _showQuantityDialog(token);
   }
 
@@ -711,6 +773,7 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
     setState(() {
       _searchController.clear();
       _selectedCategory = null;
+      _selectedColors = {};
       _tokenDatabase.clearFilters();
     });
   }

@@ -1,52 +1,40 @@
 import 'package:flutter/material.dart';
 
-/// Color selection button for MTG color identity (WUBRG)
-/// Used in NewTokenSheet and ExpandedTokenView
-class ColorSelectionButton extends StatelessWidget {
-  final String symbol; // W, U, B, R, or G
+/// Color filter button for token search (WUBRGC)
+/// Used in TokenSearchScreen to filter tokens by exact color identity
+class ColorFilterButton extends StatelessWidget {
+  final String symbol; // W, U, B, R, G, or C
   final bool isSelected;
-  final Color color; // The MTG color (yellow for W, blue for U, etc.)
-  final String label; // "White", "Blue", etc.
-  final ValueChanged<bool> onChanged;
+  final VoidCallback onTap;
 
-  const ColorSelectionButton({
+  const ColorFilterButton({
     super.key,
     required this.symbol,
     required this.isSelected,
-    required this.color,
-    required this.label,
-    required this.onChanged,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Special case: White (W) uses custom colors
-    final effectiveColor = symbol == 'W' ? const Color(0xFFE8DDB5) : color;
+    final colorData = _getColorData(symbol);
 
-    // Use desaturated/faded color when not selected
+    // Use full color when selected, desaturated when not
     final displayColor = isSelected
-        ? effectiveColor
-        : Theme.of(context).colorScheme.surfaceContainerHighest;
+        ? colorData.color
+        : colorData.color.withOpacity(0.3);
 
-    // Border colors:
-    // When DISABLED: use same color as background for seamless appearance
-    // When ENABLED: use a darker version of the enabled color
     final borderColor = isSelected
-        ? _darkenColor(effectiveColor, 0.3)      // Darken by 30% when selected
-        : displayColor;                           // Match background when disabled
+        ? _darkenColor(colorData.color, 0.3)
+        : colorData.color.withOpacity(0.3);
 
-    // Text color:
-    // When ENABLED: use a lightened/desaturated version (simulating disabled circle appearance)
-    // When DISABLED: use grey
-    // Special case: White (W) uses white text
     final textColor = isSelected
-        ? (symbol == 'W' ? Colors.white : _lightenColor(effectiveColor, 0.6))
+        ? colorData.textColor
         : Colors.grey.shade400;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => onChanged(!isSelected),
+        onTap: onTap,
         customBorder: const CircleBorder(),
         child: Container(
           width: 48,
@@ -61,20 +49,10 @@ class ColorSelectionButton extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: displayColor,
-                  boxShadow: !isSelected ? [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ] : null,
                 ),
               ),
 
-              // Symbol text with conditional vertical adjustment
-              // NOTE: The 'R' glyph in this font (w900 weight) has irregular vertical metrics
-              // that cause it to appear lower than other letters. We apply a -1.5px vertical
-              // offset specifically to the R to align it properly with W, U, B, and G.
+              // Symbol text with conditional vertical adjustment for R
               Transform.translate(
                 offset: Offset(0, symbol == 'R' ? -1.5 : 0),
                 child: Text(
@@ -96,7 +74,7 @@ class ColorSelectionButton extends StatelessWidget {
                 ),
               ),
 
-              // Border ring (always shown, color changes based on selection)
+              // Border ring
               Container(
                 width: 48,
                 height: 48,
@@ -115,25 +93,64 @@ class ColorSelectionButton extends StatelessWidget {
     );
   }
 
-  /// Darken a color by reducing its lightness
-  /// [amount] should be between 0.0 (no change) and 1.0 (black)
+  _ColorData _getColorData(String symbol) {
+    switch (symbol) {
+      case 'W':
+        return _ColorData(
+          color: const Color(0xFFE8DDB5),
+          textColor: Colors.white,
+        );
+      case 'U':
+        return _ColorData(
+          color: Colors.blue,
+          textColor: _lightenColor(Colors.blue, 0.6),
+        );
+      case 'B':
+        return _ColorData(
+          color: Colors.purple,
+          textColor: _lightenColor(Colors.purple, 0.6),
+        );
+      case 'R':
+        return _ColorData(
+          color: Colors.red,
+          textColor: _lightenColor(Colors.red, 0.6),
+        );
+      case 'G':
+        return _ColorData(
+          color: Colors.green,
+          textColor: _lightenColor(Colors.green, 0.6),
+        );
+      case 'C':
+        return _ColorData(
+          color: Colors.grey.shade600,
+          textColor: _lightenColor(Colors.grey.shade600, 0.6),
+        );
+      default:
+        return _ColorData(
+          color: Colors.grey,
+          textColor: Colors.white,
+        );
+    }
+  }
+
   Color _darkenColor(Color color, double amount) {
     assert(amount >= 0 && amount <= 1);
-
     final hsl = HSLColor.fromColor(color);
     final darkened = hsl.withLightness((hsl.lightness * (1 - amount)).clamp(0.0, 1.0));
-
     return darkened.toColor();
   }
 
-  /// Lighten a color by increasing its lightness
-  /// [amount] should be between 0.0 (no change) and 1.0 (white)
   Color _lightenColor(Color color, double amount) {
     assert(amount >= 0 && amount <= 1);
-
     final hsl = HSLColor.fromColor(color);
     final lightened = hsl.withLightness((hsl.lightness + (1 - hsl.lightness) * amount).clamp(0.0, 1.0));
-
     return lightened.toColor();
   }
+}
+
+class _ColorData {
+  final Color color;
+  final Color textColor;
+
+  _ColorData({required this.color, required this.textColor});
 }

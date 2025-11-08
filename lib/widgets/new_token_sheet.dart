@@ -15,6 +15,7 @@ class NewTokenSheet extends StatefulWidget {
 class _NewTokenSheetState extends State<NewTokenSheet> {
   final _nameController = TextEditingController();
   final _ptController = TextEditingController();
+  final _typeController = TextEditingController();
   final _abilitiesController = TextEditingController();
 
   int _amount = 1;
@@ -31,6 +32,7 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
   void dispose() {
     _nameController.dispose();
     _ptController.dispose();
+    _typeController.dispose();
     _abilitiesController.dispose();
     super.dispose();
   }
@@ -89,6 +91,17 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
                 hintText: 'e.g., 1/1',
                 border: OutlineInputBorder(),
               ),
+            ),
+            const SizedBox(height: 16),
+
+            TextField(
+              controller: _typeController,
+              decoration: const InputDecoration(
+                labelText: 'Type',
+                hintText: 'e.g., Creature — Elf Warrior',
+                border: OutlineInputBorder(),
+              ),
+              textCapitalization: TextCapitalization.words,
             ),
             const SizedBox(height: 16),
 
@@ -207,9 +220,6 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
 
   Future<void> _createToken() async {
     if (_nameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a token name')),
-      );
       return;
     }
 
@@ -221,6 +231,7 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
     final item = Item(
       name: _nameController.text,
       pt: _ptController.text,
+      type: _typeController.text.trim(),
       colors: _getColorString(),  // Build from color selections
       abilities: _abilitiesController.text,
       amount: finalAmount,
