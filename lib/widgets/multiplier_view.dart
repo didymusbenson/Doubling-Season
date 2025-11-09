@@ -45,7 +45,7 @@ class _MultiplierBottomSheet extends StatefulWidget {
 
 class _MultiplierBottomSheetState extends State<_MultiplierBottomSheet> {
   final TextEditingController _manualInputController = TextEditingController();
-  final List<int> _presets = [1, 2, 3, 4, 6, 8, 9];
+  final List<int> _presets = [1, 2, 3, 4, 6, 8];
 
   @override
   void dispose() {
