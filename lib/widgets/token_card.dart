@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/item.dart';
@@ -76,13 +77,16 @@ class TokenCard extends StatelessWidget {
             // Type
             if (item.type.isNotEmpty) ...[
               const SizedBox(height: 4),
-              Text(
-                item.type,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontStyle: FontStyle.italic,
-                  color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+              Padding(
+                padding: EdgeInsets.only(right: kIsWeb ? 40 : 0),
+                child: Text(
+                  item.type,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontStyle: FontStyle.italic,
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                  ),
+                  textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
                 ),
-                textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
               ),
             ],
 
@@ -115,12 +119,15 @@ class TokenCard extends StatelessWidget {
             // Abilities
             if (item.abilities.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text(
-                item.abilities,
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              Padding(
+                padding: EdgeInsets.only(right: kIsWeb ? 40 : 0),
+                child: Text(
+                  item.abilities,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
 
@@ -131,7 +138,7 @@ class TokenCard extends StatelessWidget {
               Container(
                 width: double.infinity,
                 alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: EdgeInsets.only(bottom: 8, right: kIsWeb ? 40 : 0),
                 child: item.isPowerToughnessModified
                     ? Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
