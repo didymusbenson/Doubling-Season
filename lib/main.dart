@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -31,13 +32,15 @@ void main() async {
 
     runApp(const MyApp());
   } catch (e, stackTrace) {
-    // CRITICAL: Log initialization errors
-    print('════════════════════════════════════════════');
-    print('FATAL ERROR during app initialization:');
-    print('Error: $e');
-    print('Stack trace:');
-    print(stackTrace);
-    print('════════════════════════════════════════════');
+    // CRITICAL: Log initialization errors (only in debug mode)
+    if (kDebugMode) {
+      print('════════════════════════════════════════════');
+      print('FATAL ERROR during app initialization:');
+      print('Error: $e');
+      print('Stack trace:');
+      print(stackTrace);
+      print('════════════════════════════════════════════');
+    }
     rethrow;
   }
 }
@@ -102,12 +105,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       _providersReady = true;
       _checkReadyToTransition();
     } catch (e, stackTrace) {
-      print('════════════════════════════════════════════');
-      print('ERROR during provider initialization:');
-      print('Error: $e');
-      print('Stack trace:');
-      print(stackTrace);
-      print('════════════════════════════════════════════');
+      // Log provider initialization errors (only in debug mode)
+      if (kDebugMode) {
+        print('════════════════════════════════════════════');
+        print('ERROR during provider initialization:');
+        print('Error: $e');
+        print('Stack trace:');
+        print(stackTrace);
+        print('════════════════════════════════════════════');
+      }
       rethrow;
     }
   }

@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/item.dart';
+import '../utils/constants.dart';
 
 class TokenProvider extends ChangeNotifier {
   late Box<Item> _itemsBox;
@@ -15,7 +16,7 @@ class TokenProvider extends ChangeNotifier {
   ValueListenable<Box<Item>> get listenable => _itemsBox.listenable();
 
   Future<void> init() async {
-    _itemsBox = await Hive.openBox<Item>('items');
+    _itemsBox = await Hive.openBox<Item>(DatabaseConstants.countersBox);
     _ensureOrdersAssigned(); // Silent migration for order field
     _initialized = true;
     notifyListeners();

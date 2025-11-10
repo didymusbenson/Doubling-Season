@@ -3,6 +3,7 @@ import '../database/counter_database.dart';
 import '../models/item.dart';
 import '../providers/token_provider.dart';
 import 'package:provider/provider.dart';
+import '../screens/expanded_token_screen.dart';
 
 class CounterSearchScreen extends StatefulWidget {
   final Item item;
@@ -155,7 +156,7 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
                           onSubmitted: (text) {
                             final value = int.tryParse(text);
                             if (value != null && value >= 1) {
-                              setDialogState(() => quantity = value);
+                              setDialogState(() => quantity = value.clamp(1, kMaxCounterValue));
                               Navigator.pop(dialogContext);
                             }
                           },
@@ -169,7 +170,7 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
                             onPressed: () {
                               final value = int.tryParse(controller.text);
                               if (value != null && value >= 1) {
-                                setDialogState(() => quantity = value);
+                                setDialogState(() => quantity = value.clamp(1, kMaxCounterValue));
                                 Navigator.pop(dialogContext);
                               }
                             },
@@ -189,13 +190,17 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
                 ),
                 const SizedBox(width: 16),
                 IconButton(
-                  onPressed: () => setDialogState(() {
-                        quantity++;
-                        controller.text = quantity.toString();
-                      }),
+                  onPressed: quantity < kMaxCounterValue
+                      ? () => setDialogState(() {
+                            quantity++;
+                            controller.text = quantity.toString();
+                          })
+                      : null,
                   icon: const Icon(Icons.add_circle_outline),
                   iconSize: 32,
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  color: quantity < kMaxCounterValue
+                      ? Theme.of(context).colorScheme.onPrimaryContainer
+                      : Theme.of(context).disabledColor,
                 ),
               ],
             ),

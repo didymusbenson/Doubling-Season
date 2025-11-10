@@ -44,7 +44,7 @@ We may update this Privacy Policy from time to time. Any changes will be reflect
 ## Contact
 
 If you have questions about this Privacy Policy, please contact:
-- Email: [Your contact email]
+- Email: Didymus.Benson@gmail.com
 - GitHub: https://github.com/didymusbenson/Doubling-Season
 
 ## Your Rights

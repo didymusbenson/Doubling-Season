@@ -1,15 +1,40 @@
 import 'package:flutter/material.dart';
 
 class ColorUtils {
+  /// Map of MTG color identity characters to their corresponding Flutter colors
+  static const Map<String, Color> mtgColorMap = {
+    'W': Color(0xFFE8DDB5),  // White (cream)
+    'U': Colors.blue,         // Blue
+    'B': Colors.purple,       // Black
+    'R': Colors.red,          // Red
+    'G': Colors.green,        // Green
+  };
+
+  /// Converts an MTG color identity string to a list of colors.
+  ///
+  /// Processes each character in [colorString] and returns colors for valid
+  /// MTG color codes (W, U, B, R, G). Invalid characters are ignored.
+  /// Returns grey as a fallback if no valid colors are found.
+  ///
+  /// Example:
+  /// ```dart
+  /// getColorsForIdentity('WU')     // Returns [cream, blue]
+  /// getColorsForIdentity('WUBRGXYZ') // Returns [cream, blue, purple, red, green]
+  /// getColorsForIdentity('XYZ')    // Returns [grey]
+  /// ```
   static List<Color> getColorsForIdentity(String colorString) {
     final colors = <Color>[];
 
-    if (colorString.contains('W')) colors.add(const Color(0xFFE8DDB5)); // Cream color for white
-    if (colorString.contains('U')) colors.add(Colors.blue);
-    if (colorString.contains('B')) colors.add(Colors.purple);
-    if (colorString.contains('R')) colors.add(Colors.red);
-    if (colorString.contains('G')) colors.add(Colors.green);
+    // Iterate through each character in the string
+    for (int i = 0; i < colorString.length; i++) {
+      final char = colorString[i];
+      // Only add color if it exists in our map (ignores invalid characters)
+      if (mtgColorMap.containsKey(char)) {
+        colors.add(mtgColorMap[char]!);
+      }
+    }
 
+    // Return grey as fallback if no valid colors found
     return colors.isEmpty ? [Colors.grey] : colors;
   }
 
