@@ -84,7 +84,7 @@ class TokenCard extends StatelessWidget {
                   item.type,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     fontStyle: FontStyle.italic,
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
                   ),
                   textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
                 ),
@@ -147,7 +147,7 @@ class TokenCard extends StatelessWidget {
                           vertical: UIConstants.verticalSpacing,
                         ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                          color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -349,7 +349,7 @@ class TokenCard extends StatelessWidget {
     required double spacing,
     bool disabled = false,
   }) {
-    final effectiveColor = disabled ? color.withOpacity(UIConstants.disabledOpacity) : color;
+    final effectiveColor = disabled ? color.withValues(alpha: UIConstants.disabledOpacity) : color;
 
     return Padding(
       padding: EdgeInsets.only(right: spacing),
@@ -359,7 +359,7 @@ class TokenCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(UIConstants.actionButtonPadding),
           decoration: BoxDecoration(
-            color: effectiveColor.withOpacity(UIConstants.actionButtonBackgroundOpacity),
+            color: effectiveColor.withValues(alpha: UIConstants.actionButtonBackgroundOpacity),
             borderRadius: BorderRadius.circular(UIConstants.actionButtonBorderRadius),
             border: Border.all(
               color: effectiveColor,

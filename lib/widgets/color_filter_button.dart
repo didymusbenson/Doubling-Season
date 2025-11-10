@@ -21,11 +21,11 @@ class ColorFilterButton extends StatelessWidget {
     // Use full color when selected, desaturated when not
     final displayColor = isSelected
         ? colorData.color
-        : colorData.color.withOpacity(0.3);
+        : colorData.color.withValues(alpha: 0.3);
 
     final borderColor = isSelected
         ? _darkenColor(colorData.color, 0.3)
-        : colorData.color.withOpacity(0.3);
+        : colorData.color.withValues(alpha: 0.3);
 
     final textColor = isSelected
         ? colorData.textColor

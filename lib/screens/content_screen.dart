@@ -117,12 +117,12 @@ class _ContentScreenState extends State<ContentScreen> {
                       borderRadius: BorderRadius.circular(UIConstants.borderRadius),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(UIConstants.shadowOpacity),
+                          color: Colors.black.withValues(alpha: UIConstants.shadowOpacity),
                           blurRadius: UIConstants.shadowBlurRadius,
                           offset: const Offset(0, UIConstants.shadowOffset),
                         ),
                         BoxShadow(
-                          color: Colors.black.withOpacity(UIConstants.lightShadowOpacity),
+                          color: Colors.black.withValues(alpha: UIConstants.lightShadowOpacity),
                           blurRadius: UIConstants.lightShadowBlurRadius,
                           offset: const Offset(0, UIConstants.lightShadowOffset),
                         ),
@@ -348,7 +348,7 @@ class _ContentScreenState extends State<ContentScreen> {
           scale: scale,
           child: Material(
             elevation: UIConstants.dragElevation,
-            shadowColor: Colors.black.withOpacity(UIConstants.dragShadowOpacity),
+            shadowColor: Colors.black.withValues(alpha: UIConstants.dragShadowOpacity),
             borderRadius: BorderRadius.circular(UIConstants.borderRadius),
             clipBehavior: Clip.antiAlias,
             type: MaterialType.transparency,

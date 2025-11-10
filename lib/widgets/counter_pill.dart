@@ -20,7 +20,7 @@ class CounterPillView extends StatelessWidget {
         vertical: UIConstants.counterPillVerticalPadding,
       ),
       decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(UIConstants.actionButtonBackgroundOpacity),
+        color: Colors.orange.withValues(alpha: UIConstants.actionButtonBackgroundOpacity),
         borderRadius: BorderRadius.circular(UIConstants.counterPillBorderRadius),
       ),
       child: Row(

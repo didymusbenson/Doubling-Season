@@ -437,7 +437,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(4),
-                                  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                                  color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
                                 ),
                                 child: Text(
                                   '${currentItem.plusOneCounters}',
@@ -499,7 +499,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(4),
-                                  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                                  color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
                                 ),
                                 child: Text(
                                   '${currentItem.minusOneCounters}',
@@ -533,7 +533,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                              color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
@@ -587,7 +587,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(4),
-                                        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                                        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
                                       ),
                                       child: Text(
                                         '${counter.amount}',
@@ -701,7 +701,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
               child: Text(
                 label,
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                  color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
                 ),
               ),
             ),
@@ -728,7 +728,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                     textAlign: textAlign,
                     style: TextStyle(
                       fontSize: 16,
-                      color: value.isEmpty ? Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5) : null,
+                      color: value.isEmpty ? Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5) : null,
                     ),
                   ),
           ],
@@ -775,7 +775,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(4),
               color: onManualSet != null
-                  ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5)
+                  ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5)
                   : Colors.transparent,
             ),
             child: Text(
