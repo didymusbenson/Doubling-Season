@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/deck.dart';
+import '../utils/constants.dart';
 
 class DeckProvider extends ChangeNotifier {
   late LazyBox<Deck> _decksBox; // Use LazyBox for memory optimization
@@ -9,7 +10,7 @@ class DeckProvider extends ChangeNotifier {
   bool get initialized => _initialized;
 
   Future<void> init() async {
-    _decksBox = await Hive.openLazyBox<Deck>('decks');
+    _decksBox = await Hive.openLazyBox<Deck>(DatabaseConstants.decksBox);
     _initialized = true;
     notifyListeners();
   }

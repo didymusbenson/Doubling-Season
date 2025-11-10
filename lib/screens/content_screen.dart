@@ -9,11 +9,12 @@ import '../models/deck.dart';
 import '../providers/token_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/deck_provider.dart';
+import '../utils/constants.dart';
+import '../utils/color_utils.dart';
 import '../widgets/token_card.dart';
 import '../widgets/multiplier_view.dart';
 import '../widgets/load_deck_sheet.dart';
 import '../widgets/floating_action_menu.dart';
-import '../utils/color_utils.dart';
 import 'token_search_screen.dart';
 import 'about_screen.dart';
 
@@ -36,15 +37,15 @@ class _ContentScreenState extends State<ContentScreen> {
 
           // Multiplier view overlay (bottom left)
           const Positioned(
-            bottom: 16,
-            left: 16,
+            bottom: UIConstants.standardPadding,
+            left: UIConstants.standardPadding,
             child: MultiplierView(),
           ),
 
           // Floating action menu (bottom right)
           Positioned(
-            bottom: 16,
-            right: 16,
+            bottom: UIConstants.standardPadding,
+            right: UIConstants.standardPadding,
             child: FloatingActionMenu(
               onNewToken: _showTokenSearch,
               onUntapAll: _showUntapAllDialog,
@@ -99,49 +100,49 @@ class _ContentScreenState extends State<ContentScreen> {
         return ReorderableListView.builder(
               itemCount: items.length,
               padding: const EdgeInsets.only(
-                top: 8,
-                left: 8,
-                right: 8,
-                bottom: 120, // Space for MultiplierView
+                top: UIConstants.listTopPadding,
+                left: UIConstants.smallPadding,
+                right: UIConstants.smallPadding,
+                bottom: UIConstants.listBottomPadding,
               ),
               onReorder: (oldIndex, newIndex) => _handleReorder(items, oldIndex, newIndex),
               proxyDecorator: _buildDragProxy,
               itemBuilder: (context, index) {
                 final item = items[index];
                 return Padding(
-                  key: ValueKey(item.createdAt), // Required for ReorderableListView
-                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  key: ValueKey(item.createdAt),
+                  padding: const EdgeInsets.symmetric(vertical: UIConstants.verticalSpacing),
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(UIConstants.borderRadius),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.12),
-                          blurRadius: 6,
-                          offset: const Offset(0, 3),
+                          color: Colors.black.withValues(alpha: UIConstants.shadowOpacity),
+                          blurRadius: UIConstants.shadowBlurRadius,
+                          offset: const Offset(0, UIConstants.shadowOffset),
                         ),
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 1,
-                          offset: const Offset(0, 1),
+                          color: Colors.black.withValues(alpha: UIConstants.lightShadowOpacity),
+                          blurRadius: UIConstants.lightShadowBlurRadius,
+                          offset: const Offset(0, UIConstants.lightShadowOffset),
                         ),
                       ],
                       border: GradientBoxBorder(
                         gradient: ColorUtils.gradientForColors(item.colors, isEmblem: item.isEmblem),
-                        width: 4,
+                        width: UIConstants.borderWidth,
                       ),
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8), // Slightly smaller to fit inside border (12 - 4)
+                      borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
                       child: Container(
-                        color: Theme.of(context).cardColor, // Background inside the clip boundary
+                        color: Theme.of(context).cardColor,
                         child: Dismissible(
                           key: ValueKey('dismissible_${item.createdAt}'), // Use different key for Dismissible
                           direction: DismissDirection.endToStart,
                           background: Container(
                             color: Colors.red,
                             alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.only(right: 16),
+                            padding: const EdgeInsets.only(right: UIConstants.standardPadding),
                             child: const Icon(Icons.delete, color: Colors.white),
                           ),
                           onDismissed: (_) => tokenProvider.deleteItem(item),
@@ -161,12 +162,12 @@ class _ContentScreenState extends State<ContentScreen> {
     return Align(
       alignment: Alignment.topCenter,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(UIConstants.largePadding),
         child: Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(UIConstants.largePadding),
           decoration: BoxDecoration(
             color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(UIConstants.borderRadius),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -179,7 +180,7 @@ class _ContentScreenState extends State<ContentScreen> {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: UIConstants.largePadding),
               GestureDetector(
                 onTap: () => _showTokenSearch(),
                 child: Row(
@@ -189,7 +190,7 @@ class _ContentScreenState extends State<ContentScreen> {
                       Icons.add,
                       color: Theme.of(context).colorScheme.primary,
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: UIConstants.largeSpacing),
                     Flexible(
                       child: Text(
                         'Create your first token',
@@ -201,7 +202,7 @@ class _ContentScreenState extends State<ContentScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: UIConstants.standardPadding),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -209,7 +210,7 @@ class _ContentScreenState extends State<ContentScreen> {
                     Icons.menu,
                     color: Theme.of(context).textTheme.bodyMedium?.color,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'Open tools to add tokens, save decks, and more',
@@ -218,7 +219,7 @@ class _ContentScreenState extends State<ContentScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: UIConstants.standardPadding),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -226,7 +227,7 @@ class _ContentScreenState extends State<ContentScreen> {
                     Icons.calculate,
                     color: Theme.of(context).textTheme.bodyMedium?.color,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'Adjust multiplier for token doubling effects',
@@ -235,7 +236,7 @@ class _ContentScreenState extends State<ContentScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: UIConstants.standardPadding),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -243,7 +244,7 @@ class _ContentScreenState extends State<ContentScreen> {
                     Icons.settings,
                     color: Theme.of(context).textTheme.bodyMedium?.color,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'Adjust Settings',
@@ -252,7 +253,7 @@ class _ContentScreenState extends State<ContentScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: UIConstants.standardPadding),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -260,7 +261,7 @@ class _ContentScreenState extends State<ContentScreen> {
                     Icons.help_outline,
                     color: Theme.of(context).textTheme.bodyMedium?.color,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'About Doubling Season',
@@ -341,16 +342,16 @@ class _ContentScreenState extends State<ContentScreen> {
       animation: animation,
       builder: (context, child) {
         // Scale from 1.0 to 1.03 during drag (3% growth)
-        final scale = lerpDouble(1.0, 1.03, animation.value) ?? 1.0;
+        final scale = lerpDouble(1.0, UIConstants.dragScaleFactor, animation.value) ?? 1.0;
 
         return Transform.scale(
           scale: scale,
           child: Material(
-            elevation: 8.0, // Higher elevation for "floating" effect
-            shadowColor: Colors.black.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(12),
-            clipBehavior: Clip.antiAlias, // CRITICAL: Actually clip the child content
-            type: MaterialType.transparency, // Don't add a background
+            elevation: UIConstants.dragElevation,
+            shadowColor: Colors.black.withValues(alpha: UIConstants.dragShadowOpacity),
+            borderRadius: BorderRadius.circular(UIConstants.borderRadius),
+            clipBehavior: Clip.antiAlias,
+            type: MaterialType.transparency,
             child: child,
           ),
         );

@@ -65,6 +65,12 @@ If user feedback indicates that confirmation/validation messages are needed, con
 ## Individual token setting (inside expanded view) to default to entering tapped
 - on expanded view include a toggle for "new tokens enter tapped"
 
+## New tokens enter tapped on detail view
+- Add a toggle to the token detail view that automatically increases the tapped count when the token amount increases
+- When enabled, any increase to the token amount (via add action or manual input) will automatically increment the tapped count by the same amount
+- This ensures newly added tokens are tracked as tapped without manual adjustment
+- Useful for tokens that typically enter the battlefield tapped
+
 ## Import token list from deck source (moxfield, arkidect)
 - user pastes a link to their deck list and it automatically populates the tokens they need to use
 
