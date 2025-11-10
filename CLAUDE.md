@@ -75,9 +75,9 @@ The app targets iOS, Android, Web, macOS, and Windows platforms using Flutter's 
 - Format: Hyphens in "Doubling-Season"
 - **WARNING**: Flutter defaults to `com.example.doublingSeason` - this MUST be changed to `LooseTie.Doubling-Season`
 
-**Android Application ID:** `LooseTie.DoublingSeason`
+**Android Application ID:** `com.loosetie.doublingseason`
 - Location: `android/app/build.gradle.kts`
-- Format: CamelCase "DoublingSeason" (no hyphens)
+- Format: Lowercase with dots (required by Google Play)
 - Also set as `namespace` in the same file
 
 **App Version:**
