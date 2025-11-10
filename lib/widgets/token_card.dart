@@ -5,6 +5,7 @@ import '../models/item.dart';
 import '../providers/settings_provider.dart';
 import '../providers/token_provider.dart';
 import '../screens/expanded_token_screen.dart';
+import '../utils/constants.dart';
 import 'counter_pill.dart';
 import 'split_stack_sheet.dart';
 
@@ -31,8 +32,8 @@ class TokenCard extends StatelessWidget {
       child: Opacity(
       opacity: item.amount == 0 ? 0.5 : 1.0,
       child: Container(
-        color: Colors.transparent, // Background handled by parent Container in ContentScreen
-        padding: const EdgeInsets.all(10),
+        color: Colors.transparent,
+        padding: const EdgeInsets.all(UIConstants.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -49,23 +50,23 @@ class TokenCard extends StatelessWidget {
                 ),
                 if (!item.isEmblem) ...[
                   if (item.summoningSick > 0 && summoningSicknessEnabled) ...[
-                    const Icon(Icons.adjust, size: 20),
-                    const SizedBox(width: 4),
+                    const Icon(Icons.adjust, size: UIConstants.iconSize),
+                    const SizedBox(width: UIConstants.verticalSpacing),
                     Text(
                       '${item.summoningSick}',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: UIConstants.mediumSpacing),
                   ],
-                  const Icon(Icons.screenshot, size: 20),
-                  const SizedBox(width: 4),
+                  const Icon(Icons.screenshot, size: UIConstants.iconSize),
+                  const SizedBox(width: UIConstants.verticalSpacing),
                   Text(
                     '${item.amount - item.tapped}',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.screen_rotation, size: 20),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: UIConstants.mediumSpacing),
+                  const Icon(Icons.screen_rotation, size: UIConstants.iconSize),
+                  const SizedBox(width: UIConstants.verticalSpacing),
                   Text(
                     '${item.tapped}',
                     style: Theme.of(context).textTheme.titleLarge,
@@ -76,7 +77,7 @@ class TokenCard extends StatelessWidget {
 
             // Type
             if (item.type.isNotEmpty) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: UIConstants.verticalSpacing),
               Padding(
                 padding: EdgeInsets.only(right: kIsWeb ? 40 : 0),
                 child: Text(
@@ -94,10 +95,10 @@ class TokenCard extends StatelessWidget {
             if (item.counters.isNotEmpty ||
                 item.plusOneCounters > 0 ||
                 item.minusOneCounters > 0) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: UIConstants.mediumSpacing),
               Wrap(
-                spacing: 4,
-                runSpacing: 4,
+                spacing: UIConstants.verticalSpacing,
+                runSpacing: UIConstants.verticalSpacing,
                 children: [
                   ...item.counters.map(
                     (c) => CounterPillView(name: c.name, amount: c.amount),
@@ -118,7 +119,7 @@ class TokenCard extends StatelessWidget {
 
             // Abilities
             if (item.abilities.isNotEmpty) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: UIConstants.mediumSpacing),
               Padding(
                 padding: EdgeInsets.only(right: kIsWeb ? 40 : 0),
                 child: Text(
@@ -131,17 +132,20 @@ class TokenCard extends StatelessWidget {
               ),
             ],
 
-            const SizedBox(height: 12),
+            const SizedBox(height: UIConstants.largeSpacing),
 
             // P/T Row (new dedicated row)
             if (!item.isEmblem && item.pt.isNotEmpty) ...[
               Container(
                 width: double.infinity,
                 alignment: Alignment.centerRight,
-                padding: EdgeInsets.only(bottom: 8, right: kIsWeb ? 40 : 0),
+                padding: EdgeInsets.only(bottom: UIConstants.mediumSpacing, right: kIsWeb ? 40 : 0),
                 child: item.isPowerToughnessModified
                     ? Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: UIConstants.mediumSpacing,
+                          vertical: UIConstants.verticalSpacing,
+                        ),
                         decoration: BoxDecoration(
                           color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
                           borderRadius: BorderRadius.circular(6),
@@ -198,11 +202,8 @@ class TokenCard extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         // Calculate responsive spacing
-        // Button internal padding: 8px on all sides = 16px total width overhead per button
-        // Icon size: 20px
-        // Border width: 1.5px on each side = 3px total
-        // Total button width: 8 + 20 + 8 + 3 = 39px
-        const double buttonInternalWidth = 39.0;
+        // Button internal padding, icon size, and border width
+        const double buttonInternalWidth = UIConstants.actionButtonInternalWidth;
 
         // Calculate total width needed for all buttons without spacing
         final double totalButtonWidth = buttonCount * buttonInternalWidth;
@@ -212,7 +213,10 @@ class TokenCard extends StatelessWidget {
 
         // Spacing between buttons (n buttons need n-1 spaces)
         final double spacing = buttonCount > 1
-            ? (availableSpacingWidth / (buttonCount - 1)).clamp(4.0, 8.0)
+            ? (availableSpacingWidth / (buttonCount - 1)).clamp(
+                UIConstants.minButtonSpacing,
+                UIConstants.maxButtonSpacing,
+              )
             : 0.0;
 
         return Row(
@@ -345,7 +349,7 @@ class TokenCard extends StatelessWidget {
     required double spacing,
     bool disabled = false,
   }) {
-    final effectiveColor = disabled ? color.withOpacity(0.3) : color;
+    final effectiveColor = disabled ? color.withOpacity(UIConstants.disabledOpacity) : color;
 
     return Padding(
       padding: EdgeInsets.only(right: spacing),
@@ -353,16 +357,19 @@ class TokenCard extends StatelessWidget {
         onTap: disabled ? null : onTap,
         onLongPress: disabled ? null : onLongPress,
         child: Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(UIConstants.actionButtonPadding),
           decoration: BoxDecoration(
-            color: effectiveColor.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: effectiveColor, width: 1.5),
+            color: effectiveColor.withOpacity(UIConstants.actionButtonBackgroundOpacity),
+            borderRadius: BorderRadius.circular(UIConstants.actionButtonBorderRadius),
+            border: Border.all(
+              color: effectiveColor,
+              width: UIConstants.actionButtonBorderWidth,
+            ),
           ),
           child: Icon(
             icon,
             color: effectiveColor,
-            size: 20,
+            size: UIConstants.iconSize,
           ),
         ),
       ),

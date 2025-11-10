@@ -9,6 +9,8 @@ import '../widgets/split_stack_sheet.dart';
 import '../utils/constants.dart';
 import 'counter_search_screen.dart';
 
+const int kMaxCounterValue = 99999999;
+
 class ExpandedTokenScreen extends StatefulWidget {
   final Item item;
 
@@ -36,6 +38,15 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
     for (final field in EditableField.values) {
       _controllers[field] = TextEditingController();
       _focusNodes[field] = FocusNode();
+      
+      // Add listener to save changes when focus is lost
+      _focusNodes[field]!.addListener(() {
+        if (!_focusNodes[field]!.hasFocus && _editingField == field) {
+          if (mounted) {
+            _saveField(field);
+          }
+        }
+      });
     }
 
     // Initialize color selections from item
@@ -104,9 +115,9 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Name (75% width)
+                // Name (70% width)
                 Expanded(
-                  flex: 3,
+                  flex: 7,
                   child: _buildEditableField(
                     label: 'Name',
                     field: EditableField.name,
@@ -115,9 +126,9 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Stats (25% width)
+                // Stats (30% width)
                 Expanded(
-                  flex: 1,
+                  flex: 3,
                   child: _buildEditableField(
                     label: 'Stats',
                     field: EditableField.powerToughness,
@@ -311,10 +322,9 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                             : null,
                         onManualSet: (value) {
                           setState(() {
-                            if (value <= widget.item.amount) {
-                              widget.item.tapped = value;
-                              tokenProvider.updateItem(widget.item);
-                            }
+                            final clampedValue = value.clamp(0, widget.item.amount);
+                            widget.item.tapped = clampedValue;
+                            tokenProvider.updateItem(widget.item);
                           });
                         },
                       ),
@@ -346,10 +356,9 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                               : null,
                           onManualSet: (value) {
                             setState(() {
-                              if (value <= widget.item.amount) {
-                                widget.item.summoningSick = value;
-                                tokenProvider.updateItem(widget.item);
-                              }
+                              final clampedValue = value.clamp(0, widget.item.amount);
+                              widget.item.summoningSick = clampedValue;
+                              tokenProvider.updateItem(widget.item);
                             });
                           },
                         ),
@@ -418,14 +427,14 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                 currentItem.plusOneCounters,
                                 (value) {
                                   setState(() {
-                                    currentItem.plusOneCounters = value;
+                                    currentItem.plusOneCounters = value.clamp(0, kMaxCounterValue);
                                     tokenProvider.updateItem(currentItem);
                                   });
                                 },
                               ),
                               child: Container(
-                                width: 40,
-                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                constraints: const BoxConstraints(minWidth: 40),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(4),
                                   color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
@@ -441,13 +450,18 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                               ),
                             ),
                             IconButton(
-                              onPressed: () {
-                                setState(() {
-                                  currentItem.addPowerToughnessCounters(1);
-                                  tokenProvider.updateItem(currentItem);
-                                });
-                              },
-                              icon: const Icon(Icons.add_circle, color: Colors.green),
+                              onPressed: currentItem.plusOneCounters < kMaxCounterValue
+                                  ? () {
+                                      setState(() {
+                                        currentItem.addPowerToughnessCounters(1);
+                                        tokenProvider.updateItem(currentItem);
+                                      });
+                                    }
+                                  : null,
+                              icon: Icon(
+                                Icons.add_circle,
+                                color: currentItem.plusOneCounters < kMaxCounterValue ? Colors.green : Theme.of(context).disabledColor,
+                              ),
                             ),
                           ],
                         ),
@@ -475,14 +489,14 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                 currentItem.minusOneCounters,
                                 (value) {
                                   setState(() {
-                                    currentItem.minusOneCounters = value;
+                                    currentItem.minusOneCounters = value.clamp(0, kMaxCounterValue);
                                     tokenProvider.updateItem(currentItem);
                                   });
                                 },
                               ),
                               child: Container(
-                                width: 40,
-                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                constraints: const BoxConstraints(minWidth: 40),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(4),
                                   color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
@@ -498,13 +512,18 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                               ),
                             ),
                             IconButton(
-                              onPressed: () {
-                                setState(() {
-                                  currentItem.addPowerToughnessCounters(-1);
-                                  tokenProvider.updateItem(currentItem);
-                                });
-                              },
-                              icon: const Icon(Icons.add_circle, color: Colors.green),
+                              onPressed: currentItem.minusOneCounters < kMaxCounterValue
+                                  ? () {
+                                      setState(() {
+                                        currentItem.addPowerToughnessCounters(-1);
+                                        tokenProvider.updateItem(currentItem);
+                                      });
+                                    }
+                                  : null,
+                              icon: Icon(
+                                Icons.add_circle,
+                                color: currentItem.minusOneCounters < kMaxCounterValue ? Colors.green : Theme.of(context).disabledColor,
+                              ),
                             ),
                           ],
                         ),
@@ -558,14 +577,14 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                       '${counter.name} Counters',
                                       counter.amount,
                                       (value) {
-                                        counter.amount = value;
+                                        counter.amount = value.clamp(0, kMaxCounterValue);
                                         tokenProvider.updateItem(currentItem);
                                         setState(() {}); // Rebuild to update UI
                                       },
                                     ),
                                     child: Container(
-                                      width: 40,
-                                      padding: const EdgeInsets.symmetric(vertical: 4),
+                                      constraints: const BoxConstraints(minWidth: 40),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(4),
                                         color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
@@ -581,12 +600,17 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                     ),
                                   ),
                                   IconButton(
-                                    onPressed: () {
-                                      currentItem.addCounter(name: counter.name);
-                                      tokenProvider.updateItem(currentItem);
-                                      setState(() {}); // Rebuild to update UI
-                                    },
-                                    icon: const Icon(Icons.add_circle, color: Colors.green),
+                                    onPressed: counter.amount < kMaxCounterValue
+                                        ? () {
+                                            currentItem.addCounter(name: counter.name);
+                                            tokenProvider.updateItem(currentItem);
+                                            setState(() {}); // Rebuild to update UI
+                                          }
+                                        : null,
+                                    icon: Icon(
+                                      Icons.add_circle,
+                                      color: counter.amount < kMaxCounterValue ? Colors.green : Theme.of(context).disabledColor,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -605,6 +629,31 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
         );
       },
     );
+  }
+
+  void _saveField(EditableField field) {
+    // Guard against saving if widget is disposed or field is not being edited
+    if (!mounted || _editingField != field) return;
+    
+    final newValue = _controllers[field]!.text;
+    
+    switch (field) {
+      case EditableField.name:
+        widget.item.name = newValue;
+        break;
+      case EditableField.powerToughness:
+        widget.item.pt = newValue;
+        break;
+      case EditableField.type:
+        widget.item.type = newValue;
+        break;
+      case EditableField.abilities:
+        widget.item.abilities = newValue;
+        break;
+    }
+    
+    context.read<TokenProvider>().updateItem(widget.item);
+    setState(() => _editingField = null);
   }
 
   Widget _buildEditableField({
@@ -670,10 +719,8 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                       contentPadding: EdgeInsets.zero,
                     ),
                     style: const TextStyle(fontSize: 16),
-                    onSubmitted: (newValue) {
-                      onSave(newValue);
-                      context.read<TokenProvider>().updateItem(widget.item);
-                      setState(() => _editingField = null);
+                    onSubmitted: (_) {
+                      _saveField(field);
                     },
                   )
                 : Text(
@@ -723,8 +770,8 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
               ? () => _showManualInputDialog(label, value, onManualSet)
               : null,
           child: Container(
-            width: 40,
-            padding: const EdgeInsets.symmetric(vertical: 4),
+            constraints: const BoxConstraints(minWidth: 40),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(4),
               color: onManualSet != null
