@@ -1,422 +1,133 @@
 # Doubling Season
 
-Magic: The Gathering token tracker for iOS and Android.
+<div align="center">
+  <img src="docs/storefront/AppIconSource512.png" alt="Doubling Season App Icon" width="150" height="150">
+  
+  **The ultimate token tracker for Magic: The Gathering**
+  
+  [![iOS App Store](https://img.shields.io/badge/Download_on-App_Store-0D96F6?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/app/doubling-season)
+  [![Google Play](https://img.shields.io/badge/Get_it_on-Google_Play-414141?style=for-the-badge&logo=google-play&logoColor=white)](https://play.google.com/store/apps/details?id=com.loosetie.doublingseason)
+  [![Website](https://img.shields.io/badge/Visit-Website-4A90E2?style=for-the-badge&logo=safari&logoColor=white)](https://didymusbenson.github.io/Doubling-Season/)
+</div>
+
+---
+
+## What is Doubling Season?
+
+Doubling Season is a powerful, intuitive app designed to help Magic: The Gathering players track their tokens during gameplay. Whether you're running a token-heavy Commander deck or just need to keep track of a few creature tokens, Doubling Season makes it effortless.
 
-## Prerequisites
+Stop fumbling with dice, paper, or physical token cards. Doubling Season gives you a clean, digital solution that's always in your pocket.
 
-- [Flutter SDK](https://docs.flutter.dev/get-started/install) installed
-- Xcode (for iOS development)
-- Android Studio or Android SDK (for Android development)
+## ✨ Features
 
-## Build & Run
+### 🎴 Comprehensive Token Database
+- **300+ official tokens and emmblems** 
+- Easily search by name, type, or color identity
+- Create custom tokens for unique situations
 
-### Install Dependencies
-```bash
-flutter pub get
-```
+### 🎯 Smart Token Management
+- **Tap/Untap tracking** - Visual indicators for tapped tokens
+- **Summoning sickness** - Toggle to track newly created tokens
+- **Stack splitting** - Divide token stacks while preserving counters
+- **Token multiplier** - Track token doubling effects like Doubling Season
 
-### iOS Simulator
-```bash
-# Open iOS simulator
-open -a Simulator
+### 📊 Counter System
+- **+1/+1 and -1/-1 counters** with automatic cancellation
+- **Custom counter types** - Shield, Energy, Poison, and more
+- **Per-pile or per-token** counter management
+- Visual counter pills for at-a-glance tracking
 
-# Run the app
-flutter run
-```
+### 💾 Deck Management
+- **Save deck configurations** - Store a list of tokens to reuse
+- **Quick load** - Instantly recreate your board state
 
-Or open in Xcode:
-```bash
-open ios/Runner.xcworkspace
-```
-Then press `Cmd+R` to build and run.
+### 🎨 Clean Interface
+- **Color-coded borders** - Tokens display their color identity (WUBRG)
+- **Compact card view** - See all your tokens at once
+- **Detailed editor** - Tap any token for full editing capabilities
+- **Dark mode support** - Easy on the eyes during long games
 
-### Android Studio / Android Emulator
+### ⚡ Special Features
+- **Board wipe** - Clear all tokens with one tap
+- **Untap all** - Reset for your next turn
+- **Scute Swarm support** - Special doubling button for landfall triggers
+- **Emblem tracking** - Dedicated handling for emblems
 
-#### First-Time Android Setup
+## 📱 Screenshots
 
-1. **Install Android SDK Command-line Tools** (required for Flutter):
-   - Open Android Studio
-   - Go to **Settings/Preferences > Appearance & Behavior > System Settings > Android SDK**
-   - Select the **SDK Tools** tab
-   - Check **Android SDK Command-line Tools (latest)**
-   - Click **Apply** and let it install
+<div align="center">
+  <img src="docs/storefront/Android_20251109_170803.png" alt="Main Screen" width="200">
+  <img src="docs/storefront/Android_20251109_171025.png" alt="Token Search" width="200">
+  <img src="docs/storefront/Android_20251109_171043.png" alt="Token Details" width="200">
+  <img src="docs/storefront/Android_20251109_171111.png" alt="Counter Management" width="200">
+</div>
 
-2. **Accept Android Licenses**:
-   ```bash
-   flutter doctor --android-licenses
-   # Type 'y' to accept all licenses
-   ```
+## 🚀 Get Started
 
-3. **Verify Setup**:
-   ```bash
-   flutter doctor
-   # Should show all green checkmarks for Android toolchain
-   ```
+### Download the App
 
-#### Running on Android Emulator
+**iOS (iPhone & iPad)**  
+[Download on the App Store](https://apps.apple.com/app/doubling-season)
 
-```bash
-# List available emulators
-flutter emulators
+**Android**  
+[Get it on Google Play](https://play.google.com/store/apps/details?id=com.loosetie.doublingseason)
 
-# Launch the Android emulator
-flutter emulators --launch Medium_Phone_API_36.1
+### Quick Start Guide
 
-# Or create a new emulator with a custom name
-flutter emulators --create --name my_emulator
+1. **Create your first token**
+   - Tap the **+** button in the bottom-right corner
+   - Search for a token by name (e.g., "Goblin", "Treasure", "Soldier")
+   - Select the token and choose quantity
+   - Your token appears on the board!
 
-# Once emulator is running, start the app
-flutter run
+2. **Manage your tokens**
+   - **Tap** a token card to view details and edit properties
+   - Use **+/−** buttons to adjust token counts
+   - Tap the **sword icon** to tap/untap tokens
+   - Long-press for bulk operations
 
-# Or specify the device explicitly
-flutter run -d emulator-5554
-```
+3. **Add counters**
+   - Open a token's detail view
+   - Use the counter buttons to add +1/+1 or -1/-1 counters
+   - Tap **"Add Counter"** for custom counter types
+   - Counters automatically update power/toughness display
 
-#### Running in Android Studio
+4. **Save your setup**
+   - Tap the **menu** button (three dots)
+   - Select **"Save Deck"**
+   - Name your configuration
+   - Load it anytime with **"Load Deck"**
 
-1. Open Android Studio
-2. Click **Open** and select the `Doubling Season` project folder
-3. Wait for Gradle sync to complete
-4. Click the device dropdown in the toolbar and select an emulator (or click **Device Manager** to create one)
-5. Click the green **Run** button (▶️) or press `Shift+F10`
+## 🎮 Perfect For
 
-#### Android Build Commands
+- **Commander/EDH players** with token-heavy strategies
+- **Limited players** tracking multiple creature tokens
+- **Combo decks** that create large numbers of tokens
+- **Anyone** who wants a cleaner alternative to physical tokens
 
-```bash
-# Build APK for testing
-flutter build apk
+## 🛠️ Built With
 
-# Build app bundle for Play Store release
-flutter build appbundle
+- **Flutter** - Cross-platform framework for iOS and Android
+- **Hive** - Fast, local database for offline functionality
 
-# Build debug APK
-flutter build apk --debug
+## 📄 License & Credits
 
-# Build release APK
-flutter build apk --release
+Doubling Season is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards of the Coast. Portions of the materials used are property of Wizards of the Coast. © Wizards of the Coast LLC.
 
-# Install APK on connected device
-flutter install
-```
+Token database sourced from the [Cockatrice project](https://github.com/Cockatrice/Magic-Token).
 
-APK files are created in `build/app/outputs/flutter-apk/`
-App bundles are created in `build/app/outputs/bundle/release/`
+## 🤝 Support & Feedback
 
-### Development Tips
-```bash
-# Hot reload - press 'r' in terminal while app is running
-# Hot restart - press 'R'
-# Quit - press 'q'
+Found a bug? Have a feature request? 
 
-# Run with device selection
-flutter run -d <device-id>
+- **Website**: [didymusbenson.github.io/Doubling-Season](https://didymusbenson.github.io/Doubling-Season/)
+- **Issues**: [GitHub Issues](https://github.com/didymusbenson/Doubling-Season/issues)
+- **Email**: Contact through the app's About screen
 
-# Run in release mode
-flutter run --release
-```
+---
 
-## Release Preparation
-
-## iOS App Store Release
-
-### 1. Update Version and Build Number
-
-Edit `pubspec.yaml`:
-```yaml
-version: 1.0.0+1  # Format: version+build_number
-```
-
-The version number (e.g., `1.0.0`) is what users see. The build number (e.g., `1`) must be unique and increment for each upload to App Store Connect.
-
-### 2. Configure App Icons
-
-Place your app icon in `ios/Runner/Assets.xcassets/AppIcon.appiconset/`. Ensure you have all required sizes:
-- 1024x1024 (App Store)
-- 180x180 (iPhone 3x)
-- 120x120 (iPhone 2x)
-- 167x167 (iPad Pro)
-- 152x152 (iPad 2x)
-- 76x76 (iPad 1x)
-
-Or use a tool like [App Icon Generator](https://www.appicon.co/) to generate all sizes.
-
-### 3. Review iOS Configuration
-
-Open `ios/Runner.xcworkspace` in Xcode and verify:
-
-**General Tab:**
-- Display Name
-- Bundle Identifier (must match App Store Connect)
-- Version matches pubspec.yaml
-- Build number matches pubspec.yaml
-- Deployment Target (minimum iOS version)
-
-**Signing & Capabilities Tab:**
-- Team is selected
-- Automatically manage signing is enabled (or manual provisioning profile is configured)
-- Certificate is valid and not expired
-
-**Info Tab:**
-- Privacy usage descriptions (if needed):
-  - NSPhotoLibraryUsageDescription
-  - NSCameraUsageDescription
-  - etc.
-
-### 4. Build Release Archive
-
-```bash
-# Clean previous builds
-flutter clean
-
-# Get dependencies
-flutter pub get
-
-# Build iOS release (creates .app bundle)
-flutter build ios --release
-
-# Or build archive for App Store submission
-flutter build ipa
-```
-
-The `.ipa` file will be created in `build/ios/ipa/`.
-
-### 5. Upload to App Store Connect
-
-**Option A: Using Xcode (Traditional Method)**
-
-1. Open `ios/Runner.xcworkspace` in Xcode
-2. Select "Any iOS Device (arm64)" as the target
-3. Go to **Product > Archive**
-4. Once archiving completes, the Organizer window opens
-5. Select your archive and click **Distribute App**
-6. Choose **App Store Connect**
-7. Choose **Upload**
-8. Select signing options (automatic or manual)
-9. Review and click **Upload**
-
-**Option B: Using Command Line**
-
-```bash
-# Build the IPA
-flutter build ipa
-
-# Upload using Transporter app or xcrun
-xcrun altool --upload-app \
-  --type ios \
-  --file build/ios/ipa/*.ipa \
-  --username "your-apple-id@email.com" \
-  --password "app-specific-password"
-```
-
-**Option C: Using Transporter App**
-
-1. Open the Transporter app (download from Mac App Store)
-2. Drag and drop the `.ipa` file from `build/ios/ipa/`
-3. Click **Deliver**
-
-### 6. Post-Upload Steps
-
-1. Go to [App Store Connect](https://appstoreconnect.apple.com)
-2. Navigate to your app
-3. Wait for the build to process (5-30 minutes)
-4. Once processed, it will appear in **TestFlight** builds
-5. Select the build for your new version
-6. Complete App Store metadata if needed
-7. Submit for review
-
-### Common Release Checklist
-
-- [ ] Version and build number incremented in `pubspec.yaml`
-- [ ] App icons are present and correct sizes
-- [ ] Bundle identifier matches App Store Connect
-- [ ] Signing certificate is valid
-- [ ] Privacy descriptions added to Info.plist (if needed)
-- [ ] Tested in release mode: `flutter run --release`
-- [ ] Build archive successful: `flutter build ipa`
-- [ ] Uploaded to App Store Connect
-- [ ] Build processed and appears in TestFlight
-- [ ] TestFlight testing completed (optional)
-- [ ] Submitted for App Review
-
-### Troubleshooting
-
-**Signing Issues:**
-```bash
-# Open Xcode to resolve signing
-open ios/Runner.xcworkspace
-# Go to Signing & Capabilities, reselect team
-```
-
-**Build Fails:**
-```bash
-# Clean and rebuild
-flutter clean
-cd ios
-rm -rf Pods/ Podfile.lock
-pod install
-cd ..
-flutter pub get
-flutter build ipa
-```
-
-**Version Already Exists:**
-- Increment the build number in `pubspec.yaml` (e.g., `1.0.0+2`)
-
-## Android Play Store Release
-
-### 1. Update Version and Build Number
-
-Edit `pubspec.yaml`:
-```yaml
-version: 1.0.0+1  # Format: version+build_number
-```
-
-The version number (e.g., `1.0.0`) is what users see. The build number (e.g., `1`) must increment for each upload to Google Play Console.
-
-### 2. Configure App Icons
-
-Android app icons are typically placed in `android/app/src/main/res/`. Flutter can generate these automatically:
-
-```bash
-# Using flutter_launcher_icons package
-flutter pub add dev:flutter_launcher_icons
-```
-
-Add to `pubspec.yaml`:
-```yaml
-flutter_launcher_icons:
-  android: true
-  ios: false
-  image_path: "assets/icon/icon.png"  # Your 1024x1024 icon
-```
-
-Then run:
-```bash
-flutter pub run flutter_launcher_icons
-```
-
-### 3. Configure Signing Key
-
-Create a keystore (one-time setup):
-```bash
-keytool -genkey -v -keystore ~/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
-```
-
-Create `android/key.properties`:
-```properties
-storePassword=<password>
-keyPassword=<password>
-keyAlias=upload
-storeFile=/Users/YourUsername/upload-keystore.jks
-```
-
-**Important:** Add `android/key.properties` to `.gitignore`
-
-Verify `android/app/build.gradle` has signing configuration:
-```gradle
-def keystoreProperties = new Properties()
-def keystorePropertiesFile = rootProject.file('key.properties')
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-}
-
-android {
-    ...
-    signingConfigs {
-        release {
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
-            storePassword keystoreProperties['storePassword']
-        }
-    }
-    buildTypes {
-        release {
-            signingConfig signingConfigs.release
-        }
-    }
-}
-```
-
-### 4. Review Android Configuration
-
-Edit `android/app/build.gradle`:
-- `applicationId` - Must match Google Play Console
-- `minSdkVersion` - Minimum Android version (21+ recommended)
-- `targetSdkVersion` - Latest stable Android API level
-- `versionCode` and `versionName` should match `pubspec.yaml`
-
-Edit `android/app/src/main/AndroidManifest.xml`:
-- `android:label` - App name
-- Add required permissions (internet, etc.)
-
-### 5. Build Release Bundle
-
-```bash
-# Clean previous builds
-flutter clean
-
-# Get dependencies
-flutter pub get
-
-# Build app bundle (recommended for Play Store)
-flutter build appbundle --release
-
-# Or build APK
-flutter build apk --release
-```
-
-The `.aab` file will be created in `build/app/outputs/bundle/release/`
-
-### 6. Upload to Google Play Console
-
-1. Go to [Google Play Console](https://play.google.com/console)
-2. Select your app (or create a new app)
-3. Navigate to **Production > Releases**
-4. Click **Create new release**
-5. Upload the `.aab` file from `build/app/outputs/bundle/release/`
-6. Add release notes
-7. Click **Review release** then **Start rollout to Production**
-
-### Common Release Checklist
-
-- [ ] Version and build number incremented in `pubspec.yaml`
-- [ ] App icons generated for Android
-- [ ] Signing keystore created and `key.properties` configured
-- [ ] Application ID matches Google Play Console
-- [ ] Tested in release mode: `flutter run --release`
-- [ ] Build app bundle successful: `flutter build appbundle`
-- [ ] Uploaded to Google Play Console
-- [ ] Release notes added
-- [ ] Submitted for review
-
-### Troubleshooting
-
-**Signing Issues:**
-```bash
-# Verify keystore
-keytool -list -v -keystore ~/upload-keystore.jks -alias upload
-
-# Check key.properties path is correct
-cat android/key.properties
-```
-
-**Build Fails:**
-```bash
-# Clean and rebuild
-flutter clean
-cd android
-./gradlew clean
-cd ..
-flutter pub get
-flutter build appbundle
-```
-
-**Version Already Exists:**
-- Increment the build number in `pubspec.yaml` (e.g., `1.0.0+2`)
-
-## Project Structure
-
-- `lib/` - Dart source code
-- `assets/` - Images and resources
-- `pubspec.yaml` - Dependencies and configuration
+<div align="center">
+  Made with ❤️ for the Magic: The Gathering community
+  
+  **Download now and never lose track of your tokens again!**
+</div>
