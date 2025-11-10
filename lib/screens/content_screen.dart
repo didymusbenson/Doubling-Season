@@ -109,7 +109,7 @@ class _ContentScreenState extends State<ContentScreen> {
               itemBuilder: (context, index) {
                 final item = items[index];
                 return Padding(
-                  key: ValueKey(item.key), // Required for ReorderableListView
+                  key: ValueKey(item.createdAt), // Required for ReorderableListView
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Container(
                     decoration: BoxDecoration(
@@ -136,7 +136,7 @@ class _ContentScreenState extends State<ContentScreen> {
                       child: Container(
                         color: Theme.of(context).cardColor, // Background inside the clip boundary
                         child: Dismissible(
-                          key: ValueKey('dismissible_${item.key}'), // Use different key for Dismissible
+                          key: ValueKey('dismissible_${item.createdAt}'), // Use different key for Dismissible
                           direction: DismissDirection.endToStart,
                           background: Container(
                             color: Colors.red,
@@ -442,12 +442,12 @@ class _ContentScreenState extends State<ContentScreen> {
     );
   }
 
-  void _showSaveDeckDialog() {
+  Future<void> _showSaveDeckDialog() async {
     final tokenProvider = context.read<TokenProvider>();
     final deckProvider = context.read<DeckProvider>();
     final controller = TextEditingController();
 
-    showDialog(
+    await showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Save Deck'),
@@ -470,31 +470,39 @@ class _ContentScreenState extends State<ContentScreen> {
                 return;
               }
 
-              // Sort by order and compact to sequential integers for clean deck storage
-              final sortedItems = tokenProvider.items
-                  ..sort((a, b) => a.order.compareTo(b.order));
+              final deckName = controller.text;
 
-              final templates = sortedItems.asMap().entries.map((entry) {
-                final index = entry.key;
-                final item = entry.value;
-                final template = TokenTemplate.fromItem(item);
-                // Override order with compacted sequential values
-                template.order = index.toDouble();
-                return template;
-              }).toList();
+              // Close dialog immediately
+              Navigator.pop(dialogContext);
 
-              final deck = Deck(name: controller.text, templates: templates);
-              deckProvider.saveDeck(deck);
+              // Save deck after dialog is fully dismissed
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                // Sort by order and compact to sequential integers for clean deck storage
+                final sortedItems = tokenProvider.items
+                    ..sort((a, b) => a.order.compareTo(b.order));
 
-              if (dialogContext.mounted) {
-                Navigator.pop(dialogContext);
-              }
+                final templates = sortedItems.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final item = entry.value;
+                  final template = TokenTemplate.fromItem(item);
+                  // Override order with compacted sequential values
+                  template.order = index.toDouble();
+                  return template;
+                }).toList();
+
+                final deck = Deck(name: deckName, templates: templates);
+                deckProvider.saveDeck(deck);
+              });
             },
             child: const Text('Save'),
           ),
         ],
       ),
-    ).then((_) => controller.dispose()); // Dispose controller after dialog closes
+    );
+
+    // Wait for dialog animation to complete before disposing controller
+    await Future.delayed(const Duration(milliseconds: 300));
+    controller.dispose();
   }
 
   void _showLoadDeckSheet() {
