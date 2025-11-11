@@ -134,7 +134,7 @@ class Item extends HiveObject {
   // Computed properties
   bool get isEmblem =>
       name.toLowerCase().contains('emblem') ||
-      abilities.toLowerCase().contains('emblem');
+      type.toLowerCase().contains('emblem');
 
   int get netPlusOneCounters => plusOneCounters - minusOneCounters;
 

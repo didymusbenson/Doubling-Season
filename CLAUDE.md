@@ -218,6 +218,19 @@ Custom commands located in `.claude/commands/`:
 - **`/shipfortestflight`** - Auto-increment version, build IPA, and prepare for TestFlight upload
 - **`/shiptomyphone`** - Build iOS release and permanently install it on connected iPhone
 
+### Git Commit Conventions
+
+**CRITICAL: NO CLAUDE ATTRIBUTION**
+
+When creating git commits:
+- **NEVER** add "🤖 Generated with [Claude Code]" footer
+- **NEVER** add "Co-Authored-By: Claude <noreply@anthropic.com>" trailer
+- Write clean, descriptive commit messages focused on the "why" not the "what"
+- Follow existing commit message style in the repository
+- Commits belong to the user, not to Claude
+
+The `/checkpoint` slash command follows this convention automatically.
+
 ### Testing
 Testing is performed through manual functional testing by human experts. Do not generate automated test code.
 

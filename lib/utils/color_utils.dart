@@ -40,7 +40,7 @@ class ColorUtils {
 
   static LinearGradient gradientForColors(String colorString, {bool isEmblem = false}) {
     if (isEmblem) {
-      return const LinearGradient(colors: [Colors.transparent, Colors.transparent]);
+      return const LinearGradient(colors: [Colors.orange, Colors.orange]);
     }
 
     final colors = getColorsForIdentity(colorString);

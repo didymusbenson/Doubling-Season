@@ -109,6 +109,10 @@ class _ContentScreenState extends State<ContentScreen> {
               proxyDecorator: _buildDragProxy,
               itemBuilder: (context, index) {
                 final item = items[index];
+                // Use white glow in dark mode, black shadow in light mode
+                final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+                final shadowColor = isDarkMode ? Colors.white : Colors.black;
+
                 return Padding(
                   key: ValueKey(item.createdAt),
                   padding: const EdgeInsets.symmetric(vertical: UIConstants.verticalSpacing),
@@ -117,12 +121,12 @@ class _ContentScreenState extends State<ContentScreen> {
                       borderRadius: BorderRadius.circular(UIConstants.borderRadius),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: UIConstants.shadowOpacity),
+                          color: shadowColor.withValues(alpha: UIConstants.shadowOpacity),
                           blurRadius: UIConstants.shadowBlurRadius,
                           offset: const Offset(0, UIConstants.shadowOffset),
                         ),
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: UIConstants.lightShadowOpacity),
+                          color: shadowColor.withValues(alpha: UIConstants.lightShadowOpacity),
                           blurRadius: UIConstants.lightShadowBlurRadius,
                           offset: const Offset(0, UIConstants.lightShadowOffset),
                         ),

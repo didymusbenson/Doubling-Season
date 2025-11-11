@@ -177,7 +177,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           colorScheme: ColorScheme.fromSeed(
             seedColor: Colors.blue,
             brightness: Brightness.dark,
+          ).copyWith(
+            surface: const Color(0xFF181818), // Darker scaffold background
+            surfaceContainerHighest: const Color(0xFF37373C), // Lighter card background
           ),
+          cardTheme: const CardThemeData(
+            color: Color(0xFF37373C), // Explicit card color override
+          ),
+          scaffoldBackgroundColor: const Color(0xFF181818),
           useMaterial3: true,
         ),
         themeMode: ThemeMode.system,
@@ -205,7 +212,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           colorScheme: ColorScheme.fromSeed(
             seedColor: Colors.blue,
             brightness: Brightness.dark,
+          ).copyWith(
+            surface: const Color(0xFF181818), // Darker scaffold background
+            surfaceContainerHighest: const Color(0xFF37373C), // Lighter card background
           ),
+          cardTheme: const CardThemeData(
+            color: Color(0xFF37373C), // Explicit card color override
+          ),
+          scaffoldBackgroundColor: const Color(0xFF181818),
           useMaterial3: true,
         ),
         themeMode: ThemeMode.system,
