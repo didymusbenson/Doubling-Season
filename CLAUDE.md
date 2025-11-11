@@ -81,6 +81,7 @@ The app targets iOS, Android, Web, macOS, and Windows platforms using Flutter's 
 - Also set as `namespace` in the same file
 
 **App Version:**
+- Current: `1.0.3+5` (Version 1.0.3, Build 5)
 - Location: `pubspec.yaml` → `version: X.Y.Z+B`
 - Format: `MAJOR.MINOR.PATCH+BUILD_NUMBER`
 - Example: `1.0.1+1` = Version 1.0.1, Build 1
@@ -90,6 +91,14 @@ The app targets iOS, Android, Web, macOS, and Windows platforms using Flutter's 
 - Shows in app launcher and App Store
 - iOS: `ios/Runner/Info.plist` → `CFBundleDisplayName`
 - Android: `android/app/src/main/AndroidManifest.xml` → `android:label`
+
+**App Icon & Splash Screen:**
+- Source asset: `assets/AppIconSource.png`
+- Splash color: `#E8E4A0` (cream/beige)
+- Configuration: `pubspec.yaml` under `flutter_launcher_icons` and `flutter_native_splash`
+- Platforms: iOS, Android (adaptive icons with custom background)
+- Regenerate icons: `flutter pub run flutter_launcher_icons`
+- Regenerate splash: `flutter pub run flutter_native_splash:create`
 
 ## Common Development Commands
 
@@ -206,6 +215,7 @@ The IPA will be output to `build/ios/ipa/Doubling Season.ipa`. Upload via Apple 
 
 **Tip**: Use the `/shipfortestflight` slash command for automated workflow:
 - Auto-increments patch version (e.g., 1.0.1 → 1.0.2)
+- Resets build number to 1 (e.g., +5 → +1)
 - Runs `flutter clean` and `flutter build ipa --release`
 - Opens Finder to the IPA location
 - Opens Apple Transporter app for drag-and-drop upload
@@ -340,6 +350,13 @@ MultiProvider(
 - Tapped/untapped allocation with steppers
 - Option to copy counters to both stacks
 - Early dismiss pattern to avoid state crashes
+
+**SplashScreen** (`lib/screens/splash_screen.dart`) - Initial splash screen
+- Five horizontal color bars representing MTG colors (W/U/B/R/G)
+- Dynamic font sizing that adapts to screen width and safe areas
+- Text labels: "angels&", "merfolk&", "zombies&", "goblins&", "elves&"
+- Tap anywhere to dismiss and proceed to main app
+- Uses ColorUtils for consistent MTG color identity
 
 ### Data Models
 
@@ -690,6 +707,7 @@ lib/
 │   ├── token_search_screen.dart        # Token database search
 │   ├── expanded_token_screen.dart      # Token editor
 │   ├── counter_search_screen.dart      # Counter selection
+│   ├── splash_screen.dart              # Color-striped splash screen
 │   └── about_screen.dart               # App info
 ├── widgets/
 │   ├── token_card.dart                 # Compact token display
@@ -700,7 +718,8 @@ lib/
 │   ├── new_token_sheet.dart            # Manual token creation
 │   ├── counter_pill.dart               # Counter display
 │   ├── counter_management_pill.dart    # Interactive counter
-│   └── color_selection_button.dart     # Color identity selector
+│   ├── color_selection_button.dart     # Color identity selector
+│   └── color_filter_button.dart        # Token search filter widget
 ├── providers/
 │   ├── token_provider.dart             # Token operations + Hive box
 │   ├── deck_provider.dart              # Deck operations + Hive box
@@ -708,13 +727,15 @@ lib/
 ├── database/
 │   ├── hive_setup.dart                 # Hive initialization
 │   ├── token_database.dart             # Token JSON loader
-│   └── counter_database.dart           # Predefined counters
+│   ├── counter_database.dart           # Predefined counters
+│   └── database_maintenance.dart       # Database utilities
 └── utils/
     ├── constants.dart                  # Game/UI/Hive constants
     └── color_utils.dart                # MTG color helpers
 
 assets/
-└── token_database.json                 # 300+ bundled tokens
+├── token_database.json                 # 300+ bundled tokens
+└── AppIconSource.png                   # App icon source asset
 
 docs/
 ├── activeDevelopment/                  # Current planning and feedback
@@ -743,11 +764,15 @@ Key packages:
 - **hive_flutter**: Flutter integration (^1.1.0)
 - **shared_preferences**: Settings storage (^2.2.2)
 - **gradient_borders**: UI enhancement (^1.0.0)
-- **wakelock_plus**: Keep screen awake during gameplay (^1.1.0)
+- **wakelock_plus**: Keep screen awake during gameplay (^1.4.0)
+- **package_info_plus**: Access app version info (^9.0.0)
 
 Dev dependencies:
 - **build_runner**: Code generation (^2.4.0)
 - **hive_generator**: Generate Hive adapters (^2.0.0)
+- **flutter_lints**: Linting rules (^6.0.0)
+- **flutter_launcher_icons**: App icon generation (^0.14.0)
+- **flutter_native_splash**: Splash screen generation (^2.3.10)
 
 ## Platform-Specific Notes
 
