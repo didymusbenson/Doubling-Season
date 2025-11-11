@@ -75,8 +75,8 @@ class TokenCard extends StatelessWidget {
               ],
             ),
 
-            // Type
-            if (item.type.isNotEmpty) ...[
+            // Type (hidden for emblems)
+            if (item.type.isNotEmpty && !item.isEmblem) ...[
               const SizedBox(height: UIConstants.verticalSpacing),
               Padding(
                 padding: EdgeInsets.only(right: kIsWeb ? 40 : 0),
@@ -86,7 +86,7 @@ class TokenCard extends StatelessWidget {
                     fontStyle: FontStyle.italic,
                     color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
                   ),
-                  textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
+                  textAlign: TextAlign.left,
                 ),
               ),
             ],
@@ -190,10 +190,9 @@ class TokenCard extends StatelessWidget {
       if (summoningSicknessEnabled) {
         buttonCount += 1; // Clear SS (always shown when enabled)
       }
+      buttonCount += 1; // Copy
+      buttonCount += 1; // Split
     }
-
-    buttonCount += 1; // Copy is always present
-    buttonCount += 1; // Split (always shown)
 
     if (item.name.toLowerCase().contains('scute swarm')) {
       buttonCount += 1; // Scute Swarm
@@ -231,6 +230,18 @@ class TokenCard extends StatelessWidget {
               color: primaryColor,
               spacing: spacing,
             ),
+
+            // Emblem amount display (centered between Remove and Add)
+            if (item.isEmblem)
+              Padding(
+                padding: EdgeInsets.only(right: spacing),
+                child: Text(
+                  '${item.amount}',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
 
             // Add button
             _buildActionButton(
@@ -285,41 +296,40 @@ class TokenCard extends StatelessWidget {
                   spacing: spacing,
                   disabled: item.summoningSick == 0,
                 ),
+              // Copy button
+              _buildActionButton(
+                context,
+                icon: Icons.content_copy,
+                onTap: () {
+                  final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
+                  tokenProvider.copyToken(item, summoningSick);
+                },
+                onLongPress: null,
+                color: primaryColor,
+                spacing: spacing,
+              ),
+
+              // Split Stack button (always shown, disabled if 1 or fewer tokens)
+              _buildActionButton(
+                context,
+                icon: Icons.call_split,
+                onTap: item.amount > 1 ? () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => SplitStackSheet(
+                      item: item,
+                      // No onSplitCompleted callback - sheet dismisses itself
+                    ),
+                  );
+                } : null,
+                onLongPress: null,
+                color: primaryColor,
+                spacing: spacing,
+                disabled: item.amount <= 1,
+              ),
             ],
-
-            // Copy button
-            _buildActionButton(
-              context,
-              icon: Icons.content_copy,
-              onTap: () {
-                final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
-                tokenProvider.copyToken(item, summoningSick);
-              },
-              onLongPress: null,
-              color: primaryColor,
-              spacing: spacing,
-            ),
-
-            // Split Stack button (always shown, disabled if 1 or fewer tokens)
-            _buildActionButton(
-              context,
-              icon: Icons.call_split,
-              onTap: item.amount > 1 ? () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (context) => SplitStackSheet(
-                    item: item,
-                    // No onSplitCompleted callback - sheet dismisses itself
-                  ),
-                );
-              } : null,
-              onLongPress: null,
-              color: primaryColor,
-              spacing: spacing,
-              disabled: item.amount <= 1,
-            ),
 
             // Scute Swarm special button (last button gets 0 spacing)
             if (item.name.toLowerCase().contains('scute swarm'))
