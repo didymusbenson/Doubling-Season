@@ -1,12 +1,16 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/item.dart';
+import '../models/token_definition.dart';
 import '../providers/token_provider.dart';
 import '../providers/settings_provider.dart';
-import '../widgets/counter_management_pill.dart';
 import '../widgets/color_selection_button.dart';
 import '../widgets/split_stack_sheet.dart';
+import '../widgets/artwork_selection_sheet.dart';
 import '../utils/constants.dart';
+import '../utils/artwork_manager.dart';
+import '../database/token_database.dart';
 import 'counter_search_screen.dart';
 
 const int kMaxCounterValue = 99999999;
@@ -32,6 +36,10 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
   late bool _redSelected;
   late bool _greenSelected;
 
+  // Artwork-related state
+  TokenDefinition? _tokenDefinition;
+  bool _loadingArtwork = false;
+
   @override
   void initState() {
     super.initState();
@@ -55,6 +63,42 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
     _blackSelected = widget.item.colors.contains('B');
     _redSelected = widget.item.colors.contains('R');
     _greenSelected = widget.item.colors.contains('G');
+
+    // Load token definition to get artwork variants
+    _loadTokenDefinition();
+  }
+
+  Future<void> _loadTokenDefinition() async {
+    try {
+      final database = TokenDatabase();
+      await database.loadTokens();
+
+      // Find matching token definition by comparing key properties
+      final matchingToken = database.allTokens.firstWhere(
+        (token) =>
+            token.name == widget.item.name &&
+            token.pt == widget.item.pt &&
+            token.abilities == widget.item.abilities &&
+            token.type == widget.item.type,
+        orElse: () => TokenDefinition(
+          name: widget.item.name,
+          abilities: widget.item.abilities,
+          pt: widget.item.pt,
+          colors: widget.item.colors,
+          type: widget.item.type,
+          popularity: 0,
+          artwork: [],
+        ),
+      );
+
+      if (mounted) {
+        setState(() {
+          _tokenDefinition = matchingToken;
+        });
+      }
+    } catch (e) {
+      print('Error loading token definition: $e');
+    }
   }
 
   void _updateColors() {
@@ -67,6 +111,93 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
 
     widget.item.colors = newColors;
     context.read<TokenProvider>().updateItem(widget.item);
+  }
+
+  void _showArtworkSelection() {
+    if (_tokenDefinition == null || _tokenDefinition!.artwork.isEmpty) {
+      // No artwork available
+      showModalBottomSheet(
+        context: context,
+        builder: (context) => ArtworkSelectionSheet(
+          artworkVariants: const [],
+          onArtworkSelected: (url, setCode) {},
+          onRemoveArtwork: widget.item.artworkUrl != null ? _removeArtwork : null,
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => ArtworkSelectionSheet(
+        artworkVariants: _tokenDefinition!.artwork,
+        onArtworkSelected: _handleArtworkSelected,
+        onRemoveArtwork: widget.item.artworkUrl != null ? _removeArtwork : null,
+      ),
+    );
+  }
+
+  Future<void> _handleArtworkSelected(String url, String setCode) async {
+    setState(() {
+      _loadingArtwork = true;
+    });
+
+    // Download and cache artwork if not already cached
+    final file = await ArtworkManager.downloadArtwork(url);
+
+    if (file != null && mounted) {
+      setState(() {
+        widget.item.artworkUrl = url;
+        widget.item.artworkSet = setCode;
+        _loadingArtwork = false;
+      });
+
+      widget.item.save();
+      context.read<TokenProvider>().updateItem(widget.item);
+    } else if (mounted) {
+      setState(() {
+        _loadingArtwork = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to download artwork'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _removeArtwork() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove Artwork'),
+        content: const Text('Are you sure you want to remove the artwork from this token?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() {
+        widget.item.artworkUrl = null;
+        widget.item.artworkSet = null;
+      });
+
+      widget.item.save();
+      context.read<TokenProvider>().updateItem(widget.item);
+    }
   }
 
   @override
@@ -144,13 +275,28 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
 
             const SizedBox(height: 16),
 
-            // Type
-            _buildEditableField(
-              label: 'Type',
-              field: EditableField.type,
-              value: widget.item.type,
-              onSave: (value) => widget.item.type = value,
-              placeholder: 'e.g., Creature — Elf Warrior',
+            // Type and Artwork selection in a row
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Type (70% width)
+                Expanded(
+                  flex: 7,
+                  child: _buildEditableField(
+                    label: 'Type',
+                    field: EditableField.type,
+                    value: widget.item.type,
+                    onSave: (value) => widget.item.type = value,
+                    placeholder: 'e.g., Creature — Elf Warrior',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Artwork selection (30% width)
+                Expanded(
+                  flex: 3,
+                  child: _buildArtworkSelectionBox(),
+                ),
+              ],
             ),
 
             const SizedBox(height: 16),
@@ -858,6 +1004,64 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
             child: const Text('Set'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildArtworkSelectionBox() {
+    return GestureDetector(
+      onTap: _showArtworkSelection,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Artwork',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Display artwork thumbnail or "select" text
+            if (widget.item.artworkUrl != null)
+              FutureBuilder<File?>(
+                future: ArtworkManager.getCachedArtworkFile(
+                  widget.item.artworkUrl!,
+                ),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData && snapshot.data != null) {
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        snapshot.data!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: 60,
+                      ),
+                    );
+                  }
+                  return const SizedBox(height: 60);
+                },
+              )
+            else
+              Container(
+                height: 60,
+                alignment: Alignment.center,
+                child: Text(
+                  'select',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

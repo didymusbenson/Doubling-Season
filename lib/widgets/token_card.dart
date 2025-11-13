@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -6,8 +7,10 @@ import '../providers/settings_provider.dart';
 import '../providers/token_provider.dart';
 import '../screens/expanded_token_screen.dart';
 import '../utils/constants.dart';
+import '../utils/artwork_manager.dart';
 import 'counter_pill.dart';
 import 'split_stack_sheet.dart';
+import 'cropped_artwork_widget.dart';
 
 class TokenCard extends StatelessWidget {
   final Item item;
@@ -31,47 +34,84 @@ class TokenCard extends StatelessWidget {
       },
       child: Opacity(
       opacity: item.amount == 0 ? 0.5 : 1.0,
-      child: Container(
-        color: Colors.transparent,
-        padding: const EdgeInsets.all(UIConstants.cardPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Stack(
+            children: [
+              // Artwork layer (background, if artwork selected)
+              if (item.artworkUrl != null)
+                _buildArtworkLayer(context, constraints),
+
+              // Content layer (all existing UI elements)
+              Container(
+                color: Colors.transparent,
+                padding: const EdgeInsets.all(UIConstants.cardPadding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
             // Top row - name, summoning sickness, tapped/untapped
             Row(
               children: [
-                Expanded(
-                  child: Text(
-                    item.name,
-                    style: Theme.of(context).textTheme.titleLarge,
-                    textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
-                  ),
-                ),
-                if (!item.isEmblem) ...[
-                  if (item.summoningSick > 0 && summoningSicknessEnabled) ...[
-                    const Icon(Icons.adjust, size: UIConstants.iconSize),
-                    const SizedBox(width: UIConstants.verticalSpacing),
-                    Text(
-                      '${item.summoningSick}',
-                      style: Theme.of(context).textTheme.titleLarge,
+                if (!item.isEmblem)
+                  // Name with shrink-wrap background
+                  _buildTextWithBackground(
+                    context: context,
+                    child: Text(
+                      item.name,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    const SizedBox(width: UIConstants.mediumSpacing),
-                  ],
-                  const Icon(Icons.screenshot, size: UIConstants.iconSize),
-                  const SizedBox(width: UIConstants.verticalSpacing),
-                  Text(
-                    '${item.amount - item.tapped}',
-                    style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  const SizedBox(width: UIConstants.mediumSpacing),
-                  const Icon(Icons.screen_rotation, size: UIConstants.iconSize),
-                  const SizedBox(width: UIConstants.verticalSpacing),
-                  Text(
-                    '${item.tapped}',
-                    style: Theme.of(context).textTheme.titleLarge,
+                if (item.isEmblem)
+                  // Emblems need to center, so use Expanded
+                  Expanded(
+                    child: _buildTextWithBackground(
+                      context: context,
+                      child: Text(
+                        item.name,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   ),
-                ],
+                if (!item.isEmblem) const Spacer(),
+                if (!item.isEmblem)
+                  // Unified background for entire tapped/untapped section
+                  _buildTextWithBackground(
+                    context: context,
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (item.summoningSick > 0 && summoningSicknessEnabled) ...[
+                          const Icon(Icons.adjust, size: UIConstants.iconSize),
+                          const SizedBox(width: UIConstants.verticalSpacing),
+                          Text(
+                            '${item.summoningSick}',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          const SizedBox(width: UIConstants.mediumSpacing),
+                        ],
+                        const Icon(Icons.screenshot, size: UIConstants.iconSize),
+                        const SizedBox(width: UIConstants.verticalSpacing),
+                        Text(
+                          '${item.amount - item.tapped}',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(width: UIConstants.mediumSpacing),
+                        const Icon(Icons.screen_rotation, size: UIConstants.iconSize),
+                        const SizedBox(width: UIConstants.verticalSpacing),
+                        Text(
+                          '${item.tapped}',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
 
@@ -80,13 +120,17 @@ class TokenCard extends StatelessWidget {
               const SizedBox(height: UIConstants.verticalSpacing),
               Padding(
                 padding: EdgeInsets.only(right: kIsWeb ? 40 : 0),
-                child: Text(
-                  item.type,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontStyle: FontStyle.italic,
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                child: _buildTextWithBackground(
+                  context: context,
+                  child: Text(
+                    item.type,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                    ),
+                    textAlign: TextAlign.left,
                   ),
-                  textAlign: TextAlign.left,
                 ),
               ),
             ],
@@ -122,12 +166,17 @@ class TokenCard extends StatelessWidget {
               const SizedBox(height: UIConstants.mediumSpacing),
               Padding(
                 padding: EdgeInsets.only(right: kIsWeb ? 40 : 0),
-                child: Text(
-                  item.abilities,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                child: _buildTextWithBackground(
+                  context: context,
+                  child: Text(
+                    item.abilities,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
             ],
@@ -157,11 +206,15 @@ class TokenCard extends StatelessWidget {
                               ),
                         ),
                       )
-                    : Text(
-                        item.formattedPowerToughness,
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                    : _buildTextWithBackground(
+                        context: context,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: Text(
+                          item.formattedPowerToughness,
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
                       ),
               ),
             ],
@@ -170,11 +223,15 @@ class TokenCard extends StatelessWidget {
             _buildActionButtons(context, context.read<SettingsProvider>()),
           ],
         ),
-      ),
-      ),
-        );
-      },
-    );
+              ), // Close Container (content layer)
+            ], // Close Stack children
+          ); // Close Stack
+        }, // Close LayoutBuilder builder
+      ), // Close LayoutBuilder
+      ), // Close Opacity
+        ); // Close GestureDetector
+      }, // Close Selector builder
+    ); // Close Selector
   }
 
   Widget _buildActionButtons(BuildContext context, SettingsProvider settings) {
@@ -235,10 +292,15 @@ class TokenCard extends StatelessWidget {
             if (item.isEmblem)
               Padding(
                 padding: EdgeInsets.only(right: spacing),
-                child: Text(
-                  '${item.amount}',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                child: _buildTextWithBackground(
+                  context: context,
+                  padding: const EdgeInsets.all(UIConstants.actionButtonPadding), // Match button padding
+                  child: Text(
+                    '${item.amount}',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: UIConstants.iconSize, // Match icon size for consistent height
+                    ),
                   ),
                 ),
               ),
@@ -361,6 +423,13 @@ class TokenCard extends StatelessWidget {
   }) {
     final effectiveColor = disabled ? color.withValues(alpha: UIConstants.disabledOpacity) : color;
 
+    // Use surface/card background color for button backgrounds (only when artwork exists)
+    final buttonBackgroundColor = item.artworkUrl != null
+        ? (Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.85)
+            : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.85))
+        : effectiveColor.withValues(alpha: 0.15); // Original transparent style when no artwork
+
     return Padding(
       padding: EdgeInsets.only(right: spacing),
       child: GestureDetector(
@@ -369,7 +438,7 @@ class TokenCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(UIConstants.actionButtonPadding),
           decoration: BoxDecoration(
-            color: effectiveColor.withValues(alpha: UIConstants.actionButtonBackgroundOpacity),
+            color: buttonBackgroundColor,
             borderRadius: BorderRadius.circular(UIConstants.actionButtonBorderRadius),
             border: Border.all(
               color: effectiveColor,
@@ -383,6 +452,73 @@ class TokenCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  /// Build artwork background layer with image-based cropping
+  Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints) {
+    final crop = ArtworkManager.getCropPercentages();
+
+    return Positioned.fill(
+      child: FutureBuilder<File?>(
+        future: ArtworkManager.getCachedArtworkFile(item.artworkUrl!),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data != null) {
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius), // 8px to fit inside 4px border
+              child: CroppedArtworkWidget(
+                imageFile: snapshot.data!,
+                cropLeft: crop['left']!,
+                cropRight: crop['right']!,
+                cropTop: crop['top']!,
+                cropBottom: crop['bottom']!,
+              ),
+            );
+          }
+          return const SizedBox.shrink();
+        },
+      ),
+    );
+  }
+
+  /// Build semi-transparent overlay layer
+  Widget _buildOverlayLayer(BuildContext context) {
+    final backgroundColor = Theme.of(context).brightness == Brightness.dark
+        ? Theme.of(context).colorScheme.surface
+        : Theme.of(context).colorScheme.surfaceContainerHighest;
+
+    return Positioned.fill(
+      child: Container(
+        decoration: BoxDecoration(
+          color: backgroundColor.withValues(alpha: 0.5), // 0.5 alpha overlay
+          borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius), // 8px to match artwork layer
+        ),
+      ),
+    );
+  }
+
+  /// Wrap text with solid background for readability over artwork
+  Widget _buildTextWithBackground({
+    required BuildContext context,
+    required Widget child,
+    EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+  }) {
+    // Only add background if artwork exists
+    if (item.artworkUrl == null) {
+      return child;
+    }
+
+    final backgroundColor = Theme.of(context).brightness == Brightness.dark
+        ? Theme.of(context).colorScheme.surface
+        : Theme.of(context).colorScheme.surfaceContainerHighest;
+
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: backgroundColor.withValues(alpha: 0.85), // Subtle transparency
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: child,
     );
   }
 }

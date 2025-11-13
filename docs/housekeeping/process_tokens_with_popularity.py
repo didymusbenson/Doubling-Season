@@ -75,6 +75,17 @@ def parse_token_xml(xml_content: str) -> List[Dict]:
             if reverse_elem.text:
                 reverse_related.append(reverse_elem.text.strip())
 
+        # Extract artwork URLs from <set> tags
+        artwork = []
+        for set_elem in card.findall('set'):
+            pic_url = set_elem.get('picURL')
+            set_code = set_elem.text
+            if pic_url and set_code:
+                artwork.append({
+                    'set': set_code.strip(),
+                    'url': pic_url.strip()
+                })
+
         # Create token data
         token_data = {
             'name': name_text,
@@ -82,7 +93,8 @@ def parse_token_xml(xml_content: str) -> List[Dict]:
             'abilities': abilities_text,
             'pt': pt_text,
             'colors': colors_text,
-            'reverse_related': reverse_related  # NEW: Track reverse-related cards
+            'reverse_related': reverse_related,  # Track reverse-related cards
+            'artwork': artwork  # Track artwork URLs from sets
         }
 
         tokens.append(token_data)
@@ -93,8 +105,8 @@ def clean_token_data(tokens: List[Dict]) -> List[Dict]:
     """Clean and normalize token data, calculating popularity from unique reverse-related cards."""
     print("Cleaning and normalizing token data with popularity calculation...")
 
-    # First pass: group by deduplication key and collect unique reverse-related cards
-    token_groups = defaultdict(lambda: {'token': None, 'reverse_related': set()})
+    # First pass: group by deduplication key and collect unique reverse-related cards and artwork
+    token_groups = defaultdict(lambda: {'token': None, 'reverse_related': set(), 'artwork': {}})
 
     for token in tokens:
         # Clean name - remove "Token" suffix and extra whitespace
@@ -137,6 +149,11 @@ def clean_token_data(tokens: List[Dict]) -> List[Dict]:
         for card_name in token['reverse_related']:
             token_groups[unique_key]['reverse_related'].add(card_name)
 
+        # Add artwork URLs (use dict to deduplicate by URL, store set code as value)
+        for art in token.get('artwork', []):
+            if art['url'] not in token_groups[unique_key]['artwork']:
+                token_groups[unique_key]['artwork'][art['url']] = art['set']
+
     # Second pass: create final token list with popularity
     cleaned_tokens = []
     excluded_count = 0
@@ -155,8 +172,15 @@ def clean_token_data(tokens: List[Dict]) -> List[Dict]:
         # Popularity = count of unique reverse-related cards
         popularity = len(data['reverse_related'])
 
+        # Convert artwork dict back to array of objects
+        artwork_array = [
+            {'set': set_code, 'url': url}
+            for url, set_code in data['artwork'].items()
+        ]
+
         token_entry = data['token'].copy()
         token_entry['popularity'] = popularity
+        token_entry['artwork'] = artwork_array
         cleaned_tokens.append(token_entry)
 
     if excluded_count > 0:

@@ -30,6 +30,12 @@ class TokenTemplate extends HiveObject {
     save();
   }
 
+  @HiveField(6)
+  String? artworkUrl;
+
+  @HiveField(7)
+  String? artworkSet;
+
   TokenTemplate({
     required this.name,
     required this.pt,
@@ -37,6 +43,8 @@ class TokenTemplate extends HiveObject {
     required this.colors,
     String type = '',
     this.order = 0.0,
+    this.artworkUrl,
+    this.artworkSet,
   }) : _type = type;
 
   factory TokenTemplate.fromItem(Item item) {
@@ -47,6 +55,8 @@ class TokenTemplate extends HiveObject {
       colors: item.colors,
       type: item.type,
       order: item.order,
+      artworkUrl: item.artworkUrl,
+      artworkSet: item.artworkSet,
     );
   }
 
@@ -61,6 +71,8 @@ class TokenTemplate extends HiveObject {
       tapped: createTapped ? amount : 0,
       summoningSick: 0,
       order: order, // Preserve order when loading
+      artworkUrl: artworkUrl,
+      artworkSet: artworkSet,
     );
   }
 }

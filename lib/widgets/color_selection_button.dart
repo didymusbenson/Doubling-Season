@@ -20,13 +20,18 @@ class ColorSelectionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     // Special case: White (W) uses custom colors
     final effectiveColor = symbol == 'W' ? const Color(0xFFE8DDB5) : color;
 
     // Use desaturated/faded color when not selected
+    // In dark mode: use lighter background when disabled
     final displayColor = isSelected
         ? effectiveColor
-        : Theme.of(context).colorScheme.surfaceContainerHighest;
+        : (isDarkMode
+            ? Colors.grey.shade400
+            : Theme.of(context).colorScheme.surfaceContainerHighest);
 
     // Border colors:
     // When DISABLED: use same color as background for seamless appearance
@@ -37,11 +42,11 @@ class ColorSelectionButton extends StatelessWidget {
 
     // Text color:
     // When ENABLED: use a lightened/desaturated version (simulating disabled circle appearance)
-    // When DISABLED: use grey
+    // When DISABLED: use grey (darker in dark mode, lighter in light mode)
     // Special case: White (W) uses white text
     final textColor = isSelected
         ? (symbol == 'W' ? Colors.white : _lightenColor(effectiveColor, 0.6))
-        : Colors.grey.shade400;
+        : (isDarkMode ? Colors.grey.shade800 : Colors.grey.shade400);
 
     return Material(
       color: Colors.transparent,

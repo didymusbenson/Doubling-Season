@@ -1,5 +1,19 @@
 import 'item.dart';
 
+class ArtworkVariant {
+  final String set;
+  final String url;
+
+  ArtworkVariant({required this.set, required this.url});
+
+  factory ArtworkVariant.fromJson(Map<String, dynamic> json) {
+    return ArtworkVariant(
+      set: json['set'] as String? ?? '',
+      url: json['url'] as String? ?? '',
+    );
+  }
+}
+
 class TokenDefinition {
   final String name;
   final String abilities;
@@ -7,6 +21,7 @@ class TokenDefinition {
   final String colors;
   final String type;
   final int popularity;
+  final List<ArtworkVariant> artwork;
 
   TokenDefinition({
     required this.name,
@@ -15,19 +30,28 @@ class TokenDefinition {
     required this.colors,
     required this.type,
     required this.popularity,
+    this.artwork = const [],
   });
 
   // CRITICAL: Composite ID must match deduplication logic in process_tokens.py
   String get id => '$name|$pt|$colors|$type|$abilities';
 
   factory TokenDefinition.fromJson(Map<String, dynamic> json) {
+    // Parse artwork array
+    final artworkJson = json['artwork'] as List<dynamic>?;
+    final artworkList = artworkJson
+            ?.map((art) => ArtworkVariant.fromJson(art as Map<String, dynamic>))
+            .toList() ??
+        [];
+
     return TokenDefinition(
       name: json['name'] as String? ?? '',
       abilities: json['abilities'] as String? ?? '',
       pt: json['pt'] as String? ?? '',
       colors: json['colors'] as String? ?? '',
       type: json['type'] as String? ?? '',
-      popularity: json['popularity'] as int? ?? 0, // Default to 0 for backwards compat
+      popularity: json['popularity'] as int? ?? 0,
+      artwork: artworkList,
     );
   }
 

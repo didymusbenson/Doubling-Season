@@ -165,6 +165,19 @@ class _AboutScreenState extends State<AboutScreen> {
                       'Token database sourced from the Cockatrice project.',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Card images © Wizards of the Coast LLC, a subsidiary of Hasbro, Inc. '
+                      'Images provided by Scryfall. Scryfall is not produced by or endorsed '
+                      'by Wizards of the Coast.\n\n'
+                      'Doubling Season is unofficial Fan Content permitted under the Fan '
+                      'Content Policy. Not approved/endorsed by Wizards. Portions of the '
+                      'materials used are property of Wizards of the Coast. © Wizards of '
+                      'the Coast LLC.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey,
+                      ),
+                    ),
                   ],
                 ),
               ),

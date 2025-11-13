@@ -251,37 +251,74 @@ class ArtworkManager {
 ### 6. Add Artwork Display to ExpandedTokenScreen
 **File:** `lib/screens/expanded_token_screen.dart`
 
-**UI Layout - Add artwork field to token details:**
+**UI Layout - Redesigned layout with artwork selection:**
+
+The Token Details view should be restructured to accommodate artwork selection in a compact, two-row layout:
+
 ```
-┌─────────────────────────────┐
-│ Name: Goblin           1/1  │
-│ Type: Creature — Goblin     │
-│ Colors: [R]                 │
-│ Artwork: None          [→]  │  ← NEW: Tappable row
-│ Abilities: Haste            │
-│ ...rest of existing UI...   │
-└─────────────────────────────┘
+┌─────────────────────────────────────────┐
+│ [Full card artwork image if selected]  │  ← Optional: Only shown when artwork selected
+│                                         │
+├─────────────────────────────────────────┤
+│ Name: Goblin               │ 1/1       │  ← Row 1: Name field | Stats (P/T)
+├─────────────────────────────────────────┤
+│ Type: Creature — Goblin    │ [Art Box] │  ← Row 2: Type field | Art selection
+├─────────────────────────────────────────┤
+│ Colors: [R]                             │
+│ Abilities: Haste                        │
+│ ...rest of existing UI...               │
+└─────────────────────────────────────────┘
 ```
 
-**Artwork Field Behavior:**
-- **Default state**: Displays "Artwork: None" (no artwork selected by default)
-- **After selection**: Displays "Artwork: [Set Code]" (e.g., "Artwork: M15" or "Artwork: KLD")
-- **Tappable row**: User taps anywhere on the artwork row to open selection sheet
-- **Visual indicator**: Chevron/arrow (→) on right side indicating it's tappable
-- **Positioning**: Between Colors and Abilities in the detail screen layout
+**Layout Requirements:**
+
+**Row 1: [Name][Stats]**
+- Name field occupies left portion (~70-75% width)
+- Stats (P/T) occupies right portion (~25-30% width)
+- Same height for both fields
+- Existing layout - no changes needed
+
+**Row 2: [Type][Art]**
+- Type field occupies left portion (~70-75% width) - **SHRINK from current full width**
+- Art selection box occupies right portion (~25-30% width) - **SAME width as Stats above it**
+- Same height for both fields
+- Type field may need to be condensed/truncated if long (e.g., "Creature — Elf Warrior")
+
+**Art Selection Box Specifications:**
+- **Width**: Matches Stats box width exactly (aligned vertically)
+- **Height**: Matches Type field height
+- **Default state (no artwork)**: Displays text "select" (centered, same styling as other fields)
+- **After selection**: Displays thumbnail image of selected artwork (fills box)
+- **Behavior**: Entire box is tappable to open artwork selection sheet
+- **Visual indicator**: Consider subtle border or tap affordance (optional)
+- **Alignment**: Top-aligned with Type field on same row
 
 **Artwork Display in Detail View:**
-- **When artwork selected**: Show full card image at top of screen (above token details)
+- **When artwork selected**: Show full card image at top of screen (above token details grid)
   - Full, unmodified card image (no cropping, no fade)
   - Full color, no opacity overlay
   - Use `Image.file()` to load from cache
   - Aspect ratio: Preserve original (standard Magic card ratio ~63:88)
   - Image tappable for full-screen preview (optional)
-- **When no artwork**: Don't show image area, start with Name field
+- **When no artwork**: Don't show image area, start directly with Name/Stats row
+
+**Artwork Field Behavior:**
+- **Default state**: Displays word "select" in art box (no artwork selected by default)
+- **After selection**: Displays thumbnail of selected artwork in art box
+- **Tappable**: User taps anywhere on art box to open selection sheet
+- **Positioning**: Top-right of detail fields, same row as Type field
 
 **Artwork Selection Sheet (Bottom Sheet):**
 
 **Sheet Title:** "Select Token Artwork"
+
+**Data Requirements:**
+- Artwork options come from `<set picurl=""></set>` tags in source XML (Cockatrice tokens.xml)
+- Each token's metadata must include array of artwork variants with **both**:
+  - **URL**: Full Scryfall CDN image URL (for downloading/displaying)
+  - **Set code**: 3-4 character set code from `<set>` tag content (e.g., "M15", "KLD")
+- This data is stored in `token_database.json` (see section 1 for processing script requirements)
+- TokenDefinition model must parse and expose this artwork array (see section 2)
 
 **Case 1: Artwork available (most tokens)**
 ```
@@ -290,17 +327,17 @@ class ArtworkManager {
 ├─────────────────────────────────────┤
 │ ┌─────────────┐                     │
 │ │ [Thumbnail] │ M15                 │  ← Tappable row
-│ │   Goblin    │ Core Set 2015       │
+│ │   or Loader │ Core Set 2015       │     (thumbnail fetched from URL)
 │ └─────────────┘                     │
 │                                     │
 │ ┌─────────────┐                     │
 │ │ [Thumbnail] │ KLD                 │  ← Tappable row
-│ │   Goblin    │ Kaladesh            │
+│ │   or Loader │ Kaladesh            │     (thumbnail fetched from URL)
 │ └─────────────┘                     │
 │                                     │
 │ ┌─────────────┐                     │
 │ │ [Thumbnail] │ DOM                 │  ← Tappable row
-│ │   Goblin    │ Dominaria           │
+│ │   or Loader │ Dominaria           │     (thumbnail fetched from URL)
 │ └─────────────┘                     │
 │                                     │
 │ ... (scrollable if many options)    │
@@ -308,15 +345,19 @@ class ArtworkManager {
 ```
 
 **Each artwork option displays:**
-- Thumbnail image (small preview of card art)
-- Set code (e.g., "M15", "KLD") - prominent
-- Set name (e.g., "Core Set 2015") - secondary text below set code
-- Token name on thumbnail for clarity
+- **Thumbnail image**: Small preview loaded from Scryfall URL
+  - Shows loading indicator while fetching thumbnail
+  - Thumbnail may be generated on-the-fly or cached
+- **Set code**: 3-4 character code (e.g., "M15", "KLD") - **prominent, from stored metadata**
+- **Set name**: Full set name (e.g., "Core Set 2015") - secondary text below set code
+  - May require set code → name lookup table or hardcoded mapping
+- Each option is a **tappable row** that selects that artwork variant
 
 **Sheet behavior:**
 - Scrollable list if more than ~4-5 artwork variants
-- Each row is tappable
+- Each row is tappable (selects that artwork)
 - Close button [×] in top-right to dismiss without selection
+- Thumbnails load asynchronously (show spinner/placeholder while loading)
 
 **Case 2: No artwork available (some tokens)**
 ```
@@ -360,46 +401,646 @@ When user taps an artwork option, show larger preview before confirming:
 **Complete User Flow:**
 
 1. **User opens ExpandedTokenScreen** (detail view for a token)
-   - Sees "Artwork: None" field
+   - Sees art selection box on Row 2 (next to Type field)
+   - Box displays text "select" (no artwork yet)
+   - No full card image at top (artwork not selected)
 
-2. **User taps "Artwork" row**
+2. **User taps on art selection box**
    - Bottom sheet opens showing available art variants
-   - Sheet shows thumbnails with set codes OR "No token art available"
+   - Sheet displays:
+     - List of artwork options with thumbnails (or loading indicators while fetching)
+     - Set codes (e.g., "M15", "KLD") prominently displayed
+     - Set names below codes (e.g., "Core Set 2015", "Kaladesh")
+   - OR "No token art available" message if token has no artwork
 
 3. **User taps an artwork option**
    - Confirmation dialog appears with large preview
-   - Shows set code and name
+   - Shows full card image preview
+   - Displays set code and set name for clarity
 
 4. **User taps "Confirm"**
    - If not cached: Download progress dialog appears
-   - Image downloads and caches
-   - Dialog dismisses on completion (or error)
+   - Image downloads and caches locally
+   - Dialog dismisses on completion (or shows error if download fails)
 
-5. **Sheet closes, returns to ExpandedTokenScreen**
-   - Artwork field now shows "Artwork: M15" (selected set code)
-   - Full card image appears at top of screen
-   - Image persisted to `item.artworkUrl`
+5. **Bottom sheet closes, returns to ExpandedTokenScreen**
+   - **Art box now displays thumbnail image** (replaces "select" text)
+   - **Full card image appears at top of screen** (above detail fields)
+   - Both URL and set code persisted to `item.artworkUrl` and `item.artworkSet`
+   - Changes saved to Hive database
 
 6. **User navigates back to ContentScreen (list view)**
-   - TokenCard now displays with artwork background (fade effect from mockup)
-   - Artwork persists across app restarts
+   - TokenCard may display with artwork background (if Method 1 or 2 from TokenCard section is implemented)
+   - Artwork persists across app restarts and deck save/load
 
 **Changing/Removing Artwork:**
 
-- **Change artwork**: Tap "Artwork: [Set Code]" row → Opens selection sheet again
-- **Remove artwork**: Long-press on artwork image in detail view → Confirmation dialog → Sets back to "None"
+- **Change artwork**: Tap art box again (which now shows thumbnail) → Opens selection sheet → Select different artwork variant
+- **Remove artwork**: Long-press on art box or full artwork image in detail view → Confirmation dialog → Sets back to "select" text
 - **Alternative removal**: Add "Remove Artwork" option at top of selection sheet when artwork already selected
 
 **Error Handling:**
 
-- **Download fails**: Show error dialog, remain on "Artwork: None", allow retry
-- **Image fails to load from cache**: Fallback to no artwork display, log error
+- **Download fails**: Show error dialog, art box remains showing "select", allow retry
+- **Image fails to load from cache**: Fallback to no artwork display (show "select" again), log error
 - **No network connection**: Show alert when user tries to download, explain network required
+- **Thumbnail fails to load in bottom sheet**: Show placeholder icon or "No preview" text in thumbnail area
 
 ### 7. Add Artwork Display to TokenCard
 **File:** `lib/widgets/token_card.dart`
 
 **Reference mockup:** `docs/activeDevelopment/crudemockup.png`
+
+## TokenCard Artwork Display Methods
+
+There are two proposed methods for displaying artwork on TokenCard. This section details both approaches.
+
+---
+
+## Method 1: Fadeout Method (RIGHT-SIDE PLACEMENT)
+
+### Overview
+Artwork is displayed on the right-hand side of the TokenCard with a gradient that fades the art into the card's background color. The source card image is cropped to focus on the central artwork, excluding card borders and text areas.
+
+### Artwork Cropping Specifications
+
+**Source Image:** Full Scryfall card image from CDN (`/large/front/...`)
+
+**Crop Percentages (applied to source image before display):**
+- **Left edge**: Crop in 8.8% from left
+- **Right edge**: Crop in 8.8% from right
+- **Top edge**: Crop in 14.5% from top
+- **Bottom edge**: Crop in 36.8% from bottom
+
+**Rationale for crop values:**
+- Removes card border and frame elements
+- Removes text box at bottom (which contains 36.8% of card height)
+- Removes name/mana cost area at top
+- Centers on the actual artwork portion of the card
+- Values should work for most token card layouts safely
+
+**Crop result:**
+- Focuses on the central character/subject artwork
+- Removes all card text, borders, and frame decoration
+- Preserves aspect ratio of cropped region (not the original card ratio)
+
+**Implementation approach:**
+```dart
+// Pseudo-code for cropping logic
+final imageWidth = sourceImage.width;
+final imageHeight = sourceImage.height;
+
+final cropLeft = imageWidth * 0.088;
+final cropRight = imageWidth * 0.088;
+final cropTop = imageHeight * 0.145;
+final cropBottom = imageHeight * 0.368;
+
+final croppedImage = cropImage(
+  sourceImage,
+  left: cropLeft,
+  top: cropTop,
+  width: imageWidth - cropLeft - cropRight,
+  height: imageHeight - cropTop - cropBottom,
+);
+```
+
+### Card Layout Specifications
+
+**Artwork Placement:**
+- **Position:** Right-hand side of TokenCard
+- **Alignment:** Flush with right edge of card (respects card's rounded corner radius)
+- **Height:** Fills entire card height from top to bottom
+- **Width:** **30% of card width** (occupies rightmost 30% of card)
+
+**Gradient Fade Specifications:**
+- **Direction:** Left-to-right (fades FROM background color INTO artwork)
+- **Fade region:** Extends **25% into the artwork** (measured from left edge of artwork region)
+- **Fade start point:** Left edge of artwork region (at 70% of card width from left)
+- **Fade end point:** 25% into artwork region (at 77.5% of card width from left)
+  - Calculation: 70% + (30% × 0.25) = 77.5%
+- **Fade behavior:**
+  - At 70% card width: Artwork opacity = 0% (pure background color)
+  - At 77.5% card width: Artwork opacity = 100% (full artwork visibility)
+  - At 77.5%-100% card width: Full artwork at 100% opacity (no fade)
+- **Fade curve:** [TODO: Linear? Ease-out? Ease-in-out? Specify preferred curve]
+- **Background color source:** Current TokenCard background color (light/dark mode adaptive)
+- **Gradient implementation:** Opacity gradient on artwork layer (not color gradient)
+
+**Visual Integration:**
+- Artwork respects card's rounded corners (clip to card shape)
+- Gradient creates seamless transition from solid background into artwork
+- Left 70% of card remains pure solid background (no artwork influence)
+- Color identity border maintained around entire card (not obscured by artwork)
+
+**Fade Zone Breakdown:**
+```
+|← 70% solid background →|← 7.5% fade zone →|← 22.5% full artwork →|
+|                        |                  |                      |
+| [Token Info Area]      | [Gradient Fade]  | [Full Art Visible]   |
+| 0%----------------70%  | 70%-------77.5%  | 77.5%---------100%   |
+```
+
+### Text and UI Element Placement
+
+**Critical requirement:** All text and interactive elements must remain readable and accessible.
+
+**Text Contrast Solution: Background Boxes/Pills**
+
+All key text elements must have background boxes that match the card's background color. This ensures readability regardless of whether text overlaps the artwork/fade zone.
+
+**Elements requiring background boxes:**
+1. **Name/Title** - Background box matching card background
+2. **Type line** - Background box matching card background
+3. **Abilities text** - Background box matching card background
+4. **Power/Toughness (P/T)** - Background box matching card background
+5. **Status counts** (tapped count, summoning sickness count, counter counts) - Background boxes matching card background
+
+**Background box specifications:**
+- **Color:** Matches TokenCard background color (light/dark mode adaptive)
+- **Opacity:** Solid/opaque (not semi-transparent) to ensure full text readability
+- **Padding:** Minimal padding to avoid increasing card height
+  - Horizontal padding: Small (~4-6px) for text breathing room
+  - Vertical padding: Minimal or none (~0-2px) to prevent card bloat
+  - Only add padding necessary for visual separation from artwork
+- **Border radius:** Rounded corners matching app's design language (~4-6px)
+- **Style:** Tight-fitting rectangular or pill-shaped boxes (subtle, not overly prominent)
+- **Behavior:** Boxes overlay the artwork/fade zone where needed
+- **Height constraint:** Boxes should not increase overall card height compared to cards without artwork
+
+**Layout zones:**
+- **Left 70% (solid background):** Text elements can appear directly on background OR use background boxes (boxes blend in seamlessly since they match background)
+- **Middle 7.5% (fade zone):** Text elements MUST use background boxes to remain readable over gradient
+- **Right 22.5% (full artwork):** Text elements MUST use background boxes to remain readable over full-opacity artwork
+
+**Button row placement:**
+- Action buttons (- + tap, etc.) can appear anywhere on card
+- Buttons should use existing button styling (which already provides contrast)
+- Buttons must remain fully interactive (artwork must not block touch events)
+- Button backgrounds already provide contrast, no additional background boxes needed
+
+**Text positioning strategy:**
+- Text elements can be positioned flexibly across the card
+- Background boxes ensure readability regardless of artwork content or placement
+- Boxes create consistent visual treatment across all tokens (with or without artwork)
+
+### Artwork Opacity and Effects
+
+**Base opacity:**
+- Artwork displayed at **100% opacity** in the full artwork zone (77.5%-100% of card width)
+- Artwork fades from 0% to 100% opacity in the fade zone (70%-77.5% of card width)
+- No additional semi-transparent overlay applied to artwork
+- Artwork displays at natural full color and brightness
+
+**Color treatment:**
+- **Full color:** Display artwork at full saturation and color fidelity
+- **No desaturation:** Artwork preserves original colors from Scryfall image
+- **No tinting:** No color overlay or blending with card background
+- **Natural appearance:** Artwork appears as intended by original artist
+
+**Additional effects:**
+- **No blur:** Artwork displays sharp and clear
+- **No darkening/lightening:** Artwork brightness unchanged from source
+- **Contrast ensured by:** Background boxes on text elements (not artwork modification)
+
+**Effect summary:**
+The fadeout method relies on **opacity-based gradient** and **text background boxes** for readability, rather than modifying the artwork itself. This preserves the artistic integrity of the token art while ensuring UI elements remain readable.
+
+### Responsive Behavior
+
+**Card width variations:**
+- **Proportional scaling:** Artwork width scales as fixed 30% of card width
+- **Fade zone scales:** Fade region always extends 25% into artwork (7.5% of total card width)
+- **Minimum width handling:** [TODO: Specify minimum card width before artwork is hidden/adjusted, or confirm artwork always displays at 30%]
+- **Consistent percentages:** Layout maintains 70% info / 7.5% fade / 22.5% art ratio across all card widths
+
+**Card height variations:**
+- Artwork scales to fill entire card height (top to bottom)
+- Cropped artwork region maintains its aspect ratio
+- Artwork uses `BoxFit.cover` behavior (may crop further horizontally or vertically to fill space)
+- Vertical centering of cropped artwork within card height
+
+### Fallback Behavior
+
+- **No artwork selected:** Display current TokenCard design (no visual changes)
+- **Artwork fails to load:** Display current TokenCard design (graceful degradation)
+- **Artwork download in progress:** Display current TokenCard design (show artwork when loaded)
+- **No placeholder:** Never show broken image icon or empty image box
+
+### Implementation Notes
+
+**Widget structure (refined):**
+```dart
+LayoutBuilder(
+  builder: (context, constraints) {
+    final cardWidth = constraints.maxWidth;
+    final artworkWidth = cardWidth * 0.30;  // 30% of card width
+
+    return Stack(
+      children: [
+        // Base card background (solid color)
+        Container(
+          decoration: BoxDecoration(
+            color: cardBackgroundColor,  // Light/dark mode adaptive
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+
+        // Artwork layer (right side, 30% of card)
+        Positioned(
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: artworkWidth,
+          child: ClipRRect(
+            borderRadius: BorderRadius.only(
+              topRight: Radius.circular(12),
+              bottomRight: Radius.circular(12),
+            ),
+            child: ShaderMask(
+              shaderCallback: (bounds) {
+                return LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    Colors.transparent,  // Fade start (0% opacity)
+                    Colors.white,        // Fade end (100% opacity)
+                  ],
+                  stops: [0.0, 0.25],  // Fade over first 25% of artwork width
+                ).createShader(bounds);
+              },
+              blendMode: BlendMode.dstIn,
+              child: Image.file(
+                croppedArtworkFile,
+                fit: BoxFit.cover,
+                width: artworkWidth,
+                height: double.infinity,
+                alignment: Alignment.center,
+              ),
+            ),
+          ),
+        ),
+
+        // Text elements with background boxes (on top of artwork/fade)
+        Positioned(
+          left: 8,
+          top: 8,
+          child: _buildTextWithBackground(
+            text: tokenName,
+            backgroundColor: cardBackgroundColor,
+          ),
+        ),
+
+        Positioned(
+          left: 8,
+          top: 40,
+          child: _buildTextWithBackground(
+            text: tokenType,
+            backgroundColor: cardBackgroundColor,
+          ),
+        ),
+
+        // ... other text elements with background boxes
+
+        // Action buttons (already have contrast, no special treatment needed)
+        Positioned(
+          bottom: 8,
+          left: 8,
+          right: 8,
+          child: Row(
+            children: [
+              // - + tap buttons etc.
+            ],
+          ),
+        ),
+
+        // Color identity border (outermost layer)
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(/* gradient border */),
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ],
+    );
+  },
+)
+
+// Helper method for text with background box (minimal padding)
+Widget _buildTextWithBackground({
+  required String text,
+  required Color backgroundColor,
+}) {
+  return Container(
+    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 1),  // Minimal padding
+    decoration: BoxDecoration(
+      color: backgroundColor,
+      borderRadius: BorderRadius.circular(4),
+    ),
+    child: Text(text),
+  );
+}
+```
+
+**Image cropping approach:**
+- **Recommended: Option B - Crop on-the-fly during display**
+  - Use `FractionalTranslation` or custom `FittedBox` with `Alignment`
+  - Apply crop percentages as offset and scale transforms
+  - Lighter storage (only store original image)
+  - More flexible (can adjust crop values without re-downloading)
+- **Alternative: Option A - Pre-crop when caching**
+  - Save cropped version alongside original
+  - Faster display performance (no runtime crop calculation)
+  - Higher storage cost (two images per token)
+- **Not recommended: Option C - CustomPainter**
+  - Unnecessary complexity for simple crop operation
+  - Use only if Option A/B prove insufficient
+
+**Crop implementation example (on-the-fly):**
+```dart
+// Apply crop by translating and scaling the image
+Transform(
+  transform: Matrix4.identity()
+    ..scale(1.0 / (1 - 0.088 - 0.088), 1.0 / (1 - 0.145 - 0.368))
+    ..translate(-cropLeft, -cropTop),
+  child: Image.file(sourceImage),
+)
+```
+
+### Open Questions / TODO
+
+Remaining items to specify before implementation:
+
+- [ ] **Fade curve:** Linear, ease-out, ease-in-out, or custom curve? (Currently defaults to linear in gradient)
+- [ ] **Minimum card width:** At what screen/card width should artwork be hidden or adjusted? (Or always show at 30%?)
+- [ ] **Cropping approach:** Confirm preference for on-the-fly cropping (Option B) vs. pre-cropping (Option A)
+
+### Resolved Specifications
+
+The following have been defined:
+
+- ✅ **Artwork width:** 30% of card width
+- ✅ **Fade distance:** 25% into artwork (7.5% of total card width)
+- ✅ **Artwork base opacity:** 100% in full art zone, 0-100% gradient in fade zone
+- ✅ **Opacity overlay:** None - full color natural artwork
+- ✅ **Text contrast method:** Background boxes/pills matching card background
+- ✅ **Safe zones:** All text uses background boxes for universal readability
+- ✅ **Button placement:** Can appear anywhere (existing button styling provides contrast)
+- ✅ **Color treatment:** Full color, no desaturation or tinting
+- ✅ **Artwork placement:** Right side of card
+- ✅ **Crop percentages:** 8.8% left/right, 14.5% top, 36.8% bottom
+
+---
+
+## Method 2: Full Card Method
+
+### Overview
+Artwork fills the entire width of the TokenCard with a semi-transparent overlay of the card's background color to ensure text readability. This creates a "faded" artwork background that gives each token a unique visual identity while maintaining UI element legibility.
+
+### Artwork Cropping Specifications
+
+**Source Image:** Full Scryfall card image from CDN (`/large/front/...`)
+
+**Crop Percentages (applied to source image before display):**
+- **Left edge**: Crop in 8.8% from left
+- **Right edge**: Crop in 8.8% from right
+- **Top edge**: Crop in 14.5% from top
+- **Bottom edge**: Crop in 36.8% from bottom
+
+**Note on bottom crop:**
+- 36.8% bottom crop maintained for consistency with fadeout method
+- Less critical since token cards rarely reach heights where bottom crop matters
+- Edge case: Very tall cards may show more vertical artwork, but width-based cropping takes priority
+
+**Crop result:**
+- Focuses on the central character/subject artwork
+- Removes all card text, borders, and frame decoration
+- Preserves aspect ratio of cropped region
+
+### Card Layout Specifications
+
+**Artwork Placement:**
+- **Position:** Full-width background layer
+- **Alignment:** Top-aligned (justified to top of card)
+- **Width:** 100% of card width (fills entire horizontal space)
+- **Height:** As much vertical space as card allows, no overflow
+  - **Critical:** Card height does NOT expand to accommodate artwork
+  - Artwork constrained to existing card height
+
+**Alpha Overlay Specifications:**
+- **Overlay color:** Card background color (light/dark mode adaptive)
+  - Same color as TokenCard would normally use without artwork
+  - Inherits from theme (light mode = light overlay, dark mode = dark overlay)
+- **Opacity:** **0.5 alpha (50% transparent)** - Starting value
+- **Adjustable range:** 0.4 to 0.6 (40%-60% transparency)
+  - Adjust if contrast issues arise during testing
+  - Lower values (0.4) = more visible artwork, less contrast
+  - Higher values (0.6) = less visible artwork, more contrast
+- **Purpose:** "Fades" artwork to ensure text/UI elements remain readable
+- **Layer order:** Overlay sits between artwork and text elements
+
+**Visual Integration:**
+- Artwork respects card's rounded corners (clip to card shape)
+- Overlay creates consistent "washed out" effect across all artwork
+- Color identity border maintained around entire card (not obscured by artwork)
+
+**Artwork Fit Behavior:**
+- **BoxFit:** `BoxFit.cover` - Fill card width, crop vertically if needed
+- **Justification:** Top-aligned (artwork anchored to top of card)
+- **Priority:** Width > Height (always fill width, allow vertical cropping)
+- **No overflow:** Artwork never extends beyond card boundaries
+
+### Text and UI Element Placement
+
+**Text Contrast Strategy: TBD During Implementation**
+
+Two potential approaches (to be determined based on visual testing):
+
+**Option A: Direct text on overlay (no background boxes)**
+- Text elements render directly on top of alpha overlay
+- Overlay provides sufficient contrast for readability
+- Cleaner visual appearance
+- Used if 0.5 alpha overlay provides adequate contrast
+
+**Option B: Text with background boxes (same as fadeout method)**
+- Add minimal background boxes to key text elements if contrast insufficient
+- Boxes match card background color (solid/opaque)
+- Minimal padding: ~6px horizontal, ~1-2px vertical
+- Used if alpha overlay alone doesn't provide enough text readability
+
+**Option C: Hybrid approach**
+- Increase alpha overlay opacity (toward 0.6) for better contrast
+- No background boxes needed if higher opacity solves contrast issue
+- Trade-off: Less visible artwork, but cleaner UI
+
+**Decision criteria:**
+- Test readability with black text on various artwork colors
+- Ensure P/T numbers, abilities text, and counts are always legible
+- Prioritize clean appearance while maintaining accessibility
+
+**UI Elements:**
+- All existing TokenCard elements remain in same positions
+- Name, type, abilities, P/T, status counts, action buttons
+- Color identity border maintained as outermost layer
+
+### Artwork Opacity and Effects
+
+**Base artwork:**
+- Artwork displayed at **100% opacity** beneath overlay
+- Full color, no desaturation or tinting of artwork itself
+- Sharp and clear (no blur)
+
+**Overlay effect:**
+- Semi-transparent background color overlay creates "faded" appearance
+- Overlay is what reduces artwork visibility, not the artwork itself
+- Adjustable overlay opacity allows fine-tuning of artwork prominence
+
+**Effect summary:**
+The full card method uses a **semi-transparent color overlay** to fade the artwork while keeping text readable. Text may or may not need background boxes depending on contrast testing results.
+
+### Responsive Behavior
+
+**Card width variations:**
+- **Full width:** Artwork always fills 100% of card width
+- Artwork scales proportionally with card width
+- Cropped region maintains aspect ratio
+
+**Card height variations:**
+- Artwork scales to fill card width (primary constraint)
+- Vertical dimension determined by aspect ratio of cropped artwork
+- If artwork is taller than card: Crop vertically (top-aligned, trim bottom)
+- If artwork is shorter than card: [EDGE CASE - unlikely with typical token card heights]
+- **No card height expansion:** Card maintains existing height regardless of artwork
+
+### Fallback Behavior
+
+- **No artwork selected:** Display current TokenCard design (no visual changes)
+- **Artwork fails to load:** Display current TokenCard design (graceful degradation)
+- **Artwork download in progress:** Display current TokenCard design (show artwork when loaded)
+- **No placeholder:** Never show broken image icon or empty image box
+
+### Implementation Notes
+
+**Widget structure (proposed):**
+```dart
+LayoutBuilder(
+  builder: (context, constraints) {
+    final cardWidth = constraints.maxWidth;
+    final cardHeight = constraints.maxHeight;
+
+    return Stack(
+      children: [
+        // Artwork layer (full width background, top-aligned)
+        Positioned(
+          left: 0,
+          top: 0,
+          width: cardWidth,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.file(
+              croppedArtworkFile,
+              fit: BoxFit.cover,
+              width: cardWidth,
+              height: cardHeight,
+              alignment: Alignment.topCenter,  // Top-aligned, crop bottom if needed
+            ),
+          ),
+        ),
+
+        // Alpha overlay (background color at 50% opacity)
+        Positioned.fill(
+          child: Container(
+            decoration: BoxDecoration(
+              color: cardBackgroundColor.withOpacity(0.5),  // Adjustable: 0.4-0.6
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+
+        // Text elements (directly on overlay OR with background boxes - TBD)
+        // Option A: Direct text
+        Positioned(
+          left: 8,
+          top: 8,
+          child: Text(
+            tokenName,
+            style: TextStyle(/* existing styling */),
+          ),
+        ),
+
+        // Option B: Text with background boxes (if needed for contrast)
+        Positioned(
+          left: 8,
+          top: 8,
+          child: _buildTextWithBackground(
+            text: tokenName,
+            backgroundColor: cardBackgroundColor,
+          ),
+        ),
+
+        // ... other text elements
+
+        // Action buttons
+        Positioned(
+          bottom: 8,
+          left: 8,
+          right: 8,
+          child: Row(
+            children: [
+              // - + tap buttons etc.
+            ],
+          ),
+        ),
+
+        // Color identity border (outermost layer)
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(/* gradient border */),
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ],
+    );
+  },
+)
+```
+
+**Image cropping approach:**
+- Same as fadeout method: On-the-fly cropping recommended (Option B)
+- Apply crop percentages via transform or alignment during display
+- Store only original images for flexibility
+
+**Alpha overlay tuning:**
+```dart
+// Adjustable constant for easy testing
+const double _artworkOverlayOpacity = 0.5;  // Range: 0.4 - 0.6
+
+Container(
+  color: cardBackgroundColor.withOpacity(_artworkOverlayOpacity),
+)
+```
+
+### Open Questions / TODO
+
+Items to resolve during implementation:
+
+- [ ] **Text contrast solution:** Option A (direct text), Option B (background boxes), or Option C (higher opacity)?
+- [ ] **Final overlay opacity:** Stick with 0.5 or adjust based on visual testing?
+- [ ] **Edge case handling:** If artwork is shorter than card height (unlikely), fill with background color or stretch artwork?
+
+### Resolved Specifications
+
+- ✅ **Artwork width:** 100% of card width
+- ✅ **Artwork placement:** Full-width background, top-aligned
+- ✅ **Alpha overlay color:** Card background color (theme-adaptive)
+- ✅ **Starting opacity:** 0.5 alpha overlay (adjustable 0.4-0.6)
+- ✅ **Crop percentages:** 8.8% left/right, 14.5% top, 36.8% bottom
+- ✅ **BoxFit behavior:** BoxFit.cover (fill width, crop vertically)
+- ✅ **Card height:** No expansion - artwork fits within existing card height
+- ✅ **Color treatment:** Full color artwork with color overlay fade effect
+
+---
+
+## Original Mockup-Based Design (DEPRECATED - REFERENCE ONLY)
 
 **UI Layout: Left-aligned artwork with gradient fade**
 
