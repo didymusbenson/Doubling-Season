@@ -38,6 +38,11 @@ class TokenCard extends StatelessWidget {
         builder: (context, constraints) {
           return Stack(
             children: [
+              // Base card background layer
+              Container(
+                color: Theme.of(context).cardColor,
+              ),
+
               // Artwork layer (background, if artwork selected)
               if (item.artworkUrl != null)
                 _buildArtworkLayer(context, constraints),
@@ -423,11 +428,9 @@ class TokenCard extends StatelessWidget {
   }) {
     final effectiveColor = disabled ? color.withValues(alpha: UIConstants.disabledOpacity) : color;
 
-    // Use surface/card background color for button backgrounds (only when artwork exists)
+    // Use card background color for button backgrounds (only when artwork exists)
     final buttonBackgroundColor = item.artworkUrl != null
-        ? (Theme.of(context).brightness == Brightness.dark
-            ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.85)
-            : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.85))
+        ? Theme.of(context).cardColor
         : effectiveColor.withValues(alpha: 0.15); // Original transparent style when no artwork
 
     return Padding(
@@ -455,44 +458,51 @@ class TokenCard extends StatelessWidget {
     );
   }
 
-  /// Build artwork background layer with image-based cropping
+  /// Build artwork background layer with fadeout method (right-side placement)
   Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints) {
     final crop = ArtworkManager.getCropPercentages();
+    final cardWidth = constraints.maxWidth;
+    final artworkWidth = cardWidth * 0.50; // 50% of card width
 
-    return Positioned.fill(
+    return Positioned(
+      right: 0,
+      top: 0,
+      bottom: 0,
+      width: artworkWidth,
       child: FutureBuilder<File?>(
         future: ArtworkManager.getCachedArtworkFile(item.artworkUrl!),
         builder: (context, snapshot) {
           if (snapshot.hasData && snapshot.data != null) {
             return ClipRRect(
-              borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius), // 8px to fit inside 4px border
-              child: CroppedArtworkWidget(
-                imageFile: snapshot.data!,
-                cropLeft: crop['left']!,
-                cropRight: crop['right']!,
-                cropTop: crop['top']!,
-                cropBottom: crop['bottom']!,
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(UIConstants.smallBorderRadius),
+                bottomRight: Radius.circular(UIConstants.smallBorderRadius),
+              ),
+              child: ShaderMask(
+                shaderCallback: (bounds) {
+                  return const LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      Colors.transparent, // Fade start (0% opacity)
+                      Colors.white,       // Fade end (100% opacity)
+                    ],
+                    stops: [0.0, 0.50], // Fade over first 50% of artwork width
+                  ).createShader(bounds);
+                },
+                blendMode: BlendMode.dstIn,
+                child: CroppedArtworkWidget(
+                  imageFile: snapshot.data!,
+                  cropLeft: crop['left']!,
+                  cropRight: crop['right']!,
+                  cropTop: crop['top']!,
+                  cropBottom: crop['bottom']!,
+                ),
               ),
             );
           }
           return const SizedBox.shrink();
         },
-      ),
-    );
-  }
-
-  /// Build semi-transparent overlay layer
-  Widget _buildOverlayLayer(BuildContext context) {
-    final backgroundColor = Theme.of(context).brightness == Brightness.dark
-        ? Theme.of(context).colorScheme.surface
-        : Theme.of(context).colorScheme.surfaceContainerHighest;
-
-    return Positioned.fill(
-      child: Container(
-        decoration: BoxDecoration(
-          color: backgroundColor.withValues(alpha: 0.5), // 0.5 alpha overlay
-          borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius), // 8px to match artwork layer
-        ),
       ),
     );
   }
@@ -508,14 +518,10 @@ class TokenCard extends StatelessWidget {
       return child;
     }
 
-    final backgroundColor = Theme.of(context).brightness == Brightness.dark
-        ? Theme.of(context).colorScheme.surface
-        : Theme.of(context).colorScheme.surfaceContainerHighest;
-
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: backgroundColor.withValues(alpha: 0.85), // Subtle transparency
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(4),
       ),
       child: child,

@@ -81,21 +81,20 @@ class _CroppedArtworkPainter extends CustomPainter {
     // Calculate cropped image dimensions
     final croppedWidth = srcRect.width;
     final croppedHeight = srcRect.height;
-    final croppedAspectRatio = croppedWidth / croppedHeight;
 
-    // Use BoxFit.cover behavior: fill width, maintain aspect ratio, overflow/crop height
-    final scaleToFillWidth = size.width / croppedWidth;
-    final scaledHeight = croppedHeight * scaleToFillWidth;
+    // Use BoxFit.cover behavior: fill height, maintain aspect ratio, overflow/crop width
+    final scaleToFillHeight = size.height / croppedHeight;
+    final scaledWidth = croppedWidth * scaleToFillHeight;
 
-    // Center vertically and allow overflow
-    final dstTop = (size.height - scaledHeight) / 2;
-    final dstRect = Rect.fromLTWH(0, dstTop, size.width, scaledHeight);
+    // Center horizontally and allow overflow
+    final dstLeft = (size.width - scaledWidth) / 2;
+    final dstRect = Rect.fromLTWH(dstLeft, 0, scaledWidth, size.height);
 
     // Clip to canvas bounds to hide overflow
     canvas.save();
     canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height));
 
-    // Draw the cropped portion of the image, scaled to fill width
+    // Draw the cropped portion of the image, scaled to fill height
     canvas.drawImageRect(
       image,
       srcRect,
