@@ -41,17 +41,11 @@ Stop fumbling with dice, paper, or physical token cards. Doubling Season gives y
 - **Save deck configurations** - Store a list of tokens to reuse
 - **Quick load** - Instantly recreate your board state
 
-### 🎨 Clean Interface
-- **Color-coded borders** - Tokens display their color identity (WUBRG)
-- **Compact card view** - See all your tokens at once
-- **Detailed editor** - Tap any token for full editing capabilities
-- **Dark mode support** - Easy on the eyes during long games
-
 ### ⚡ Special Features
 - **Board wipe** - Clear all tokens with one tap
 - **Untap all** - Reset for your next turn
-- **Scute Swarm support** - Special doubling button for landfall triggers
 - **Emblem tracking** - Dedicated handling for emblems
+- **Scute Swarm** - IYKYK
 
 ## 📱 Screenshots
 
