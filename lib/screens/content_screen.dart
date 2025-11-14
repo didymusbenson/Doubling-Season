@@ -390,14 +390,51 @@ class _ContentScreenState extends State<ContentScreen> {
         title: const Text('Settings'),
         content: Consumer<SettingsProvider>(
           builder: (context, settings, child) {
-            return SwitchListTile(
-              title: const Text('Track summoning sickness'),
-              subtitle: const Text('Automatically track summoning sickness on newly created tokens'),
-              value: settings.summoningSicknessEnabled,
-              onChanged: (value) {
-                settings.setSummoningSicknessEnabled(value);
-              },
-              contentPadding: EdgeInsets.zero,
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Existing summoning sickness toggle
+                SwitchListTile(
+                  title: const Text('Track summoning sickness'),
+                  subtitle: const Text('Automatically track summoning sickness on newly created tokens'),
+                  value: settings.summoningSicknessEnabled,
+                  onChanged: (value) {
+                    settings.setSummoningSicknessEnabled(value);
+                  },
+                  contentPadding: EdgeInsets.zero,
+                ),
+
+                const Divider(),
+
+                // NEW: Artwork style selection
+                ListTile(
+                  title: const Text('Artwork Display Style'),
+                  subtitle: Text(
+                    settings.artworkDisplayStyle == 'fullView'
+                      ? 'Full View - Artwork fills card width'
+                      : 'Fadeout - Artwork on right with gradient',
+                  ),
+                  contentPadding: EdgeInsets.zero,
+                ),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(
+                      value: 'fullView',
+                      label: Text('Full View'),
+                      icon: Icon(Icons.crop_landscape),
+                    ),
+                    ButtonSegment(
+                      value: 'fadeout',
+                      label: Text('Fadeout'),
+                      icon: Icon(Icons.gradient),
+                    ),
+                  ],
+                  selected: {settings.artworkDisplayStyle},
+                  onSelectionChanged: (Set<String> newSelection) {
+                    settings.setArtworkDisplayStyle(newSelection.first);
+                  },
+                ),
+              ],
             );
           },
         ),

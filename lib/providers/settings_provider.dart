@@ -31,6 +31,14 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Artwork display style: 'fullView' or 'fadeout'
+  String get artworkDisplayStyle => _prefs.getString('artworkDisplayStyle') ?? 'fadeout';
+
+  Future<void> setArtworkDisplayStyle(String style) async {
+    await _prefs.setString('artworkDisplayStyle', style);
+    notifyListeners();
+  }
+
   Set<String> get favoriteTokens {
     final list = _prefs.getStringList(PreferenceKeys.favoriteTokens) ?? [];
     return Set.from(list);

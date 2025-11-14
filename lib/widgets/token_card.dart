@@ -38,9 +38,20 @@ class TokenCard extends StatelessWidget {
         builder: (context, constraints) {
           return Stack(
             children: [
+              // Base card background layer (ensures left side is solid in fadeout mode)
+              Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+                ),
+              ),
+
               // Artwork layer (background, if artwork selected)
               if (item.artworkUrl != null)
-                _buildArtworkLayer(context, constraints),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 500),
+                  child: _buildArtworkLayer(context, constraints),
+                ),
 
               // Content layer (all existing UI elements)
               Container(
@@ -455,8 +466,28 @@ class TokenCard extends StatelessWidget {
     );
   }
 
-  /// Build artwork background layer with image-based cropping
+  /// Build artwork background layer - switches between full view and fadeout
   Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints) {
+    final artworkStyle = context.read<SettingsProvider>().artworkDisplayStyle;
+
+    // Include both artworkUrl and style in key to trigger AnimatedSwitcher on style change
+    final key = ValueKey('${item.artworkUrl ?? 'no-art'}-$artworkStyle');
+
+    if (artworkStyle == 'fadeout') {
+      return KeyedSubtree(
+        key: key,
+        child: _buildFadeoutArtwork(context, constraints),
+      );
+    } else {
+      return KeyedSubtree(
+        key: key,
+        child: _buildFullViewArtwork(context, constraints),
+      );
+    }
+  }
+
+  /// Build full-width artwork background layer
+  Widget _buildFullViewArtwork(BuildContext context, BoxConstraints constraints) {
     final crop = ArtworkManager.getCropPercentages();
 
     return Positioned.fill(
@@ -472,6 +503,54 @@ class TokenCard extends StatelessWidget {
                 cropRight: crop['right']!,
                 cropTop: crop['top']!,
                 cropBottom: crop['bottom']!,
+                fillWidth: true,
+              ),
+            );
+          }
+          return const SizedBox.shrink();
+        },
+      ),
+    );
+  }
+
+  /// Build fadeout artwork layer (right-side with gradient)
+  Widget _buildFadeoutArtwork(BuildContext context, BoxConstraints constraints) {
+    final crop = ArtworkManager.getCropPercentages();
+    final cardWidth = constraints.maxWidth;
+    final artworkWidth = cardWidth * 0.50;
+
+    return Positioned(
+      right: 0,
+      top: 0,
+      bottom: 0,
+      width: artworkWidth,
+      child: FutureBuilder<File?>(
+        future: ArtworkManager.getCachedArtworkFile(item.artworkUrl!),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data != null) {
+            return ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(UIConstants.smallBorderRadius),
+                bottomRight: Radius.circular(UIConstants.smallBorderRadius),
+              ),
+              child: ShaderMask(
+                shaderCallback: (bounds) {
+                  return const LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [Colors.transparent, Colors.white],
+                    stops: [0.0, 0.50],
+                  ).createShader(bounds);
+                },
+                blendMode: BlendMode.dstIn,
+                child: CroppedArtworkWidget(
+                  imageFile: snapshot.data!,
+                  cropLeft: crop['left']!,
+                  cropRight: crop['right']!,
+                  cropTop: crop['top']!,
+                  cropBottom: crop['bottom']!,
+                  fillWidth: false,
+                ),
               ),
             );
           }
@@ -482,6 +561,17 @@ class TokenCard extends StatelessWidget {
   }
 
   /// Build semi-transparent overlay layer
+  ///
+  /// NOTE: This method is currently UNUSED but preserved for potential future use.
+  /// It provides a way to dim the entire artwork with a semi-transparent overlay
+  /// if text contrast becomes insufficient. Currently, text background boxes
+  /// provide adequate readability without needing this global dimming effect.
+  ///
+  /// To enable: Add to Stack between artwork layer and content layer:
+  /// ```dart
+  /// if (item.artworkUrl != null && artworkStyle == 'fullView')
+  ///   _buildOverlayLayer(context),
+  /// ```
   Widget _buildOverlayLayer(BuildContext context) {
     final backgroundColor = Theme.of(context).brightness == Brightness.dark
         ? Theme.of(context).colorScheme.surface

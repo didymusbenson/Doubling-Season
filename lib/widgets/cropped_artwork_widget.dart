@@ -9,6 +9,7 @@ class CroppedArtworkWidget extends StatelessWidget {
   final double cropRight;
   final double cropTop;
   final double cropBottom;
+  final bool fillWidth;
 
   const CroppedArtworkWidget({
     super.key,
@@ -17,6 +18,7 @@ class CroppedArtworkWidget extends StatelessWidget {
     required this.cropRight,
     required this.cropTop,
     required this.cropBottom,
+    this.fillWidth = true,
   });
 
   @override
@@ -32,6 +34,7 @@ class CroppedArtworkWidget extends StatelessWidget {
               cropRight: cropRight,
               cropTop: cropTop,
               cropBottom: cropBottom,
+              fillWidth: fillWidth,
             ),
             size: Size.infinite,
           );
@@ -55,6 +58,7 @@ class _CroppedArtworkPainter extends CustomPainter {
   final double cropRight;
   final double cropTop;
   final double cropBottom;
+  final bool fillWidth;
 
   _CroppedArtworkPainter({
     required this.image,
@@ -62,6 +66,7 @@ class _CroppedArtworkPainter extends CustomPainter {
     required this.cropRight,
     required this.cropTop,
     required this.cropBottom,
+    required this.fillWidth,
   });
 
   @override
@@ -81,15 +86,22 @@ class _CroppedArtworkPainter extends CustomPainter {
     // Calculate cropped image dimensions
     final croppedWidth = srcRect.width;
     final croppedHeight = srcRect.height;
-    final croppedAspectRatio = croppedWidth / croppedHeight;
 
-    // Use BoxFit.cover behavior: fill width, maintain aspect ratio, overflow/crop height
-    final scaleToFillWidth = size.width / croppedWidth;
-    final scaledHeight = croppedHeight * scaleToFillWidth;
-
-    // Center vertically and allow overflow
-    final dstTop = (size.height - scaledHeight) / 2;
-    final dstRect = Rect.fromLTWH(0, dstTop, size.width, scaledHeight);
+    // Calculate destination rect based on fillWidth parameter
+    final Rect dstRect;
+    if (fillWidth) {
+      // FULL VIEW: Fill width, crop height
+      final scaleToFillWidth = size.width / croppedWidth;
+      final scaledHeight = croppedHeight * scaleToFillWidth;
+      final dstTop = (size.height - scaledHeight) / 2;
+      dstRect = Rect.fromLTWH(0, dstTop, size.width, scaledHeight);
+    } else {
+      // FADEOUT: Fill height, crop width
+      final scaleToFillHeight = size.height / croppedHeight;
+      final scaledWidth = croppedWidth * scaleToFillHeight;
+      final dstLeft = (size.width - scaledWidth) / 2;
+      dstRect = Rect.fromLTWH(dstLeft, 0, scaledWidth, size.height);
+    }
 
     // Clip to canvas bounds to hide overflow
     canvas.save();
@@ -112,6 +124,7 @@ class _CroppedArtworkPainter extends CustomPainter {
         oldDelegate.cropLeft != cropLeft ||
         oldDelegate.cropRight != cropRight ||
         oldDelegate.cropTop != cropTop ||
-        oldDelegate.cropBottom != cropBottom;
+        oldDelegate.cropBottom != cropBottom ||
+        oldDelegate.fillWidth != fillWidth;
   }
 }
