@@ -431,11 +431,9 @@ class TokenCard extends StatelessWidget {
   }) {
     final effectiveColor = disabled ? color.withValues(alpha: UIConstants.disabledOpacity) : color;
 
-    // Use surface/card background color for button backgrounds (only when artwork exists)
+    // Use card background color for button backgrounds (only when artwork exists)
     final buttonBackgroundColor = item.artworkUrl != null
-        ? (Theme.of(context).brightness == Brightness.dark
-            ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.85)
-            : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.85))
+        ? Theme.of(context).cardColor.withValues(alpha: 0.85)
         : effectiveColor.withValues(alpha: 0.15); // Original transparent style when no artwork
 
     return Padding(
@@ -586,14 +584,10 @@ class TokenCard extends StatelessWidget {
       return child;
     }
 
-    final backgroundColor = Theme.of(context).brightness == Brightness.dark
-        ? Theme.of(context).colorScheme.surface
-        : Theme.of(context).colorScheme.surfaceContainerHighest;
-
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: backgroundColor.withValues(alpha: 0.85), // Subtle transparency
+        color: Theme.of(context).cardColor.withValues(alpha: 0.85), // Semi-transparent card color
         borderRadius: BorderRadius.circular(4),
       ),
       child: child,
