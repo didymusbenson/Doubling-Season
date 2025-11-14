@@ -19,11 +19,13 @@ class TokenCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Use Selector to only rebuild when summoningSicknessEnabled changes
+    // Use Selector to only rebuild when summoningSicknessEnabled or artworkDisplayStyle changes
     // This prevents rebuilds when multiplier changes
-    return Selector<SettingsProvider, bool>(
-      selector: (context, settings) => settings.summoningSicknessEnabled,
-      builder: (context, summoningSicknessEnabled, child) {
+    return Selector<SettingsProvider, (bool, String)>(
+      selector: (context, settings) => (settings.summoningSicknessEnabled, settings.artworkDisplayStyle),
+      builder: (context, settingsData, child) {
+        final summoningSicknessEnabled = settingsData.$1;
+        final artworkDisplayStyle = settingsData.$2;
         return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
@@ -48,7 +50,7 @@ class TokenCard extends StatelessWidget {
 
               // Artwork layer (background, if artwork selected)
               if (item.artworkUrl != null)
-                _buildArtworkLayer(context, constraints),
+                _buildArtworkLayer(context, constraints, artworkDisplayStyle),
 
               // Content layer (all existing UI elements)
               Container(
@@ -462,9 +464,7 @@ class TokenCard extends StatelessWidget {
   }
 
   /// Build artwork background layer - switches between full view and fadeout
-  Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints) {
-    final artworkStyle = context.read<SettingsProvider>().artworkDisplayStyle;
-
+  Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints, String artworkStyle) {
     if (artworkStyle == 'fadeout') {
       return _buildFadeoutArtwork(context, constraints);
     } else {
