@@ -510,34 +510,34 @@ final croppedImage = cropImage(
 - **Position:** Right-hand side of TokenCard
 - **Alignment:** Flush with right edge of card (respects card's rounded corner radius)
 - **Height:** Fills entire card height from top to bottom
-- **Width:** **30% of card width** (occupies rightmost 30% of card)
+- **Width:** **50% of card width** (occupies rightmost 50% of card) ✅ ACTUAL IMPLEMENTATION
 
 **Gradient Fade Specifications:**
 - **Direction:** Left-to-right (fades FROM background color INTO artwork)
-- **Fade region:** Extends **25% into the artwork** (measured from left edge of artwork region)
-- **Fade start point:** Left edge of artwork region (at 70% of card width from left)
-- **Fade end point:** 25% into artwork region (at 77.5% of card width from left)
-  - Calculation: 70% + (30% × 0.25) = 77.5%
+- **Fade region:** Extends **50% into the artwork** (measured from left edge of artwork region) ✅ ACTUAL IMPLEMENTATION
+- **Fade start point:** Left edge of artwork region (at 50% of card width from left)
+- **Fade end point:** 50% into artwork region (at 75% of card width from left)
+  - Calculation: 50% + (50% × 0.50) = 75%
 - **Fade behavior:**
-  - At 70% card width: Artwork opacity = 0% (pure background color)
-  - At 77.5% card width: Artwork opacity = 100% (full artwork visibility)
-  - At 77.5%-100% card width: Full artwork at 100% opacity (no fade)
-- **Fade curve:** [TODO: Linear? Ease-out? Ease-in-out? Specify preferred curve]
+  - At 50% card width: Artwork opacity = 0% (pure background color)
+  - At 75% card width: Artwork opacity = 100% (full artwork visibility)
+  - At 75%-100% card width: Full artwork at 100% opacity (no fade)
+- **Fade curve:** Linear (as implemented)
 - **Background color source:** Current TokenCard background color (light/dark mode adaptive)
 - **Gradient implementation:** Opacity gradient on artwork layer (not color gradient)
 
 **Visual Integration:**
 - Artwork respects card's rounded corners (clip to card shape)
 - Gradient creates seamless transition from solid background into artwork
-- Left 70% of card remains pure solid background (no artwork influence)
+- Left 50% of card remains pure solid background (no artwork influence)
 - Color identity border maintained around entire card (not obscured by artwork)
 
-**Fade Zone Breakdown:**
+**Fade Zone Breakdown:** ✅ ACTUAL IMPLEMENTATION
 ```
-|← 70% solid background →|← 7.5% fade zone →|← 22.5% full artwork →|
-|                        |                  |                      |
-| [Token Info Area]      | [Gradient Fade]  | [Full Art Visible]   |
-| 0%----------------70%  | 70%-------77.5%  | 77.5%---------100%   |
+|← 50% solid background →|← 25% fade zone →|← 25% full artwork →|
+|                        |                 |                    |
+| [Token Info Area]      | [Gradient Fade] | [Full Art Visible] |
+| 0%----------------50%  | 50%-------75%   | 75%---------100%   |
 ```
 
 ### Text and UI Element Placement
@@ -556,8 +556,8 @@ All key text elements must have background boxes that match the card's backgroun
 5. **Status counts** (tapped count, summoning sickness count, counter counts) - Background boxes matching card background
 
 **Background box specifications:**
-- **Color:** Matches TokenCard background color (light/dark mode adaptive)
-- **Opacity:** Solid/opaque (not semi-transparent) to ensure full text readability
+- **Color:** `surface` (dark mode) or `surfaceContainerHighest` (light mode) - theme adaptive
+- **Opacity:** Semi-transparent with 0.85 alpha ✅ ACTUAL IMPLEMENTATION
 - **Padding:** Minimal padding to avoid increasing card height
   - Horizontal padding: Small (~4-6px) for text breathing room
   - Vertical padding: Minimal or none (~0-2px) to prevent card bloat
@@ -770,19 +770,20 @@ Transform(
 
 Remaining items to specify before implementation:
 
-- [ ] **Fade curve:** Linear, ease-out, ease-in-out, or custom curve? (Currently defaults to linear in gradient)
-- [ ] **Minimum card width:** At what screen/card width should artwork be hidden or adjusted? (Or always show at 30%?)
+- [ ] **Minimum card width:** At what screen/card width should artwork be hidden or adjusted? (Or always show at 50%?)
 - [ ] **Cropping approach:** Confirm preference for on-the-fly cropping (Option B) vs. pre-cropping (Option A)
 
-### Resolved Specifications
+### Resolved Specifications ✅ ACTUAL IMPLEMENTATION
 
-The following have been defined:
+The following have been defined based on actual implementation:
 
-- ✅ **Artwork width:** 30% of card width
-- ✅ **Fade distance:** 25% into artwork (7.5% of total card width)
+- ✅ **Artwork width:** 50% of card width (IMPLEMENTED)
+- ✅ **Fade distance:** 50% into artwork (25% of total card width) (IMPLEMENTED)
+- ✅ **Fade curve:** Linear gradient (IMPLEMENTED)
 - ✅ **Artwork base opacity:** 100% in full art zone, 0-100% gradient in fade zone
 - ✅ **Opacity overlay:** None - full color natural artwork
-- ✅ **Text contrast method:** Background boxes/pills matching card background
+- ✅ **Text contrast method:** Background boxes with semi-transparent backgrounds (0.85 alpha)
+- ✅ **Text background color:** `surface` (dark) / `surfaceContainerHighest` (light) (IMPLEMENTED)
 - ✅ **Safe zones:** All text uses background boxes for universal readability
 - ✅ **Button placement:** Can appear anywhere (existing button styling provides contrast)
 - ✅ **Color treatment:** Full color, no desaturation or tinting
@@ -851,31 +852,17 @@ Artwork fills the entire width of the TokenCard with a semi-transparent overlay 
 
 ### Text and UI Element Placement
 
-**Text Contrast Strategy: TBD During Implementation**
+**Text Contrast Strategy: ✅ ACTUAL IMPLEMENTATION**
 
-Two potential approaches (to be determined based on visual testing):
+**Implementation uses background boxes with semi-transparent backgrounds:**
+- Text elements use background boxes with semi-transparent color
+- Background color: `surface` (dark mode) or `surfaceContainerHighest` (light mode)
+- Opacity: **0.85 alpha** (semi-transparent)
+- Minimal padding: ~6px horizontal, ~2px vertical
+- Provides sufficient contrast over full-width artwork
+- Border radius: 4px for rounded corners
 
-**Option A: Direct text on overlay (no background boxes)**
-- Text elements render directly on top of alpha overlay
-- Overlay provides sufficient contrast for readability
-- Cleaner visual appearance
-- Used if 0.5 alpha overlay provides adequate contrast
-
-**Option B: Text with background boxes (same as fadeout method)**
-- Add minimal background boxes to key text elements if contrast insufficient
-- Boxes match card background color (solid/opaque)
-- Minimal padding: ~6px horizontal, ~1-2px vertical
-- Used if alpha overlay alone doesn't provide enough text readability
-
-**Option C: Hybrid approach**
-- Increase alpha overlay opacity (toward 0.6) for better contrast
-- No background boxes needed if higher opacity solves contrast issue
-- Trade-off: Less visible artwork, but cleaner UI
-
-**Decision criteria:**
-- Test readability with black text on various artwork colors
-- Ensure P/T numbers, abilities text, and counts are always legible
-- Prioritize clean appearance while maintaining accessibility
+**Note:** The overlay layer method (`_buildOverlayLayer`) is implemented but **currently unused**. It remains available for potential future use if additional global dimming is needed.
 
 **UI Elements:**
 - All existing TokenCard elements remain in same positions
@@ -1023,20 +1010,20 @@ Container(
 
 Items to resolve during implementation:
 
-- [ ] **Text contrast solution:** Option A (direct text), Option B (background boxes), or Option C (higher opacity)?
-- [ ] **Final overlay opacity:** Stick with 0.5 or adjust based on visual testing?
 - [ ] **Edge case handling:** If artwork is shorter than card height (unlikely), fill with background color or stretch artwork?
 
-### Resolved Specifications
+### Resolved Specifications ✅ ACTUAL IMPLEMENTATION
 
 - ✅ **Artwork width:** 100% of card width
 - ✅ **Artwork placement:** Full-width background, top-aligned
-- ✅ **Alpha overlay color:** Card background color (theme-adaptive)
-- ✅ **Starting opacity:** 0.5 alpha overlay (adjustable 0.4-0.6)
+- ✅ **Text contrast solution:** Background boxes with semi-transparent backgrounds (0.85 alpha) (IMPLEMENTED)
+- ✅ **Text background color:** `surface` (dark) / `surfaceContainerHighest` (light) (IMPLEMENTED)
+- ✅ **Alpha overlay:** Implemented but UNUSED - preserved for potential future use
+- ✅ **Overlay opacity (if enabled):** 0.5 alpha (currently not used)
 - ✅ **Crop percentages:** 8.8% left/right, 14.5% top, 36.8% bottom
 - ✅ **BoxFit behavior:** BoxFit.cover (fill width, crop vertically)
 - ✅ **Card height:** No expansion - artwork fits within existing card height
-- ✅ **Color treatment:** Full color artwork with color overlay fade effect
+- ✅ **Color treatment:** Full color artwork (no overlay currently applied)
 
 ---
 
