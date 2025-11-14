@@ -96,10 +96,10 @@ class _CroppedArtworkPainter extends CustomPainter {
       final dstTop = (size.height - scaledHeight) / 2;
       dstRect = Rect.fromLTWH(0, dstTop, size.width, scaledHeight);
     } else {
-      // FADEOUT: Fill height, crop width
+      // FADEOUT: Fill height, crop width, align right
       final scaleToFillHeight = size.height / croppedHeight;
       final scaledWidth = croppedWidth * scaleToFillHeight;
-      final dstLeft = (size.width - scaledWidth) / 2;
+      final dstLeft = size.width - scaledWidth; // Align to right edge
       dstRect = Rect.fromLTWH(dstLeft, 0, scaledWidth, size.height);
     }
 
