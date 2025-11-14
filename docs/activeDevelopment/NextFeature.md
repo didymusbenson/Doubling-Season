@@ -9,6 +9,59 @@ Implement a user-selectable setting that allows toggling between two different a
 
 Both implementations share core artwork infrastructure (download, caching, selection) but differ in how artwork is displayed on TokenCard.
 
+## Prerequisites (MUST BE COMPLETED FIRST)
+
+### 1. Branch State Verification
+- **Current branch:** `artwork` (verified from git status)
+- **Artwork infrastructure status:** IMPLEMENTED on both `artwork` and `altArtwork` branches
+  - Artwork selection UI (ExpandedTokenScreen) ✅
+  - Download/caching (ArtworkManager) ✅
+  - Manual artwork selection (ArtworkSelectionSheet) ✅
+  - Display on TokenCard ✅
+- **Known issues:** None blocking this feature
+
+### 2. Auto-Assignment Feature
+- **Status:** NOT IMPLEMENTED on either branch
+- **Action:** Skip auto-assignment for this feature - it will be added later
+- **Rationale:** Style toggle can work independently of auto-assignment
+- **Note:** Auto-assignment documented in artFeature.md is a FUTURE feature, not required for style toggle
+
+### 3. AnimatedSwitcher Status
+- **Status:** NOT verified on either branch
+- **Action:** If AnimatedSwitcher not present, add it during implementation
+- **Location:** TokenCard `_buildArtworkLayer` should wrap artwork with AnimatedSwitcher
+- **Key behavior:** ValueKey should include both artworkUrl AND artworkDisplayStyle to trigger transition on style change
+
+### 4. Starting Point
+- **Base branch:** `artwork` (current branch)
+- **Strategy:** Create new feature branch, then merge specific code from `altArtwork`
+- **New branch name:** `artwork-style-toggle`
+
+---
+
+## Quick Start (TL;DR for Autonomous Agent)
+
+**Goal:** Add user setting to toggle between two artwork display styles (Full View vs Fadeout)
+
+**What to do:**
+1. Follow **Step-by-Step Implementation Sequence** section below (11 phases)
+2. Each phase has explicit code snippets and verification steps
+3. Run automated tests to verify code correctness
+4. Commit and push when complete
+5. Manual testing (visual verification) will be done by user afterward
+
+**Key files to modify:**
+- `lib/providers/settings_provider.dart` - Add setting
+- `lib/widgets/token_card.dart` - Add fadeout method, wire up switching
+- `lib/widgets/cropped_artwork_widget.dart` - Add fillWidth parameter
+- `lib/screens/content_screen.dart` - Add UI for style selection
+
+**Starting branch:** `artwork` → Create new branch `artwork-style-toggle`
+
+**Expected outcome:** User can switch between Full View and Fadeout artwork styles via Settings dialog, setting persists across restarts.
+
+---
+
 ## Branch Comparison Summary
 
 ### `artwork` branch (FULL VIEW Method)
@@ -452,7 +505,471 @@ Container(color: Theme.of(context).cardColor)
 
 ---
 
-## Implementation Strategy for Toggle Feature
+## Step-by-Step Implementation Sequence
+
+**IMPORTANT:** Follow these steps in exact order. Each step must be completed before proceeding to the next.
+
+### Phase 1: Create Feature Branch
+```bash
+# Ensure you're on artwork branch
+git checkout artwork
+
+# Create new feature branch
+git checkout -b artwork-style-toggle
+
+# Verify branch created
+git branch --show-current
+# Expected output: artwork-style-toggle
+```
+
+### Phase 2: Add Setting to SettingsProvider
+
+**File:** `lib/providers/settings_provider.dart`
+
+**Action:** Add new setting after `summoningSicknessEnabled` (around line 45)
+
+**Code to add:**
+```dart
+// Artwork display style: 'fullView' or 'fadeout'
+String get artworkDisplayStyle => _prefs.getString('artworkDisplayStyle') ?? 'fadeout';
+
+Future<void> setArtworkDisplayStyle(String style) async {
+  await _prefs.setString('artworkDisplayStyle', style);
+  notifyListeners();
+}
+```
+
+**Verification:** Run `flutter analyze` - should have no errors
+
+### Phase 3: Copy Fadeout Implementation from altArtwork Branch
+
+**Step 3a: Extract fadeout code**
+
+Check out the altArtwork branch version of token_card.dart to a temporary file:
+```bash
+git show altArtwork:lib/widgets/token_card.dart > /tmp/token_card_fadeout.dart
+```
+
+**Step 3b: Identify fadeout implementation**
+
+From `/tmp/token_card_fadeout.dart`, extract the `_buildArtworkLayer` method (lines 67-112 based on comparison section).
+
+**Step 3c: Add fadeout as separate method**
+
+In `lib/widgets/token_card.dart`, add NEW method `_buildFadeoutArtwork`:
+
+```dart
+Widget _buildFadeoutArtwork(BuildContext context, BoxConstraints constraints) {
+  final crop = ArtworkManager.getCropPercentages();
+  final cardWidth = constraints.maxWidth;
+  final artworkWidth = cardWidth * 0.50;
+
+  return Positioned(
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: artworkWidth,
+    child: FutureBuilder<File?>(
+      future: ArtworkManager.getCachedArtworkFile(item.artworkUrl!),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data != null) {
+          return ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topRight: Radius.circular(UIConstants.smallBorderRadius),
+              bottomRight: Radius.circular(UIConstants.smallBorderRadius),
+            ),
+            child: ShaderMask(
+              shaderCallback: (bounds) {
+                return const LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [Colors.transparent, Colors.white],
+                  stops: [0.0, 0.50],
+                ).createShader(bounds);
+              },
+              blendMode: BlendMode.dstIn,
+              child: CroppedArtworkWidget(
+                imageFile: snapshot.data!,
+                cropLeft: crop['left']!,
+                cropRight: crop['right']!,
+                cropTop: crop['top']!,
+                cropBottom: crop['bottom']!,
+                fillWidth: false,
+              ),
+            ),
+          );
+        }
+        return const SizedBox.shrink();
+      },
+    ),
+  );
+}
+```
+
+**Step 3d: Rename existing method**
+
+Rename current `_buildArtworkLayer` to `_buildFullViewArtwork`:
+
+```dart
+Widget _buildFullViewArtwork(BuildContext context, BoxConstraints constraints) {
+  // ... existing implementation stays the same
+  // Just rename the method
+}
+```
+
+### Phase 4: Update CroppedArtworkWidget
+
+**File:** `lib/widgets/cropped_artwork_widget.dart`
+
+**Action:** Add `fillWidth` parameter to control scaling behavior
+
+**Step 4a: Update constructor**
+```dart
+class CroppedArtworkWidget extends StatelessWidget {
+  final File imageFile;
+  final double cropLeft;
+  final double cropRight;
+  final double cropTop;
+  final double cropBottom;
+  final bool fillWidth;  // NEW PARAMETER
+
+  const CroppedArtworkWidget({
+    super.key,
+    required this.imageFile,
+    required this.cropLeft,
+    required this.cropRight,
+    required this.cropTop,
+    required this.cropBottom,
+    this.fillWidth = true,  // DEFAULT: full-width behavior
+  });
+}
+```
+
+**Step 4b: Update painter logic**
+
+In `_CroppedArtworkPainter.paint()`, replace scaling logic with:
+
+```dart
+if (widget.fillWidth) {
+  // FULL VIEW: Fill width, crop height
+  final scaleToFillWidth = size.width / croppedWidth;
+  final scaledHeight = croppedHeight * scaleToFillWidth;
+  final dstTop = (size.height - scaledHeight) / 2;
+  dstRect = Rect.fromLTWH(0, dstTop, size.width, scaledHeight);
+} else {
+  // FADEOUT: Fill height, crop width
+  final scaleToFillHeight = size.height / croppedHeight;
+  final scaledWidth = croppedWidth * scaleToFillHeight;
+  final dstLeft = (size.width - scaledWidth) / 2;
+  dstRect = Rect.fromLTWH(dstLeft, 0, scaledWidth, size.height);
+}
+```
+
+**Verification:** Run `flutter analyze` - should have no errors
+
+### Phase 5: Wire Up Style Switching in TokenCard
+
+**File:** `lib/widgets/token_card.dart`
+
+**Step 5a: Create new `_buildArtworkLayer` that switches based on setting**
+
+Replace the call site of artwork layer with:
+
+```dart
+Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints) {
+  final artworkStyle = context.read<SettingsProvider>().artworkDisplayStyle;
+
+  if (artworkStyle == 'fadeout') {
+    return _buildFadeoutArtwork(context, constraints);
+  } else {
+    return _buildFullViewArtwork(context, constraints);
+  }
+}
+```
+
+**Step 5b: Update Stack to include base background layer**
+
+In TokenCard's `build()` method, ensure Stack starts with base background:
+
+```dart
+Stack(
+  children: [
+    // Base card background layer (ensures left side is solid in fadeout mode)
+    Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+      ),
+    ),
+
+    // Artwork layer (if artwork selected)
+    if (item.artworkUrl != null)
+      _buildArtworkLayer(context, constraints),
+
+    // Content layer (existing UI elements)
+    // ... rest of existing Stack children
+  ],
+)
+```
+
+**Step 5c: Update AnimatedSwitcher key (if AnimatedSwitcher exists)**
+
+If TokenCard uses AnimatedSwitcher for artwork transitions, update ValueKey to include style:
+
+```dart
+AnimatedSwitcher(
+  duration: Duration(milliseconds: 500),
+  child: _buildArtworkLayer(
+    key: ValueKey('${item.artworkUrl ?? 'no-art'}-${context.read<SettingsProvider>().artworkDisplayStyle}'),
+    context,
+    constraints,
+  ),
+)
+```
+
+**If AnimatedSwitcher does NOT exist:** Wrap `_buildArtworkLayer` with AnimatedSwitcher as shown above.
+
+**Verification:**
+- Run `flutter analyze` - no errors
+- Build app: `flutter build ios --debug` (or android) - should compile
+
+### Phase 6: Unify Background Colors
+
+**File:** `lib/widgets/token_card.dart`
+
+**Action:** Ensure both styles use semi-transparent backgrounds (0.85 alpha)
+
+**Step 6a: Update `_buildTextWithBackground`**
+
+```dart
+Widget _buildTextWithBackground({
+  required BuildContext context,
+  required Widget child,
+  EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+}) {
+  if (item.artworkUrl == null) {
+    return child;
+  }
+
+  final backgroundColor = Theme.of(context).brightness == Brightness.dark
+      ? Theme.of(context).colorScheme.surface
+      : Theme.of(context).colorScheme.surfaceContainerHighest;
+
+  return Container(
+    padding: padding,
+    decoration: BoxDecoration(
+      color: backgroundColor.withValues(alpha: 0.85),
+      borderRadius: BorderRadius.circular(4),
+    ),
+    child: child,
+  );
+}
+```
+
+**Step 6b: Update `_buildActionButton` background**
+
+Find the button background color assignment and update:
+
+```dart
+final buttonBackgroundColor = item.artworkUrl != null
+    ? (Theme.of(context).brightness == Brightness.dark
+        ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.85)
+        : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.85))
+    : effectiveColor.withValues(alpha: 0.15);
+```
+
+**Verification:** Run `flutter analyze` - no errors
+
+### Phase 7: Add Settings UI
+
+**File:** `lib/screens/content_screen.dart`
+
+**Location:** Modify `_showSummoningSicknessToggle()` method (line ~388)
+
+**Action:** Replace entire method with:
+
+```dart
+void _showSummoningSicknessToggle() {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Settings'),
+      content: Consumer<SettingsProvider>(
+        builder: (context, settings, child) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Existing summoning sickness toggle
+              SwitchListTile(
+                title: const Text('Track summoning sickness'),
+                subtitle: const Text('Automatically track summoning sickness on newly created tokens'),
+                value: settings.summoningSicknessEnabled,
+                onChanged: (value) {
+                  settings.setSummoningSicknessEnabled(value);
+                },
+                contentPadding: EdgeInsets.zero,
+              ),
+
+              const Divider(),
+
+              // NEW: Artwork style selection
+              ListTile(
+                title: const Text('Artwork Display Style'),
+                subtitle: Text(
+                  settings.artworkDisplayStyle == 'fullView'
+                    ? 'Full View - Artwork fills card width'
+                    : 'Fadeout - Artwork on right with gradient',
+                ),
+                contentPadding: EdgeInsets.zero,
+              ),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(
+                    value: 'fullView',
+                    label: Text('Full View'),
+                    icon: Icon(Icons.crop_landscape),
+                  ),
+                  ButtonSegment(
+                    value: 'fadeout',
+                    label: Text('Fadeout'),
+                    icon: Icon(Icons.gradient),
+                  ),
+                ],
+                selected: {settings.artworkDisplayStyle},
+                onSelectionChanged: (Set<String> newSelection) {
+                  settings.setArtworkDisplayStyle(newSelection.first);
+                },
+              ),
+            ],
+          );
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+```
+
+**Verification:** Run `flutter analyze` - no errors
+
+### Phase 8: Document Unused Code
+
+**File:** `lib/widgets/token_card.dart`
+
+**Action:** If `_buildOverlayLayer()` method exists, add documentation comment:
+
+```dart
+/// Build semi-transparent overlay layer
+///
+/// NOTE: This method is currently UNUSED but preserved for potential future use.
+/// It provides a way to dim the entire artwork with a semi-transparent overlay
+/// if text contrast becomes insufficient. Currently, text background boxes
+/// provide adequate readability without needing this global dimming effect.
+///
+/// To enable: Add to Stack between artwork layer and content layer:
+/// ```dart
+/// if (item.artworkUrl != null && artworkStyle == 'fullView')
+///   _buildOverlayLayer(context),
+/// ```
+Widget _buildOverlayLayer(BuildContext context) {
+  // ... existing implementation
+}
+```
+
+**If method doesn't exist:** Skip this step.
+
+### Phase 9: Clean Build and Test
+
+```bash
+# Clean build cache
+flutter clean
+
+# Get dependencies
+flutter pub get
+
+# Run code analysis
+flutter analyze
+
+# Build for iOS
+flutter build ios --debug
+
+# Or build for Android
+flutter build apk --debug
+
+# Run app on device
+flutter run
+```
+
+**Expected Results:**
+- No compilation errors
+- No analyzer warnings in modified files
+- App launches successfully
+- Settings dialog shows artwork style toggle
+- Switching styles updates all visible tokens
+- Setting persists after app restart
+
+### Phase 10: Manual Testing Checklist
+
+Test each scenario:
+
+1. **Setting Persistence**
+   - [ ] Change style to Full View, close app, reopen - setting should be Full View
+   - [ ] Change style to Fadeout, close app, reopen - setting should be Fadeout
+
+2. **Visual Verification**
+   - [ ] Create token with artwork in Full View mode - artwork fills card width
+   - [ ] Switch to Fadeout mode - artwork appears on right 50% with gradient
+   - [ ] Switch back to Full View - artwork returns to full width
+   - [ ] Tokens without artwork look identical in both modes
+
+3. **Multiple Tokens**
+   - [ ] Create 5 tokens with different artwork
+   - [ ] Switch styles - all tokens update simultaneously
+   - [ ] No visual glitches or rendering errors
+
+4. **Light/Dark Mode**
+   - [ ] Test both styles in light mode
+   - [ ] Test both styles in dark mode
+   - [ ] Text backgrounds readable in all combinations
+
+5. **Edge Cases**
+   - [ ] Open ExpandedTokenScreen, change style in background - no crashes
+   - [ ] Change style while scrolling token list - smooth updates
+   - [ ] Rapidly toggle between styles - no crashes or memory issues
+
+### Phase 11: Commit and Push
+
+```bash
+# Stage changes
+git add .
+
+# Commit with descriptive message
+git commit -m "Add artwork display style toggle
+
+- Add artworkDisplayStyle setting to SettingsProvider (fadeout/fullView)
+- Implement two artwork display methods in TokenCard:
+  - Full View: artwork fills card width
+  - Fadeout: artwork on right 50% with gradient fade
+- Add fillWidth parameter to CroppedArtworkWidget for scaling control
+- Update Settings UI with SegmentedButton for style selection
+- Unify text/button backgrounds to semi-transparent (0.85 alpha)
+- Add base background layer to Stack for consistent rendering
+- Document unused overlay layer method
+
+Default style: fadeout (right-side with gradient)"
+
+# Push to remote
+git push origin artwork-style-toggle
+```
+
+---
+
+## Implementation Strategy for Toggle Feature (DEPRECATED - Use Step-by-Step Sequence Above)
 
 ### 1. Add Setting to SettingsProvider
 
@@ -779,24 +1296,38 @@ ListTile(
 
 ---
 
-## Testing Checklist
+## Automated Testing Checklist (Code-Level Verification)
 
-After implementing toggle feature:
+**These tests can be performed by an autonomous agent:**
 
-- [ ] Setting persists across app restarts
-- [ ] Switching between styles updates all tokens immediately
-- [ ] Full View displays artwork at 100% width
-- [ ] Fadeout displays artwork at 50% width on right side
-- [ ] Fadeout gradient fade looks smooth
-- [ ] Text backgrounds use consistent color (cardColor or configurable)
-- [ ] Button backgrounds use consistent color (cardColor or configurable)
-- [ ] No visual glitches when switching styles
-- [ ] Both styles work in light and dark mode
-- [ ] Artwork cropping works correctly in both styles
-- [ ] No unused code remains (_buildOverlayLayer removed)
-- [ ] Base background layer present in both styles
-- [ ] Settings UI shows current selection correctly
-- [ ] Performance is acceptable when rendering multiple tokens
+- [ ] **Code Analysis:** Run `flutter analyze` - zero errors in modified files
+- [ ] **Build Verification:** `flutter build ios --debug` completes without errors
+- [ ] **Setting Getter:** `SettingsProvider.artworkDisplayStyle` returns 'fadeout' by default
+- [ ] **Setting Setter:** `setArtworkDisplayStyle('fullView')` changes value (verify with getter)
+- [ ] **Method Exists:** `TokenCard._buildFadeoutArtwork` method defined
+- [ ] **Method Exists:** `TokenCard._buildFullViewArtwork` method defined
+- [ ] **Method Exists:** `TokenCard._buildArtworkLayer` switches based on setting
+- [ ] **Parameter Added:** `CroppedArtworkWidget.fillWidth` parameter exists with default `true`
+- [ ] **Settings UI:** `SegmentedButton<String>` exists in ContentScreen settings dialog
+- [ ] **Stack Order:** Base Container appears first in Stack children (before artwork layer)
+- [ ] **Import Check:** `SettingsProvider` imported in token_card.dart
+- [ ] **Documentation:** `_buildOverlayLayer` has doc comment explaining it's unused (if method exists)
+
+## Manual Testing Checklist (Requires Human Verification)
+
+**These tests require human eyes - noted for user to verify:**
+
+- [ ] **Visual:** Full View displays artwork at 100% width
+- [ ] **Visual:** Fadeout displays artwork at 50% width on right side
+- [ ] **Visual:** Fadeout gradient fade looks smooth (no hard edges)
+- [ ] **Visual:** Text backgrounds readable over artwork
+- [ ] **Visual:** Button backgrounds readable over artwork
+- [ ] **Visual:** No glitches when switching styles
+- [ ] **Visual:** Both styles work in light mode
+- [ ] **Visual:** Both styles work in dark mode
+- [ ] **Functional:** Setting persists after app restart
+- [ ] **Functional:** Switching styles updates all visible tokens immediately
+- [ ] **Performance:** No lag when rendering 10+ tokens with artwork
 
 ---
 
@@ -817,14 +1348,9 @@ After implementing toggle feature:
 ### 5. Default Style
 **Decision:** **Fadeout** (default value in settings)
 
-## Remaining Open Questions
+## ✅ All Questions Resolved
 
-### Settings UI Placement
-- Add to existing settings/about screen?
-- Create dedicated artwork settings section?
-- In-line toggle on ContentScreen toolbar?
-
-**Recommendation:** Add to existing About/Settings screen for centralized settings management
+All implementation details have been specified in the Step-by-Step Implementation Sequence section above. No open questions remain.
 
 ---
 
@@ -845,20 +1371,31 @@ After implementing toggle feature:
 
 ---
 
-## Estimated Implementation Effort
+## Estimated Implementation Effort (For Autonomous Agent)
 
-**Low complexity** - Most infrastructure already exists on both branches.
+**Complexity:** Low-Medium - Most infrastructure exists, mainly refactoring and wiring.
 
-**Steps:**
-1. Merge common improvements from both branches (1-2 hours)
-2. Implement style toggle setting (30 minutes)
-3. Refactor `_buildArtworkLayer` into two methods (1 hour)
-4. Update `CroppedArtworkWidget` with `fillWidth` parameter (30 minutes)
-5. Unify background colors (30 minutes)
-6. Add settings UI (1 hour)
-7. Testing and polish (2-3 hours)
+**Automated Steps (Agent can complete):**
+1. Create feature branch (Phase 1) - 1 minute
+2. Add setting to SettingsProvider (Phase 2) - 5 minutes
+3. Copy fadeout implementation from altArtwork (Phase 3) - 10 minutes
+4. Update CroppedArtworkWidget (Phase 4) - 10 minutes
+5. Wire up style switching (Phase 5) - 15 minutes
+6. Unify background colors (Phase 6) - 10 minutes
+7. Add Settings UI (Phase 7) - 15 minutes
+8. Document unused code (Phase 8) - 5 minutes
+9. Clean build and analyze (Phase 9) - 5 minutes
+10. Run automated tests (Phase 9) - 5 minutes
+11. Commit and push (Phase 11) - 2 minutes
 
-**Total:** 6-8 hours of development time
+**Total Agent Time:** ~80 minutes (1.3 hours)
+
+**Manual Verification (User must complete):**
+- Phase 10: Manual testing checklist - 30-60 minutes
+- Visual verification of both styles
+- Performance testing with multiple tokens
+
+**Total End-to-End Time:** 2-3 hours (including manual testing)
 
 ---
 

@@ -1,7 +1,39 @@
 # Next Feature: Token Artwork Display
 
 ## Overview
-Add the ability to display official Magic: The Gathering token artwork in the app by utilizing Scryfall's CDN image URLs. Images will be downloaded on-demand at the user's request and cached locally for offline use.
+Add the ability to display official Magic: The Gathering token artwork in the app by utilizing Scryfall's CDN image URLs. Images will be automatically assigned and downloaded when tokens are created, with smooth animated transitions when artwork appears.
+
+## Auto-Assignment Behavior
+
+**Key Feature:** Tokens automatically get artwork assigned on creation - no user action required.
+
+### New Token Creation
+When a user creates a new token:
+1. Automatically assign the first available artwork URL (`artwork[0].url`) from TokenDefinition
+2. If no artwork available in database, assign `null` (empty state)
+3. Download starts immediately in background (async, non-blocking)
+4. User returns to list view while download proceeds
+5. When download completes, TokenCard updates via `item.save()` notification
+6. Background transitions to show artwork with 0.5s cross-fade animation
+
+### Deck Loading
+When a user loads a saved deck:
+1. If TokenTemplate has `artworkUrl` saved, use it (preserves user's artwork selection)
+2. If TokenTemplate has `null` artworkUrl, auto-assign first available like new tokens
+3. Tokens insert one-at-a-time (synchronous insertion, async downloads)
+4. Download deduplication prevents multiple identical tokens from downloading the same image multiple times
+
+### Custom Tokens
+- Custom tokens created via NewTokenSheet have no artwork arrays
+- Automatically get `artworkUrl: null` (empty state)
+- User can manually add artwork later via ExpandedTokenScreen if desired
+
+### Error Handling
+- If background download fails:
+  - Reset `artworkUrl` to `null`
+  - Show fallback "no art" display
+  - Fail silently (no error indicator yet)
+  - **Future:** Add error snackbar notification (see FeedbackIdeas.md)
 
 ## Legal & Attribution Requirements
 
@@ -214,15 +246,20 @@ Item toItem({int amount = 1, bool createTapped = false}) {
 - Provide cached image paths for display
 - Handle download failures gracefully
 - Track which tokens have artwork downloaded
+- **Deduplicate in-flight downloads** to prevent multiple simultaneous requests for same image
 
 **Key methods:**
 ```dart
 class ArtworkManager {
-  // Get local path for cached artwork (null if not downloaded)
-  static Future<String?> getCachedArtworkPath(String url);
+  // In-flight download tracker (prevents duplicate downloads)
+  static final Map<String, Future<File?>> _activeDownloads = {};
 
-  // Download artwork and cache locally
-  static Future<bool> downloadArtwork(String url, {Function(double)? onProgress});
+  // Get local path for cached artwork (null if not downloaded)
+  static Future<File?> getCachedArtworkFile(String url);
+
+  // Download artwork and cache locally (with deduplication)
+  // If download already in progress for this URL, returns existing Future
+  static Future<File?> downloadArtwork(String url, {Function(double)? onProgress});
 
   // Check if artwork is already cached
   static Future<bool> isArtworkCached(String url);
@@ -231,7 +268,7 @@ class ArtworkManager {
   static Future<void> deleteCachedArtwork(String url);
 
   // Get cache directory path
-  static Future<String> getArtworkCacheDirectory();
+  static Future<Directory> getArtworkCacheDirectory();
 
   // Get total cache size (for user info)
   static Future<int> getTotalCacheSize();
@@ -241,12 +278,127 @@ class ArtworkManager {
 }
 ```
 
+**Download Deduplication Logic:**
+```dart
+static Future<File?> downloadArtwork(String url, {Function(double)? onProgress}) async {
+  // Check if already cached
+  final existing = await getCachedArtworkFile(url);
+  if (existing != null) {
+    onProgress?.call(1.0);
+    return existing;
+  }
+
+  // Check if download already in progress
+  if (_activeDownloads.containsKey(url)) {
+    return _activeDownloads[url]; // Return existing Future
+  }
+
+  // Start new download
+  final downloadFuture = _performDownload(url, onProgress: onProgress);
+  _activeDownloads[url] = downloadFuture;
+
+  // Clean up tracker when complete
+  downloadFuture.whenComplete(() => _activeDownloads.remove(url));
+
+  return downloadFuture;
+}
+```
+
 **Implementation notes:**
 - Use `path_provider` package for app data directory
 - Generate filename from URL hash (deterministic, handles URL changes)
 - Store as `.jpg` files in dedicated artwork cache subdirectory
-- Consider rate limiting downloads (respect Scryfall's infrastructure)
 - Add User-Agent header to requests (good etiquette): "DoublingSeason/1.0"
+- **Note:** Scryfall's CDN (`*.scryfall.io`) has no rate limits (unlike their API), so no artificial throttling needed
+- Deduplication prevents multiple identical requests during deck loading
+
+### 5a. Add Auto-Assignment Utility Methods
+
+**Architecture Decision:** Keep artwork assignment logic separate from Provider (best practice).
+
+**Add to TokenDatabase** (`lib/database/token_database.dart`):
+```dart
+/// Find a TokenDefinition by exact match on properties
+TokenDefinition? findByProperties({
+  required String name,
+  required String pt,
+  required String abilities,
+  required String colors,
+  required String type,
+}) {
+  return _tokens.firstWhere(
+    (token) =>
+      token.name == name &&
+      token.pt == pt &&
+      token.abilities == abilities &&
+      token.colors == colors &&
+      token.type == type,
+    orElse: () => null,
+  );
+}
+
+/// Get default artwork URL for a token (first available, null if none)
+static String? getDefaultArtworkUrl(TokenDefinition? definition) {
+  if (definition == null) return null;
+  if (definition.artwork.isEmpty) return null;
+  return definition.artwork[0].url;
+}
+
+/// Get default artwork set code for a token (first available, null if none)
+static String? getDefaultArtworkSet(TokenDefinition? definition) {
+  if (definition == null) return null;
+  if (definition.artwork.isEmpty) return null;
+  return definition.artwork[0].set;
+}
+```
+
+**Usage Pattern (both new tokens and deck loading):**
+```dart
+// Look up token definition
+final definition = tokenDatabase.findByProperties(
+  name: item.name,
+  pt: item.pt,
+  abilities: item.abilities,
+  colors: item.colors,
+  type: item.type,
+);
+
+// Assign default artwork
+final artworkUrl = TokenDatabase.getDefaultArtworkUrl(definition);
+final artworkSet = TokenDatabase.getDefaultArtworkSet(definition);
+
+// Create item with artwork
+final newItem = Item(
+  // ... other fields
+  artworkUrl: artworkUrl,
+  artworkSet: artworkSet,
+);
+
+// Insert item
+await tokenProvider.insertItem(newItem);
+
+// Start background download if artwork assigned
+if (artworkUrl != null) {
+  _downloadArtworkInBackground(newItem, artworkUrl);
+}
+```
+
+**Background Download with Error Handling:**
+```dart
+void _downloadArtworkInBackground(Item item, String url) {
+  ArtworkManager.downloadArtwork(url).then((file) {
+    if (file == null) {
+      // Download failed - reset to null
+      item.artworkUrl = null;
+      item.artworkSet = null;
+      item.save(); // Triggers UI update to show fallback
+    } else {
+      // Download succeeded - trigger UI refresh
+      item.save(); // Notifies Hive listeners, TokenCard rebuilds
+    }
+  });
+}
+```
 
 ### 6. Add Artwork Display to ExpandedTokenScreen
 **File:** `lib/screens/expanded_token_screen.dart`
@@ -450,6 +602,63 @@ When user taps an artwork option, show larger preview before confirming:
 **File:** `lib/widgets/token_card.dart`
 
 **Reference mockup:** `docs/activeDevelopment/crudemockup.png`
+
+### Animated Transitions
+
+**Requirement:** Smooth 0.5s cross-fade when artwork background changes.
+
+**Implementation:** Use `AnimatedSwitcher` to wrap the background layer:
+
+```dart
+AnimatedSwitcher(
+  duration: Duration(milliseconds: 500),
+  child: _buildBackground(
+    key: ValueKey(item.artworkUrl ?? 'no-art'), // Key change triggers animation
+  ),
+)
+
+Widget _buildBackground() {
+  if (item.artworkUrl == null) {
+    return Container(
+      key: ValueKey('no-art'),
+      decoration: BoxDecoration(
+        color: cardBackgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+    );
+  }
+
+  // Get cached artwork file
+  final artworkFile = await ArtworkManager.getCachedArtworkFile(item.artworkUrl!);
+
+  if (artworkFile == null) {
+    // Not cached yet (download in progress) - show solid background
+    return Container(
+      key: ValueKey('no-art'),
+      decoration: BoxDecoration(
+        color: cardBackgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+    );
+  }
+
+  return _buildArtworkBackground(
+    key: ValueKey(item.artworkUrl),
+    file: artworkFile,
+  );
+}
+```
+
+**Transition triggers:**
+- Solid background → Artwork (when download completes)
+- Artwork → Different artwork (when user changes selection)
+- Artwork → Solid background (when user removes artwork)
+- Switch between display modes (if applicable)
+
+**Animation behavior:**
+- Cross-fade (default AnimatedSwitcher behavior)
+- 500ms duration
+- Automatically handles any background change via ValueKey
 
 ## TokenCard Artwork Display Methods
 
@@ -1183,49 +1392,66 @@ Card(
 1. **Update token database script** - Extract artwork URLs from XML
 2. **Regenerate token database** - Run script to update `assets/token_database.json`
 3. **Update TokenDefinition model** - Add artwork field and parsing
-4. **Add artworkUrl to Item model** - HiveField 13
-5. **Add artworkUrl to TokenTemplate model** - HiveField 6
+4. **Add artworkUrl + artworkSet to Item model** - HiveField 13, 14
+5. **Add artworkUrl + artworkSet to TokenTemplate model** - HiveField 6, 7
 6. **Run build_runner** - Regenerate Hive adapters
-7. **Create ArtworkManager utility** - Download and caching logic
-8. **Update ExpandedTokenScreen** - Add artwork display and management
-9. **Update About screen** - Add attribution notice
-10. **Test artwork download** - Verify caching and display
-11. **Test deck save/load** - Verify artwork URLs preserved
-12. **Test offline mode** - Verify cached images display without network
-13. **(Optional) Add TokenCard preview** - If desired
-14. **(Optional) Add settings UI** - Cache management
+7. **Create ArtworkManager utility** - Download, caching, and deduplication logic
+8. **Add TokenDatabase lookup methods** - `findByProperties()`, `getDefaultArtworkUrl()`, `getDefaultArtworkSet()`
+9. **Update TokenSearchScreen** - Auto-assign artwork on token creation, trigger background download
+10. **Update NewTokenSheet** - Handle custom tokens (no artwork)
+11. **Update LoadDeckSheet / DeckProvider** - Auto-assign artwork for tokens with null artworkUrl
+12. **Update TokenCard** - Add artwork display with AnimatedSwitcher transitions
+13. **Update ExpandedTokenScreen** - Add artwork display and manual selection UI
+14. **Update About screen** - Add attribution notice
+15. **Test auto-assignment** - Verify new tokens get artwork automatically
+16. **Test background download** - Verify async downloads and UI updates
+17. **Test error handling** - Verify failed downloads reset to null
+18. **Test deck save/load** - Verify artwork URLs preserved and auto-assigned
+19. **Test deduplication** - Load deck with 10 identical tokens, verify single download
+20. **Test offline mode** - Verify cached images display without network
+21. **Test animations** - Verify smooth transitions when artwork appears/changes
+22. **(Optional) Add settings UI** - Cache management
 
 ## User Experience Flow
 
-### First-time artwork addition:
-1. User creates/selects a Goblin token (no artwork yet)
-2. User taps token to open ExpandedTokenScreen
-3. User sees "Add Artwork" button below where image would display
-4. User taps "Add Artwork"
-5. Bottom sheet shows available art variants (e.g., "M15", "KLD", "DOM")
-6. User selects preferred variant
-7. Progress dialog shows download status
-8. Artwork displays in ExpandedTokenScreen
-9. Artwork cached for future use
+### New Token Creation (Automatic Artwork):
+1. User searches for and selects a Goblin token
+2. User taps to create token (with quantity/multiplier)
+3. **Artwork automatically assigned** (first available variant from database)
+4. User returns to list view
+5. **Download starts in background** (async, non-blocking)
+6. Token appears with solid background initially (download in progress)
+7. **When download completes:** TokenCard smoothly transitions to show artwork (0.5s cross-fade)
+8. Artwork cached for future use
+9. If download fails: Token remains with solid background, artworkUrl reset to null
 
-### Subsequent uses:
-1. User creates another Goblin token (same definition)
-2. Option to use previously selected artwork automatically OR
-3. Prompt user to select artwork (user preference)
-4. If artwork already cached, instant display (no download)
+### Deck Loading (Automatic Artwork):
+1. User loads a saved deck
+2. For each token:
+   - If `artworkUrl` saved in deck: Use it (preserves user's choice)
+   - If `artworkUrl` is null: Auto-assign first available variant
+3. Tokens insert one-at-a-time
+4. **Download deduplication** prevents multiple requests for same image
+5. Tokens appear with solid backgrounds, then transition to artwork as downloads complete
+6. Smooth staggered transitions as each download finishes
 
-### Changing artwork:
-1. User opens token with existing artwork
-2. User taps "Change Artwork" button
-3. Select different variant from bottom sheet
-4. New artwork downloads and replaces old selection
-5. Old cached image may be retained (other tokens might use it)
+### Changing Artwork (Manual):
+1. User taps token to open ExpandedTokenScreen
+2. User sees current artwork displayed at top (or "select" if none)
+3. User taps artwork area or "Change Artwork" button
+4. Bottom sheet shows available art variants (e.g., "M15", "KLD", "DOM")
+5. User selects preferred variant
+6. Confirmation dialog with preview
+7. Download (if not cached) and update
+8. TokenCard transitions to new artwork
 
-### Removing artwork:
-1. Long-press on artwork image
-2. Confirmation dialog: "Remove artwork?"
-3. Set `item.artworkUrl = null` and save
-4. Cached file remains (other tokens might use it)
+### Removing Artwork (Manual):
+1. User opens ExpandedTokenScreen
+2. Long-press on artwork image or tap "Remove Artwork" option
+3. Confirmation dialog: "Remove artwork?"
+4. Set `item.artworkUrl = null` and save
+5. TokenCard transitions back to solid background
+6. Cached file remains (other tokens might use it)
 
 ## Technical Considerations
 
@@ -1292,27 +1518,32 @@ Card(
 
 After implementation:
 - ✅ Token database contains artwork URLs from Cockatrice XML
-- ✅ Users can add artwork to any token with available art
-- ✅ Users can select from multiple art variants (if available)
+- ✅ **New tokens automatically get artwork assigned** (first available variant)
+- ✅ **Custom tokens handle no-artwork state gracefully**
+- ✅ **Background downloads start immediately on creation**
+- ✅ **Download deduplication prevents redundant requests**
 - ✅ Artwork downloads and caches locally for offline use
-- ✅ Artwork displays correctly in ExpandedTokenScreen
+- ✅ **Smooth 0.5s cross-fade transitions when artwork appears/changes**
+- ✅ TokenCard displays artwork correctly (fadeout or full card method)
+- ✅ ExpandedTokenScreen displays artwork and allows manual selection
+- ✅ Users can manually select from multiple art variants (if available)
 - ✅ Artwork persists across app restarts
-- ✅ Saved decks preserve user's artwork choices
+- ✅ **Saved decks preserve user's artwork choices**
+- ✅ **Deck loading auto-assigns artwork for tokens without saved artwork**
 - ✅ About screen includes proper attribution notice
 - ✅ No paywall restricts artwork access
 - ✅ Images displayed without modifications
-- ✅ Graceful handling of download failures
+- ✅ **Graceful handling of download failures** (reset to null, silent fail)
 - ✅ Good performance (no UI blocking during download)
+- ✅ **UI updates automatically when downloads complete** (via item.save())
 
 ## Future Enhancements (Not in Initial Implementation)
 
-- Artwork preview thumbnails in TokenCard
-- Automatic artwork selection on token creation
-- Full-screen artwork viewer
+- Full-screen artwork viewer (tap to expand)
 - User-uploaded custom artwork
-- Bulk artwork download ("Download all artwork" option)
-- Artwork preferences (always use newest set, etc.)
-- Cache size management and cleanup tools
+- Bulk artwork download ("Download all artwork" option in settings)
+- Artwork preferences (always use newest set instead of first, etc.)
+- Error snackbar notification for download failures (see FeedbackIdeas.md)
 - Alternative art variants from other sources (if legally permissible)
 
 ---

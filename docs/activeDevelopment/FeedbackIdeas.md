@@ -34,6 +34,9 @@ Combat would also calculate total damage (when possible) or total damage + wildc
 ## Snackbar Notifications (REMOVED)
 **Status:** All snackbar notifications have been removed due to UI/UX issues and intermittent framework bugs.
 
+**Future Snackbar Needs:**
+- **Artwork download failure**: When background artwork download fails, show error snackbar to inform user (currently fails silently and resets to no artwork)
+
 **Previous Locations (for reference):**
 - `lib/screens/content_screen.dart:467-469` - Save deck validation ("Please enter a deck name")
 - `lib/screens/content_screen.dart:494-496` - Save deck confirmation ("Deck saved")
