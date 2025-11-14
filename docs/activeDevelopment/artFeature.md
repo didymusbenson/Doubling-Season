@@ -1,6 +1,24 @@
-# Next Feature: Token Artwork Display
+# Feature: Token Artwork Display
 
-## Overview
+## Implementation Status
+
+**✅ IMPLEMENTED (on `artwork` branch):**
+- Manual artwork selection via ExpandedTokenScreen
+- Artwork download and caching (ArtworkManager)
+- Two display styles: Full View and Fadeout (toggle in Settings)
+- Artwork persistence in decks (TokenTemplate)
+- Image cropping and scaling (CroppedArtworkWidget)
+
+**📋 PLANNED (Future Enhancement):**
+- Auto-assignment of artwork on token creation
+- Animated transitions when artwork loads
+- Error handling with user notifications
+
+**See NextFeature.md for the artwork style toggle implementation details.**
+
+---
+
+## Overview (Original Planning Document)
 Add the ability to display official Magic: The Gathering token artwork in the app by utilizing Scryfall's CDN image URLs. Images will be automatically assigned and downloaded when tokens are created, with smooth animated transitions when artwork appears.
 
 ## Auto-Assignment Behavior

@@ -1,6 +1,28 @@
 # Next Feature: Artwork Display Style Toggle
 
-## Overview
+## ✅ STATUS: COMPLETED
+
+**Implementation Date:** 2025-01-13
+**Branch:** `artwork-style-toggle`
+**Commits:**
+- `9f88ab3` - Initial implementation
+- `a3464b0` - Fixed AnimatedSwitcher causing widget tree errors
+- `29dcf1b` - Fixed background colors for light mode
+- `870ebe1` - Made artwork style changes reactive
+- `c663b8c` - Fixed fadeout artwork alignment to right edge
+
+**Result:** Feature successfully implemented and tested. Users can toggle between Full View and Fadeout artwork display styles via Settings. All visible tokens update immediately when style is changed.
+
+**Known Issues:** None. AnimatedSwitcher was removed to maintain proper widget tree structure with Positioned widgets.
+
+**Documentation Updated:**
+- ✅ CLAUDE.md - Added Artwork Display section
+- ✅ SettingsProvider documentation updated
+- ✅ Future Feature Context updated to mark as implemented
+
+---
+
+## Overview (Original Planning Document)
 
 Implement a user-selectable setting that allows toggling between two different artwork display styles for tokens:
 

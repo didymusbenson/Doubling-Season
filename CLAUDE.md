@@ -257,7 +257,7 @@ The app uses the Provider package for state management with ChangeNotifier:
 
 **SettingsProvider** (`lib/providers/settings_provider.dart`)
 - Uses SharedPreferences for app-wide settings
-- Stores: `tokenMultiplier`, `summoningSicknessEnabled`, `favoriteTokens`, `recentTokens`
+- Stores: `tokenMultiplier`, `summoningSicknessEnabled`, `artworkDisplayStyle`, `favoriteTokens`, `recentTokens`
 - Notifies listeners on changes
 
 **DeckProvider** (`lib/providers/deck_provider.dart`)
@@ -292,7 +292,7 @@ MultiProvider(
 **SharedPreferences**
 - Simple key-value store for user settings
 - Managed by SettingsProvider
-- Stores: multiplier, summoning sickness toggle, favorites list, recent tokens
+- Stores: multiplier, summoning sickness toggle, artwork display style, favorites list, recent tokens
 
 **Token Database**
 - Location: `assets/token_database.json` (bundled with app)
@@ -474,6 +474,26 @@ ValueListenable updates → ContentScreen rebuilds with TokenCard
 - Applied when tokens are added/copied
 - Display shows summoning sickness icon + count
 - Toggle setting via long-press on summoning sickness button
+
+### Artwork Display
+- Token artwork can be selected from Scryfall API via ExpandedTokenScreen
+- Downloaded artwork cached locally via `ArtworkManager` (`lib/utils/artwork_manager.dart`)
+- Two display styles available via Settings:
+  - **Full View** (`fullView`): Artwork fills entire card width with semi-transparent text overlays
+  - **Fadeout** (`fadeout`, default): Artwork on right 50% of card with gradient fade from transparent to opaque
+- Style setting stored in SharedPreferences (`artworkDisplayStyle`)
+- All TokenCards automatically rebuild when style changes (reactive via `Selector`)
+- Artwork URLs stored in `Item.artworkUrl` and persisted in decks via `TokenTemplate.artworkUrl`
+- Crop percentages: 8.8% left/right, 14.5% top, 36.8% bottom
+- Text and button backgrounds use semi-transparent `cardColor` (0.85 alpha) for readability over artwork
+
+**Implementation Details:**
+- `CroppedArtworkWidget` handles image cropping with `fillWidth` parameter:
+  - `fillWidth: true` (Full View): Scale to fill width, crop height, center vertically
+  - `fillWidth: false` (Fadeout): Scale to fill height, crop width, align right
+- `TokenCard` uses `Selector<SettingsProvider, (bool, String)>` to watch both `summoningSicknessEnabled` and `artworkDisplayStyle`
+- Fadeout mode uses `ShaderMask` with `LinearGradient` (stops: [0.0, 0.50]) for fade effect
+- Artwork layer positioned in Stack: Base background → Artwork → Content
 
 ### Special Token Handling
 - **Emblems**: Detected via `isEmblem` computed property (name/abilities contains "emblem")
@@ -675,11 +695,15 @@ When modifying `process_tokens_with_popularity.py`:
 
 ## Future Feature Context
 
+**Implemented Features:**
+- ✅ Token artwork display with two style modes (implemented on `artwork` branch)
+- ✅ Floating toolbar (implemented in Flutter version)
+
+**Planned Features:**
 See `docs/activeDevelopment/FeedbackIdeas.md` for user-requested features:
-- Token artwork (download/on-demand/user upload)
 - Combat tracking interface
 - Condensed view mode
-- New toolbar positioning (floating toolbox already implemented in Flutter version)
+- Enhanced artwork features (auto-assignment, user upload)
 
 See `docs/activeDevelopment/PremiumVersionIdeas.md` for planned paid features:
 - Commander-specific tools (Brudiclad, Krenko, Chatterfang)
