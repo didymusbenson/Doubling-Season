@@ -48,10 +48,7 @@ class TokenCard extends StatelessWidget {
 
               // Artwork layer (background, if artwork selected)
               if (item.artworkUrl != null)
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 500),
-                  child: _buildArtworkLayer(context, constraints),
-                ),
+                _buildArtworkLayer(context, constraints),
 
               // Content layer (all existing UI elements)
               Container(
@@ -470,19 +467,10 @@ class TokenCard extends StatelessWidget {
   Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints) {
     final artworkStyle = context.read<SettingsProvider>().artworkDisplayStyle;
 
-    // Include both artworkUrl and style in key to trigger AnimatedSwitcher on style change
-    final key = ValueKey('${item.artworkUrl ?? 'no-art'}-$artworkStyle');
-
     if (artworkStyle == 'fadeout') {
-      return KeyedSubtree(
-        key: key,
-        child: _buildFadeoutArtwork(context, constraints),
-      );
+      return _buildFadeoutArtwork(context, constraints);
     } else {
-      return KeyedSubtree(
-        key: key,
-        child: _buildFullViewArtwork(context, constraints),
-      );
+      return _buildFullViewArtwork(context, constraints);
     }
   }
 
