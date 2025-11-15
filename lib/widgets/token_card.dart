@@ -171,63 +171,82 @@ class TokenCard extends StatelessWidget {
               ),
             ],
 
-            // Abilities
-            if (item.abilities.isNotEmpty) ...[
+            // Abilities and P/T combined row
+            if (item.abilities.isNotEmpty || (!item.isEmblem && item.pt.isNotEmpty)) ...[
               const SizedBox(height: UIConstants.mediumSpacing),
               Padding(
-                padding: EdgeInsets.only(right: kIsWeb ? 40 : 0),
-                child: _buildTextWithBackground(
-                  context: context,
-                  child: Text(
-                    item.abilities,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                padding: EdgeInsets.only(right: kIsWeb ? 40 : 0, bottom: UIConstants.mediumSpacing),
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Abilities (top-left)
+                      if (item.abilities.isNotEmpty)
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.topLeft,
+                            child: _buildTextWithBackground(
+                              context: context,
+                              child: Text(
+                                item.abilities,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                      // Spacer when no abilities (pushes P/T to the right)
+                      if (item.abilities.isEmpty && !item.isEmblem && item.pt.isNotEmpty)
+                        const Spacer(),
+
+                      // Spacing between abilities and P/T
+                      if (item.abilities.isNotEmpty && !item.isEmblem && item.pt.isNotEmpty)
+                        const SizedBox(width: UIConstants.mediumSpacing),
+
+                      // P/T (bottom-right)
+                      if (!item.isEmblem && item.pt.isNotEmpty)
+                        Align(
+                          alignment: Alignment.bottomRight,
+                          child: item.isPowerToughnessModified
+                              ? Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: UIConstants.mediumSpacing,
+                                    vertical: UIConstants.verticalSpacing,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.85),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    item.formattedPowerToughness,
+                                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                  ),
+                                )
+                              : _buildTextWithBackground(
+                                  context: context,
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  child: Text(
+                                    item.formattedPowerToughness,
+                                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                  ),
+                                ),
+                        ),
+                    ],
                   ),
                 ),
               ),
             ],
 
             const SizedBox(height: UIConstants.largeSpacing),
-
-            // P/T Row (new dedicated row)
-            if (!item.isEmblem && item.pt.isNotEmpty) ...[
-              Container(
-                width: double.infinity,
-                alignment: Alignment.centerRight,
-                padding: EdgeInsets.only(bottom: UIConstants.mediumSpacing, right: kIsWeb ? 40 : 0),
-                child: item.isPowerToughnessModified
-                    ? Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: UIConstants.mediumSpacing,
-                          vertical: UIConstants.verticalSpacing,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.85),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          item.formattedPowerToughness,
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                      )
-                    : _buildTextWithBackground(
-                        context: context,
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        child: Text(
-                          item.formattedPowerToughness,
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                      ),
-              ),
-            ],
 
             // Button Row (centered)
             _buildActionButtons(context, context.read<SettingsProvider>()),
