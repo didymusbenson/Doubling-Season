@@ -13,7 +13,7 @@ class SplashScreen extends StatelessWidget {
 
     // Calculate optimal font size - test against longest text
     // Account for safe area insets (notches, rounded corners) plus explicit padding
-    final availableWidth = screenWidth - padding.left - padding.right - 32.0; // Extra margin for safety
+    final availableWidth = screenWidth - padding.left - padding.right - 48.0; // Extra margin for safety
     final fontSize = _calculateFontSize(availableWidth);
 
     return GestureDetector(

@@ -251,10 +251,16 @@ class TokenProvider extends ChangeNotifier {
         pt: original.pt,
         abilities: original.abilities,
         colors: original.colors,
+        type: original.type,
         amount: original.amount,
         tapped: original.tapped,
         summoningSick: summoningSicknessEnabled ? original.amount : 0,
         order: newOrder,
+        artworkUrl: original.artworkUrl,
+        artworkSet: original.artworkSet,
+        artworkOptions: original.artworkOptions != null
+            ? List.from(original.artworkOptions!)
+            : null,
       );
 
       // Add to box FIRST, then set properties that call save()

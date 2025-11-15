@@ -1,694 +1,1434 @@
-# Next Feature: Token Artwork Display
+# Next Feature: Artwork Display Style Toggle
 
-## Overview
-Add the ability to display official Magic: The Gathering token artwork in the app by utilizing Scryfall's CDN image URLs. Images will be downloaded on-demand at the user's request and cached locally for offline use.
+## ✅ STATUS: COMPLETED
 
-## Legal & Attribution Requirements
+**Implementation Date:** 2025-01-13
+**Branch:** `artwork-style-toggle`
+**Commits:**
+- `9f88ab3` - Initial implementation
+- `a3464b0` - Fixed AnimatedSwitcher causing widget tree errors
+- `29dcf1b` - Fixed background colors for light mode
+- `870ebe1` - Made artwork style changes reactive
+- `c663b8c` - Fixed fadeout artwork alignment to right edge
 
-### Scryfall CDN Usage
-- **Approved method**: Direct CDN links from `cards.scryfall.io` (provided in Cockatrice XML)
-- **No API integration required**: Using direct image URLs (not hitting Scryfall's REST API)
-- **Image format**: Full card images (`/large/front/...`) which include copyright text on card frame
-- **No modifications allowed**: Images must be displayed as-is (no cropping, distortion, color shifting, etc.)
-- **No paywall**: Artwork feature must remain free (can monetize other features separately)
+**Result:** Feature successfully implemented and tested. Users can toggle between Full View and Fadeout artwork display styles via Settings. All visible tokens update immediately when style is changed.
 
-### Attribution Requirements
-Must add copyright notice to About screen (Credits section):
+**Known Issues:** None. AnimatedSwitcher was removed to maintain proper widget tree structure with Positioned widgets.
 
-```
-Card images © Wizards of the Coast LLC, a subsidiary of Hasbro, Inc.
-Images provided by Scryfall. Scryfall is not produced by or endorsed
-by Wizards of the Coast.
+**Documentation Updated:**
+- ✅ CLAUDE.md - Added Artwork Display section
+- ✅ SettingsProvider documentation updated
+- ✅ Future Feature Context updated to mark as implemented
 
-Doubling Season is unofficial Fan Content permitted under the Fan
-Content Policy. Not approved/endorsed by Wizards. Portions of the
-materials used are property of Wizards of the Coast. © Wizards of
-the Coast LLC.
-```
+---
 
-This covers:
-- WotC copyright acknowledgment
-- Scryfall credit for image hosting
-- Required WotC Fan Content Policy statement
-- General materials acknowledgment
+## Overview (Original Planning Document)
 
-## Data Source: Cockatrice XML
+Implement a user-selectable setting that allows toggling between two different artwork display styles for tokens:
 
-Token artwork URLs are already available in the source XML but currently stripped during processing.
+1. **FULL VIEW** (Method 2 from artFeature.md) - Currently on `artwork` branch
+2. **FADEOUT** (Method 1 from artFeature.md) - Currently on `altArtwork` branch
 
-**Example XML structure:**
-```xml
-<card>
-    <name>A Mysterious Creature</name>
-    <text>...</text>
-    <prop>
-        <type>Creature</type>
-        <pt>2/2</pt>
-    </prop>
-    <set picURL="https://cards.scryfall.io/large/front/c/7/c76a6163-6fd9-4cdf-9b14-07f75c2f0fa1.jpg?1720338560">ACR</set>
-    <set picURL="https://cards.scryfall.io/large/front/2/4/241b3b6d-a25f-4a43-b5d6-1d1079e7e498.jpg?1705432997">MKM</set>
-</card>
-```
+Both implementations share core artwork infrastructure (download, caching, selection) but differ in how artwork is displayed on TokenCard.
 
-**Key observations:**
-- Each token can have **multiple art variants** (different sets)
-- Set code provided (e.g., "ACR", "MKM")
-- Direct CDN URLs to full card images
-- URLs include cache-busting timestamp parameter
+## Prerequisites (MUST BE COMPLETED FIRST)
 
-## Required Changes
+### 1. Branch State Verification
+- **Current branch:** `artwork` (verified from git status)
+- **Artwork infrastructure status:** IMPLEMENTED on both `artwork` and `altArtwork` branches
+  - Artwork selection UI (ExpandedTokenScreen) ✅
+  - Download/caching (ArtworkManager) ✅
+  - Manual artwork selection (ArtworkSelectionSheet) ✅
+  - Display on TokenCard ✅
+- **Known issues:** None blocking this feature
 
-### 1. Update Token Database Processing Script
-**File:** `docs/housekeeping/process_tokens_with_popularity.py`
+### 2. Auto-Assignment Feature
+- **Status:** NOT IMPLEMENTED on either branch
+- **Action:** Skip auto-assignment for this feature - it will be added later
+- **Rationale:** Style toggle can work independently of auto-assignment
+- **Note:** Auto-assignment documented in artFeature.md is a FUTURE feature, not required for style toggle
 
-**Current behavior:** Script ignores `<set picURL="...">` tags entirely
+### 3. AnimatedSwitcher Status
+- **Status:** NOT verified on either branch
+- **Action:** If AnimatedSwitcher not present, add it during implementation
+- **Location:** TokenCard `_buildArtworkLayer` should wrap artwork with AnimatedSwitcher
+- **Key behavior:** ValueKey should include both artworkUrl AND artworkDisplayStyle to trigger transition on style change
 
-**Required behavior:** Extract and store artwork URLs with set information
+### 4. Starting Point
+- **Base branch:** `artwork` (current branch)
+- **Strategy:** Create new feature branch, then merge specific code from `altArtwork`
+- **New branch name:** `artwork-style-toggle`
 
-**Implementation approach:**
-- Parse all `<set>` tags for each token
-- Extract `picURL` attribute and set code (tag content)
-- Store as array of art variant objects: `[{set: "ACR", url: "https://..."}, ...]`
-- Preserve deduplication logic (may need to handle art merging for duplicates)
-- Consider storage format in JSON (array of objects vs parallel arrays)
+---
 
-**Output schema addition to `token_database.json`:**
-```json
-{
-  "name": "A Mysterious Creature",
-  "abilities": "...",
-  "pt": "2/2",
-  "colors": "",
-  "type": "Creature",
-  "artwork": [
-    {
-      "set": "ACR",
-      "url": "https://cards.scryfall.io/large/front/c/7/c76a6163-6fd9-4cdf-9b14-07f75c2f0fa1.jpg?1720338560"
-    },
-    {
-      "set": "MKM",
-      "url": "https://cards.scryfall.io/large/front/2/4/241b3b6d-a25f-4a43-b5d6-1d1079e7e498.jpg?1705432997"
-    }
-  ]
+## Quick Start (TL;DR for Autonomous Agent)
+
+**Goal:** Add user setting to toggle between two artwork display styles (Full View vs Fadeout)
+
+**What to do:**
+1. Follow **Step-by-Step Implementation Sequence** section below (11 phases)
+2. Each phase has explicit code snippets and verification steps
+3. Run automated tests to verify code correctness
+4. Commit and push when complete
+5. Manual testing (visual verification) will be done by user afterward
+
+**Key files to modify:**
+- `lib/providers/settings_provider.dart` - Add setting
+- `lib/widgets/token_card.dart` - Add fadeout method, wire up switching
+- `lib/widgets/cropped_artwork_widget.dart` - Add fillWidth parameter
+- `lib/screens/content_screen.dart` - Add UI for style selection
+
+**Starting branch:** `artwork` → Create new branch `artwork-style-toggle`
+
+**Expected outcome:** User can switch between Full View and Fadeout artwork styles via Settings dialog, setting persists across restarts.
+
+---
+
+## Branch Comparison Summary
+
+### `artwork` branch (FULL VIEW Method)
+- **Latest commit:** `72ec0c9 - Token Artwork "FULL VIEW" version.`
+- **Display style:** Full-width background artwork with semi-transparent color overlay
+- **Implementation:** Full card method as documented in artFeature.md Method 2
+
+### `altArtwork` branch (FADEOUT Method)
+- **Latest commit:** `e57c6ae - fade method implemented`
+- **Based on:** `artwork` branch + fadeout modifications
+- **Display style:** Right-aligned artwork (50% width) with gradient fade
+- **Implementation:** Fadeout method as documented in artFeature.md Method 1
+
+---
+
+## Detailed Implementation Comparison
+
+### 1. Artwork Layer Structure (`_buildArtworkLayer`)
+
+#### FULL VIEW (`artwork` branch)
+```dart
+Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints) {
+  final crop = ArtworkManager.getCropPercentages();
+
+  return Positioned.fill(  // � Full-width
+    child: FutureBuilder<File?>(
+      future: ArtworkManager.getCachedArtworkFile(item.artworkUrl!),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data != null) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+            child: CroppedArtworkWidget(  // � No shader mask
+              imageFile: snapshot.data!,
+              cropLeft: crop['left']!,
+              cropRight: crop['right']!,
+              cropTop: crop['top']!,
+              cropBottom: crop['bottom']!,
+            ),
+          );
+        }
+        return const SizedBox.shrink();
+      },
+    ),
+  );
 }
 ```
 
-**Deduplication considerations:**
-- When merging duplicate tokens, combine artwork arrays
-- Remove duplicate URLs (same token printed in multiple sets may have same art)
-- Maintain set information for user preference
+**Key characteristics:**
+- `Positioned.fill` - Artwork fills entire card width (100%)
+- No gradient/shader mask
+- Uniform border radius on all corners
+- Relies on overlay layer for opacity fade
 
-### 2. Update TokenDefinition Model
-**File:** `lib/models/token_definition.dart`
-
-**Add artwork field:**
+#### FADEOUT (`altArtwork` branch)
 ```dart
-class ArtworkVariant {
-  final String set;
-  final String url;
+Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints) {
+  final crop = ArtworkManager.getCropPercentages();
+  final cardWidth = constraints.maxWidth;
+  final artworkWidth = cardWidth * 0.50;  // � 50% of card width
 
-  ArtworkVariant({required this.set, required this.url});
+  return Positioned(  // � Right-side placement
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: artworkWidth,
+    child: FutureBuilder<File?>(
+      future: ArtworkManager.getCachedArtworkFile(item.artworkUrl!),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data != null) {
+          return ClipRRect(
+            borderRadius: const BorderRadius.only(  // � Only right corners
+              topRight: Radius.circular(UIConstants.smallBorderRadius),
+              bottomRight: Radius.circular(UIConstants.smallBorderRadius),
+            ),
+            child: ShaderMask(  // � Gradient fade
+              shaderCallback: (bounds) {
+                return const LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    Colors.transparent, // Fade start (0% opacity)
+                    Colors.white,       // Fade end (100% opacity)
+                  ],
+                  stops: [0.0, 0.50], // Fade over first 50% of artwork width
+                ).createShader(bounds);
+              },
+              blendMode: BlendMode.dstIn,
+              child: CroppedArtworkWidget(
+                imageFile: snapshot.data!,
+                cropLeft: crop['left']!,
+                cropRight: crop['right']!,
+                cropTop: crop['top']!,
+                cropBottom: crop['bottom']!,
+              ),
+            ),
+          );
+        }
+        return const SizedBox.shrink();
+      },
+    ),
+  );
+}
+```
 
-  factory ArtworkVariant.fromJson(Map<String, dynamic> json) {
-    return ArtworkVariant(
-      set: json['set'] as String,
-      url: json['url'] as String,
-    );
+**Key characteristics:**
+- `Positioned` with `right: 0` - Artwork on right side only
+- Artwork width: **50% of card width**
+- `ShaderMask` with `LinearGradient` - Creates fade from transparent to opaque
+- Gradient stops: `[0.0, 0.50]` - Fades over first 50% of artwork width (25% of total card width)
+- Border radius only on right corners
+- No separate overlay layer needed
+
+---
+
+### 2. Stack Layer Order
+
+#### FULL VIEW (`artwork` branch)
+```dart
+Stack(
+  children: [
+    // Artwork layer (background, if artwork selected)
+    if (item.artworkUrl != null)
+      _buildArtworkLayer(context, constraints),
+
+    // Content layer (all existing UI elements)
+    Container(...),
+  ],
+)
+```
+
+**Layer order:**
+1. Artwork (full-width background)
+2. Content (UI elements with background boxes)
+
+**Note:** Has `_buildOverlayLayer` method defined but NOT used in Stack
+
+#### FADEOUT (`altArtwork` branch)
+```dart
+Stack(
+  children: [
+    // Base card background layer
+    Container(
+      color: Theme.of(context).cardColor,
+    ),
+
+    // Artwork layer (background, if artwork selected)
+    if (item.artworkUrl != null)
+      _buildArtworkLayer(context, constraints),
+
+    // Content layer (all existing UI elements)
+    Container(...),
+  ],
+)
+```
+
+**Layer order:**
+1. Base card background (solid color)
+2. Artwork (right-side, 50% width)
+3. Content (UI elements with background boxes)
+
+**Note:** No `_buildOverlayLayer` method at all
+
+---
+
+### 3. Text Background Boxes (`_buildTextWithBackground`)
+
+#### FULL VIEW (`artwork` branch)
+```dart
+Widget _buildTextWithBackground({
+  required BuildContext context,
+  required Widget child,
+  EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+}) {
+  if (item.artworkUrl == null) {
+    return child;
   }
-}
 
-class TokenDefinition {
-  final String name;
-  final String abilities;
-  final String pt;
-  final String colors;
-  final String type;
-  final List<ArtworkVariant> artwork;  // ← Add this
+  final backgroundColor = Theme.of(context).brightness == Brightness.dark
+      ? Theme.of(context).colorScheme.surface
+      : Theme.of(context).colorScheme.surfaceContainerHighest;
 
-  // Update fromJson to parse artwork array
-}
-```
-
-**Note:** TokenDefinition is NOT persisted to Hive - it's only loaded from JSON
-
-### 3. Add Artwork Fields to Item Model
-**File:** `lib/models/item.dart`
-
-**Store both URL and set code for display flexibility:**
-
-```dart
-@HiveField(13)  // Next available after type at 12
-String? artworkUrl;  // Full CDN URL for image loading, null = no artwork
-
-@HiveField(14)  // Store set code separately for UI display
-String? artworkSet;  // Set code (e.g., "M15", "KLD"), null = no artwork
-```
-
-**Rationale for storing both:**
-- **artworkUrl**: Used for actual image loading (caching, display)
-- **artworkSet**: Used for UI display ("Artwork: M15" in detail view)
-- Both nullable - `null` means "Artwork: None" (default state)
-- When user selects artwork, both fields are populated simultaneously
-- Small storage overhead (~10 bytes for set code) but significant UX benefit
-
-**Why not just store URL:**
-- Would need to parse set code from URL or look up in TokenDefinition
-- URL parsing is fragile (URLs could change format)
-- TokenDefinition lookup requires matching token definition (what if custom token?)
-- Storing set code explicitly is cleaner and more reliable
-
-**Why not just store set code:**
-- Would need to look up URL every time we display image
-- Requires keeping TokenDefinition in memory or re-loading JSON
-- Breaks if user has custom token or token database changes
-- Direct URL access is faster and more reliable
-
-**Migration strategy:**
-- Add both fields with default `null`
-- Existing tokens will have no artwork (expected behavior)
-- Users can add artwork on-demand via ExpandedTokenScreen
-
-### 4. Add Artwork Fields to TokenTemplate Model
-**File:** `lib/models/token_template.dart`
-
-**Add both artwork fields to deck save/load:**
-```dart
-@HiveField(6)  // Next available after type at 5
-String? artworkUrl;  // Preserve user's artwork choice in saved decks
-
-@HiveField(7)  // Store set code as well
-String? artworkSet;  // Set code for UI display
-```
-
-**Update fromItem() and toItem():**
-```dart
-factory TokenTemplate.fromItem(Item item) {
-  return TokenTemplate(
-    // ... existing fields
-    artworkUrl: item.artworkUrl,
-    artworkSet: item.artworkSet,
-  );
-}
-
-Item toItem({int amount = 1, bool createTapped = false}) {
-  return Item(
-    // ... existing fields
-    artworkUrl: artworkUrl,
-    artworkSet: artworkSet,
+  return Container(
+    padding: padding,
+    decoration: BoxDecoration(
+      color: backgroundColor.withValues(alpha: 0.85),  // � Semi-transparent
+      borderRadius: BorderRadius.circular(4),
+    ),
+    child: child,
   );
 }
 ```
 
-**Why preserve both fields:**
-- Saved decks should restore exact user choices including artwork
-- When loading a deck, tokens should appear with same artwork as when saved
-- Both URL and set code needed for complete restoration
+**Background color:**
+- Dark mode: `surface` with 0.85 alpha (semi-transparent)
+- Light mode: `surfaceContainerHighest` with 0.85 alpha (semi-transparent)
 
-### 5. Create Artwork Management System
-
-**New file:** `lib/utils/artwork_manager.dart`
-
-**Responsibilities:**
-- Download artwork from Scryfall CDN
-- Cache images locally in app data directory
-- Provide cached image paths for display
-- Handle download failures gracefully
-- Track which tokens have artwork downloaded
-
-**Key methods:**
+#### FADEOUT (`altArtwork` branch)
 ```dart
-class ArtworkManager {
-  // Get local path for cached artwork (null if not downloaded)
-  static Future<String?> getCachedArtworkPath(String url);
+Widget _buildTextWithBackground({
+  required BuildContext context,
+  required Widget child,
+  EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+}) {
+  if (item.artworkUrl == null) {
+    return child;
+  }
 
-  // Download artwork and cache locally
-  static Future<bool> downloadArtwork(String url, {Function(double)? onProgress});
-
-  // Check if artwork is already cached
-  static Future<bool> isArtworkCached(String url);
-
-  // Delete cached artwork (for user cleanup)
-  static Future<void> deleteCachedArtwork(String url);
-
-  // Get cache directory path
-  static Future<String> getArtworkCacheDirectory();
-
-  // Get total cache size (for user info)
-  static Future<int> getTotalCacheSize();
-
-  // Clear all cached artwork
-  static Future<void> clearAllArtwork();
+  return Container(
+    padding: padding,
+    decoration: BoxDecoration(
+      color: Theme.of(context).cardColor,  // � Solid color
+      borderRadius: BorderRadius.circular(4),
+    ),
+    child: child,
+  );
 }
 ```
 
-**Implementation notes:**
-- Use `path_provider` package for app data directory
-- Generate filename from URL hash (deterministic, handles URL changes)
-- Store as `.jpg` files in dedicated artwork cache subdirectory
-- Consider rate limiting downloads (respect Scryfall's infrastructure)
-- Add User-Agent header to requests (good etiquette): "DoublingSeason/1.0"
+**Background color:**
+- Uses `cardColor` (solid, no alpha transparency)
+- No theme-specific logic needed
 
-### 6. Add Artwork Display to ExpandedTokenScreen
-**File:** `lib/screens/expanded_token_screen.dart`
+---
 
-**UI Layout - Add artwork field to token details:**
-```
-┌─────────────────────────────┐
-│ Name: Goblin           1/1  │
-│ Type: Creature — Goblin     │
-│ Colors: [R]                 │
-│ Artwork: None          [→]  │  ← NEW: Tappable row
-│ Abilities: Haste            │
-│ ...rest of existing UI...   │
-└─────────────────────────────┘
+### 4. Action Button Backgrounds (`_buildActionButton`)
+
+#### FULL VIEW (`artwork` branch)
+```dart
+final buttonBackgroundColor = item.artworkUrl != null
+    ? (Theme.of(context).brightness == Brightness.dark
+        ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.85)
+        : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.85))
+    : effectiveColor.withValues(alpha: 0.15);
 ```
 
-**Artwork Field Behavior:**
-- **Default state**: Displays "Artwork: None" (no artwork selected by default)
-- **After selection**: Displays "Artwork: [Set Code]" (e.g., "Artwork: M15" or "Artwork: KLD")
-- **Tappable row**: User taps anywhere on the artwork row to open selection sheet
-- **Visual indicator**: Chevron/arrow (→) on right side indicating it's tappable
-- **Positioning**: Between Colors and Abilities in the detail screen layout
+**Background color:**
+- With artwork: `surface` (dark) or `surfaceContainerHighest` (light) with 0.85 alpha
+- Without artwork: `effectiveColor` with 0.15 alpha (original transparent style)
 
-**Artwork Display in Detail View:**
-- **When artwork selected**: Show full card image at top of screen (above token details)
-  - Full, unmodified card image (no cropping, no fade)
-  - Full color, no opacity overlay
-  - Use `Image.file()` to load from cache
-  - Aspect ratio: Preserve original (standard Magic card ratio ~63:88)
-  - Image tappable for full-screen preview (optional)
-- **When no artwork**: Don't show image area, start with Name field
-
-**Artwork Selection Sheet (Bottom Sheet):**
-
-**Sheet Title:** "Select Token Artwork"
-
-**Case 1: Artwork available (most tokens)**
-```
-┌─────────────────────────────────────┐
-│ Select Token Artwork           [×]  │
-├─────────────────────────────────────┤
-│ ┌─────────────┐                     │
-│ │ [Thumbnail] │ M15                 │  ← Tappable row
-│ │   Goblin    │ Core Set 2015       │
-│ └─────────────┘                     │
-│                                     │
-│ ┌─────────────┐                     │
-│ │ [Thumbnail] │ KLD                 │  ← Tappable row
-│ │   Goblin    │ Kaladesh            │
-│ └─────────────┘                     │
-│                                     │
-│ ┌─────────────┐                     │
-│ │ [Thumbnail] │ DOM                 │  ← Tappable row
-│ │   Goblin    │ Dominaria           │
-│ └─────────────┘                     │
-│                                     │
-│ ... (scrollable if many options)    │
-└─────────────────────────────────────┘
+#### FADEOUT (`altArtwork` branch)
+```dart
+final buttonBackgroundColor = item.artworkUrl != null
+    ? Theme.of(context).cardColor
+    : effectiveColor.withValues(alpha: 0.15);
 ```
 
-**Each artwork option displays:**
-- Thumbnail image (small preview of card art)
-- Set code (e.g., "M15", "KLD") - prominent
-- Set name (e.g., "Core Set 2015") - secondary text below set code
-- Token name on thumbnail for clarity
+**Background color:**
+- With artwork: `cardColor` (solid)
+- Without artwork: `effectiveColor` with 0.15 alpha (original transparent style)
 
-**Sheet behavior:**
-- Scrollable list if more than ~4-5 artwork variants
-- Each row is tappable
-- Close button [×] in top-right to dismiss without selection
+---
 
-**Case 2: No artwork available (some tokens)**
-```
-┌─────────────────────────────────────┐
-│ Select Token Artwork           [×]  │
-├─────────────────────────────────────┤
-│                                     │
-│         No token art available      │
-│                                     │
-│   This token doesn't have official │
-│   artwork in the database.          │
-│                                     │
-└─────────────────────────────────────┘
+### 5. Cropped Artwork Widget Scaling (`cropped_artwork_widget.dart`)
+
+#### FULL VIEW (`artwork` branch)
+```dart
+// Use BoxFit.cover behavior: fill width, maintain aspect ratio, overflow/crop height
+final scaleToFillWidth = size.width / croppedWidth;
+final scaledHeight = croppedHeight * scaleToFillWidth;
+
+// Center vertically and allow overflow
+final dstTop = (size.height - scaledHeight) / 2;
+final dstRect = Rect.fromLTWH(0, dstTop, size.width, scaledHeight);
 ```
 
-**Confirmation Preview Dialog:**
+**Scaling priority:**
+- Fill **WIDTH** first
+- Crop **HEIGHT** (vertically) if needed
+- Center vertically
 
-When user taps an artwork option, show larger preview before confirming:
+#### FADEOUT (`altArtwork` branch)
+```dart
+// Use BoxFit.cover behavior: fill height, maintain aspect ratio, overflow/crop width
+final scaleToFillHeight = size.height / croppedHeight;
+final scaledWidth = croppedWidth * scaleToFillHeight;
 
-```
-┌─────────────────────────────────────┐
-│                                     │
-│   [Large Card Image Preview]        │
-│                                     │
-│   Goblin - M15                      │
-│   Core Set 2015                     │
-│                                     │
-│   ┌────────┐    ┌──────────┐       │
-│   │ Cancel │    │ Confirm  │       │
-│   └────────┘    └──────────┘       │
-└─────────────────────────────────────┘
+// Center horizontally and allow overflow
+final dstLeft = (size.width - scaledWidth) / 2;
+final dstRect = Rect.fromLTWH(dstLeft, 0, scaledWidth, size.height);
 ```
 
-**Confirmation dialog details:**
-- Shows full-size card image (not just thumbnail)
-- Displays set code and set name for clarity
-- Two buttons: Cancel (dismiss, return to selection sheet) / Confirm (download and save)
-- If image already cached: instant confirmation, no download progress
-- If image not cached: Show download progress after Confirm
+**Scaling priority:**
+- Fill **HEIGHT** first
+- Crop **WIDTH** (horizontally) if needed
+- Center horizontally
 
-**Complete User Flow:**
+---
 
-1. **User opens ExpandedTokenScreen** (detail view for a token)
-   - Sees "Artwork: None" field
+### 6. Unused Code Differences
 
-2. **User taps "Artwork" row**
-   - Bottom sheet opens showing available art variants
-   - Sheet shows thumbnails with set codes OR "No token art available"
+#### FULL VIEW (`artwork` branch)
+- Has `_buildOverlayLayer()` method **defined but NOT used in Stack**
+- Method creates a semi-transparent overlay layer with 0.5 alpha
+- Appears to be leftover from development/testing
 
-3. **User taps an artwork option**
-   - Confirmation dialog appears with large preview
-   - Shows set code and name
+#### FADEOUT (`altArtwork` branch)
+- No `_buildOverlayLayer()` method (removed entirely)
+- Cleaner implementation without unused code
 
-4. **User taps "Confirm"**
-   - If not cached: Download progress dialog appears
-   - Image downloads and caches
-   - Dialog dismisses on completion (or error)
+---
 
-5. **Sheet closes, returns to ExpandedTokenScreen**
-   - Artwork field now shows "Artwork: M15" (selected set code)
-   - Full card image appears at top of screen
-   - Image persisted to `item.artworkUrl`
+## Common Elements (Shared Between Both)
 
-6. **User navigates back to ContentScreen (list view)**
-   - TokenCard now displays with artwork background (fade effect from mockup)
-   - Artwork persists across app restarts
+### Artwork Infrastructure
+ Both use same artwork download/caching system (`ArtworkManager`)
+ Both use same crop percentages (8.8% left/right, 14.5% top, 36.8% bottom)
+ Both use `CroppedArtworkWidget` for rendering
+ Both check `item.artworkUrl != null` before displaying artwork
+ Both use `FutureBuilder` for async image loading
+ Both show background boxes on text elements (when artwork present)
+ Both use same padding for background boxes: `EdgeInsets.symmetric(horizontal: 6, vertical: 2)`
+ Both use `BorderRadius.circular(4)` for text background boxes
+ Both apply background boxes only when artwork exists
 
-**Changing/Removing Artwork:**
+### UI Elements
+ Same token card layout structure (name, type, abilities, counters, buttons)
+ Same action button layout and spacing logic
+ Same emblem handling (centered text, no tap/untap)
+ Same counter pill display
+ Same gesture handling (tap to expand, long-press for bulk actions)
 
-- **Change artwork**: Tap "Artwork: [Set Code]" row → Opens selection sheet again
-- **Remove artwork**: Long-press on artwork image in detail view → Confirmation dialog → Sets back to "None"
-- **Alternative removal**: Add "Remove Artwork" option at top of selection sheet when artwork already selected
+### Data Models
+ Both use `Item.artworkUrl` to store artwork URL
+ Both use `Item.artworkSet` to store set code
+ Both preserve artwork in deck save/load via `TokenTemplate`
 
-**Error Handling:**
+---
 
-- **Download fails**: Show error dialog, remain on "Artwork: None", allow retry
-- **Image fails to load from cache**: Fallback to no artwork display, log error
-- **No network connection**: Show alert when user tries to download, explain network required
+## Discrepancies Requiring User Decisions
 
-### 7. Add Artwork Display to TokenCard
+### 1. Background Color Choices
+
+**Issue:** The two implementations use different background colors for text boxes and buttons.
+
+**FULL VIEW approach:**
+- Text backgrounds: `surface` / `surfaceContainerHighest` with 0.85 alpha
+- Button backgrounds: `surface` / `surfaceContainerHighest` with 0.85 alpha
+- Rationale: Semi-transparency allows some artwork to show through
+
+**FADEOUT approach:**
+- Text backgrounds: `cardColor` (solid)
+- Button backgrounds: `cardColor` (solid)
+- Rationale: Simpler, more readable, no transparency needed
+
+**Decision needed:**
+- **Option A:** Use FULL VIEW colors (semi-transparent surface colors) for both styles
+- **Option B:** Use FADEOUT colors (solid cardColor) for both styles
+- **Option C:** Keep different colors per style (FULL VIEW = semi-transparent, FADEOUT = solid)
+- **Option D:** Make background color/opacity a separate user preference
+
+**✅ USER DECISION:** Option A (semi-transparent backgrounds with 0.85 alpha for both styles)
+- Text backgrounds: `surface` / `surfaceContainerHighest` with 0.85 alpha
+- Button backgrounds: `surface` / `surfaceContainerHighest` with 0.85 alpha
+- Consistent across both styles
+
+---
+
+### 2. Artwork Width Percentage (FADEOUT only)
+
+**Current value:** 50% of card width
+
+**Original spec (artFeature.md Method 1):** 30% of card width
+
+**Issue:** The implemented fadeout uses 50% width instead of the documented 30%.
+
+**✅ USER DECISION:** Keep at 50% (current implementation is the standard)
+- Actual implementation takes precedence over original planning documents
+- artFeature.md will be updated to reflect 50% as the specification
+
+---
+
+### 3. Gradient Fade Distance (FADEOUT only)
+
+**Current value:** Fades over first 50% of artwork width (i.e., 25% of total card width)
+
+**Original spec (artFeature.md Method 1):** Fades over first 25% of artwork width (i.e., 7.5% of total card width with 30% artwork)
+
+**Issue:** Gradient fade zone is larger than originally specified.
+
+**✅ USER DECISION:** Keep at 50% fade distance (current implementation is the standard)
+- Actual implementation takes precedence over original planning documents
+- artFeature.md will be updated to reflect 50% fade as the specification
+
+---
+
+### 4. Overlay Layer Usage (FULL VIEW only)
+
+**Current state:** `_buildOverlayLayer()` method exists but is NOT used in Stack.
+
+**Issue:** Code is defined but inactive. Suggests incomplete implementation or testing artifact.
+
+**What the unused overlay does:**
+- Creates semi-transparent background color overlay at 0.5 alpha
+- Would sit on top of artwork, below content
+- Purpose: Fade out artwork to improve text readability
+
+**✅ USER DECISION:** Keep the overlay code but leave it unused
+- Preserve `_buildOverlayLayer()` method for potential future use
+- Document in code comments that it's available for masking background with opacity if needed
+- Currently unused because text background boxes provide sufficient contrast
+- Can be enabled later if we want to globally dim artwork across entire card
+
+---
+
+### 5. Base Card Background Layer
+
+**FADEOUT has:** Explicit base card background layer in Stack
+```dart
+Container(color: Theme.of(context).cardColor)
+```
+
+**FULL VIEW has:** No explicit base layer (relies on parent widget background)
+
+**Issue:** FADEOUT explicitly sets card background to ensure left 50% is solid color.
+
+**Decision needed:**
+- Add base background layer to FULL VIEW for consistency?
+- Keep FULL VIEW without base layer (relies on parent)?
+
+**Recommendation:** Add base background layer to both for consistency and predictability.
+
+---
+
+### 6. Font/Text Style Differences
+
+**Current state:** Both implementations use identical text styles (from Theme)
+
+**No differences found** 
+
+---
+
+### 7. Color/Opacity Variations
+
+| Element | FULL VIEW | FADEOUT |
+|---------|-----------|---------|
+| Text background color | `surface` / `surfaceContainerHighest` | `cardColor` |
+| Text background opacity | 0.85 alpha | 1.0 (solid) |
+| Button background color | `surface` / `surfaceContainerHighest` | `cardColor` |
+| Button background opacity | 0.85 alpha | 1.0 (solid) |
+| Artwork overlay | None (method defined but unused) | None |
+
+---
+
+## Step-by-Step Implementation Sequence
+
+**IMPORTANT:** Follow these steps in exact order. Each step must be completed before proceeding to the next.
+
+### Phase 1: Create Feature Branch
+```bash
+# Ensure you're on artwork branch
+git checkout artwork
+
+# Create new feature branch
+git checkout -b artwork-style-toggle
+
+# Verify branch created
+git branch --show-current
+# Expected output: artwork-style-toggle
+```
+
+### Phase 2: Add Setting to SettingsProvider
+
+**File:** `lib/providers/settings_provider.dart`
+
+**Action:** Add new setting after `summoningSicknessEnabled` (around line 45)
+
+**Code to add:**
+```dart
+// Artwork display style: 'fullView' or 'fadeout'
+String get artworkDisplayStyle => _prefs.getString('artworkDisplayStyle') ?? 'fadeout';
+
+Future<void> setArtworkDisplayStyle(String style) async {
+  await _prefs.setString('artworkDisplayStyle', style);
+  notifyListeners();
+}
+```
+
+**Verification:** Run `flutter analyze` - should have no errors
+
+### Phase 3: Copy Fadeout Implementation from altArtwork Branch
+
+**Step 3a: Extract fadeout code**
+
+Check out the altArtwork branch version of token_card.dart to a temporary file:
+```bash
+git show altArtwork:lib/widgets/token_card.dart > /tmp/token_card_fadeout.dart
+```
+
+**Step 3b: Identify fadeout implementation**
+
+From `/tmp/token_card_fadeout.dart`, extract the `_buildArtworkLayer` method (lines 67-112 based on comparison section).
+
+**Step 3c: Add fadeout as separate method**
+
+In `lib/widgets/token_card.dart`, add NEW method `_buildFadeoutArtwork`:
+
+```dart
+Widget _buildFadeoutArtwork(BuildContext context, BoxConstraints constraints) {
+  final crop = ArtworkManager.getCropPercentages();
+  final cardWidth = constraints.maxWidth;
+  final artworkWidth = cardWidth * 0.50;
+
+  return Positioned(
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: artworkWidth,
+    child: FutureBuilder<File?>(
+      future: ArtworkManager.getCachedArtworkFile(item.artworkUrl!),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data != null) {
+          return ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topRight: Radius.circular(UIConstants.smallBorderRadius),
+              bottomRight: Radius.circular(UIConstants.smallBorderRadius),
+            ),
+            child: ShaderMask(
+              shaderCallback: (bounds) {
+                return const LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [Colors.transparent, Colors.white],
+                  stops: [0.0, 0.50],
+                ).createShader(bounds);
+              },
+              blendMode: BlendMode.dstIn,
+              child: CroppedArtworkWidget(
+                imageFile: snapshot.data!,
+                cropLeft: crop['left']!,
+                cropRight: crop['right']!,
+                cropTop: crop['top']!,
+                cropBottom: crop['bottom']!,
+                fillWidth: false,
+              ),
+            ),
+          );
+        }
+        return const SizedBox.shrink();
+      },
+    ),
+  );
+}
+```
+
+**Step 3d: Rename existing method**
+
+Rename current `_buildArtworkLayer` to `_buildFullViewArtwork`:
+
+```dart
+Widget _buildFullViewArtwork(BuildContext context, BoxConstraints constraints) {
+  // ... existing implementation stays the same
+  // Just rename the method
+}
+```
+
+### Phase 4: Update CroppedArtworkWidget
+
+**File:** `lib/widgets/cropped_artwork_widget.dart`
+
+**Action:** Add `fillWidth` parameter to control scaling behavior
+
+**Step 4a: Update constructor**
+```dart
+class CroppedArtworkWidget extends StatelessWidget {
+  final File imageFile;
+  final double cropLeft;
+  final double cropRight;
+  final double cropTop;
+  final double cropBottom;
+  final bool fillWidth;  // NEW PARAMETER
+
+  const CroppedArtworkWidget({
+    super.key,
+    required this.imageFile,
+    required this.cropLeft,
+    required this.cropRight,
+    required this.cropTop,
+    required this.cropBottom,
+    this.fillWidth = true,  // DEFAULT: full-width behavior
+  });
+}
+```
+
+**Step 4b: Update painter logic**
+
+In `_CroppedArtworkPainter.paint()`, replace scaling logic with:
+
+```dart
+if (widget.fillWidth) {
+  // FULL VIEW: Fill width, crop height
+  final scaleToFillWidth = size.width / croppedWidth;
+  final scaledHeight = croppedHeight * scaleToFillWidth;
+  final dstTop = (size.height - scaledHeight) / 2;
+  dstRect = Rect.fromLTWH(0, dstTop, size.width, scaledHeight);
+} else {
+  // FADEOUT: Fill height, crop width
+  final scaleToFillHeight = size.height / croppedHeight;
+  final scaledWidth = croppedWidth * scaleToFillHeight;
+  final dstLeft = (size.width - scaledWidth) / 2;
+  dstRect = Rect.fromLTWH(dstLeft, 0, scaledWidth, size.height);
+}
+```
+
+**Verification:** Run `flutter analyze` - should have no errors
+
+### Phase 5: Wire Up Style Switching in TokenCard
+
 **File:** `lib/widgets/token_card.dart`
 
-**Reference mockup:** `docs/activeDevelopment/crudemockup.png`
+**Step 5a: Create new `_buildArtworkLayer` that switches based on setting**
 
-**UI Layout: Left-aligned artwork with gradient fade**
+Replace the call site of artwork layer with:
 
-```
-┌──────────────────────────────────────────────────────┐
-│ [ARTWORK]│                                            │
-│ [ARTWORK]│ Elf Warrior           ⊙1 🗡1 ⬡0          │
-│ [ARTWORK]│ Creature — Elf Warrior                    │
-│ [fade→→]│                                      1/1    │
-│          │ [- + 🗡 ⬡ ⊙ ⊡ ↗]                          │
-└──────────────────────────────────────────────────────┘
-```
-
-**Design Requirements Based on Mockup:**
-
-1. **Artwork Placement:**
-   - Left-aligned, flush with card border (respects card's rounded corner radius)
-   - Fills entire height of card from top to bottom
-   - Width: Approximately 40-50% of card width (based on mockup proportions)
-   - Artwork source: Cropped/zoomed portion of full card art showing character/subject
-   - Art should extend behind the name text area
-
-2. **Gradient Fade:**
-   - Starts at artwork right edge, extends into solid background
-   - Fade distance: Approximately 30-40% of card width (smooth transition zone)
-   - Background color after fade: Current TokenCard background (light gray in mockup)
-   - **Opacity overlay on artwork:** Semi-transparent white/gray overlay (~20-30% opacity)
-     - Makes artwork more subtle, prevents overpowering text
-     - Creates "washed out" or "desaturated" effect visible in mockup
-     - Ensures artwork doesn't compete with token information
-
-3. **Text Contrast Handling (Based on Mockup):**
-   - **Name text ("Elf Warrior")**: White text with subtle dark stroke/shadow
-     - Appears over artwork area with good readability
-     - Stroke provides definition against varying artwork colors
-   - **Type text ("Creature — Elf Warrior")**: Appears to have semi-transparent background pill/highlight
-     - Light background behind text for contrast
-     - Italic styling (as currently implemented)
-   - **P/T ("1/1")**: Large, bold, positioned in gradient fade area (safe zone)
-   - **Status icons (⊙ 🗡 ⬡)**: Positioned in top-right, in solid background area
-   - **Action buttons**: Positioned at bottom, fully in solid background area (no artwork)
-
-4. **Layout Observations from Mockup:**
-   - Green color identity border maintained (visible around entire card)
-   - Card retains rounded corners
-   - Artwork respects card shape (rounded corner on top-left)
-   - Button row at bottom is completely clear of artwork (solid background)
-   - P/T is very large and positioned in lower-right quadrant
-   - Name and type are in upper-left, overlaying artwork
-
-5. **Technical Implementation Notes:**
-   - Use `Stack` widget with artwork as bottom layer
-   - `ClipRRect` to respect card's rounded corners
-   - Apply opacity overlay to artwork using `ColorFiltered` or `Container` with semi-transparent color
-   - Gradient fade using `ShaderMask` or positioned `Container` with `LinearGradient`
-   - Text stroke using `Stack` with multiple `Text` widgets (shadow copies) or custom `TextPainter`
-   - Ensure artwork doesn't block touch interactions with buttons
-
-6. **Fallback Behavior:**
-   - If no artwork: display as current TokenCard (no visual changes)
-   - If artwork fails to load: display as current TokenCard (graceful degradation)
-   - Don't show placeholder/broken image - just render without art
-
-**Specific Design Values (From Mockup Analysis):**
-- **Artwork width:** ~40-45% of card width
-- **Gradient fade zone:** ~30-35% of card width
-- **Artwork opacity overlay:** ~20-30% white/light gray
-- **Text contrast method:**
-  - Name: Dark stroke/shadow on white text
-  - Type: Semi-transparent background pill
-- **Gradient curve:** Appears to be ease-out (quick fade near artwork, gradual finish)
-
-**Open Design Questions (TODO: User to Refine):**
-- [ ] Exact artwork width percentage (40%? 45%? 50%?)
-- [ ] Exact opacity overlay value (20%? 25%? 30%?)
-- [ ] Gradient fade curve parameters (ease-out confirmed, but specific values?)
-- [ ] Type text background: pill shape or simple rectangular highlight?
-- [ ] Should artwork appear in condensed view mode? (if/when implemented)
-- [ ] Artwork cropping strategy: center crop? smart crop? user-selectable crop?
-
-### 8. Update NewTokenSheet
-**File:** `lib/widgets/new_token_sheet.dart`
-
-**Decision:** Should custom tokens support artwork?
-
-**Option A: No artwork support** (simpler)
-- Custom tokens are user-created, no official artwork exists
-- User can add artwork later via ExpandedTokenScreen if desired
-
-**Option B: Allow user upload** (more complex)
-- Add image picker for custom artwork
-- Store in same cache system
-- Requires `image_picker` package
-- Higher complexity, lower priority
-
-**Recommendation:** Option A for initial implementation
-
-### 9. Update About Screen Credits
-**File:** `lib/screens/about_screen.dart`
-
-**Update Credits card to include artwork attribution:**
 ```dart
-Card(
-  child: Padding(
-    padding: const EdgeInsets.all(16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Credits',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Token database sourced from the Cockatrice project.',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Card images © Wizards of the Coast LLC, a subsidiary of Hasbro, Inc. '
-          'Images provided by Scryfall. Scryfall is not produced by or endorsed '
-          'by Wizards of the Coast.\n\n'
-          'Doubling Season is unofficial Fan Content permitted under the Fan '
-          'Content Policy. Not approved/endorsed by Wizards. Portions of the '
-          'materials used are property of Wizards of the Coast. © Wizards of '
-          'the Coast LLC.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Colors.grey,
-          ),
-        ),
-      ],
+Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints) {
+  final artworkStyle = context.read<SettingsProvider>().artworkDisplayStyle;
+
+  if (artworkStyle == 'fadeout') {
+    return _buildFadeoutArtwork(context, constraints);
+  } else {
+    return _buildFullViewArtwork(context, constraints);
+  }
+}
+```
+
+**Step 5b: Update Stack to include base background layer**
+
+In TokenCard's `build()` method, ensure Stack starts with base background:
+
+```dart
+Stack(
+  children: [
+    // Base card background layer (ensures left side is solid in fadeout mode)
+    Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+      ),
     ),
+
+    // Artwork layer (if artwork selected)
+    if (item.artworkUrl != null)
+      _buildArtworkLayer(context, constraints),
+
+    // Content layer (existing UI elements)
+    // ... rest of existing Stack children
+  ],
+)
+```
+
+**Step 5c: Update AnimatedSwitcher key (if AnimatedSwitcher exists)**
+
+If TokenCard uses AnimatedSwitcher for artwork transitions, update ValueKey to include style:
+
+```dart
+AnimatedSwitcher(
+  duration: Duration(milliseconds: 500),
+  child: _buildArtworkLayer(
+    key: ValueKey('${item.artworkUrl ?? 'no-art'}-${context.read<SettingsProvider>().artworkDisplayStyle}'),
+    context,
+    constraints,
   ),
 )
 ```
 
-### 10. Add Settings/Management UI (Optional)
+**If AnimatedSwitcher does NOT exist:** Wrap `_buildArtworkLayer` with AnimatedSwitcher as shown above.
 
-**Potential settings in SettingsProvider:**
-- Enable/disable artwork display globally
-- Default artwork preference (first set, newest set, user choice)
-- Cache management (view size, clear cache)
+**Verification:**
+- Run `flutter analyze` - no errors
+- Build app: `flutter build ios --debug` (or android) - should compile
 
-**Settings screen additions:**
-- "Artwork Settings" section
-- "Clear Artwork Cache" button with confirmation
-- Display total cache size
+### Phase 6: Unify Background Colors
 
-## Implementation Order
+**File:** `lib/widgets/token_card.dart`
 
-1. **Update token database script** - Extract artwork URLs from XML
-2. **Regenerate token database** - Run script to update `assets/token_database.json`
-3. **Update TokenDefinition model** - Add artwork field and parsing
-4. **Add artworkUrl to Item model** - HiveField 13
-5. **Add artworkUrl to TokenTemplate model** - HiveField 6
-6. **Run build_runner** - Regenerate Hive adapters
-7. **Create ArtworkManager utility** - Download and caching logic
-8. **Update ExpandedTokenScreen** - Add artwork display and management
-9. **Update About screen** - Add attribution notice
-10. **Test artwork download** - Verify caching and display
-11. **Test deck save/load** - Verify artwork URLs preserved
-12. **Test offline mode** - Verify cached images display without network
-13. **(Optional) Add TokenCard preview** - If desired
-14. **(Optional) Add settings UI** - Cache management
+**Action:** Ensure both styles use semi-transparent backgrounds (0.85 alpha)
 
-## User Experience Flow
+**Step 6a: Update `_buildTextWithBackground`**
 
-### First-time artwork addition:
-1. User creates/selects a Goblin token (no artwork yet)
-2. User taps token to open ExpandedTokenScreen
-3. User sees "Add Artwork" button below where image would display
-4. User taps "Add Artwork"
-5. Bottom sheet shows available art variants (e.g., "M15", "KLD", "DOM")
-6. User selects preferred variant
-7. Progress dialog shows download status
-8. Artwork displays in ExpandedTokenScreen
-9. Artwork cached for future use
+```dart
+Widget _buildTextWithBackground({
+  required BuildContext context,
+  required Widget child,
+  EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+}) {
+  if (item.artworkUrl == null) {
+    return child;
+  }
 
-### Subsequent uses:
-1. User creates another Goblin token (same definition)
-2. Option to use previously selected artwork automatically OR
-3. Prompt user to select artwork (user preference)
-4. If artwork already cached, instant display (no download)
+  final backgroundColor = Theme.of(context).brightness == Brightness.dark
+      ? Theme.of(context).colorScheme.surface
+      : Theme.of(context).colorScheme.surfaceContainerHighest;
 
-### Changing artwork:
-1. User opens token with existing artwork
-2. User taps "Change Artwork" button
-3. Select different variant from bottom sheet
-4. New artwork downloads and replaces old selection
-5. Old cached image may be retained (other tokens might use it)
+  return Container(
+    padding: padding,
+    decoration: BoxDecoration(
+      color: backgroundColor.withValues(alpha: 0.85),
+      borderRadius: BorderRadius.circular(4),
+    ),
+    child: child,
+  );
+}
+```
 
-### Removing artwork:
-1. Long-press on artwork image
-2. Confirmation dialog: "Remove artwork?"
-3. Set `item.artworkUrl = null` and save
-4. Cached file remains (other tokens might use it)
+**Step 6b: Update `_buildActionButton` background**
 
-## Technical Considerations
+Find the button background color assignment and update:
 
-### Deduplication Strategy
-**Problem:** Multiple tokens may have identical artwork (same token, different sets)
+```dart
+final buttonBackgroundColor = item.artworkUrl != null
+    ? (Theme.of(context).brightness == Brightness.dark
+        ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.85)
+        : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.85))
+    : effectiveColor.withValues(alpha: 0.15);
+```
 
-**Solution options:**
-1. **Hash-based deduplication** - Store images by content hash, reference by URL
-2. **URL-based storage** - Store by URL hash, multiple tokens can reference same URL
-3. **Hybrid approach** - Store by URL, detect duplicate content and symlink/reference
+**Verification:** Run `flutter analyze` - no errors
 
-**Recommendation:** URL-based storage (option 2)
-- Simple implementation
-- Scryfall URLs are stable and canonical
-- Natural deduplication (same URL = same file)
+### Phase 7: Add Settings UI
 
-### Storage Location
-- **iOS**: `Library/Application Support/artwork_cache/`
-- **Android**: `{app_data}/artwork_cache/`
-- **Web**: Browser cache storage (requires different implementation)
-- **Desktop**: OS-appropriate app data directory
+**File:** `lib/screens/content_screen.dart`
 
-### Cache Invalidation
-**When to re-download:**
-- Never automatically (URLs are stable, images don't change)
-- Only on user request ("Refresh artwork" feature - low priority)
-- Cache persists across app updates
+**Location:** Modify `_showSummoningSicknessToggle()` method (line ~388)
 
-### Network Handling
-- Check network availability before download
-- Provide clear error messages if download fails
-- Allow retry on failure
-- Consider background download queue (low priority optimization)
+**Action:** Replace entire method with:
 
-### Performance Considerations
-- Image loading should be async (don't block UI)
-- Use `Image.file()` with `cacheWidth` to reduce memory usage
-- Consider thumbnail generation for list view (if implemented)
-- Lazy loading - only download when user requests
+```dart
+void _showSummoningSicknessToggle() {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Settings'),
+      content: Consumer<SettingsProvider>(
+        builder: (context, settings, child) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Existing summoning sickness toggle
+              SwitchListTile(
+                title: const Text('Track summoning sickness'),
+                subtitle: const Text('Automatically track summoning sickness on newly created tokens'),
+                value: settings.summoningSicknessEnabled,
+                onChanged: (value) {
+                  settings.setSummoningSicknessEnabled(value);
+                },
+                contentPadding: EdgeInsets.zero,
+              ),
 
-## Testing Checklist
+              const Divider(),
 
-- [ ] Token database includes artwork URLs for all tokens with available art
-- [ ] TokenDefinition correctly parses artwork array
-- [ ] Item model stores artwork URL persistently
-- [ ] TokenTemplate preserves artwork URL in deck save/load
-- [ ] ArtworkManager downloads images successfully
-- [ ] Downloaded images cached in correct directory
-- [ ] Cached images display in ExpandedTokenScreen
-- [ ] Download progress indicator works
-- [ ] Download error handling displays helpful messages
-- [ ] Multiple art variants display as options
-- [ ] Selecting different variant updates token
-- [ ] Removing artwork clears URL but preserves cache
-- [ ] Offline mode displays cached images
-- [ ] Offline mode handles missing images gracefully
-- [ ] Attribution notice appears in About screen
-- [ ] No modifications made to Scryfall images
-- [ ] Network requests include User-Agent header
-- [ ] Large images don't cause memory issues
-- [ ] Fast image loading from cache
+              // NEW: Artwork style selection
+              ListTile(
+                title: const Text('Artwork Display Style'),
+                subtitle: Text(
+                  settings.artworkDisplayStyle == 'fullView'
+                    ? 'Full View - Artwork fills card width'
+                    : 'Fadeout - Artwork on right with gradient',
+                ),
+                contentPadding: EdgeInsets.zero,
+              ),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(
+                    value: 'fullView',
+                    label: Text('Full View'),
+                    icon: Icon(Icons.crop_landscape),
+                  ),
+                  ButtonSegment(
+                    value: 'fadeout',
+                    label: Text('Fadeout'),
+                    icon: Icon(Icons.gradient),
+                  ),
+                ],
+                selected: {settings.artworkDisplayStyle},
+                onSelectionChanged: (Set<String> newSelection) {
+                  settings.setArtworkDisplayStyle(newSelection.first);
+                },
+              ),
+            ],
+          );
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+```
 
-## Success Criteria
+**Verification:** Run `flutter analyze` - no errors
 
-After implementation:
-- ✅ Token database contains artwork URLs from Cockatrice XML
-- ✅ Users can add artwork to any token with available art
-- ✅ Users can select from multiple art variants (if available)
-- ✅ Artwork downloads and caches locally for offline use
-- ✅ Artwork displays correctly in ExpandedTokenScreen
-- ✅ Artwork persists across app restarts
-- ✅ Saved decks preserve user's artwork choices
-- ✅ About screen includes proper attribution notice
-- ✅ No paywall restricts artwork access
-- ✅ Images displayed without modifications
-- ✅ Graceful handling of download failures
-- ✅ Good performance (no UI blocking during download)
+### Phase 8: Document Unused Code
 
-## Future Enhancements (Not in Initial Implementation)
+**File:** `lib/widgets/token_card.dart`
 
-- Artwork preview thumbnails in TokenCard
-- Automatic artwork selection on token creation
-- Full-screen artwork viewer
-- User-uploaded custom artwork
-- Bulk artwork download ("Download all artwork" option)
-- Artwork preferences (always use newest set, etc.)
-- Cache size management and cleanup tools
-- Alternative art variants from other sources (if legally permissible)
+**Action:** If `_buildOverlayLayer()` method exists, add documentation comment:
+
+```dart
+/// Build semi-transparent overlay layer
+///
+/// NOTE: This method is currently UNUSED but preserved for potential future use.
+/// It provides a way to dim the entire artwork with a semi-transparent overlay
+/// if text contrast becomes insufficient. Currently, text background boxes
+/// provide adequate readability without needing this global dimming effect.
+///
+/// To enable: Add to Stack between artwork layer and content layer:
+/// ```dart
+/// if (item.artworkUrl != null && artworkStyle == 'fullView')
+///   _buildOverlayLayer(context),
+/// ```
+Widget _buildOverlayLayer(BuildContext context) {
+  // ... existing implementation
+}
+```
+
+**If method doesn't exist:** Skip this step.
+
+### Phase 9: Clean Build and Test
+
+```bash
+# Clean build cache
+flutter clean
+
+# Get dependencies
+flutter pub get
+
+# Run code analysis
+flutter analyze
+
+# Build for iOS
+flutter build ios --debug
+
+# Or build for Android
+flutter build apk --debug
+
+# Run app on device
+flutter run
+```
+
+**Expected Results:**
+- No compilation errors
+- No analyzer warnings in modified files
+- App launches successfully
+- Settings dialog shows artwork style toggle
+- Switching styles updates all visible tokens
+- Setting persists after app restart
+
+### Phase 10: Manual Testing Checklist
+
+Test each scenario:
+
+1. **Setting Persistence**
+   - [ ] Change style to Full View, close app, reopen - setting should be Full View
+   - [ ] Change style to Fadeout, close app, reopen - setting should be Fadeout
+
+2. **Visual Verification**
+   - [ ] Create token with artwork in Full View mode - artwork fills card width
+   - [ ] Switch to Fadeout mode - artwork appears on right 50% with gradient
+   - [ ] Switch back to Full View - artwork returns to full width
+   - [ ] Tokens without artwork look identical in both modes
+
+3. **Multiple Tokens**
+   - [ ] Create 5 tokens with different artwork
+   - [ ] Switch styles - all tokens update simultaneously
+   - [ ] No visual glitches or rendering errors
+
+4. **Light/Dark Mode**
+   - [ ] Test both styles in light mode
+   - [ ] Test both styles in dark mode
+   - [ ] Text backgrounds readable in all combinations
+
+5. **Edge Cases**
+   - [ ] Open ExpandedTokenScreen, change style in background - no crashes
+   - [ ] Change style while scrolling token list - smooth updates
+   - [ ] Rapidly toggle between styles - no crashes or memory issues
+
+### Phase 11: Commit and Push
+
+```bash
+# Stage changes
+git add .
+
+# Commit with descriptive message
+git commit -m "Add artwork display style toggle
+
+- Add artworkDisplayStyle setting to SettingsProvider (fadeout/fullView)
+- Implement two artwork display methods in TokenCard:
+  - Full View: artwork fills card width
+  - Fadeout: artwork on right 50% with gradient fade
+- Add fillWidth parameter to CroppedArtworkWidget for scaling control
+- Update Settings UI with SegmentedButton for style selection
+- Unify text/button backgrounds to semi-transparent (0.85 alpha)
+- Add base background layer to Stack for consistent rendering
+- Document unused overlay layer method
+
+Default style: fadeout (right-side with gradient)"
+
+# Push to remote
+git push origin artwork-style-toggle
+```
 
 ---
 
-## Other Features Under Consideration
+## Implementation Strategy for Toggle Feature (DEPRECATED - Use Step-by-Step Sequence Above)
 
-(No features currently under consideration)
+### 1. Add Setting to SettingsProvider
+
+**File:** `lib/providers/settings_provider.dart`
+
+Add new setting:
+```dart
+// Artwork display style: 'fullView' or 'fadeout'
+String get artworkDisplayStyle => _prefs.getString('artworkDisplayStyle') ?? 'fadeout';
+
+Future<void> setArtworkDisplayStyle(String style) async {
+  await _prefs.setString('artworkDisplayStyle', style);
+  notifyListeners();
+}
+```
+
+**Default value:** `'fadeout'` ✅
+
+**Valid values:**
+- `'fullView'` - Full-width artwork with background boxes
+- `'fadeout'` - Right-side artwork with gradient fade (DEFAULT)
+
+---
+
+### 2. Update TokenCard to Use Setting
+
+**File:** `lib/widgets/token_card.dart`
+
+Modify `_buildArtworkLayer` to switch based on setting:
+
+```dart
+Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints) {
+  final artworkStyle = context.read<SettingsProvider>().artworkDisplayStyle;
+  final crop = ArtworkManager.getCropPercentages();
+
+  if (artworkStyle == 'fadeout') {
+    return _buildFadeoutArtwork(context, constraints, crop);
+  } else {
+    return _buildFullViewArtwork(context, constraints, crop);
+  }
+}
+
+Widget _buildFullViewArtwork(
+  BuildContext context,
+  BoxConstraints constraints,
+  Map<String, double> crop,
+) {
+  return Positioned.fill(
+    child: FutureBuilder<File?>(
+      future: ArtworkManager.getCachedArtworkFile(item.artworkUrl!),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data != null) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+            child: CroppedArtworkWidget(
+              imageFile: snapshot.data!,
+              cropLeft: crop['left']!,
+              cropRight: crop['right']!,
+              cropTop: crop['top']!,
+              cropBottom: crop['bottom']!,
+              fillWidth: true,  // � New parameter
+            ),
+          );
+        }
+        return const SizedBox.shrink();
+      },
+    ),
+  );
+}
+
+Widget _buildFadeoutArtwork(
+  BuildContext context,
+  BoxConstraints constraints,
+  Map<String, double> crop,
+) {
+  final cardWidth = constraints.maxWidth;
+  final artworkWidth = cardWidth * 0.50;
+
+  return Positioned(
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: artworkWidth,
+    child: FutureBuilder<File?>(
+      future: ArtworkManager.getCachedArtworkFile(item.artworkUrl!),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data != null) {
+          return ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topRight: Radius.circular(UIConstants.smallBorderRadius),
+              bottomRight: Radius.circular(UIConstants.smallBorderRadius),
+            ),
+            child: ShaderMask(
+              shaderCallback: (bounds) {
+                return const LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [Colors.transparent, Colors.white],
+                  stops: [0.0, 0.50],
+                ).createShader(bounds);
+              },
+              blendMode: BlendMode.dstIn,
+              child: CroppedArtworkWidget(
+                imageFile: snapshot.data!,
+                cropLeft: crop['left']!,
+                cropRight: crop['right']!,
+                cropTop: crop['top']!,
+                cropBottom: crop['bottom']!,
+                fillWidth: false,  // � New parameter
+              ),
+            ),
+          );
+        }
+        return const SizedBox.shrink();
+      },
+    ),
+  );
+}
+```
+
+---
+
+### 3. Update CroppedArtworkWidget
+
+**File:** `lib/widgets/cropped_artwork_widget.dart`
+
+Add `fillWidth` parameter to control scaling behavior:
+
+```dart
+class CroppedArtworkWidget extends StatelessWidget {
+  final File imageFile;
+  final double cropLeft;
+  final double cropRight;
+  final double cropTop;
+  final double cropBottom;
+  final bool fillWidth;  // � New parameter
+
+  const CroppedArtworkWidget({
+    super.key,
+    required this.imageFile,
+    required this.cropLeft,
+    required this.cropRight,
+    required this.cropTop,
+    required this.cropBottom,
+    this.fillWidth = true,  // � Default to full-width behavior
+  });
+
+  // ... rest of widget
+}
+```
+
+Update `_CroppedArtworkPainter`:
+
+```dart
+if (widget.fillWidth) {
+  // FULL VIEW: Fill width, crop height
+  final scaleToFillWidth = size.width / croppedWidth;
+  final scaledHeight = croppedHeight * scaleToFillWidth;
+  final dstTop = (size.height - scaledHeight) / 2;
+  final dstRect = Rect.fromLTWH(0, dstTop, size.width, scaledHeight);
+} else {
+  // FADEOUT: Fill height, crop width
+  final scaleToFillHeight = size.height / croppedHeight;
+  final scaledWidth = croppedWidth * scaleToFillHeight;
+  final dstLeft = (size.width - scaledWidth) / 2;
+  final dstRect = Rect.fromLTWH(dstLeft, 0, scaledWidth, size.height);
+}
+```
+
+---
+
+### 4. Unified Background Color Strategy
+
+**✅ USER DECISION:** Use semi-transparent backgrounds (0.85 alpha) for both styles
+
+Update `_buildTextWithBackground`:
+```dart
+Widget _buildTextWithBackground({
+  required BuildContext context,
+  required Widget child,
+  EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+}) {
+  if (item.artworkUrl == null) {
+    return child;
+  }
+
+  final backgroundColor = Theme.of(context).brightness == Brightness.dark
+      ? Theme.of(context).colorScheme.surface
+      : Theme.of(context).colorScheme.surfaceContainerHighest;
+
+  return Container(
+    padding: padding,
+    decoration: BoxDecoration(
+      color: backgroundColor.withValues(alpha: 0.85),  // Semi-transparent (0.85 alpha)
+      borderRadius: BorderRadius.circular(4),
+    ),
+    child: child,
+  );
+}
+```
+
+Update `_buildActionButton`:
+```dart
+final buttonBackgroundColor = item.artworkUrl != null
+    ? (Theme.of(context).brightness == Brightness.dark
+        ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.85)
+        : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.85))
+    : effectiveColor.withValues(alpha: 0.15);
+```
+
+---
+
+### 5. Add Base Background Layer
+
+Add to both styles for consistency:
+
+```dart
+Stack(
+  children: [
+    // Base card background layer (BOTH styles)
+    Container(
+      color: Theme.of(context).cardColor,
+    ),
+
+    // Artwork layer (style-dependent)
+    if (item.artworkUrl != null)
+      _buildArtworkLayer(context, constraints),
+
+    // Content layer
+    Container(...),
+  ],
+)
+```
+
+---
+
+### 6. Preserve Unused Overlay Code (FULL VIEW only)
+
+**Keep** `_buildOverlayLayer()` method in FULL VIEW implementation.
+
+Add documentation comment:
+```dart
+/// Build semi-transparent overlay layer
+///
+/// NOTE: This method is currently UNUSED but preserved for potential future use.
+/// It provides a way to dim the entire artwork with a semi-transparent overlay
+/// if text contrast becomes insufficient. Currently, text background boxes
+/// provide adequate readability without needing this global dimming effect.
+///
+/// To enable: Add to Stack between artwork layer and content layer.
+Widget _buildOverlayLayer(BuildContext context) {
+  final backgroundColor = Theme.of(context).brightness == Brightness.dark
+      ? Theme.of(context).colorScheme.surface
+      : Theme.of(context).colorScheme.surfaceContainerHighest;
+
+  return Positioned.fill(
+    child: Container(
+      decoration: BoxDecoration(
+        color: backgroundColor.withValues(alpha: 0.5), // 0.5 alpha overlay
+        borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+      ),
+    ),
+  );
+}
+```
+
+---
+
+### 7. Add Settings UI
+
+**File:** `lib/screens/content_screen.dart` or create dedicated settings screen
+
+Add artwork style selector:
+
+```dart
+// In settings dialog/sheet
+ListTile(
+  title: const Text('Artwork Display Style'),
+  subtitle: Text(
+    artworkStyle == 'fullView' ? 'Full View' : 'Fadeout',
+  ),
+  trailing: const Icon(Icons.chevron_right),
+  onTap: () {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Artwork Style'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RadioListTile<String>(
+              title: const Text('Full View'),
+              subtitle: const Text('Full-width background artwork'),
+              value: 'fullView',
+              groupValue: artworkStyle,
+              onChanged: (value) {
+                if (value != null) {
+                  settings.setArtworkDisplayStyle(value);
+                  Navigator.pop(context);
+                }
+              },
+            ),
+            RadioListTile<String>(
+              title: const Text('Fadeout'),
+              subtitle: const Text('Right-side artwork with fade'),
+              value: 'fadeout',
+              groupValue: artworkStyle,
+              onChanged: (value) {
+                if (value != null) {
+                  settings.setArtworkDisplayStyle(value);
+                  Navigator.pop(context);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  },
+)
+```
+
+**Alternative:** Use SegmentedButton or ToggleButtons for simpler UI.
+
+---
+
+## Automated Testing Checklist (Code-Level Verification)
+
+**These tests can be performed by an autonomous agent:**
+
+- [ ] **Code Analysis:** Run `flutter analyze` - zero errors in modified files
+- [ ] **Build Verification:** `flutter build ios --debug` completes without errors
+- [ ] **Setting Getter:** `SettingsProvider.artworkDisplayStyle` returns 'fadeout' by default
+- [ ] **Setting Setter:** `setArtworkDisplayStyle('fullView')` changes value (verify with getter)
+- [ ] **Method Exists:** `TokenCard._buildFadeoutArtwork` method defined
+- [ ] **Method Exists:** `TokenCard._buildFullViewArtwork` method defined
+- [ ] **Method Exists:** `TokenCard._buildArtworkLayer` switches based on setting
+- [ ] **Parameter Added:** `CroppedArtworkWidget.fillWidth` parameter exists with default `true`
+- [ ] **Settings UI:** `SegmentedButton<String>` exists in ContentScreen settings dialog
+- [ ] **Stack Order:** Base Container appears first in Stack children (before artwork layer)
+- [ ] **Import Check:** `SettingsProvider` imported in token_card.dart
+- [ ] **Documentation:** `_buildOverlayLayer` has doc comment explaining it's unused (if method exists)
+
+## Manual Testing Checklist (Requires Human Verification)
+
+**These tests require human eyes - noted for user to verify:**
+
+- [ ] **Visual:** Full View displays artwork at 100% width
+- [ ] **Visual:** Fadeout displays artwork at 50% width on right side
+- [ ] **Visual:** Fadeout gradient fade looks smooth (no hard edges)
+- [ ] **Visual:** Text backgrounds readable over artwork
+- [ ] **Visual:** Button backgrounds readable over artwork
+- [ ] **Visual:** No glitches when switching styles
+- [ ] **Visual:** Both styles work in light mode
+- [ ] **Visual:** Both styles work in dark mode
+- [ ] **Functional:** Setting persists after app restart
+- [ ] **Functional:** Switching styles updates all visible tokens immediately
+- [ ] **Performance:** No lag when rendering 10+ tokens with artwork
+
+---
+
+## ✅ User Decisions (RESOLVED)
+
+### 1. Background Colors
+**Decision:** Semi-transparent `surface`/`surfaceContainerHighest` with 0.85 alpha for both styles
+
+### 2. Artwork Width (FADEOUT)
+**Decision:** Keep at **50%** (current implementation is the standard, not the 30% from planning docs)
+
+### 3. Fade Distance (FADEOUT)
+**Decision:** Keep at **50%** of artwork width (current implementation is the standard)
+
+### 4. Overlay Layer (FULL VIEW)
+**Decision:** Keep `_buildOverlayLayer()` code but leave it unused (preserved for potential future use)
+
+### 5. Default Style
+**Decision:** **Fadeout** (default value in settings)
+
+## ✅ All Questions Resolved
+
+All implementation details have been specified in the Step-by-Step Implementation Sequence section above. No open questions remain.
+
+---
+
+## File Modification Summary
+
+**Files requiring changes:**
+1. `lib/providers/settings_provider.dart` - Add `artworkDisplayStyle` setting
+2. `lib/widgets/token_card.dart` - Split `_buildArtworkLayer` into two methods, update backgrounds
+3. `lib/widgets/cropped_artwork_widget.dart` - Add `fillWidth` parameter
+4. `lib/screens/content_screen.dart` (or settings screen) - Add style selector UI
+5. `lib/utils/constants.dart` - Add artwork style constants (optional)
+
+**Files NOT requiring changes:**
+- `lib/utils/artwork_manager.dart` - Shared infrastructure 
+- `lib/screens/expanded_token_screen.dart` - Artwork selection works for both 
+- `lib/widgets/artwork_selection_sheet.dart` - Shared UI 
+- All data models (`Item`, `TokenTemplate`, `TokenDefinition`) 
+
+---
+
+## Estimated Implementation Effort (For Autonomous Agent)
+
+**Complexity:** Low-Medium - Most infrastructure exists, mainly refactoring and wiring.
+
+**Automated Steps (Agent can complete):**
+1. Create feature branch (Phase 1) - 1 minute
+2. Add setting to SettingsProvider (Phase 2) - 5 minutes
+3. Copy fadeout implementation from altArtwork (Phase 3) - 10 minutes
+4. Update CroppedArtworkWidget (Phase 4) - 10 minutes
+5. Wire up style switching (Phase 5) - 15 minutes
+6. Unify background colors (Phase 6) - 10 minutes
+7. Add Settings UI (Phase 7) - 15 minutes
+8. Document unused code (Phase 8) - 5 minutes
+9. Clean build and analyze (Phase 9) - 5 minutes
+10. Run automated tests (Phase 9) - 5 minutes
+11. Commit and push (Phase 11) - 2 minutes
+
+**Total Agent Time:** ~80 minutes (1.3 hours)
+
+**Manual Verification (User must complete):**
+- Phase 10: Manual testing checklist - 30-60 minutes
+- Visual verification of both styles
+- Performance testing with multiple tokens
+
+**Total End-to-End Time:** 2-3 hours (including manual testing)
+
+---
+
+## Success Criteria
+
+ User can toggle between Full View and Fadeout styles
+ Setting persists across app restarts
+ Both styles use identical text/button backgrounds (consistency)
+ Both styles use same artwork infrastructure (download, cache, selection)
+ No unused code remains
+ Visual appearance matches specifications for each style
+ Performance is acceptable
+ Works in light and dark mode
+ Code is maintainable and well-documented

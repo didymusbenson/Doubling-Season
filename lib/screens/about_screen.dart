@@ -88,7 +88,9 @@ class _AboutScreenState extends State<AboutScreen> {
                     const SizedBox(height: 12),
                     Text(
                       'Doubling Season is a token tracker for Magic: The Gathering. '
-                      'Track your creature tokens, emblems, and counters during gameplay.',
+                      'This project is a labor of love for the Magic community and is '
+                      'committed to being 100% free and ad free forever. Your support '
+                      'helps keep Doubling Season free.',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],
@@ -106,39 +108,31 @@ class _AboutScreenState extends State<AboutScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Features',
+                      'How to Use',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 12),
                     _buildFeatureItem(
-                      icon: Icons.add_circle_outline,
-                      text: '300+ token types from official Magic sets',
+                      icon: Icons.add_circle,
+                      text: 'Tap + button to search 300+ token types',
                     ),
                     _buildFeatureItem(
-                      icon: Icons.sync,
-                      text: 'Track tapped/untapped states',
+                      icon: Icons.touch_app,
+                      text: 'Tap any token to edit, add counters, or split stacks',
                     ),
                     _buildFeatureItem(
-                      icon: Icons.adjust,
-                      text: 'Summoning sickness tracking',
-                    ),
-                    _buildFeatureItem(
-                      icon: Icons.add_box,
-                      text: '+1/+1 and -1/-1 counter management',
-                    ),
-                    _buildFeatureItem(
-                      icon: Icons.bookmark,
-                      text: 'Custom counter types',
+                      icon: Icons.calculate,
+                      text: 'Adjust multiplier for doubling effects',
                     ),
                     _buildFeatureItem(
                       icon: Icons.save,
-                      text: 'Save and load deck configurations',
+                      text: 'Save your current board state as a deck to reuse later',
                     ),
                     _buildFeatureItem(
-                      icon: Icons.close,
-                      text: 'Split token stacks',
+                      icon: Icons.menu,
+                      text: 'Open tools menu for untap all, board wipe, and more',
                     ),
                   ],
                 ),
@@ -162,8 +156,21 @@ class _AboutScreenState extends State<AboutScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Token database sourced from the Cockatrice project.',
+                      'Token data sourced from the Cockatrice project.',
                       style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Card images © Wizards of the Coast LLC '
+                      'Images provided by Scryfall. Scryfall is not produced by or endorsed '
+                      'by Wizards of the Coast.\n\n'
+                      'Doubling Season is unofficial Fan Content permitted under the Fan '
+                      'Content Policy. Not approved/endorsed by Wizards. Portions of the '
+                      'materials used are property of Wizards of the Coast. © Wizards of '
+                      'the Coast LLC.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey,
+                      ),
                     ),
                   ],
                 ),

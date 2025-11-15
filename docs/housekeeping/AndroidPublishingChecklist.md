@@ -46,6 +46,23 @@ Track your progress getting set up as an Android developer and publishing Doubli
 - [ ] Set up app categories and tags
 - [ ] Add contact email and website
 
+## Data Safety Declarations
+
+- [ ] Complete Data Safety form in Play Console:
+  - **Data Collection**: NO (app does not collect user data)
+  - **Data Sharing**: NO (no data shared with third parties)
+  - **Network Usage**: YES (downloads token artwork from Scryfall API)
+    - Purpose: App functionality (artwork display)
+    - Data type: Public artwork images
+    - Storage: Cached locally on device
+  - **Security Practices**:
+    - Data is encrypted in transit (HTTPS)
+    - No user data stored or transmitted
+    - Artwork downloads are optional (app works offline)
+
+- [ ] Verify required permissions:
+  - `INTERNET` permission in `AndroidManifest.xml` (required for artwork downloads)
+
 ## Build Configuration
 
 - [ ] Verify bundle identifier in `android/app/build.gradle.kts`:

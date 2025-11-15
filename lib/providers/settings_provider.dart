@@ -31,6 +31,30 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Artwork display style: 'fullView' or 'fadeout'
+  String get artworkDisplayStyle => _prefs.getString('artworkDisplayStyle') ?? 'fadeout';
+
+  Future<void> setArtworkDisplayStyle(String style) async {
+    await _prefs.setString('artworkDisplayStyle', style);
+    notifyListeners();
+  }
+
+  // Theme mode settings
+  bool get useSystemTheme => _prefs.getBool('useSystemTheme') ?? true;
+
+  Future<void> setUseSystemTheme(bool value) async {
+    await _prefs.setBool('useSystemTheme', value);
+    notifyListeners();
+  }
+
+  // Manual theme preference (only used when useSystemTheme is false)
+  bool get isDarkMode => _prefs.getBool('isDarkMode') ?? false;
+
+  Future<void> setIsDarkMode(bool value) async {
+    await _prefs.setBool('isDarkMode', value);
+    notifyListeners();
+  }
+
   Set<String> get favoriteTokens {
     final list = _prefs.getStringList(PreferenceKeys.favoriteTokens) ?? [];
     return Set.from(list);

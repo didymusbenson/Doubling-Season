@@ -23,6 +23,9 @@ class ItemAdapter extends TypeAdapter<Item> {
       counters: (fields[9] as List?)?.cast<TokenCounter>(),
       createdAt: fields[10] as DateTime?,
       order: fields[11] as double,
+      artworkUrl: fields[13] as String?,
+      artworkSet: fields[14] as String?,
+      artworkOptions: (fields[15] as List?)?.cast<ArtworkVariant>(),
     )
       .._colors = fields[3] as String
       .._amount = fields[4] as int
@@ -36,7 +39,7 @@ class ItemAdapter extends TypeAdapter<Item> {
   @override
   void write(BinaryWriter writer, Item obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.abilities)
       ..writeByte(1)
@@ -62,7 +65,13 @@ class ItemAdapter extends TypeAdapter<Item> {
       ..writeByte(11)
       ..write(obj.order)
       ..writeByte(12)
-      ..write(obj._type);
+      ..write(obj._type)
+      ..writeByte(13)
+      ..write(obj.artworkUrl)
+      ..writeByte(14)
+      ..write(obj.artworkSet)
+      ..writeByte(15)
+      ..write(obj.artworkOptions);
   }
 
   @override

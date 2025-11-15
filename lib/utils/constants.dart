@@ -13,6 +13,7 @@ class HiveTypeIds {
   static const int tokenCounter = 1;
   static const int deck = 2;
   static const int tokenTemplate = 3;
+  static const int artworkVariant = 4;
 }
 
 /// UI constants
@@ -32,10 +33,10 @@ class UIConstants {
   
   // Border and corner radius
   static const double borderRadius = 12.0;
-  static const double smallBorderRadius = 8.0;
+  static const double smallBorderRadius = 7.0; // 12 - 5 = 7 (to fit inside border)
   static const double counterPillBorderRadius = 12.0;
   static const double actionButtonBorderRadius = 8.0;
-  static const double borderWidth = 4.0;
+  static const double borderWidth = 5.0;
   static const double actionButtonBorderWidth = 1.5;
   
   // Icon and button sizes
@@ -57,19 +58,22 @@ class UIConstants {
   static const double listBottomPadding = 120.0;
   
   // Shadow and elevation
-  static const double shadowBlurRadius = 6.0;
-  static const double shadowOffset = 3.0;
-  static const double lightShadowBlurRadius = 1.0;
-  static const double lightShadowOffset = 1.0;
+  static const double shadowBlurRadius = 2.0;        // Stark shadow with minimal blur
+  static const double shadowOffsetY = 5.0;           // Vertical offset (bottom)
+  static const double shadowOffsetX = 0.0;           // Centered horizontally
+  static const double lightShadowBlurRadius = 1.0;   // Sharp secondary shadow
+  static const double lightShadowOffsetY = 2.0;      // Vertical offset
+  static const double lightShadowOffsetX = 0.0;      // Centered horizontally
   static const double dragElevation = 8.0;
   static const double dragScaleFactor = 1.03;
-  
+
   // Opacity values
   static const double disabledOpacity = 0.3;
-  static const double actionButtonBackgroundOpacity = 0.15;
-  static const double shadowOpacity = 0.12;
-  static const double lightShadowOpacity = 0.04;
+  static const double actionButtonBackgroundOpacity = 0.15; // Used only when no artwork
+  static const double shadowOpacity = 0.35;          // High contrast shadow
+  static const double lightShadowOpacity = 0.15;     // Visible secondary shadow
   static const double dragShadowOpacity = 0.3;
+  static const double darkModeGlowOpacity = 0.40;    // Strong glow in dark mode
 
   // Animation constants
   static const Duration animationDuration = Duration(milliseconds: 300);

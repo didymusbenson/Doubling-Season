@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 import 'token_counter.dart';
+import 'token_definition.dart';
 import '../utils/constants.dart';
 
 part 'item.g.dart';
@@ -110,6 +111,15 @@ class Item extends HiveObject {
     save();
   }
 
+  @HiveField(13)
+  String? artworkUrl;
+
+  @HiveField(14)
+  String? artworkSet;
+
+  @HiveField(15)
+  List<ArtworkVariant>? artworkOptions;
+
   // Constructor
   Item({
     required this.name,
@@ -123,6 +133,9 @@ class Item extends HiveObject {
     List<TokenCounter>? counters,
     DateTime? createdAt,
     this.order = 0.0,
+    this.artworkUrl,
+    this.artworkSet,
+    this.artworkOptions,
   })  : counters = counters ?? [],
         _colors = colors.toUpperCase(),
         _type = type,
@@ -225,6 +238,9 @@ class Item extends HiveObject {
       tapped: 0,
       summoningSick: 0,
       order: 0.0, // Order will be set by caller
+      artworkUrl: artworkUrl,
+      artworkSet: artworkSet,
+      artworkOptions: artworkOptions != null ? List.from(artworkOptions!) : null,
     );
 
     // Store counter values to be applied after item is added to box

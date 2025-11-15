@@ -109,9 +109,13 @@ class _ContentScreenState extends State<ContentScreen> {
               proxyDecorator: _buildDragProxy,
               itemBuilder: (context, index) {
                 final item = items[index];
-                // Use white glow in dark mode, black shadow in light mode
                 final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-                final shadowColor = isDarkMode ? Colors.white : Colors.black;
+
+                // Use consistent 3px border for both artwork styles
+                const borderWidth = 3.0;
+
+                // Adjust inner border radius to fit inside the border
+                final innerBorderRadius = UIConstants.borderRadius - borderWidth;
 
                 return Padding(
                   key: ValueKey(item.createdAt),
@@ -119,25 +123,26 @@ class _ContentScreenState extends State<ContentScreen> {
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(UIConstants.borderRadius),
-                      boxShadow: [
+                      // Only apply shadows in light mode
+                      boxShadow: isDarkMode ? null : [
                         BoxShadow(
-                          color: shadowColor.withValues(alpha: UIConstants.shadowOpacity),
+                          color: Colors.black.withValues(alpha: UIConstants.shadowOpacity),
                           blurRadius: UIConstants.shadowBlurRadius,
-                          offset: const Offset(0, UIConstants.shadowOffset),
+                          offset: const Offset(UIConstants.shadowOffsetX, UIConstants.shadowOffsetY),
                         ),
                         BoxShadow(
-                          color: shadowColor.withValues(alpha: UIConstants.lightShadowOpacity),
+                          color: Colors.black.withValues(alpha: UIConstants.lightShadowOpacity),
                           blurRadius: UIConstants.lightShadowBlurRadius,
-                          offset: const Offset(0, UIConstants.lightShadowOffset),
+                          offset: const Offset(UIConstants.lightShadowOffsetX, UIConstants.lightShadowOffsetY),
                         ),
                       ],
                       border: GradientBoxBorder(
                         gradient: ColorUtils.gradientForColors(item.colors, isEmblem: item.isEmblem),
-                        width: UIConstants.borderWidth,
+                        width: borderWidth,
                       ),
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+                      borderRadius: BorderRadius.circular(innerBorderRadius),
                       child: Container(
                         color: Theme.of(context).cardColor,
                         child: Dismissible(
@@ -181,7 +186,9 @@ class _ContentScreenState extends State<ContentScreen> {
                 alignment: Alignment.center,
                 child: Text(
                   'No tokens to display',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: Theme.of(context).textTheme.titleLarge?.color?.withValues(alpha: 0.6),
+                  ),
                 ),
               ),
               const SizedBox(height: UIConstants.largePadding),
@@ -212,13 +219,34 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.menu,
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'Open tools to add tokens, save decks, and more',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: UIConstants.standardPadding),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.touch_app,
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(width: UIConstants.largeSpacing),
+                  Flexible(
+                    child: Text(
+                      'Tap a token to edit details, add counters, and more',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                      ),
                     ),
                   ),
                 ],
@@ -229,13 +257,15 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.calculate,
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'Adjust multiplier for token doubling effects',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                      ),
                     ),
                   ),
                 ],
@@ -246,13 +276,15 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.settings,
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
-                      'Adjust Settings',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      'Adjust settings, theme, etc.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                      ),
                     ),
                   ),
                 ],
@@ -263,13 +295,15 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.help_outline,
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'About Doubling Season',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                      ),
                     ),
                   ),
                 ],
@@ -390,14 +424,84 @@ class _ContentScreenState extends State<ContentScreen> {
         title: const Text('Settings'),
         content: Consumer<SettingsProvider>(
           builder: (context, settings, child) {
-            return SwitchListTile(
-              title: const Text('Track summoning sickness'),
-              subtitle: const Text('Automatically track summoning sickness on newly created tokens'),
-              value: settings.summoningSicknessEnabled,
-              onChanged: (value) {
-                settings.setSummoningSicknessEnabled(value);
-              },
-              contentPadding: EdgeInsets.zero,
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Summoning sickness toggle
+                SwitchListTile(
+                  title: const Text('Track summoning sickness'),
+                  value: settings.summoningSicknessEnabled,
+                  onChanged: (value) {
+                    settings.setSummoningSicknessEnabled(value);
+                  },
+                  contentPadding: EdgeInsets.zero,
+                ),
+
+                const Divider(),
+
+                // Theme section header
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 8, bottom: 8),
+                    child: Text(
+                      'Theme',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Theme mode settings
+                SwitchListTile(
+                  title: const Text('Use system theme'),
+                  value: settings.useSystemTheme,
+                  onChanged: (value) {
+                    settings.setUseSystemTheme(value);
+                  },
+                  contentPadding: EdgeInsets.zero,
+                ),
+
+                SwitchListTile(
+                  title: const Text('Dark mode'),
+                  value: settings.isDarkMode,
+                  onChanged: settings.useSystemTheme ? null : (value) {
+                    settings.setIsDarkMode(value);
+                  },
+                  contentPadding: EdgeInsets.zero,
+                ),
+
+                const SizedBox(height: 8),
+
+                // Token art selection
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Text('Token Art'),
+                  ),
+                ),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(
+                      value: 'fullView',
+                      label: Text('Full Card'),
+                      icon: Icon(Icons.crop_landscape),
+                    ),
+                    ButtonSegment(
+                      value: 'fadeout',
+                      label: Text('Half Card'),
+                      icon: Icon(Icons.gradient),
+                    ),
+                  ],
+                  selected: {settings.artworkDisplayStyle},
+                  onSelectionChanged: (Set<String> newSelection) {
+                    settings.setArtworkDisplayStyle(newSelection.first);
+                  },
+                ),
+              ],
             );
           },
         ),
