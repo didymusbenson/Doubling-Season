@@ -4,12 +4,13 @@ import '../models/token_definition.dart';
 import '../utils/artwork_manager.dart';
 
 /// Bottom sheet for selecting token artwork from available variants
-class ArtworkSelectionSheet extends StatelessWidget {
+class ArtworkSelectionSheet extends StatefulWidget {
   final List<ArtworkVariant> artworkVariants;
   final Function(String url, String setCode) onArtworkSelected;
   final VoidCallback? onRemoveArtwork;
   final String? currentArtworkUrl;
   final String? currentArtworkSet;
+  final String tokenName;
 
   const ArtworkSelectionSheet({
     super.key,
@@ -18,7 +19,66 @@ class ArtworkSelectionSheet extends StatelessWidget {
     this.onRemoveArtwork,
     this.currentArtworkUrl,
     this.currentArtworkSet,
+    required this.tokenName,
   });
+
+  @override
+  State<ArtworkSelectionSheet> createState() => _ArtworkSelectionSheetState();
+}
+
+class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
+  bool _isDownloading = false;
+
+  Future<void> _downloadAllArtwork() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Download All Artwork'),
+        content: Text('Download all artwork for ${widget.tokenName}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() {
+      _isDownloading = true;
+    });
+
+    // Download each artwork sequentially
+    for (final variant in widget.artworkVariants) {
+      try {
+        // Check if already cached
+        final cachedFile = await ArtworkManager.getCachedArtworkFile(variant.url);
+        if (cachedFile == null) {
+          // Download if not cached
+          await ArtworkManager.downloadArtwork(variant.url);
+          // Rebuild after each download to show progress
+          if (mounted) {
+            setState(() {});
+          }
+        }
+      } catch (e) {
+        debugPrint('Failed to download artwork from ${variant.set}: $e');
+        // Continue with next artwork even if one fails
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _isDownloading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,9 +115,25 @@ class ArtworkSelectionSheet extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (widget.artworkVariants.isNotEmpty)
+                        IconButton(
+                          icon: _isDownloading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.download),
+                          onPressed: _isDownloading ? null : _downloadAllArtwork,
+                        ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -71,7 +147,7 @@ class ArtworkSelectionSheet extends StatelessWidget {
                 child: Column(
                   children: [
                     // Currently selected artwork (only show if there's artwork selected)
-                    if (currentArtworkUrl != null && onRemoveArtwork != null)
+                    if (widget.currentArtworkUrl != null && widget.onRemoveArtwork != null)
                       Container(
                         color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
                         child: Padding(
@@ -80,7 +156,7 @@ class ArtworkSelectionSheet extends StatelessWidget {
                             children: [
                               // Thumbnail
                               FutureBuilder<File?>(
-                                future: ArtworkManager.getCachedArtworkFile(currentArtworkUrl!),
+                                future: ArtworkManager.getCachedArtworkFile(widget.currentArtworkUrl!),
                                 builder: (context, snapshot) {
                                   if (snapshot.hasData && snapshot.data != null) {
                                     return ClipRRect(
@@ -127,7 +203,7 @@ class ArtworkSelectionSheet extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      currentArtworkSet ?? 'Unknown Set',
+                                      widget.currentArtworkSet ?? 'Unknown Set',
                                       style: const TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
@@ -142,7 +218,7 @@ class ArtworkSelectionSheet extends StatelessWidget {
                                 icon: const Icon(Icons.delete, color: Colors.red),
                                 onPressed: () {
                                   Navigator.pop(context);
-                                  onRemoveArtwork!();
+                                  widget.onRemoveArtwork!();
                                 },
                               ),
                             ],
@@ -150,11 +226,11 @@ class ArtworkSelectionSheet extends StatelessWidget {
                         ),
                       ),
 
-                    if (currentArtworkUrl != null && onRemoveArtwork != null)
+                    if (widget.currentArtworkUrl != null && widget.onRemoveArtwork != null)
                       const Divider(height: 1),
 
                     // Content
-                    if (artworkVariants.isEmpty)
+                    if (widget.artworkVariants.isEmpty)
                       // No artwork available
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 32),
@@ -180,32 +256,45 @@ class ArtworkSelectionSheet extends StatelessWidget {
                         ),
                       )
                     else
-                      // Artwork options
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: artworkVariants.length,
-                        separatorBuilder: (context, index) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final variant = artworkVariants[index];
-                          return _ArtworkOption(
-                            variant: variant,
-                            onTap: () async {
-                              // Show confirmation preview dialog
-                              final confirmed = await showDialog<bool>(
-                                context: context,
-                                builder: (context) => _ArtworkConfirmationDialog(
-                                  variant: variant,
-                                ),
-                              );
+                      // Artwork options grid
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.65, // Adjust for card proportions
+                          ),
+                          itemCount: widget.artworkVariants.length,
+                          itemBuilder: (context, index) {
+                            final variant = widget.artworkVariants[index];
+                            return _ArtworkOption(
+                              variant: variant,
+                              onTap: () async {
+                                // Show confirmation preview dialog
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => _ArtworkConfirmationDialog(
+                                    variant: variant,
+                                  ),
+                                );
 
-                              if (confirmed == true && context.mounted) {
-                                Navigator.pop(context); // Close selection sheet
-                                onArtworkSelected(variant.url, variant.set);
-                              }
-                            },
-                          );
-                        },
+                                // Rebuild to show newly cached artwork
+                                if (mounted) {
+                                  setState(() {});
+                                }
+
+                                if (confirmed == true && context.mounted) {
+                                  Navigator.pop(context); // Close selection sheet
+                                  widget.onArtworkSelected(variant.url, variant.set);
+                                }
+                              },
+                            );
+                          },
+                        ),
                       ),
                   ],
                 ),
@@ -218,7 +307,7 @@ class ArtworkSelectionSheet extends StatelessWidget {
   }
 }
 
-/// Individual artwork option in the list
+/// Individual artwork option card
 class _ArtworkOption extends StatelessWidget {
   final ArtworkVariant variant;
   final VoidCallback onTap;
@@ -232,12 +321,13 @@ class _ArtworkOption extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            // Thumbnail
-            FutureBuilder<File?>(
+      borderRadius: BorderRadius.circular(8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Thumbnail
+          Expanded(
+            child: FutureBuilder<File?>(
               future: ArtworkManager.getCachedArtworkFile(variant.url),
               builder: (context, snapshot) {
                 if (snapshot.hasData && snapshot.data != null) {
@@ -246,22 +336,20 @@ class _ArtworkOption extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                     child: Image.file(
                       snapshot.data!,
-                      width: 80,
-                      height: 112,
                       fit: BoxFit.cover,
+                      width: double.infinity,
                     ),
                   );
                 } else {
-                  // Show loading placeholder
+                  // Show download placeholder
                   return Container(
-                    width: 80,
-                    height: 112,
+                    width: double.infinity,
                     decoration: BoxDecoration(
                       color: Colors.grey[300],
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
-                      Icons.image,
+                      Icons.download,
                       size: 40,
                       color: Colors.grey[600],
                     ),
@@ -269,55 +357,22 @@ class _ArtworkOption extends StatelessWidget {
                 }
               },
             ),
+          ),
 
-            const SizedBox(width: 16),
+          const SizedBox(height: 8),
 
-            // Set info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    variant.set,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _getSetName(variant.set),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
+          // Set code
+          Text(
+            variant.set,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
             ),
-
-            const Icon(Icons.chevron_right),
-          ],
-        ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
-  }
-
-  /// Get full set name from set code
-  /// TODO: Expand this with more complete set name mappings
-  String _getSetName(String setCode) {
-    const setNames = {
-      'M15': 'Core Set 2015',
-      'KLD': 'Kaladesh',
-      'DOM': 'Dominaria',
-      'ACR': 'Assassin\'s Creed',
-      'MKM': 'Murders at Karlov Manor',
-      'HOU': 'Hour of Devastation',
-      'M3C': 'Modern Horizons 3 Commander',
-      // Add more as needed
-    };
-
-    return setNames[setCode] ?? setCode;
   }
 }
 
@@ -388,7 +443,7 @@ class _ArtworkConfirmationDialog extends StatelessWidget {
 
             // Set info
             Text(
-              '${_ArtworkOption(variant: variant, onTap: () {})._getSetName(variant.set)} — ${variant.set}',
+              variant.set,
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,

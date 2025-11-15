@@ -153,6 +153,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
             onRemoveArtwork: widget.item.artworkUrl != null ? _removeArtwork : null,
             currentArtworkUrl: widget.item.artworkUrl,
             currentArtworkSet: widget.item.artworkSet,
+            tokenName: widget.item.name,
           ),
         ),
       );
@@ -172,6 +173,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
           onRemoveArtwork: widget.item.artworkUrl != null ? _removeArtwork : null,
           currentArtworkUrl: widget.item.artworkUrl,
           currentArtworkSet: widget.item.artworkSet,
+          tokenName: widget.item.name,
         ),
       ),
     );
