@@ -54,6 +54,10 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
       _isDownloading = true;
     });
 
+    int successCount = 0;
+    int failCount = 0;
+    bool hadNetworkError = false;
+
     // Download each artwork sequentially
     for (final variant in widget.artworkVariants) {
       try {
@@ -61,14 +65,26 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
         final cachedFile = await ArtworkManager.getCachedArtworkFile(variant.url);
         if (cachedFile == null) {
           // Download if not cached
-          await ArtworkManager.downloadArtwork(variant.url);
+          final result = await ArtworkManager.downloadArtwork(variant.url);
+          if (result != null) {
+            successCount++;
+          } else {
+            failCount++;
+          }
           // Rebuild after each download to show progress
           if (mounted) {
             setState(() {});
           }
+        } else {
+          successCount++;
         }
       } catch (e) {
         debugPrint('Failed to download artwork from ${variant.set}: $e');
+        failCount++;
+        if (e.toString().contains('SocketException') ||
+            e.toString().contains('Failed host lookup')) {
+          hadNetworkError = true;
+        }
         // Continue with next artwork even if one fails
       }
     }
@@ -77,6 +93,27 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
       setState(() {
         _isDownloading = false;
       });
+
+      // Show result feedback
+      if (failCount > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              hadNetworkError
+                  ? 'Downloaded $successCount/${successCount + failCount} images. Please check your internet connection.'
+                  : 'Downloaded $successCount/${successCount + failCount} images. Some downloads failed.',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      } else if (successCount > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully downloaded all artwork ($successCount images)'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     }
   }
 
@@ -408,6 +445,10 @@ class _ArtworkConfirmationDialog extends StatelessWidget {
                     ),
                   );
                 } else if (snapshot.hasError) {
+                  // Check if it's a network error
+                  final isNetworkError = snapshot.error.toString().contains('SocketException') ||
+                      snapshot.error.toString().contains('Failed host lookup');
+
                   return Container(
                     height: 300,
                     alignment: Alignment.center,
@@ -416,7 +457,12 @@ class _ArtworkConfirmationDialog extends StatelessWidget {
                       children: [
                         const Icon(Icons.error, size: 48, color: Colors.red),
                         const SizedBox(height: 16),
-                        Text('Failed to load image:\n${snapshot.error}'),
+                        Text(
+                          isNetworkError
+                              ? 'Failed to load image.\n\nPlease check your internet connection.'
+                              : 'Failed to load image:\n${snapshot.error}',
+                          textAlign: TextAlign.center,
+                        ),
                       ],
                     ),
                   );
@@ -433,7 +479,10 @@ class _ArtworkConfirmationDialog extends StatelessWidget {
                   return Container(
                     height: 300,
                     alignment: Alignment.center,
-                    child: const Text('No image available'),
+                    child: const Text(
+                      'No image available.\n\nPlease check your internet connection.',
+                      textAlign: TextAlign.center,
+                    ),
                   );
                 }
               },

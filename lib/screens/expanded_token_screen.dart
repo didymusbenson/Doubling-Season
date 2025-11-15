@@ -203,7 +203,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Failed to download artwork'),
+          content: Text('Failed to download artwork. Please check your internet connection.'),
           backgroundColor: Colors.red,
         ),
       );
