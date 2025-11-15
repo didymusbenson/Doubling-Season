@@ -186,7 +186,9 @@ class _ContentScreenState extends State<ContentScreen> {
                 alignment: Alignment.center,
                 child: Text(
                   'No tokens to display',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: Theme.of(context).textTheme.titleLarge?.color?.withOpacity(0.6),
+                  ),
                 ),
               ),
               const SizedBox(height: UIConstants.largePadding),
@@ -217,13 +219,15 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.menu,
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'Open tools to add tokens, save decks, and more',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                      ),
                     ),
                   ),
                 ],
@@ -234,13 +238,15 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.calculate,
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'Adjust multiplier for token doubling effects',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                      ),
                     ),
                   ),
                 ],
@@ -251,13 +257,15 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.settings,
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'Adjust Settings',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                      ),
                     ),
                   ),
                 ],
@@ -268,13 +276,15 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.help_outline,
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'About Doubling Season',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                      ),
                     ),
                   ),
                 ],
