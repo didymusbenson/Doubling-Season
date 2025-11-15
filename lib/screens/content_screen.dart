@@ -109,9 +109,21 @@ class _ContentScreenState extends State<ContentScreen> {
               proxyDecorator: _buildDragProxy,
               itemBuilder: (context, index) {
                 final item = items[index];
-                // Use white glow in dark mode, black shadow in light mode
+                // Use white glow in dark mode, sharp shadow in light mode
                 final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-                final shadowColor = isDarkMode ? Colors.white : Colors.black;
+
+                // Different shadow/glow configurations for light vs dark mode
+                final shadowColor = isDarkMode
+                    ? Colors.white              // White glow
+                    : Colors.black;             // Sharp black shadow
+
+                final mainShadowOpacity = isDarkMode
+                    ? UIConstants.darkModeGlowOpacity
+                    : UIConstants.shadowOpacity;
+
+                final lightShadowOpacity = isDarkMode
+                    ? UIConstants.darkModeGlowOpacity * 0.5
+                    : UIConstants.lightShadowOpacity;
 
                 return Padding(
                   key: ValueKey(item.createdAt),
@@ -121,14 +133,14 @@ class _ContentScreenState extends State<ContentScreen> {
                       borderRadius: BorderRadius.circular(UIConstants.borderRadius),
                       boxShadow: [
                         BoxShadow(
-                          color: shadowColor.withValues(alpha: UIConstants.shadowOpacity),
+                          color: shadowColor.withValues(alpha: mainShadowOpacity),
                           blurRadius: UIConstants.shadowBlurRadius,
-                          offset: const Offset(0, UIConstants.shadowOffset),
+                          offset: const Offset(UIConstants.shadowOffsetX, UIConstants.shadowOffsetY),
                         ),
                         BoxShadow(
-                          color: shadowColor.withValues(alpha: UIConstants.lightShadowOpacity),
+                          color: shadowColor.withValues(alpha: lightShadowOpacity),
                           blurRadius: UIConstants.lightShadowBlurRadius,
-                          offset: const Offset(0, UIConstants.lightShadowOffset),
+                          offset: const Offset(UIConstants.lightShadowOffsetX, UIConstants.lightShadowOffsetY),
                         ),
                       ],
                       border: GradientBoxBorder(
