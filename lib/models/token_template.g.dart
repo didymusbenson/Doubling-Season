@@ -24,13 +24,14 @@ class TokenTemplateAdapter extends TypeAdapter<TokenTemplate> {
       order: fields[4] as double,
       artworkUrl: fields[6] as String?,
       artworkSet: fields[7] as String?,
+      artworkOptions: (fields[8] as List?)?.cast<ArtworkVariant>(),
     ).._type = fields[5] == null ? '' : fields[5] as String?;
   }
 
   @override
   void write(BinaryWriter writer, TokenTemplate obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
@@ -46,7 +47,9 @@ class TokenTemplateAdapter extends TypeAdapter<TokenTemplate> {
       ..writeByte(6)
       ..write(obj.artworkUrl)
       ..writeByte(7)
-      ..write(obj.artworkSet);
+      ..write(obj.artworkSet)
+      ..writeByte(8)
+      ..write(obj.artworkOptions);
   }
 
   @override

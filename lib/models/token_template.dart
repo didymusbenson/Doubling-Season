@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 import 'item.dart';
+import 'token_definition.dart';
 import '../utils/constants.dart';
 
 part 'token_template.g.dart';
@@ -36,6 +37,9 @@ class TokenTemplate extends HiveObject {
   @HiveField(7)
   String? artworkSet;
 
+  @HiveField(8)
+  List<ArtworkVariant>? artworkOptions;
+
   TokenTemplate({
     required this.name,
     required this.pt,
@@ -45,6 +49,7 @@ class TokenTemplate extends HiveObject {
     this.order = 0.0,
     this.artworkUrl,
     this.artworkSet,
+    this.artworkOptions,
   }) : _type = type;
 
   factory TokenTemplate.fromItem(Item item) {
@@ -57,6 +62,7 @@ class TokenTemplate extends HiveObject {
       order: item.order,
       artworkUrl: item.artworkUrl,
       artworkSet: item.artworkSet,
+      artworkOptions: item.artworkOptions != null ? List.from(item.artworkOptions!) : null,
     );
   }
 
@@ -73,6 +79,7 @@ class TokenTemplate extends HiveObject {
       order: order, // Preserve order when loading
       artworkUrl: artworkUrl,
       artworkSet: artworkSet,
+      artworkOptions: artworkOptions != null ? List.from(artworkOptions!) : null,
     );
   }
 }

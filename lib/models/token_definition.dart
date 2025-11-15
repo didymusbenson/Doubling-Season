@@ -1,7 +1,14 @@
+import 'package:hive/hive.dart';
 import 'item.dart';
 
+part 'token_definition.g.dart';
+
+@HiveType(typeId: 4)
 class ArtworkVariant {
+  @HiveField(0)
   final String set;
+
+  @HiveField(1)
   final String url;
 
   ArtworkVariant({required this.set, required this.url});
@@ -74,6 +81,7 @@ class TokenDefinition {
       amount: amount,
       tapped: createTapped ? amount : 0,
       summoningSick: amount, // Always apply summoning sickness to new tokens
+      artworkOptions: artwork.isNotEmpty ? List.from(artwork) : null,
     );
   }
 

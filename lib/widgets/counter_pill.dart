@@ -20,7 +20,7 @@ class CounterPillView extends StatelessWidget {
         vertical: UIConstants.counterPillVerticalPadding,
       ),
       decoration: BoxDecoration(
-        color: Colors.orange.withValues(alpha: UIConstants.actionButtonBackgroundOpacity),
+        color: Colors.orange.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(UIConstants.counterPillBorderRadius),
       ),
       child: Row(
@@ -29,7 +29,7 @@ class CounterPillView extends StatelessWidget {
           Text(
             name,
             style: const TextStyle(
-              color: Colors.orange,
+              color: Colors.white,
               fontSize: UIConstants.counterPillFontSize,
               fontWeight: FontWeight.w600,
             ),
@@ -39,7 +39,7 @@ class CounterPillView extends StatelessWidget {
             Text(
               '$amount',
               style: const TextStyle(
-                color: Colors.orange,
+                color: Colors.white,
                 fontSize: UIConstants.counterPillAmountFontSize,
                 fontWeight: FontWeight.bold,
               ),

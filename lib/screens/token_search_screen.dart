@@ -8,6 +8,7 @@ import '../providers/settings_provider.dart';
 import '../widgets/new_token_sheet.dart';
 import '../widgets/color_filter_button.dart';
 import '../utils/constants.dart';
+import '../utils/artwork_manager.dart';
 
 enum SearchTab { all, recent, favorites }
 
@@ -741,6 +742,22 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                     amount: finalAmount,
                     createTapped: _createTapped,
                   );
+
+                  // Auto-assign first artwork if available
+                  if (token.artwork.isNotEmpty) {
+                    final firstArtwork = token.artwork[0];
+                    item.artworkUrl = firstArtwork.url;
+                    item.artworkSet = firstArtwork.set;
+
+                    // Download and cache artwork before showing token
+                    try {
+                      await ArtworkManager.downloadArtwork(firstArtwork.url);
+                    } catch (error) {
+                      debugPrint('Artwork download failed: $error');
+                      // Continue anyway - artwork will lazy load later
+                    }
+                  }
+
                   await tokenProvider.insertItem(item);
 
                   // Now safe to use context with mounted check

@@ -25,6 +25,7 @@ class ItemAdapter extends TypeAdapter<Item> {
       order: fields[11] as double,
       artworkUrl: fields[13] as String?,
       artworkSet: fields[14] as String?,
+      artworkOptions: (fields[15] as List?)?.cast<ArtworkVariant>(),
     )
       .._colors = fields[3] as String
       .._amount = fields[4] as int
@@ -38,7 +39,7 @@ class ItemAdapter extends TypeAdapter<Item> {
   @override
   void write(BinaryWriter writer, Item obj) {
     writer
-      ..writeByte(15)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.abilities)
       ..writeByte(1)
@@ -68,7 +69,9 @@ class ItemAdapter extends TypeAdapter<Item> {
       ..writeByte(13)
       ..write(obj.artworkUrl)
       ..writeByte(14)
-      ..write(obj.artworkSet);
+      ..write(obj.artworkSet)
+      ..writeByte(15)
+      ..write(obj.artworkOptions);
   }
 
   @override

@@ -70,6 +70,25 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
 
   Future<void> _loadTokenDefinition() async {
     try {
+      // PRIORITY 1: Use artworkOptions from item if available (persisted from creation)
+      if (widget.item.artworkOptions != null && widget.item.artworkOptions!.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _tokenDefinition = TokenDefinition(
+              name: widget.item.name,
+              abilities: widget.item.abilities,
+              pt: widget.item.pt,
+              colors: widget.item.colors,
+              type: widget.item.type,
+              popularity: 0,
+              artwork: widget.item.artworkOptions!,
+            );
+          });
+        }
+        return;
+      }
+
+      // FALLBACK: Load from database (for legacy items or edited tokens)
       final database = TokenDatabase();
       await database.loadTokens();
 
@@ -90,6 +109,12 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
           artwork: [],
         ),
       );
+
+      // Store artwork options on item for future use
+      if (matchingToken.artwork.isNotEmpty) {
+        widget.item.artworkOptions = List.from(matchingToken.artwork);
+        widget.item.save();
+      }
 
       if (mounted) {
         setState(() {
@@ -131,7 +156,11 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
       context: context,
       isScrollControlled: true,
       builder: (context) => ArtworkSelectionSheet(
-        artworkVariants: _tokenDefinition!.artwork,
+        artworkVariants: _tokenDefinition!.artwork
+            .where((variant) =>
+                variant.set == widget.item.artworkSet ||
+                widget.item.artworkSet == null) // Show all if no current set
+            .toList(),
         onArtworkSelected: _handleArtworkSelected,
         onRemoveArtwork: widget.item.artworkUrl != null ? _removeArtwork : null,
       ),

@@ -206,7 +206,7 @@ class TokenCard extends StatelessWidget {
                           vertical: UIConstants.verticalSpacing,
                         ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                          color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.85),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(

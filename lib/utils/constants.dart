@@ -13,6 +13,7 @@ class HiveTypeIds {
   static const int tokenCounter = 1;
   static const int deck = 2;
   static const int tokenTemplate = 3;
+  static const int artworkVariant = 4;
 }
 
 /// UI constants

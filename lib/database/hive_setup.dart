@@ -3,6 +3,7 @@ import '../models/item.dart';
 import '../models/token_counter.dart';
 import '../models/deck.dart';
 import '../models/token_template.dart';
+import '../models/token_definition.dart';
 
 Future<void> initHive() async {
   await Hive.initFlutter();
@@ -12,4 +13,5 @@ Future<void> initHive() async {
   Hive.registerAdapter(TokenCounterAdapter());
   Hive.registerAdapter(DeckAdapter());
   Hive.registerAdapter(TokenTemplateAdapter());
+  Hive.registerAdapter(ArtworkVariantAdapter());
 }
