@@ -8,12 +8,16 @@ class ArtworkSelectionSheet extends StatelessWidget {
   final List<ArtworkVariant> artworkVariants;
   final Function(String url, String setCode) onArtworkSelected;
   final VoidCallback? onRemoveArtwork;
+  final String? currentArtworkUrl;
+  final String? currentArtworkSet;
 
   const ArtworkSelectionSheet({
     super.key,
     required this.artworkVariants,
     required this.onArtworkSelected,
     this.onRemoveArtwork,
+    this.currentArtworkUrl,
+    this.currentArtworkSet,
   });
 
   @override
@@ -66,45 +70,87 @@ class ArtworkSelectionSheet extends StatelessWidget {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    // Remove artwork option (only show if there's artwork to remove)
-                    if (onRemoveArtwork != null)
-                      Material(
-                        color: Theme.of(context).colorScheme.errorContainer,
-                        child: InkWell(
-                          onTap: () {
-                            Navigator.pop(context);
-                            onRemoveArtwork!();
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 16,
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.remove_circle_outline,
-                                  color: Theme.of(context).colorScheme.onErrorContainer,
-                                  size: 32,
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Text(
-                                    'Remove Artwork',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    // Currently selected artwork (only show if there's artwork selected)
+                    if (currentArtworkUrl != null && onRemoveArtwork != null)
+                      Container(
+                        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Row(
+                            children: [
+                              // Thumbnail
+                              FutureBuilder<File?>(
+                                future: ArtworkManager.getCachedArtworkFile(currentArtworkUrl!),
+                                builder: (context, snapshot) {
+                                  if (snapshot.hasData && snapshot.data != null) {
+                                    return ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.file(
+                                        snapshot.data!,
+                                        width: 80,
+                                        height: 112,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    );
+                                  } else {
+                                    return Container(
+                                      width: 80,
+                                      height: 112,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[300],
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        Icons.image,
+                                        size: 40,
+                                        color: Colors.grey[600],
+                                      ),
+                                    );
+                                  }
+                                },
+                              ),
+
+                              const SizedBox(width: 16),
+
+                              // Info
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Currently Selected',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey,
+                                      ),
                                     ),
-                                  ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      currentArtworkSet ?? 'Unknown Set',
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
+                              ),
+
+                              // Remove button
+                              IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  onRemoveArtwork!();
+                                },
+                              ),
+                            ],
                           ),
                         ),
                       ),
 
-                    if (onRemoveArtwork != null)
+                    if (currentArtworkUrl != null && onRemoveArtwork != null)
                       const Divider(height: 1),
 
                     // Content

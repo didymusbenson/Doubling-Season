@@ -143,10 +143,17 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
       // No artwork available
       showModalBottomSheet(
         context: context,
-        builder: (context) => ArtworkSelectionSheet(
-          artworkVariants: const [],
-          onArtworkSelected: (url, setCode) {},
-          onRemoveArtwork: widget.item.artworkUrl != null ? _removeArtwork : null,
+        builder: (context) => ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
+          ),
+          child: ArtworkSelectionSheet(
+            artworkVariants: const [],
+            onArtworkSelected: (url, setCode) {},
+            onRemoveArtwork: widget.item.artworkUrl != null ? _removeArtwork : null,
+            currentArtworkUrl: widget.item.artworkUrl,
+            currentArtworkSet: widget.item.artworkSet,
+          ),
         ),
       );
       return;
@@ -155,14 +162,17 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => ArtworkSelectionSheet(
-        artworkVariants: _tokenDefinition!.artwork
-            .where((variant) =>
-                variant.set == widget.item.artworkSet ||
-                widget.item.artworkSet == null) // Show all if no current set
-            .toList(),
-        onArtworkSelected: _handleArtworkSelected,
-        onRemoveArtwork: widget.item.artworkUrl != null ? _removeArtwork : null,
+      builder: (context) => ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        child: ArtworkSelectionSheet(
+          artworkVariants: _tokenDefinition!.artwork,
+          onArtworkSelected: _handleArtworkSelected,
+          onRemoveArtwork: widget.item.artworkUrl != null ? _removeArtwork : null,
+          currentArtworkUrl: widget.item.artworkUrl,
+          currentArtworkSet: widget.item.artworkSet,
+        ),
       ),
     );
   }
@@ -305,27 +315,29 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
             const SizedBox(height: 16),
 
             // Type and Artwork selection in a row
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Type (70% width)
-                Expanded(
-                  flex: 7,
-                  child: _buildEditableField(
-                    label: 'Type',
-                    field: EditableField.type,
-                    value: widget.item.type,
-                    onSave: (value) => widget.item.type = value,
-                    placeholder: 'e.g., Creature — Elf Warrior',
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Type (70% width)
+                  Expanded(
+                    flex: 7,
+                    child: _buildEditableField(
+                      label: 'Type',
+                      field: EditableField.type,
+                      value: widget.item.type,
+                      onSave: (value) => widget.item.type = value,
+                      placeholder: 'e.g., Creature — Elf Warrior',
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                // Artwork selection (30% width)
-                Expanded(
-                  flex: 3,
-                  child: _buildArtworkSelectionBox(),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  // Artwork selection (30% width)
+                  Expanded(
+                    flex: 3,
+                    child: _buildArtworkSelectionBox(),
+                  ),
+                ],
+              ),
             ),
 
             const SizedBox(height: 16),
