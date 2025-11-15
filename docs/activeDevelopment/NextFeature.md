@@ -1,4 +1,38 @@
-## Bug: Artwork Does Not Auto-Assign for New Tokens
+# Implementation Plan
+
+This document contains bug fixes and features for the artwork system in priority order. All items should be implemented in the sequence listed below to avoid conflicts.
+
+## Recommended Implementation Order
+
+1. **Convert ArtworkVariant to Hive Model** (prerequisite for Feature)
+   - Add `@HiveType(typeId: 4)` to ArtworkVariant class
+   - Add `@HiveField` annotations for `set` (0) and `url` (1)
+   - Update `HiveTypeIds` in `lib/utils/constants.dart` to include `artworkVariant = 4`
+   - Run `flutter pub run build_runner build` to generate adapter
+
+2. **Feature: Store Artwork Options on Item** (high priority)
+   - Enables edited tokens to retain artwork options
+   - See detailed implementation below
+
+3. **Bug #1: Auto-Assign Artwork for New Tokens** (medium priority)
+   - Integrates cleanly with Feature implementation
+   - Uses asynchronous download (create token immediately, cache in background)
+
+4. **Bug #2: Artwork Color Variant Matching** (low priority)
+   - Simple one-line addition to color matching logic
+
+5. **Bug #3: Modified P/T and Counter Pill Opacity** (medium priority)
+   - Two-line opacity adjustments
+
+6. **Bug #4: Token Copy Missing Fields** (medium priority)
+   - Three-line addition to copy constructor
+
+7. **Bug #5: Splash Screen Text Overflow** (low priority)
+   - One-line margin adjustment
+
+---
+
+## Bug #1: Artwork Does Not Auto-Assign for New Tokens
 
 **Location:** `lib/models/token_definition.dart:67-78` (in `toItem()` method)
 
@@ -55,11 +89,8 @@ Item toItem({required int amount, required bool createTapped}) {
 }
 ```
 
-**Additional Consideration:**
-The fix should also trigger artwork download/caching when the item is created, similar to how `ExpandedTokenScreen._handleArtworkSelected()` uses `ArtworkManager.downloadArtwork()`. Otherwise the artwork URL will be set but the image won't be cached locally until the user opens the token details.
-
-**Alternative Approach:**
-Instead of modifying `toItem()`, handle this in `TokenSearchScreen._showQuantityDialog()` after creating the item but before inserting it:
+**Artwork Download Strategy:**
+Download artwork asynchronously (create token immediately, cache in background):
 
 ```dart
 final item = token.toItem(
@@ -72,15 +103,25 @@ if (token.artwork.isNotEmpty) {
   final firstArtwork = token.artwork[0];
   item.artworkUrl = firstArtwork.url;
   item.artworkSet = firstArtwork.set;
-  // Optionally trigger download: await ArtworkManager.downloadArtwork(firstArtwork.url);
+
+  // Download asynchronously in background (don't await)
+  ArtworkManager.downloadArtwork(firstArtwork.url).catchError((error) {
+    debugPrint('Background artwork download failed: $error');
+  });
 }
 
 await tokenProvider.insertItem(item);
 ```
 
+This approach:
+- ✅ Doesn't block token creation
+- ✅ Artwork displays immediately when cached
+- ✅ Falls back to lazy loading if download fails
+- ✅ Better UX than synchronous download
+
 **Impact:** Medium priority - tokens function correctly but missing expected visual enhancement on creation.
 
-## Bug: Artwork Selection Shows Wrong Color Variants
+## Bug #2: Artwork Selection Shows Wrong Color Variants
 
 **Location:** `lib/screens/expanded_token_screen.dart:71-102` (in `_loadTokenDefinition()`)
 
@@ -137,10 +178,32 @@ Store the full artwork options array on `Item` at creation time, with database l
 List<ArtworkVariant>? artworkOptions;
 ```
 
+Also add to Item constructor parameters:
+```dart
+Item({
+  // ... existing parameters ...
+  this.artworkUrl,
+  this.artworkSet,
+  this.artworkOptions,  // ADD THIS
+})
+```
+
 2. **Add field to TokenTemplate** (`lib/models/token_template.dart`):
 ```dart
-@HiveField(6)
+@HiveField(8)
 List<ArtworkVariant>? artworkOptions;
+```
+
+**Note:** TokenTemplate already uses fields 0-7 (artworkUrl is field 6, artworkSet is field 7), so the next available field is 8.
+
+Also add to TokenTemplate constructor parameters:
+```dart
+TokenTemplate({
+  // ... existing parameters ...
+  this.artworkUrl,
+  this.artworkSet,
+  this.artworkOptions,  // ADD THIS
+})
 ```
 
 3. **Populate on creation** (`lib/models/token_definition.dart`):
@@ -279,7 +342,8 @@ Item toItem({required int amount, required bool createTapped}) {
 
 **Hive Schema Version:**
 - Item: v2 (adds field 15)
-- TokenTemplate: v2 (adds field 6)
+- TokenTemplate: v2 (adds field 8)
+- ArtworkVariant: new type (typeId 4)
 - Migration: Lazy (on-demand in ExpandedTokenScreen)
 - Backward compatible: null values handled gracefully
 
@@ -295,48 +359,98 @@ Item toItem({required int amount, required bool createTapped}) {
 
 **Impact:** High priority - significantly improves UX for edited tokens and future-proofs artwork system.
 
-## Bug: Modified P/T and Counter Pills Need Higher Opacity
+## Bug #3: Modified P/T and Counter Pills Need Higher Opacity
 
-**Location:** `lib/widgets/token_card.dart` (modified P/T background and counter pill backgrounds)
+**Affected Files:**
+1. `lib/widgets/token_card.dart` - Modified P/T background
+2. `lib/widgets/counter_pill.dart` - Counter pill backgrounds
 
 **Issue:** Before artwork was implemented, modified P/T backgrounds and counter pills used lower opacity values. Now that tokens can have artwork, these elements need higher opacity (0.85 alpha) to remain readable when artwork is displayed behind them.
 
-**Affected Elements:**
-1. **Modified P/T Display** - The colored background shown when a token has +1/+1 or -1/-1 counters
-2. **Counter Pills** - Custom counter badges displayed on TokenCard in list view
+**Fix 1: Modified P/T Background** (`lib/widgets/token_card.dart:209`)
 
-**Current Behavior:**
-- Modified P/T and counter pills may have insufficient contrast when token artwork is visible
-- Text can be difficult to read against certain artwork backgrounds
+Current:
+```dart
+color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+```
 
-**Expected Behavior:**
-- Modified P/T background should use 0.85 opacity (matching other text backgrounds over artwork)
-- Counter pills should use 0.85 opacity (matching other UI elements over artwork)
+Change to:
+```dart
+color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.85),
+```
 
-**Fix:**
-Update opacity values in `token_card.dart` to match the 0.85 alpha used for other text backgrounds (like the semi-transparent `cardColor` backgrounds used throughout the card).
+**Fix 2: Counter Pills** (`lib/widgets/counter_pill.dart:23`)
+
+Current:
+```dart
+color: Colors.orange.withValues(alpha: UIConstants.actionButtonBackgroundOpacity), // 0.15
+```
+
+Change to:
+```dart
+color: Colors.orange.withValues(alpha: 0.85),
+```
 
 **Impact:** Medium priority - affects readability when artwork is present, but tokens are still functional.
 
-## Bug: Token Copies Do Not Copy Type Field
+## Bug #4: Token Copies Missing Multiple Fields
 
-**Location:** Token copy functionality (likely in `lib/providers/token_provider.dart` or `lib/widgets/token_card.dart`)
+**Location:** `lib/providers/token_provider.dart:231-288` (copyToken method)
 
-**Issue:** When copying a token card, the newly created token does not contain type information. Split operations correctly preserve the type field.
+**Issue:** When copying a token card, the newly created token is missing THREE fields: `type`, `artworkUrl`, and `artworkSet`. Split operations correctly preserve all fields.
 
-**Expected Behavior:** Copied tokens should preserve all properties including the `type` field (Creature, Artifact, Enchantment, Emblem, etc.)
+**Expected Behavior:** Copied tokens should preserve all properties including type, artwork URL, and artwork set.
 
 **Actual Behavior:**
-- Copying a token creates a new Item without the `type` field
-- Splitting a token stack correctly preserves the `type` field
+- Copying a token creates a new Item without `type`, `artworkUrl`, or `artworkSet`
+- Artwork disappears from copied tokens
+- Type metadata is lost
+
+**Fix:** (`lib/providers/token_provider.dart:249-258`)
+
+Current:
+```dart
+final newItem = Item(
+  name: original.name,
+  pt: original.pt,
+  abilities: original.abilities,
+  colors: original.colors,
+  amount: original.amount,
+  tapped: original.tapped,
+  summoningSick: summoningSicknessEnabled ? original.amount : 0,
+  order: newOrder,
+);
+```
+
+Change to:
+```dart
+final newItem = Item(
+  name: original.name,
+  pt: original.pt,
+  abilities: original.abilities,
+  colors: original.colors,
+  type: original.type,              // ADD THIS
+  amount: original.amount,
+  tapped: original.tapped,
+  summoningSick: summoningSicknessEnabled ? original.amount : 0,
+  order: newOrder,
+  artworkUrl: original.artworkUrl,  // ADD THIS
+  artworkSet: original.artworkSet,  // ADD THIS
+  artworkOptions: original.artworkOptions != null  // ADD THIS (after Feature implemented)
+      ? List.from(original.artworkOptions!)
+      : null,
+);
+```
+
+**Note:** The `artworkOptions` field should be added after implementing the Feature (Store Artwork Options on Item). If implementing this bug fix before the Feature, omit the `artworkOptions` line.
 
 **Platform:** Confirmed on both Android and iOS
 
-**Impact:** Medium priority - tokens function correctly but lose type metadata when copied
+**Impact:** Medium priority - tokens function correctly but lose type metadata and artwork when copied
 
-## Bug: iPhone Splash Screen Text Overflow on Large Devices
+## Bug #5: iPhone Splash Screen Text Overflow on Large Devices
 
-**Location:** `lib/screens/splash_screen.dart`
+**Location:** `lib/screens/splash_screen.dart:16`
 
 **Issue:** The splash screen text "zombies&" wraps to a second line on iPhone 16 and iPhone 16 Pro Max simulators.
 
@@ -346,12 +460,21 @@ Update opacity values in `token_card.dart` to match the 0.85 alpha used for othe
 - On iPhone 16 and 16 Pro Max simulators: "zombies&" overflows to second line
 - On iPhone X: No overflow observed (works correctly)
 
-**Root Cause:** Font sizing or margin/padding handling doesn't properly account for the available width on larger iPhone displays.
+**Root Cause:** Safety margin of 32.0 pixels is insufficient for larger iPhone displays.
 
-**Fix Options:**
-1. Reduce overall font size slightly
-2. Improve automatic sizing to better handle margins/padding constraints
-3. Adjust horizontal padding to give more space for text
+**Fix:** (`lib/screens/splash_screen.dart:16`)
+
+Current:
+```dart
+final availableWidth = screenWidth - padding.left - padding.right - 32.0; // Extra margin for safety
+```
+
+Change to:
+```dart
+final availableWidth = screenWidth - padding.left - padding.right - 48.0; // Extra margin for safety
+```
+
+This increases the safety margin from 32.0 to 48.0 pixels, providing more buffer space for text on larger devices.
 
 **Note:** This issue appears only in simulators for newer/larger iPhones. Physical device testing on iPhone X shows no overflow.
 
