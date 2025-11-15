@@ -85,23 +85,19 @@ class _ContentScreenState extends State<ContentScreen> {
     // Use Provider.of with listen: false to get the provider reference once
     final tokenProvider = Provider.of<TokenProvider>(context, listen: false);
 
-    // Watch artwork style to rebuild when it changes
-    return Selector<SettingsProvider, String>(
-      selector: (context, settings) => settings.artworkDisplayStyle,
-      builder: (context, artworkStyle, _) {
-        // Only use ValueListenableBuilder for reactivity - no need for Consumer
-        return ValueListenableBuilder<Box<Item>>(
-          valueListenable: tokenProvider.listenable,
-          builder: (context, box, _) {
-            // Check empty state directly on box (efficient)
-            if (box.isEmpty) {
-              return _buildEmptyState();
-            }
+    // Only use ValueListenableBuilder for reactivity - no need for Consumer
+    return ValueListenableBuilder<Box<Item>>(
+      valueListenable: tokenProvider.listenable,
+      builder: (context, box, _) {
+        // Check empty state directly on box (efficient)
+        if (box.isEmpty) {
+          return _buildEmptyState();
+        }
 
-            final items = box.values.toList()
-              ..sort((a, b) => a.order.compareTo(b.order));
+        final items = box.values.toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
 
-            return ReorderableListView.builder(
+        return ReorderableListView.builder(
               itemCount: items.length,
               padding: const EdgeInsets.only(
                 top: UIConstants.listTopPadding,
@@ -115,10 +111,8 @@ class _ContentScreenState extends State<ContentScreen> {
                 final item = items[index];
                 final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-                // Use artwork style from Selector to determine border width
-                final borderWidth = artworkStyle == 'fullView'
-                    ? 2.0  // Thinner border in full view mode
-                    : UIConstants.borderWidth;  // Normal 5px border
+                // Use consistent 3px border for both artwork styles
+                const borderWidth = 3.0;
 
                 // Adjust inner border radius to fit inside the border
                 final innerBorderRadius = UIConstants.borderRadius - borderWidth;
@@ -171,8 +165,6 @@ class _ContentScreenState extends State<ContentScreen> {
             );
           },
         );
-      },
-    );
   }
 
   Widget _buildEmptyState() {
@@ -406,10 +398,9 @@ class _ContentScreenState extends State<ContentScreen> {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Existing summoning sickness toggle
+                // Summoning sickness toggle
                 SwitchListTile(
                   title: const Text('Track summoning sickness'),
-                  subtitle: const Text('Automatically track summoning sickness on newly created tokens'),
                   value: settings.summoningSicknessEnabled,
                   onChanged: (value) {
                     settings.setSummoningSicknessEnabled(value);
@@ -419,10 +410,24 @@ class _ContentScreenState extends State<ContentScreen> {
 
                 const Divider(),
 
+                // Theme section header
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 8, bottom: 8),
+                    child: Text(
+                      'Theme',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+
                 // Theme mode settings
                 SwitchListTile(
                   title: const Text('Use system theme'),
-                  subtitle: const Text('Follow device light/dark mode setting'),
                   value: settings.useSystemTheme,
                   onChanged: (value) {
                     settings.setUseSystemTheme(value);
@@ -432,7 +437,6 @@ class _ContentScreenState extends State<ContentScreen> {
 
                 SwitchListTile(
                   title: const Text('Dark mode'),
-                  subtitle: const Text('Use dark theme'),
                   value: settings.isDarkMode,
                   onChanged: settings.useSystemTheme ? null : (value) {
                     settings.setIsDarkMode(value);
@@ -440,28 +444,26 @@ class _ContentScreenState extends State<ContentScreen> {
                   contentPadding: EdgeInsets.zero,
                 ),
 
-                const Divider(),
+                const SizedBox(height: 8),
 
-                // Artwork style selection
-                ListTile(
-                  title: const Text('Artwork Display Style'),
-                  subtitle: Text(
-                    settings.artworkDisplayStyle == 'fullView'
-                      ? 'Full View - Artwork fills card width'
-                      : 'Fadeout - Artwork on right with gradient',
+                // Token art selection
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Text('Token Art'),
                   ),
-                  contentPadding: EdgeInsets.zero,
                 ),
                 SegmentedButton<String>(
                   segments: const [
                     ButtonSegment(
                       value: 'fullView',
-                      label: Text('Full View'),
+                      label: Text('Full Card'),
                       icon: Icon(Icons.crop_landscape),
                     ),
                     ButtonSegment(
                       value: 'fadeout',
-                      label: Text('Fadeout'),
+                      label: Text('Half Card'),
                       icon: Icon(Icons.gradient),
                     ),
                   ],

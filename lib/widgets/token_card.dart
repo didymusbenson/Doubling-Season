@@ -64,13 +64,20 @@ class TokenCard extends StatelessWidget {
             Row(
               children: [
                 if (!item.isEmblem)
-                  // Name with shrink-wrap background
-                  _buildTextWithBackground(
-                    context: context,
-                    child: Text(
-                      item.name,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+                  // Name with truncation to prevent overflow, background shrink-wraps
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: _buildTextWithBackground(
+                        context: context,
+                        child: Text(
+                          item.name,
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       ),
                     ),
                   ),
@@ -88,7 +95,7 @@ class TokenCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (!item.isEmblem) const Spacer(),
+                if (!item.isEmblem) const SizedBox(width: UIConstants.mediumSpacing),
                 if (!item.isEmblem)
                   // Unified background for entire tapped/untapped section
                   _buildTextWithBackground(
@@ -171,78 +178,15 @@ class TokenCard extends StatelessWidget {
               ),
             ],
 
-            // Abilities and P/T combined row
+            // Abilities and P/T - conditional layout based on P/T size
             if (item.abilities.isNotEmpty || (!item.isEmblem && item.pt.isNotEmpty)) ...[
               const SizedBox(height: UIConstants.mediumSpacing),
               Padding(
                 padding: EdgeInsets.only(right: kIsWeb ? 40 : 0, bottom: UIConstants.mediumSpacing),
-                child: IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Abilities (top-left)
-                      if (item.abilities.isNotEmpty)
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.topLeft,
-                            child: _buildTextWithBackground(
-                              context: context,
-                              child: Text(
-                                item.abilities,
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                      // Spacer when no abilities (pushes P/T to the right)
-                      if (item.abilities.isEmpty && !item.isEmblem && item.pt.isNotEmpty)
-                        const Spacer(),
-
-                      // Spacing between abilities and P/T
-                      if (item.abilities.isNotEmpty && !item.isEmblem && item.pt.isNotEmpty)
-                        const SizedBox(width: UIConstants.mediumSpacing),
-
-                      // P/T (bottom-right)
-                      if (!item.isEmblem && item.pt.isNotEmpty)
-                        Align(
-                          alignment: Alignment.bottomRight,
-                          child: item.isPowerToughnessModified
-                              ? Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: UIConstants.mediumSpacing,
-                                    vertical: UIConstants.verticalSpacing,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.85),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    item.formattedPowerToughness,
-                                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                  ),
-                                )
-                              : _buildTextWithBackground(
-                                  context: context,
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  child: Text(
-                                    item.formattedPowerToughness,
-                                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                  ),
-                                ),
-                        ),
-                    ],
-                  ),
-                ),
+                // Use Column layout if formatted P/T is too long (>= 8 chars like "1000/1000")
+                child: (!item.isEmblem && item.pt.isNotEmpty && item.formattedPowerToughness.length >= 8)
+                    ? _buildStackedAbilitiesAndPT(context, item)
+                    : _buildInlineAbilitiesAndPT(context, item),
               ),
             ],
 
@@ -611,5 +555,119 @@ class TokenCard extends StatelessWidget {
       ),
       child: child,
     );
+  }
+
+  /// Build inline layout (Row) for abilities and P/T side by side
+  Widget _buildInlineAbilitiesAndPT(BuildContext context, Item item) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Abilities (top-left)
+          if (item.abilities.isNotEmpty)
+            Expanded(
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: _buildTextWithBackground(
+                  context: context,
+                  child: Text(
+                    item.abilities,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ),
+
+          // Spacer when no abilities (pushes P/T to the right)
+          if (item.abilities.isEmpty && !item.isEmblem && item.pt.isNotEmpty)
+            const Spacer(),
+
+          // Spacing between abilities and P/T
+          if (item.abilities.isNotEmpty && !item.isEmblem && item.pt.isNotEmpty)
+            const SizedBox(width: UIConstants.mediumSpacing),
+
+          // P/T (bottom-right)
+          if (!item.isEmblem && item.pt.isNotEmpty)
+            Align(
+              alignment: Alignment.bottomRight,
+              child: _buildPTWidget(context),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Build stacked layout (Column) for abilities full width with P/T below
+  Widget _buildStackedAbilitiesAndPT(BuildContext context, Item item) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Abilities (full width on top)
+        if (item.abilities.isNotEmpty)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: _buildTextWithBackground(
+              context: context,
+              child: Text(
+                item.abilities,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+
+        // Spacing between abilities and P/T
+        if (item.abilities.isNotEmpty && item.pt.isNotEmpty)
+          const SizedBox(height: UIConstants.mediumSpacing),
+
+        // P/T (right-aligned in its own row)
+        if (item.pt.isNotEmpty)
+          Align(
+            alignment: Alignment.centerRight,
+            child: _buildPTWidget(context),
+          ),
+      ],
+    );
+  }
+
+  /// Build P/T widget (modified or normal styling)
+  Widget _buildPTWidget(BuildContext context) {
+    return item.isPowerToughnessModified
+        ? Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: UIConstants.mediumSpacing,
+              vertical: UIConstants.verticalSpacing,
+            ),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              item.formattedPowerToughness,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+          )
+        : _buildTextWithBackground(
+            context: context,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Text(
+              item.formattedPowerToughness,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+          );
   }
 }
