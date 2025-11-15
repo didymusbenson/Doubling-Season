@@ -187,7 +187,7 @@ class _ContentScreenState extends State<ContentScreen> {
                 child: Text(
                   'No tokens to display',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Theme.of(context).textTheme.titleLarge?.color?.withOpacity(0.6),
+                    color: Theme.of(context).textTheme.titleLarge?.color?.withValues(alpha: 0.6),
                   ),
                 ),
               ),
@@ -219,14 +219,33 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.menu,
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'Open tools to add tokens, save decks, and more',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: UIConstants.standardPadding),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.touch_app,
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(width: UIConstants.largeSpacing),
+                  Flexible(
+                    child: Text(
+                      'Tap a token to edit details, add counters, and more',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                       ),
                     ),
                   ),
@@ -238,14 +257,14 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.calculate,
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'Adjust multiplier for token doubling effects',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                       ),
                     ),
                   ),
@@ -257,14 +276,14 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.settings,
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
-                      'Adjust Settings',
+                      'Adjust settings, theme, etc.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                       ),
                     ),
                   ),
@@ -276,14 +295,14 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.help_outline,
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'About Doubling Season',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                       ),
                     ),
                   ),

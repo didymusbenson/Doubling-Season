@@ -509,33 +509,6 @@ class TokenCard extends StatelessWidget {
     );
   }
 
-  /// Build semi-transparent overlay layer
-  ///
-  /// NOTE: This method is currently UNUSED but preserved for potential future use.
-  /// It provides a way to dim the entire artwork with a semi-transparent overlay
-  /// if text contrast becomes insufficient. Currently, text background boxes
-  /// provide adequate readability without needing this global dimming effect.
-  ///
-  /// To enable: Add to Stack between artwork layer and content layer:
-  /// ```dart
-  /// if (item.artworkUrl != null && artworkStyle == 'fullView')
-  ///   _buildOverlayLayer(context),
-  /// ```
-  Widget _buildOverlayLayer(BuildContext context) {
-    final backgroundColor = Theme.of(context).brightness == Brightness.dark
-        ? Theme.of(context).colorScheme.surface
-        : Theme.of(context).colorScheme.surfaceContainerHighest;
-
-    return Positioned.fill(
-      child: Container(
-        decoration: BoxDecoration(
-          color: backgroundColor.withValues(alpha: 0.5), // 0.5 alpha overlay
-          borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius), // 8px to match artwork layer
-        ),
-      ),
-    );
-  }
-
   /// Wrap text with solid background for readability over artwork
   Widget _buildTextWithBackground({
     required BuildContext context,

@@ -38,7 +38,6 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
 
   // Artwork-related state
   TokenDefinition? _tokenDefinition;
-  bool _loadingArtwork = false;
 
   @override
   void initState() {
@@ -180,10 +179,6 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
   }
 
   Future<void> _handleArtworkSelected(String url, String setCode) async {
-    setState(() {
-      _loadingArtwork = true;
-    });
-
     // Download and cache artwork if not already cached
     final file = await ArtworkManager.downloadArtwork(url);
 
@@ -191,15 +186,11 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
       setState(() {
         widget.item.artworkUrl = url;
         widget.item.artworkSet = setCode;
-        _loadingArtwork = false;
       });
 
       widget.item.save();
       context.read<TokenProvider>().updateItem(widget.item);
     } else if (mounted) {
-      setState(() {
-        _loadingArtwork = false;
-      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

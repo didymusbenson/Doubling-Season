@@ -93,3 +93,22 @@ These are game state markers, not creature/artifact tokens. Need to determine:
 - Are they useful enough to include at all, or should they remain excluded?
 
 **IMPORTANT:** Currently filtered out in `HOUSEKEEPING/process_tokens_with_popularity.py` in the `clean_token_data()` function. If we decide to support these types in the future, we'll need to remove that filtering logic and regenerate the token database.
+
+## Code Quality / Lint Issues (Low Priority)
+
+Minor lint warnings that don't affect functionality:
+
+- Unnecessary string interpolation braces in token_provider.dart (4 instances)
+  - Lines 135, 169, 193, 216: Use `$variable` instead of `${variable}` for simple variables
+
+- Parameter name shadows type name in token_search_screen.dart:668
+  - Parameter `num` shadows Dart's built-in `num` type
+  - Consider renaming to `number`, `count`, or `quantity`
+
+- Private field could be final in counter_database.dart:35
+  - `_favoriteCounters` could be marked as `final` since it's never reassigned
+
+- Use SizedBox instead of Container for whitespace
+  - color_filter_button.dart:39: Container used only for spacing
+  - color_selection_button.dart:56: Container used only for spacing
+  - Replace with `SizedBox(width: X)` or `SizedBox(height: Y)` for better performance

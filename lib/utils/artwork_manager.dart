@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
@@ -55,22 +56,25 @@ class ArtworkManager {
     String url, {
     Function(double)? onProgress,
   }) async {
-    try {
-      // Check if already cached
-      final existing = await getCachedArtworkFile(url);
-      if (existing != null) {
-        onProgress?.call(1.0);
-        return existing;
-      }
+    // Check if already cached
+    final existing = await getCachedArtworkFile(url);
+    if (existing != null) {
+      onProgress?.call(1.0);
+      return existing;
+    }
 
+    final client = http.Client();
+    try {
       // Download the image
       final request = http.Request('GET', Uri.parse(url));
       request.headers['User-Agent'] = userAgent;
 
-      final streamedResponse = await http.Client().send(request);
+      final streamedResponse = await client.send(request);
 
       if (streamedResponse.statusCode != 200) {
-        print('Failed to download artwork: HTTP ${streamedResponse.statusCode}');
+        if (kDebugMode) {
+          print('Failed to download artwork: HTTP ${streamedResponse.statusCode}');
+        }
         return null;
       }
 
@@ -97,8 +101,12 @@ class ArtworkManager {
       return file;
 
     } catch (e) {
-      print('Error downloading artwork: $e');
+      if (kDebugMode) {
+        print('Error downloading artwork: $e');
+      }
       return null;
+    } finally {
+      client.close();
     }
   }
 
@@ -112,7 +120,9 @@ class ArtworkManager {
       }
       return false;
     } catch (e) {
-      print('Error deleting cached artwork: $e');
+      if (kDebugMode) {
+        print('Error deleting cached artwork: $e');
+      }
       return false;
     }
   }
@@ -136,7 +146,9 @@ class ArtworkManager {
 
       return totalSize;
     } catch (e) {
-      print('Error calculating cache size: $e');
+      if (kDebugMode) {
+        print('Error calculating cache size: $e');
+      }
       return 0;
     }
   }
@@ -158,7 +170,9 @@ class ArtworkManager {
 
       return true;
     } catch (e) {
-      print('Error clearing artwork cache: $e');
+      if (kDebugMode) {
+        print('Error clearing artwork cache: $e');
+      }
       return false;
     }
   }

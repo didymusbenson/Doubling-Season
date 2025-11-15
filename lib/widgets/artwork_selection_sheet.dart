@@ -186,7 +186,7 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                     // Currently selected artwork (only show if there's artwork selected)
                     if (widget.currentArtworkUrl != null && widget.onRemoveArtwork != null)
                       Container(
-                        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           child: Row(

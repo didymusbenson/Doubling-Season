@@ -498,6 +498,7 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
             Navigator.pop(context); // Close search screen
             // Small delay for smooth transition
             Future.delayed(UIConstants.sheetDismissDelay, () {
+              if (!mounted) return;
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => const NewTokenSheet(),
