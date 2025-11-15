@@ -85,19 +85,23 @@ class _ContentScreenState extends State<ContentScreen> {
     // Use Provider.of with listen: false to get the provider reference once
     final tokenProvider = Provider.of<TokenProvider>(context, listen: false);
 
-    // Only use ValueListenableBuilder for reactivity - no need for Consumer
-    return ValueListenableBuilder<Box<Item>>(
-      valueListenable: tokenProvider.listenable,
-      builder: (context, box, _) {
-        // Check empty state directly on box (efficient)
-        if (box.isEmpty) {
-          return _buildEmptyState();
-        }
+    // Watch artwork style to rebuild when it changes
+    return Selector<SettingsProvider, String>(
+      selector: (context, settings) => settings.artworkDisplayStyle,
+      builder: (context, artworkStyle, _) {
+        // Only use ValueListenableBuilder for reactivity - no need for Consumer
+        return ValueListenableBuilder<Box<Item>>(
+          valueListenable: tokenProvider.listenable,
+          builder: (context, box, _) {
+            // Check empty state directly on box (efficient)
+            if (box.isEmpty) {
+              return _buildEmptyState();
+            }
 
-        final items = box.values.toList()
-          ..sort((a, b) => a.order.compareTo(b.order));
+            final items = box.values.toList()
+              ..sort((a, b) => a.order.compareTo(b.order));
 
-        return ReorderableListView.builder(
+            return ReorderableListView.builder(
               itemCount: items.length,
               padding: const EdgeInsets.only(
                 top: UIConstants.listTopPadding,
@@ -109,21 +113,15 @@ class _ContentScreenState extends State<ContentScreen> {
               proxyDecorator: _buildDragProxy,
               itemBuilder: (context, index) {
                 final item = items[index];
-                // Use white glow in dark mode, sharp shadow in light mode
                 final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-                // Different shadow/glow configurations for light vs dark mode
-                final shadowColor = isDarkMode
-                    ? Colors.white              // White glow
-                    : Colors.black;             // Sharp black shadow
+                // Use artwork style from Selector to determine border width
+                final borderWidth = artworkStyle == 'fullView'
+                    ? 2.0  // Thinner border in full view mode
+                    : UIConstants.borderWidth;  // Normal 5px border
 
-                final mainShadowOpacity = isDarkMode
-                    ? UIConstants.darkModeGlowOpacity
-                    : UIConstants.shadowOpacity;
-
-                final lightShadowOpacity = isDarkMode
-                    ? UIConstants.darkModeGlowOpacity * 0.5
-                    : UIConstants.lightShadowOpacity;
+                // Adjust inner border radius to fit inside the border
+                final innerBorderRadius = UIConstants.borderRadius - borderWidth;
 
                 return Padding(
                   key: ValueKey(item.createdAt),
@@ -131,25 +129,26 @@ class _ContentScreenState extends State<ContentScreen> {
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(UIConstants.borderRadius),
-                      boxShadow: [
+                      // Only apply shadows in light mode
+                      boxShadow: isDarkMode ? null : [
                         BoxShadow(
-                          color: shadowColor.withValues(alpha: mainShadowOpacity),
+                          color: Colors.black.withValues(alpha: UIConstants.shadowOpacity),
                           blurRadius: UIConstants.shadowBlurRadius,
                           offset: const Offset(UIConstants.shadowOffsetX, UIConstants.shadowOffsetY),
                         ),
                         BoxShadow(
-                          color: shadowColor.withValues(alpha: lightShadowOpacity),
+                          color: Colors.black.withValues(alpha: UIConstants.lightShadowOpacity),
                           blurRadius: UIConstants.lightShadowBlurRadius,
                           offset: const Offset(UIConstants.lightShadowOffsetX, UIConstants.lightShadowOffsetY),
                         ),
                       ],
                       border: GradientBoxBorder(
                         gradient: ColorUtils.gradientForColors(item.colors, isEmblem: item.isEmblem),
-                        width: UIConstants.borderWidth,
+                        width: borderWidth,
                       ),
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+                      borderRadius: BorderRadius.circular(innerBorderRadius),
                       child: Container(
                         color: Theme.of(context).cardColor,
                         child: Dismissible(
@@ -172,6 +171,8 @@ class _ContentScreenState extends State<ContentScreen> {
             );
           },
         );
+      },
+    );
   }
 
   Widget _buildEmptyState() {
@@ -418,7 +419,30 @@ class _ContentScreenState extends State<ContentScreen> {
 
                 const Divider(),
 
-                // NEW: Artwork style selection
+                // Theme mode settings
+                SwitchListTile(
+                  title: const Text('Use system theme'),
+                  subtitle: const Text('Follow device light/dark mode setting'),
+                  value: settings.useSystemTheme,
+                  onChanged: (value) {
+                    settings.setUseSystemTheme(value);
+                  },
+                  contentPadding: EdgeInsets.zero,
+                ),
+
+                SwitchListTile(
+                  title: const Text('Dark mode'),
+                  subtitle: const Text('Use dark theme'),
+                  value: settings.isDarkMode,
+                  onChanged: settings.useSystemTheme ? null : (value) {
+                    settings.setIsDarkMode(value);
+                  },
+                  contentPadding: EdgeInsets.zero,
+                ),
+
+                const Divider(),
+
+                // Artwork style selection
                 ListTile(
                   title: const Text('Artwork Display Style'),
                   subtitle: Text(

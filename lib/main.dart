@@ -162,6 +162,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     // when returning to the app. Hive handles persistence automatically.
   }
 
+  ThemeMode _getThemeMode(SettingsProvider settings) {
+    if (settings.useSystemTheme) {
+      return ThemeMode.system;
+    }
+    return settings.isDarkMode ? ThemeMode.dark : ThemeMode.light;
+  }
+
   @override
   Widget build(BuildContext context) {
     // CRITICAL: MultiProvider must wrap MaterialApp so providers are available
@@ -202,29 +209,33 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ChangeNotifierProvider.value(value: deckProvider),
         ChangeNotifierProvider.value(value: settingsProvider),
       ],
-      child: MaterialApp(
-        title: 'Doubling Season',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-          useMaterial3: true,
-        ),
-        darkTheme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.blue,
-            brightness: Brightness.dark,
-          ).copyWith(
-            surface: const Color(0xFF181818), // Darker scaffold background
-            surfaceContainerHighest: const Color(0xFF37373C), // Lighter card background
-          ),
-          cardTheme: const CardThemeData(
-            color: Color(0xFF37373C), // Explicit card color override
-          ),
-          scaffoldBackgroundColor: const Color(0xFF181818),
-          useMaterial3: true,
-        ),
-        themeMode: ThemeMode.system,
-        debugShowCheckedModeBanner: false,
-        home: const ContentScreen(),
+      child: Consumer<SettingsProvider>(
+        builder: (context, settings, child) {
+          return MaterialApp(
+            title: 'Doubling Season',
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+              useMaterial3: true,
+            ),
+            darkTheme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: Colors.blue,
+                brightness: Brightness.dark,
+              ).copyWith(
+                surface: const Color(0xFF181818), // Darker scaffold background
+                surfaceContainerHighest: const Color(0xFF37373C), // Lighter card background
+              ),
+              cardTheme: const CardThemeData(
+                color: Color(0xFF37373C), // Explicit card color override
+              ),
+              scaffoldBackgroundColor: const Color(0xFF181818),
+              useMaterial3: true,
+            ),
+            themeMode: _getThemeMode(settings),
+            debugShowCheckedModeBanner: false,
+            home: const ContentScreen(),
+          );
+        },
       ),
     );
   }
