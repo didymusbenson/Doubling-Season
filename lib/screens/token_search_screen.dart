@@ -31,6 +31,7 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
   // Quantity dialog state
   int _tokenQuantity = 1;
   bool _createTapped = false;
+  bool _isCreating = false; // Prevent multi-tap
 
   // Search debouncing - prevents excessive filtering while user is typing
   Timer? _searchDebounceTimer;
@@ -523,6 +524,7 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
     setState(() {
       _tokenQuantity = 1;
       _createTapped = false;
+      _isCreating = false; // Reset creation flag
     });
 
     final settingsProvider = context.read<SettingsProvider>();
@@ -733,48 +735,74 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
 
               // Create Button
               ElevatedButton(
-                onPressed: () async {
-                  // Capture provider reference BEFORE any async operations
+                onPressed: _isCreating ? null : () async {
+                  // Prevent multi-tap
+                  setModalState(() => _isCreating = true);
+
+                  // Capture provider references BEFORE any async operations
                   final tokenProvider = context.read<TokenProvider>();
+                  final settingsProvider = context.read<SettingsProvider>();
                   final finalAmount = _tokenQuantity * multiplier;
 
-                  // Create item and insert (async operation)
-                  final item = token.toItem(
-                    amount: finalAmount,
-                    createTapped: _createTapped,
+                  // Create placeholder item with amount=0 to show loading state
+                  final placeholderItem = token.toItem(
+                    amount: 0, // Placeholder with zero amount
+                    createTapped: false,
                   );
+                  placeholderItem.name = '${token.name} (loading...)';
 
-                  // Auto-assign first artwork if available
-                  if (token.artwork.isNotEmpty) {
-                    final firstArtwork = token.artwork[0];
-                    item.artworkUrl = firstArtwork.url;
-                    item.artworkSet = firstArtwork.set;
+                  // Insert placeholder immediately
+                  await tokenProvider.insertItem(placeholderItem);
 
-                    // Download and cache artwork before showing token
-                    try {
-                      await ArtworkManager.downloadArtwork(firstArtwork.url);
-                    } catch (error) {
-                      debugPrint('Artwork download failed: $error');
-                      // Continue anyway - artwork will lazy load later
-                    }
-                  }
-
-                  await tokenProvider.insertItem(item);
-
-                  // Now safe to use context with mounted check
+                  // Close dialogs immediately so user can see the placeholder
                   if (context.mounted) {
                     Navigator.pop(context); // Close quantity dialog
                     Navigator.pop(context); // Close search screen
                   }
+
+                  // Now perform async work in the background
+                  try {
+                    // Auto-assign first artwork if available
+                    if (token.artwork.isNotEmpty) {
+                      final firstArtwork = token.artwork[0];
+                      placeholderItem.artworkUrl = firstArtwork.url;
+                      placeholderItem.artworkSet = firstArtwork.set;
+
+                      // Download and cache artwork
+                      try {
+                        await ArtworkManager.downloadArtwork(firstArtwork.url);
+                      } catch (error) {
+                        debugPrint('Artwork download failed: $error');
+                        // Continue anyway - artwork will lazy load later
+                      }
+                    }
+
+                    // Update placeholder with final data
+                    placeholderItem.name = token.name; // Remove "(loading...)"
+                    placeholderItem.amount = finalAmount;
+                    placeholderItem.tapped = _createTapped ? finalAmount : 0;
+                    placeholderItem.summoningSick =
+                        settingsProvider.summoningSicknessEnabled ? finalAmount : 0;
+                    await placeholderItem.save();
+                  } catch (error) {
+                    debugPrint('Error finalizing token creation: $error');
+                    // Even if artwork fails, still create the token
+                    placeholderItem.name = token.name;
+                    placeholderItem.amount = finalAmount;
+                    placeholderItem.tapped = _createTapped ? finalAmount : 0;
+                    placeholderItem.summoningSick =
+                        settingsProvider.summoningSicknessEnabled ? finalAmount : 0;
+                    await placeholderItem.save();
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
-                  backgroundColor: Colors.blue,
+                  backgroundColor: _isCreating ? Colors.grey : Colors.blue,
                   foregroundColor: Colors.white,
                 ),
-                child: const Text(
-                  'Create',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                child: Text(
+                  _isCreating ? 'Creating...' : 'Create',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
 

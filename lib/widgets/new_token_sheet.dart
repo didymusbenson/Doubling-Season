@@ -20,6 +20,7 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
 
   int _amount = 1;
   bool _createTapped = false;
+  bool _isCreating = false; // Prevent multi-tap
 
   // CRITICAL: SwiftUI NewTokenSheet uses ColorSelectionButton, not TextField
   bool _whiteSelected = false;
@@ -61,10 +62,10 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
         ),
         actions: [
           TextButton(
-            onPressed: _createToken,
-            child: const Text(
-              'Create',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            onPressed: _isCreating ? null : _createToken,
+            child: Text(
+              _isCreating ? 'Creating...' : 'Create',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -223,25 +224,51 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
       return;
     }
 
+    // Prevent multi-tap
+    setState(() => _isCreating = true);
+
     final tokenProvider = context.read<TokenProvider>();
     final settings = context.read<SettingsProvider>();
     final multiplier = settings.tokenMultiplier;
     final finalAmount = _amount * multiplier;
 
-    final item = Item(
-      name: _nameController.text,
+    // Create placeholder with amount=0
+    final placeholderItem = Item(
+      name: '${_nameController.text} (loading...)',
       pt: _ptController.text,
       type: _typeController.text.trim(),
-      colors: _getColorString(),  // Build from color selections
+      colors: _getColorString(),
       abilities: _abilitiesController.text,
-      amount: finalAmount,
-      tapped: _createTapped ? finalAmount : 0,
-      summoningSick: settings.summoningSicknessEnabled ? finalAmount : 0,
+      amount: 0, // Placeholder
+      tapped: 0,
+      summoningSick: 0,
     );
 
-    await tokenProvider.insertItem(item);
-    if (context.mounted) {
+    // Insert placeholder immediately
+    await tokenProvider.insertItem(placeholderItem);
+
+    // Close dialog immediately (before async gap)
+    if (mounted) {
       Navigator.pop(context);
+    }
+
+    // Update placeholder with final data in background
+    try {
+      placeholderItem.name = _nameController.text; // Remove "(loading...)"
+      placeholderItem.amount = finalAmount;
+      placeholderItem.tapped = _createTapped ? finalAmount : 0;
+      placeholderItem.summoningSick =
+          settings.summoningSicknessEnabled ? finalAmount : 0;
+      await placeholderItem.save();
+    } catch (error) {
+      debugPrint('Error finalizing custom token creation: $error');
+      // Ensure token is created even if update fails
+      placeholderItem.name = _nameController.text;
+      placeholderItem.amount = finalAmount;
+      placeholderItem.tapped = _createTapped ? finalAmount : 0;
+      placeholderItem.summoningSick =
+          settings.summoningSicknessEnabled ? finalAmount : 0;
+      await placeholderItem.save();
     }
   }
 }
