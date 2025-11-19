@@ -529,6 +529,18 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
 
     final settingsProvider = context.read<SettingsProvider>();
     _tokenDatabase.addToRecent(token, settingsProvider);
+
+    // Pre-cache artwork while user is choosing quantity (performance optimization)
+    if (token.artwork.isNotEmpty) {
+      final firstArtwork = token.artwork[0];
+      ArtworkManager.downloadArtwork(firstArtwork.url).then((_) {
+        debugPrint('Pre-cached artwork for ${token.name}');
+      }).catchError((error) {
+        debugPrint('Pre-cache failed for ${token.name}: $error');
+        // Silent failure - will retry during creation if needed
+      });
+    }
+
     _showQuantityDialog(token);
   }
 
