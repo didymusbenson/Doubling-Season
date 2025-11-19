@@ -341,6 +341,35 @@ class TokenProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> addPlusOneToAll() async {
+    try {
+      // Snapshot tokens with P/T at operation start (handles concurrent modifications safely)
+      final tokensToModify = items.where((item) => item.pt.isNotEmpty).toList();
+
+      for (final item in tokensToModify) {
+        // Check if token still exists before modifying (handles deletions during operation)
+        if (item.isInBox) {
+          item.addPowerToughnessCounters(1);
+          await item.save(); // Explicitly await save for bulk operations
+        }
+      }
+      _errorMessage = null;
+      notifyListeners();
+      debugPrint('TokenProvider: Successfully added +1/+1 to all tokens with P/T (${tokensToModify.length} token stacks affected)');
+    } on HiveError catch (e) {
+      _errorMessage = 'Database error while adding +1/+1 counters: Some tokens may not have received counters. Try adding counters individually.';
+      debugPrint('TokenProvider.addPlusOneToAll: HiveError during bulk counter operation. Error: ${e.message}');
+      notifyListeners();
+      rethrow;
+    } catch (e, stackTrace) {
+      _errorMessage = 'Unexpected error while adding +1/+1 counters. Some tokens may not have been updated.';
+      debugPrint('TokenProvider.addPlusOneToAll: Unexpected error during bulk counter operation. Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   Future<void> boardWipeZero() async {
     try {
       final itemList = items;

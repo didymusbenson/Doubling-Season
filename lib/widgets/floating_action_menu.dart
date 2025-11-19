@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class FloatingActionMenu extends StatelessWidget {
   final VoidCallback onNewToken;
+  final VoidCallback onAddCountersToAll;
   final VoidCallback onUntapAll;
   final VoidCallback onClearSickness;
   final VoidCallback onSaveDeck;
@@ -11,6 +12,7 @@ class FloatingActionMenu extends StatelessWidget {
   const FloatingActionMenu({
     super.key,
     required this.onNewToken,
+    required this.onAddCountersToAll,
     required this.onUntapAll,
     required this.onClearSickness,
     required this.onSaveDeck,
@@ -33,6 +35,7 @@ class FloatingActionMenu extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (context) => _ActionBottomSheet(
         onNewToken: onNewToken,
+        onAddCountersToAll: onAddCountersToAll,
         onUntapAll: onUntapAll,
         onClearSickness: onClearSickness,
         onSaveDeck: onSaveDeck,
@@ -45,6 +48,7 @@ class FloatingActionMenu extends StatelessWidget {
 
 class _ActionBottomSheet extends StatelessWidget {
   final VoidCallback onNewToken;
+  final VoidCallback onAddCountersToAll;
   final VoidCallback onUntapAll;
   final VoidCallback onClearSickness;
   final VoidCallback onSaveDeck;
@@ -53,6 +57,7 @@ class _ActionBottomSheet extends StatelessWidget {
 
   const _ActionBottomSheet({
     required this.onNewToken,
+    required this.onAddCountersToAll,
     required this.onUntapAll,
     required this.onClearSickness,
     required this.onSaveDeck,
@@ -101,6 +106,17 @@ class _ActionBottomSheet extends StatelessWidget {
               onTap: () {
                 Navigator.pop(context);
                 onNewToken();
+              },
+            ),
+            const SizedBox(height: 4),
+            _buildActionTile(
+              context: context,
+              icon: Icons.trending_up,
+              label: '+1/+1 Everything',
+              color: Colors.green,
+              onTap: () {
+                Navigator.pop(context);
+                onAddCountersToAll();
               },
             ),
             const SizedBox(height: 4),
