@@ -32,6 +32,8 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
   int _tokenQuantity = 1;
   bool _createTapped = false;
   bool _isCreating = false; // Prevent multi-tap
+  bool _isEditingQuantity = false;
+  final TextEditingController _quantityController = TextEditingController();
 
   // Search debouncing - prevents excessive filtering while user is typing
   Timer? _searchDebounceTimer;
@@ -49,6 +51,7 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
     _searchDebounceTimer?.cancel(); // Cancel pending search operations
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _quantityController.dispose();
     _tokenDatabase.dispose(); // Fix memory leak
     super.dispose();
   }
@@ -525,6 +528,7 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
       _tokenQuantity = 1;
       _createTapped = false;
       _isCreating = false; // Reset creation flag
+      _isEditingQuantity = false;
     });
 
     final settingsProvider = context.read<SettingsProvider>();
@@ -543,6 +547,7 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
 
     _showQuantityDialog(token);
   }
+
 
   void _showQuantityDialog(token_models.TokenDefinition token) {
     final settings = context.read<SettingsProvider>();
@@ -640,28 +645,78 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                 child: Row(
                   children: [
                     IconButton(
-                      onPressed: _tokenQuantity > 1
-                          ? () => setModalState(() => _tokenQuantity--)
-                          : null,
+                      onPressed: _isEditingQuantity || _tokenQuantity <= 1
+                          ? null
+                          : () => setModalState(() => _tokenQuantity--),
                       icon: const Icon(Icons.remove_circle),
                       iconSize: 32,
-                      color: _tokenQuantity > 1 ? Colors.blue : Colors.grey,
+                      color: _isEditingQuantity || _tokenQuantity <= 1 ? Colors.grey : Colors.blue,
                     ),
                     Expanded(
-                      child: Text(
-                        '$_tokenQuantity',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: _isEditingQuantity
+                          ? TextField(
+                              controller: _quantityController,
+                              keyboardType: TextInputType.number,
+                              textAlign: TextAlign.center,
+                              autofocus: true,
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              onSubmitted: (value) {
+                                final newQuantity = int.tryParse(value);
+                                if (newQuantity != null && newQuantity > 0) {
+                                  setModalState(() {
+                                    _tokenQuantity = newQuantity;
+                                    _isEditingQuantity = false;
+                                  });
+                                } else {
+                                  setModalState(() => _isEditingQuantity = false);
+                                }
+                              },
+                              onTapOutside: (event) {
+                                final newQuantity = int.tryParse(_quantityController.text);
+                                if (newQuantity != null && newQuantity > 0) {
+                                  setModalState(() {
+                                    _tokenQuantity = newQuantity;
+                                    _isEditingQuantity = false;
+                                  });
+                                } else {
+                                  setModalState(() => _isEditingQuantity = false);
+                                }
+                              },
+                            )
+                          : InkWell(
+                              onTap: () {
+                                setModalState(() {
+                                  _quantityController.text = '$_tokenQuantity';
+                                  _isEditingQuantity = true;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                child: Text(
+                                  '$_tokenQuantity',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
                     ),
                     IconButton(
-                      onPressed: () => setModalState(() => _tokenQuantity++),
+                      onPressed: _isEditingQuantity
+                          ? null
+                          : () => setModalState(() => _tokenQuantity++),
                       icon: const Icon(Icons.add_circle),
                       iconSize: 32,
-                      color: Colors.blue,
+                      color: _isEditingQuantity ? Colors.grey : Colors.blue,
                     ),
                   ],
                 ),
@@ -686,12 +741,14 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: OutlinedButton(
-                        onPressed: () => setModalState(() => _tokenQuantity = num),
+                        onPressed: _isEditingQuantity
+                            ? null
+                            : () => setModalState(() => _tokenQuantity = num),
                         style: OutlinedButton.styleFrom(
                           backgroundColor:
                               isSelected ? Colors.blue : Colors.transparent,
                           foregroundColor:
-                              isSelected ? Colors.white : Colors.blue,
+                              isSelected ? Colors.white : (_isEditingQuantity ? Colors.grey : Colors.blue),
                         ),
                         child: Text('$num'),
                       ),

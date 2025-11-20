@@ -16,7 +16,7 @@ class TokenProvider extends ChangeNotifier {
   ValueListenable<Box<Item>> get listenable => _itemsBox.listenable();
 
   Future<void> init() async {
-    _itemsBox = await Hive.openBox<Item>(DatabaseConstants.countersBox);
+    _itemsBox = await Hive.openBox<Item>(DatabaseConstants.itemsBox);
     _ensureOrdersAssigned(); // Silent migration for order field
     _initialized = true;
     notifyListeners();

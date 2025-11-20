@@ -29,6 +29,10 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
   final Map<EditableField, TextEditingController> _controllers = {};
   final Map<EditableField, FocusNode> _focusNodes = {};
 
+  // Numeric field editing state
+  String? _editingNumericField; // null, 'amount', 'tapped', 'summoningSick', or 'counter_<name>'
+  final TextEditingController _numericController = TextEditingController();
+
   // CRITICAL: SwiftUI ExpandedTokenView uses ColorSelectionButton for colors
   late bool _whiteSelected;
   late bool _blueSelected;
@@ -240,6 +244,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
     for (final node in _focusNodes.values) {
       node.dispose();
     }
+    _numericController.dispose();
     super.dispose();
   }
 
@@ -444,6 +449,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                       icon: Icons.functions,
                       label: 'Total Amount',
                       value: widget.item.amount,
+                      fieldId: 'amount',
                       onIncrement: () {
                         setState(() {
                           widget.item.amount++;
@@ -484,6 +490,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                         icon: Icons.screen_rotation,
                         label: 'Tapped',
                         value: widget.item.tapped,
+                        fieldId: 'tapped',
                         onIncrement: widget.item.tapped < widget.item.amount
                             ? () {
                                 setState(() {
@@ -517,6 +524,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                           icon: Icons.adjust,
                           label: 'Summoning Sick',
                           value: widget.item.summoningSick,
+                          fieldId: 'summoningSick',
                           onIncrement:
                               widget.item.summoningSick < widget.item.amount
                                   ? () {
@@ -587,125 +595,211 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                         const SizedBox(height: 16),
 
                         // +1/+1 Counters
-                        Row(
-                          children: [
-                            const Expanded(child: Text('+1/+1 Counters')),
-                            IconButton(
-                              onPressed: currentItem.plusOneCounters > 0
-                                  ? () {
-                                      setState(() {
-                                        currentItem.addPowerToughnessCounters(-1);
-                                        tokenProvider.updateItem(currentItem);
-                                      });
-                                    }
-                                  : null,
-                              icon: const Icon(Icons.remove_circle, color: Colors.red),
-                            ),
-                            GestureDetector(
-                              onTap: () => _showManualInputDialog(
-                                '+1/+1 Counters',
-                                currentItem.plusOneCounters,
-                                (value) {
-                                  setState(() {
-                                    currentItem.plusOneCounters = value.clamp(0, kMaxCounterValue);
-                                    tokenProvider.updateItem(currentItem);
-                                  });
-                                },
-                              ),
-                              child: Container(
-                                constraints: const BoxConstraints(minWidth: 40),
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(4),
-                                  color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
-                                ),
-                                child: Text(
-                                  '${currentItem.plusOneCounters}',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                        Builder(
+                          builder: (context) {
+                            final isEditingPlusOne = _editingNumericField == 'counter_plusOne';
+                            return Row(
+                              children: [
+                                const Expanded(child: Text('+1/+1 Counters')),
+                                IconButton(
+                                  onPressed: isEditingPlusOne || currentItem.plusOneCounters <= 0
+                                      ? null
+                                      : () {
+                                          if (_editingNumericField != null) {
+                                            _saveNumericEdit();
+                                          }
+                                          setState(() {
+                                            currentItem.addPowerToughnessCounters(-1);
+                                            tokenProvider.updateItem(currentItem);
+                                          });
+                                        },
+                                  icon: Icon(
+                                    Icons.remove_circle,
+                                    color: isEditingPlusOne || currentItem.plusOneCounters <= 0 ? Theme.of(context).disabledColor : Colors.red,
                                   ),
                                 ),
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: currentItem.plusOneCounters < kMaxCounterValue
-                                  ? () {
+                                if (isEditingPlusOne)
+                                  Container(
+                                    constraints: const BoxConstraints(minWidth: 40, maxWidth: 80),
+                                    child: TextField(
+                                      controller: _numericController,
+                                      keyboardType: TextInputType.number,
+                                      textAlign: TextAlign.center,
+                                      autofocus: true,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      decoration: InputDecoration(
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      ),
+                                      onSubmitted: (_) => _saveNumericEdit((value) {
+                                        setState(() {
+                                          currentItem.plusOneCounters = value.clamp(0, kMaxCounterValue);
+                                          tokenProvider.updateItem(currentItem);
+                                        });
+                                      }),
+                                      onTapOutside: (_) => _saveNumericEdit((value) {
+                                        setState(() {
+                                          currentItem.plusOneCounters = value.clamp(0, kMaxCounterValue);
+                                          tokenProvider.updateItem(currentItem);
+                                        });
+                                      }),
+                                    ),
+                                  )
+                                else
+                                  GestureDetector(
+                                    onTap: () {
                                       setState(() {
-                                        currentItem.addPowerToughnessCounters(1);
-                                        tokenProvider.updateItem(currentItem);
+                                        _editingNumericField = 'counter_plusOne';
+                                        _numericController.text = currentItem.plusOneCounters.toString();
                                       });
-                                    }
-                                  : null,
-                              icon: Icon(
-                                Icons.add_circle,
-                                color: currentItem.plusOneCounters < kMaxCounterValue ? Colors.green : Theme.of(context).disabledColor,
-                              ),
-                            ),
-                          ],
+                                    },
+                                    child: Container(
+                                      constraints: const BoxConstraints(minWidth: 40),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(4),
+                                        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                                      ),
+                                      child: Text(
+                                        '${currentItem.plusOneCounters}',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                IconButton(
+                                  onPressed: isEditingPlusOne || currentItem.plusOneCounters >= kMaxCounterValue
+                                      ? null
+                                      : () {
+                                          if (_editingNumericField != null) {
+                                            _saveNumericEdit();
+                                          }
+                                          setState(() {
+                                            currentItem.addPowerToughnessCounters(1);
+                                            tokenProvider.updateItem(currentItem);
+                                          });
+                                        },
+                                  icon: Icon(
+                                    Icons.add_circle,
+                                    color: isEditingPlusOne || currentItem.plusOneCounters >= kMaxCounterValue ? Theme.of(context).disabledColor : Colors.green,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         ),
 
                         const SizedBox(height: 8),
 
                         // -1/-1 Counters
-                        Row(
-                          children: [
-                            const Expanded(child: Text('-1/-1 Counters')),
-                            IconButton(
-                              onPressed: currentItem.minusOneCounters > 0
-                                  ? () {
-                                      setState(() {
-                                        currentItem.addPowerToughnessCounters(1);
-                                        tokenProvider.updateItem(currentItem);
-                                      });
-                                    }
-                                  : null,
-                              icon: const Icon(Icons.remove_circle, color: Colors.red),
-                            ),
-                            GestureDetector(
-                              onTap: () => _showManualInputDialog(
-                                '-1/-1 Counters',
-                                currentItem.minusOneCounters,
-                                (value) {
-                                  setState(() {
-                                    currentItem.minusOneCounters = value.clamp(0, kMaxCounterValue);
-                                    tokenProvider.updateItem(currentItem);
-                                  });
-                                },
-                              ),
-                              child: Container(
-                                constraints: const BoxConstraints(minWidth: 40),
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(4),
-                                  color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
-                                ),
-                                child: Text(
-                                  '${currentItem.minusOneCounters}',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                        Builder(
+                          builder: (context) {
+                            final isEditingMinusOne = _editingNumericField == 'counter_minusOne';
+                            return Row(
+                              children: [
+                                const Expanded(child: Text('-1/-1 Counters')),
+                                IconButton(
+                                  onPressed: isEditingMinusOne || currentItem.minusOneCounters <= 0
+                                      ? null
+                                      : () {
+                                          if (_editingNumericField != null) {
+                                            _saveNumericEdit();
+                                          }
+                                          setState(() {
+                                            currentItem.addPowerToughnessCounters(1);
+                                            tokenProvider.updateItem(currentItem);
+                                          });
+                                        },
+                                  icon: Icon(
+                                    Icons.remove_circle,
+                                    color: isEditingMinusOne || currentItem.minusOneCounters <= 0 ? Theme.of(context).disabledColor : Colors.red,
                                   ),
                                 ),
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: currentItem.minusOneCounters < kMaxCounterValue
-                                  ? () {
+                                if (isEditingMinusOne)
+                                  Container(
+                                    constraints: const BoxConstraints(minWidth: 40, maxWidth: 80),
+                                    child: TextField(
+                                      controller: _numericController,
+                                      keyboardType: TextInputType.number,
+                                      textAlign: TextAlign.center,
+                                      autofocus: true,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      decoration: InputDecoration(
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      ),
+                                      onSubmitted: (_) => _saveNumericEdit((value) {
+                                        setState(() {
+                                          currentItem.minusOneCounters = value.clamp(0, kMaxCounterValue);
+                                          tokenProvider.updateItem(currentItem);
+                                        });
+                                      }),
+                                      onTapOutside: (_) => _saveNumericEdit((value) {
+                                        setState(() {
+                                          currentItem.minusOneCounters = value.clamp(0, kMaxCounterValue);
+                                          tokenProvider.updateItem(currentItem);
+                                        });
+                                      }),
+                                    ),
+                                  )
+                                else
+                                  GestureDetector(
+                                    onTap: () {
                                       setState(() {
-                                        currentItem.addPowerToughnessCounters(-1);
-                                        tokenProvider.updateItem(currentItem);
+                                        _editingNumericField = 'counter_minusOne';
+                                        _numericController.text = currentItem.minusOneCounters.toString();
                                       });
-                                    }
-                                  : null,
-                              icon: Icon(
-                                Icons.add_circle,
-                                color: currentItem.minusOneCounters < kMaxCounterValue ? Colors.green : Theme.of(context).disabledColor,
-                              ),
-                            ),
-                          ],
+                                    },
+                                    child: Container(
+                                      constraints: const BoxConstraints(minWidth: 40),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(4),
+                                        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                                      ),
+                                      child: Text(
+                                        '${currentItem.minusOneCounters}',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                IconButton(
+                                  onPressed: isEditingMinusOne || currentItem.minusOneCounters >= kMaxCounterValue
+                                      ? null
+                                      : () {
+                                          if (_editingNumericField != null) {
+                                            _saveNumericEdit();
+                                          }
+                                          setState(() {
+                                            currentItem.addPowerToughnessCounters(-1);
+                                            tokenProvider.updateItem(currentItem);
+                                          });
+                                        },
+                                  icon: Icon(
+                                    Icons.add_circle,
+                                    color: isEditingMinusOne || currentItem.minusOneCounters >= kMaxCounterValue ? Theme.of(context).disabledColor : Colors.green,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         ),
 
                         if (currentItem.netPlusOneCounters != 0) ...[
@@ -737,59 +831,99 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                         if (currentItem.counters.isNotEmpty) ...[
                           const SizedBox(height: 12),
                           ...currentItem.counters.map((counter) {
+                            final counterId = 'counter_${counter.name}';
+                            final isEditingCounter = _editingNumericField == counterId;
+
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 8),
                               child: Row(
                                 children: [
                                   Expanded(child: Text('${counter.name} Counters')),
                                   IconButton(
-                                    onPressed: counter.amount > 0
-                                        ? () {
+                                    onPressed: isEditingCounter || counter.amount <= 0
+                                        ? null
+                                        : () {
+                                            if (_editingNumericField != null) {
+                                              _saveNumericEdit();
+                                            }
                                             currentItem.removeCounter(name: counter.name);
                                             tokenProvider.updateItem(currentItem);
                                             setState(() {}); // Rebuild to update UI
-                                          }
-                                        : null,
-                                    icon: const Icon(Icons.remove_circle, color: Colors.red),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () => _showManualInputDialog(
-                                      '${counter.name} Counters',
-                                      counter.amount,
-                                      (value) {
-                                        counter.amount = value.clamp(0, kMaxCounterValue);
-                                        tokenProvider.updateItem(currentItem);
-                                        setState(() {}); // Rebuild to update UI
-                                      },
+                                          },
+                                    icon: Icon(
+                                      Icons.remove_circle,
+                                      color: isEditingCounter || counter.amount <= 0 ? Theme.of(context).disabledColor : Colors.red,
                                     ),
-                                    child: Container(
-                                      constraints: const BoxConstraints(minWidth: 40),
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(4),
-                                        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
-                                      ),
-                                      child: Text(
-                                        '${counter.amount}',
+                                  ),
+                                  if (isEditingCounter)
+                                    Container(
+                                      constraints: const BoxConstraints(minWidth: 40, maxWidth: 80),
+                                      child: TextField(
+                                        controller: _numericController,
+                                        keyboardType: TextInputType.number,
                                         textAlign: TextAlign.center,
+                                        autofocus: true,
                                         style: const TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
                                         ),
+                                        decoration: InputDecoration(
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        ),
+                                        onSubmitted: (_) => _saveNumericEdit((value) {
+                                          counter.amount = value.clamp(0, kMaxCounterValue);
+                                          tokenProvider.updateItem(currentItem);
+                                          setState(() {}); // Rebuild to update UI
+                                        }),
+                                        onTapOutside: (_) => _saveNumericEdit((value) {
+                                          counter.amount = value.clamp(0, kMaxCounterValue);
+                                          tokenProvider.updateItem(currentItem);
+                                          setState(() {}); // Rebuild to update UI
+                                        }),
+                                      ),
+                                    )
+                                  else
+                                    GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _editingNumericField = counterId;
+                                          _numericController.text = counter.amount.toString();
+                                        });
+                                      },
+                                      child: Container(
+                                        constraints: const BoxConstraints(minWidth: 40),
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(4),
+                                          color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                                        ),
+                                        child: Text(
+                                          '${counter.amount}',
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
                                   IconButton(
-                                    onPressed: counter.amount < kMaxCounterValue
-                                        ? () {
+                                    onPressed: isEditingCounter || counter.amount >= kMaxCounterValue
+                                        ? null
+                                        : () {
+                                            if (_editingNumericField != null) {
+                                              _saveNumericEdit();
+                                            }
                                             currentItem.addCounter(name: counter.name);
                                             tokenProvider.updateItem(currentItem);
                                             setState(() {}); // Rebuild to update UI
-                                          }
-                                        : null,
+                                          },
                                     icon: Icon(
                                       Icons.add_circle,
-                                      color: counter.amount < kMaxCounterValue ? Colors.green : Theme.of(context).disabledColor,
+                                      color: isEditingCounter || counter.amount >= kMaxCounterValue ? Theme.of(context).disabledColor : Colors.green,
                                     ),
                                   ),
                                 ],
@@ -925,7 +1059,10 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
     VoidCallback? onDecrement,
     bool showButtons = true,
     Function(int)? onManualSet,
+    String? fieldId,
   }) {
+    final isEditing = fieldId != null && _editingNumericField == fieldId;
+
     return Row(
       children: [
         Icon(icon, size: 24),
@@ -938,42 +1075,84 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
         ),
         if (showButtons) ...[
           IconButton(
-            onPressed: onDecrement,
+            onPressed: isEditing || onDecrement == null
+                ? null
+                : () {
+                    if (_editingNumericField != null) {
+                      _saveNumericEdit();
+                    }
+                    onDecrement();
+                  },
             icon: Icon(
               Icons.remove_circle,
-              color: onDecrement != null ? Colors.red : Theme.of(context).disabledColor,
+              color: isEditing || onDecrement == null ? Theme.of(context).disabledColor : Colors.red,
             ),
           ),
         ],
-        GestureDetector(
-          onTap: onManualSet != null
-              ? () => _showManualInputDialog(label, value, onManualSet)
-              : null,
-          child: Container(
-            constraints: const BoxConstraints(minWidth: 40),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(4),
-              color: onManualSet != null
-                  ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5)
-                  : Colors.transparent,
-            ),
-            child: Text(
-              '$value',
+        if (isEditing)
+          Container(
+            constraints: const BoxConstraints(minWidth: 40, maxWidth: 80),
+            child: TextField(
+              controller: _numericController,
+              keyboardType: TextInputType.number,
               textAlign: TextAlign.center,
+              autofocus: true,
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              ),
+              onSubmitted: (_) => _saveNumericEdit(onManualSet),
+              onTapOutside: (_) => _saveNumericEdit(onManualSet),
+            ),
+          )
+        else
+          GestureDetector(
+            onTap: onManualSet != null
+                ? () {
+                    setState(() {
+                      _editingNumericField = fieldId;
+                      _numericController.text = value.toString();
+                    });
+                  }
+                : null,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 40),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                color: onManualSet != null
+                    ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5)
+                    : Colors.transparent,
+              ),
+              child: Text(
+                '$value',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
-        ),
         if (showButtons) ...[
           IconButton(
-            onPressed: onIncrement,
+            onPressed: isEditing || onIncrement == null
+                ? null
+                : () {
+                    if (_editingNumericField != null) {
+                      _saveNumericEdit();
+                    }
+                    onIncrement();
+                  },
             icon: Icon(
               Icons.add_circle,
-              color: onIncrement != null ? Colors.green : Theme.of(context).disabledColor,
+              color: isEditing || onIncrement == null ? Theme.of(context).disabledColor : Colors.green,
             ),
           ),
         ],
@@ -981,66 +1160,16 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
     );
   }
 
-  void _showManualInputDialog(String label, int currentValue, Function(int) onSet) {
-    final controller = TextEditingController(text: currentValue.toString());
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('Set $label'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Enter value',
-            border: OutlineInputBorder(),
-          ),
-          onSubmitted: (text) {
-            final value = int.tryParse(text);
-            if (value != null && value >= 0) {
-              Navigator.pop(dialogContext);
-              // CRITICAL: Use Future.delayed to ensure dialog fully dismissed before state update
-              Future.delayed(UIConstants.sheetDismissDelay, () {
-                if (mounted) {
-                  onSet(value);
-                }
-                controller.dispose();
-              });
-            }
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              // Dispose controller after dialog is dismissed
-              Future.delayed(UIConstants.sheetDismissDelay, () {
-                controller.dispose();
-              });
-            },
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final value = int.tryParse(controller.text);
-              if (value != null && value >= 0) {
-                Navigator.pop(dialogContext);
-                // CRITICAL: Use Future.delayed to ensure dialog fully dismissed before state update
-                Future.delayed(UIConstants.sheetDismissDelay, () {
-                  if (mounted) {
-                    onSet(value);
-                  }
-                  controller.dispose();
-                });
-              }
-            },
-            child: const Text('Set'),
-          ),
-        ],
-      ),
-    );
+  void _saveNumericEdit([Function(int)? onManualSet]) {
+    final value = int.tryParse(_numericController.text);
+    if (value != null && value >= 0 && onManualSet != null) {
+      onManualSet(value);
+    }
+    setState(() {
+      _editingNumericField = null;
+    });
   }
+
 
   Widget _buildArtworkSelectionBox() {
     return GestureDetector(
