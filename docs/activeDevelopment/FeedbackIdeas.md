@@ -132,3 +132,32 @@ Minor lint warnings that don't affect functionality:
   - color_filter_button.dart:39: Container used only for spacing
   - color_selection_button.dart:56: Container used only for spacing
   - Replace with `SizedBox(width: X)` or `SizedBox(height: Y)` for better performance
+
+## Precaching and Plus One Everything Concerns (v1.3.0 Build Review)
+
+### Error Messages Not Displayed to User
+- `TokenProvider` sets `_errorMessage` in methods like `addPlusOneToAll()` but no UI consumes this field
+- Users won't see error messages if bulk operations fail
+- **Impact**: Silent failures lead to confusion when +1/+1 counters aren't applied to all tokens
+- **Potential fix**: Add error snackbar display in ContentScreen when `TokenProvider.errorMessage` changes
+
+### No Confirmation Dialog for Global +1/+1
+- The "Global +1/+1" feature has no confirmation dialog and can't be undone
+- Accidental taps could modify hundreds of tokens
+- **Recommendation**: Add confirmation dialog similar to "Untap All" pattern
+
+### Performance: Animation Controllers on Every Card
+- `_AnimatedPowerToughness` creates a `SingleTickerProviderStateMixin` for every token card
+- With 50+ tokens on screen, this creates 50+ animation controllers
+- **Impact**: Memory overhead and unnecessary animations when tokens are off-screen
+- **Better approach**: Use `AnimatedContainer` or `ImplicitlyAnimatedWidget` which are lighter weight
+
+### Bulk Operation Performance
+- `addPlusOneToAll()` uses `await item.save()` inside a loop
+- For 100 tokens, this is 100 sequential database writes
+- **Better approach**: Collect all changes first, then batch save or use `Future.wait()`
+
+### Silent Failures in Art Precaching
+- Precaching errors are caught with just `debugPrint` - no user feedback
+- **Impact**: Users won't know why artwork isn't appearing
+- **Minor issue** since it retries during actual creation
