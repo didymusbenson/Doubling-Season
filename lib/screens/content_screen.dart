@@ -48,6 +48,7 @@ class _ContentScreenState extends State<ContentScreen> {
             right: UIConstants.standardPadding,
             child: FloatingActionMenu(
               onNewToken: _showTokenSearch,
+              onAddCountersToAll: _handleAddCountersToAll,
               onUntapAll: _showUntapAllDialog,
               onClearSickness: _handleClearSickness,
               onSaveDeck: _showSaveDeckDialog,
@@ -401,6 +402,11 @@ class _ContentScreenState extends State<ContentScreen> {
   void _handleClearSickness() {
     final tokenProvider = context.read<TokenProvider>();
     tokenProvider.clearSummoningSickness();
+  }
+
+  void _handleAddCountersToAll() {
+    final tokenProvider = context.read<TokenProvider>();
+    tokenProvider.addPlusOneToAll();
   }
 
   void _showTokenSearch() {

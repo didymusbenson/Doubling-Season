@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class FloatingActionMenu extends StatelessWidget {
   final VoidCallback onNewToken;
+  final VoidCallback onAddCountersToAll;
   final VoidCallback onUntapAll;
   final VoidCallback onClearSickness;
   final VoidCallback onSaveDeck;
@@ -11,6 +12,7 @@ class FloatingActionMenu extends StatelessWidget {
   const FloatingActionMenu({
     super.key,
     required this.onNewToken,
+    required this.onAddCountersToAll,
     required this.onUntapAll,
     required this.onClearSickness,
     required this.onSaveDeck,
@@ -31,8 +33,10 @@ class FloatingActionMenu extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) => _ActionBottomSheet(
         onNewToken: onNewToken,
+        onAddCountersToAll: onAddCountersToAll,
         onUntapAll: onUntapAll,
         onClearSickness: onClearSickness,
         onSaveDeck: onSaveDeck,
@@ -45,6 +49,7 @@ class FloatingActionMenu extends StatelessWidget {
 
 class _ActionBottomSheet extends StatelessWidget {
   final VoidCallback onNewToken;
+  final VoidCallback onAddCountersToAll;
   final VoidCallback onUntapAll;
   final VoidCallback onClearSickness;
   final VoidCallback onSaveDeck;
@@ -53,6 +58,7 @@ class _ActionBottomSheet extends StatelessWidget {
 
   const _ActionBottomSheet({
     required this.onNewToken,
+    required this.onAddCountersToAll,
     required this.onUntapAll,
     required this.onClearSickness,
     required this.onSaveDeck,
@@ -70,10 +76,11 @@ class _ActionBottomSheet extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
       child: SafeArea(
         minimum: const EdgeInsets.only(bottom: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Header
             Row(
               children: [
@@ -90,7 +97,7 @@ class _ActionBottomSheet extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
             // Actions list
             _buildActionTile(
@@ -106,8 +113,19 @@ class _ActionBottomSheet extends StatelessWidget {
             const SizedBox(height: 4),
             _buildActionTile(
               context: context,
+              icon: Icons.trending_up,
+              label: '+1/+1 Everything',
+              color: Colors.green,
+              onTap: () {
+                Navigator.pop(context);
+                onAddCountersToAll();
+              },
+            ),
+            const SizedBox(height: 4),
+            _buildActionTile(
+              context: context,
               icon: Icons.refresh,
-              label: 'Untap All',
+              label: 'Untap Everything',
               color: Colors.blue,
               onTap: () {
                 Navigator.pop(context);
@@ -159,6 +177,7 @@ class _ActionBottomSheet extends StatelessWidget {
               },
             ),
           ],
+          ),
         ),
       ),
     );
@@ -178,7 +197,7 @@ class _ActionBottomSheet extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Row(
             children: [
               Container(

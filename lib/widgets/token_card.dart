@@ -12,6 +12,86 @@ import 'counter_pill.dart';
 import 'split_stack_sheet.dart';
 import 'cropped_artwork_widget.dart';
 
+/// Animated widget that pops when P/T changes (from counter addition)
+class _AnimatedPowerToughness extends StatefulWidget {
+  final String powerToughness;
+  final TextStyle? style;
+  final EdgeInsets padding;
+  final Color backgroundColor;
+
+  const _AnimatedPowerToughness({
+    required this.powerToughness,
+    required this.style,
+    required this.padding,
+    required this.backgroundColor,
+  });
+
+  @override
+  State<_AnimatedPowerToughness> createState() => _AnimatedPowerToughnessState();
+}
+
+class _AnimatedPowerToughnessState extends State<_AnimatedPowerToughness>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  String? _previousPowerToughness;
+
+  @override
+  void initState() {
+    super.initState();
+    _previousPowerToughness = widget.powerToughness;
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+
+    // Scale from 1.0 → 1.5 → 1.0
+    _scaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.5), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.5, end: 1.0), weight: 50),
+    ]).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedPowerToughness oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Trigger animation when P/T changes
+    if (widget.powerToughness != _previousPowerToughness) {
+      _previousPowerToughness = widget.powerToughness;
+      _controller.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _scaleAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: Container(
+            padding: widget.padding,
+            decoration: BoxDecoration(
+              color: widget.backgroundColor,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              widget.powerToughness,
+              style: widget.style,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class TokenCard extends StatelessWidget {
   final Item item;
 
@@ -615,32 +695,25 @@ class TokenCard extends StatelessWidget {
 
   /// Build P/T widget (modified or normal styling)
   Widget _buildPTWidget(BuildContext context) {
+    final textStyle = Theme.of(context).textTheme.headlineMedium?.copyWith(
+      fontWeight: FontWeight.bold,
+    );
+
     return item.isPowerToughnessModified
-        ? Container(
+        ? _AnimatedPowerToughness(
+            powerToughness: item.formattedPowerToughness,
+            style: textStyle,
             padding: const EdgeInsets.symmetric(
               horizontal: UIConstants.mediumSpacing,
               vertical: UIConstants.verticalSpacing,
             ),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              item.formattedPowerToughness,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
+            backgroundColor: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.85),
           )
-        : _buildTextWithBackground(
-            context: context,
+        : _AnimatedPowerToughness(
+            powerToughness: item.formattedPowerToughness,
+            style: textStyle,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Text(
-              item.formattedPowerToughness,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
+            backgroundColor: Theme.of(context).cardColor.withValues(alpha: 0.85),
           );
   }
 }

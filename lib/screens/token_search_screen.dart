@@ -31,6 +31,9 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
   // Quantity dialog state
   int _tokenQuantity = 1;
   bool _createTapped = false;
+  bool _isCreating = false; // Prevent multi-tap
+  bool _isEditingQuantity = false;
+  final TextEditingController _quantityController = TextEditingController();
 
   // Search debouncing - prevents excessive filtering while user is typing
   Timer? _searchDebounceTimer;
@@ -48,6 +51,7 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
     _searchDebounceTimer?.cancel(); // Cancel pending search operations
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _quantityController.dispose();
     _tokenDatabase.dispose(); // Fix memory leak
     super.dispose();
   }
@@ -523,12 +527,27 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
     setState(() {
       _tokenQuantity = 1;
       _createTapped = false;
+      _isCreating = false; // Reset creation flag
+      _isEditingQuantity = false;
     });
 
     final settingsProvider = context.read<SettingsProvider>();
     _tokenDatabase.addToRecent(token, settingsProvider);
+
+    // Pre-cache artwork while user is choosing quantity (performance optimization)
+    if (token.artwork.isNotEmpty) {
+      final firstArtwork = token.artwork[0];
+      ArtworkManager.downloadArtwork(firstArtwork.url).then((_) {
+        debugPrint('Pre-cached artwork for ${token.name}');
+      }).catchError((error) {
+        debugPrint('Pre-cache failed for ${token.name}: $error');
+        // Silent failure - will retry during creation if needed
+      });
+    }
+
     _showQuantityDialog(token);
   }
+
 
   void _showQuantityDialog(token_models.TokenDefinition token) {
     final settings = context.read<SettingsProvider>();
@@ -626,28 +645,78 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                 child: Row(
                   children: [
                     IconButton(
-                      onPressed: _tokenQuantity > 1
-                          ? () => setModalState(() => _tokenQuantity--)
-                          : null,
+                      onPressed: _isEditingQuantity || _tokenQuantity <= 1
+                          ? null
+                          : () => setModalState(() => _tokenQuantity--),
                       icon: const Icon(Icons.remove_circle),
                       iconSize: 32,
-                      color: _tokenQuantity > 1 ? Colors.blue : Colors.grey,
+                      color: _isEditingQuantity || _tokenQuantity <= 1 ? Colors.grey : Colors.blue,
                     ),
                     Expanded(
-                      child: Text(
-                        '$_tokenQuantity',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: _isEditingQuantity
+                          ? TextField(
+                              controller: _quantityController,
+                              keyboardType: TextInputType.number,
+                              textAlign: TextAlign.center,
+                              autofocus: true,
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              onSubmitted: (value) {
+                                final newQuantity = int.tryParse(value);
+                                if (newQuantity != null && newQuantity > 0) {
+                                  setModalState(() {
+                                    _tokenQuantity = newQuantity;
+                                    _isEditingQuantity = false;
+                                  });
+                                } else {
+                                  setModalState(() => _isEditingQuantity = false);
+                                }
+                              },
+                              onTapOutside: (event) {
+                                final newQuantity = int.tryParse(_quantityController.text);
+                                if (newQuantity != null && newQuantity > 0) {
+                                  setModalState(() {
+                                    _tokenQuantity = newQuantity;
+                                    _isEditingQuantity = false;
+                                  });
+                                } else {
+                                  setModalState(() => _isEditingQuantity = false);
+                                }
+                              },
+                            )
+                          : InkWell(
+                              onTap: () {
+                                setModalState(() {
+                                  _quantityController.text = '$_tokenQuantity';
+                                  _isEditingQuantity = true;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                child: Text(
+                                  '$_tokenQuantity',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
                     ),
                     IconButton(
-                      onPressed: () => setModalState(() => _tokenQuantity++),
+                      onPressed: _isEditingQuantity
+                          ? null
+                          : () => setModalState(() => _tokenQuantity++),
                       icon: const Icon(Icons.add_circle),
                       iconSize: 32,
-                      color: Colors.blue,
+                      color: _isEditingQuantity ? Colors.grey : Colors.blue,
                     ),
                   ],
                 ),
@@ -672,12 +741,14 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: OutlinedButton(
-                        onPressed: () => setModalState(() => _tokenQuantity = num),
+                        onPressed: _isEditingQuantity
+                            ? null
+                            : () => setModalState(() => _tokenQuantity = num),
                         style: OutlinedButton.styleFrom(
                           backgroundColor:
                               isSelected ? Colors.blue : Colors.transparent,
                           foregroundColor:
-                              isSelected ? Colors.white : Colors.blue,
+                              isSelected ? Colors.white : (_isEditingQuantity ? Colors.grey : Colors.blue),
                         ),
                         child: Text('$num'),
                       ),
@@ -733,48 +804,74 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
 
               // Create Button
               ElevatedButton(
-                onPressed: () async {
-                  // Capture provider reference BEFORE any async operations
+                onPressed: _isCreating ? null : () async {
+                  // Prevent multi-tap
+                  setModalState(() => _isCreating = true);
+
+                  // Capture provider references BEFORE any async operations
                   final tokenProvider = context.read<TokenProvider>();
+                  final settingsProvider = context.read<SettingsProvider>();
                   final finalAmount = _tokenQuantity * multiplier;
 
-                  // Create item and insert (async operation)
-                  final item = token.toItem(
-                    amount: finalAmount,
-                    createTapped: _createTapped,
+                  // Create placeholder item with amount=0 to show loading state
+                  final placeholderItem = token.toItem(
+                    amount: 0, // Placeholder with zero amount
+                    createTapped: false,
                   );
+                  placeholderItem.name = '${token.name} (loading...)';
 
-                  // Auto-assign first artwork if available
-                  if (token.artwork.isNotEmpty) {
-                    final firstArtwork = token.artwork[0];
-                    item.artworkUrl = firstArtwork.url;
-                    item.artworkSet = firstArtwork.set;
+                  // Insert placeholder immediately
+                  await tokenProvider.insertItem(placeholderItem);
 
-                    // Download and cache artwork before showing token
-                    try {
-                      await ArtworkManager.downloadArtwork(firstArtwork.url);
-                    } catch (error) {
-                      debugPrint('Artwork download failed: $error');
-                      // Continue anyway - artwork will lazy load later
-                    }
-                  }
-
-                  await tokenProvider.insertItem(item);
-
-                  // Now safe to use context with mounted check
+                  // Close dialogs immediately so user can see the placeholder
                   if (context.mounted) {
                     Navigator.pop(context); // Close quantity dialog
                     Navigator.pop(context); // Close search screen
                   }
+
+                  // Now perform async work in the background
+                  try {
+                    // Auto-assign first artwork if available
+                    if (token.artwork.isNotEmpty) {
+                      final firstArtwork = token.artwork[0];
+                      placeholderItem.artworkUrl = firstArtwork.url;
+                      placeholderItem.artworkSet = firstArtwork.set;
+
+                      // Download and cache artwork
+                      try {
+                        await ArtworkManager.downloadArtwork(firstArtwork.url);
+                      } catch (error) {
+                        debugPrint('Artwork download failed: $error');
+                        // Continue anyway - artwork will lazy load later
+                      }
+                    }
+
+                    // Update placeholder with final data
+                    placeholderItem.name = token.name; // Remove "(loading...)"
+                    placeholderItem.amount = finalAmount;
+                    placeholderItem.tapped = _createTapped ? finalAmount : 0;
+                    placeholderItem.summoningSick =
+                        settingsProvider.summoningSicknessEnabled ? finalAmount : 0;
+                    await placeholderItem.save();
+                  } catch (error) {
+                    debugPrint('Error finalizing token creation: $error');
+                    // Even if artwork fails, still create the token
+                    placeholderItem.name = token.name;
+                    placeholderItem.amount = finalAmount;
+                    placeholderItem.tapped = _createTapped ? finalAmount : 0;
+                    placeholderItem.summoningSick =
+                        settingsProvider.summoningSicknessEnabled ? finalAmount : 0;
+                    await placeholderItem.save();
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
-                  backgroundColor: Colors.blue,
+                  backgroundColor: _isCreating ? Colors.grey : Colors.blue,
                   foregroundColor: Colors.white,
                 ),
-                child: const Text(
-                  'Create',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                child: Text(
+                  _isCreating ? 'Creating...' : 'Create',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
 

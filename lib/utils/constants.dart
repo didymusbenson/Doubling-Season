@@ -89,6 +89,7 @@ class UIConstants {
 
 /// Database box names
 class DatabaseConstants {
+  static const String itemsBox = 'items';
   static const String countersBox = 'counters';
   static const String decksBox = 'decks';
   static const String templatesBox = 'templates';
