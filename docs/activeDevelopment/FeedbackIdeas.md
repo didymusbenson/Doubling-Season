@@ -1,10 +1,10 @@
 ## FLUTTER IN APP PURCHASE HANDLING.
 Add in-app purchases for "tip jar" in order for users to support the developer and unlock app icons.
-  Flutter provides three main patterns for handling platform differences:
-  1. **Use existing packages** (preferred): Packages like `in_app_purchase`, `share_plus`, `url_launcher`
-  abstract platform differences
-  2. **Platform checks in Dart**: Use `Platform.isIOS` / `Platform.isAndroid` for minor variations
-  3. **Platform channels**: Write custom native code when needed
+Flutter provides three main patterns for handling platform differences:
+1. **Use existing packages** (preferred): Packages like `in_app_purchase`, `share_plus`, `url_launcher`
+   abstract platform differences
+2. **Platform checks in Dart**: Use `Platform.isIOS` / `Platform.isAndroid` for minor variations
+3. **Platform channels**: Write custom native code when needed
 
 ## Global Counter Tools
 
@@ -17,36 +17,226 @@ Implementation would mirror the +1/+1 tool:
 - Same P/T pop animation
 - Red color theme (debuff/weakening)
 
-### Other Counter Types
-Could extend to other common counter types:
-- Shield counters (all creatures)
-- Lifelink counters
-- Flying counters
-- Etc.
-
-These are less common than +1/+1/-1/-1, so would need user feedback to justify complexity.
-
 ## Condensed Condensed View
 
 Even more condensed than current condensed view, only has Tapped/Untapped Power/Toughness no names or anything else. Tap to expand into a larger detailed card (instead of a detail sheet).
 
-## Art Options
+## Commander Mode (Evolution of Krenko Mode)
 
-### One-time download
-Prompt users on first launch to ask them if they want to download token artwork. If they do, run a script that parses all art urls and downloads artwork for the token database. 
+### Concept
+Replace the single-purpose "Krenko Mode" (documented in NextFeature.md) with a flexible "Commander Mode" system that provides specialized tools for multiple popular token-generating commanders. This allows adding commander-specific features without cluttering the UI for users who don't need them.
 
-If users choose not to download on first load, the settings menu will offer the option to download all art at a later time.
+### Core UI Structure
+**Top Banner** (similar to Krenko Mode banner, but adaptive):
+- **Commander Selection Field**: Tap to open commander picker
+  - Shows "Select Commander..." when none chosen
+  - Shows commander name when selected
+  - Opens modal with predefined commander list
+- **Commander-Specific Controls**: Dynamic content based on selected commander
+  - Krenko: Power stepper + Nontoken Goblins + "Waaagh!" button
+  - Chatterfang: (Controls TBD)
+  - Rhys: (Controls TBD)
+  - Each commander gets custom UI tailored to their mechanics
 
-### Import on demand
-Acquire token art on-demand by having the user request it on the token details. This will require the user to connect to internet and will download all available artwork for a given token to the user's app data, then ask them which art they want to use. This should allow them to change the token art later as desired.
+### Settings Integration
+**Location:** Settings screen
+- **Toggle:** "Commander Mode" (on/off)
+- **Commander Selection:** Dropdown or modal picker showing available commanders
+- **Storage:**
+  - `commanderModeEnabled` (bool)
+  - `selectedCommander` (string, e.g., "krenko", "chatterfang", "rhys")
+  - Commander-specific state (e.g., `krenkoPower`, `chatterfangSquirrels`, etc.)
 
-Import on demand can be implemented whether or not the one-time download is offered.
+### MVP Commanders
 
-### User Upload
-No internet connection required. User provides their own artwork which is parsed and used for the assigned token, saved to their local token database for their own use.
+#### 1. Krenko, Mob Boss
+**Ability:** "Tap: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control."
+
+**Controls:**
+- **Krenko's Power** stepper (1-99, default 3)
+- **Nontoken Goblins** stepper (0-99, default 0)
+- **"Waaagh!" Button**: Creates 1/1 red Goblin tokens
+  - Option A: Based on Krenko's power × multiplier
+  - Option B: Based on total goblins controlled × multiplier
+  - Adds to existing goblin token or creates new
+
+**Color Theme:** Red (matches goblin tribal theme)
+
+**Implementation:** Already documented in NextFeature.md - migrate to commander system
+
+---
+
+#### 2. Chatterfang, Squirrel General
+**Ability:** "If one or more tokens would be created under your control, those tokens plus that many 1/1 green Squirrel creature tokens are created instead."
+
+**Controls:**
+- **Token Being Created** selector (dropdown or text field)
+  - User selects/inputs token name and amount
+  - Example: "3 Treasure" or "5 Food"
+- **"Create with Chatterfang" Button**
+  - Creates the original tokens (e.g., 3 Treasure)
+  - ALSO creates equal number of 1/1 green Squirrel tokens (3 Squirrels)
+  - Applies global multiplier to both types
+  - Adds to existing squirrel token or creates new
+
+**Alternative Simpler Approach:**
+- **Token Amount** stepper (how many tokens being created)
+- **"Add Squirrels" Button**
+  - Just creates squirrel tokens equal to amount × multiplier
+  - User handles creating other tokens manually
+  - Simpler implementation, covers 80% of use cases
+
+**Squirrel Token Definition:**
+- Name: "Squirrel"
+- P/T: "1/1"
+- Colors: "G" (Green)
+- Type: "Creature - Squirrel"
+- Abilities: ""
+
+**Color Theme:** Green (matches squirrel tribal theme)
+
+**Questions to Answer:**
+- [ ] Do we need to track what tokens triggered Chatterfang? (probably not)
+- [ ] Should there be a "quick add squirrels" that counts recent tokens? (nice to have)
+- [ ] Do we need second ability tracking? ("Each opponent loses 1 life per dying creature token")
+
+---
+
+#### 3. Rhys the Redeemed
+**Abilities:**
+- **Ability 1:** "{2}{G/W}, Tap: Create a 1/1 green and white Elf Warrior creature token."
+- **Ability 2:** "{4}{G/W}{G/W}, Tap: For each creature token you control, create a token that's a copy of that creature."
+
+**Controls:**
+- **Ability 1 Button**: "Create Elf Warrior"
+  - Creates 1 Elf Warrior × global multiplier
+  - Simple token creation
+
+- **Ability 2 Button**: "Double All Tokens" (this is the complex one)
+  - For EACH token type on board:
+    - Count total amount (including tapped/untapped/summoning sick)
+    - Create NEW token card with same properties (name, P/T, abilities, colors, type, counters, artwork)
+    - Set amount to original amount × global multiplier
+    - Result: Doubles your token count (or more with multiplier)
+  - Example: If you have 5 Elves, 3 Goblins, creates 5 new Elves + 3 new Goblins
+  - **With multiplier:** If multiplier is 2, creates 10 Elves + 6 Goblins (quadruples!)
+
+**Elf Warrior Token Definition:**
+- Name: "Elf Warrior"
+- P/T: "1/1"
+- Colors: "GW" (Green/White)
+- Type: "Creature - Elf Warrior"
+- Abilities: ""
+
+**Color Theme:** Green/White (matches Selesnya tokens theme)
+
+**Implementation Complexity:** HIGH
+- Ability 2 requires deep-copying all token properties
+- Must handle counters, artwork, abilities, everything
+- Need to clarify: Do copied tokens enter tapped? (probably untapped)
+- Multiplier interaction creates explosive growth (intentional, but need UI warning?)
+
+**Questions to Answer:**
+- [ ] Do copied tokens enter tapped or untapped? (Magic rule: untapped)
+- [ ] Do copied tokens have summoning sickness? (Probably yes if global setting enabled)
+- [ ] Should there be a confirmation dialog for "Double All Tokens"? (YES - it's powerful/destructive)
+- [ ] Do we copy counters too? (Magic rule: yes, they're copies)
+- [ ] Do we copy artwork URLs? (Yes, easier implementation)
+- [ ] Performance: What if user has 20 different token types? (Should be fine, but test)
+
+---
+
+### System Design
+
+**Commander Registry** (code organization):
+```dart
+enum Commander {
+  krenko('krenko', 'Krenko, Mob Boss'),
+  chatterfang('chatterfang', 'Chatterfang, Squirrel General'),
+  rhys('rhys', 'Rhys the Redeemed');
+
+  final String id;
+  final String displayName;
+  const Commander(this.id, this.displayName);
+}
+```
+
+**Dynamic Banner Widget:**
+```dart
+Widget buildCommanderBanner(Commander commander) {
+  switch (commander) {
+    case Commander.krenko:
+      return KrenkoBanner();
+    case Commander.chatterfang:
+      return ChatterfangBanner();
+    case Commander.rhys:
+      return RhysBanner();
+  }
+}
+```
+
+**Color Theme System:**
+```dart
+Color getCommanderThemeColor(Commander? commander) {
+  if (commander == null) return Colors.blue; // Default
+  switch (commander) {
+    case Commander.krenko: return Colors.red;
+    case Commander.chatterfang: return Colors.green;
+    case Commander.rhys: return Colors.lightGreen; // Green/White blend
+  }
+}
+```
+
+### Migration Path
+
+**Phase 1:** Implement Commander Mode framework
+- Add commander selection UI
+- Create base banner widget system
+- Implement theme color switching
+
+**Phase 2:** Migrate Krenko Mode
+- Move Krenko banner to commander system
+- Update settings to use new storage keys
+- Maintain backward compatibility (auto-select Krenko if old setting enabled)
+
+**Phase 3:** Add Chatterfang
+- Implement squirrel token creation
+- Add Chatterfang banner widget
+
+**Phase 4:** Add Rhys
+- Implement Elf Warrior creation
+- Implement "Double All Tokens" (most complex)
+
+### Future Expansion
+Other popular token commanders to consider:
+- **Brudiclad, Telchor Engineer**: Convert tokens to copies
+- **Trostani, Selesnya's Voice**: Populate mechanic
+- **Ghired, Conclave Exile**: Populate on attack
+- **Adrix and Nev, Twincasters**: Double token creation
+- **Mondrak, Glory Dominus**: Triple token creation
+- **Jetmir, Nexus of Revels**: Rewards for token count
+- **Hazezon, Shaper of Sand**: Desert token tracking
+
+Each can be added without affecting existing commanders - modular system.
+
+### Benefits
+- **Scalable**: Easy to add new commanders without UI clutter
+- **Targeted**: Users only see tools for their chosen commander
+- **Flexible**: Each commander gets custom controls for their mechanics
+- **Theme Integration**: Each commander can have unique color scheme
+- **User Choice**: Players pick their commander, app adapts to their deck
+
+### Testing Priorities
+- [ ] Commander selection persists across app restarts
+- [ ] Theme colors update when commander changes
+- [ ] Disabling Commander Mode hides banner and restores default theme
+- [ ] Each commander's token creation works correctly
+- [ ] Multiplier applies correctly for each commander
+- [ ] Rhys "Double All Tokens" handles complex board states
+- [ ] Performance with 10+ different token types (Rhys doubling)
 
 ## Combat
-A way to represent tokens in combat? Not sure how we would handle this. Maybe have a combat button that we can assign tokens to a temporary sheet and resolve attacks/blocks etc. Then have it adjust amounts/tapped amounts based on the outcome of combat. 
+A way to represent tokens in combat? Not sure how we would handle this. Maybe have a combat button that we can assign tokens to a temporary sheet and resolve attacks/blocks etc. Then have it adjust amounts/tapped amounts based on the outcome of combat.
 
 Combat would also calculate total damage (when possible) or total damage + wildcards based on the tokens that have wildcard p/t.
 

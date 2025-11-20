@@ -197,45 +197,435 @@ class LoadingScreen extends StatelessWidget {
 
 # Secondary Issue: Token Creation Loading State (Android)
 
-## Problem
-On Android, tokens sometimes appear as "Token Name (loading...)" due to slow artwork download. iOS performs better due to faster network stack.
+## Problem Statement
+On Android (and occasionally web/slow connections), tokens appear as "Token Name (loading...)" due to artwork download blocking token creation. This interrupts user workflow and creates confusion about whether the token was created successfully.
 
-## Current Flow
+**Design Goal:** Don't interrupt the user's functional use of the app just because of art caching and loading. Most of the time this should be imperceptible, but on slow connections it must still perform gracefully.
+
+## Current (Problematic) Flow
 1. **Placeholder created** with `amount=0` and name suffix `(loading...)`
-2. **Dialogs dismissed** - user sees placeholder on board
-3. **Artwork downloaded** from Scryfall CDN (SLOW on Android)
+2. **Dialogs dismissed** - user sees placeholder on board (confusing!)
+3. **Artwork downloaded** from Scryfall CDN (BLOCKS on slow connections)
 4. **Token finalized** - removes `(loading...)`, sets correct amount
 
 **Code location:** `lib/screens/token_search_screen.dart:816-865`
 
-The issue: If `ArtworkManager.downloadArtwork()` takes > 500ms, users see the loading state.
+**The issue:** If `ArtworkManager.downloadArtwork()` takes > 500ms, users see confusing loading state and cannot interact with incomplete token.
 
-## TODO: Improve Loading State UX (Needs Refinement)
+## Solution: Remove Blocking Placeholder System
 
-**Current behavior:** Placeholder shows as `"Goblin (loading...)"` with 0 amount
+**New flow:**
+1. **Token created immediately** with full data (name, amount, P/T, counters, etc.)
+2. **Dialogs dismissed** - user sees fully functional token on board
+3. **Artwork URL assigned** to token (synchronous, instant)
+4. **Artwork downloads in background** (non-blocking, fire-and-forget)
+5. **Artwork fades in smoothly** once loaded (1 second fade animation)
 
-**Proposed behavior:** Show a special loading card view in the token list that displays:
-- Message: "Taking longer than expected to create {token name}"
-- Different visual treatment (distinct from normal token cards)
-- Progress indicator or animation
-- Maybe countdown or timeout indicator
+### Implementation Requirements
 
-**Questions to answer:**
-- Should this replace the current placeholder or supplement it?
-- At what threshold do we show this message? (1 second? 2 seconds?)
-- Should we have a timeout where we give up on artwork and finalize anyway?
-- What happens if artwork fails completely? (Currently: token still gets created)
-- Should we allow user to cancel the creation?
+#### 1. Remove Placeholder Logic
+**Location:** `lib/screens/token_search_screen.dart:816-865`
 
-**Alternative approaches to consider:**
-1. **Skip pre-download entirely** - Create token immediately, lazy-load artwork
-2. **Timeout-based** - If download > 500ms, finalize token without waiting
-3. **Remove placeholder system** - Create final token immediately, download in background
-4. **Better loading indicator** - Custom TokenCard variant for loading state
+**Current code to remove:**
+- Lines 816-824: Placeholder creation with `amount=0` and `"(loading...)"`
+- Lines 832-847: Blocking artwork download in try/catch
+- Lines 849-865: Finalizing placeholder with actual data
 
-**Implementation notes:**
-- Could be a custom widget: `LoadingTokenCard` that replaces normal TokenCard
-- Needs to detect when placeholder has been in loading state too long
-- Should gracefully handle artwork download failures
+**New code pattern:**
+```dart
+// Capture provider references
+final tokenProvider = context.read<TokenProvider>();
+final settingsProvider = context.read<SettingsProvider>();
+final finalAmount = _tokenQuantity * multiplier;
 
-**Priority:** Medium - Impacts Android users primarily, iOS mostly unaffected
+// Create final token immediately (no placeholder)
+final newItem = token.toItem(
+  amount: finalAmount,
+  createTapped: _createTapped,
+);
+
+// Apply summoning sickness if enabled
+if (settingsProvider.summoningSicknessEnabled) {
+  newItem.summoningSick = finalAmount;
+}
+
+// Assign artwork URL immediately (sync, no download)
+if (token.artwork.isNotEmpty) {
+  newItem.artworkUrl = token.artwork[0].url;
+  newItem.artworkSet = token.artwork[0].set;
+}
+
+// Insert token immediately
+await tokenProvider.insertItem(newItem);
+
+// Close dialogs - token is now visible and functional
+if (context.mounted) {
+  Navigator.pop(context); // Close quantity dialog
+  Navigator.pop(context); // Close search screen
+}
+
+// Download artwork in background (non-blocking, fire-and-forget)
+if (token.artwork.isNotEmpty) {
+  ArtworkManager.downloadArtwork(token.artwork[0].url)
+      .catchError((error) {
+        debugPrint('Background artwork download failed: $error');
+        // Silent failure - artwork will lazy-load from URL
+      });
+}
+```
+
+#### 2. Add Fade-In Animation to Artwork Widget
+**Location:** `lib/widgets/cropped_artwork_widget.dart` (or wherever artwork is rendered in TokenCard)
+
+**Requirements:**
+- Artwork starts at opacity 0.0 when URL is first set
+- Fades to opacity 1.0 over 1 second once image loads
+- Use `FadeInImage` widget or `AnimatedOpacity` with image loading callback
+- Show card background color while artwork is transparent/loading
+- No jarring "pop" - smooth elegant reveal
+
+**Example implementation options:**
+```dart
+// Option A: FadeInImage (built-in fade)
+FadeInImage(
+  placeholder: MemoryImage(kTransparentImage), // or solid color
+  image: NetworkImage(artworkUrl),
+  fadeInDuration: Duration(seconds: 1),
+  fit: BoxFit.cover,
+)
+
+// Option B: AnimatedOpacity with custom loading
+AnimatedOpacity(
+  opacity: _imageLoaded ? 1.0 : 0.0,
+  duration: Duration(seconds: 1),
+  child: Image.network(artworkUrl, ...),
+)
+```
+
+#### 3. Verify Copy Behavior
+**Location:** `lib/providers/token_provider.dart:231-291` (copyToken method)
+
+**Current behavior (verified correct):**
+- Lines 259-260: Copies `artworkUrl` and `artworkSet` from original
+- Copied tokens reference the same artwork URL
+- Both original and copy will display artwork once cached
+
+**No changes needed** - copy functionality already works correctly with this approach.
+
+### Edge Cases & Error Handling
+
+**Scenario 1: Artwork download fails**
+- Token still fully functional (has all data)
+- Artwork widget will attempt lazy-load from URL on display
+- If lazy-load fails: Shows card background color (graceful degradation)
+
+**Scenario 2: User copies token before artwork loads**
+- Both tokens have same `artworkUrl`
+- Both will fade in artwork when download completes
+- Only one download occurs (cached)
+
+**Scenario 3: Slow network connection (5+ seconds)**
+- Token appears instantly, fully functional
+- User can interact immediately (add/remove, tap, view details, copy)
+- Artwork fades in whenever it's ready (no timeout needed)
+
+**Scenario 4: User creates multiple tokens rapidly**
+- All tokens appear instantly
+- Artwork downloads happen in parallel (non-blocking)
+- Each fades in independently as it loads
+
+### Testing Checklist
+- [ ] Token appears instantly when created (no delay)
+- [ ] Token name does NOT have "(loading...)" suffix
+- [ ] Token has correct amount, P/T, abilities immediately
+- [ ] User can interact with token buttons immediately
+- [ ] User can tap to open ExpandedTokenScreen immediately
+- [ ] User can copy token before artwork loads
+- [ ] Artwork fades in smoothly (1 second) once loaded
+- [ ] Multiple rapid token creations don't block each other
+- [ ] Slow network (throttle to 3G in DevTools): tokens still instant
+- [ ] Artwork download failure: token still works, no crash
+
+### Performance Benefits
+- **Fast connections:** Imperceptible (~100ms artwork appears)
+- **Slow connections:** Token creation never blocked, always instant
+- **No placeholder confusion:** Users never see "(loading...)"
+- **No interaction blocking:** Tokens fully functional immediately
+- **Parallel downloads:** Multiple tokens load artwork concurrently
+
+**Priority:** High - Significantly improves UX on Android and slow connections
+
+---
+
+# Third Issue: Krenko Mode (Commander-Specific Feature)
+
+## Overview
+"Krenko Mode" is a special setting for players using Krenko, Mob Boss in Commander. When enabled, provides quick token generation based on Krenko's power and the number of goblins controlled.
+
+**Magic Context:** Krenko, Mob Boss has the ability "Tap: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control."
+
+## UI Components
+
+### 1. Settings Toggle
+**Location:** Settings screen (with other gameplay options like Summoning Sickness, Multiplier)
+
+- **Label:** "Krenko Mode"
+- **Type:** Toggle switch
+- **Description:** "Enables quick goblin token generation for Krenko, Mob Boss decks"
+- **Default:** Off
+- **Storage:** SharedPreferences (`krenkoModeEnabled`)
+
+### 2. Krenko Banner (Top of Token List)
+**Location:** Above token list in ContentScreen, only visible when Krenko Mode enabled
+
+**Layout:** Horizontal banner spanning full width, fixed at top (cannot be reordered)
+
+**Contains:**
+- **"Krenko's Power"** - Stepper with inline input (range: 1-99)
+  - Starts at 3 (Krenko's base power)
+  - User can +/- with stepper or tap to enter manually
+  - Storage: SharedPreferences (`krenkoPower`)
+
+- **"Nontoken Goblins"** - Stepper with inline input (range: 0-99)
+  - Represents non-token goblins on battlefield (Krenko himself, other creatures)
+  - User can +/- with stepper or tap to enter manually
+  - Storage: SharedPreferences (`nontokenGoblins`)
+
+- **"Waaagh!" Button** - Primary action button
+  - Opens confirmation dialog with three options
+  - Style: Red color theme (matches Board Wipe icon)
+
+**Visual Design:**
+- Banner background: Card color with red accent/border
+- Text: Theme-appropriate (light/dark mode compatible)
+- Compact height: ~80-100px to not dominate screen
+- Padding: Standard app padding
+
+### 3. Waaagh! Confirmation Dialog
+**Triggered by:** Tapping "Waaagh!" button in Krenko Banner
+
+**Dialog Title:** "Create Goblin Tokens"
+
+**Three Options (buttons):**
+
+1. **"Krenko's Power" Button**
+   - Label: "Create [X] Goblins" (where X = Krenko's Power × Global Multiplier)
+   - Action: Create X 1/1 Red Goblin tokens
+   - Example: If power = 5, multiplier = 2, creates 10 goblins
+
+2. **"For Each Goblin You Control" Button**
+   - Label: "Create [Y] Goblins" (where Y = (Total Token Goblins + Nontoken Goblins) × Global Multiplier)
+   - Action: Count all goblin tokens, add nontoken count, multiply, create that many 1/1 Red Goblin tokens
+   - Example: If you have 8 token goblins + 2 nontoken = 10, multiplier = 1, creates 10 goblins
+
+3. **"Cancel" Button**
+   - Label: "Cancel"
+   - Action: Dismiss dialog, do nothing
+
+**Dialog Style:**
+- Standard AlertDialog with red accent
+- Show calculated amounts in button labels (dynamic)
+- Buttons stack vertically for clarity
+
+## Token Creation Logic
+
+### Standard Goblin Token Definition
+**Name:** "Goblin"
+**Power/Toughness:** "1/1"
+**Colors:** "R" (Red)
+**Type:** "Creature - Goblin"
+**Abilities:** "" (empty)
+
+### Token Creation Behavior
+
+**If matching token already exists:**
+- Search for existing token with:
+  - name = "Goblin"
+  - pt = "1/1"
+  - colors = "R"
+  - type contains "Goblin"
+  - abilities = "" (empty)
+- If found: Add to that token's amount (don't create new card)
+- If multiple matches: Add to first match (shouldn't happen with standard goblin)
+
+**If no matching token exists:**
+- Create new token card with standard goblin definition
+- Set amount to calculated value
+- Insert into token list
+
+**Summoning Sickness:**
+- Apply if global summoning sickness setting is enabled
+- Set `summoningSick = amount` on creation
+
+### Calculation Details
+
+**Option 1: Krenko's Power**
+```dart
+final krenkosPower = settingsProvider.krenkoPower; // e.g., 5
+final multiplier = settingsProvider.tokenMultiplier; // e.g., 2
+final goblinsToCreate = krenkosPower * multiplier; // = 10
+```
+
+**Option 2: For Each Goblin You Control**
+```dart
+// Step 1: Count all tokens with "Goblin" in type
+int tokenGoblinCount = 0;
+for (final item in tokenProvider.items) {
+  if (item.type.toLowerCase().contains('goblin')) {
+    tokenGoblinCount += item.amount; // Sum all goblin token amounts
+  }
+}
+
+// Step 2: Add nontoken goblins
+final nontokenGoblins = settingsProvider.nontokenGoblins; // e.g., 2
+final totalGoblins = tokenGoblinCount + nontokenGoblins; // e.g., 10
+
+// Step 3: Apply multiplier
+final multiplier = settingsProvider.tokenMultiplier; // e.g., 1
+final goblinsToCreate = totalGoblins * multiplier; // = 10
+```
+
+**Important:** Type matching is case-insensitive and substring-based:
+- "Creature - Goblin" ✓
+- "Creature - Goblin Warrior" ✓
+- "Artifact Creature - Goblin" ✓
+- "Creature - Elf" ✗
+
+## Theme Override
+
+### Red Color Theme
+When Krenko Mode is enabled, override blue theme colors with red:
+
+**Components to recolor:**
+- **FloatingActionButton** (multiplier, new token, menu)
+  - Current: Blue
+  - Krenko Mode: Red (use same red as Board Wipe icon)
+
+- **TokenCard borders/accents** (optional - TBD)
+  - May keep existing color identity system
+  - Or add subtle red accent when Krenko Mode active
+
+- **Krenko Banner**
+  - Red accent/border
+  - "Waaagh!" button: Red background
+
+**Color Reference:**
+- Board Wipe icon uses: `Colors.red` or similar
+- Need to identify exact color value in FloatingActionMenu
+- Ensure red works in both light and dark modes
+
+**Implementation:**
+- Check `settingsProvider.krenkoModeEnabled` in widget builds
+- Conditional color selection: `krenkoModeEnabled ? Colors.red : Colors.blue`
+- Apply to FABs, primary buttons, accents
+
+## Implementation Notes
+
+### Settings Provider
+Add to `lib/providers/settings_provider.dart`:
+```dart
+bool get krenkoModeEnabled => _prefs.getBool('krenkoModeEnabled') ?? false;
+Future<void> setKrenkoModeEnabled(bool value) async {
+  await _prefs.setBool('krenkoModeEnabled', value);
+  notifyListeners();
+}
+
+int get krenkoPower => _prefs.getInt('krenkoPower') ?? 3;
+Future<void> setKrenkoPower(int value) async {
+  await _prefs.setInt('krenkoPower', value.clamp(1, 99));
+  notifyListeners();
+}
+
+int get nontokenGoblins => _prefs.getInt('nontokenGoblins') ?? 0;
+Future<void> setNontokenGoblins(int value) async {
+  await _prefs.setInt('nontokenGoblins', value.clamp(0, 99));
+  notifyListeners();
+}
+```
+
+### New Widgets Needed
+1. **`KrenkoBanner`** (`lib/widgets/krenko_banner.dart`)
+   - Horizontal layout with steppers and button
+   - Conditionally rendered in ContentScreen when mode enabled
+   - Fixed position at top of token list
+
+2. **`KrenkoDialog`** (`lib/widgets/krenko_dialog.dart`)
+   - AlertDialog with three option buttons
+   - Calculates goblin counts dynamically
+   - Shows calculated amounts in button labels
+
+3. **`InlineStepperField`** (reusable widget)
+   - Combines stepper buttons with tap-to-edit number
+   - Similar to multiplier input pattern
+   - Range validation
+
+### Token Provider
+Add method to `lib/providers/token_provider.dart`:
+```dart
+Future<void> createOrAddGoblins(int amount, bool applyMultiplier) async {
+  final finalAmount = applyMultiplier
+      ? amount * settingsProvider.tokenMultiplier
+      : amount;
+
+  // Search for existing standard goblin token
+  final existingGoblin = items.firstWhereOrNull((item) =>
+    item.name == 'Goblin' &&
+    item.pt == '1/1' &&
+    item.colors == 'R' &&
+    item.type.toLowerCase().contains('goblin') &&
+    item.abilities.isEmpty
+  );
+
+  if (existingGoblin != null) {
+    // Add to existing
+    existingGoblin.amount += finalAmount;
+    await existingGoblin.save();
+  } else {
+    // Create new
+    final newGoblin = Item(
+      name: 'Goblin',
+      pt: '1/1',
+      colors: 'R',
+      type: 'Creature - Goblin',
+      abilities: '',
+      amount: finalAmount,
+      // ... other fields
+    );
+    await insertItem(newGoblin);
+  }
+}
+```
+
+## Questions to Answer (TODO)
+
+- [ ] Should Krenko Banner be collapsible/expandable?
+- [ ] Should there be a "reset" button for power/nontoken counts?
+- [ ] Do we want a history/counter of how many times Krenko has activated?
+- [ ] Should the standard goblin token have artwork auto-assigned?
+- [ ] Exact red color value to use (match Board Wipe icon)?
+- [ ] Should TokenCard borders get red accent in Krenko Mode, or just FABs?
+- [ ] Should we show a summary after creation? ("Created 10 goblins!")
+- [ ] Edge case: What if multiplier is set to 1024 and user has 50 goblins? (50k tokens)
+
+## Testing Checklist
+
+- [ ] Toggle Krenko Mode on/off in settings
+- [ ] Krenko Banner appears at top of token list when enabled
+- [ ] Krenko Banner hidden when mode disabled
+- [ ] Stepper +/- buttons work for both fields
+- [ ] Tap-to-edit manual input works for both fields
+- [ ] Range validation (1-99 for power, 0-99 for nontoken)
+- [ ] "Waaagh!" button opens dialog
+- [ ] Dialog shows correct calculated amounts (dynamic)
+- [ ] "Krenko's Power" creates correct number of goblins
+- [ ] "For Each Goblin" counts all token types containing "goblin"
+- [ ] "For Each Goblin" includes nontoken count
+- [ ] Both options apply global multiplier
+- [ ] Existing goblin token gets amount added (not new card)
+- [ ] New goblin token created if none exists
+- [ ] Summoning sickness applied if enabled
+- [ ] FABs change to red when Krenko Mode enabled
+- [ ] Colors work in both light and dark mode
+- [ ] Values persist across app restarts (SharedPreferences)
+
+**Priority:** Medium-High - Popular commander deck archetype, high user value
