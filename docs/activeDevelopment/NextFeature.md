@@ -113,6 +113,68 @@ if (kIsWeb) {
 }
 ```
 
+### Option 5: Loading Screen with Progress Indicator (UX Improvement)
+Show a loading screen after splash dismissal if initialization is taking longer than expected. Provides clear user feedback that the app is working.
+
+**Simple Approach (5-10 minutes):**
+Add loading indicator overlay to existing SplashScreen:
+```dart
+// In main.dart _MyAppState.build()
+if (!_isInitialized) {
+  return MaterialApp(
+    home: SplashScreen(
+      key: const ValueKey('splash'),
+      onComplete: _skipSplash,
+      showLoadingIndicator: true, // New optional prop
+    ),
+  );
+}
+```
+
+**Better Approach (15-20 minutes):**
+Create dedicated `LoadingScreen` shown between splash and main app:
+
+```dart
+class LoadingScreen extends StatelessWidget {
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 24),
+            Text('Initializing database...'),
+            SizedBox(height: 8),
+            LinearProgressIndicator(), // Optional progress bar
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+**State Logic Update:**
+- Current: `_minTimeElapsed && _providersReady` → Show ContentScreen
+- New logic:
+  - `!_minTimeElapsed` → Show SplashScreen
+  - `_minTimeElapsed && !_providersReady` → Show LoadingScreen
+  - `_minTimeElapsed && _providersReady` → Show ContentScreen
+
+**Benefits:**
+- Users know the app is working (not frozen)
+- Explains what's happening ("Initializing database...")
+- Professional UX for slower devices/connections
+- Particularly helpful on web where initialization is slower
+
+**Implementation Location:**
+- `main.dart` (modify `_MyAppState.build()` logic)
+- New file: `lib/screens/loading_screen.dart` (optional, if using dedicated screen)
+
 ## Success Criteria
 - First load time on web < 3 seconds (stretch goal: < 2 seconds)
 - No perceived lag on iOS/Android
@@ -130,3 +192,50 @@ if (kIsWeb) {
 - Web console shows: "DatabaseMaintenance: Starting compaction - last run was 20412 days ago"
 - Compaction completed in 0ms on empty database (not the bottleneck)
 - Main delay likely from IndexedDB/SharedPreferences initialization on web
+
+---
+
+# Secondary Issue: Token Creation Loading State (Android)
+
+## Problem
+On Android, tokens sometimes appear as "Token Name (loading...)" due to slow artwork download. iOS performs better due to faster network stack.
+
+## Current Flow
+1. **Placeholder created** with `amount=0` and name suffix `(loading...)`
+2. **Dialogs dismissed** - user sees placeholder on board
+3. **Artwork downloaded** from Scryfall CDN (SLOW on Android)
+4. **Token finalized** - removes `(loading...)`, sets correct amount
+
+**Code location:** `lib/screens/token_search_screen.dart:816-865`
+
+The issue: If `ArtworkManager.downloadArtwork()` takes > 500ms, users see the loading state.
+
+## TODO: Improve Loading State UX (Needs Refinement)
+
+**Current behavior:** Placeholder shows as `"Goblin (loading...)"` with 0 amount
+
+**Proposed behavior:** Show a special loading card view in the token list that displays:
+- Message: "Taking longer than expected to create {token name}"
+- Different visual treatment (distinct from normal token cards)
+- Progress indicator or animation
+- Maybe countdown or timeout indicator
+
+**Questions to answer:**
+- Should this replace the current placeholder or supplement it?
+- At what threshold do we show this message? (1 second? 2 seconds?)
+- Should we have a timeout where we give up on artwork and finalize anyway?
+- What happens if artwork fails completely? (Currently: token still gets created)
+- Should we allow user to cancel the creation?
+
+**Alternative approaches to consider:**
+1. **Skip pre-download entirely** - Create token immediately, lazy-load artwork
+2. **Timeout-based** - If download > 500ms, finalize token without waiting
+3. **Remove placeholder system** - Create final token immediately, download in background
+4. **Better loading indicator** - Custom TokenCard variant for loading state
+
+**Implementation notes:**
+- Could be a custom widget: `LoadingTokenCard` that replaces normal TokenCard
+- Needs to detect when placeholder has been in loading state too long
+- Should gracefully handle artwork download failures
+
+**Priority:** Medium - Impacts Android users primarily, iOS mostly unaffected
