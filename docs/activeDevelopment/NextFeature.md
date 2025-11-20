@@ -2,243 +2,131 @@
 ## 📦 Latest Build Artifacts (v1.3.0+8)
 
 **iOS (.ipa):**
-`build/ios/ipa/Doubling Season.ipa` (21.8MB)
+`build/ios/ipa/Doubling Season.ipa` (21.9MB)
 
 **Android (.aab):**
 `build/app/outputs/bundle/release/app-release.aab` (44.2MB)
 
-**Built:** 2025-11-19
+**Built:** 2025-11-20
 **Status:** Ready to deploy
 
 ---
 
-# Next Feature: Global +1/+1 Counter Tool
+# Next Feature: Initial App Load Performance Investigation
 
 ## Overview
-A new action in the floating action menu that adds a +1/+1 counter to all tokens with power/toughness values in a single tap.
+Investigate and address the lag/delay users experience on first app load, particularly on web platform where Hive database initialization may cause noticeable performance impact.
 
-## User Interface
+## Current Behavior
 
-### Location
-- Floating action menu (bottom right)
-- Position: Below "New Token", above other actions
-- Icon: `Icons.trending_up`
-- Color: Green (enhancement/growth theme)
-- Label: "+1/+1 Everything"
+### What Happens on First Load
+1. **Hive Initialization** (`initHive()` in `main.dart:31`)
+   - Opens IndexedDB connections on web (slower than native platforms)
+   - Opens `items` box (normal Box)
+   - Opens `decks` box (LazyBox)
 
-### Behavior
-1. User taps action menu → sheet opens with actions list
-2. User taps "+1/+1 Everything"
-3. Sheet dismisses immediately
-4. Background operation: iterate through all tokens, add +1/+1 counter to those with P/T
-5. Token cards update reactively with P/T "pop" animation
-6. Operation completes silently (no confirmation, no snackbar)
+2. **Provider Initialization** (`_initializeProviders()` in `main.dart:87`)
+   - TokenProvider init
+   - DeckProvider init
+   - SettingsProvider init (SharedPreferences)
 
-## Logic Requirements
+3. **Database Maintenance** (`main.dart:103`)
+   - Runs `DatabaseMaintenanceService.compactIfNeeded()`
+   - On first web load: shows "last run was 20412 days ago" (defaults to very old date)
+   - Compaction takes 0-500ms depending on database size
+   - Runs weekly thereafter
 
-### Eligibility Check (Which tokens get counters?)
-A token receives a +1/+1 counter if **ANY** of these conditions are true:
-- Token has a non-empty `pt` field (power/toughness)
-- Examples that qualify: "1/1", "2/2", "0/1", "*/*", "1+*/1+*"
+4. **Asset Loading**
+   - Loads `token_database.json` (300+ tokens)
+   - Happens in TokenSearchScreen via `compute()` isolate
 
-### Exclusion Cases (Which tokens are skipped?)
-- Tokens with empty `pt` field
-- Examples: Emblems, Treasure tokens, non-creature artifacts without P/T
+### Performance Issues
+- **Web platform**: Noticeable lag on first load (5-15 seconds)
+- **iOS/Android**: Minimal lag (1-2 seconds typical)
+- User experience: App feels unresponsive during initialization
 
-### Counter Application
-- If token already has +1/+1 counters: increment the count
-- If token has no +1/+1 counters: add counter with count of 1
-- Use existing `Item.addPowerToughnessCounters(1)` method (handles -1/-1 cancellation)
-- Automatically saves token after modification
-- Display updates automatically via `ValueListenableBuilder` on Hive box
+## Investigation Tasks
 
-## Use Cases
+### 1. Profile Web Initialization
+- [ ] Measure time for each initialization step:
+  - Hive setup (IndexedDB connection)
+  - Provider initialization
+  - Database compaction
+  - Asset loading
+- [ ] Use Flutter DevTools Performance tab to identify bottlenecks
+- [ ] Compare debug vs release builds
 
-### Case 1: Emblem
-- Token: "Emblem - Chandra" (no P/T)
-- Action: Nothing happens (skipped)
-- Reason: Empty `pt` field
+### 2. Evaluate Database Compaction Strategy
+- [ ] Should we skip compaction on first run? (no data to compact anyway)
+- [ ] Should compaction run in background after app loads?
+- [ ] Consider moving compaction to separate isolate
+- [ ] Test performance impact with various database sizes (0, 10, 50, 100+ tokens)
 
-### Case 2: Treasure Token
-- Token: "Treasure" (Artifact - Treasure, no P/T)
-- Action: Nothing happens (skipped)
-- Reason: Empty `pt` field
+### 3. Optimize Hive Setup on Web
+- [ ] Research Hive web-specific optimizations
+- [ ] Consider lazy-loading decks box on web (delay until needed)
+- [ ] Evaluate if we can defer non-critical box opens
 
-### Case 3: Basic Creature Token
-- Token: "Elf Warrior" (1/1 Creature - Elf Warrior)
-- Action: Receives +1/+1 counter
-- Display: Shows counter pill, P/T displays as "2/2"
-- Reason: Has P/T value "1/1"
+### 4. Improve Splash Screen Experience
+- [ ] Currently: Minimum 1500ms display time (`main.dart:73`)
+- [ ] Consider showing loading indicator if initialization takes > 2 seconds
+- [ ] Add progress feedback for long loads
+- [ ] Option: Show "tip of the day" during load
 
-### Case 4: Minimal Token (P/T only)
-- Token: Custom token with name "Bob", P/T "1/1", no type line
-- Action: Receives +1/+1 counter
-- Display: Shows counter pill, P/T displays as "2/2"
-- Reason: Has P/T value "1/1"
+### 5. Asset Loading Optimization
+- [ ] Token database loads on-demand (only when TokenSearchScreen opens)
+- [ ] This is already optimal - no changes needed
+- [ ] Verify `compute()` isolate is working correctly on web
 
-### Case 5: Token Already Has +1/+1 Counters
-- Token: "Elf Warrior" (1/1) with 2 existing +1/+1 counters (displays as 3/3)
-- Action: +1/+1 counter count increases to 3
-- Display: P/T displays as "4/4"
-- Reason: Increments existing counter
+## Potential Solutions
 
-### Case 6: Token With -1/-1 Counters
-- Token: "Soldier" (1/1) with 1 -1/-1 counter (displays as 0/0)
-- Action: +1/+1 counter added, cancels with -1/-1
-- Display: P/T displays as "1/1" (counters cancel out)
-- Reason: `addPowerToughnessCounters(1)` handles cancellation
-
-## Technical Implementation
-
-### Code Location
-- **FloatingActionMenu**: Add new callback parameter `onAddCountersToAll`
-- **ContentScreen**: Implement handler method `_handleAddCountersToAll()`
-- **TokenProvider**: Add new method `addPlusOneToAll()` (similar to `untapAll()`, `clearSummoningSickness()`)
-
-### Multi-Tap Prevention
-Similar to token creation flow:
+### Option 1: Background Compaction
+Move database compaction to post-load background task:
 ```dart
-// In ContentScreen
-bool _isAddingCounters = false;
+// After providers ready and app displayed
+Future.microtask(() {
+  DatabaseMaintenanceService.compactIfNeeded();
+});
+```
 
-void _handleAddCountersToAll() {
-  if (_isAddingCounters) return; // Prevent multi-tap
-
-  setState(() => _isAddingCounters = true);
-
-  Navigator.pop(context); // Close action sheet immediately
-
-  // Background operation
-  tokenProvider.addPlusOneToAll().then((_) {
-    setState(() => _isAddingCounters = false);
-  });
+### Option 2: Skip First-Run Compaction
+Add logic to skip compaction if database is empty or newly created:
+```dart
+if (itemsBox.isEmpty) {
+  return; // Skip compaction on first run
 }
 ```
 
-### Concurrent Modification Handling
-**CRITICAL QUESTION**: What happens if user performs these actions while counters are being added?
+### Option 3: Progressive Loading
+Load critical components first, defer non-critical:
+1. Load SettingsProvider (needed for UI theme)
+2. Load TokenProvider (show empty board state)
+3. Background: DeckProvider, maintenance tasks
 
-#### Scenario A: User opens ExpandedTokenScreen while operation running
-- Current token being modified
-- User changes P/T or other fields
-- Potential conflict?
-
-#### Scenario B: User deletes token while operation running
-- Token is in iteration list
-- Token gets deleted mid-operation
-- Causes error when trying to save?
-
-#### Scenario C: User creates new token while operation running
-- New token added to box
-- Not in original iteration list
-- Should it get a counter or not?
-
-### Proposed Solutions
-
-**Option 1: Lock UI During Operation (Less Preferable)**
-- Show overlay with spinner
-- Disable all token interactions
-- Simple but intrusive
-
-**Option 2: Snapshot-Based Iteration (Recommended)**
+### Option 4: Web-Specific Initialization Path
+Detect web platform and use optimized initialization:
 ```dart
-Future<void> addPlusOneToAll() async {
-  // Snapshot tokens at start
-  final tokensToModify = items.where((item) => item.pt.isNotEmpty).toList();
-
-  for (final item in tokensToModify) {
-    // Check if token still exists before modifying
-    if (item.isInBox) {
-      item.addPowerToughnessCounters(1);
-      await item.save();
-    }
-  }
+if (kIsWeb) {
+  // Skip compaction, lazy-load decks
+} else {
+  // Standard initialization
 }
 ```
-- Non-blocking
-- Ignores tokens created during operation
-- Safely skips deleted tokens
-- User can interact freely
 
-**Option 3: Atomic Batch Operation**
-- Disable button during operation
-- Very fast (should complete in milliseconds for typical board states)
-- No UI lock needed - operation completes before user can react
-- Use `await` chain to ensure completion
-
-## Performance Considerations
-
-### Expected Board State
-- Typical: 5-20 token stacks
-- Heavy: 50+ token stacks
-- Each modification: < 1ms (update counter + save)
-
-### Estimated Duration
-- Light board (10 tokens): ~10ms
-- Heavy board (50 tokens): ~50ms
-- Should be imperceptible to user
-
-### Optimization
-- Use `items` snapshot (already sorted)
-- Filter for non-empty `pt` once
-- Single pass through list
-- Each save is async but sequential (Hive handles efficiently)
-
-## Finalized Decisions
-
-### UI Elements
-- **Icon**: `Icons.trending_up` (power increase visual)
-- **Color**: Green (enhancement/growth theme)
-- **Label**: "+1/+1 Everything"
-
-### User Experience
-- **Confirmation**: None - execute immediately
-- **User Feedback**: Silent operation - visual changes are self-evident
-- **Edge Cases**: Silent no-op if no eligible tokens (no error message needed)
-
-### Technical Approach
-- **Concurrent Modification**: Snapshot-based iteration (Option A)
-  - Take snapshot of tokens at operation start
-  - Check `isInBox` before modifying each token
-  - Gracefully handle deletions during operation
-  - Non-blocking, user can interact freely
-
-### Animation
-- **P/T Pop Effect**: When counter is added, P/T text scales up briefly
-  - Duration: 500ms
-  - Scale: 1.0 → 1.5 → 1.0
-  - Overflow: Allowed (can overlap other card elements temporarily)
-  - No layout shift: Uses Transform (doesn't affect positioning)
-
-### Scope
-- **MVP**: Just +1/+1 counters
-- **Future**: See FeedbackIdeas.md for "-1/-1 Everything" and other counter types
-
-## Implementation Priority
-
-1. **Core Functionality** (MVP)
-   - Add action to menu
-   - Implement `addPlusOneToAll()` in TokenProvider
-   - Multi-tap prevention
-   - Sheet auto-dismiss
-
-2. **Polish** (Post-MVP)
-   - Icon/color finalization
-   - User feedback (snackbar/message)
-   - Edge case handling (no eligible tokens)
-
-3. **Future Enhancements** (Nice to Have)
-   - Other counter types
-   - Undo functionality
-   - Filters/selection
-   - Animation effects
+## Success Criteria
+- First load time on web < 3 seconds (stretch goal: < 2 seconds)
+- No perceived lag on iOS/Android
+- Database operations remain reliable
+- No impact on app stability
 
 ## Next Steps
+1. Profile current initialization performance
+2. Identify biggest bottleneck (Hive? SharedPreferences? Compaction?)
+3. Implement highest-impact optimization
+4. Test across platforms (web, iOS, Android)
+5. Gather user feedback on perceived performance
 
-1. Answer clarifying questions
-2. Finalize UI decisions (icon, color, label)
-3. Choose concurrent modification strategy
-4. Implement MVP
-5. Test with various board states
-6. Gather user feedback
-7. Iterate on polish items
+## Notes
+- Web console shows: "DatabaseMaintenance: Starting compaction - last run was 20412 days ago"
+- Compaction completed in 0ms on empty database (not the bottleneck)
+- Main delay likely from IndexedDB/SharedPreferences initialization on web
