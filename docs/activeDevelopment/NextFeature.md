@@ -1,3 +1,17 @@
+---
+## 📦 Latest Build Artifacts (v1.3.0+8)
+
+**iOS (.ipa):**
+`build/ios/ipa/Doubling Season.ipa` (21.8MB)
+
+**Android (.aab):**
+`build/app/outputs/bundle/release/app-release.aab` (44.2MB)
+
+**Built:** 2025-11-19
+**Status:** Ready to deploy
+
+---
+
 # Next Feature: Global +1/+1 Counter Tool
 
 ## Overview
