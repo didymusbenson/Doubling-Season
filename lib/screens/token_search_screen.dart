@@ -820,12 +820,8 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                     createTapped: _createTapped,
                   );
 
-                  // Apply summoning sickness if enabled
-                  if (settingsProvider.summoningSicknessEnabled) {
-                    newItem.summoningSick = finalAmount;
-                  }
-
                   // Assign artwork URL immediately (synchronous, no download)
+                  // These are plain fields without setters, safe to set before insert
                   if (token.artwork.isNotEmpty) {
                     final firstArtwork = token.artwork[0];
                     newItem.artworkUrl = firstArtwork.url;
@@ -834,6 +830,11 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
 
                   // Insert token immediately - it's now visible and fully functional
                   await tokenProvider.insertItem(newItem);
+
+                  // Apply summoning sickness if enabled (must be after insert because setter calls save())
+                  if (settingsProvider.summoningSicknessEnabled) {
+                    newItem.summoningSick = finalAmount;
+                  }
 
                   // Reset creating state before closing dialogs
                   if (mounted) {
