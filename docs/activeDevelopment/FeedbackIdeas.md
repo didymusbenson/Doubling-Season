@@ -146,3 +146,77 @@ Minor lint warnings that don't affect functionality:
 - Precaching errors are caught with just `debugPrint` - no user feedback
 - **Impact**: Users won't know why artwork isn't appearing
 - **Minor issue** since it retries during actual creation
+
+
+# BETA TESTER SURVEY FEEDBACK
+
+## Addressed by Current Implementation:
+
+### 1. Time/Speed During Actual Play ✅
+**Feedback:** "The actions of calculating the tokens or digging through my token box usually takes much longer than turns"
+
+**Current Implementation:**
+- **Token Search:** Live search with Recent/Favorites tabs (immediate access to commonly used tokens)
+- **Bulk Operations:** Add/remove tokens in bulk via multiplier system (1-1024 range)
+- **Quick Actions:** Tap/untap/copy directly from TokenCard without opening detail view
+- **Global Actions:** "Untap All", "Clear Summoning Sickness", global +1/+1 counters
+- **Deck System:** Save/load entire board states instantly
+
+**Speed is addressed** - operations are single-tap where possible, no physical sorting required.
+
+### 2. Cognitive Load / Math Complexity ✅
+**Feedback:** "I have a nervous system disorder that makes my brain foggy. Math is hard sometimes"
+
+**Current Implementation:**
+- **App does the math:** Users select quantity + multiplier, app calculates final amount automatically
+- **Counter math automated:** +1/+1 and -1/-1 counters auto-cancel, modified P/T displayed automatically
+- **No manual tracking:** All amounts, tapped/untapped counts, summoning sickness tracked by app
+- **Visual feedback:** Clear display of current state, no mental arithmetic required during play
+
+**Math is fully automated** - users never need to calculate, just tap buttons.
+
+### 3. Trigger Management (Partial) ⚠️
+**Feedback:** "Keeping track of triggers and the sheer amount of them once i have doublers and tripplers on the battlefield"
+
+**Partially Addressed:**
+- ✅ "Global +1/+1 Everything" handles effects like Cathars' Crusade (apply counters to all tokens at once)
+- ✅ Summoning sickness tracking (auto-applied when tokens enter)
+- ❌ No trigger reminder system
+- ❌ No stack/priority tracking
+- ❌ No ETB ability tracking
+
+**Note:** This is explicitly a token-tracking app, not a comprehensive rules engine. Global counter tools help with mass triggers, but players still manage the stack mentally.
+
+## Not Addressed (Requires New Features):
+
+### 4. Complex Calculation with Multiple Stacking Effects ❌
+**Feedback:**
+- "Exponentially increasing tokens. For example hare apparent with 2-3+ token doublers"
+- "Multiple doubling season effects: Doubling Season (x2) + Parallel Lives (x2) + Anointed Procession (x2) = x8"
+
+**Current Limitation:**
+- Global multiplier is **manual input** (user sets 1-1024), not an automatic doubler calculator
+- User must calculate: "I have 3 doublers, so x8" → manually set multiplier to 8
+- No automatic "I have Doubling Season + Parallel Lives → multiply by 4"
+
+**Potential Solution:** See `docs/activeDevelopment/PremiumVersionIdeas.md` for planned "Token Modifier Card Toggles" feature (track active doublers, auto-calculate multiplier).
+
+### 5. Replacement Effects That Aren't Multipliers ❌
+**Feedback:** "Having a board state of chatterfang academy manufacturer, doubling season and parallel lives then making a treasure token"
+
+**Current Limitation:**
+- Academy Manufacturer: "Create 1 treasure" → "Create 1 treasure + 1 food + 1 clue" **NOT SUPPORTED**
+- Chatterfang: "Create N tokens" → "Create N tokens + N squirrels" **NOT SUPPORTED**
+- These are replacement effects, not multipliers - require special handling per card
+
+**Potential Solution:** See `docs/activeDevelopment/PremiumVersionIdeas.md` for:
+- Chatterfang Mode (auto-creates matching squirrels)
+- Academy Manufactor toggle (prompts for additional token types)
+- Other commander-specific replacement effects
+
+## Summary:
+- ✅ **Speed/efficiency** - fully addressed with quick actions and bulk operations
+- ✅ **Math/cognitive load** - fully automated, no manual calculation required
+- ⚠️ **Trigger tracking** - mass counter application helps, but no comprehensive trigger system
+- ❌ **Stacking doublers** - planned feature, not yet implemented (manual workaround exists)
+- ❌ **Replacement effects** - planned premium features for specific cards (Chatterfang, Academy Manufactor)

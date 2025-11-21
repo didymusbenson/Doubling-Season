@@ -62,9 +62,55 @@ This document is Claude's source of truth - keep it current!
 
 ## Project Overview
 
-**Doubling Season** is a cross-platform Flutter app for tracking Magic: The Gathering tokens during gameplay. It manages token stacks with tapped/untapped states, summoning sickness, counters (+1/+1, -1/-1, and custom counters), and provides a searchable database of 300+ token types.
+**Doubling Season** is a cross-platform Flutter app for tracking Magic: The Gathering tokens during gameplay. It manages token stacks with tapped/untapped states, summoning sickness, counters (+1/+1, -1/-1, and custom counters), token artwork display, and provides a searchable database of 883 token types.
 
 The app targets iOS, Android, Web, macOS, and Windows platforms using Flutter's single codebase approach.
+
+**Current Version:** 1.3.0+8 (as of November 2025)
+
+## What's New in v1.3.0
+
+**Major Features Added:**
+
+1. **Token Artwork Display System**
+   - Fetch artwork from Scryfall API with automatic cropping/caching
+   - Two display styles: Full View (artwork fills card) and Fadeout (gradient fade)
+   - Artwork precaching in search results for instant display
+   - Persisted with tokens in Hive and deck templates
+   - See "Artwork Display" section for implementation details
+
+2. **Global +1/+1 Everything Tool**
+   - Bulk counter operation: add +1/+1 to all tokens with P/T
+   - Animated P/T display when counters change
+   - Snapshot-based iteration for safe concurrent modifications
+   - Solves pain point: "Cathar's Crusade", "mass trigger tracking"
+
+3. **Token Database Update**
+   - Expanded from 300+ to 883 tokens (latest Magic sets)
+   - Updated via `process_tokens_with_popularity.py` script
+
+4. **Performance Optimizations**
+   - Parallel provider initialization (Hive, SharedPreferences)
+   - Optimized splash screen timing
+   - Fixed token creation lag issues
+   - Database compaction moved to background
+
+5. **Bug Fixes**
+   - Fixed HiveError during item insertion
+   - Fixed token creation stuck in "Creating..." state
+   - Fixed Scute Swarm multiplier and counter reconciliation
+   - Improved error handling for artwork downloads
+
+**Documentation Added:**
+- `docs/housekeeping/MarketingMaterial.md` - Survey analysis, feature highlights
+- `docs/activeDevelopment/commanderWidgets.md` - Krenko Mode design doc
+- Beta tester survey feedback analysis in FeedbackIdeas.md
+
+**Data Model Changes:**
+- Added `Item.artworkUrl` (@HiveField 13)
+- Added `Item.artworkSet` (@HiveField 14)
+- Added `Item.artworkOptions` (@HiveField 15)
+- Added `TokenTemplate.artworkUrl` for deck persistence
 
 ## Project Configuration
 
@@ -81,7 +127,7 @@ The app targets iOS, Android, Web, macOS, and Windows platforms using Flutter's 
 - Also set as `namespace` in the same file
 
 **App Version:**
-- Current: `1.0.3+5` (Version 1.0.3, Build 5)
+- Current: `1.3.0+8` (Version 1.3.0, Build 8)
 - Location: `pubspec.yaml` → `version: X.Y.Z+B`
 - Format: `MAJOR.MINOR.PATCH+BUILD_NUMBER`
 - Example: `1.0.1+1` = Version 1.0.1, Build 1
@@ -311,8 +357,9 @@ MultiProvider(
 - Displays token list using `ValueListenableBuilder` with Hive box
 - FloatingActionMenu with game actions:
   - New token (opens TokenSearchScreen)
-  - Untap all
-  - Clear summoning sickness
+  - **+1/+1 Everything** (adds +1/+1 counter to all tokens with P/T, NEW in v1.3.0)
+  - Untap Everything
+  - Clear Summoning Sickness
   - Save deck
   - Load deck (opens LoadDeckSheet)
   - Board wipe
@@ -322,6 +369,10 @@ MultiProvider(
 
 **TokenCard** (`lib/widgets/token_card.dart`) - Compact token display
 - Shows name, P/T, abilities, counters, tapped/untapped counts
+- **Token artwork display** (NEW in v1.3.0) with two styles:
+  - Full View: Artwork fills card width with semi-transparent text overlays
+  - Fadeout (default): Artwork on right 50% with gradient fade
+- **Animated P/T display** (NEW in v1.3.0) when counters change via "+1/+1 Everything"
 - Color identity border gradient (W=yellow, U=blue, B=purple, R=red, G=green, colorless=gray)
 - Counter pills displayed with high contrast (solid background, white text)
 - Tap to open ExpandedTokenScreen
@@ -332,6 +383,7 @@ MultiProvider(
 **ExpandedTokenScreen** (`lib/screens/expanded_token_screen.dart`) - Detailed editor
 - Editable fields for all token properties (name, P/T, abilities)
 - ColorSelectionButton for W/U/B/R/G color identity
+- **Artwork selection** (NEW in v1.3.0) - fetch artwork from Scryfall API with cropping/caching
 - Counter management via CounterPillView and CounterManagementPillView
 - CounterSearchScreen dialog for adding new counters
 - Stack splitting via SplitStackSheet
@@ -341,9 +393,10 @@ MultiProvider(
 **TokenSearchScreen** (`lib/screens/token_search_screen.dart`) - Database search
 - Three tabs: All / Recent / Favorites
 - Live search with category filtering (Creature, Artifact, Enchantment, Emblem, Dungeon, Counter, Other)
+- **Artwork precaching** (NEW in v1.3.0) - preloads artwork for search results in background
 - "Create Custom Token" button opens NewTokenSheet
 - Quantity dialog applies multiplier on selection
-- Uses `TokenDatabase` for loading and filtering
+- Uses `TokenDatabase` for loading and filtering (883 tokens)
 
 **SplitStackSheet** (`lib/widgets/split_stack_sheet.dart`) - Stack splitting
 - Distribute tokens between original and new stack
@@ -364,9 +417,9 @@ MultiProvider(
 ```dart
 @HiveType(typeId: 0)
 class Item extends HiveObject {
-  @HiveField(0) String name;
-  @HiveField(1) String pt;
-  @HiveField(2) String abilities;
+  @HiveField(0) String abilities;
+  @HiveField(1) String name;
+  @HiveField(2) String pt;
   @HiveField(3) String _colors;              // Private with validation
   @HiveField(4) int _amount;                 // Private with auto-correction
   @HiveField(5) int _tapped;
@@ -375,6 +428,11 @@ class Item extends HiveObject {
   @HiveField(8) int _minusOneCounters;       // -1/-1 counters (auto-cancel)
   @HiveField(9) List<TokenCounter> counters; // Custom counters
   @HiveField(10) DateTime createdAt;
+  @HiveField(11) double order;               // Sort order (drag-and-drop)
+  @HiveField(12) String? _type;              // Token type
+  @HiveField(13) String? artworkUrl;         // Scryfall artwork URL (NEW v1.3.0)
+  @HiveField(14) String? artworkSet;         // Set code for artwork (NEW v1.3.0)
+  @HiveField(15) List<ArtworkVariant>? artworkOptions; // Available artwork variants (NEW v1.3.0)
 
   // Computed properties
   bool get isEmblem => name/abilities contains "emblem"
@@ -464,6 +522,14 @@ ValueListenable updates → ContentScreen rebuilds with TokenCard
   - Applied to entire stack automatically
   - Display shows modified P/T with colored background when counters present
 
+- **Global +1/+1 Everything** (NEW in v1.3.0): Bulk counter operation
+  - Adds one +1/+1 counter to ALL tokens with power/toughness
+  - Accessed via FloatingActionMenu
+  - Uses snapshot-based iteration to handle concurrent modifications safely
+  - Triggers animated P/T display on affected TokenCards
+  - Useful for effects like Cathars' Crusade, Doubling Season triggers, etc.
+  - Method: `TokenProvider.addPlusOneToAll()`
+
 - **Custom Counters**: Selected via CounterSearchScreen from predefined list
   - Can be applied to entire stack or individual token
   - Stack splitting: user chooses whether to copy counters
@@ -475,9 +541,10 @@ ValueListenable updates → ContentScreen rebuilds with TokenCard
 - Display shows summoning sickness icon + count
 - Toggle setting via long-press on summoning sickness button
 
-### Artwork Display
+### Artwork Display (NEW in v1.3.0)
 - Token artwork can be selected from Scryfall API via ExpandedTokenScreen
 - Downloaded artwork cached locally via `ArtworkManager` (`lib/utils/artwork_manager.dart`)
+- **Artwork precaching**: TokenSearchScreen preloads artwork for search results in background (improves UX)
 - Two display styles available via Settings:
   - **Full View** (`fullView`): Artwork fills entire card width with semi-transparent text overlays
   - **Fadeout** (`fadeout`, default): Artwork on right 50% of card with gradient fade from transparent to opaque
@@ -695,19 +762,28 @@ When modifying `process_tokens_with_popularity.py`:
 
 ## Future Feature Context
 
-**Implemented Features:**
-- ✅ Token artwork display with two style modes (implemented on `artwork` branch)
+**Implemented Features (v1.3.0):**
+- ✅ Token artwork display with two style modes (Full View, Fadeout)
+- ✅ Artwork precaching for instant display
+- ✅ Global +1/+1 Everything tool for mass triggers
+- ✅ Animated P/T display
 - ✅ Floating toolbar (implemented in Flutter version)
+- ✅ 883-token database (updated November 2025)
 
 **Planned Features:**
 See `docs/activeDevelopment/FeedbackIdeas.md` for user-requested features:
+- -1/-1 Everything (similar to +1/+1 Everything)
 - Combat tracking interface
-- Condensed view mode
+- Condensed view mode (ultra-compact layout)
 - Enhanced artwork features (auto-assignment, user upload)
 
 See `docs/activeDevelopment/PremiumVersionIdeas.md` for planned paid features:
-- Commander-specific tools (Brudiclad, Krenko, Chatterfang)
-- Token modifier card toggles (Academy Manufactor, etc.)
+- Token modifier card toggles (Doubling Season, Parallel Lives, etc.) - auto-calculate multiplier
+- Academy Manufactor mode (prompt for Food/Clue/Treasure)
+- Chatterfang Mode (auto-create matching squirrels)
+- Other commander-specific tools (Brudiclad, Krenko, Rhys)
+
+See `docs/activeDevelopment/commanderWidgets.md` for Commander Mode system design.
 
 See `docs/activeDevelopment/NextFeature.md` for current development focus.
 
@@ -755,19 +831,22 @@ lib/
 │   └── database_maintenance.dart       # Database utilities
 └── utils/
     ├── constants.dart                  # Game/UI/Hive constants
-    └── color_utils.dart                # MTG color helpers
+    ├── color_utils.dart                # MTG color helpers
+    └── artwork_manager.dart            # Scryfall artwork download/caching (NEW v1.3.0)
 
 assets/
-├── token_database.json                 # 300+ bundled tokens
+├── token_database.json                 # 883 bundled tokens (updated Nov 2025)
 └── AppIconSource.png                   # App icon source asset
 
 docs/
 ├── activeDevelopment/                  # Current planning and feedback
-│   ├── FeedbackIdeas.md                # User feature requests
-│   ├── NextFeature.md                  # Current development focus
-│   └── PremiumVersionIdeas.md          # Planned paid features
+│   ├── FeedbackIdeas.md                # User feature requests + beta tester survey analysis
+│   ├── NextFeature.md                  # Current development focus (performance optimization)
+│   ├── PremiumVersionIdeas.md          # Planned paid features (token doublers, Chatterfang, etc.)
+│   └── commanderWidgets.md             # Commander Mode system design (Krenko, etc.)
 └── housekeeping/                       # Maintenance scripts and guides
     ├── process_tokens_with_popularity.py   # Token database generator
+    ├── MarketingMaterial.md            # Survey analysis, marketing copy, feature highlights
     ├── data_processing_scripts.md      # Documentation for data scripts
     ├── xml_token_processing_scripts.md # XML processing guide
     ├── AndroidToolchainSetup.md        # Android dev environment setup
