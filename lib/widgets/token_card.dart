@@ -452,8 +452,9 @@ class TokenCard extends StatelessWidget {
                 context,
                 icon: Icons.bug_report,
                 onTap: () {
+                  final multiplier = context.read<SettingsProvider>().tokenMultiplier;
                   final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
-                  tokenProvider.addTokens(item, item.amount, summoningSick);
+                  tokenProvider.addTokens(item, item.amount * multiplier, summoningSick);
                 },
                 onLongPress: null,
                 color: primaryColor,

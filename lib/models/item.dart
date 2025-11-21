@@ -81,6 +81,7 @@ class Item extends HiveObject {
   int get plusOneCounters => _plusOneCounters;
   set plusOneCounters(int value) {
     _plusOneCounters = value < 0 ? 0 : value;
+    _reconcileCounters();
     save();
   }
 
@@ -90,6 +91,7 @@ class Item extends HiveObject {
   int get minusOneCounters => _minusOneCounters;
   set minusOneCounters(int value) {
     _minusOneCounters = value < 0 ? 0 : value;
+    _reconcileCounters();
     save();
   }
 
@@ -200,6 +202,18 @@ class Item extends HiveObject {
       }
     }
     save();
+  }
+
+  // Reconcile +1/+1 and -1/-1 counters (called automatically by setters)
+  // Per MTG rules, +1/+1 and -1/-1 counters cancel each other as a state-based action
+  void _reconcileCounters() {
+    if (_plusOneCounters > 0 && _minusOneCounters > 0) {
+      final cancelAmount = _plusOneCounters < _minusOneCounters
+          ? _plusOneCounters
+          : _minusOneCounters;
+      _plusOneCounters -= cancelAmount;
+      _minusOneCounters -= cancelAmount;
+    }
   }
 
   bool addCounter({required String name, int amount = 1}) {
