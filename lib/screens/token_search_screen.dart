@@ -835,6 +835,11 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                   // Insert token immediately - it's now visible and fully functional
                   await tokenProvider.insertItem(newItem);
 
+                  // Reset creating state before closing dialogs
+                  if (mounted) {
+                    setModalState(() => _isCreating = false);
+                  }
+
                   // Close dialogs - token is on board and usable
                   if (context.mounted) {
                     Navigator.pop(context); // Close quantity dialog
