@@ -12,228 +12,287 @@
 
 ---
 
-# Next Feature: Initial App Load Performance Investigation
+# Complete Requirements Document
 
-## Overview
-Investigate and address the lag/delay users experience on first app load, particularly on web platform where Hive database initialization may cause noticeable performance impact.
+## Issue #1: Initial App Load Performance Optimization
 
-## Current Behavior
+### Problem Statement
+On first-time app installation, users experience 5-15 second lag on web and 1-2 second lag on iOS/Android. The splash screen dismisses too early, then the app is laggy with delayed FAB responses for ~60 seconds. Root cause: Hive box initialization is slow on first launch, and background tasks complete after splash dismissal.
 
-### What Happens on First Load
-1. **Hive Initialization** (`initHive()` in `main.dart:31`)
-   - Opens IndexedDB connections on web (slower than native platforms)
-   - Opens `items` box (normal Box)
-   - Opens `decks` box (LazyBox)
+### Current Implementation Analysis
 
-2. **Provider Initialization** (`_initializeProviders()` in `main.dart:87`)
-   - TokenProvider init
-   - DeckProvider init
-   - SettingsProvider init (SharedPreferences)
-
-3. **Database Maintenance** (`main.dart:103`)
-   - Runs `DatabaseMaintenanceService.compactIfNeeded()`
-   - On first web load: shows "last run was 20412 days ago" (defaults to very old date)
-   - Compaction takes 0-500ms depending on database size
-   - Runs weekly thereafter
-
-4. **Asset Loading**
-   - Loads `token_database.json` (300+ tokens)
-   - Happens in TokenSearchScreen via `compute()` isolate
-
-### Performance Issues
-- **Web platform**: Noticeable lag on first load (5-15 seconds)
-- **iOS/Android**: Minimal lag (1-2 seconds typical)
-- User experience: App feels unresponsive during initialization
-
-## Investigation Tasks
-
-### 1. Profile Web Initialization
-- [ ] Measure time for each initialization step:
-  - Hive setup (IndexedDB connection)
-  - Provider initialization
-  - Database compaction
-  - Asset loading
-- [ ] Use Flutter DevTools Performance tab to identify bottlenecks
-- [ ] Compare debug vs release builds
-
-### 2. Evaluate Database Compaction Strategy
-- [ ] Should we skip compaction on first run? (no data to compact anyway)
-- [ ] Should compaction run in background after app loads?
-- [ ] Consider moving compaction to separate isolate
-- [ ] Test performance impact with various database sizes (0, 10, 50, 100+ tokens)
-
-### 3. Optimize Hive Setup on Web
-- [ ] Research Hive web-specific optimizations
-- [ ] Consider lazy-loading decks box on web (delay until needed)
-- [ ] Evaluate if we can defer non-critical box opens
-
-### 4. Improve Splash Screen Experience
-- [ ] Currently: Minimum 1500ms display time (`main.dart:73`)
-- [ ] Consider showing loading indicator if initialization takes > 2 seconds
-- [ ] Add progress feedback for long loads
-- [ ] Option: Show "tip of the day" during load
-
-### 5. Asset Loading Optimization
-- [ ] Token database loads on-demand (only when TokenSearchScreen opens)
-- [ ] This is already optimal - no changes needed
-- [ ] Verify `compute()` isolate is working correctly on web
-
-## Potential Solutions
-
-### Option 1: Background Compaction
-Move database compaction to post-load background task:
-```dart
-// After providers ready and app displayed
-Future.microtask(() {
-  DatabaseMaintenanceService.compactIfNeeded();
-});
+**Initialization Flow:**
+```
+main()
+  → initHive() [Instant - just registers adapters]
+  → _MyAppState.initState()
+    → _initializeProviders() [SEQUENTIAL - BLOCKING]:
+        1. TokenProvider.init()
+           - await Hive.openBox<Item>('items')
+           - _ensureOrdersAssigned() [SYNCHRONOUS - blocks if data exists]
+        2. DeckProvider.init()
+           - await Hive.openLazyBox<Deck>('decks')
+        3. SettingsProvider.init()
+           - await SharedPreferences.getInstance()
+        4. await DatabaseMaintenanceService.compactIfNeeded() [BLOCKING]
+    → _startMinimumDisplayTimer() [Artificial 1500ms wait]
+  → When BOTH _providersReady AND _minTimeElapsed: Show ContentScreen
 ```
 
-### Option 2: Skip First-Run Compaction
-Add logic to skip compaction if database is empty or newly created:
+**Problems:**
+1. Provider initialization is sequential (not parallel)
+2. Compaction runs during init, blocking transition
+3. Artificial 1500ms minimum can expire before providers ready
+4. Background tasks (order migration, compaction) block UI readiness
+
+### Solution: Comprehensive Optimization (Option D)
+
+**Changes Required:**
+
+1. **Parallelize Provider Initialization**
+   - Use `Future.wait()` to initialize all 3 providers simultaneously
+   - Add timing logs for each provider
+
+2. **Move Compaction to Background**
+   - Run compaction AFTER app is displayed (post-frame callback)
+   - Make it non-blocking, fire-and-forget
+   - Still respects weekly interval
+
+3. **Skip First-Run Compaction**
+   - Check if items box is empty OR lastCompactKey is null
+   - Skip compaction entirely on first run (nothing to compact)
+
+4. **Remove Artificial Minimum**
+   - Remove 1500ms minimum timer
+   - Show splash until `_providersReady = true`
+   - Add optional loading indicator if initialization takes > 2 seconds
+
+5. **Add Debug Timing Logs**
+   - Log start/end of each provider init
+   - Log total initialization time
+   - Log compaction skip/run status
+
+### Implementation Details
+
+**File: `lib/main.dart`**
+
+**Change 1: Parallelize provider initialization**
 ```dart
-if (itemsBox.isEmpty) {
-  return; // Skip compaction on first run
+Future<void> _initializeProviders() async {
+  final stopwatch = Stopwatch()..start();
+
+  try {
+    debugPrint('═══ App Initialization Started ═══');
+
+    // Initialize all providers in parallel
+    final results = await Future.wait([
+      _initTokenProvider(),
+      _initDeckProvider(),
+      _initSettingsProvider(),
+    ]);
+
+    tokenProvider = results[0] as TokenProvider;
+    deckProvider = results[1] as DeckProvider;
+    settingsProvider = results[2] as SettingsProvider;
+
+    stopwatch.stop();
+    debugPrint('═══ App Initialization Complete: ${stopwatch.elapsedMilliseconds}ms ═══');
+
+    _providersReady = true;
+    _checkReadyToTransition();
+
+    // Run compaction in background AFTER app is ready
+    _runBackgroundMaintenance();
+  } catch (e, stackTrace) {
+    // ... existing error handling
+  }
+}
+
+Future<TokenProvider> _initTokenProvider() async {
+  final stopwatch = Stopwatch()..start();
+  final provider = TokenProvider();
+  await provider.init();
+  stopwatch.stop();
+  debugPrint('TokenProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
+  return provider;
+}
+
+Future<DeckProvider> _initDeckProvider() async {
+  final stopwatch = Stopwatch()..start();
+  final provider = DeckProvider();
+  await provider.init();
+  stopwatch.stop();
+  debugPrint('DeckProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
+  return provider;
+}
+
+Future<SettingsProvider> _initSettingsProvider() async {
+  final stopwatch = Stopwatch()..start();
+  final provider = SettingsProvider();
+  await provider.init();
+  stopwatch.stop();
+  debugPrint('SettingsProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
+  return provider;
+}
+
+void _runBackgroundMaintenance() {
+  // Run after first frame is rendered
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    DatabaseMaintenanceService.compactIfNeeded().then((didCompact) {
+      if (didCompact) {
+        debugPrint('Background maintenance: Compaction completed');
+      }
+    }).catchError((e) {
+      debugPrint('Background maintenance: Compaction failed - $e');
+    });
+  });
 }
 ```
 
-### Option 3: Progressive Loading
-Load critical components first, defer non-critical:
-1. Load SettingsProvider (needed for UI theme)
-2. Load TokenProvider (show empty board state)
-3. Background: DeckProvider, maintenance tasks
-
-### Option 4: Web-Specific Initialization Path
-Detect web platform and use optimized initialization:
+**Change 2: Remove artificial minimum timer**
 ```dart
-if (kIsWeb) {
-  // Skip compaction, lazy-load decks
-} else {
-  // Standard initialization
-}
-```
+// DELETE _startMinimumDisplayTimer() method entirely
+// DELETE _minTimeElapsed field
+// DELETE _checkReadyToTransition() logic related to _minTimeElapsed
 
-### Option 5: Loading Screen with Progress Indicator (UX Improvement)
-Show a loading screen after splash dismissal if initialization is taking longer than expected. Provides clear user feedback that the app is working.
-
-**Simple Approach (5-10 minutes):**
-Add loading indicator overlay to existing SplashScreen:
-```dart
-// In main.dart _MyAppState.build()
-if (!_isInitialized) {
-  return MaterialApp(
-    home: SplashScreen(
-      key: const ValueKey('splash'),
-      onComplete: _skipSplash,
-      showLoadingIndicator: true, // New optional prop
-    ),
-  );
-}
-```
-
-**Better Approach (15-20 minutes):**
-Create dedicated `LoadingScreen` shown between splash and main app:
-
-```dart
-class LoadingScreen extends StatelessWidget {
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 24),
-            Text('Initializing database...'),
-            SizedBox(height: 8),
-            LinearProgressIndicator(), // Optional progress bar
-          ],
-        ),
-      ),
-    );
+// Simplified transition logic:
+void _checkReadyToTransition() {
+  if (_providersReady && !_isInitialized) {
+    setState(() {
+      _isInitialized = true;
+    });
   }
 }
 ```
 
-**State Logic Update:**
-- Current: `_minTimeElapsed && _providersReady` → Show ContentScreen
-- New logic:
-  - `!_minTimeElapsed` → Show SplashScreen
-  - `_minTimeElapsed && !_providersReady` → Show LoadingScreen
-  - `_minTimeElapsed && _providersReady` → Show ContentScreen
+**File: `lib/database/database_maintenance.dart`**
 
-**Benefits:**
-- Users know the app is working (not frozen)
-- Explains what's happening ("Initializing database...")
-- Professional UX for slower devices/connections
-- Particularly helpful on web where initialization is slower
+**Change 3: Skip first-run compaction**
+```dart
+static Future<bool> compactIfNeeded() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final lastCompactTimestamp = prefs.getInt(_lastCompactKey);
 
-**Implementation Location:**
-- `main.dart` (modify `_MyAppState.build()` logic)
-- New file: `lib/screens/loading_screen.dart` (optional, if using dedicated screen)
+    // Skip compaction on first run (never compacted before)
+    if (lastCompactTimestamp == null) {
+      debugPrint('DatabaseMaintenance: Skipping compaction - first run (never compacted)');
+      // Set timestamp so next run knows it's not first time
+      await prefs.setInt(_lastCompactKey, DateTime.now().millisecondsSinceEpoch);
+      return false;
+    }
 
-## Success Criteria
-- First load time on web < 3 seconds (stretch goal: < 2 seconds)
-- No perceived lag on iOS/Android
-- Database operations remain reliable
-- No impact on app stability
+    // Check if items box is empty (nothing to compact)
+    final itemsBox = Hive.box<Item>('items');
+    if (itemsBox.isEmpty) {
+      debugPrint('DatabaseMaintenance: Skipping compaction - items box is empty');
+      return false;
+    }
 
-## Next Steps
-1. Profile current initialization performance
-2. Identify biggest bottleneck (Hive? SharedPreferences? Compaction?)
-3. Implement highest-impact optimization
-4. Test across platforms (web, iOS, Android)
-5. Gather user feedback on perceived performance
+    final lastCompactDate = DateTime.fromMillisecondsSinceEpoch(lastCompactTimestamp);
+    final now = DateTime.now();
+    final daysSinceLastCompact = now.difference(lastCompactDate).inDays;
 
-## Notes
-- Web console shows: "DatabaseMaintenance: Starting compaction - last run was 20412 days ago"
-- Compaction completed in 0ms on empty database (not the bottleneck)
-- Main delay likely from IndexedDB/SharedPreferences initialization on web
+    // Check if compaction interval has elapsed
+    if (daysSinceLastCompact < _compactionIntervalDays) {
+      debugPrint(
+        'DatabaseMaintenance: Skipping compaction - last run was $daysSinceLastCompact days ago '
+        '(threshold: $_compactionIntervalDays days)',
+      );
+      return false;
+    }
+
+    // Perform compaction
+    debugPrint(
+      'DatabaseMaintenance: Starting compaction - last run was $daysSinceLastCompact days ago',
+    );
+
+    final itemCount = itemsBox.length;
+    final stopwatch = Stopwatch()..start();
+    await itemsBox.compact();
+    stopwatch.stop();
+
+    // Record successful compaction
+    await prefs.setInt(_lastCompactKey, now.millisecondsSinceEpoch);
+
+    debugPrint(
+      'DatabaseMaintenance: Compaction complete in ${stopwatch.elapsedMilliseconds}ms. '
+      'Active items: $itemCount',
+    );
+
+    return true;
+  } on HiveError catch (e) {
+    debugPrint('DatabaseMaintenance: HiveError during compaction - ${e.message}');
+    return false;
+  } catch (e, stackTrace) {
+    debugPrint('DatabaseMaintenance: Unexpected error during compaction - $e');
+    debugPrint('Stack trace: $stackTrace');
+    return false;
+  }
+}
+```
+
+### Testing Checklist
+
+- [ ] Fresh install on web: Measure initialization time (should be < 3 seconds)
+- [ ] Fresh install on iOS: Measure initialization time (should be < 1 second)
+- [ ] Fresh install on Android: Measure initialization time (should be < 1 second)
+- [ ] Splash screen doesn't dismiss until app is fully ready
+- [ ] FABs are immediately responsive after splash (no lag period)
+- [ ] Debug logs show timing for each provider
+- [ ] First-run compaction is skipped (log confirms)
+- [ ] Subsequent launches: compaction runs in background without blocking
+- [ ] Compaction respects weekly interval
+- [ ] Empty database: compaction is skipped
+- [ ] Provider initialization runs in parallel (logs show overlapping times)
 
 ---
 
-# Secondary Issue: Token Creation Loading State (Android)
+## Issue #2: Token Creation Loading State
 
-## Problem Statement
-On Android (and occasionally web/slow connections), tokens appear as "Token Name (loading...)" due to artwork download blocking token creation. This interrupts user workflow and creates confusion about whether the token was created successfully.
+### Problem Statement
+Tokens appear as "Token Name (loading...)" with amount=0 when artwork download is slow. This creates a broken, confusing state that interrupts user workflow. The placeholder system blocks token finalization on artwork download completion.
 
-**Design Goal:** Don't interrupt the user's functional use of the app just because of art caching and loading. Most of the time this should be imperceptible, but on slow connections it must still perform gracefully.
+### Current Implementation Analysis
 
-## Current (Problematic) Flow
-1. **Placeholder created** with `amount=0` and name suffix `(loading...)`
-2. **Dialogs dismissed** - user sees placeholder on board (confusing!)
-3. **Artwork downloaded** from Scryfall CDN (BLOCKS on slow connections)
-4. **Token finalized** - removes `(loading...)`, sets correct amount
+**Token Creation Flow:**
+```
+User selects token + quantity
+  → Create placeholder Item (amount=0, name="Token (loading...)")
+  → Insert placeholder to database
+  → Close dialogs (user sees broken placeholder on board)
+  → await ArtworkManager.downloadArtwork() [BLOCKS 0-5+ seconds]
+  → Update placeholder (remove "(loading...)", set correct amount)
+  → Modifying card mid-load interrupts state
+```
 
-**Code location:** `lib/screens/token_search_screen.dart:816-865`
+**Problems:**
+1. Placeholder creates broken state (0 amount, loading suffix)
+2. Artwork download blocks token finalization
+3. Card modification interrupts loading
+4. User sees incomplete, confusing token
 
-**The issue:** If `ArtworkManager.downloadArtwork()` takes > 500ms, users see confusing loading state and cannot interact with incomplete token.
+### Solution: Remove Placeholder System
 
-## Solution: Remove Blocking Placeholder System
+**Changes Required:**
 
-**New flow:**
-1. **Token created immediately** with full data (name, amount, P/T, counters, etc.)
-2. **Dialogs dismissed** - user sees fully functional token on board
-3. **Artwork URL assigned** to token (synchronous, instant)
-4. **Artwork downloads in background** (non-blocking, fire-and-forget)
-5. **Artwork fades in smoothly** once loaded (1 second fade animation)
+1. **Create Token Immediately** - Full data, no placeholder
+2. **Set artworkUrl Synchronously** - Before download
+3. **Fire-and-Forget Download** - Non-blocking background task
+4. **Fade-In Animation** - 500ms fade, ONLY for newly downloaded artwork
+5. **Empty Background** - Show card color until artwork loads
+6. **Copy Behavior** - Both cards reference same URL, fade together
+7. **Error Handling** - Silent fail + reset artworkUrl to null
+8. **Preserve Precaching** - Keep existing precaching logic intact
 
-### Implementation Requirements
+### Implementation Details
 
-#### 1. Remove Placeholder Logic
-**Location:** `lib/screens/token_search_screen.dart:816-865`
+**File: `lib/screens/token_search_screen.dart`**
 
-**Current code to remove:**
-- Lines 816-824: Placeholder creation with `amount=0` and `"(loading...)"`
-- Lines 832-847: Blocking artwork download in try/catch
-- Lines 849-865: Finalizing placeholder with actual data
+**Replace lines 816-865 with new implementation:**
 
-**New code pattern:**
 ```dart
-// Capture provider references
+// Capture provider references BEFORE any async operations
 final tokenProvider = context.read<TokenProvider>();
 final settingsProvider = context.read<SettingsProvider>();
 final finalAmount = _tokenQuantity * multiplier;
@@ -249,16 +308,17 @@ if (settingsProvider.summoningSicknessEnabled) {
   newItem.summoningSick = finalAmount;
 }
 
-// Assign artwork URL immediately (sync, no download)
+// Assign artwork URL immediately (synchronous, no download)
 if (token.artwork.isNotEmpty) {
-  newItem.artworkUrl = token.artwork[0].url;
-  newItem.artworkSet = token.artwork[0].set;
+  final firstArtwork = token.artwork[0];
+  newItem.artworkUrl = firstArtwork.url;
+  newItem.artworkSet = firstArtwork.set;
 }
 
-// Insert token immediately
+// Insert token immediately - it's now visible and fully functional
 await tokenProvider.insertItem(newItem);
 
-// Close dialogs - token is now visible and functional
+// Close dialogs - token is on board and usable
 if (context.mounted) {
   Navigator.pop(context); // Close quantity dialog
   Navigator.pop(context); // Close search screen
@@ -266,366 +326,206 @@ if (context.mounted) {
 
 // Download artwork in background (non-blocking, fire-and-forget)
 if (token.artwork.isNotEmpty) {
-  ArtworkManager.downloadArtwork(token.artwork[0].url)
-      .catchError((error) {
-        debugPrint('Background artwork download failed: $error');
-        // Silent failure - artwork will lazy-load from URL
-      });
+  final artworkUrl = token.artwork[0].url;
+  ArtworkManager.downloadArtwork(artworkUrl).then((file) {
+    if (file == null) {
+      // Download failed - reset artworkUrl so it doesn't try to load
+      debugPrint('Artwork download failed for ${token.name}, resetting URL');
+      // Find the item again (it might have been deleted/modified)
+      final currentItem = tokenProvider.items.firstWhereOrNull(
+        (item) => item.artworkUrl == artworkUrl
+      );
+      if (currentItem != null) {
+        currentItem.artworkUrl = null;
+        currentItem.artworkSet = null;
+        currentItem.save();
+      }
+    } else {
+      debugPrint('Artwork downloaded and cached for ${token.name}');
+    }
+  }).catchError((error) {
+    debugPrint('Error during background artwork download: $error');
+    // Silent fail - reset artworkUrl on error
+    final currentItem = tokenProvider.items.firstWhereOrNull(
+      (item) => item.artworkUrl == artworkUrl
+    );
+    if (currentItem != null) {
+      currentItem.artworkUrl = null;
+      currentItem.artworkSet = null;
+      currentItem.save();
+    }
+  });
 }
 ```
 
-#### 2. Add Fade-In Animation to Artwork Widget
-**Location:** `lib/widgets/cropped_artwork_widget.dart` (or wherever artwork is rendered in TokenCard)
+**File: `lib/widgets/token_card.dart`**
 
-**Requirements:**
-- Artwork starts at opacity 0.0 when URL is first set
-- Fades to opacity 1.0 over 1 second once image loads
-- Use `FadeInImage` widget or `AnimatedOpacity` with image loading callback
-- Show card background color while artwork is transparent/loading
-- No jarring "pop" - smooth elegant reveal
+**Add fade-in animation logic:**
 
-**Example implementation options:**
+Modify `_TokenCardState` to track artwork appearance timing:
+
 ```dart
-// Option A: FadeInImage (built-in fade)
-FadeInImage(
-  placeholder: MemoryImage(kTransparentImage), // or solid color
-  image: NetworkImage(artworkUrl),
-  fadeInDuration: Duration(seconds: 1),
-  fit: BoxFit.cover,
-)
+class _TokenCardState extends State<TokenCard> {
+  final DateTime _createdAt = DateTime.now();
+  bool _artworkAnimated = false;
 
-// Option B: AnimatedOpacity with custom loading
-AnimatedOpacity(
-  opacity: _imageLoaded ? 1.0 : 0.0,
-  duration: Duration(seconds: 1),
-  child: Image.network(artworkUrl, ...),
-)
+  // ... existing code ...
+}
 ```
 
-#### 3. Verify Copy Behavior
-**Location:** `lib/providers/token_provider.dart:231-291` (copyToken method)
+Modify `_buildFullViewArtwork` method (line 520) to add fade animation:
 
-**Current behavior (verified correct):**
-- Lines 259-260: Copies `artworkUrl` and `artworkSet` from original
-- Copied tokens reference the same artwork URL
-- Both original and copy will display artwork once cached
+```dart
+Widget _buildFullViewArtwork(BuildContext context, BoxConstraints constraints) {
+  final crop = ArtworkManager.getCropPercentages();
 
-**No changes needed** - copy functionality already works correctly with this approach.
+  return Positioned.fill(
+    child: FutureBuilder<File?>(
+      future: ArtworkManager.getCachedArtworkFile(item.artworkUrl!),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data != null) {
+          // Determine if artwork should animate
+          // If it appears > 100ms after card creation = downloaded (animate)
+          // If it appears < 100ms after card creation = cached (no animation)
+          final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
+          final shouldAnimate = elapsed > 100 && !_artworkAnimated;
 
-### Edge Cases & Error Handling
+          if (shouldAnimate) {
+            _artworkAnimated = true;
+          }
 
-**Scenario 1: Artwork download fails**
-- Token still fully functional (has all data)
-- Artwork widget will attempt lazy-load from URL on display
-- If lazy-load fails: Shows card background color (graceful degradation)
+          return AnimatedOpacity(
+            opacity: 1.0,
+            duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
+            curve: Curves.easeIn,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+              child: CroppedArtworkWidget(
+                imageFile: snapshot.data!,
+                cropLeft: crop['left']!,
+                cropRight: crop['right']!,
+                cropTop: crop['top']!,
+                cropBottom: crop['bottom']!,
+                fillWidth: true,
+              ),
+            ),
+          );
+        }
+        // Show empty background while loading
+        return const SizedBox.shrink();
+      },
+    ),
+  );
+}
+```
 
-**Scenario 2: User copies token before artwork loads**
-- Both tokens have same `artworkUrl`
-- Both will fade in artwork when download completes
-- Only one download occurs (cached)
+Modify `_buildFadeoutArtwork` method (line 548) similarly:
 
-**Scenario 3: Slow network connection (5+ seconds)**
-- Token appears instantly, fully functional
-- User can interact immediately (add/remove, tap, view details, copy)
-- Artwork fades in whenever it's ready (no timeout needed)
+```dart
+Widget _buildFadeoutArtwork(BuildContext context, BoxConstraints constraints) {
+  final crop = ArtworkManager.getCropPercentages();
+  final artworkWidth = constraints.maxWidth * 0.50;
 
-**Scenario 4: User creates multiple tokens rapidly**
-- All tokens appear instantly
-- Artwork downloads happen in parallel (non-blocking)
-- Each fades in independently as it loads
+  return Positioned(
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: artworkWidth,
+    child: FutureBuilder<File?>(
+      future: ArtworkManager.getCachedArtworkFile(item.artworkUrl!),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data != null) {
+          // Same animation logic as full view
+          final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
+          final shouldAnimate = elapsed > 100 && !_artworkAnimated;
+
+          if (shouldAnimate) {
+            _artworkAnimated = true;
+          }
+
+          return AnimatedOpacity(
+            opacity: 1.0,
+            duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
+            curve: Curves.easeIn,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(UIConstants.smallBorderRadius),
+                bottomRight: Radius.circular(UIConstants.smallBorderRadius),
+              ),
+              child: ShaderMask(
+                shaderCallback: (Rect bounds) {
+                  return const LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [Colors.transparent, Colors.white],
+                    stops: [0.0, 0.50],
+                  ).createShader(bounds);
+                },
+                blendMode: BlendMode.dstIn,
+                child: CroppedArtworkWidget(
+                  imageFile: snapshot.data!,
+                  cropLeft: crop['left']!,
+                  cropRight: crop['right']!,
+                  cropTop: crop['top']!,
+                  cropBottom: crop['bottom']!,
+                  fillWidth: false,
+                ),
+              ),
+            ),
+          );
+        }
+        // Show empty background while loading
+        return const SizedBox.shrink();
+      },
+    ),
+  );
+}
+```
+
+### Copy Behavior Verification
+
+**File: `lib/providers/token_provider.dart` (lines 270-271)**
+
+Current implementation already handles copy correctly:
+```dart
+newItem.artworkUrl = original.artworkUrl;
+newItem.artworkSet = original.artworkSet;
+```
+
+Both original and copy reference the same URL. The `ArtworkManager.getCachedArtworkFile()` checks cache first (lines 60-64), so:
+- If artwork is already cached: Both cards show immediately
+- If artwork is being downloaded: Both cards' FutureBuilders wait for same file, fade in together
+
+**No changes needed** - copy behavior is correct as-is.
+
+### Precaching Preservation
+
+**Note:** Existing precaching logic (if any) must be preserved. The implementation should:
+- Keep any existing precache calls intact
+- Ensure background downloads don't interfere with precaching
+- ArtworkManager already handles "already cached" case (lines 60-64)
 
 ### Testing Checklist
-- [ ] Token appears instantly when created (no delay)
-- [ ] Token name does NOT have "(loading...)" suffix
-- [ ] Token has correct amount, P/T, abilities immediately
-- [ ] User can interact with token buttons immediately
-- [ ] User can tap to open ExpandedTokenScreen immediately
-- [ ] User can copy token before artwork loads
-- [ ] Artwork fades in smoothly (1 second) once loaded
+
+- [ ] Token appears instantly with correct amount/P/T/abilities
+- [ ] Token name does NOT have "(loading...)" suffix at any point
+- [ ] Token is fully interactive immediately (tap, add/remove, buttons work)
+- [ ] Artwork fades in over 500ms when downloaded (slow connection)
+- [ ] Artwork appears instantly when cached (no animation)
 - [ ] Multiple rapid token creations don't block each other
-- [ ] Slow network (throttle to 3G in DevTools): tokens still instant
-- [ ] Artwork download failure: token still works, no crash
-
-### Performance Benefits
-- **Fast connections:** Imperceptible (~100ms artwork appears)
-- **Slow connections:** Token creation never blocked, always instant
-- **No placeholder confusion:** Users never see "(loading...)"
-- **No interaction blocking:** Tokens fully functional immediately
-- **Parallel downloads:** Multiple tokens load artwork concurrently
-
-**Priority:** High - Significantly improves UX on Android and slow connections
+- [ ] Copy token before artwork loads: both fade in together
+- [ ] Copy token after artwork loads: copy shows artwork immediately
+- [ ] Artwork download failure: token works, artworkUrl reset to null, no crash
+- [ ] Slow network (throttle to 3G): tokens still instant, artwork fades in later
+- [ ] Empty card background shown while artwork loading
+- [ ] Precaching still works (if applicable)
 
 ---
 
-# Third Issue: Krenko Mode (Commander-Specific Feature)
+## Final Notes
 
-## Overview
-"Krenko Mode" is a special setting for players using Krenko, Mob Boss in Commander. When enabled, provides quick token generation based on Krenko's power and the number of goblins controlled.
+Both implementations are independent and can be done in any order. Issue #1 affects all users on every first launch. Issue #2 affects token creation on slow connections.
 
-**Magic Context:** Krenko, Mob Boss has the ability "Tap: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control."
+**Recommended order: Issue #1 first** (broader impact), then Issue #2.
 
-## UI Components
-
-### 1. Settings Toggle
-**Location:** Settings screen (with other gameplay options like Summoning Sickness, Multiplier)
-
-- **Label:** "Krenko Mode"
-- **Type:** Toggle switch
-- **Description:** "Enables quick goblin token generation for Krenko, Mob Boss decks"
-- **Default:** Off
-- **Storage:** SharedPreferences (`krenkoModeEnabled`)
-
-### 2. Krenko Banner (Top of Token List)
-**Location:** Above token list in ContentScreen, only visible when Krenko Mode enabled
-
-**Layout:** Horizontal banner spanning full width, fixed at top (cannot be reordered)
-
-**Contains:**
-- **"Krenko's Power"** - Stepper with inline input (range: 1-99)
-  - Starts at 3 (Krenko's base power)
-  - User can +/- with stepper or tap to enter manually
-  - Storage: SharedPreferences (`krenkoPower`)
-
-- **"Nontoken Goblins"** - Stepper with inline input (range: 0-99)
-  - Represents non-token goblins on battlefield (Krenko himself, other creatures)
-  - User can +/- with stepper or tap to enter manually
-  - Storage: SharedPreferences (`nontokenGoblins`)
-
-- **"Waaagh!" Button** - Primary action button
-  - Opens confirmation dialog with three options
-  - Style: Red color theme (matches Board Wipe icon)
-
-**Visual Design:**
-- Banner background: Card color with red accent/border
-- Text: Theme-appropriate (light/dark mode compatible)
-- Compact height: ~80-100px to not dominate screen
-- Padding: Standard app padding
-
-### 3. Waaagh! Confirmation Dialog
-**Triggered by:** Tapping "Waaagh!" button in Krenko Banner
-
-**Dialog Title:** "Create Goblin Tokens"
-
-**Three Options (buttons):**
-
-1. **"Krenko's Power" Button**
-   - Label: "Create [X] Goblins" (where X = Krenko's Power × Global Multiplier)
-   - Action: Create X 1/1 Red Goblin tokens
-   - Example: If power = 5, multiplier = 2, creates 10 goblins
-
-2. **"For Each Goblin You Control" Button**
-   - Label: "Create [Y] Goblins" (where Y = (Total Token Goblins + Nontoken Goblins) × Global Multiplier)
-   - Action: Count all goblin tokens, add nontoken count, multiply, create that many 1/1 Red Goblin tokens
-   - Example: If you have 8 token goblins + 2 nontoken = 10, multiplier = 1, creates 10 goblins
-
-3. **"Cancel" Button**
-   - Label: "Cancel"
-   - Action: Dismiss dialog, do nothing
-
-**Dialog Style:**
-- Standard AlertDialog with red accent
-- Show calculated amounts in button labels (dynamic)
-- Buttons stack vertically for clarity
-
-## Token Creation Logic
-
-### Standard Goblin Token Definition
-**Name:** "Goblin"
-**Power/Toughness:** "1/1"
-**Colors:** "R" (Red)
-**Type:** "Creature - Goblin"
-**Abilities:** "" (empty)
-
-### Token Creation Behavior
-
-**If matching token already exists:**
-- Search for existing token with:
-  - name = "Goblin"
-  - pt = "1/1"
-  - colors = "R"
-  - type contains "Goblin"
-  - abilities = "" (empty)
-- If found: Add to that token's amount (don't create new card)
-- If multiple matches: Add to first match (shouldn't happen with standard goblin)
-
-**If no matching token exists:**
-- Create new token card with standard goblin definition
-- Set amount to calculated value
-- Insert into token list
-
-**Summoning Sickness:**
-- Apply if global summoning sickness setting is enabled
-- Set `summoningSick = amount` on creation
-
-### Calculation Details
-
-**Option 1: Krenko's Power**
-```dart
-final krenkosPower = settingsProvider.krenkoPower; // e.g., 5
-final multiplier = settingsProvider.tokenMultiplier; // e.g., 2
-final goblinsToCreate = krenkosPower * multiplier; // = 10
-```
-
-**Option 2: For Each Goblin You Control**
-```dart
-// Step 1: Count all tokens with "Goblin" in type
-int tokenGoblinCount = 0;
-for (final item in tokenProvider.items) {
-  if (item.type.toLowerCase().contains('goblin')) {
-    tokenGoblinCount += item.amount; // Sum all goblin token amounts
-  }
-}
-
-// Step 2: Add nontoken goblins
-final nontokenGoblins = settingsProvider.nontokenGoblins; // e.g., 2
-final totalGoblins = tokenGoblinCount + nontokenGoblins; // e.g., 10
-
-// Step 3: Apply multiplier
-final multiplier = settingsProvider.tokenMultiplier; // e.g., 1
-final goblinsToCreate = totalGoblins * multiplier; // = 10
-```
-
-**Important:** Type matching is case-insensitive and substring-based:
-- "Creature - Goblin" ✓
-- "Creature - Goblin Warrior" ✓
-- "Artifact Creature - Goblin" ✓
-- "Creature - Elf" ✗
-
-## Theme Override
-
-### Red Color Theme
-When Krenko Mode is enabled, override blue theme colors with red:
-
-**Components to recolor:**
-- **FloatingActionButton** (multiplier, new token, menu)
-  - Current: Blue
-  - Krenko Mode: Red (use same red as Board Wipe icon)
-
-- **TokenCard borders/accents** (optional - TBD)
-  - May keep existing color identity system
-  - Or add subtle red accent when Krenko Mode active
-
-- **Krenko Banner**
-  - Red accent/border
-  - "Waaagh!" button: Red background
-
-**Color Reference:**
-- Board Wipe icon uses: `Colors.red` or similar
-- Need to identify exact color value in FloatingActionMenu
-- Ensure red works in both light and dark modes
-
-**Implementation:**
-- Check `settingsProvider.krenkoModeEnabled` in widget builds
-- Conditional color selection: `krenkoModeEnabled ? Colors.red : Colors.blue`
-- Apply to FABs, primary buttons, accents
-
-## Implementation Notes
-
-### Settings Provider
-Add to `lib/providers/settings_provider.dart`:
-```dart
-bool get krenkoModeEnabled => _prefs.getBool('krenkoModeEnabled') ?? false;
-Future<void> setKrenkoModeEnabled(bool value) async {
-  await _prefs.setBool('krenkoModeEnabled', value);
-  notifyListeners();
-}
-
-int get krenkoPower => _prefs.getInt('krenkoPower') ?? 3;
-Future<void> setKrenkoPower(int value) async {
-  await _prefs.setInt('krenkoPower', value.clamp(1, 99));
-  notifyListeners();
-}
-
-int get nontokenGoblins => _prefs.getInt('nontokenGoblins') ?? 0;
-Future<void> setNontokenGoblins(int value) async {
-  await _prefs.setInt('nontokenGoblins', value.clamp(0, 99));
-  notifyListeners();
-}
-```
-
-### New Widgets Needed
-1. **`KrenkoBanner`** (`lib/widgets/krenko_banner.dart`)
-   - Horizontal layout with steppers and button
-   - Conditionally rendered in ContentScreen when mode enabled
-   - Fixed position at top of token list
-
-2. **`KrenkoDialog`** (`lib/widgets/krenko_dialog.dart`)
-   - AlertDialog with three option buttons
-   - Calculates goblin counts dynamically
-   - Shows calculated amounts in button labels
-
-3. **`InlineStepperField`** (reusable widget)
-   - Combines stepper buttons with tap-to-edit number
-   - Similar to multiplier input pattern
-   - Range validation
-
-### Token Provider
-Add method to `lib/providers/token_provider.dart`:
-```dart
-Future<void> createOrAddGoblins(int amount, bool applyMultiplier) async {
-  final finalAmount = applyMultiplier
-      ? amount * settingsProvider.tokenMultiplier
-      : amount;
-
-  // Search for existing standard goblin token
-  final existingGoblin = items.firstWhereOrNull((item) =>
-    item.name == 'Goblin' &&
-    item.pt == '1/1' &&
-    item.colors == 'R' &&
-    item.type.toLowerCase().contains('goblin') &&
-    item.abilities.isEmpty
-  );
-
-  if (existingGoblin != null) {
-    // Add to existing
-    existingGoblin.amount += finalAmount;
-    await existingGoblin.save();
-  } else {
-    // Create new
-    final newGoblin = Item(
-      name: 'Goblin',
-      pt: '1/1',
-      colors: 'R',
-      type: 'Creature - Goblin',
-      abilities: '',
-      amount: finalAmount,
-      // ... other fields
-    );
-    await insertItem(newGoblin);
-  }
-}
-```
-
-## Questions to Answer (TODO)
-
-- [ ] Should Krenko Banner be collapsible/expandable?
-- [ ] Should there be a "reset" button for power/nontoken counts?
-- [ ] Do we want a history/counter of how many times Krenko has activated?
-- [ ] Should the standard goblin token have artwork auto-assigned?
-- [ ] Exact red color value to use (match Board Wipe icon)?
-- [ ] Should TokenCard borders get red accent in Krenko Mode, or just FABs?
-- [ ] Should we show a summary after creation? ("Created 10 goblins!")
-- [ ] Edge case: What if multiplier is set to 1024 and user has 50 goblins? (50k tokens)
-
-## Testing Checklist
-
-- [ ] Toggle Krenko Mode on/off in settings
-- [ ] Krenko Banner appears at top of token list when enabled
-- [ ] Krenko Banner hidden when mode disabled
-- [ ] Stepper +/- buttons work for both fields
-- [ ] Tap-to-edit manual input works for both fields
-- [ ] Range validation (1-99 for power, 0-99 for nontoken)
-- [ ] "Waaagh!" button opens dialog
-- [ ] Dialog shows correct calculated amounts (dynamic)
-- [ ] "Krenko's Power" creates correct number of goblins
-- [ ] "For Each Goblin" counts all token types containing "goblin"
-- [ ] "For Each Goblin" includes nontoken count
-- [ ] Both options apply global multiplier
-- [ ] Existing goblin token gets amount added (not new card)
-- [ ] New goblin token created if none exists
-- [ ] Summoning sickness applied if enabled
-- [ ] FABs change to red when Krenko Mode enabled
-- [ ] Colors work in both light and dark mode
-- [ ] Values persist across app restarts (SharedPreferences)
-
-**Priority:** Medium-High - Popular commander deck archetype, high user value
+All requirements are complete and ready for autonomous implementation.
