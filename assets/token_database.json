@@ -218,6 +218,20 @@
     ]
   },
   {
+    "name": "Ally",
+    "abilities": "",
+    "pt": "1/1",
+    "colors": "W",
+    "type": "Creature — Ally",
+    "popularity": 26,
+    "artwork": [
+      {
+        "set": "TLA",
+        "url": "https://cards.scryfall.io/large/front/f/8/f842c52a-04b6-4625-ba58-45b043ada340.jpg?1762594645"
+      }
+    ]
+  },
+  {
     "name": "Angel",
     "abilities": "Flying",
     "pt": "4/4",
@@ -814,8 +828,12 @@
     "pt": "2/1",
     "colors": "",
     "type": "Artifact Creature — Construct",
-    "popularity": 1,
+    "popularity": 2,
     "artwork": [
+      {
+        "set": "TLA",
+        "url": "https://cards.scryfall.io/large/front/0/b/0b1b8ff0-0b1e-4a55-a937-fde7ec15c41a.jpg?1762595496"
+      },
       {
         "set": "LTR",
         "url": "https://cards.scryfall.io/large/front/b/9/b9d70342-9d3c-44cb-9026-db5e5941b9fc.jpg?1694737403"
@@ -986,8 +1004,12 @@
     "pt": "4/4",
     "colors": "G",
     "type": "Creature — Bear",
-    "popularity": 1,
+    "popularity": 2,
     "artwork": [
+      {
+        "set": "TLA",
+        "url": "https://cards.scryfall.io/large/front/1/d/1dbbdb0f-57a4-4b85-ba5c-1383f0efb3af.jpg?1762595401"
+      },
       {
         "set": "KTK",
         "url": "https://cards.scryfall.io/large/front/c/a/ca3dae7d-3880-4c0a-acfb-8fd227cf9fab.jpg?1562640044"
@@ -2601,8 +2623,12 @@
     "pt": "",
     "colors": "",
     "type": "Artifact — Clue",
-    "popularity": 137,
+    "popularity": 158,
     "artwork": [
+      {
+        "set": "TLA",
+        "url": "https://cards.scryfall.io/large/front/9/8/98bdb578-e81e-40f9-9c06-b2867158baef.jpg?1762595562"
+      },
       {
         "set": "EOC",
         "url": "https://cards.scryfall.io/large/front/1/5/15866ed4-1ca3-427f-99ba-ee26ede9ae18.jpg?1752946432"
@@ -2942,6 +2968,10 @@
     "popularity": 0,
     "artwork": [
       {
+        "set": "TLA",
+        "url": "https://cards.scryfall.io/large/front/2/b/2b3d7795-3fc3-4b78-bdf4-0a79981f1eee.jpg?1762595417"
+      },
+      {
         "set": "SPM",
         "url": "https://cards.scryfall.io/large/front/e/9/e980eddf-92f8-4dc4-8bad-b2f3dcaf03ef.jpg?1757379290"
       },
@@ -3032,6 +3062,20 @@
       {
         "set": "GK1",
         "url": "https://cards.scryfall.io/large/front/a/0/a020dc47-3747-4123-9954-f0e87a858b8c.jpg?1639374083"
+      }
+    ]
+  },
+  {
+    "name": "Cordyceps Infected",
+    "abilities": "",
+    "pt": "1/1",
+    "colors": "B",
+    "type": "Creature — Fungus Zombie",
+    "popularity": 2,
+    "artwork": [
+      {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/f/f/ff00d5aa-2fea-47cd-82f4-f7e388d1ecb6.jpg?1759245315"
       }
     ]
   },
@@ -3907,6 +3951,20 @@
       {
         "set": "LTC",
         "url": "https://cards.scryfall.io/large/front/1/1/11335886-a422-42ff-be14-226602202603.jpg?1709590974"
+      }
+    ]
+  },
+  {
+    "name": "Dragon",
+    "abilities": "Flying, firebending 4",
+    "pt": "4/4",
+    "colors": "",
+    "type": "Creature — Dragon",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "TLA",
+        "url": "https://cards.scryfall.io/large/front/c/d/cddc0746-6d3e-441f-866f-28587bf54801.jpg?1762594883"
       }
     ]
   },
@@ -5704,8 +5762,12 @@
     "pt": "",
     "colors": "",
     "type": "Artifact — Food",
-    "popularity": 126,
+    "popularity": 137,
     "artwork": [
+      {
+        "set": "TLA",
+        "url": "https://cards.scryfall.io/large/front/d/0/d0e54f01-1301-481f-ace0-87966b5135f0.jpg?1762595738"
+      },
       {
         "set": "SPM",
         "url": "https://cards.scryfall.io/large/front/0/f/0fb2c5a4-859e-40ac-8091-7ba44f57b878.jpg?1757379328"
@@ -9384,6 +9446,10 @@
     "popularity": 2,
     "artwork": [
       {
+        "set": "TLE",
+        "url": "https://cards.scryfall.io/large/front/d/c/dcff76fb-e23d-4333-a770-b1d616f98486.jpg?1762594498"
+      },
+      {
         "set": "M3C",
         "url": "https://cards.scryfall.io/large/front/2/5/25fca5a7-3b61-4e1e-83a3-a312c06fd922.jpg?1717193716"
       },
@@ -9635,8 +9701,12 @@
     "pt": "1/1",
     "colors": "R",
     "type": "Creature — Monk",
-    "popularity": 1,
+    "popularity": 2,
     "artwork": [
+      {
+        "set": "TLA",
+        "url": "https://cards.scryfall.io/large/front/e/4/e49c80ac-5c90-4fd2-ad40-cc77af160f64.jpg?1762595324"
+      },
       {
         "set": "DMU",
         "url": "https://cards.scryfall.io/large/front/3/8/388180bd-cc96-4b18-9ddd-18a3f7e06282.jpg?1675456267"
@@ -13470,6 +13540,34 @@
     ]
   },
   {
+    "name": "Soldier",
+    "abilities": "Firebending 1",
+    "pt": "2/2",
+    "colors": "",
+    "type": "Creature — Soldier",
+    "popularity": 4,
+    "artwork": [
+      {
+        "set": "TLA",
+        "url": "https://cards.scryfall.io/large/front/2/d/2de43b03-9ac5-4292-ab29-2dc6210ef3d9.jpg?1762595385"
+      }
+    ]
+  },
+  {
+    "name": "Soldier",
+    "abilities": "",
+    "pt": "2/2",
+    "colors": "R",
+    "type": "Creature — Soldier",
+    "popularity": 2,
+    "artwork": [
+      {
+        "set": "TLE",
+        "url": "https://cards.scryfall.io/large/front/8/3/83313791-7d33-42bf-8ee7-05f17f88940a.jpg?1762594533"
+      }
+    ]
+  },
+  {
     "name": "Soldier Ally",
     "abilities": "",
     "pt": "1/1",
@@ -14312,6 +14410,20 @@
       {
         "set": "TDM",
         "url": "https://cards.scryfall.io/large/front/9/9/997edcc4-6021-4443-9470-3fd7f7595cc6.jpg?1743196306"
+      }
+    ]
+  },
+  {
+    "name": "Spirit",
+    "abilities": "This token can't block or be blocked by non-Spirit creatures.",
+    "pt": "1/1",
+    "colors": "",
+    "type": "Creature — Spirit",
+    "popularity": 7,
+    "artwork": [
+      {
+        "set": "TLA",
+        "url": "https://cards.scryfall.io/large/front/f/5/f59eba51-458a-40e0-b754-999f91d5d839.jpg?1762597054"
       }
     ]
   },
@@ -15355,6 +15467,10 @@
     "type": "Artifact — Treasure",
     "popularity": 316,
     "artwork": [
+      {
+        "set": "TLA",
+        "url": "https://cards.scryfall.io/large/front/e/e/ee9ffe19-fea7-4dcc-a673-26be06d2f1be.jpg?1762595854"
+      },
       {
         "set": "SPM",
         "url": "https://cards.scryfall.io/large/front/d/5/d52efeb3-661d-45e9-97c3-af167f889684.jpg?1757379348"
