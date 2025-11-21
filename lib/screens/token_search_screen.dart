@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:collection/collection.dart';
 import '../models/token_definition.dart' as token_models;
 import '../database/token_database.dart';
 import '../providers/token_provider.dart';
@@ -813,55 +814,64 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                   final settingsProvider = context.read<SettingsProvider>();
                   final finalAmount = _tokenQuantity * multiplier;
 
-                  // Create placeholder item with amount=0 to show loading state
-                  final placeholderItem = token.toItem(
-                    amount: 0, // Placeholder with zero amount
-                    createTapped: false,
+                  // Create final token immediately (no placeholder)
+                  final newItem = token.toItem(
+                    amount: finalAmount,
+                    createTapped: _createTapped,
                   );
-                  placeholderItem.name = '${token.name} (loading...)';
 
-                  // Insert placeholder immediately
-                  await tokenProvider.insertItem(placeholderItem);
+                  // Apply summoning sickness if enabled
+                  if (settingsProvider.summoningSicknessEnabled) {
+                    newItem.summoningSick = finalAmount;
+                  }
 
-                  // Close dialogs immediately so user can see the placeholder
+                  // Assign artwork URL immediately (synchronous, no download)
+                  if (token.artwork.isNotEmpty) {
+                    final firstArtwork = token.artwork[0];
+                    newItem.artworkUrl = firstArtwork.url;
+                    newItem.artworkSet = firstArtwork.set;
+                  }
+
+                  // Insert token immediately - it's now visible and fully functional
+                  await tokenProvider.insertItem(newItem);
+
+                  // Close dialogs - token is on board and usable
                   if (context.mounted) {
                     Navigator.pop(context); // Close quantity dialog
                     Navigator.pop(context); // Close search screen
                   }
 
-                  // Now perform async work in the background
-                  try {
-                    // Auto-assign first artwork if available
-                    if (token.artwork.isNotEmpty) {
-                      final firstArtwork = token.artwork[0];
-                      placeholderItem.artworkUrl = firstArtwork.url;
-                      placeholderItem.artworkSet = firstArtwork.set;
-
-                      // Download and cache artwork
-                      try {
-                        await ArtworkManager.downloadArtwork(firstArtwork.url);
-                      } catch (error) {
-                        debugPrint('Artwork download failed: $error');
-                        // Continue anyway - artwork will lazy load later
+                  // Download artwork in background (non-blocking, fire-and-forget)
+                  if (token.artwork.isNotEmpty) {
+                    final artworkUrl = token.artwork[0].url;
+                    ArtworkManager.downloadArtwork(artworkUrl).then((file) {
+                      if (file == null) {
+                        // Download failed - reset artworkUrl so it doesn't try to load
+                        debugPrint('Artwork download failed for ${token.name}, resetting URL');
+                        // Find the item again (it might have been deleted/modified)
+                        final currentItem = tokenProvider.items.firstWhereOrNull(
+                          (item) => item.artworkUrl == artworkUrl
+                        );
+                        if (currentItem != null) {
+                          currentItem.artworkUrl = null;
+                          currentItem.artworkSet = null;
+                          currentItem.save();
+                        }
+                      } else {
+                        debugPrint('Artwork downloaded and cached for ${token.name}');
                       }
-                    }
-
-                    // Update placeholder with final data
-                    placeholderItem.name = token.name; // Remove "(loading...)"
-                    placeholderItem.amount = finalAmount;
-                    placeholderItem.tapped = _createTapped ? finalAmount : 0;
-                    placeholderItem.summoningSick =
-                        settingsProvider.summoningSicknessEnabled ? finalAmount : 0;
-                    await placeholderItem.save();
-                  } catch (error) {
-                    debugPrint('Error finalizing token creation: $error');
-                    // Even if artwork fails, still create the token
-                    placeholderItem.name = token.name;
-                    placeholderItem.amount = finalAmount;
-                    placeholderItem.tapped = _createTapped ? finalAmount : 0;
-                    placeholderItem.summoningSick =
-                        settingsProvider.summoningSicknessEnabled ? finalAmount : 0;
-                    await placeholderItem.save();
+                    }).catchError((error) {
+                      debugPrint('Error during background artwork download: $error');
+                      // Silent fail - reset artworkUrl on error
+                      final currentItem = tokenProvider.items.firstWhereOrNull(
+                        (item) => item.artworkUrl == artworkUrl
+                      );
+                      if (currentItem != null) {
+                        currentItem.artworkUrl = null;
+                        currentItem.artworkSet = null;
+                        currentItem.save();
+                      }
+                    });
                   }
                 },
                 style: ElevatedButton.styleFrom(

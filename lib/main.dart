@@ -58,7 +58,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late SettingsProvider settingsProvider;
   bool _isInitialized = false;
   bool _providersReady = false;
-  bool _minTimeElapsed = false;
 
   @override
   void initState() {
@@ -66,18 +65,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _disableScreenTimeout();
     _initializeProviders();
-    _startMinimumDisplayTimer();
-  }
-
-  void _startMinimumDisplayTimer() {
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      _minTimeElapsed = true;
-      _checkReadyToTransition();
-    });
   }
 
   void _checkReadyToTransition() {
-    if (_providersReady && _minTimeElapsed && !_isInitialized) {
+    if (_providersReady && !_isInitialized) {
       setState(() {
         _isInitialized = true;
       });
@@ -85,25 +76,30 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   Future<void> _initializeProviders() async {
+    final stopwatch = Stopwatch()..start();
+
     try {
-      // Initialize providers
-      tokenProvider = TokenProvider();
-      await tokenProvider.init();
+      debugPrint('═══ App Initialization Started ═══');
 
-      deckProvider = DeckProvider();
-      await deckProvider.init();
+      // Initialize all providers in parallel
+      final results = await Future.wait([
+        _initTokenProvider(),
+        _initDeckProvider(),
+        _initSettingsProvider(),
+      ]);
 
-      settingsProvider = SettingsProvider();
-      await settingsProvider.init();
+      tokenProvider = results[0] as TokenProvider;
+      deckProvider = results[1] as DeckProvider;
+      settingsProvider = results[2] as SettingsProvider;
 
-      // Perform database maintenance (compaction) if needed
-      // This runs weekly to reclaim dead space from deleted tokens.
-      // Safe to call on every startup - only compacts if interval has elapsed.
-      // Non-blocking: errors don't affect app startup.
-      await DatabaseMaintenanceService.compactIfNeeded();
+      stopwatch.stop();
+      debugPrint('═══ App Initialization Complete: ${stopwatch.elapsedMilliseconds}ms ═══');
 
       _providersReady = true;
       _checkReadyToTransition();
+
+      // Run compaction in background AFTER app is ready
+      _runBackgroundMaintenance();
     } catch (e, stackTrace) {
       // Log provider initialization errors (only in debug mode)
       if (kDebugMode) {
@@ -116,6 +112,46 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       }
       rethrow;
     }
+  }
+
+  Future<TokenProvider> _initTokenProvider() async {
+    final stopwatch = Stopwatch()..start();
+    final provider = TokenProvider();
+    await provider.init();
+    stopwatch.stop();
+    debugPrint('TokenProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
+    return provider;
+  }
+
+  Future<DeckProvider> _initDeckProvider() async {
+    final stopwatch = Stopwatch()..start();
+    final provider = DeckProvider();
+    await provider.init();
+    stopwatch.stop();
+    debugPrint('DeckProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
+    return provider;
+  }
+
+  Future<SettingsProvider> _initSettingsProvider() async {
+    final stopwatch = Stopwatch()..start();
+    final provider = SettingsProvider();
+    await provider.init();
+    stopwatch.stop();
+    debugPrint('SettingsProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
+    return provider;
+  }
+
+  void _runBackgroundMaintenance() {
+    // Run after first frame is rendered
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DatabaseMaintenanceService.compactIfNeeded().then((didCompact) {
+        if (didCompact) {
+          debugPrint('Background maintenance: Compaction completed');
+        }
+      }).catchError((e) {
+        debugPrint('Background maintenance: Compaction failed - $e');
+      });
+    });
   }
 
   void _skipSplash() {
