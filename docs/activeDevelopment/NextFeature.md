@@ -12,520 +12,426 @@
 
 ---
 
-# Complete Requirements Document
+# Bug Fix: Remove Placeholder Pattern from Custom Token Creation ⚠️ URGENT
 
-## Issue #1: Initial App Load Performance Optimization
+## Priority
 
-### Problem Statement
-On first-time app installation, users experience 5-15 second lag on web and 1-2 second lag on iOS/Android. The splash screen dismisses too early, then the app is laggy with delayed FAB responses for ~60 seconds. Root cause: Hive box initialization is slow on first launch, and background tasks complete after splash dismissal.
+**URGENT** - This creates a confusing broken state for custom tokens with the "(loading...)" suffix and amount=0.
 
-### Current Implementation Analysis
+## Problem Statement
 
-**Initialization Flow:**
-```
-main()
-  → initHive() [Instant - just registers adapters]
-  → _MyAppState.initState()
-    → _initializeProviders() [SEQUENTIAL - BLOCKING]:
-        1. TokenProvider.init()
-           - await Hive.openBox<Item>('items')
-           - _ensureOrdersAssigned() [SYNCHRONOUS - blocks if data exists]
-        2. DeckProvider.init()
-           - await Hive.openLazyBox<Deck>('decks')
-        3. SettingsProvider.init()
-           - await SharedPreferences.getInstance()
-        4. await DatabaseMaintenanceService.compactIfNeeded() [BLOCKING]
-    → _startMinimumDisplayTimer() [Artificial 1500ms wait]
-  → When BOTH _providersReady AND _minTimeElapsed: Show ContentScreen
-```
+`lib/widgets/new_token_sheet.dart` still uses the old placeholder pattern that was removed from TokenSearchScreen in the Issue #2 performance fix. Custom tokens appear as:
+- `"Token Name (loading...)"` with `amount: 0`
+- Then get updated to remove "(loading...)" and set correct amount
 
-**Problems:**
-1. Provider initialization is sequential (not parallel)
-2. Compaction runs during init, blocking transition
-3. Artificial 1500ms minimum can expire before providers ready
-4. Background tasks (order migration, compaction) block UI readiness
+This is **unnecessary** because custom tokens don't have artwork downloads (no async delay), so the placeholder serves no purpose. It's just leftover code that creates a confusing broken state.
 
-### Solution: Comprehensive Optimization (Option D)
-
-**Changes Required:**
-
-1. **Parallelize Provider Initialization**
-   - Use `Future.wait()` to initialize all 3 providers simultaneously
-   - Add timing logs for each provider
-
-2. **Move Compaction to Background**
-   - Run compaction AFTER app is displayed (post-frame callback)
-   - Make it non-blocking, fire-and-forget
-   - Still respects weekly interval
-
-3. **Skip First-Run Compaction**
-   - Check if items box is empty OR lastCompactKey is null
-   - Skip compaction entirely on first run (nothing to compact)
-
-4. **Remove Artificial Minimum**
-   - Remove 1500ms minimum timer
-   - Show splash until `_providersReady = true`
-   - Add optional loading indicator if initialization takes > 2 seconds
-
-5. **Add Debug Timing Logs**
-   - Log start/end of each provider init
-   - Log total initialization time
-   - Log compaction skip/run status
-
-### Implementation Details
-
-**File: `lib/main.dart`**
-
-**Change 1: Parallelize provider initialization**
-```dart
-Future<void> _initializeProviders() async {
-  final stopwatch = Stopwatch()..start();
-
-  try {
-    debugPrint('═══ App Initialization Started ═══');
-
-    // Initialize all providers in parallel
-    final results = await Future.wait([
-      _initTokenProvider(),
-      _initDeckProvider(),
-      _initSettingsProvider(),
-    ]);
-
-    tokenProvider = results[0] as TokenProvider;
-    deckProvider = results[1] as DeckProvider;
-    settingsProvider = results[2] as SettingsProvider;
-
-    stopwatch.stop();
-    debugPrint('═══ App Initialization Complete: ${stopwatch.elapsedMilliseconds}ms ═══');
-
-    _providersReady = true;
-    _checkReadyToTransition();
-
-    // Run compaction in background AFTER app is ready
-    _runBackgroundMaintenance();
-  } catch (e, stackTrace) {
-    // ... existing error handling
-  }
-}
-
-Future<TokenProvider> _initTokenProvider() async {
-  final stopwatch = Stopwatch()..start();
-  final provider = TokenProvider();
-  await provider.init();
-  stopwatch.stop();
-  debugPrint('TokenProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
-  return provider;
-}
-
-Future<DeckProvider> _initDeckProvider() async {
-  final stopwatch = Stopwatch()..start();
-  final provider = DeckProvider();
-  await provider.init();
-  stopwatch.stop();
-  debugPrint('DeckProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
-  return provider;
-}
-
-Future<SettingsProvider> _initSettingsProvider() async {
-  final stopwatch = Stopwatch()..start();
-  final provider = SettingsProvider();
-  await provider.init();
-  stopwatch.stop();
-  debugPrint('SettingsProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
-  return provider;
-}
-
-void _runBackgroundMaintenance() {
-  // Run after first frame is rendered
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    DatabaseMaintenanceService.compactIfNeeded().then((didCompact) {
-      if (didCompact) {
-        debugPrint('Background maintenance: Compaction completed');
-      }
-    }).catchError((e) {
-      debugPrint('Background maintenance: Compaction failed - $e');
-    });
-  });
-}
-```
-
-**Change 2: Remove artificial minimum timer**
-```dart
-// DELETE _startMinimumDisplayTimer() method entirely
-// DELETE _minTimeElapsed field
-// DELETE _checkReadyToTransition() logic related to _minTimeElapsed
-
-// Simplified transition logic:
-void _checkReadyToTransition() {
-  if (_providersReady && !_isInitialized) {
-    setState(() {
-      _isInitialized = true;
-    });
-  }
-}
-```
-
-**File: `lib/database/database_maintenance.dart`**
-
-**Change 3: Skip first-run compaction**
-```dart
-static Future<bool> compactIfNeeded() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final lastCompactTimestamp = prefs.getInt(_lastCompactKey);
-
-    // Skip compaction on first run (never compacted before)
-    if (lastCompactTimestamp == null) {
-      debugPrint('DatabaseMaintenance: Skipping compaction - first run (never compacted)');
-      // Set timestamp so next run knows it's not first time
-      await prefs.setInt(_lastCompactKey, DateTime.now().millisecondsSinceEpoch);
-      return false;
-    }
-
-    // Check if items box is empty (nothing to compact)
-    final itemsBox = Hive.box<Item>('items');
-    if (itemsBox.isEmpty) {
-      debugPrint('DatabaseMaintenance: Skipping compaction - items box is empty');
-      return false;
-    }
-
-    final lastCompactDate = DateTime.fromMillisecondsSinceEpoch(lastCompactTimestamp);
-    final now = DateTime.now();
-    final daysSinceLastCompact = now.difference(lastCompactDate).inDays;
-
-    // Check if compaction interval has elapsed
-    if (daysSinceLastCompact < _compactionIntervalDays) {
-      debugPrint(
-        'DatabaseMaintenance: Skipping compaction - last run was $daysSinceLastCompact days ago '
-        '(threshold: $_compactionIntervalDays days)',
-      );
-      return false;
-    }
-
-    // Perform compaction
-    debugPrint(
-      'DatabaseMaintenance: Starting compaction - last run was $daysSinceLastCompact days ago',
-    );
-
-    final itemCount = itemsBox.length;
-    final stopwatch = Stopwatch()..start();
-    await itemsBox.compact();
-    stopwatch.stop();
-
-    // Record successful compaction
-    await prefs.setInt(_lastCompactKey, now.millisecondsSinceEpoch);
-
-    debugPrint(
-      'DatabaseMaintenance: Compaction complete in ${stopwatch.elapsedMilliseconds}ms. '
-      'Active items: $itemCount',
-    );
-
-    return true;
-  } on HiveError catch (e) {
-    debugPrint('DatabaseMaintenance: HiveError during compaction - ${e.message}');
-    return false;
-  } catch (e, stackTrace) {
-    debugPrint('DatabaseMaintenance: Unexpected error during compaction - $e');
-    debugPrint('Stack trace: $stackTrace');
-    return false;
-  }
-}
-```
-
-### Testing Checklist
-
-- [ ] Fresh install on web: Measure initialization time (should be < 3 seconds)
-- [ ] Fresh install on iOS: Measure initialization time (should be < 1 second)
-- [ ] Fresh install on Android: Measure initialization time (should be < 1 second)
-- [ ] Splash screen doesn't dismiss until app is fully ready
-- [ ] FABs are immediately responsive after splash (no lag period)
-- [ ] Debug logs show timing for each provider
-- [ ] First-run compaction is skipped (log confirms)
-- [ ] Subsequent launches: compaction runs in background without blocking
-- [ ] Compaction respects weekly interval
-- [ ] Empty database: compaction is skipped
-- [ ] Provider initialization runs in parallel (logs show overlapping times)
-
----
-
-## Issue #2: Token Creation Loading State
-
-### Problem Statement
-Tokens appear as "Token Name (loading...)" with amount=0 when artwork download is slow. This creates a broken, confusing state that interrupts user workflow. The placeholder system blocks token finalization on artwork download completion.
-
-### Current Implementation Analysis
-
-**Token Creation Flow:**
-```
-User selects token + quantity
-  → Create placeholder Item (amount=0, name="Token (loading...)")
-  → Insert placeholder to database
-  → Close dialogs (user sees broken placeholder on board)
-  → await ArtworkManager.downloadArtwork() [BLOCKS 0-5+ seconds]
-  → Update placeholder (remove "(loading...)", set correct amount)
-  → Modifying card mid-load interrupts state
-```
-
-**Problems:**
-1. Placeholder creates broken state (0 amount, loading suffix)
-2. Artwork download blocks token finalization
-3. Card modification interrupts loading
-4. User sees incomplete, confusing token
-
-### Solution: Remove Placeholder System
-
-**Changes Required:**
-
-1. **Create Token Immediately** - Full data, no placeholder
-2. **Set artworkUrl Synchronously** - Before download
-3. **Fire-and-Forget Download** - Non-blocking background task
-4. **Fade-In Animation** - 500ms fade, ONLY for newly downloaded artwork
-5. **Empty Background** - Show card color until artwork loads
-6. **Copy Behavior** - Both cards reference same URL, fade together
-7. **Error Handling** - Silent fail + reset artworkUrl to null
-8. **Preserve Precaching** - Keep existing precaching logic intact
-
-### Implementation Details
-
-**File: `lib/screens/token_search_screen.dart`**
-
-**Replace lines 816-865 with new implementation:**
+## Current Implementation (Lines 235-272)
 
 ```dart
-// Capture provider references BEFORE any async operations
-final tokenProvider = context.read<TokenProvider>();
-final settingsProvider = context.read<SettingsProvider>();
-final finalAmount = _tokenQuantity * multiplier;
-
-// Create final token immediately (no placeholder)
-final newItem = token.toItem(
-  amount: finalAmount,
-  createTapped: _createTapped,
+// Create placeholder with amount=0
+final placeholderItem = Item(
+  name: '${_nameController.text} (loading...)',
+  pt: _ptController.text,
+  type: _typeController.text.trim(),
+  colors: _getColorString(),
+  abilities: _abilitiesController.text,
+  amount: 0, // Placeholder
+  tapped: 0,
+  summoningSick: 0,
 );
 
-// Apply summoning sickness if enabled
-if (settingsProvider.summoningSicknessEnabled) {
+// Insert placeholder immediately
+await tokenProvider.insertItem(placeholderItem);
+
+// Close dialog immediately (before async gap)
+if (mounted) {
+  Navigator.pop(context);
+}
+
+// Update placeholder with final data in background
+try {
+  placeholderItem.name = _nameController.text; // Remove "(loading...)"
+  placeholderItem.amount = finalAmount;
+  placeholderItem.tapped = _createTapped ? finalAmount : 0;
+  placeholderItem.summoningSick =
+      settings.summoningSicknessEnabled ? finalAmount : 0;
+  await placeholderItem.save();
+} catch (error) {
+  // ... error handling
+}
+```
+
+## Required Fix
+
+Remove the placeholder pattern and create the token with final data immediately, matching the TokenSearchScreen implementation.
+
+**Replace lines 235-272 with:**
+
+```dart
+// Create final token immediately (no placeholder)
+final newItem = Item(
+  name: _nameController.text,
+  pt: _ptController.text,
+  type: _typeController.text.trim(),
+  colors: _getColorString(),
+  abilities: _abilitiesController.text,
+  amount: finalAmount,
+  tapped: _createTapped ? finalAmount : 0,
+  summoningSick: 0, // Will be set below if needed
+);
+
+// Insert token immediately
+await tokenProvider.insertItem(newItem);
+
+// Apply summoning sickness if enabled AND token is a creature without Haste
+// (must be after insert because setter calls save())
+if (settings.summoningSicknessEnabled &&
+    newItem.hasPowerToughness &&
+    !newItem.hasHaste) {
   newItem.summoningSick = finalAmount;
 }
 
-// Assign artwork URL immediately (synchronous, no download)
-if (token.artwork.isNotEmpty) {
-  final firstArtwork = token.artwork[0];
-  newItem.artworkUrl = firstArtwork.url;
-  newItem.artworkSet = firstArtwork.set;
-}
-
-// Insert token immediately - it's now visible and fully functional
-await tokenProvider.insertItem(newItem);
-
-// Close dialogs - token is on board and usable
-if (context.mounted) {
-  Navigator.pop(context); // Close quantity dialog
-  Navigator.pop(context); // Close search screen
-}
-
-// Download artwork in background (non-blocking, fire-and-forget)
-if (token.artwork.isNotEmpty) {
-  final artworkUrl = token.artwork[0].url;
-  ArtworkManager.downloadArtwork(artworkUrl).then((file) {
-    if (file == null) {
-      // Download failed - reset artworkUrl so it doesn't try to load
-      debugPrint('Artwork download failed for ${token.name}, resetting URL');
-      // Find the item again (it might have been deleted/modified)
-      final currentItem = tokenProvider.items.firstWhereOrNull(
-        (item) => item.artworkUrl == artworkUrl
-      );
-      if (currentItem != null) {
-        currentItem.artworkUrl = null;
-        currentItem.artworkSet = null;
-        currentItem.save();
-      }
-    } else {
-      debugPrint('Artwork downloaded and cached for ${token.name}');
-    }
-  }).catchError((error) {
-    debugPrint('Error during background artwork download: $error');
-    // Silent fail - reset artworkUrl on error
-    final currentItem = tokenProvider.items.firstWhereOrNull(
-      (item) => item.artworkUrl == artworkUrl
-    );
-    if (currentItem != null) {
-      currentItem.artworkUrl = null;
-      currentItem.artworkSet = null;
-      currentItem.save();
-    }
-  });
+// Close dialog - token is on board and usable
+if (mounted) {
+  Navigator.pop(context);
 }
 ```
 
-**File: `lib/widgets/token_card.dart`**
+## Notes
 
-**Add fade-in animation logic:**
-
-Modify `_TokenCardState` to track artwork appearance timing:
-
-```dart
-class _TokenCardState extends State<TokenCard> {
-  final DateTime _createdAt = DateTime.now();
-  bool _artworkAnimated = false;
-
-  // ... existing code ...
-}
-```
-
-Modify `_buildFullViewArtwork` method (line 520) to add fade animation:
-
-```dart
-Widget _buildFullViewArtwork(BuildContext context, BoxConstraints constraints) {
-  final crop = ArtworkManager.getCropPercentages();
-
-  return Positioned.fill(
-    child: FutureBuilder<File?>(
-      future: ArtworkManager.getCachedArtworkFile(item.artworkUrl!),
-      builder: (context, snapshot) {
-        if (snapshot.hasData && snapshot.data != null) {
-          // Determine if artwork should animate
-          // If it appears > 100ms after card creation = downloaded (animate)
-          // If it appears < 100ms after card creation = cached (no animation)
-          final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-          final shouldAnimate = elapsed > 100 && !_artworkAnimated;
-
-          if (shouldAnimate) {
-            _artworkAnimated = true;
-          }
-
-          return AnimatedOpacity(
-            opacity: 1.0,
-            duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
-            curve: Curves.easeIn,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
-              child: CroppedArtworkWidget(
-                imageFile: snapshot.data!,
-                cropLeft: crop['left']!,
-                cropRight: crop['right']!,
-                cropTop: crop['top']!,
-                cropBottom: crop['bottom']!,
-                fillWidth: true,
-              ),
-            ),
-          );
-        }
-        // Show empty background while loading
-        return const SizedBox.shrink();
-      },
-    ),
-  );
-}
-```
-
-Modify `_buildFadeoutArtwork` method (line 548) similarly:
-
-```dart
-Widget _buildFadeoutArtwork(BuildContext context, BoxConstraints constraints) {
-  final crop = ArtworkManager.getCropPercentages();
-  final artworkWidth = constraints.maxWidth * 0.50;
-
-  return Positioned(
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: artworkWidth,
-    child: FutureBuilder<File?>(
-      future: ArtworkManager.getCachedArtworkFile(item.artworkUrl!),
-      builder: (context, snapshot) {
-        if (snapshot.hasData && snapshot.data != null) {
-          // Same animation logic as full view
-          final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-          final shouldAnimate = elapsed > 100 && !_artworkAnimated;
-
-          if (shouldAnimate) {
-            _artworkAnimated = true;
-          }
-
-          return AnimatedOpacity(
-            opacity: 1.0,
-            duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
-            curve: Curves.easeIn,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(UIConstants.smallBorderRadius),
-                bottomRight: Radius.circular(UIConstants.smallBorderRadius),
-              ),
-              child: ShaderMask(
-                shaderCallback: (Rect bounds) {
-                  return const LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [Colors.transparent, Colors.white],
-                    stops: [0.0, 0.50],
-                  ).createShader(bounds);
-                },
-                blendMode: BlendMode.dstIn,
-                child: CroppedArtworkWidget(
-                  imageFile: snapshot.data!,
-                  cropLeft: crop['left']!,
-                  cropRight: crop['right']!,
-                  cropTop: crop['top']!,
-                  cropBottom: crop['bottom']!,
-                  fillWidth: false,
-                ),
-              ),
-            ),
-          );
-        }
-        // Show empty background while loading
-        return const SizedBox.shrink();
-      },
-    ),
-  );
-}
-```
-
-### Copy Behavior Verification
-
-**File: `lib/providers/token_provider.dart` (lines 270-271)**
-
-Current implementation already handles copy correctly:
-```dart
-newItem.artworkUrl = original.artworkUrl;
-newItem.artworkSet = original.artworkSet;
-```
-
-Both original and copy reference the same URL. The `ArtworkManager.getCachedArtworkFile()` checks cache first (lines 60-64), so:
-- If artwork is already cached: Both cards show immediately
-- If artwork is being downloaded: Both cards' FutureBuilders wait for same file, fade in together
-
-**No changes needed** - copy behavior is correct as-is.
-
-### Precaching Preservation
-
-**Note:** Existing precaching logic (if any) must be preserved. The implementation should:
-- Keep any existing precache calls intact
-- Ensure background downloads don't interfere with precaching
-- ArtworkManager already handles "already cached" case (lines 60-64)
-
-### Testing Checklist
-
-- [ ] Token appears instantly with correct amount/P/T/abilities
-- [ ] Token name does NOT have "(loading...)" suffix at any point
-- [ ] Token is fully interactive immediately (tap, add/remove, buttons work)
-- [ ] Artwork fades in over 500ms when downloaded (slow connection)
-- [ ] Artwork appears instantly when cached (no animation)
-- [ ] Multiple rapid token creations don't block each other
-- [ ] Copy token before artwork loads: both fade in together
-- [ ] Copy token after artwork loads: copy shows artwork immediately
-- [ ] Artwork download failure: token works, artworkUrl reset to null, no crash
-- [ ] Slow network (throttle to 3G): tokens still instant, artwork fades in later
-- [ ] Empty card background shown while artwork loading
-- [ ] Precaching still works (if applicable)
+- This also applies the summoning sickness logic fix (checking for P/T and Haste) from the other bug fix
+- No placeholder, no "(loading...)" suffix, no amount=0 state
+- Token is immediately complete and usable
+- Consistent with TokenSearchScreen implementation
 
 ---
 
-## Final Notes
+# Bug Fix: Summoning Sickness Logic
 
-Both implementations are independent and can be done in any order. Issue #1 affects all users on every first launch. Issue #2 affects token creation on slow connections.
+## Problem Statement
 
-**Recommended order: Issue #1 first** (broader impact), then Issue #2.
+Summoning sickness is currently applied to all tokens when the "Summoning Sickness" setting is enabled, regardless of the token's characteristics. However, according to Magic: The Gathering rules:
 
-All requirements are complete and ready for autonomous implementation.
+1. **Only creatures can have summoning sickness** - tokens without power/toughness (like Treasure, Food, Clue, etc.) should not receive summoning sickness
+2. **Creatures with Haste don't have summoning sickness** - tokens with "Haste" in their abilities text should be exempt from summoning sickness
+
+## Current Behavior
+
+When a token is created with "Summoning Sickness" enabled in settings:
+- ALL tokens receive summoning sickness, including non-creatures (Treasure, Food, etc.)
+- Tokens with "Haste" still receive summoning sickness
+
+## Expected Behavior
+
+When a token is created with "Summoning Sickness" enabled in settings:
+- Only tokens with power/toughness (P/T) should receive summoning sickness
+- Tokens with "Haste" (case-insensitive) in their abilities text should NOT receive summoning sickness
+- Non-creature tokens (no P/T) should NOT receive summoning sickness
+
+## Implementation Requirements
+
+### Rule 1: Check for Power/Toughness
+
+A token should only be eligible for summoning sickness if it has power/toughness stats.
+
+**Detection logic:**
+```dart
+bool get hasPowerToughness {
+  return pt.isNotEmpty && pt.trim() != '';
+}
+```
+
+### Rule 2: Check for Haste
+
+A token with "Haste" in its abilities text should never receive summoning sickness.
+
+**Detection logic:**
+```dart
+bool get hasHaste {
+  return abilities.toLowerCase().contains('haste');
+}
+```
+
+### Combined Logic
+
+Summoning sickness should only be applied if:
+1. The summoning sickness setting is enabled (existing check)
+2. AND the token has power/toughness
+3. AND the token does NOT have Haste
+
+**Implementation pattern:**
+```dart
+// When creating a token (e.g., in TokenSearchScreen, NewTokenSheet, etc.)
+if (settingsProvider.summoningSicknessEnabled &&
+    newItem.hasPowerToughness &&
+    !newItem.hasHaste) {
+  newItem.summoningSick = finalAmount;
+}
+```
+
+## Files to Modify
+
+### 1. `lib/models/item.dart`
+
+Add two computed properties to the `Item` class:
+
+```dart
+/// Returns true if this token has power/toughness stats
+bool get hasPowerToughness {
+  return pt.isNotEmpty && pt.trim() != '';
+}
+
+/// Returns true if this token has Haste (negates summoning sickness)
+bool get hasHaste {
+  return abilities.toLowerCase().contains('haste');
+}
+```
+
+Place these properties near the existing `isEmblem` computed property for consistency.
+
+### 2. `lib/screens/token_search_screen.dart`
+
+Update the summoning sickness logic when creating tokens (around line 834-837):
+
+**Current code:**
+```dart
+// Apply summoning sickness if enabled (must be after insert because setter calls save())
+if (settingsProvider.summoningSicknessEnabled) {
+  newItem.summoningSick = finalAmount;
+}
+```
+
+**Updated code:**
+```dart
+// Apply summoning sickness if enabled AND token is a creature without Haste
+// (must be after insert because setter calls save())
+if (settingsProvider.summoningSicknessEnabled &&
+    newItem.hasPowerToughness &&
+    !newItem.hasHaste) {
+  newItem.summoningSick = finalAmount;
+}
+```
+
+### 3. `lib/widgets/new_token_sheet.dart`
+
+Update the summoning sickness logic when creating custom tokens (around the token creation section):
+
+**Find the similar pattern:**
+```dart
+if (settingsProvider.summoningSicknessEnabled) {
+  newItem.summoningSick = finalAmount;
+}
+```
+
+**Update to:**
+```dart
+if (settingsProvider.summoningSicknessEnabled &&
+    newItem.hasPowerToughness &&
+    !newItem.hasHaste) {
+  newItem.summoningSick = finalAmount;
+}
+```
+
+### 4. `lib/providers/token_provider.dart`
+
+Check the `copyToken()` method and any other token creation paths to ensure the same logic is applied consistently.
+
+Look for any instances where `summoningSick` is set and verify they follow the new pattern.
+
+## Testing Checklist
+
+### Test Case 1: Non-Creature Tokens (No P/T)
+- [ ] Create a Treasure token with summoning sickness enabled
+- [ ] Verify the token does NOT have summoning sickness
+- [ ] Create a Food token with summoning sickness enabled
+- [ ] Verify the token does NOT have summoning sickness
+- [ ] Create a Clue token with summoning sickness enabled
+- [ ] Verify the token does NOT have summoning sickness
+
+### Test Case 2: Creature Tokens Without Haste
+- [ ] Create a 1/1 Soldier token with summoning sickness enabled
+- [ ] Verify the token DOES have summoning sickness
+- [ ] Create a 2/2 Zombie token with summoning sickness enabled
+- [ ] Verify the token DOES have summoning sickness
+
+### Test Case 3: Creature Tokens With Haste
+- [ ] Create a creature token with "Haste" in abilities text (e.g., 1/1 Goblin with Haste)
+- [ ] Verify the token does NOT have summoning sickness
+- [ ] Create a creature token with "haste" in lowercase
+- [ ] Verify the token does NOT have summoning sickness
+- [ ] Create a creature token with "Haste, Trample" (Haste among other abilities)
+- [ ] Verify the token does NOT have summoning sickness
+
+### Test Case 4: Summoning Sickness Disabled
+- [ ] Disable summoning sickness in settings
+- [ ] Create any creature token (with or without Haste)
+- [ ] Verify the token does NOT have summoning sickness
+
+### Test Case 5: Copy Token Behavior
+- [ ] Create a creature token without Haste (should have summoning sickness)
+- [ ] Copy the token
+- [ ] Verify the copy also has summoning sickness
+- [ ] Create a creature token with Haste (should NOT have summoning sickness)
+- [ ] Copy the token
+- [ ] Verify the copy does NOT have summoning sickness
+
+### Test Case 6: Custom Token Creation
+- [ ] Create a custom non-creature token (no P/T) via "Create Custom Token"
+- [ ] Verify it does NOT have summoning sickness
+- [ ] Create a custom creature token via "Create Custom Token"
+- [ ] Verify it DOES have summoning sickness
+- [ ] Create a custom creature with Haste via "Create Custom Token"
+- [ ] Verify it does NOT have summoning sickness
+
+## Edge Cases to Consider
+
+1. **Empty P/T field:** Tokens with `pt = ""` or `pt = "   "` should be treated as non-creatures
+2. **Case sensitivity:** "Haste", "haste", "HASTE" should all be recognized
+3. **Haste in the middle of text:** "Flying, Haste, Trample" should be detected
+4. **Copy behavior:** Copied tokens should inherit the summoning sickness state of the original
+
+## Priority
+
+**Nice-to-have** - This is a quality-of-life improvement that makes the app more faithful to Magic rules, but it's not blocking any critical functionality.
+
+## Notes
+
+- This change only affects token creation, not existing tokens in the database
+- Existing tokens with incorrect summoning sickness will not be retroactively fixed
+- The change is purely logical and doesn't require any UI modifications
+- No migration or data model changes are needed
+
+---
+
+# UI Improvement: Condense P/T Layout for Tokens Without Abilities
+
+## Problem Statement
+
+Currently, tokens without abilities text waste vertical space. The P/T is displayed below the type line with empty space in between, when it could be inline with the type line to save space.
+
+The card layout currently behaves as:
+- **Type line** (top)
+- **Abilities text** with **P/T bottom-right** (if abilities present)
+- **P/T** on its own row (if NO abilities - wasteful)
+
+## Current Layout
+
+**With abilities (current - good):**
+```
+Type line (Creature — Zombie)
+Abilities text wraps...  [2/2]
+```
+
+**Without abilities (current - wasteful):**
+```
+Type line (Creature — Zombie)
+
+                          [2/2]
+```
+
+## Proposed Layout
+
+**With abilities (unchanged):**
+```
+Type line (Creature — Zombie)
+Abilities text wraps...  [2/2]
+```
+
+**Without abilities (condensed - saves space):**
+```
+Type line (Creature — Zombie)  [2/2]
+```
+
+The layout should look basically how it already does, just that when there are no abilities, the P/T should be inline with the type line instead of below it.
+
+## Design Requirements
+
+### Current Implementation
+
+Currently uses two layout methods in `token_card.dart` (lines 270-278):
+
+1. `_buildInlineAbilitiesAndPT()` - Row layout with abilities on left, P/T on right
+2. `_buildStackedAbilitiesAndPT()` - Column layout for long P/T (>= 8 chars)
+
+### Required Change
+
+Modify the layout logic to handle the "no abilities" case:
+
+**When there ARE abilities:**
+- Use existing Row layout (inline) or Column layout (stacked) based on P/T length
+- Type line above, abilities + P/T below (current behavior)
+
+**When there are NO abilities:**
+- Position P/T inline with the type line (bottom-right aligned)
+- Type and P/T should share the same vertical space
+
+### Layout Structure
+
+The Type + Abilities + P/T section should be a **Stack** or **Row** that allows:
+1. **Type line** (always top-left or full-width)
+2. **Abilities** (stacked below type, constrained width to leave room for P/T)
+3. **P/T** (bottom-right, aligned with abilities if present, or with type line if no abilities)
+
+## Files to Modify
+
+### `lib/widgets/token_card.dart`
+
+**Current section (lines 269-279):**
+```dart
+// Abilities and P/T - conditional layout based on P/T size
+if (widget.item.abilities.isNotEmpty || (!widget.item.isEmblem && widget.item.pt.isNotEmpty)) ...[
+  const SizedBox(height: UIConstants.mediumSpacing),
+  Padding(
+    padding: EdgeInsets.only(right: kIsWeb ? 40 : 0, bottom: UIConstants.mediumSpacing),
+    // Use Column layout if formatted P/T is too long (>= 8 chars like "1000/1000")
+    child: (!widget.item.isEmblem && widget.item.pt.isNotEmpty && widget.item.formattedPowerToughness.length >= 8)
+        ? _buildStackedAbilitiesAndPT(context, widget.item)
+        : _buildInlineAbilitiesAndPT(context, widget.item),
+  ),
+],
+```
+
+**Modify to handle type + abilities + P/T together:**
+
+The Type line (currently lines 224-241) should be included in the same vertical layout block as abilities and P/T, allowing the P/T to align with whichever is the bottom row (abilities or type).
+
+**Suggested approach:**
+
+Create a combined section that includes Type, Abilities, and P/T in a way that:
+- Type is always shown (if present)
+- Abilities are shown below type (if present)
+- P/T is bottom-right aligned with:
+  - Abilities row (if abilities present)
+  - Type row (if no abilities)
+
+This may require wrapping Type + Abilities in a Column, then using that Column in a Row with P/T, or using a Stack for more precise positioning.
+
+## Testing Checklist
+
+### Visual Tests
+
+- [ ] **Creature with abilities:** Type on top, abilities + P/T below (unchanged from current)
+- [ ] **Creature without abilities:** Type and P/T inline on same row (condensed)
+- [ ] **Non-creature token (no P/T):** Type line only, no empty space
+- [ ] **Long P/T (>= 8 chars):** Stacked layout still works correctly
+- [ ] **Modified P/T:** Colored background on P/T still displays correctly
+- [ ] **Emblem:** Emblem layout remains centered and unchanged
+
+### Functional Tests
+
+- [ ] Text backgrounds (semi-transparent overlays) render correctly in all cases
+- [ ] Artwork display modes (Full View / Fadeout) still work with new layout
+- [ ] Type and abilities text wrapping works correctly
+- [ ] Layout works in both light and dark mode
+
+## Priority
+
+**Nice-to-have** - This is a visual improvement that makes cards more compact, especially for tokens without abilities. Not critical functionality.
+
+## Notes
+
+- This change is purely visual/layout - no data model changes required
+- Existing text wrapping and P/T styling logic should be preserved
+- The `formattedPowerToughness` computed property already handles counter modifications
+- May need to refactor the Type line (currently separate) into the same layout block as abilities + P/T

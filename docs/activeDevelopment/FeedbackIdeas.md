@@ -17,6 +17,45 @@ Implementation would mirror the +1/+1 tool:
 - Same P/T pop animation
 - Red color theme (debuff/weakening)
 
+## Symbol String Replacement
+
+**Status:** Nice-to-have enhancement for visual polish
+
+Replace bracketed variables in abilities text with proper Magic symbols in the **card view** only.
+
+### Requirements
+
+**Card View (TokenCard):**
+- Parse abilities text and replace recognized `{variable}` patterns with corresponding symbols
+- Example: `"{T}: Add one mana"` → `"⚪: Add one mana"` (using tap symbol)
+- Example: `"Flying, {W}{U}"` → `"Flying, ⚪⚫"` (using mana symbols)
+- Only replace variables from a predefined whitelist (to be determined)
+- Unrecognized variables render as-is with brackets: `{CUSTOM}` stays as `{CUSTOM}`
+
+**Expanded View (ExpandedTokenScreen):**
+- Show raw text with brackets intact (no symbol replacement)
+- Allow user to edit text freely, including adding/modifying `{variables}`
+- User can manually type `{T}`, `{W}`, etc. and they will display as symbols in card view
+
+### Implementation Notes
+
+- Requires an "abilities text parser/renderer" component
+- Parser should be stateless and reusable
+- Symbol mapping will be defined later (specific Unicode characters or custom icons)
+- No data model changes - symbols are purely display-level transformations
+- Backwards compatible with existing tokens (parser handles plain text gracefully)
+
+### Common Variables (Examples)
+
+The exact symbol mappings will be determined later, but common variables include:
+- `{T}` - Tap symbol
+- `{W}`, `{U}`, `{B}`, `{R}`, `{G}` - Mana symbols (White, Blue, Black, Red, Green)
+- `{C}` - Colorless mana
+- `{X}` - Variable mana cost
+- Numbers: `{1}`, `{2}`, etc. - Generic mana costs
+
+**Priority:** Low - Visual enhancement that improves readability but not critical to functionality.
+
 ## Condensed Condensed View
 
 Even more condensed than current condensed view, only has Tapped/Untapped Power/Toughness no names or anything else. Tap to expand into a larger detailed card (instead of a detail sheet).
