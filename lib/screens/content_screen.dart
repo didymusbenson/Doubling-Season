@@ -48,7 +48,9 @@ class _ContentScreenState extends State<ContentScreen> {
             right: UIConstants.standardPadding,
             child: FloatingActionMenu(
               onNewToken: _showTokenSearch,
+              onWidgets: _showWidgetSelection,
               onAddCountersToAll: _handleAddCountersToAll,
+              onMinusOneToAll: _handleMinusOneToAll,
               onUntapAll: _showUntapAllDialog,
               onClearSickness: _handleClearSickness,
               onSaveDeck: _showSaveDeckDialog,
@@ -99,73 +101,73 @@ class _ContentScreenState extends State<ContentScreen> {
           ..sort((a, b) => a.order.compareTo(b.order));
 
         return ReorderableListView.builder(
-              itemCount: items.length,
-              padding: const EdgeInsets.only(
-                top: UIConstants.listTopPadding,
-                left: UIConstants.smallPadding,
-                right: UIConstants.smallPadding,
-                bottom: UIConstants.listBottomPadding,
-              ),
-              onReorder: (oldIndex, newIndex) => _handleReorder(items, oldIndex, newIndex),
-              proxyDecorator: _buildDragProxy,
-              itemBuilder: (context, index) {
-                final item = items[index];
-                final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+          itemCount: items.length,
+          padding: const EdgeInsets.only(
+            top: UIConstants.listTopPadding,
+            left: UIConstants.smallPadding,
+            right: UIConstants.smallPadding,
+            bottom: UIConstants.listBottomPadding,
+          ),
+          onReorder: (oldIndex, newIndex) => _handleReorder(items, oldIndex, newIndex),
+          proxyDecorator: _buildDragProxy,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-                // Use consistent 3px border for both artwork styles
-                const borderWidth = 3.0;
+            // Use consistent 3px border for both artwork styles
+            const borderWidth = 3.0;
 
-                // Adjust inner border radius to fit inside the border
-                final innerBorderRadius = UIConstants.borderRadius - borderWidth;
+            // Adjust inner border radius to fit inside the border
+            final innerBorderRadius = UIConstants.borderRadius - borderWidth;
 
-                return Padding(
-                  key: ValueKey(item.createdAt),
-                  padding: const EdgeInsets.symmetric(vertical: UIConstants.verticalSpacing),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(UIConstants.borderRadius),
-                      // Only apply shadows in light mode
-                      boxShadow: isDarkMode ? null : [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: UIConstants.shadowOpacity),
-                          blurRadius: UIConstants.shadowBlurRadius,
-                          offset: const Offset(UIConstants.shadowOffsetX, UIConstants.shadowOffsetY),
-                        ),
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: UIConstants.lightShadowOpacity),
-                          blurRadius: UIConstants.lightShadowBlurRadius,
-                          offset: const Offset(UIConstants.lightShadowOffsetX, UIConstants.lightShadowOffsetY),
-                        ),
-                      ],
-                      border: GradientBoxBorder(
-                        gradient: ColorUtils.gradientForColors(item.colors, isEmblem: item.isEmblem),
-                        width: borderWidth,
-                      ),
+            return Padding(
+              key: ValueKey(item.createdAt),
+              padding: const EdgeInsets.symmetric(vertical: UIConstants.verticalSpacing),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(UIConstants.borderRadius),
+                  // Only apply shadows in light mode
+                  boxShadow: isDarkMode ? null : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: UIConstants.shadowOpacity),
+                      blurRadius: UIConstants.shadowBlurRadius,
+                      offset: const Offset(UIConstants.shadowOffsetX, UIConstants.shadowOffsetY),
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(innerBorderRadius),
-                      child: Container(
-                        color: Theme.of(context).cardColor,
-                        child: Dismissible(
-                          key: ValueKey('dismissible_${item.createdAt}'), // Use different key for Dismissible
-                          direction: DismissDirection.endToStart,
-                          background: Container(
-                            color: Colors.red,
-                            alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.only(right: UIConstants.standardPadding),
-                            child: const Icon(Icons.delete, color: Colors.white),
-                          ),
-                          onDismissed: (_) => tokenProvider.deleteItem(item),
-                          child: TokenCard(item: item),
-                        ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: UIConstants.lightShadowOpacity),
+                      blurRadius: UIConstants.lightShadowBlurRadius,
+                      offset: const Offset(UIConstants.lightShadowOffsetX, UIConstants.lightShadowOffsetY),
+                    ),
+                  ],
+                  border: GradientBoxBorder(
+                    gradient: ColorUtils.gradientForColors(item.colors, isEmblem: item.isEmblem),
+                    width: borderWidth,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(innerBorderRadius),
+                  child: Container(
+                    color: Theme.of(context).cardColor,
+                    child: Dismissible(
+                      key: ValueKey('dismissible_${item.createdAt}'), // Use different key for Dismissible
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        color: Colors.red,
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: UIConstants.standardPadding),
+                        child: const Icon(Icons.delete, color: Colors.white),
                       ),
+                      onDismissed: (_) => tokenProvider.deleteItem(item),
+                      child: TokenCard(item: item),
                     ),
                   ),
-                );
-              },
+                ),
+              ),
             );
           },
         );
+      },
+    );
   }
 
   Widget _buildEmptyState() {
@@ -409,11 +411,71 @@ class _ContentScreenState extends State<ContentScreen> {
     tokenProvider.addPlusOneToAll();
   }
 
+  void _handleMinusOneToAll() {
+    final tokenProvider = context.read<TokenProvider>();
+    tokenProvider.addMinusOneToAll();
+  }
+
   void _showTokenSearch() {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => const TokenSearchScreen(),
         fullscreenDialog: true,
+      ),
+    );
+  }
+
+  void _showWidgetSelection() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+        child: SafeArea(
+          minimum: const EdgeInsets.only(bottom: 24),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    const Icon(Icons.widgets, size: 28),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Widgets',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Widget functionality coming soon!',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Widgets will allow you to add special cards to your token list for tracking commander abilities like Krenko, Mob Boss.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

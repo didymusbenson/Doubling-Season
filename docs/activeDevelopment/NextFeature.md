@@ -97,12 +97,34 @@ Only show certain actions when relevant (e.g., hide Board Update when board is e
 
 ### Concept
 
-**Widgets** are persistent UI elements (similar to token cards) that apply special rules and provide specialized controls for specific commanders or game mechanics.
+**Widgets** (also called "Card Widgets" or "Commander Widgets") are special cards that appear in the token list alongside regular tokens. They are NOT tokens themselves, but provide specialized controls and tracking for specific commanders or game mechanics.
 
-This is a generalization of the "Commander Mode" concept (see `commanderWidgets.md`), but more flexible and modular.
+### Core Widget Design (CONFIRMED)
+
+**Widget Placement:**
+- Widgets appear **IN the token list**, mixed with tokens
+- When added, widgets insert at the **top of the list** (but can be reordered)
+- Users can drag widgets to reorder them like any other card
+- Swiping a widget away dismisses it (removes from list)
+- Multiple widgets can be active simultaneously
+
+**Widget Selection Menu:**
+- Accessed via FAB menu → "Widgets" button
+- Shows list of available widget types (Krenko, Chatterfang, Rhys, etc.)
+- Active widgets shown with **checkmark or highlight**
+- Tapping a widget adds it to the token list (if not already present)
+- Tapping an active widget removes it from the list
+
+**Use Case Example:**
+1. Player has Krenko, Mob Boss on their battlefield
+2. Player opens FAB menu → Widgets
+3. Player taps "Krenko, Mob Boss" widget
+4. Krenko widget card appears at top of token list
+5. Player uses widget to track Krenko's power and create goblins
+6. When done, player swipes widget away or unchecks it in menu
 
 ### Examples of Widgets
-- **Krenko Widget**: Generates goblins based on Krenko's power and goblin count
+- **Krenko Widget**: Tracks Krenko's power and nontoken goblin count, creates goblin tokens on demand
 - **Chatterfang Widget**: Auto-creates squirrels when other tokens are created
 - **Rhys Widget**: Doubles all tokens or creates Elf Warriors
 - **Doubling Season Widget**: Automatically doubles token multiplier when active
@@ -111,58 +133,98 @@ This is a generalization of the "Commander Mode" concept (see `commanderWidgets.
 ### Widget Characteristics
 
 **Similarities to Tokens:**
-- Follow same card styling (TokenCard visual design)
-- Appear in token list (or dedicated widget area?)
-- Can be reordered, deleted
+- Use TokenCard visual design (same styling as tokens)
+- Appear in the same scrollable list as tokens
+- Can be reordered via drag-and-drop
+- Can be dismissed via swipe gesture
 - Persist across sessions (Hive storage)
+- Have order field for positioning
 
 **Differences from Tokens:**
-- Different action buttons (not tap/untap/add/remove)
-- No tapped/untapped state (usually)
-- No summoning sickness
-- Custom functionality per widget type
-- Many have "create token with special rules" capability
+- Different action buttons (widget-specific controls, NOT tap/untap/add/remove)
+- No amount, tapped/untapped counts, or summoning sickness
+- No P/T or counters (unless widget-specific)
+- Custom UI per widget type
+- Distinguished visually (different icon, color scheme, or border)
 
 ### Key Design Questions
 
-#### 1. Widget Placement
-**Option A:** Mixed with tokens in main list
-- Pros: Simple, reorderable with tokens
-- Cons: May clutter token view, confusing for users
-
-**Option B:** Dedicated "Widgets" section above/below token list
-- Pros: Clear separation, doesn't clutter tokens
-- Cons: Fixed position, takes screen space even when not in use
-
-**Option C:** Collapsible "Widgets" banner at top (like Krenko Mode banner)
-- Pros: Can hide when not needed, clear separation
-- Cons: Limited to one widget at a time? Or stacked banners?
-
-**Recommendation needed:** Where do widgets live in the UI?
-
-#### 2. Widget Data Model
+#### 1. Widget Data Model
 
 **Proposed Base Model:**
 ```dart
 @HiveType(typeId: X)
-class Widget extends HiveObject {
+class CardWidget extends HiveObject {
   @HiveField(0) String widgetType; // 'krenko', 'chatterfang', 'doublingseason'
   @HiveField(1) Map<String, dynamic> state; // Widget-specific state (power, counters, etc.)
   @HiveField(2) DateTime createdAt;
-  @HiveField(3) double order; // For reordering
-  @HiveField(4) bool isActive; // Can widgets be toggled on/off?
+  @HiveField(3) double order; // For reordering in token list
 }
 ```
 
+**Storage Strategy (CONFIRMED):**
+- [ ] **Same Hive box as tokens?** OR separate `widgets` box?
+  - **Recommendation:** Separate box to avoid type confusion, but both use `order` field for unified list display
+- [x] Widgets do NOT have a "disabled" state - they are either in the list or not
+- [x] Swiping widget deletes it from the list (can be re-added via menu)
+- [ ] Widget state persists even when widget is removed (so re-adding restores previous values)?
+
 **Questions:**
-- [ ] Do widgets need unique IDs separate from tokens?
-- [ ] Should widgets be in the same Hive box as tokens or separate box?
-- [ ] How do we handle widget-specific state? (Generic Map? Subclasses?)
-- [ ] Do widgets have a "disabled" state or do users delete them when not needed?
+- [ ] How do we handle widget-specific state? (Generic Map? Subclasses? JSON serialization?)
+- [ ] Should we merge tokens and widgets into one unified list view, or keep separate boxes?
+- [ ] How do we distinguish widgets visually in the list?
 
-#### 3. Token Creation with Special Rules
+#### 2. Unified List Display
 
-Many widgets create tokens with special rules. **Can we standardize these rule types?**
+**Challenge:** How do we display widgets and tokens in one unified list?
+
+**Options:**
+- **Option A:** Merge into single list, sorted by `order` field
+  - Widgets and tokens both implement a common interface for rendering
+  - List builder checks type and renders appropriate card
+  - Pro: Simple, unified drag-and-drop
+  - Con: More complex rendering logic
+
+- **Option B:** Two separate lists, visually unified
+  - Widgets box and tokens box separate
+  - UI combines them for display
+  - Pro: Clean data separation
+  - Con: Complex drag-and-drop between types
+
+**Recommendation:** Start with Option A (single merged list), use type checking in item builder
+
+#### 3. Widget UI Rendering
+
+**Challenge:** Each widget has different controls and layout
+
+**Option A: Hardcoded widget cards**
+```dart
+Widget buildWidgetCard(CardWidget widget) {
+  switch (widget.widgetType) {
+    case 'krenko':
+      return KrenkoWidgetCard(widget: widget);
+    case 'chatterfang':
+      return ChatterfangWidgetCard(widget: widget);
+    // ...
+  }
+}
+```
+
+**Option B: Generic widget card with configuration**
+```dart
+class WidgetCard extends StatelessWidget {
+  final CardWidget widget;
+  final WidgetConfig config; // Defines layout, buttons, fields
+
+  // Config loaded from registry
+}
+```
+
+**Recommendation:** Start with Option A (hardcoded), extract common patterns later
+
+#### 4. Token Creation with Special Rules
+
+Some widgets create tokens with special rules. **Can we standardize these rule types?**
 
 **Common Rule Types:**
 1. **Multiplier Modifier**: "Double all token creation" (Doubling Season, Parallel Lives)
@@ -213,76 +275,43 @@ class Widget {
 }
 ```
 
-**Recommendation needed:** Which pattern fits best? Or hybrid approach?
+**Recommendation:** Keep it simple for now - widgets create tokens directly via methods in TokenProvider. Event-based system can be added later if needed.
 
-#### 4. Widget Action Buttons
+#### 5. Widget Selection Menu UI
 
-Widgets need custom action buttons. How do we define these?
+**Requirements (CONFIRMED):**
+- Shows list of all available widget types
+- Indicates which widgets are currently active (checkmark or highlight)
+- Tapping inactive widget adds it to token list
+- Tapping active widget removes it from token list (or shows confirmation?)
+- Visual design similar to other action sheets
 
-**Option A: Hardcoded per widget type**
-```dart
-Widget buildActions(WidgetType type) {
-  switch (type) {
-    case WidgetType.krenko:
-      return KrenkoActions();
-    case WidgetType.chatterfang:
-      return ChatterfangActions();
-  }
-}
-```
+**Implementation approach:**
+- Widget registry maps widget types to display info (name, description, icon, color)
+- Menu queries active widgets from Hive box
+- Toggle logic: check if widget exists → add or remove
 
-**Option B: Action definition in widget model**
-```dart
-class Widget {
-  List<WidgetAction> actions; // Defined per instance
-}
-
-class WidgetAction {
-  String label;
-  IconData icon;
-  void Function() onPressed;
-}
-```
-
-**Option C: Declarative action system**
-```dart
-class Widget {
-  List<ActionDefinition> getActions() {
-    return [
-      ActionDefinition(
-        id: 'create_goblins',
-        label: 'Waaagh!',
-        icon: Icons.add,
-        params: {'calculation': 'power_based'},
-      ),
-    ];
-  }
-}
-```
-
-**Recommendation needed:** How do we define widget-specific actions?
-
-#### 5. Widget State Persistence
+#### 6. Widget State Persistence
 
 Widgets need to persist state (e.g., Krenko's power, nontoken goblin count).
 
-**Option A: Generic Map in Widget model**
+**Option A: Generic Map in CardWidget model**
 ```dart
 Map<String, dynamic> state = {
   'power': 3,
   'nontokenGoblins': 2,
 };
 ```
-Pro: Flexible. Con: No type safety.
+Pro: Flexible, easy to implement. Con: No type safety, prone to errors.
 
 **Option B: Subclass per widget type**
 ```dart
-class KrenkoWidget extends Widget {
-  int power;
-  int nontokenGoblins;
+class KrenkoWidget extends CardWidget {
+  @HiveField(10) int power;
+  @HiveField(11) int nontokenGoblins;
 }
 ```
-Pro: Type-safe. Con: Requires Hive adapter per widget type.
+Pro: Type-safe, clear structure. Con: Requires Hive adapter per widget type, more boilerplate.
 
 **Option C: JSON serialization with typed classes**
 ```dart
@@ -296,9 +325,9 @@ class KrenkoState extends WidgetState {
   int nontokenGoblins;
 }
 ```
-Pro: Flexible + type-safe. Con: More complex serialization.
+Pro: Flexible + type-safe, good balance. Con: More complex serialization, but manageable.
 
-**Recommendation needed:** How do we handle widget state?
+**Recommendation:** Start with Option A (Map) for MVP, migrate to Option C if needed for type safety.
 
 ### Implementation Priorities
 

@@ -1,74 +1,80 @@
-# Commander Widgets (Krenko Mode and Beyond)
+# Commander Widgets (Card Widgets for Commanders)
 
 ## Overview
-Commander-specific features that provide specialized tools for popular token-generating commanders. This system allows users to enable mode for their commander deck, which adapts the app's UI with custom controls tailored to that commander's mechanics.
+**Commander Widgets** (also called "Card Widgets") are special cards that appear in the token list alongside regular tokens. They provide specialized tracking and controls for popular token-generating commanders.
+
+Unlike the initial "Krenko Mode" concept (which used a fixed banner), widgets are **fully integrated into the token list** - they can be added, removed, reordered, and swiped away just like tokens.
 
 ---
 
-## Krenko Mode (First Implementation)
+## Krenko Widget (First Implementation)
 
 ### Overview
-"Krenko Mode" is a special setting for players using Krenko, Mob Boss in Commander. When enabled, provides quick token generation based on Krenko's power and the number of goblins controlled.
+The Krenko widget is a special card for players using **Krenko, Mob Boss** in Commander. It provides quick goblin token generation based on Krenko's power and the number of goblins controlled.
 
 **Magic Context:** Krenko, Mob Boss has the ability "Tap: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control."
 
-### UI Components
+### Adding the Krenko Widget
 
-#### 1. Settings Toggle
-**Location:** Settings screen (with other gameplay options like Summoning Sickness, Multiplier)
+**User Flow:**
+1. Player opens FAB menu ‚Üí Widgets
+2. Widget selection sheet shows available widgets
+3. Player taps "Krenko, Mob Boss"
+4. Krenko widget card appears at **top of token list**
+5. Widget can be dragged to reorder or swiped away to remove
 
-- **Label:** "Krenko Mode"
-- **Type:** Toggle switch
-- **Description:** "Enables quick goblin token generation for Krenko, Mob Boss decks"
-- **Default:** Off
-- **Storage:** SharedPreferences (`krenkoModeEnabled`)
+### Krenko Widget Card
 
-#### 2. Krenko Banner (Top of Token List)
-**Location:** Above token list in ContentScreen, only visible when Krenko Mode enabled
+**Location:** IN the token list (not fixed above it)
 
-**Layout:** Horizontal banner spanning full width, fixed at top (cannot be reordered)
+**Layout:** Card design similar to TokenCard, but with custom Krenko controls
 
 **Contains:**
+- **Title:** "Krenko, Mob Boss" with Krenko icon
+  - Distinguished with red color theme
+  - Shows this is a widget card, not a token
+
 - **"Krenko's Power"** - Stepper with inline input (range: 1-99)
   - Starts at 3 (Krenko's base power)
   - User can +/- with stepper or tap to enter manually
-  - Storage: SharedPreferences (`krenkoPower`)
+  - Persisted in widget state (Hive)
 
 - **"Nontoken Goblins"** - Stepper with inline input (range: 0-99)
   - Represents non-token goblins on battlefield (Krenko himself, other creatures)
   - User can +/- with stepper or tap to enter manually
-  - Storage: SharedPreferences (`nontokenGoblins`)
+  - Persisted in widget state (Hive)
 
 - **"Waaagh!" Button** - Primary action button
-  - Opens confirmation dialog with three options
-  - Style: Red color theme (matches Board Wipe icon)
+  - Opens confirmation dialog with two goblin creation options
+  - Style: Red color theme
 
 **Visual Design:**
-- Banner background: Card color with red accent/border
-- Text: Theme-appropriate (light/dark mode compatible)
-- Compact height: ~80-100px to not dominate screen
-- Padding: Standard app padding
+- Card background: Same as TokenCard (cardColor)
+- Red accent/border to distinguish from tokens
+- Similar height to token cards (compact but functional)
+- Can be reordered by dragging
+- Can be dismissed by swiping left
 
-#### 3. Waaagh! Confirmation Dialog
-**Triggered by:** Tapping "Waaagh!" button in Krenko Banner
+### Waaagh! Confirmation Dialog
+
+**Triggered by:** Tapping "Waaagh!" button in Krenko widget card
 
 **Dialog Title:** "Create Goblin Tokens"
 
-**Three Options (buttons):**
+**Two Options (buttons):**
 
 1. **"Krenko's Power" Button**
-   - Label: "Create [X] Goblins" (where X = Krenko's Power ◊ Global Multiplier)
+   - Label: "Create [X] Goblins" (where X = Krenko's Power √ó Global Multiplier)
    - Action: Create X 1/1 Red Goblin tokens
    - Example: If power = 5, multiplier = 2, creates 10 goblins
 
 2. **"For Each Goblin You Control" Button**
-   - Label: "Create [Y] Goblins" (where Y = (Total Token Goblins + Nontoken Goblins) ◊ Global Multiplier)
+   - Label: "Create [Y] Goblins" (where Y = (Total Token Goblins + Nontoken Goblins) √ó Global Multiplier)
    - Action: Count all goblin tokens, add nontoken count, multiply, create that many 1/1 Red Goblin tokens
    - Example: If you have 8 token goblins + 2 nontoken = 10, multiplier = 1, creates 10 goblins
+   - Shows breakdown: "(8 token + 2 nontoken = 10 goblins)"
 
-3. **"Cancel" Button**
-   - Label: "Cancel"
-   - Action: Dismiss dialog, do nothing
+**Cancel:** Standard dialog close button (X) or tap outside
 
 **Dialog Style:**
 - Standard AlertDialog with red accent
@@ -315,8 +321,8 @@ Replace the single-purpose "Krenko Mode" with a flexible "Commander Mode" system
 - **Krenko's Power** stepper (1-99, default 3)
 - **Nontoken Goblins** stepper (0-99, default 0)
 - **"Waaagh!" Button**: Creates 1/1 red Goblin tokens
-  - Option A: Based on Krenko's power ◊ multiplier
-  - Option B: Based on total goblins controlled ◊ multiplier
+  - Option A: Based on Krenko's power ÔøΩ multiplier
+  - Option B: Based on total goblins controlled ÔøΩ multiplier
   - Adds to existing goblin token or creates new
 
 **Color Theme:** Red (matches goblin tribal theme)
@@ -341,7 +347,7 @@ Replace the single-purpose "Krenko Mode" with a flexible "Commander Mode" system
 **Alternative Simpler Approach:**
 - **Token Amount** stepper (how many tokens being created)
 - **"Add Squirrels" Button**
-  - Just creates squirrel tokens equal to amount ◊ multiplier
+  - Just creates squirrel tokens equal to amount ÔøΩ multiplier
   - User handles creating other tokens manually
   - Simpler implementation, covers 80% of use cases
 
@@ -368,14 +374,14 @@ Replace the single-purpose "Krenko Mode" with a flexible "Commander Mode" system
 
 **Controls:**
 - **Ability 1 Button**: "Create Elf Warrior"
-  - Creates 1 Elf Warrior ◊ global multiplier
+  - Creates 1 Elf Warrior ÔøΩ global multiplier
   - Simple token creation
 
 - **Ability 2 Button**: "Double All Tokens" (this is the complex one)
   - For EACH token type on board:
     - Count total amount (including tapped/untapped/summoning sick)
     - Create NEW token card with same properties (name, P/T, abilities, colors, type, counters, artwork)
-    - Set amount to original amount ◊ global multiplier
+    - Set amount to original amount ÔøΩ global multiplier
     - Result: Doubles your token count (or more with multiplier)
   - Example: If you have 5 Elves, 3 Goblins, creates 5 new Elves + 3 new Goblins
   - **With multiplier:** If multiplier is 2, creates 10 Elves + 6 Goblins (quadruples!)
@@ -493,3 +499,58 @@ Each can be added without affecting existing commanders - modular system.
 - [ ] Multiplier applies correctly for each commander
 - [ ] Rhys "Double All Tokens" handles complex board states
 - [ ] Performance with 10+ different token types (Rhys doubling)
+
+---
+
+## Implementation Approach (UPDATED for Card Widget Design)
+
+### Widget as Card in List
+
+The Krenko widget is implemented as a **card that appears in the token list**, not as a fixed banner.
+
+**Key Changes from Original Design:**
+- ‚ùå NO Settings toggle for "Krenko Mode"
+- ‚ùå NO fixed banner above token list
+- ‚ùå NO theme color override
+- ‚úÖ Widget added via FAB menu ‚Üí Widgets
+- ‚úÖ Widget appears as card in token list
+- ‚úÖ Widget can be reordered by dragging
+- ‚úÖ Widget can be removed by swiping
+
+### Widget Data Model
+
+**CardWidget Model:**
+```dart
+@HiveType(typeId: X) // Next available type ID
+class CardWidget extends HiveObject {
+  @HiveField(0) String widgetType; // 'krenko'
+  @HiveField(1) Map<String, dynamic> state; // {'power': 3, 'nontokenGoblins': 0}
+  @HiveField(2) DateTime createdAt;
+  @HiveField(3) double order; // For list positioning
+}
+```
+
+### New Components
+
+1. **KrenkoWidgetCard** (`lib/widgets/krenko_widget_card.dart`)
+   - Renders as card in token list
+   - Shows Krenko title, power/goblin steppers, "Waaagh!" button
+   - Red color theme for visual distinction
+   - Persists state in widget.state Map
+
+2. **KrenkoDialog** (`lib/widgets/krenko_dialog.dart`)
+   - Two options: Krenko's Power or For Each Goblin
+   - Calls TokenProvider.createOrAddGoblins()
+
+3. **Widget Selection Sheet** (update existing in ContentScreen)
+   - Shows "Krenko, Mob Boss" with checkmark if active
+   - Tapping adds/removes widget from list
+
+### Display Logic
+
+**ContentScreen list builder:**
+- Combine widgets and tokens
+- Sort by order field
+- Render KrenkoWidgetCard for widgets, TokenCard for tokens
+- Both support drag-to-reorder and swipe-to-delete
+
