@@ -220,26 +220,6 @@ class _TokenCardState extends State<TokenCard> {
               ],
             ),
 
-            // Type (hidden for emblems)
-            if (widget.item.type.isNotEmpty && !widget.item.isEmblem) ...[
-              const SizedBox(height: UIConstants.verticalSpacing),
-              Padding(
-                padding: EdgeInsets.only(right: kIsWeb ? 40 : 0),
-                child: _buildTextWithBackground(
-                  context: context,
-                  child: Text(
-                    widget.item.type,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontStyle: FontStyle.italic,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
-                    ),
-                    textAlign: TextAlign.left,
-                  ),
-                ),
-              ),
-            ],
-
             // Counter pills
             if (widget.item.counters.isNotEmpty ||
                 widget.item.plusOneCounters > 0 ||
@@ -266,19 +246,21 @@ class _TokenCardState extends State<TokenCard> {
               ),
             ],
 
-            // Abilities and P/T - conditional layout based on P/T size
-            if (widget.item.abilities.isNotEmpty || (!widget.item.isEmblem && widget.item.pt.isNotEmpty)) ...[
+            // Type, Abilities, and P/T - combined section (condensed layout)
+            if ((widget.item.type.isNotEmpty && !widget.item.isEmblem) ||
+                widget.item.abilities.isNotEmpty ||
+                (!widget.item.isEmblem && widget.item.pt.isNotEmpty)) ...[
               const SizedBox(height: UIConstants.mediumSpacing),
               Padding(
-                padding: EdgeInsets.only(right: kIsWeb ? 40 : 0, bottom: UIConstants.mediumSpacing),
+                padding: EdgeInsets.only(right: kIsWeb ? 40 : 0),
                 // Use Column layout if formatted P/T is too long (>= 8 chars like "1000/1000")
                 child: (!widget.item.isEmblem && widget.item.pt.isNotEmpty && widget.item.formattedPowerToughness.length >= 8)
-                    ? _buildStackedAbilitiesAndPT(context, widget.item)
-                    : _buildInlineAbilitiesAndPT(context, widget.item),
+                    ? _buildStackedTypeAbilitiesAndPT(context, widget.item)
+                    : _buildInlineTypeAbilitiesAndPT(context, widget.item),
               ),
             ],
 
-            const SizedBox(height: UIConstants.largeSpacing),
+            const SizedBox(height: UIConstants.mediumSpacing),
 
             // Button Row (centered)
             _buildActionButtons(context, context.read<SettingsProvider>()),
@@ -661,38 +643,57 @@ class _TokenCardState extends State<TokenCard> {
     );
   }
 
-  /// Build inline layout (Row) for abilities and P/T side by side
-  Widget _buildInlineAbilitiesAndPT(BuildContext context, Item item) {
+  /// Build inline layout (Row) for type, abilities, and P/T
+  Widget _buildInlineTypeAbilitiesAndPT(BuildContext context, Item item) {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Abilities (top-left)
-          if (widget.item.abilities.isNotEmpty)
-            Expanded(
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: _buildTextWithBackground(
-                  context: context,
-                  child: Text(
-                    widget.item.abilities,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+          // Type and Abilities in a Column (left side)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Type (if present)
+                if (widget.item.type.isNotEmpty && !item.isEmblem)
+                  _buildTextWithBackground(
+                    context: context,
+                    child: Text(
+                      widget.item.type,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                      ),
+                      textAlign: TextAlign.left,
                     ),
-                    textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ),
+
+                // Spacing between type and abilities
+                if (widget.item.type.isNotEmpty && widget.item.abilities.isNotEmpty && !item.isEmblem)
+                  const SizedBox(height: UIConstants.verticalSpacing),
+
+                // Abilities (if present)
+                if (widget.item.abilities.isNotEmpty)
+                  _buildTextWithBackground(
+                    context: context,
+                    child: Text(
+                      widget.item.abilities,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
             ),
+          ),
 
-          // Spacer when no abilities (pushes P/T to the right)
-          if (widget.item.abilities.isEmpty && !item.isEmblem && item.pt.isNotEmpty)
-            const Spacer(),
-
-          // Spacing between abilities and P/T
-          if (widget.item.abilities.isNotEmpty && !item.isEmblem && item.pt.isNotEmpty)
+          // Spacing between content and P/T
+          if (!item.isEmblem && item.pt.isNotEmpty)
             const SizedBox(width: UIConstants.mediumSpacing),
 
           // P/T (bottom-right)
@@ -706,13 +707,35 @@ class _TokenCardState extends State<TokenCard> {
     );
   }
 
-  /// Build stacked layout (Column) for abilities full width with P/T below
-  Widget _buildStackedAbilitiesAndPT(BuildContext context, Item item) {
+  /// Build stacked layout (Column) for type, abilities, and P/T with long P/T
+  Widget _buildStackedTypeAbilitiesAndPT(BuildContext context, Item item) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Abilities (full width on top)
+        // Type (if present)
+        if (widget.item.type.isNotEmpty && !item.isEmblem)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: _buildTextWithBackground(
+              context: context,
+              child: Text(
+                widget.item.type,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                ),
+                textAlign: TextAlign.left,
+              ),
+            ),
+          ),
+
+        // Spacing between type and abilities
+        if (widget.item.type.isNotEmpty && widget.item.abilities.isNotEmpty && !item.isEmblem)
+          const SizedBox(height: UIConstants.verticalSpacing),
+
+        // Abilities (full width)
         if (widget.item.abilities.isNotEmpty)
           Align(
             alignment: Alignment.centerLeft,
@@ -730,12 +753,13 @@ class _TokenCardState extends State<TokenCard> {
             ),
           ),
 
-        // Spacing between abilities and P/T
-        if (widget.item.abilities.isNotEmpty && item.pt.isNotEmpty)
+        // Spacing before P/T
+        if (item.pt.isNotEmpty &&
+            (widget.item.type.isNotEmpty || widget.item.abilities.isNotEmpty))
           const SizedBox(height: UIConstants.mediumSpacing),
 
         // P/T (right-aligned in its own row)
-        if (widget.item.pt.isNotEmpty)
+        if (item.pt.isNotEmpty)
           Align(
             alignment: Alignment.centerRight,
             child: _buildPTWidget(context),

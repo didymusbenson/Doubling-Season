@@ -232,43 +232,32 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
     final multiplier = settings.tokenMultiplier;
     final finalAmount = _amount * multiplier;
 
-    // Create placeholder with amount=0
-    final placeholderItem = Item(
-      name: '${_nameController.text} (loading...)',
+    // Create final token immediately (no placeholder)
+    final newItem = Item(
+      name: _nameController.text,
       pt: _ptController.text,
       type: _typeController.text.trim(),
       colors: _getColorString(),
       abilities: _abilitiesController.text,
-      amount: 0, // Placeholder
-      tapped: 0,
-      summoningSick: 0,
+      amount: finalAmount,
+      tapped: _createTapped ? finalAmount : 0,
+      summoningSick: 0, // Will be set below if needed
     );
 
-    // Insert placeholder immediately
-    await tokenProvider.insertItem(placeholderItem);
+    // Insert token immediately
+    await tokenProvider.insertItem(newItem);
 
-    // Close dialog immediately (before async gap)
-    if (mounted) {
-      Navigator.pop(context);
+    // Apply summoning sickness if enabled AND token is a creature without Haste
+    // (must be after insert because setter calls save())
+    if (settings.summoningSicknessEnabled &&
+        newItem.hasPowerToughness &&
+        !newItem.hasHaste) {
+      newItem.summoningSick = finalAmount;
     }
 
-    // Update placeholder with final data in background
-    try {
-      placeholderItem.name = _nameController.text; // Remove "(loading...)"
-      placeholderItem.amount = finalAmount;
-      placeholderItem.tapped = _createTapped ? finalAmount : 0;
-      placeholderItem.summoningSick =
-          settings.summoningSicknessEnabled ? finalAmount : 0;
-      await placeholderItem.save();
-    } catch (error) {
-      debugPrint('Error finalizing custom token creation: $error');
-      // Ensure token is created even if update fails
-      placeholderItem.name = _nameController.text;
-      placeholderItem.amount = finalAmount;
-      placeholderItem.tapped = _createTapped ? finalAmount : 0;
-      placeholderItem.summoningSick =
-          settings.summoningSicknessEnabled ? finalAmount : 0;
-      await placeholderItem.save();
+    // Close dialog - token is on board and usable
+    if (mounted) {
+      Navigator.pop(context);
     }
   }
 }

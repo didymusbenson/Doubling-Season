@@ -80,7 +80,7 @@ class TokenDefinition {
       type: type,
       amount: amount,
       tapped: createTapped ? amount : 0,
-      summoningSick: amount, // Always apply summoning sickness to new tokens
+      summoningSick: 0, // Summoning sickness will be applied by caller based on settings and Haste
       artworkOptions: artwork.isNotEmpty ? List.from(artwork) : null,
     );
   }

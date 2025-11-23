@@ -831,8 +831,11 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                   // Insert token immediately - it's now visible and fully functional
                   await tokenProvider.insertItem(newItem);
 
-                  // Apply summoning sickness if enabled (must be after insert because setter calls save())
-                  if (settingsProvider.summoningSicknessEnabled) {
+                  // Apply summoning sickness if enabled AND token is a creature without Haste
+                  // (must be after insert because setter calls save())
+                  if (settingsProvider.summoningSicknessEnabled &&
+                      newItem.hasPowerToughness &&
+                      !newItem.hasHaste) {
                     newItem.summoningSick = finalAmount;
                   }
 

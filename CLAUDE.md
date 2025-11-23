@@ -436,6 +436,8 @@ class Item extends HiveObject {
 
   // Computed properties
   bool get isEmblem => name/abilities contains "emblem"
+  bool get hasPowerToughness => pt.isNotEmpty && pt.trim() != ''
+  bool get hasHaste => abilities.toLowerCase().contains('haste')
   int get netPlusOneCounters => plusOneCounters - minusOneCounters
   String get formattedPowerToughness // Shows modified P/T
 }
@@ -537,7 +539,11 @@ ValueListenable updates → ContentScreen rebuilds with TokenCard
 ### Summoning Sickness
 - Toggleable via SharedPreferences (`summoningSicknessEnabled`)
 - Tracked per-stack with `summoningSick` count
-- Applied when tokens are added/copied
+- **Logic:** Applied only when ALL of these conditions are met:
+  1. Setting is enabled (`summoningSicknessEnabled`)
+  2. Token has power/toughness (`hasPowerToughness`)
+  3. Token does NOT have Haste (`!hasHaste`)
+- Copied tokens inherit the parent's summoning sickness state (full copy behavior)
 - Display shows summoning sickness icon + count
 - Toggle setting via long-press on summoning sickness button
 
@@ -621,12 +627,16 @@ final newItem = definition.toItem(
   createTapped: _createTapped,
 );
 
-// Apply summoning sickness if enabled
-if (settingsProvider.summoningSicknessEnabled) {
+// Insert token immediately
+await tokenProvider.insertItem(newItem);
+
+// Apply summoning sickness if enabled AND token is a creature without Haste
+// (must be after insert because setter calls save())
+if (settingsProvider.summoningSicknessEnabled &&
+    newItem.hasPowerToughness &&
+    !newItem.hasHaste) {
   newItem.summoningSick = finalAmount;
 }
-
-await tokenProvider.insertItem(newItem);
 ```
 
 **Reactive Hive updates**:

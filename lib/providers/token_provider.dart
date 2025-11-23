@@ -126,7 +126,8 @@ class TokenProvider extends ChangeNotifier {
     try {
       final oldAmount = item.amount;
       item.amount += amount;
-      if (summoningSicknessEnabled) {
+      // Apply summoning sickness if enabled AND token is a creature without Haste
+      if (summoningSicknessEnabled && item.hasPowerToughness && !item.hasHaste) {
         item.summoningSick += amount;
       }
       await item.save();
@@ -254,7 +255,7 @@ class TokenProvider extends ChangeNotifier {
         type: original.type,
         amount: original.amount,
         tapped: original.tapped,
-        summoningSick: summoningSicknessEnabled ? original.amount : 0,
+        summoningSick: original.summoningSick, // Full copy - inherit summoning sickness state
         order: newOrder,
         artworkUrl: original.artworkUrl,
         artworkSet: original.artworkSet,

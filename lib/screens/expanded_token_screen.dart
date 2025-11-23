@@ -453,6 +453,12 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                       onIncrement: () {
                         setState(() {
                           widget.item.amount++;
+                          // Apply summoning sickness to new token if enabled AND token is a creature without Haste
+                          if (summoningSicknessEnabled &&
+                              widget.item.hasPowerToughness &&
+                              !widget.item.hasHaste) {
+                            widget.item.summoningSick++;
+                          }
                           tokenProvider.updateItem(widget.item);
                         });
                       },
@@ -466,7 +472,16 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                           : null,
                       onManualSet: (value) {
                         setState(() {
+                          final oldAmount = widget.item.amount;
                           widget.item.amount = value;
+                          // If amount increased, apply summoning sickness to new tokens
+                          if (value > oldAmount &&
+                              summoningSicknessEnabled &&
+                              widget.item.hasPowerToughness &&
+                              !widget.item.hasHaste) {
+                            final addedTokens = value - oldAmount;
+                            widget.item.summoningSick += addedTokens;
+                          }
                           tokenProvider.updateItem(widget.item);
                         });
                       },
