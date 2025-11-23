@@ -1,10 +1,10 @@
 ## FLUTTER IN APP PURCHASE HANDLING.
 Add in-app purchases for "tip jar" in order for users to support the developer and unlock app icons.
-  Flutter provides three main patterns for handling platform differences:
-  1. **Use existing packages** (preferred): Packages like `in_app_purchase`, `share_plus`, `url_launcher`
-  abstract platform differences
-  2. **Platform checks in Dart**: Use `Platform.isIOS` / `Platform.isAndroid` for minor variations
-  3. **Platform channels**: Write custom native code when needed
+Flutter provides three main patterns for handling platform differences:
+1. **Use existing packages** (preferred): Packages like `in_app_purchase`, `share_plus`, `url_launcher`
+   abstract platform differences
+2. **Platform checks in Dart**: Use `Platform.isIOS` / `Platform.isAndroid` for minor variations
+3. **Platform channels**: Write custom native code when needed
 
 ## Global Counter Tools
 
@@ -17,36 +17,60 @@ Implementation would mirror the +1/+1 tool:
 - Same P/T pop animation
 - Red color theme (debuff/weakening)
 
-### Other Counter Types
-Could extend to other common counter types:
-- Shield counters (all creatures)
-- Lifelink counters
-- Flying counters
-- Etc.
+## Symbol String Replacement
 
-These are less common than +1/+1/-1/-1, so would need user feedback to justify complexity.
+**Status:** Nice-to-have enhancement for visual polish
+
+Replace bracketed variables in abilities text with proper Magic symbols in the **card view** only.
+
+### Requirements
+
+**Card View (TokenCard):**
+- Parse abilities text and replace recognized `{variable}` patterns with corresponding symbols
+- Example: `"{T}: Add one mana"` → `"⚪: Add one mana"` (using tap symbol)
+- Example: `"Flying, {W}{U}"` → `"Flying, ⚪⚫"` (using mana symbols)
+- Only replace variables from a predefined whitelist (to be determined)
+- Unrecognized variables render as-is with brackets: `{CUSTOM}` stays as `{CUSTOM}`
+
+**Expanded View (ExpandedTokenScreen):**
+- Show raw text with brackets intact (no symbol replacement)
+- Allow user to edit text freely, including adding/modifying `{variables}`
+- User can manually type `{T}`, `{W}`, etc. and they will display as symbols in card view
+
+### Implementation Notes
+
+- Requires an "abilities text parser/renderer" component
+- Parser should be stateless and reusable
+- Symbol mapping will be defined later (specific Unicode characters or custom icons)
+- No data model changes - symbols are purely display-level transformations
+- Backwards compatible with existing tokens (parser handles plain text gracefully)
+
+### Common Variables (Examples)
+
+The exact symbol mappings will be determined later, but common variables include:
+- `{T}` - Tap symbol
+- `{W}`, `{U}`, `{B}`, `{R}`, `{G}` - Mana symbols (White, Blue, Black, Red, Green)
+- `{C}` - Colorless mana
+- `{X}` - Variable mana cost
+- Numbers: `{1}`, `{2}`, etc. - Generic mana costs
+
+**Priority:** Low - Visual enhancement that improves readability but not critical to functionality.
 
 ## Condensed Condensed View
 
 Even more condensed than current condensed view, only has Tapped/Untapped Power/Toughness no names or anything else. Tap to expand into a larger detailed card (instead of a detail sheet).
 
-## Art Options
+## Commander Widgets
 
-### One-time download
-Prompt users on first launch to ask them if they want to download token artwork. If they do, run a script that parses all art urls and downloads artwork for the token database. 
+**Status:** Moved to dedicated documentation
 
-If users choose not to download on first load, the settings menu will offer the option to download all art at a later time.
-
-### Import on demand
-Acquire token art on-demand by having the user request it on the token details. This will require the user to connect to internet and will download all available artwork for a given token to the user's app data, then ask them which art they want to use. This should allow them to change the token art later as desired.
-
-Import on demand can be implemented whether or not the one-time download is offered.
-
-### User Upload
-No internet connection required. User provides their own artwork which is parsed and used for the assigned token, saved to their local token database for their own use.
+See `docs/activeDevelopment/commanderWidgets.md` for complete details on:
+- Krenko Mode (first implementation)
+- Future Commander Mode evolution (Chatterfang, Rhys, Brudiclad, etc.)
+- System design, migration path, and testing priorities
 
 ## Combat
-A way to represent tokens in combat? Not sure how we would handle this. Maybe have a combat button that we can assign tokens to a temporary sheet and resolve attacks/blocks etc. Then have it adjust amounts/tapped amounts based on the outcome of combat. 
+A way to represent tokens in combat? Not sure how we would handle this. Maybe have a combat button that we can assign tokens to a temporary sheet and resolve attacks/blocks etc. Then have it adjust amounts/tapped amounts based on the outcome of combat.
 
 Combat would also calculate total damage (when possible) or total damage + wildcards based on the tokens that have wildcard p/t.
 
@@ -161,3 +185,77 @@ Minor lint warnings that don't affect functionality:
 - Precaching errors are caught with just `debugPrint` - no user feedback
 - **Impact**: Users won't know why artwork isn't appearing
 - **Minor issue** since it retries during actual creation
+
+
+# BETA TESTER SURVEY FEEDBACK
+
+## Addressed by Current Implementation:
+
+### 1. Time/Speed During Actual Play ✅
+**Feedback:** "The actions of calculating the tokens or digging through my token box usually takes much longer than turns"
+
+**Current Implementation:**
+- **Token Search:** Live search with Recent/Favorites tabs (immediate access to commonly used tokens)
+- **Bulk Operations:** Add/remove tokens in bulk via multiplier system (1-1024 range)
+- **Quick Actions:** Tap/untap/copy directly from TokenCard without opening detail view
+- **Global Actions:** "Untap All", "Clear Summoning Sickness", global +1/+1 counters
+- **Deck System:** Save/load entire board states instantly
+
+**Speed is addressed** - operations are single-tap where possible, no physical sorting required.
+
+### 2. Cognitive Load / Math Complexity ✅
+**Feedback:** "I have a nervous system disorder that makes my brain foggy. Math is hard sometimes"
+
+**Current Implementation:**
+- **App does the math:** Users select quantity + multiplier, app calculates final amount automatically
+- **Counter math automated:** +1/+1 and -1/-1 counters auto-cancel, modified P/T displayed automatically
+- **No manual tracking:** All amounts, tapped/untapped counts, summoning sickness tracked by app
+- **Visual feedback:** Clear display of current state, no mental arithmetic required during play
+
+**Math is fully automated** - users never need to calculate, just tap buttons.
+
+### 3. Trigger Management (Partial) ⚠️
+**Feedback:** "Keeping track of triggers and the sheer amount of them once i have doublers and tripplers on the battlefield"
+
+**Partially Addressed:**
+- ✅ "Global +1/+1 Everything" handles effects like Cathars' Crusade (apply counters to all tokens at once)
+- ✅ Summoning sickness tracking (auto-applied when tokens enter)
+- ❌ No trigger reminder system
+- ❌ No stack/priority tracking
+- ❌ No ETB ability tracking
+
+**Note:** This is explicitly a token-tracking app, not a comprehensive rules engine. Global counter tools help with mass triggers, but players still manage the stack mentally.
+
+## Not Addressed (Requires New Features):
+
+### 4. Complex Calculation with Multiple Stacking Effects ❌
+**Feedback:**
+- "Exponentially increasing tokens. For example hare apparent with 2-3+ token doublers"
+- "Multiple doubling season effects: Doubling Season (x2) + Parallel Lives (x2) + Anointed Procession (x2) = x8"
+
+**Current Limitation:**
+- Global multiplier is **manual input** (user sets 1-1024), not an automatic doubler calculator
+- User must calculate: "I have 3 doublers, so x8" → manually set multiplier to 8
+- No automatic "I have Doubling Season + Parallel Lives → multiply by 4"
+
+**Potential Solution:** See `docs/activeDevelopment/PremiumVersionIdeas.md` for planned "Token Modifier Card Toggles" feature (track active doublers, auto-calculate multiplier).
+
+### 5. Replacement Effects That Aren't Multipliers ❌
+**Feedback:** "Having a board state of chatterfang academy manufacturer, doubling season and parallel lives then making a treasure token"
+
+**Current Limitation:**
+- Academy Manufacturer: "Create 1 treasure" → "Create 1 treasure + 1 food + 1 clue" **NOT SUPPORTED**
+- Chatterfang: "Create N tokens" → "Create N tokens + N squirrels" **NOT SUPPORTED**
+- These are replacement effects, not multipliers - require special handling per card
+
+**Potential Solution:** See `docs/activeDevelopment/PremiumVersionIdeas.md` for:
+- Chatterfang Mode (auto-creates matching squirrels)
+- Academy Manufactor toggle (prompts for additional token types)
+- Other commander-specific replacement effects
+
+## Summary:
+- ✅ **Speed/efficiency** - fully addressed with quick actions and bulk operations
+- ✅ **Math/cognitive load** - fully automated, no manual calculation required
+- ⚠️ **Trigger tracking** - mass counter application helps, but no comprehensive trigger system
+- ❌ **Stacking doublers** - planned feature, not yet implemented (manual workaround exists)
+- ❌ **Replacement effects** - planned premium features for specific cards (Chatterfang, Academy Manufactor)

@@ -30,7 +30,23 @@ class DatabaseMaintenanceService {
   static Future<bool> compactIfNeeded() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final lastCompactTimestamp = prefs.getInt(_lastCompactKey) ?? 0;
+      final lastCompactTimestamp = prefs.getInt(_lastCompactKey);
+
+      // Skip compaction on first run (never compacted before)
+      if (lastCompactTimestamp == null) {
+        debugPrint('DatabaseMaintenance: Skipping compaction - first run (never compacted)');
+        // Set timestamp so next run knows it's not first time
+        await prefs.setInt(_lastCompactKey, DateTime.now().millisecondsSinceEpoch);
+        return false;
+      }
+
+      // Check if items box is empty (nothing to compact)
+      final itemsBox = Hive.box<Item>('items');
+      if (itemsBox.isEmpty) {
+        debugPrint('DatabaseMaintenance: Skipping compaction - items box is empty');
+        return false;
+      }
+
       final lastCompactDate = DateTime.fromMillisecondsSinceEpoch(lastCompactTimestamp);
       final now = DateTime.now();
       final daysSinceLastCompact = now.difference(lastCompactDate).inDays;
@@ -44,15 +60,12 @@ class DatabaseMaintenanceService {
         return false;
       }
 
-      // Perform compaction on items box (high churn from gameplay)
+      // Perform compaction
       debugPrint(
-        'DatabaseMaintenance: Starting compaction - last run was $daysSinceLastCompact days ago. '
-        'This may take 100-500ms depending on database size.',
+        'DatabaseMaintenance: Starting compaction - last run was $daysSinceLastCompact days ago',
       );
 
-      final itemsBox = Hive.box<Item>('items');
       final itemCount = itemsBox.length;
-
       final stopwatch = Stopwatch()..start();
       await itemsBox.compact();
       stopwatch.stop();
@@ -61,25 +74,16 @@ class DatabaseMaintenanceService {
       await prefs.setInt(_lastCompactKey, now.millisecondsSinceEpoch);
 
       debugPrint(
-        'DatabaseMaintenance: Successfully compacted items box in ${stopwatch.elapsedMilliseconds}ms. '
-        'Current active items: $itemCount. Dead space has been reclaimed.',
+        'DatabaseMaintenance: Compaction complete in ${stopwatch.elapsedMilliseconds}ms. '
+        'Active items: $itemCount',
       );
 
       return true;
     } on HiveError catch (e) {
-      // Compaction failed but this is non-critical - app continues normally
-      debugPrint(
-        'DatabaseMaintenance: HiveError during compaction - operation skipped. '
-        'This can happen if storage is full or database is locked. '
-        'Error: ${e.message}',
-      );
+      debugPrint('DatabaseMaintenance: HiveError during compaction - ${e.message}');
       return false;
     } catch (e, stackTrace) {
-      // Unexpected error during compaction - log but don't crash
-      debugPrint(
-        'DatabaseMaintenance: Unexpected error during compaction - operation skipped. '
-        'App will continue normally. Error: $e',
-      );
+      debugPrint('DatabaseMaintenance: Unexpected error during compaction - $e');
       debugPrint('Stack trace: $stackTrace');
       return false;
     }

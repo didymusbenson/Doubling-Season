@@ -92,10 +92,18 @@ class _AnimatedPowerToughnessState extends State<_AnimatedPowerToughness>
   }
 }
 
-class TokenCard extends StatelessWidget {
+class TokenCard extends StatefulWidget {
   final Item item;
 
   const TokenCard({super.key, required this.item});
+
+  @override
+  State<TokenCard> createState() => _TokenCardState();
+}
+
+class _TokenCardState extends State<TokenCard> {
+  final DateTime _createdAt = DateTime.now();
+  bool _artworkAnimated = false;
 
   @override
   Widget build(BuildContext context) {
@@ -110,12 +118,12 @@ class TokenCard extends StatelessWidget {
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => ExpandedTokenScreen(item: item),
+            builder: (context) => ExpandedTokenScreen(item: widget.item),
           ),
         );
       },
       child: Opacity(
-      opacity: item.amount == 0 ? 0.5 : 1.0,
+      opacity: widget.item.amount == 0 ? 0.5 : 1.0,
       child: LayoutBuilder(
         builder: (context, constraints) {
           return Stack(
@@ -129,7 +137,7 @@ class TokenCard extends StatelessWidget {
               ),
 
               // Artwork layer (background, if artwork selected)
-              if (item.artworkUrl != null)
+              if (widget.item.artworkUrl != null)
                 _buildArtworkLayer(context, constraints, artworkDisplayStyle),
 
               // Content layer (all existing UI elements)
@@ -143,7 +151,7 @@ class TokenCard extends StatelessWidget {
             // Top row - name, summoning sickness, tapped/untapped
             Row(
               children: [
-                if (!item.isEmblem)
+                if (!widget.item.isEmblem)
                   // Name with truncation to prevent overflow, background shrink-wraps
                   Expanded(
                     child: Align(
@@ -151,7 +159,7 @@ class TokenCard extends StatelessWidget {
                       child: _buildTextWithBackground(
                         context: context,
                         child: Text(
-                          item.name,
+                          widget.item.name,
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -161,13 +169,13 @@ class TokenCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (item.isEmblem)
+                if (widget.item.isEmblem)
                   // Emblems need to center, so use Expanded
                   Expanded(
                     child: _buildTextWithBackground(
                       context: context,
                       child: Text(
-                        item.name,
+                        widget.item.name,
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -175,8 +183,8 @@ class TokenCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (!item.isEmblem) const SizedBox(width: UIConstants.mediumSpacing),
-                if (!item.isEmblem)
+                if (!widget.item.isEmblem) const SizedBox(width: UIConstants.mediumSpacing),
+                if (!widget.item.isEmblem)
                   // Unified background for entire tapped/untapped section
                   _buildTextWithBackground(
                     context: context,
@@ -184,11 +192,11 @@ class TokenCard extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (item.summoningSick > 0 && summoningSicknessEnabled) ...[
+                        if (widget.item.summoningSick > 0 && summoningSicknessEnabled) ...[
                           const Icon(Icons.adjust, size: UIConstants.iconSize),
                           const SizedBox(width: UIConstants.verticalSpacing),
                           Text(
-                            '${item.summoningSick}',
+                            '${widget.item.summoningSick}',
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
                           const SizedBox(width: UIConstants.mediumSpacing),
@@ -196,14 +204,14 @@ class TokenCard extends StatelessWidget {
                         const Icon(Icons.screenshot, size: UIConstants.iconSize),
                         const SizedBox(width: UIConstants.verticalSpacing),
                         Text(
-                          '${item.amount - item.tapped}',
+                          '${widget.item.amount - widget.item.tapped}',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(width: UIConstants.mediumSpacing),
                         const Icon(Icons.screen_rotation, size: UIConstants.iconSize),
                         const SizedBox(width: UIConstants.verticalSpacing),
                         Text(
-                          '${item.tapped}',
+                          '${widget.item.tapped}',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                       ],
@@ -213,14 +221,14 @@ class TokenCard extends StatelessWidget {
             ),
 
             // Type (hidden for emblems)
-            if (item.type.isNotEmpty && !item.isEmblem) ...[
+            if (widget.item.type.isNotEmpty && !widget.item.isEmblem) ...[
               const SizedBox(height: UIConstants.verticalSpacing),
               Padding(
                 padding: EdgeInsets.only(right: kIsWeb ? 40 : 0),
                 child: _buildTextWithBackground(
                   context: context,
                   child: Text(
-                    item.type,
+                    widget.item.type,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       fontStyle: FontStyle.italic,
                       fontWeight: FontWeight.bold,
@@ -233,40 +241,40 @@ class TokenCard extends StatelessWidget {
             ],
 
             // Counter pills
-            if (item.counters.isNotEmpty ||
-                item.plusOneCounters > 0 ||
-                item.minusOneCounters > 0) ...[
+            if (widget.item.counters.isNotEmpty ||
+                widget.item.plusOneCounters > 0 ||
+                widget.item.minusOneCounters > 0) ...[
               const SizedBox(height: UIConstants.mediumSpacing),
               Wrap(
                 spacing: UIConstants.verticalSpacing,
                 runSpacing: UIConstants.verticalSpacing,
                 children: [
-                  ...item.counters.map(
+                  ...widget.item.counters.map(
                     (c) => CounterPillView(name: c.name, amount: c.amount),
                   ),
-                  if (item.plusOneCounters > 0)
+                  if (widget.item.plusOneCounters > 0)
                     CounterPillView(
                       name: '+1/+1',
-                      amount: item.plusOneCounters,
+                      amount: widget.item.plusOneCounters,
                     ),
-                  if (item.minusOneCounters > 0)
+                  if (widget.item.minusOneCounters > 0)
                     CounterPillView(
                       name: '-1/-1',
-                      amount: item.minusOneCounters,
+                      amount: widget.item.minusOneCounters,
                     ),
                 ],
               ),
             ],
 
             // Abilities and P/T - conditional layout based on P/T size
-            if (item.abilities.isNotEmpty || (!item.isEmblem && item.pt.isNotEmpty)) ...[
+            if (widget.item.abilities.isNotEmpty || (!widget.item.isEmblem && widget.item.pt.isNotEmpty)) ...[
               const SizedBox(height: UIConstants.mediumSpacing),
               Padding(
                 padding: EdgeInsets.only(right: kIsWeb ? 40 : 0, bottom: UIConstants.mediumSpacing),
                 // Use Column layout if formatted P/T is too long (>= 8 chars like "1000/1000")
-                child: (!item.isEmblem && item.pt.isNotEmpty && item.formattedPowerToughness.length >= 8)
-                    ? _buildStackedAbilitiesAndPT(context, item)
-                    : _buildInlineAbilitiesAndPT(context, item),
+                child: (!widget.item.isEmblem && widget.item.pt.isNotEmpty && widget.item.formattedPowerToughness.length >= 8)
+                    ? _buildStackedAbilitiesAndPT(context, widget.item)
+                    : _buildInlineAbilitiesAndPT(context, widget.item),
               ),
             ],
 
@@ -295,7 +303,7 @@ class TokenCard extends StatelessWidget {
     // Count how many buttons will be displayed
     int buttonCount = 2; // Remove and Add are always present
 
-    if (!item.isEmblem) {
+    if (!widget.item.isEmblem) {
       buttonCount += 2; // Untap and Tap
       if (summoningSicknessEnabled) {
         buttonCount += 1; // Clear SS (always shown when enabled)
@@ -304,7 +312,7 @@ class TokenCard extends StatelessWidget {
       buttonCount += 1; // Split
     }
 
-    if (item.name.toLowerCase().contains('scute swarm')) {
+    if (widget.item.name.toLowerCase().contains('scute swarm')) {
       buttonCount += 1; // Scute Swarm
     }
 
@@ -335,21 +343,21 @@ class TokenCard extends StatelessWidget {
             _buildActionButton(
               context,
               icon: Icons.remove,
-              onTap: () => tokenProvider.removeTokens(item, 1),
-              onLongPress: () => tokenProvider.removeTokens(item, item.amount),
+              onTap: () => tokenProvider.removeTokens(widget.item, 1),
+              onLongPress: () => tokenProvider.removeTokens(widget.item, widget.item.amount),
               color: primaryColor,
               spacing: spacing,
             ),
 
             // Emblem amount display (centered between Remove and Add)
-            if (item.isEmblem)
+            if (widget.item.isEmblem)
               Padding(
                 padding: EdgeInsets.only(right: spacing),
                 child: _buildTextWithBackground(
                   context: context,
                   padding: const EdgeInsets.all(UIConstants.actionButtonPadding), // Match button padding
                   child: Text(
-                    '${item.amount}',
+                    '${widget.item.amount}',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       fontSize: UIConstants.iconSize, // Match icon size for consistent height
@@ -365,24 +373,24 @@ class TokenCard extends StatelessWidget {
               onTap: () {
                 final multiplier = context.read<SettingsProvider>().tokenMultiplier;
                 final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
-                tokenProvider.addTokens(item, multiplier, summoningSick);
+                tokenProvider.addTokens(widget.item, multiplier, summoningSick);
               },
               onLongPress: () {
                 final multiplier = context.read<SettingsProvider>().tokenMultiplier;
                 final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
-                tokenProvider.addTokens(item, multiplier * 10, summoningSick);
+                tokenProvider.addTokens(widget.item, multiplier * 10, summoningSick);
               },
               color: primaryColor,
               spacing: spacing,
             ),
 
-            if (!item.isEmblem) ...[
+            if (!widget.item.isEmblem) ...[
               // Untap button
               _buildActionButton(
                 context,
                 icon: Icons.screenshot,
-                onTap: () => tokenProvider.untapTokens(item, 1),
-                onLongPress: () => tokenProvider.untapTokens(item, item.tapped),
+                onTap: () => tokenProvider.untapTokens(widget.item, 1),
+                onLongPress: () => tokenProvider.untapTokens(widget.item, widget.item.tapped),
                 color: primaryColor,
                 spacing: spacing,
               ),
@@ -391,8 +399,8 @@ class TokenCard extends StatelessWidget {
               _buildActionButton(
                 context,
                 icon: Icons.screen_rotation,
-                onTap: () => tokenProvider.tapTokens(item, 1),
-                onLongPress: () => tokenProvider.tapTokens(item, item.amount - item.tapped),
+                onTap: () => tokenProvider.tapTokens(widget.item, 1),
+                onLongPress: () => tokenProvider.tapTokens(widget.item, widget.item.amount - widget.item.tapped),
                 color: primaryColor,
                 spacing: spacing,
               ),
@@ -402,14 +410,14 @@ class TokenCard extends StatelessWidget {
                 _buildActionButton(
                   context,
                   icon: Icons.adjust,
-                  onTap: item.summoningSick > 0 ? () {
-                    item.summoningSick = 0;
-                    tokenProvider.updateItem(item);
+                  onTap: widget.item.summoningSick > 0 ? () {
+                    widget.item.summoningSick = 0;
+                    tokenProvider.updateItem(widget.item);
                   } : null,
                   onLongPress: null,
                   color: primaryColor,
                   spacing: spacing,
-                  disabled: item.summoningSick == 0,
+                  disabled: widget.item.summoningSick == 0,
                 ),
               // Copy button
               _buildActionButton(
@@ -417,7 +425,7 @@ class TokenCard extends StatelessWidget {
                 icon: Icons.content_copy,
                 onTap: () {
                   final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
-                  tokenProvider.copyToken(item, summoningSick);
+                  tokenProvider.copyToken(widget.item, summoningSick);
                 },
                 onLongPress: null,
                 color: primaryColor,
@@ -428,13 +436,13 @@ class TokenCard extends StatelessWidget {
               _buildActionButton(
                 context,
                 icon: Icons.call_split,
-                onTap: item.amount > 1 ? () {
+                onTap: widget.item.amount > 1 ? () {
                   showModalBottomSheet(
                     context: context,
                     isScrollControlled: true,
                     backgroundColor: Colors.transparent,
                     builder: (context) => SplitStackSheet(
-                      item: item,
+                      item: widget.item,
                       // No onSplitCompleted callback - sheet dismisses itself
                     ),
                   );
@@ -442,18 +450,19 @@ class TokenCard extends StatelessWidget {
                 onLongPress: null,
                 color: primaryColor,
                 spacing: spacing,
-                disabled: item.amount <= 1,
+                disabled: widget.item.amount <= 1,
               ),
             ],
 
             // Scute Swarm special button (last button gets 0 spacing)
-            if (item.name.toLowerCase().contains('scute swarm'))
+            if (widget.item.name.toLowerCase().contains('scute swarm'))
               _buildActionButton(
                 context,
                 icon: Icons.bug_report,
                 onTap: () {
+                  final multiplier = context.read<SettingsProvider>().tokenMultiplier;
                   final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
-                  tokenProvider.addTokens(item, item.amount, summoningSick);
+                  tokenProvider.addTokens(widget.item, widget.item.amount * multiplier, summoningSick);
                 },
                 onLongPress: null,
                 color: primaryColor,
@@ -477,7 +486,7 @@ class TokenCard extends StatelessWidget {
     final effectiveColor = disabled ? color.withValues(alpha: UIConstants.disabledOpacity) : color;
 
     // Use card background color for button backgrounds (only when artwork exists)
-    final buttonBackgroundColor = item.artworkUrl != null
+    final buttonBackgroundColor = widget.item.artworkUrl != null
         ? Theme.of(context).cardColor.withValues(alpha: 0.85)
         : effectiveColor.withValues(alpha: 0.15); // Original transparent style when no artwork
 
@@ -521,21 +530,43 @@ class TokenCard extends StatelessWidget {
 
     return Positioned.fill(
       child: FutureBuilder<File?>(
-        future: ArtworkManager.getCachedArtworkFile(item.artworkUrl!),
+        future: ArtworkManager.getCachedArtworkFile(widget.item.artworkUrl!),
         builder: (context, snapshot) {
           if (snapshot.hasData && snapshot.data != null) {
-            return ClipRRect(
-              borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius), // 8px to fit inside 4px border
-              child: CroppedArtworkWidget(
-                imageFile: snapshot.data!,
-                cropLeft: crop['left']!,
-                cropRight: crop['right']!,
-                cropTop: crop['top']!,
-                cropBottom: crop['bottom']!,
-                fillWidth: true,
+            // Determine if artwork should animate
+            // If it appears > 100ms after card creation = downloaded (animate)
+            // If it appears < 100ms after card creation = cached (no animation)
+            final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
+            final shouldAnimate = elapsed > 100 && !_artworkAnimated;
+
+            if (shouldAnimate) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    _artworkAnimated = true;
+                  });
+                }
+              });
+            }
+
+            return AnimatedOpacity(
+              opacity: 1.0,
+              duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
+              curve: Curves.easeIn,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+                child: CroppedArtworkWidget(
+                  imageFile: snapshot.data!,
+                  cropLeft: crop['left']!,
+                  cropRight: crop['right']!,
+                  cropTop: crop['top']!,
+                  cropBottom: crop['bottom']!,
+                  fillWidth: true,
+                ),
               ),
             );
           }
+          // Show empty background while loading
           return const SizedBox.shrink();
         },
       ),
@@ -554,35 +585,55 @@ class TokenCard extends StatelessWidget {
       bottom: 0,
       width: artworkWidth,
       child: FutureBuilder<File?>(
-        future: ArtworkManager.getCachedArtworkFile(item.artworkUrl!),
+        future: ArtworkManager.getCachedArtworkFile(widget.item.artworkUrl!),
         builder: (context, snapshot) {
           if (snapshot.hasData && snapshot.data != null) {
-            return ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(UIConstants.smallBorderRadius),
-                bottomRight: Radius.circular(UIConstants.smallBorderRadius),
-              ),
-              child: ShaderMask(
-                shaderCallback: (bounds) {
-                  return const LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [Colors.transparent, Colors.white],
-                    stops: [0.0, 0.50],
-                  ).createShader(bounds);
-                },
-                blendMode: BlendMode.dstIn,
-                child: CroppedArtworkWidget(
-                  imageFile: snapshot.data!,
-                  cropLeft: crop['left']!,
-                  cropRight: crop['right']!,
-                  cropTop: crop['top']!,
-                  cropBottom: crop['bottom']!,
-                  fillWidth: false,
+            // Same animation logic as full view
+            final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
+            final shouldAnimate = elapsed > 100 && !_artworkAnimated;
+
+            if (shouldAnimate) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    _artworkAnimated = true;
+                  });
+                }
+              });
+            }
+
+            return AnimatedOpacity(
+              opacity: 1.0,
+              duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
+              curve: Curves.easeIn,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(UIConstants.smallBorderRadius),
+                  bottomRight: Radius.circular(UIConstants.smallBorderRadius),
+                ),
+                child: ShaderMask(
+                  shaderCallback: (bounds) {
+                    return const LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [Colors.transparent, Colors.white],
+                      stops: [0.0, 0.50],
+                    ).createShader(bounds);
+                  },
+                  blendMode: BlendMode.dstIn,
+                  child: CroppedArtworkWidget(
+                    imageFile: snapshot.data!,
+                    cropLeft: crop['left']!,
+                    cropRight: crop['right']!,
+                    cropTop: crop['top']!,
+                    cropBottom: crop['bottom']!,
+                    fillWidth: false,
+                  ),
                 ),
               ),
             );
           }
+          // Show empty background while loading
           return const SizedBox.shrink();
         },
       ),
@@ -596,7 +647,7 @@ class TokenCard extends StatelessWidget {
     EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
   }) {
     // Only add background if artwork exists
-    if (item.artworkUrl == null) {
+    if (widget.item.artworkUrl == null) {
       return child;
     }
 
@@ -617,14 +668,14 @@ class TokenCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Abilities (top-left)
-          if (item.abilities.isNotEmpty)
+          if (widget.item.abilities.isNotEmpty)
             Expanded(
               child: Align(
                 alignment: Alignment.topLeft,
                 child: _buildTextWithBackground(
                   context: context,
                   child: Text(
-                    item.abilities,
+                    widget.item.abilities,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -637,11 +688,11 @@ class TokenCard extends StatelessWidget {
             ),
 
           // Spacer when no abilities (pushes P/T to the right)
-          if (item.abilities.isEmpty && !item.isEmblem && item.pt.isNotEmpty)
+          if (widget.item.abilities.isEmpty && !item.isEmblem && item.pt.isNotEmpty)
             const Spacer(),
 
           // Spacing between abilities and P/T
-          if (item.abilities.isNotEmpty && !item.isEmblem && item.pt.isNotEmpty)
+          if (widget.item.abilities.isNotEmpty && !item.isEmblem && item.pt.isNotEmpty)
             const SizedBox(width: UIConstants.mediumSpacing),
 
           // P/T (bottom-right)
@@ -662,7 +713,7 @@ class TokenCard extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         // Abilities (full width on top)
-        if (item.abilities.isNotEmpty)
+        if (widget.item.abilities.isNotEmpty)
           Align(
             alignment: Alignment.centerLeft,
             child: _buildTextWithBackground(
@@ -680,11 +731,11 @@ class TokenCard extends StatelessWidget {
           ),
 
         // Spacing between abilities and P/T
-        if (item.abilities.isNotEmpty && item.pt.isNotEmpty)
+        if (widget.item.abilities.isNotEmpty && item.pt.isNotEmpty)
           const SizedBox(height: UIConstants.mediumSpacing),
 
         // P/T (right-aligned in its own row)
-        if (item.pt.isNotEmpty)
+        if (widget.item.pt.isNotEmpty)
           Align(
             alignment: Alignment.centerRight,
             child: _buildPTWidget(context),
@@ -699,9 +750,9 @@ class TokenCard extends StatelessWidget {
       fontWeight: FontWeight.bold,
     );
 
-    return item.isPowerToughnessModified
+    return widget.item.isPowerToughnessModified
         ? _AnimatedPowerToughness(
-            powerToughness: item.formattedPowerToughness,
+            powerToughness: widget.item.formattedPowerToughness,
             style: textStyle,
             padding: const EdgeInsets.symmetric(
               horizontal: UIConstants.mediumSpacing,
@@ -710,7 +761,7 @@ class TokenCard extends StatelessWidget {
             backgroundColor: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.85),
           )
         : _AnimatedPowerToughness(
-            powerToughness: item.formattedPowerToughness,
+            powerToughness: widget.item.formattedPowerToughness,
             style: textStyle,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             backgroundColor: Theme.of(context).cardColor.withValues(alpha: 0.85),

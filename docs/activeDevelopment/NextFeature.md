@@ -12,230 +12,426 @@
 
 ---
 
-# Next Feature: Initial App Load Performance Investigation
+# Bug Fix: Remove Placeholder Pattern from Custom Token Creation ⚠️ URGENT
 
-## Overview
-Investigate and address the lag/delay users experience on first app load, particularly on web platform where Hive database initialization may cause noticeable performance impact.
+## Priority
 
-## Current Behavior
+**URGENT** - This creates a confusing broken state for custom tokens with the "(loading...)" suffix and amount=0.
 
-### What Happens on First Load
-1. **Hive Initialization** (`initHive()` in `main.dart:31`)
-   - Opens IndexedDB connections on web (slower than native platforms)
-   - Opens `items` box (normal Box)
-   - Opens `decks` box (LazyBox)
+## Problem Statement
 
-2. **Provider Initialization** (`_initializeProviders()` in `main.dart:87`)
-   - TokenProvider init
-   - DeckProvider init
-   - SettingsProvider init (SharedPreferences)
+`lib/widgets/new_token_sheet.dart` still uses the old placeholder pattern that was removed from TokenSearchScreen in the Issue #2 performance fix. Custom tokens appear as:
+- `"Token Name (loading...)"` with `amount: 0`
+- Then get updated to remove "(loading...)" and set correct amount
 
-3. **Database Maintenance** (`main.dart:103`)
-   - Runs `DatabaseMaintenanceService.compactIfNeeded()`
-   - On first web load: shows "last run was 20412 days ago" (defaults to very old date)
-   - Compaction takes 0-500ms depending on database size
-   - Runs weekly thereafter
+This is **unnecessary** because custom tokens don't have artwork downloads (no async delay), so the placeholder serves no purpose. It's just leftover code that creates a confusing broken state.
 
-4. **Asset Loading**
-   - Loads `token_database.json` (300+ tokens)
-   - Happens in TokenSearchScreen via `compute()` isolate
+## Current Implementation (Lines 235-272)
 
-### Performance Issues
-- **Web platform**: Noticeable lag on first load (5-15 seconds)
-- **iOS/Android**: Minimal lag (1-2 seconds typical)
-- User experience: App feels unresponsive during initialization
-
-## Investigation Tasks
-
-### 1. Profile Web Initialization
-- [ ] Measure time for each initialization step:
-  - Hive setup (IndexedDB connection)
-  - Provider initialization
-  - Database compaction
-  - Asset loading
-- [ ] Use Flutter DevTools Performance tab to identify bottlenecks
-- [ ] Compare debug vs release builds
-
-### 2. Evaluate Database Compaction Strategy
-- [ ] Should we skip compaction on first run? (no data to compact anyway)
-- [ ] Should compaction run in background after app loads?
-- [ ] Consider moving compaction to separate isolate
-- [ ] Test performance impact with various database sizes (0, 10, 50, 100+ tokens)
-
-### 3. Optimize Hive Setup on Web
-- [ ] Research Hive web-specific optimizations
-- [ ] Consider lazy-loading decks box on web (delay until needed)
-- [ ] Evaluate if we can defer non-critical box opens
-
-### 4. Improve Splash Screen Experience
-- [ ] Currently: Minimum 1500ms display time (`main.dart:73`)
-- [ ] Consider showing loading indicator if initialization takes > 2 seconds
-- [ ] Add progress feedback for long loads
-- [ ] Option: Show "tip of the day" during load
-
-### 5. Asset Loading Optimization
-- [ ] Token database loads on-demand (only when TokenSearchScreen opens)
-- [ ] This is already optimal - no changes needed
-- [ ] Verify `compute()` isolate is working correctly on web
-
-## Potential Solutions
-
-### Option 1: Background Compaction
-Move database compaction to post-load background task:
 ```dart
-// After providers ready and app displayed
-Future.microtask(() {
-  DatabaseMaintenanceService.compactIfNeeded();
-});
-```
+// Create placeholder with amount=0
+final placeholderItem = Item(
+  name: '${_nameController.text} (loading...)',
+  pt: _ptController.text,
+  type: _typeController.text.trim(),
+  colors: _getColorString(),
+  abilities: _abilitiesController.text,
+  amount: 0, // Placeholder
+  tapped: 0,
+  summoningSick: 0,
+);
 
-### Option 2: Skip First-Run Compaction
-Add logic to skip compaction if database is empty or newly created:
-```dart
-if (itemsBox.isEmpty) {
-  return; // Skip compaction on first run
+// Insert placeholder immediately
+await tokenProvider.insertItem(placeholderItem);
+
+// Close dialog immediately (before async gap)
+if (mounted) {
+  Navigator.pop(context);
+}
+
+// Update placeholder with final data in background
+try {
+  placeholderItem.name = _nameController.text; // Remove "(loading...)"
+  placeholderItem.amount = finalAmount;
+  placeholderItem.tapped = _createTapped ? finalAmount : 0;
+  placeholderItem.summoningSick =
+      settings.summoningSicknessEnabled ? finalAmount : 0;
+  await placeholderItem.save();
+} catch (error) {
+  // ... error handling
 }
 ```
 
-### Option 3: Progressive Loading
-Load critical components first, defer non-critical:
-1. Load SettingsProvider (needed for UI theme)
-2. Load TokenProvider (show empty board state)
-3. Background: DeckProvider, maintenance tasks
+## Required Fix
 
-### Option 4: Web-Specific Initialization Path
-Detect web platform and use optimized initialization:
-```dart
-if (kIsWeb) {
-  // Skip compaction, lazy-load decks
-} else {
-  // Standard initialization
-}
-```
+Remove the placeholder pattern and create the token with final data immediately, matching the TokenSearchScreen implementation.
 
-### Option 5: Loading Screen with Progress Indicator (UX Improvement)
-Show a loading screen after splash dismissal if initialization is taking longer than expected. Provides clear user feedback that the app is working.
-
-**Simple Approach (5-10 minutes):**
-Add loading indicator overlay to existing SplashScreen:
-```dart
-// In main.dart _MyAppState.build()
-if (!_isInitialized) {
-  return MaterialApp(
-    home: SplashScreen(
-      key: const ValueKey('splash'),
-      onComplete: _skipSplash,
-      showLoadingIndicator: true, // New optional prop
-    ),
-  );
-}
-```
-
-**Better Approach (15-20 minutes):**
-Create dedicated `LoadingScreen` shown between splash and main app:
+**Replace lines 235-272 with:**
 
 ```dart
-class LoadingScreen extends StatelessWidget {
-  final String message;
+// Create final token immediately (no placeholder)
+final newItem = Item(
+  name: _nameController.text,
+  pt: _ptController.text,
+  type: _typeController.text.trim(),
+  colors: _getColorString(),
+  abilities: _abilitiesController.text,
+  amount: finalAmount,
+  tapped: _createTapped ? finalAmount : 0,
+  summoningSick: 0, // Will be set below if needed
+);
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 24),
-            Text('Initializing database...'),
-            SizedBox(height: 8),
-            LinearProgressIndicator(), // Optional progress bar
-          ],
-        ),
-      ),
-    );
-  }
+// Insert token immediately
+await tokenProvider.insertItem(newItem);
+
+// Apply summoning sickness if enabled AND token is a creature without Haste
+// (must be after insert because setter calls save())
+if (settings.summoningSicknessEnabled &&
+    newItem.hasPowerToughness &&
+    !newItem.hasHaste) {
+  newItem.summoningSick = finalAmount;
+}
+
+// Close dialog - token is on board and usable
+if (mounted) {
+  Navigator.pop(context);
 }
 ```
-
-**State Logic Update:**
-- Current: `_minTimeElapsed && _providersReady` → Show ContentScreen
-- New logic:
-  - `!_minTimeElapsed` → Show SplashScreen
-  - `_minTimeElapsed && !_providersReady` → Show LoadingScreen
-  - `_minTimeElapsed && _providersReady` → Show ContentScreen
-
-**Benefits:**
-- Users know the app is working (not frozen)
-- Explains what's happening ("Initializing database...")
-- Professional UX for slower devices/connections
-- Particularly helpful on web where initialization is slower
-
-**Implementation Location:**
-- `main.dart` (modify `_MyAppState.build()` logic)
-- New file: `lib/screens/loading_screen.dart` (optional, if using dedicated screen)
-
-## Success Criteria
-- First load time on web < 3 seconds (stretch goal: < 2 seconds)
-- No perceived lag on iOS/Android
-- Database operations remain reliable
-- No impact on app stability
-
-## Next Steps
-1. Profile current initialization performance
-2. Identify biggest bottleneck (Hive? SharedPreferences? Compaction?)
-3. Implement highest-impact optimization
-4. Test across platforms (web, iOS, Android)
-5. Gather user feedback on perceived performance
 
 ## Notes
-- Web console shows: "DatabaseMaintenance: Starting compaction - last run was 20412 days ago"
-- Compaction completed in 0ms on empty database (not the bottleneck)
-- Main delay likely from IndexedDB/SharedPreferences initialization on web
+
+- This also applies the summoning sickness logic fix (checking for P/T and Haste) from the other bug fix
+- No placeholder, no "(loading...)" suffix, no amount=0 state
+- Token is immediately complete and usable
+- Consistent with TokenSearchScreen implementation
 
 ---
 
-# Secondary Issue: Token Creation Loading State (Android)
+# Bug Fix: Summoning Sickness Logic
 
-## Problem
-On Android, tokens sometimes appear as "Token Name (loading...)" due to slow artwork download. iOS performs better due to faster network stack.
+## Problem Statement
 
-## Current Flow
-1. **Placeholder created** with `amount=0` and name suffix `(loading...)`
-2. **Dialogs dismissed** - user sees placeholder on board
-3. **Artwork downloaded** from Scryfall CDN (SLOW on Android)
-4. **Token finalized** - removes `(loading...)`, sets correct amount
+Summoning sickness is currently applied to all tokens when the "Summoning Sickness" setting is enabled, regardless of the token's characteristics. However, according to Magic: The Gathering rules:
 
-**Code location:** `lib/screens/token_search_screen.dart:816-865`
+1. **Only creatures can have summoning sickness** - tokens without power/toughness (like Treasure, Food, Clue, etc.) should not receive summoning sickness
+2. **Creatures with Haste don't have summoning sickness** - tokens with "Haste" in their abilities text should be exempt from summoning sickness
 
-The issue: If `ArtworkManager.downloadArtwork()` takes > 500ms, users see the loading state.
+## Current Behavior
 
-## TODO: Improve Loading State UX (Needs Refinement)
+When a token is created with "Summoning Sickness" enabled in settings:
+- ALL tokens receive summoning sickness, including non-creatures (Treasure, Food, etc.)
+- Tokens with "Haste" still receive summoning sickness
 
-**Current behavior:** Placeholder shows as `"Goblin (loading...)"` with 0 amount
+## Expected Behavior
 
-**Proposed behavior:** Show a special loading card view in the token list that displays:
-- Message: "Taking longer than expected to create {token name}"
-- Different visual treatment (distinct from normal token cards)
-- Progress indicator or animation
-- Maybe countdown or timeout indicator
+When a token is created with "Summoning Sickness" enabled in settings:
+- Only tokens with power/toughness (P/T) should receive summoning sickness
+- Tokens with "Haste" (case-insensitive) in their abilities text should NOT receive summoning sickness
+- Non-creature tokens (no P/T) should NOT receive summoning sickness
 
-**Questions to answer:**
-- Should this replace the current placeholder or supplement it?
-- At what threshold do we show this message? (1 second? 2 seconds?)
-- Should we have a timeout where we give up on artwork and finalize anyway?
-- What happens if artwork fails completely? (Currently: token still gets created)
-- Should we allow user to cancel the creation?
+## Implementation Requirements
 
-**Alternative approaches to consider:**
-1. **Skip pre-download entirely** - Create token immediately, lazy-load artwork
-2. **Timeout-based** - If download > 500ms, finalize token without waiting
-3. **Remove placeholder system** - Create final token immediately, download in background
-4. **Better loading indicator** - Custom TokenCard variant for loading state
+### Rule 1: Check for Power/Toughness
 
-**Implementation notes:**
-- Could be a custom widget: `LoadingTokenCard` that replaces normal TokenCard
-- Needs to detect when placeholder has been in loading state too long
-- Should gracefully handle artwork download failures
+A token should only be eligible for summoning sickness if it has power/toughness stats.
 
-**Priority:** Medium - Impacts Android users primarily, iOS mostly unaffected
+**Detection logic:**
+```dart
+bool get hasPowerToughness {
+  return pt.isNotEmpty && pt.trim() != '';
+}
+```
+
+### Rule 2: Check for Haste
+
+A token with "Haste" in its abilities text should never receive summoning sickness.
+
+**Detection logic:**
+```dart
+bool get hasHaste {
+  return abilities.toLowerCase().contains('haste');
+}
+```
+
+### Combined Logic
+
+Summoning sickness should only be applied if:
+1. The summoning sickness setting is enabled (existing check)
+2. AND the token has power/toughness
+3. AND the token does NOT have Haste
+
+**Implementation pattern:**
+```dart
+// When creating a token (e.g., in TokenSearchScreen, NewTokenSheet, etc.)
+if (settingsProvider.summoningSicknessEnabled &&
+    newItem.hasPowerToughness &&
+    !newItem.hasHaste) {
+  newItem.summoningSick = finalAmount;
+}
+```
+
+## Files to Modify
+
+### 1. `lib/models/item.dart`
+
+Add two computed properties to the `Item` class:
+
+```dart
+/// Returns true if this token has power/toughness stats
+bool get hasPowerToughness {
+  return pt.isNotEmpty && pt.trim() != '';
+}
+
+/// Returns true if this token has Haste (negates summoning sickness)
+bool get hasHaste {
+  return abilities.toLowerCase().contains('haste');
+}
+```
+
+Place these properties near the existing `isEmblem` computed property for consistency.
+
+### 2. `lib/screens/token_search_screen.dart`
+
+Update the summoning sickness logic when creating tokens (around line 834-837):
+
+**Current code:**
+```dart
+// Apply summoning sickness if enabled (must be after insert because setter calls save())
+if (settingsProvider.summoningSicknessEnabled) {
+  newItem.summoningSick = finalAmount;
+}
+```
+
+**Updated code:**
+```dart
+// Apply summoning sickness if enabled AND token is a creature without Haste
+// (must be after insert because setter calls save())
+if (settingsProvider.summoningSicknessEnabled &&
+    newItem.hasPowerToughness &&
+    !newItem.hasHaste) {
+  newItem.summoningSick = finalAmount;
+}
+```
+
+### 3. `lib/widgets/new_token_sheet.dart`
+
+Update the summoning sickness logic when creating custom tokens (around the token creation section):
+
+**Find the similar pattern:**
+```dart
+if (settingsProvider.summoningSicknessEnabled) {
+  newItem.summoningSick = finalAmount;
+}
+```
+
+**Update to:**
+```dart
+if (settingsProvider.summoningSicknessEnabled &&
+    newItem.hasPowerToughness &&
+    !newItem.hasHaste) {
+  newItem.summoningSick = finalAmount;
+}
+```
+
+### 4. `lib/providers/token_provider.dart`
+
+Check the `copyToken()` method and any other token creation paths to ensure the same logic is applied consistently.
+
+Look for any instances where `summoningSick` is set and verify they follow the new pattern.
+
+## Testing Checklist
+
+### Test Case 1: Non-Creature Tokens (No P/T)
+- [ ] Create a Treasure token with summoning sickness enabled
+- [ ] Verify the token does NOT have summoning sickness
+- [ ] Create a Food token with summoning sickness enabled
+- [ ] Verify the token does NOT have summoning sickness
+- [ ] Create a Clue token with summoning sickness enabled
+- [ ] Verify the token does NOT have summoning sickness
+
+### Test Case 2: Creature Tokens Without Haste
+- [ ] Create a 1/1 Soldier token with summoning sickness enabled
+- [ ] Verify the token DOES have summoning sickness
+- [ ] Create a 2/2 Zombie token with summoning sickness enabled
+- [ ] Verify the token DOES have summoning sickness
+
+### Test Case 3: Creature Tokens With Haste
+- [ ] Create a creature token with "Haste" in abilities text (e.g., 1/1 Goblin with Haste)
+- [ ] Verify the token does NOT have summoning sickness
+- [ ] Create a creature token with "haste" in lowercase
+- [ ] Verify the token does NOT have summoning sickness
+- [ ] Create a creature token with "Haste, Trample" (Haste among other abilities)
+- [ ] Verify the token does NOT have summoning sickness
+
+### Test Case 4: Summoning Sickness Disabled
+- [ ] Disable summoning sickness in settings
+- [ ] Create any creature token (with or without Haste)
+- [ ] Verify the token does NOT have summoning sickness
+
+### Test Case 5: Copy Token Behavior
+- [ ] Create a creature token without Haste (should have summoning sickness)
+- [ ] Copy the token
+- [ ] Verify the copy also has summoning sickness
+- [ ] Create a creature token with Haste (should NOT have summoning sickness)
+- [ ] Copy the token
+- [ ] Verify the copy does NOT have summoning sickness
+
+### Test Case 6: Custom Token Creation
+- [ ] Create a custom non-creature token (no P/T) via "Create Custom Token"
+- [ ] Verify it does NOT have summoning sickness
+- [ ] Create a custom creature token via "Create Custom Token"
+- [ ] Verify it DOES have summoning sickness
+- [ ] Create a custom creature with Haste via "Create Custom Token"
+- [ ] Verify it does NOT have summoning sickness
+
+## Edge Cases to Consider
+
+1. **Empty P/T field:** Tokens with `pt = ""` or `pt = "   "` should be treated as non-creatures
+2. **Case sensitivity:** "Haste", "haste", "HASTE" should all be recognized
+3. **Haste in the middle of text:** "Flying, Haste, Trample" should be detected
+4. **Copy behavior:** Copied tokens should inherit the summoning sickness state of the original
+
+## Priority
+
+**Nice-to-have** - This is a quality-of-life improvement that makes the app more faithful to Magic rules, but it's not blocking any critical functionality.
+
+## Notes
+
+- This change only affects token creation, not existing tokens in the database
+- Existing tokens with incorrect summoning sickness will not be retroactively fixed
+- The change is purely logical and doesn't require any UI modifications
+- No migration or data model changes are needed
+
+---
+
+# UI Improvement: Condense P/T Layout for Tokens Without Abilities
+
+## Problem Statement
+
+Currently, tokens without abilities text waste vertical space. The P/T is displayed below the type line with empty space in between, when it could be inline with the type line to save space.
+
+The card layout currently behaves as:
+- **Type line** (top)
+- **Abilities text** with **P/T bottom-right** (if abilities present)
+- **P/T** on its own row (if NO abilities - wasteful)
+
+## Current Layout
+
+**With abilities (current - good):**
+```
+Type line (Creature — Zombie)
+Abilities text wraps...  [2/2]
+```
+
+**Without abilities (current - wasteful):**
+```
+Type line (Creature — Zombie)
+
+                          [2/2]
+```
+
+## Proposed Layout
+
+**With abilities (unchanged):**
+```
+Type line (Creature — Zombie)
+Abilities text wraps...  [2/2]
+```
+
+**Without abilities (condensed - saves space):**
+```
+Type line (Creature — Zombie)  [2/2]
+```
+
+The layout should look basically how it already does, just that when there are no abilities, the P/T should be inline with the type line instead of below it.
+
+## Design Requirements
+
+### Current Implementation
+
+Currently uses two layout methods in `token_card.dart` (lines 270-278):
+
+1. `_buildInlineAbilitiesAndPT()` - Row layout with abilities on left, P/T on right
+2. `_buildStackedAbilitiesAndPT()` - Column layout for long P/T (>= 8 chars)
+
+### Required Change
+
+Modify the layout logic to handle the "no abilities" case:
+
+**When there ARE abilities:**
+- Use existing Row layout (inline) or Column layout (stacked) based on P/T length
+- Type line above, abilities + P/T below (current behavior)
+
+**When there are NO abilities:**
+- Position P/T inline with the type line (bottom-right aligned)
+- Type and P/T should share the same vertical space
+
+### Layout Structure
+
+The Type + Abilities + P/T section should be a **Stack** or **Row** that allows:
+1. **Type line** (always top-left or full-width)
+2. **Abilities** (stacked below type, constrained width to leave room for P/T)
+3. **P/T** (bottom-right, aligned with abilities if present, or with type line if no abilities)
+
+## Files to Modify
+
+### `lib/widgets/token_card.dart`
+
+**Current section (lines 269-279):**
+```dart
+// Abilities and P/T - conditional layout based on P/T size
+if (widget.item.abilities.isNotEmpty || (!widget.item.isEmblem && widget.item.pt.isNotEmpty)) ...[
+  const SizedBox(height: UIConstants.mediumSpacing),
+  Padding(
+    padding: EdgeInsets.only(right: kIsWeb ? 40 : 0, bottom: UIConstants.mediumSpacing),
+    // Use Column layout if formatted P/T is too long (>= 8 chars like "1000/1000")
+    child: (!widget.item.isEmblem && widget.item.pt.isNotEmpty && widget.item.formattedPowerToughness.length >= 8)
+        ? _buildStackedAbilitiesAndPT(context, widget.item)
+        : _buildInlineAbilitiesAndPT(context, widget.item),
+  ),
+],
+```
+
+**Modify to handle type + abilities + P/T together:**
+
+The Type line (currently lines 224-241) should be included in the same vertical layout block as abilities and P/T, allowing the P/T to align with whichever is the bottom row (abilities or type).
+
+**Suggested approach:**
+
+Create a combined section that includes Type, Abilities, and P/T in a way that:
+- Type is always shown (if present)
+- Abilities are shown below type (if present)
+- P/T is bottom-right aligned with:
+  - Abilities row (if abilities present)
+  - Type row (if no abilities)
+
+This may require wrapping Type + Abilities in a Column, then using that Column in a Row with P/T, or using a Stack for more precise positioning.
+
+## Testing Checklist
+
+### Visual Tests
+
+- [ ] **Creature with abilities:** Type on top, abilities + P/T below (unchanged from current)
+- [ ] **Creature without abilities:** Type and P/T inline on same row (condensed)
+- [ ] **Non-creature token (no P/T):** Type line only, no empty space
+- [ ] **Long P/T (>= 8 chars):** Stacked layout still works correctly
+- [ ] **Modified P/T:** Colored background on P/T still displays correctly
+- [ ] **Emblem:** Emblem layout remains centered and unchanged
+
+### Functional Tests
+
+- [ ] Text backgrounds (semi-transparent overlays) render correctly in all cases
+- [ ] Artwork display modes (Full View / Fadeout) still work with new layout
+- [ ] Type and abilities text wrapping works correctly
+- [ ] Layout works in both light and dark mode
+
+## Priority
+
+**Nice-to-have** - This is a visual improvement that makes cards more compact, especially for tokens without abilities. Not critical functionality.
+
+## Notes
+
+- This change is purely visual/layout - no data model changes required
+- Existing text wrapping and P/T styling logic should be preserved
+- The `formattedPowerToughness` computed property already handles counter modifications
+- May need to refactor the Type line (currently separate) into the same layout block as abilities + P/T
