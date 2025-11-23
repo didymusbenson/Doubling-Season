@@ -56,6 +56,23 @@ The exact symbol mappings will be determined later, but common variables include
 
 **Priority:** Low - Visual enhancement that improves readability but not critical to functionality.
 
+## Uncentering Full View Artwork
+
+**Status:** Nice-to-have UI enhancement
+
+Currently, Full View artwork mode centers the artwork vertically on the token card (equal cropping from top/bottom). This can cut off important elements of the artwork.
+
+**Requested Change:**
+- Align artwork to the top of the card instead of centering vertically
+- This matches the Fadeout mode behavior (top-aligned)
+- Would make both display styles consistent in vertical alignment
+
+**Implementation:**
+- Simple one-line change in `CroppedArtworkWidget` (line 96)
+- Change `final dstTop = (size.height - scaledHeight) / 2;` to `final dstTop = 0;`
+
+**Priority:** Low - Minor visual preference, current centered alignment is functional
+
 ## Condensed Condensed View
 
 Even more condensed than current condensed view, only has Tapped/Untapped Power/Toughness no names or anything else. Tap to expand into a larger detailed card (instead of a detail sheet).

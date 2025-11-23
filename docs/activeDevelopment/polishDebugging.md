@@ -1,24 +1,5 @@
 # Polish Debugging
 
-Issues found during release polish testing on iPhone.
-
-## Issue #1: Token Creation Stuck in "Creating..." State
-
-**Status:** IDENTIFIED - FIXING NOW
-
-**Symptoms:**
-- Create token button shows "Creating..." and becomes disabled
-- Token never actually creates
-- Button stays stuck in disabled state
-
-**Root Cause:**
-In `lib/screens/token_search_screen.dart` line 810, we set `_isCreating = true` but never reset it to `false` after the token is created. The dialogs close immediately (lines 840-842) before the state can be reset.
-
-**Fix:**
-Reset `_isCreating = false` before closing dialogs (line 838).
-
----
-
 ## Observation: Splash Screen Skipped
 
 **Status:** EXPECTED BEHAVIOR (but may need adjustment)
