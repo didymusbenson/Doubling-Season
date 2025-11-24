@@ -12461,6 +12461,28 @@
     ]
   },
   {
+    "name": "Scute Swarm",
+    "abilities": "Landfall - Whenever a land enters the battlefield under your control, create a 1/1 green Insect creature token. If you control six or more lands, create a token that's a copy of Scute Swarm instead.",
+    "pt": "1/1",
+    "colors": "G",
+    "type": "Creature — Insect",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "DSC",
+        "url": "https://cards.scryfall.io/large/front/e/a/ea630ba1-22f9-4a10-bdc6-0d03128214f4.jpg?1726285123"
+      },
+      {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/6/2/62c19f87-1bbc-4309-8781-4519db8b91a2.jpg?1763477698"
+      },
+      {
+        "set": "ZNR",
+        "url": "https://cards.scryfall.io/large/front/3/0/309b2cb5-b9a8-417d-b5ae-0a7d03ff93f0.jpg?1604202878"
+      }
+    ]
+  },
+  {
     "name": "Sephiroth, One-Winged Angel Emblem",
     "abilities": "Whenever a creature dies, target opponent loses 1 life and you gain 1 life.",
     "pt": "",
