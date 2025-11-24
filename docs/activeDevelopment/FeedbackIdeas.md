@@ -17,6 +17,37 @@ Implementation would mirror the +1/+1 tool:
 - Same P/T pop animation
 - Red color theme (debuff/weakening)
 
+## Gradient Backgrounds in Fadeout Mode
+
+**Status:** Experimental idea - needs more exploration
+
+Currently, color identity gradients only appear on tokens without artwork. Consider showing the gradient on the left 50% of cards in Fadeout mode even when artwork is present.
+
+### Concept
+In Fadeout mode:
+- Left 50%: Color identity gradient (provides visual color coding)
+- Right 50%: Artwork fades in from transparent to opaque
+- Creates visual continuity showing both color identity and artwork
+
+### Potential Benefits
+- Color-coded identifier at a glance (useful when scanning board state)
+- More visually distinct from Full View mode
+- Makes better use of the "empty" left side in Fadeout mode
+
+### Concerns
+- May create visual noise or compete with artwork
+- Gradient might bleed through the artwork's transparent fade area
+- Need to test with various artwork/color combinations
+- Could confuse visual hierarchy (is gradient part of the card or the artwork?)
+
+### Implementation Notes (if pursued)
+- Gradient should be constrained to exactly left 50% (not full-card behind fadeout)
+- Consider opacity adjustments for subtlety (e.g., 0.6 alpha on gradient)
+- May need different blend modes or masking to prevent "on top of art" effect
+- Test with colorless, mono-color, and multi-color tokens
+
+**Decision:** Tabled for now. Focus on core features first, revisit after user feedback on gradients.
+
 ## Symbol String Replacement
 
 **Status:** Nice-to-have enhancement for visual polish
