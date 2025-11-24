@@ -93,6 +93,8 @@ class TokenDefinition {
   // Category for filtering
   Category get category {
     final lowerType = type.toLowerCase();
+    final lowerAbilities = abilities.toLowerCase();
+    if (lowerAbilities.contains('myriad')) return Category.myriad;
     if (lowerType.contains('creature')) return Category.creature;
     if (lowerType.contains('artifact')) return Category.artifact;
     if (lowerType.contains('enchantment')) return Category.enchantment;
@@ -104,6 +106,7 @@ class TokenDefinition {
 }
 
 enum Category {
+  myriad,
   creature,
   artifact,
   enchantment,
@@ -114,6 +117,8 @@ enum Category {
 
   String get displayName {
     switch (this) {
+      case Category.myriad:
+        return 'Myriad';
       case Category.creature:
         return 'Creature';
       case Category.artifact:

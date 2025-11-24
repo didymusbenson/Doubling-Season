@@ -143,28 +143,6 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
   }
 
   void _showArtworkSelection() {
-    if (_tokenDefinition == null || _tokenDefinition!.artwork.isEmpty) {
-      // No artwork available
-      showModalBottomSheet(
-        context: context,
-        builder: (context) => ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.85,
-          ),
-          child: ArtworkSelectionSheet(
-            artworkVariants: const [],
-            onArtworkSelected: (url, setCode) {},
-            onRemoveArtwork: widget.item.artworkUrl != null ? _removeArtwork : null,
-            currentArtworkUrl: widget.item.artworkUrl,
-            currentArtworkSet: widget.item.artworkSet,
-            tokenName: widget.item.name,
-            tokenIdentity: '${widget.item.name}|${widget.item.pt}|${widget.item.colors}|${widget.item.type}|${widget.item.abilities}',
-          ),
-        ),
-      );
-      return;
-    }
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -173,7 +151,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
           maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
         child: ArtworkSelectionSheet(
-          artworkVariants: _tokenDefinition!.artwork,
+          artworkVariants: _tokenDefinition?.artwork ?? const [],
           onArtworkSelected: _handleArtworkSelected,
           onRemoveArtwork: widget.item.artworkUrl != null ? _removeArtwork : null,
           currentArtworkUrl: widget.item.artworkUrl,

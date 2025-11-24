@@ -227,10 +227,11 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
   }
 
   Widget _buildCategoryFilter() {
-    // Only show Creature, Artifact, and Emblem categories
+    // Only show Creature, Artifact, Myriad, and Emblem categories
     const allowedCategories = [
       token_models.Category.creature,
       token_models.Category.artifact,
+      token_models.Category.myriad,
       token_models.Category.emblem,
     ];
 

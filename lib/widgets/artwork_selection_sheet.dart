@@ -203,10 +203,14 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                                 future: ArtworkManager.getCachedArtworkFile(widget.currentArtworkUrl!),
                                 builder: (context, snapshot) {
                                   if (snapshot.hasData && snapshot.data != null) {
+                                    final file = snapshot.data!;
+                                    // Add unique key for custom artwork to force reload on replacement
+                                    final isCustomArtwork = widget.currentArtworkUrl!.startsWith('file://');
                                     return ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
                                       child: Image.file(
-                                        snapshot.data!,
+                                        file,
+                                        key: isCustomArtwork ? ValueKey(file.path + file.lastModifiedSync().toString()) : null,
                                         width: 80,
                                         height: 112,
                                         fit: BoxFit.cover,
@@ -273,89 +277,63 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                     if (widget.currentArtworkUrl != null && widget.onRemoveArtwork != null)
                       const Divider(height: 1),
 
-                    // Content
-                    if (widget.artworkVariants.isEmpty)
-                      // No artwork available
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 32),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.image_not_supported,
-                              size: 48,
-                              color: Colors.grey[600],
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'No token art available',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              "This token doesn't have official\nartwork in the database.",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
-                          ],
+                    // Artwork options grid (always show, even if no Scryfall variants)
+                    // Grid always includes custom artwork upload tile at index 0
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 0.65, // Adjust for card proportions
                         ),
-                      )
-                    else
-                      // Artwork options grid (Custom Artwork Feature: +1 for custom tile)
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                            childAspectRatio: 0.65, // Adjust for card proportions
-                          ),
-                          itemCount: widget.artworkVariants.length + 1, // +1 for custom tile
-                          itemBuilder: (context, index) {
-                            // First tile: Custom artwork upload tile
-                            if (index == 0) {
-                              return _CustomArtworkTile(
-                                tokenIdentity: widget.tokenIdentity,
-                                isSelected: widget.currentArtworkUrl?.startsWith('file://') ?? false,
-                                onUploadComplete: (filePath) {
-                                  // Apply custom artwork to token
-                                  setState(() {});
-                                  Navigator.pop(context); // Close sheet
-                                  widget.onArtworkSelected(filePath, 'Custom Upload');
-                                },
-                                onRemoveArtwork: widget.onRemoveArtwork,
-                              );
-                            }
-
-                            // Remaining tiles: Scryfall artwork options
-                            final variant = widget.artworkVariants[index - 1];
-                            return _ArtworkOption(
-                              variant: variant,
-                              onTap: () async {
-                                // Show confirmation preview dialog
-                                final confirmed = await showDialog<bool>(
-                                  context: context,
-                                  builder: (context) => _ArtworkConfirmationDialog(
-                                    variant: variant,
-                                  ),
-                                );
-
-                                // Rebuild to show newly cached artwork
-                                if (mounted) {
-                                  setState(() {});
-                                }
-
-                                if (confirmed == true && context.mounted) {
-                                  Navigator.pop(context); // Close selection sheet
-                                  widget.onArtworkSelected(variant.url, variant.set);
-                                }
+                        itemCount: widget.artworkVariants.length + 1, // +1 for custom tile
+                        itemBuilder: (context, index) {
+                          // First tile: Custom artwork upload tile
+                          if (index == 0) {
+                            return _CustomArtworkTile(
+                              tokenIdentity: widget.tokenIdentity,
+                              isSelected: widget.currentArtworkUrl?.startsWith('file://') ?? false,
+                              onUploadComplete: (filePath) {
+                                // Apply custom artwork to token
+                                setState(() {});
+                                Navigator.pop(context); // Close sheet
+                                widget.onArtworkSelected(filePath, 'Custom Upload');
                               },
+                              onRemoveArtwork: widget.onRemoveArtwork,
                             );
-                          },
-                        ),
+                          }
+
+                          // Remaining tiles: Scryfall artwork options
+                          final variant = widget.artworkVariants[index - 1];
+                          return _ArtworkOption(
+                            variant: variant,
+                            onTap: () async {
+                              // Show confirmation preview dialog
+                              final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => _ArtworkConfirmationDialog(
+                                  variant: variant,
+                                ),
+                              );
+
+                              // Rebuild to show newly cached artwork
+                              if (mounted) {
+                                setState(() {});
+                              }
+
+                              if (confirmed == true && context.mounted) {
+                                Navigator.pop(context); // Close selection sheet
+                                widget.onArtworkSelected(variant.url, variant.set);
+                              }
+                            },
+                          );
+                        },
                       ),
+                    ),
                   ],
                 ),
               ),
@@ -655,13 +633,19 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
 
               // Custom artwork preview
               if (customPath != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.file(
-                    File(customPath.replaceFirst('file://', '')),
-                    height: 200,
-                    fit: BoxFit.cover,
-                  ),
+                Builder(
+                  builder: (context) {
+                    final file = File(customPath.replaceFirst('file://', ''));
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        file,
+                        key: ValueKey(file.path + file.lastModifiedSync().toString()),
+                        height: 200,
+                        fit: BoxFit.cover,
+                      ),
+                    );
+                  },
                 ),
               const SizedBox(height: 24),
 
@@ -739,32 +723,20 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
         // Clear the preference
         await _artworkPrefManager.setCustomArtwork(widget.tokenIdentity, null);
 
-        // Clear the currently selected artwork in the parent widget
-        if (widget.onRemoveArtwork != null) {
+        // Only clear the currently selected artwork if the custom artwork WAS selected
+        // Check if current selection is the custom artwork (starts with file://)
+        if (widget.onRemoveArtwork != null && widget.isSelected) {
           widget.onRemoveArtwork!();
         }
 
         // Update UI
         if (mounted) {
           setState(() {});
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Custom artwork deleted'),
-              backgroundColor: Colors.orange,
-            ),
-          );
         }
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete artwork: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      // Silent failure - no user feedback needed
+      debugPrint('Failed to delete custom artwork: $e');
     }
   }
 
@@ -777,11 +749,16 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
 
       if (image == null) return;
 
-      // Delete old custom artwork file if it exists
+      // Delete old custom artwork file if it exists AND clear image cache
       final oldCustomPath = _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
       if (oldCustomPath != null) {
         final oldFile = File(oldCustomPath.replaceFirst('file://', ''));
         if (await oldFile.exists()) {
+          // Clear Flutter's image cache for the old file
+          final fileImage = FileImage(oldFile);
+          fileImage.evict();
+
+          // Delete the file
           await oldFile.delete();
         }
       }
@@ -806,27 +783,18 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
       final fileUrl = 'file://$filePath';
       await _artworkPrefManager.setCustomArtwork(widget.tokenIdentity, fileUrl);
 
+      // Clear any cached version of the new file path (defensive)
+      final newFile = File(filePath);
+      final newFileImage = FileImage(newFile);
+      newFileImage.evict();
+
       // Notify parent
       if (mounted) {
         widget.onUploadComplete(fileUrl);
-
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Custom artwork uploaded successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to upload artwork: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      // Silent failure - no user feedback needed
+      debugPrint('Failed to upload custom artwork: $e');
     }
   }
 
@@ -854,7 +822,7 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
                 Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
+                    color: Colors.blue.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: showCustomThumbnail
@@ -863,6 +831,7 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
                             borderRadius: BorderRadius.circular(8),
                             child: Image.file(
                               customFile!,
+                              key: ValueKey(customFile!.path + customFile!.lastModifiedSync().toString()),
                               fit: BoxFit.contain,
                             ),
                           ),
@@ -871,7 +840,7 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
                           child: Icon(
                             Icons.camera_alt,
                             size: 40,
-                            color: Theme.of(context).primaryColor,
+                            color: Colors.blue,
                           ),
                         ),
                 ),

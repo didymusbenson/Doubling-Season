@@ -1,8 +1,4 @@
-# Add custom cards to the custom_tokens.json
-
-The following cards have "Myriad". They do not have tokens associated with them, but they do make token copies of themselves. For this reaosn we need to add them to the custom_tokens json for when we update the database.
-
-# Table
+# Magic: The Gathering Cards with Myriad
 
 | Card Name | Color | Type | Stats | Abilities |
 |-----------|-------|------|-------|-----------|
@@ -32,4 +28,6 @@ The following cards have "Myriad". They do not have tokens associated with them,
 
 ---
 
-These need to be added to the custom JSON and the artwork blocks stubbed out so that I can add the art later.
+**Total Cards:** 23
+
+**Myriad Reminder Text:** Whenever this creature attacks, for each opponent other than defending player, you may create a token copy that's tapped and attacking that player or a planeswalker they control. Exile the tokens at end of combat.
