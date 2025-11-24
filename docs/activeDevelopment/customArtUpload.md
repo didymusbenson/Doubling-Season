@@ -256,29 +256,38 @@ item.artworkUrl = selectedUrl;
 - Use existing `_buildTextWithBackground()` pattern for text contrast
 - Conditional rendering: show gradient only when `item.artworkUrl == null`
 
-### Design Questions (Awaiting Product Input)
+### Design Decisions (RESOLVED)
 
-**Q1: Gradient Style**
-- Use identical gradient to border (same colors, same stops)?
-- Or modified gradient (different opacity, different color distribution)?
-- Should gradient cover full card or partial (like fadeout mode)?
+**✓ Q1: Gradient Style**
+- **Decision:** Use identical gradient to border (same colors, same stops)
+- **Coverage:** Always full card, regardless of artwork display style setting
+- **Future Exploration:** If initial implementation is unsatisfactory, explore alternatives:
+  - Modified opacity (e.g., lighter/more subtle gradient)
+  - Different color distribution (e.g., radial instead of linear)
+  - Partial coverage (e.g., bottom 50% of card)
+  - Color-shifted variants (e.g., darker/lighter hues)
 
-**Q2: Display Style Interaction**
-- Does artwork display style setting (Full View / Fadeout) affect gradient rendering?
-- Or is gradient always full-card regardless of setting?
+**✓ Q2: Display Style Interaction**
+- **Decision:** Gradient is always full-card regardless of artwork display style setting (Full View / Fadeout)
+- **Rationale:** Simplifies implementation, consistent behavior
 
-**Q3: Token Scope**
-- Apply gradient to ALL artless tokens (including database tokens without artwork)?
-- Or only custom tokens created via NewTokenSheet?
-- Or user-configurable setting?
+**✓ Q3: Token Scope**
+- **Decision:** Apply gradient to ANY token without artwork set, including:
+  - Database tokens without artwork
+  - Custom tokens created via NewTokenSheet
+  - Tokens that HAD artwork but it was REMOVED by user
+- **Behavior:** If `item.artworkUrl == null || item.artworkUrl.isEmpty`, show gradient
+- **Rationale:** Consistent visual treatment for all artless tokens
 
-**Q4: Colorless Tokens**
-- What gradient for colorless tokens (empty color string)?
-- Gray gradient? No gradient? Theme-based neutral gradient?
+**✓ Q4: Colorless Tokens**
+- **Decision:** Use solid grey color (same as border treatment for colorless tokens)
+- **Implementation:** `ColorUtils.gradientForColors('')` should return grey gradient
 
-**Q5: Multi-Color Gradients**
-- For tokens with 3+ colors (e.g., WUBRG), how is gradient rendered?
-- Multiple color stops? Two-color blend? Average color?
+**✓ Q5: Multi-Color Gradients**
+- **Decision:** Use multiple color stops showing all colors (like border)
+- **Behavior:** WUBRG token shows gradient transitioning through all 5 colors (white → blue → black → red → green)
+- **Implementation:** Reuse existing `ColorUtils.gradientForColors()` utility (same as border)
+- **Rationale:** Consistent with border visual language, creates vibrant "changing" color effect
 
 ---
 
@@ -360,23 +369,44 @@ The existing artwork selection flow:
 
 ### Proposed Update: Add Custom Upload Tile
 
-**Add "Upload Custom Artwork" tile as FIRST item in the grid:**
+**Add "Custom Artwork" tile as FIRST item in the grid:**
 
 ```
+CASE 1: No custom artwork uploaded yet
 ┌─────────────────────────────────────────┐
 │ Select Token Artwork        [↓] [X]     │
 ├─────────────────────────────────────────┤
 │ Currently Selected                      │
-│ ┌────┐ Pirate.png (Custom)     [🗑️]    │ ← Shows custom or Scryfall
+│ ┌────┐ Scryfall Art           [🗑️]     │ ← Shows current Scryfall selection
+│ │img │ SET: MKM                         │
+│ └────┘                                  │
+├─────────────────────────────────────────┤
+│  Grid of Artwork Options:               │
+│  ┌─────┬─────┬─────┐                    │
+│  │  📷 │ MKM │ CMM │                    │ ← Upload tile shows camera icon
+│  │  +  │  ✓  │     │                    │    (checkmark on currently selected)
+│  └─────┴─────┴─────┘                    │
+│  Upload  Set1  Set2                     │
+│  ┌─────┬─────┬─────┐                    │
+│  │ NEO │ ... │ ... │                    │
+│  └─────┴─────┴─────┘                    │
+└─────────────────────────────────────────┘
+
+CASE 2: Custom artwork uploaded and selected
+┌─────────────────────────────────────────┐
+│ Select Token Artwork        [↓] [X]     │
+├─────────────────────────────────────────┤
+│ Currently Selected                      │
+│ ┌────┐ Pirate.png (Custom)     [🗑️]    │ ← Shows custom art
 │ │img │ SET: Custom Upload               │
 │ └────┘                                  │
 ├─────────────────────────────────────────┤
 │  Grid of Artwork Options:               │
 │  ┌─────┬─────┬─────┐                    │
-│  │  📷 │ MKM │ CMM │                    │ ← Upload tile first
-│  │  +  │     │     │                    │
+│  │ img │ MKM │ CMM │                    │ ← Tile shows custom thumbnail + checkmark
+│  │  ✓  │     │     │                    │
 │  └─────┴─────┴─────┘                    │
-│  Upload  Set1  Set2                     │
+│ Custom  Set1  Set2                      │
 │  ┌─────┬─────┬─────┐                    │
 │  │ NEO │ ... │ ... │                    │
 │  └─────┴─────┴─────┘                    │
@@ -385,32 +415,61 @@ The existing artwork selection flow:
 
 **Implementation Details:**
 
-1. **Upload Tile Appearance:**
+1. **Custom Artwork Tile - Two States:**
+
+   **State A: No Custom Artwork Yet**
    - Icon: Camera (📷) or Upload icon
    - Label: "Upload" (below icon)
    - Background: Distinct color (e.g., primary color) to differentiate from Scryfall tiles
    - Position: First item (index 0) in grid
+   - Tap behavior: Show educational dialog → open image picker
 
-2. **Upload Tile Behavior:**
+   **State B: Custom Artwork Exists**
+   - Icon: Thumbnail of custom artwork (scaled to fit tile)
+   - Label: "Custom" (below thumbnail)
+   - Checkmark overlay if currently selected
+   - Position: First item (index 0) in grid
+   - Tap behavior: Show replacement dialog (see below)
+
+2. **Upload Tile Behavior (State A - No Custom Art):**
    - Tap → Show educational dialog (pre-crop guidance)
    - User confirms → Open image picker directly
    - User selects image → Validate (size, format)
    - Save file → Update preference → Apply to token
-   - Sheet automatically closes after successful upload
+   - Sheet refreshes, tile now shows State B (custom thumbnail)
 
-3. **Currently Selected Section:**
+3. **Custom Art Tile Behavior (State B - Custom Art Exists):**
+   - Tap → Show dialog:
+     ```
+     ┌──────────────────────────────┐
+     │  Custom Artwork              │
+     ├──────────────────────────────┤
+     │  [Preview of current image]  │
+     │                              │
+     │  Upload a new image to       │
+     │  replace the current one?    │
+     │                              │
+     │  [ Cancel ]  [ Upload New ]  │
+     └──────────────────────────────┘
+     ```
+   - Cancel → Dismiss dialog
+   - Upload New → Show educational dialog → open image picker → replace custom art
+
+4. **Currently Selected Section:**
    - When custom artwork active: Show "(Custom)" label next to filename
    - When Scryfall artwork active: Show set code as normal
    - Remove button works for both custom and Scryfall
+   - Removing custom artwork: Deletes file, tile reverts to State A (upload prompt)
 
-4. **Grid Modifications:**
-   - Insert upload tile at beginning: `[uploadTile, ...scryfall variants]`
+5. **Grid Modifications:**
+   - Insert custom tile at beginning: `[customTile, ...scryfall variants]`
    - Grid layout unchanged (3 columns, existing styling)
-   - Upload tile uses same `_ArtworkOption` pattern (consistency)
+   - Custom tile uses same `_ArtworkOption` pattern (consistency)
+   - Tile state determined by checking `ArtworkPreferenceManager.hasCustomArtwork(tokenIdentity)`
 
-5. **No Additional Menus:**
+6. **No Additional Menus:**
    - Educational dialog is ONLY alert before picker (not a separate screen)
-   - No "switch to custom" button needed (custom appears in grid like other options)
+   - Replacement dialog is simple confirmation (not a separate screen)
    - No separate custom artwork management screen
 
 **Code Changes Required:**
@@ -438,9 +497,13 @@ The existing artwork selection flow:
 5. Sheet closes, token now shows custom artwork
 6. Next time: custom artwork appears in "Currently Selected" section
 
-**Remaining Design Decision:**
-- Should upload tile ALWAYS appear, or only when no custom artwork exists yet?
-  - **Recommendation:** ALWAYS show (user can replace custom artwork by tapping tile again)
+**✓ RESOLVED: Upload Tile Visibility**
+- **Decision:** Custom artwork tile ALWAYS appears (first item in grid)
+- **Behavior:**
+  - No custom art uploaded → Shows camera icon + "Upload" label
+  - Custom art uploaded → Shows thumbnail + "Custom" label
+  - User can replace by tapping tile → confirmation dialog → new upload
+- **Rationale:** Consistent grid position, clear upload/replace workflow
 
 **✓ RESOLVED Q7: Custom Artwork Display**
 - **Decision:** Use same artwork preview widget as Scryfall (existing implementation)
@@ -782,25 +845,47 @@ dev_dependencies:
 
 ### Phase 2: Gradient Backgrounds
 
-**BLOCKED:** Requires product owner input on Q1-Q5 (gradient style, coverage, colorless handling)
+**READY TO IMPLEMENT** - All design questions resolved
 
-**Step 2.1: Design Decisions Required**
-- [ ] Q1: Gradient style decided (match border? different opacity?)
-- [ ] Q2: Display mode interaction (full card? respects Fadeout?)
-- [ ] Q3: Token scope (all artless? custom only?)
-- [ ] Q4: Colorless handling (gray? none? theme?)
-- [ ] Q5: Multi-color rendering (all colors? two-color blend?)
-
-**Step 2.2: Implement Gradient Rendering** (After Q1-Q5 resolved)
+**Step 2.1: Implement Gradient Rendering**
 - [ ] Open `lib/widgets/token_card.dart`
 - [ ] In `Stack` children, add gradient layer BEFORE artwork layer:
   ```dart
-  if (widget.item.artworkUrl == null)
+  // Add gradient background for artless tokens
+  if (widget.item.artworkUrl == null || widget.item.artworkUrl!.isEmpty)
     _buildGradientLayer(context),
   ```
-- [ ] Implement `_buildGradientLayer()` method using `ColorUtils.gradientForColors()`
-- [ ] Test with tokens of various colors (W, U, B, R, G, WU, colorless)
+- [ ] Implement `_buildGradientLayer()` method:
+  ```dart
+  Widget _buildGradientLayer(BuildContext context) {
+    final gradient = ColorUtils.gradientForColors(widget.item.colors);
+    return Positioned.fill(
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(12), // Match card border radius
+        ),
+      ),
+    );
+  }
+  ```
+- [ ] **IMPORTANT:** Add implementation note comment in code:
+  ```dart
+  // NOTE: Current gradient matches border exactly (same colors, same stops).
+  // If visual appearance is unsatisfactory, explore alternatives:
+  // - Modified opacity (e.g., gradient with 0.6 alpha for subtler effect)
+  // - Radial gradient instead of linear
+  // - Partial coverage (e.g., only bottom 50% of card)
+  // - Color-shifted variants (lighter/darker hues)
+  // - Different gradient direction (vertical, diagonal, etc.)
+  ```
+- [ ] Test with tokens of various colors:
+  - [ ] Single color: W, U, B, R, G
+  - [ ] Two colors: WU, UB, BR, RG, GW
+  - [ ] Multi-color: WUG, WUBRG
+  - [ ] Colorless (empty string)
 - [ ] Verify text remains readable (semi-transparent backgrounds should work)
+- [ ] Test removal of artwork (token with art → remove art → should show gradient)
 
 **Validation:**
 - [ ] Artless tokens show gradient backgrounds
@@ -813,15 +898,9 @@ dev_dependencies:
 
 ### Phase 3: Custom Artwork Upload
 
-**BLOCKED:** Requires UI flow refinement (see Q6 - Artwork Selection UI)
+**READY TO IMPLEMENT** - All design questions resolved, UI flow approved
 
-**Step 3.1: UI Flow Design** (Product Owner Must Approve)
-- [ ] Review "Alternative Approaches" in Q6 section
-- [ ] Product owner selects preferred UI pattern
-- [ ] Create UI mockups/wireframes for approved pattern
-- [ ] Validate with stakeholders before implementation
-
-**Step 3.2: Add Dependencies**
+**Step 3.1: Add Dependencies**
 - [ ] Add `image_picker`, `path_provider`, `crypto` to `pubspec.yaml`
 - [ ] Run `flutter pub get`
 - [ ] Verify packages install successfully
@@ -851,10 +930,37 @@ dev_dependencies:
   ```
 - [ ] For custom artwork, pass `cropLeft: 0, cropRight: 0, cropTop: 0, cropBottom: 0`
 
-**Step 3.5: Implement Upload UI** (After Q6 resolved)
-- [ ] Open `lib/screens/expanded_token_screen.dart`
-- [ ] Add custom artwork upload button(s) per approved UI flow
-- [ ] Implement upload handler:
+**Step 3.5: Implement Custom Artwork Tile in ArtworkSelectionSheet**
+- [ ] Open `lib/widgets/artwork_selection_sheet.dart`
+- [ ] Create `_CustomArtworkTile` stateful widget with two states:
+  - State A: No custom art (camera icon + "Upload" label)
+  - State B: Custom art exists (thumbnail + "Custom" label + checkmark if selected)
+- [ ] Insert custom tile at index 0 in grid:
+  ```dart
+  GridView.builder(
+    itemCount: artworkVariants.length + 1, // +1 for custom tile
+    itemBuilder: (context, index) {
+      if (index == 0) {
+        return _CustomArtworkTile(
+          tokenIdentity: tokenIdentity,
+          isSelected: item.artworkUrl?.startsWith('file://') ?? false,
+          onUploadComplete: (filePath) {
+            setState(() {
+              item.artworkUrl = filePath;
+            });
+          },
+        );
+      }
+      // Existing Scryfall tile logic (index - 1)
+      final variant = artworkVariants[index - 1];
+      return _ArtworkOption(...);
+    },
+  );
+  ```
+- [ ] Implement `_CustomArtworkTile` tap handlers:
+  - **State A (no custom):** Tap → show educational dialog → open picker
+  - **State B (has custom):** Tap → show replacement dialog → open picker if confirmed
+- [ ] Implement upload handler in `_CustomArtworkTile`:
   ```dart
   Future<void> _uploadCustomArtwork() async {
     // Show educational dialog
@@ -933,14 +1039,28 @@ dev_dependencies:
 
 ---
 
-## Next Steps (Product Owner Actions Required)
+## Next Steps
 
-1. **✅ COMPLETE:** Review architectural foundation and resolved design decisions
-2. **⚠️ REQUIRED:** Answer gradient background questions (Q1-Q5) to unblock Phase 2
-3. **⚠️ REQUIRED:** Approve UI flow for custom artwork upload to unblock Phase 3
-4. **Optional:** Provide UI mockups/wireframes for approved artwork selection flow
-5. **Optional:** Define success metric targets (e.g., "10% of users upload custom artwork within 30 days")
+**✅ ALL DESIGN DECISIONS RESOLVED - READY FOR IMPLEMENTATION**
 
-**When ready to implement:**
-- Assign autonomous agent to Phase 1 (infrastructure) - can begin immediately
-- Phase 2 and Phase 3 blocked pending design decisions above
+1. **✅ COMPLETE:** Architectural foundation designed (TokenArtworkPreference system)
+2. **✅ COMPLETE:** Gradient background questions (Q1-Q5) answered
+3. **✅ COMPLETE:** Custom artwork upload UI flow approved (tile-based approach)
+4. **✅ COMPLETE:** All 23 design questions resolved
+
+**Implementation Phases (All Unblocked):**
+- ✅ **Phase 1:** Artwork Preference Infrastructure - READY TO START
+- ✅ **Phase 2:** Gradient Backgrounds - READY TO START (can run in parallel with Phase 1)
+- ✅ **Phase 3:** Custom Artwork Upload - READY TO START (requires Phase 1 complete)
+
+**Recommended Order:**
+1. Start Phase 1 + Phase 2 in parallel (independent features)
+2. Complete Phase 1, validate preference system works
+3. Start Phase 3 (depends on Phase 1 infrastructure)
+4. Ship Phase 1 + Phase 2 first (lower risk, immediate visual improvement)
+5. Ship Phase 3 after validation (higher complexity, file management)
+
+**Optional Next Steps:**
+- Define success metric targets (e.g., "10% of users upload custom artwork within 30 days")
+- Create visual mockups for marketing materials
+- Plan beta testing strategy for custom artwork feature
