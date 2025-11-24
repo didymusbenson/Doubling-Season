@@ -104,6 +104,34 @@ Currently, Full View artwork mode centers the artwork vertically on the token ca
 
 **Priority:** Low - Minor visual preference, current centered alignment is functional
 
+## Sort By Options
+
+**Status:** Feature idea - not yet implemented
+
+Allow users to customize how token search results are sorted in TokenSearchScreen.
+
+**Current Behavior:**
+- Results are hardcoded to sort by popularity first, then alphabetically
+- No user control over sort order
+
+**Proposed Options:**
+1. **Alphabetical** - Sort tokens A-Z by name
+2. **Popular** - Sort by popularity/usage frequency (current default)
+3. **Recent** - Sort by most recently used tokens first
+
+**Implementation Notes:**
+- Add sort dropdown/segmented control to TokenSearchScreen
+- Store preference in SharedPreferences (persist across sessions)
+- Apply sort to filtered results (after search query + category filters)
+- Default to "Popular" to maintain current behavior for new users
+
+**Benefits:**
+- Users who know exact token names can find them faster with alphabetical sort
+- "Recent" sort provides quick access pattern different from existing Recent tab
+- Flexibility for different user preferences and search patterns
+
+**Priority:** Medium - Nice QoL improvement, current popularity sort works but isn't ideal for all use cases
+
 ## Condensed Condensed View
 
 Even more condensed than current condensed view, only has Tapped/Untapped Power/Toughness no names or anything else. Tap to expand into a larger detailed card (instead of a detail sheet).

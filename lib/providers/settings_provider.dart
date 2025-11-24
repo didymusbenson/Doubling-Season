@@ -32,7 +32,7 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   // Artwork display style: 'fullView' or 'fadeout'
-  String get artworkDisplayStyle => _prefs.getString('artworkDisplayStyle') ?? 'fadeout';
+  String get artworkDisplayStyle => _prefs.getString('artworkDisplayStyle') ?? 'fullView';
 
   Future<void> setArtworkDisplayStyle(String style) async {
     await _prefs.setString('artworkDisplayStyle', style);
