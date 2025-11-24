@@ -8,6 +8,7 @@ import '../providers/token_provider.dart';
 import '../screens/expanded_token_screen.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
+import '../utils/color_utils.dart';
 import 'counter_pill.dart';
 import 'split_stack_sheet.dart';
 import 'cropped_artwork_widget.dart';
@@ -135,6 +136,10 @@ class _TokenCardState extends State<TokenCard> {
                   borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
                 ),
               ),
+
+              // Gradient background for artless tokens (Custom Artwork Feature)
+              if (widget.item.artworkUrl == null || widget.item.artworkUrl!.isEmpty)
+                _buildGradientLayer(context),
 
               // Artwork layer (background, if artwork selected)
               if (widget.item.artworkUrl != null)
@@ -467,10 +472,9 @@ class _TokenCardState extends State<TokenCard> {
   }) {
     final effectiveColor = disabled ? color.withValues(alpha: UIConstants.disabledOpacity) : color;
 
-    // Use card background color for button backgrounds (only when artwork exists)
-    final buttonBackgroundColor = widget.item.artworkUrl != null
-        ? Theme.of(context).cardColor.withValues(alpha: 0.85)
-        : effectiveColor.withValues(alpha: 0.15); // Original transparent style when no artwork
+    // Use card background color for button backgrounds (needed for artwork or gradient)
+    // Always use solid background since tokens always have either artwork or gradient background
+    final buttonBackgroundColor = Theme.of(context).cardColor.withValues(alpha: 0.85);
 
     return Padding(
       padding: EdgeInsets.only(right: spacing),
@@ -492,6 +496,28 @@ class _TokenCardState extends State<TokenCard> {
             color: effectiveColor,
             size: UIConstants.iconSize,
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Build gradient background layer for artless tokens (Custom Artwork Feature)
+  Widget _buildGradientLayer(BuildContext context) {
+    // NOTE: Current gradient matches border exactly (same colors, same stops).
+    // If visual appearance is unsatisfactory, explore alternatives:
+    // - Modified opacity (e.g., gradient with 0.6 alpha for subtler effect)
+    // - Radial gradient instead of linear
+    // - Partial coverage (e.g., only bottom 50% of card)
+    // - Color-shifted variants (lighter/darker hues)
+    // - Different gradient direction (vertical, diagonal, etc.)
+
+    final gradient = ColorUtils.gradientForColors(widget.item.colors, isEmblem: widget.item.isEmblem);
+
+    return Positioned.fill(
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
         ),
       ),
     );
@@ -622,16 +648,17 @@ class _TokenCardState extends State<TokenCard> {
     );
   }
 
-  /// Wrap text with solid background for readability over artwork
+  /// Wrap text with solid background for readability over artwork or gradient
   Widget _buildTextWithBackground({
     required BuildContext context,
     required Widget child,
     EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
   }) {
-    // Only add background if artwork exists
-    if (widget.item.artworkUrl == null) {
-      return child;
-    }
+    // Text backgrounds are needed for readability over:
+    // 1. Artwork (artworkUrl != null)
+    // 2. Gradient backgrounds (artworkUrl == null/empty)
+    // Since we always have one or the other now, always add backgrounds
+    // (No longer conditional - gradient backgrounds added for artless tokens)
 
     return Container(
       padding: padding,

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/item.dart';
 import '../providers/token_provider.dart';
 import '../providers/settings_provider.dart';
+import '../utils/artwork_preference_manager.dart';
 import 'color_selection_button.dart';
 
 class NewTokenSheet extends StatefulWidget {
@@ -243,6 +244,15 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
       tapped: _createTapped ? finalAmount : 0,
       summoningSick: 0, // Will be set below if needed
     );
+
+    // Load preferred artwork from preferences (Custom Artwork Feature)
+    // Custom tokens may have preferences if user previously uploaded artwork
+    final artworkPrefManager = ArtworkPreferenceManager();
+    final tokenIdentity = '${newItem.name}|${newItem.pt}|${newItem.colors}|${newItem.type}|${newItem.abilities}';
+    final preferredArtwork = artworkPrefManager.getPreferredArtwork(tokenIdentity);
+    if (preferredArtwork != null) {
+      newItem.artworkUrl = preferredArtwork;
+    }
 
     // Insert token immediately
     await tokenProvider.insertItem(newItem);

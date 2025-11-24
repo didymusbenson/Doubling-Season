@@ -10,6 +10,7 @@ import '../widgets/new_token_sheet.dart';
 import '../widgets/color_filter_button.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
+import '../utils/artwork_preference_manager.dart';
 
 enum SearchTab { all, recent, favorites }
 
@@ -820,9 +821,26 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                     createTapped: _createTapped,
                   );
 
+                  // Load preferred artwork from preferences (Custom Artwork Feature)
+                  final artworkPrefManager = ArtworkPreferenceManager();
+                  final tokenIdentity = token.id; // Composite ID
+                  final preferredArtwork = artworkPrefManager.getPreferredArtwork(tokenIdentity);
+
                   // Assign artwork URL immediately (synchronous, no download)
-                  // These are plain fields without setters, safe to set before insert
-                  if (token.artwork.isNotEmpty) {
+                  // Prefer user's saved preference, fallback to first available artwork
+                  if (preferredArtwork != null) {
+                    newItem.artworkUrl = preferredArtwork;
+                    // Set artworkSet if it's a Scryfall URL (not custom file://)
+                    if (!preferredArtwork.startsWith('file://') && token.artwork.isNotEmpty) {
+                      // Try to find matching artwork variant by URL
+                      final matchingArtwork = token.artwork.firstWhere(
+                        (art) => art.url == preferredArtwork,
+                        orElse: () => token.artwork[0],
+                      );
+                      newItem.artworkSet = matchingArtwork.set;
+                    }
+                  } else if (token.artwork.isNotEmpty) {
+                    // No preference - use first available artwork
                     final firstArtwork = token.artwork[0];
                     newItem.artworkUrl = firstArtwork.url;
                     newItem.artworkSet = firstArtwork.set;

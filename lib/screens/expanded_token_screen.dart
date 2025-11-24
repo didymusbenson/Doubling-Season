@@ -10,6 +10,7 @@ import '../widgets/split_stack_sheet.dart';
 import '../widgets/artwork_selection_sheet.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
+import '../utils/artwork_preference_manager.dart';
 import '../database/token_database.dart';
 import 'counter_search_screen.dart';
 
@@ -194,6 +195,11 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
 
       widget.item.save();
       context.read<TokenProvider>().updateItem(widget.item);
+
+      // Save artwork preference (Custom Artwork Feature)
+      final artworkPrefManager = ArtworkPreferenceManager();
+      final tokenIdentity = '${widget.item.name}|${widget.item.pt}|${widget.item.colors}|${widget.item.type}|${widget.item.abilities}';
+      await artworkPrefManager.setPreferredArtwork(tokenIdentity, url);
     } else if (mounted) {
 
       ScaffoldMessenger.of(context).showSnackBar(
