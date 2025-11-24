@@ -137,11 +137,15 @@ class _TokenCardState extends State<TokenCard> {
                 ),
               ),
 
-              // Gradient background for artless tokens (Custom Artwork Feature)
+              // Gradient background layer (Custom Artwork Feature)
+              // Shows immediately as placeholder while artwork loads, or permanently for artless tokens
               if (widget.item.artworkUrl == null || widget.item.artworkUrl!.isEmpty)
-                _buildGradientLayer(context),
+                _buildGradientLayer(context)
+              else
+                // Show gradient while artwork is loading
+                _buildConditionalGradient(context),
 
-              // Artwork layer (background, if artwork selected)
+              // Artwork layer (appears on top of gradient when file is available)
               if (widget.item.artworkUrl != null)
                 _buildArtworkLayer(context, constraints, artworkDisplayStyle),
 
@@ -523,6 +527,29 @@ class _TokenCardState extends State<TokenCard> {
     );
   }
 
+  /// Build conditional gradient that only shows while artwork is loading
+  Widget _buildConditionalGradient(BuildContext context) {
+    return Positioned.fill(
+      child: FutureBuilder<File?>(
+        future: ArtworkManager.getCachedArtworkFile(widget.item.artworkUrl!),
+        builder: (context, snapshot) {
+          // Only show gradient if artwork file is NOT available yet
+          if (!snapshot.hasData || snapshot.data == null) {
+            final gradient = ColorUtils.gradientForColors(widget.item.colors, isEmblem: widget.item.isEmblem);
+            return Container(
+              decoration: BoxDecoration(
+                gradient: gradient,
+                borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+              ),
+            );
+          }
+          // Artwork is loaded, hide gradient
+          return const SizedBox.shrink();
+        },
+      ),
+    );
+  }
+
   /// Build artwork background layer - switches between full view and fadeout
   Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints, String artworkStyle) {
     if (artworkStyle == 'fadeout') {
@@ -534,7 +561,7 @@ class _TokenCardState extends State<TokenCard> {
 
   /// Build full-width artwork background layer
   Widget _buildFullViewArtwork(BuildContext context, BoxConstraints constraints) {
-    final crop = ArtworkManager.getCropPercentages();
+    final crop = ArtworkManager.getCropPercentages(widget.item.artworkUrl);
 
     return Positioned.fill(
       child: FutureBuilder<File?>(
@@ -583,7 +610,7 @@ class _TokenCardState extends State<TokenCard> {
 
   /// Build fadeout artwork layer (right-side with gradient)
   Widget _buildFadeoutArtwork(BuildContext context, BoxConstraints constraints) {
-    final crop = ArtworkManager.getCropPercentages();
+    final crop = ArtworkManager.getCropPercentages(widget.item.artworkUrl);
     final cardWidth = constraints.maxWidth;
     final artworkWidth = cardWidth * 0.50;
 

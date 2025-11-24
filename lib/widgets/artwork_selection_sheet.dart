@@ -325,6 +325,7 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                                   Navigator.pop(context); // Close sheet
                                   widget.onArtworkSelected(filePath, 'Custom Upload');
                                 },
+                                onRemoveArtwork: widget.onRemoveArtwork,
                               );
                             }
 
@@ -561,11 +562,13 @@ class _CustomArtworkTile extends StatefulWidget {
   final String tokenIdentity;
   final bool isSelected; // Is the current artwork the custom artwork?
   final Function(String filePath) onUploadComplete;
+  final VoidCallback? onRemoveArtwork; // Called when custom artwork is deleted
 
   const _CustomArtworkTile({
     required this.tokenIdentity,
     required this.isSelected,
     required this.onUploadComplete,
+    this.onRemoveArtwork,
   });
 
   @override
@@ -736,6 +739,11 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
         // Clear the preference
         await _artworkPrefManager.setCustomArtwork(widget.tokenIdentity, null);
 
+        // Clear the currently selected artwork in the parent widget
+        if (widget.onRemoveArtwork != null) {
+          widget.onRemoveArtwork!();
+        }
+
         // Update UI
         if (mounted) {
           setState(() {});
@@ -768,6 +776,15 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
       );
 
       if (image == null) return;
+
+      // Delete old custom artwork file if it exists
+      final oldCustomPath = _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
+      if (oldCustomPath != null) {
+        final oldFile = File(oldCustomPath.replaceFirst('file://', ''));
+        if (await oldFile.exists()) {
+          await oldFile.delete();
+        }
+      }
 
       // Get app documents directory
       final appDir = await getApplicationDocumentsDirectory();

@@ -211,9 +211,21 @@ class ArtworkManager {
   }
 
   /// Crop artwork to remove card border and text areas
-  /// Crop percentages: 8.8% left/right, 14.5% top, 36.8% bottom
+  /// For Scryfall artwork: 8.8% left/right, 14.5% top, 36.8% bottom
+  /// For custom artwork (file:// URLs): No cropping (0% on all sides)
   /// This is applied on-the-fly during display, not during download
-  static Map<String, double> getCropPercentages() {
+  static Map<String, double> getCropPercentages([String? artworkUrl]) {
+    // Custom artwork should not be cropped (user already cropped it before upload)
+    if (artworkUrl != null && artworkUrl.startsWith('file://')) {
+      return {
+        'left': 0.0,
+        'right': 0.0,
+        'top': 0.0,
+        'bottom': 0.0,
+      };
+    }
+
+    // Scryfall artwork uses standard crop percentages
     return {
       'left': 0.088,
       'right': 0.088,
