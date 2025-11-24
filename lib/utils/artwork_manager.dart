@@ -32,6 +32,17 @@ class ArtworkManager {
 
   /// Get the local file path for a cached artwork (null if not cached)
   static Future<File?> getCachedArtworkFile(String url) async {
+    // Handle custom artwork (file:// URLs) - already local
+    if (url.startsWith('file://')) {
+      final localPath = url.replaceFirst('file://', '');
+      final file = File(localPath);
+      if (await file.exists()) {
+        return file;
+      }
+      return null;
+    }
+
+    // Handle Scryfall URLs - check cache directory
     final cacheDir = await getArtworkCacheDirectory();
     final filename = _urlToFilename(url);
     final file = File('${cacheDir.path}/$filename');
@@ -56,6 +67,12 @@ class ArtworkManager {
     String url, {
     Function(double)? onProgress,
   }) async {
+    // Safety check: Skip file:// URLs (custom artwork is already local)
+    if (url.startsWith('file://')) {
+      debugPrint('Skipping download for local file:// URL');
+      return null;
+    }
+
     // Check if already cached
     final existing = await getCachedArtworkFile(url);
     if (existing != null) {

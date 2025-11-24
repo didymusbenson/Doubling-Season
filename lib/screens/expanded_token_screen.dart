@@ -158,6 +158,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
             currentArtworkUrl: widget.item.artworkUrl,
             currentArtworkSet: widget.item.artworkSet,
             tokenName: widget.item.name,
+            tokenIdentity: '${widget.item.name}|${widget.item.pt}|${widget.item.colors}|${widget.item.type}|${widget.item.abilities}',
           ),
         ),
       );
@@ -178,14 +179,28 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
           currentArtworkUrl: widget.item.artworkUrl,
           currentArtworkSet: widget.item.artworkSet,
           tokenName: widget.item.name,
+          tokenIdentity: '${widget.item.name}|${widget.item.pt}|${widget.item.colors}|${widget.item.type}|${widget.item.abilities}',
         ),
       ),
     );
   }
 
   Future<void> _handleArtworkSelected(String url, String setCode) async {
-    // Download and cache artwork if not already cached
-    final file = await ArtworkManager.downloadArtwork(url);
+    // Skip download for custom artwork (file:// URLs) - already local
+    final isCustomArtwork = url.startsWith('file://');
+
+    File? file;
+    if (!isCustomArtwork) {
+      // Download and cache Scryfall artwork if not already cached
+      file = await ArtworkManager.downloadArtwork(url);
+    } else {
+      // Custom artwork - just verify file exists
+      final localPath = url.replaceFirst('file://', '');
+      final localFile = File(localPath);
+      if (localFile.existsSync()) {
+        file = localFile; // File exists, proceed
+      }
+    }
 
     if (file != null && mounted) {
       setState(() {
@@ -203,8 +218,10 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
     } else if (mounted) {
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to download artwork. Please check your internet connection.'),
+        SnackBar(
+          content: Text(isCustomArtwork
+            ? 'Custom artwork file not found.'
+            : 'Failed to download artwork. Please check your internet connection.'),
           backgroundColor: Colors.red,
         ),
       );

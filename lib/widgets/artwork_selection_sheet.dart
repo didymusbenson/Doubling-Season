@@ -1,7 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
 import '../models/token_definition.dart';
 import '../utils/artwork_manager.dart';
+import '../utils/artwork_preference_manager.dart';
 
 /// Bottom sheet for selecting token artwork from available variants
 class ArtworkSelectionSheet extends StatefulWidget {
@@ -11,6 +16,7 @@ class ArtworkSelectionSheet extends StatefulWidget {
   final String? currentArtworkUrl;
   final String? currentArtworkSet;
   final String tokenName;
+  final String tokenIdentity; // Composite ID for preference lookup (NEW - Custom Artwork Feature)
 
   const ArtworkSelectionSheet({
     super.key,
@@ -20,6 +26,7 @@ class ArtworkSelectionSheet extends StatefulWidget {
     this.currentArtworkUrl,
     this.currentArtworkSet,
     required this.tokenName,
+    required this.tokenIdentity,
   });
 
   @override
@@ -293,7 +300,7 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                         ),
                       )
                     else
-                      // Artwork options grid
+                      // Artwork options grid (Custom Artwork Feature: +1 for custom tile)
                       Padding(
                         padding: const EdgeInsets.all(16),
                         child: GridView.builder(
@@ -305,9 +312,24 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                             mainAxisSpacing: 12,
                             childAspectRatio: 0.65, // Adjust for card proportions
                           ),
-                          itemCount: widget.artworkVariants.length,
+                          itemCount: widget.artworkVariants.length + 1, // +1 for custom tile
                           itemBuilder: (context, index) {
-                            final variant = widget.artworkVariants[index];
+                            // First tile: Custom artwork upload tile
+                            if (index == 0) {
+                              return _CustomArtworkTile(
+                                tokenIdentity: widget.tokenIdentity,
+                                isSelected: widget.currentArtworkUrl?.startsWith('file://') ?? false,
+                                onUploadComplete: (filePath) {
+                                  // Apply custom artwork to token
+                                  setState(() {});
+                                  Navigator.pop(context); // Close sheet
+                                  widget.onArtworkSelected(filePath, 'Custom Upload');
+                                },
+                              );
+                            }
+
+                            // Remaining tiles: Scryfall artwork options
+                            final variant = widget.artworkVariants[index - 1];
                             return _ArtworkOption(
                               variant: variant,
                               onTap: () async {
@@ -530,5 +552,367 @@ class _ArtworkConfirmationDialog extends StatelessWidget {
     } catch (e) {
       rethrow;
     }
+  }
+}
+
+/// Custom artwork upload tile (NEW - Custom Artwork Feature)
+/// Shows camera icon when no custom art exists, thumbnail when it does
+class _CustomArtworkTile extends StatefulWidget {
+  final String tokenIdentity;
+  final bool isSelected; // Is the current artwork the custom artwork?
+  final Function(String filePath) onUploadComplete;
+
+  const _CustomArtworkTile({
+    required this.tokenIdentity,
+    required this.isSelected,
+    required this.onUploadComplete,
+  });
+
+  @override
+  State<_CustomArtworkTile> createState() => _CustomArtworkTileState();
+}
+
+class _CustomArtworkTileState extends State<_CustomArtworkTile> {
+  final _artworkPrefManager = ArtworkPreferenceManager();
+  final _imagePicker = ImagePicker();
+
+  Future<void> _handleTap() async {
+    final hasCustom = _artworkPrefManager.hasCustomArtwork(widget.tokenIdentity);
+
+    if (hasCustom) {
+      // State B: Show replacement dialog
+      await _showReplacementDialog();
+    } else {
+      // State A: Show educational dialog then picker
+      await _showEducationalDialogAndPick();
+    }
+  }
+
+  Future<void> _showEducationalDialogAndPick() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Custom Artwork Tips'),
+        content: const Text(
+          'For best results:\n\n'
+          '• Use high-quality images\n'
+          '• Artwork will be cropped to fit the card\n'
+          '• Consider pre-cropping to portrait orientation\n\n'
+          'Ready to select an image?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await _pickAndSaveImage();
+    }
+  }
+
+  Future<void> _showReplacementDialog() async {
+    final customPath = _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
+
+    final action = await showDialog<String>(
+      context: context,
+      builder: (context) => Dialog(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header with title and X button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Custom Artwork',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Custom artwork preview
+              if (customPath != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    File(customPath.replaceFirst('file://', '')),
+                    height: 200,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              const SizedBox(height: 24),
+
+              // Action buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Delete button (destructive)
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context, 'delete'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.red,
+                      ),
+                      child: const Text('Delete'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+
+                  // Upload New button
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context, 'upload'),
+                      child: const Text('Upload New'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Use This button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context, 'use'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Use This'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Handle the selected action
+    if (action == 'delete' && mounted) {
+      await _deleteCustomArtwork();
+    } else if (action == 'upload' && mounted) {
+      await _pickAndSaveImage();
+    } else if (action == 'use' && mounted) {
+      // Reselect this custom artwork
+      final customPath = _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
+      if (customPath != null) {
+        setState(() {});
+        widget.onUploadComplete(customPath);
+      }
+    }
+  }
+
+  Future<void> _deleteCustomArtwork() async {
+    try {
+      final customPath = _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
+
+      if (customPath != null) {
+        // Delete the physical file
+        final file = File(customPath.replaceFirst('file://', ''));
+        if (await file.exists()) {
+          await file.delete();
+        }
+
+        // Clear the preference
+        await _artworkPrefManager.setCustomArtwork(widget.tokenIdentity, null);
+
+        // Update UI
+        if (mounted) {
+          setState(() {});
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Custom artwork deleted'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete artwork: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickAndSaveImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+
+      if (image == null) return;
+
+      // Get app documents directory
+      final appDir = await getApplicationDocumentsDirectory();
+      final customArtDir = Directory('${appDir.path}/custom_artwork');
+      if (!await customArtDir.exists()) {
+        await customArtDir.create(recursive: true);
+      }
+
+      // Generate unique filename using hash of token identity
+      final identityHash = md5.convert(utf8.encode(widget.tokenIdentity)).toString();
+      final extension = image.path.split('.').last;
+      final fileName = 'custom_$identityHash.$extension';
+      final filePath = '${customArtDir.path}/$fileName';
+
+      // Copy image to app directory
+      await File(image.path).copy(filePath);
+
+      // Save preference with file:// protocol
+      final fileUrl = 'file://$filePath';
+      await _artworkPrefManager.setCustomArtwork(widget.tokenIdentity, fileUrl);
+
+      // Notify parent
+      if (mounted) {
+        widget.onUploadComplete(fileUrl);
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Custom artwork uploaded successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload artwork: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasCustom = _artworkPrefManager.hasCustomArtwork(widget.tokenIdentity);
+    final customPath = _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
+
+    // Check if custom file actually exists
+    final customFile = customPath != null ? File(customPath.replaceFirst('file://', '')) : null;
+    final customFileExists = customFile?.existsSync() ?? false;
+    final showCustomThumbnail = hasCustom && customPath != null && customFileExists;
+
+    return InkWell(
+      onTap: _handleTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Thumbnail
+          Expanded(
+            child: Stack(
+              children: [
+                // Background container (always blue)
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: showCustomThumbnail
+                      ? Center(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(
+                              customFile!,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        )
+                      : Center(
+                          child: Icon(
+                            Icons.camera_alt,
+                            size: 40,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                ),
+
+                // Edit icon overlay (State B only)
+                if (showCustomThumbnail)
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.edit,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+
+                // Checkmark overlay (if selected)
+                if (widget.isSelected)
+                  Positioned(
+                    bottom: 4,
+                    right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.green,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.check,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Label
+          Text(
+            showCustomThumbnail ? 'Custom' : 'Upload',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -32,8 +32,19 @@ class ArtworkPreferenceManager {
   }
 
   /// Set custom artwork for a token type (stores file path separately)
-  Future<void> setCustomArtwork(String tokenIdentity, String filePath) async {
+  /// Pass null to delete/clear custom artwork
+  Future<void> setCustomArtwork(String tokenIdentity, String? filePath) async {
     var preference = _box.get(tokenIdentity);
+
+    if (filePath == null) {
+      // Clear custom artwork
+      if (preference != null) {
+        preference.customArtworkPath = null;
+        preference.lastUsedArtwork = null;
+        await preference.save();
+      }
+      return;
+    }
 
     if (preference == null) {
       preference = TokenArtworkPreference(

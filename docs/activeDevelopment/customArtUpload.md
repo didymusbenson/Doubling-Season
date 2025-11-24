@@ -1,3 +1,37 @@
+# IMPORTANT! READ THIS FIRST!
+
+During the last coding session we implemented all 3 phases of the plan below. If you review the relevant files you will find that we are CLOSE to done. While debugging we needed to stop work for a bit and pause our progress. The last prompt Claude received before we finished was the following
+
+```
+⏺ Read(lib/widgets/artwork_selection_sheet.dart)
+  ⎿  Read 20 lines
+
+⏺ I see the issue - _CustomArtworkTile uses onUploadComplete, not onArtworkSelected. Let me fix that:
+
+⏺ Update(lib/widgets/artwork_selection_sheet.dart)
+  ⎿  Updated lib/widgets/artwork_selection_sheet.dart with 1 addition and 2 removals                  
+       717          final customPath = _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
+       718          if (customPath != null) {
+       719            setState(() {});
+       720 -          Navigator.pop(context); // Close artwork selection sheet
+       721 -          widget.onArtworkSelected(customPath, 'Custom Upload');
+       720 +          widget.onUploadComplete(customPath);
+       721          }
+       722        }
+       723      }
+
+⏺ Fixed! The issue was that I called the wrong callback. _CustomArtworkTile uses onUploadComplete, which will
+   automatically close the sheet and apply the artwork. Try hot reloading now - it should work.
+
+> When the user deletes their custom uploaded artwork with the "delete" button, the "currently selected" 
+needs to be immediately updated to the state where nothing is selected as PART of the delete function.
+```
+
+As we resume working on this feature, this is the top priority. Before implementing any other requests or features, this needs to be handled and this document needs to be updated. 
+
+The next immediate concern is this: Work with the user to determine how we will handle cropping of manually uploaded images. The bias of the dev is that we will NOT apply cropping to the images that are uploaded, they will otherwise display in the same way that the scryfall cached images do. Work with the dev to make sure this is functioning as expected. The dev will run a simulator on his own terminal and hot-reload to give you pasted logs as he works. 
+
+
 # Custom Artwork Feature - Implementation Specification
 
 ## Problem Statements
@@ -428,6 +462,7 @@ CASE 2: Custom artwork uploaded and selected
    - Icon: Thumbnail of custom artwork (scaled to fit tile)
    - Label: "Custom" (below thumbnail)
    - Checkmark overlay if currently selected
+   - **Edit indicator:** Small edit/pencil icon overlay (top-right or center) to indicate "tap to change"
    - Position: First item (index 0) in grid
    - Tap behavior: Show replacement dialog (see below)
 

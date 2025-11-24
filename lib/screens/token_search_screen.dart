@@ -537,7 +537,21 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
     _tokenDatabase.addToRecent(token, settingsProvider);
 
     // Pre-cache artwork while user is choosing quantity (performance optimization)
-    if (token.artwork.isNotEmpty) {
+    // Check if user has custom artwork preference first
+    final artworkPrefManager = ArtworkPreferenceManager();
+    final tokenIdentity = token.id;
+    final preferredArtwork = artworkPrefManager.getPreferredArtwork(tokenIdentity);
+
+    // Only download if it's a Scryfall URL (not custom file://)
+    if (preferredArtwork != null && !preferredArtwork.startsWith('file://')) {
+      ArtworkManager.downloadArtwork(preferredArtwork).then((_) {
+        debugPrint('Pre-cached artwork for ${token.name}');
+      }).catchError((error) {
+        debugPrint('Pre-cache failed for ${token.name}: $error');
+        // Silent failure - will retry during creation if needed
+      });
+    } else if (preferredArtwork == null && token.artwork.isNotEmpty) {
+      // No preference - precache first database artwork
       final firstArtwork = token.artwork[0];
       ArtworkManager.downloadArtwork(firstArtwork.url).then((_) {
         debugPrint('Pre-cached artwork for ${token.name}');
@@ -869,8 +883,9 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                   }
 
                   // Download artwork in background (non-blocking, fire-and-forget)
-                  if (token.artwork.isNotEmpty) {
-                    final artworkUrl = token.artwork[0].url;
+                  // Skip if custom artwork (file://) - already local
+                  if (newItem.artworkUrl != null && !newItem.artworkUrl!.startsWith('file://')) {
+                    final artworkUrl = newItem.artworkUrl!;
                     ArtworkManager.downloadArtwork(artworkUrl).then((file) {
                       if (file == null) {
                         // Download failed - reset artworkUrl so it doesn't try to load
