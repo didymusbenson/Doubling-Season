@@ -1214,10 +1214,14 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                 ),
                 builder: (context, snapshot) {
                   if (snapshot.hasData && snapshot.data != null) {
+                    final file = snapshot.data!;
+                    // Add unique key for custom artwork to force reload on replacement
+                    final isCustomArtwork = widget.item.artworkUrl!.startsWith('file://');
                     return ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Image.file(
-                        snapshot.data!,
+                        file,
+                        key: isCustomArtwork ? ValueKey(file.path + file.lastModifiedSync().toString()) : null,
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: 60,
