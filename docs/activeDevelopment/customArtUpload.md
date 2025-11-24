@@ -31,6 +31,7 @@ As we resume working on this feature, this is the top priority. Before implement
 
 The next immediate concern is this: Work with the user to determine how we will handle cropping of manually uploaded images. The bias of the dev is that we will NOT apply cropping to the images that are uploaded, they will otherwise display in the same way that the scryfall cached images do. Work with the dev to make sure this is functioning as expected. The dev will run a simulator on his own terminal and hot-reload to give you pasted logs as he works. 
 
+ALSO important to note: "Upload New" doesn't work. The thumbnail and selected custom image are not replaced. When the user uploads a new custom image the old one needs to be deleted and replaced by it.
 
 # Custom Artwork Feature - Implementation Specification
 
