@@ -902,6 +902,13 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                         }
                       } else {
                         debugPrint('Artwork downloaded and cached for ${token.name}');
+                        // Trigger rebuild so TokenCard displays the cached artwork
+                        final currentItem = tokenProvider.items.firstWhereOrNull(
+                          (item) => item.artworkUrl == artworkUrl
+                        );
+                        if (currentItem != null) {
+                          currentItem.save(); // Triggers Hive save and notifies listeners
+                        }
                       }
                     }).catchError((error) {
                       debugPrint('Error during background artwork download: $error');
