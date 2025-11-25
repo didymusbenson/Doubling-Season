@@ -211,7 +211,7 @@ class _TokenCardState extends State<TokenCard> {
                           ),
                           const SizedBox(width: UIConstants.mediumSpacing),
                         ],
-                        const Icon(Icons.screenshot, size: UIConstants.iconSize),
+                        const Icon(Icons.mobile_friendly, size: UIConstants.iconSize),
                         const SizedBox(width: UIConstants.verticalSpacing),
                         Text(
                           '${widget.item.amount - widget.item.tapped}',
@@ -380,7 +380,7 @@ class _TokenCardState extends State<TokenCard> {
               // Untap button
               _buildActionButton(
                 context,
-                icon: Icons.screenshot,
+                icon: Icons.mobile_friendly,
                 onTap: () => tokenProvider.untapTokens(widget.item, 1),
                 onLongPress: () => tokenProvider.untapTokens(widget.item, widget.item.tapped),
                 color: primaryColor,

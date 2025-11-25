@@ -494,7 +494,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                     if (!widget.item.isEmblem) ...[
                       // Untapped
                       _buildCountRow(
-                        icon: Icons.screenshot,
+                        icon: Icons.mobile_friendly,
                         label: 'Untapped',
                         value: widget.item.amount - widget.item.tapped,
                         showButtons: false,

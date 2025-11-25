@@ -1,3 +1,1 @@
-Undo that whole "submenu" thing now that we have fast token creation...
-
-Why should we give more taps? It's fine if the menu's big.
+✅ Removed the "Board Update" submenu - all actions now in main menu for fewer taps.
