@@ -17,6 +17,37 @@ Implementation would mirror the +1/+1 tool:
 - Same P/T pop animation
 - Red color theme (debuff/weakening)
 
+## Gradient Backgrounds in Fadeout Mode
+
+**Status:** Experimental idea - needs more exploration
+
+Currently, color identity gradients only appear on tokens without artwork. Consider showing the gradient on the left 50% of cards in Fadeout mode even when artwork is present.
+
+### Concept
+In Fadeout mode:
+- Left 50%: Color identity gradient (provides visual color coding)
+- Right 50%: Artwork fades in from transparent to opaque
+- Creates visual continuity showing both color identity and artwork
+
+### Potential Benefits
+- Color-coded identifier at a glance (useful when scanning board state)
+- More visually distinct from Full View mode
+- Makes better use of the "empty" left side in Fadeout mode
+
+### Concerns
+- May create visual noise or compete with artwork
+- Gradient might bleed through the artwork's transparent fade area
+- Need to test with various artwork/color combinations
+- Could confuse visual hierarchy (is gradient part of the card or the artwork?)
+
+### Implementation Notes (if pursued)
+- Gradient should be constrained to exactly left 50% (not full-card behind fadeout)
+- Consider opacity adjustments for subtlety (e.g., 0.6 alpha on gradient)
+- May need different blend modes or masking to prevent "on top of art" effect
+- Test with colorless, mono-color, and multi-color tokens
+
+**Decision:** Tabled for now. Focus on core features first, revisit after user feedback on gradients.
+
 ## Symbol String Replacement
 
 **Status:** Nice-to-have enhancement for visual polish
@@ -55,6 +86,51 @@ The exact symbol mappings will be determined later, but common variables include
 - Numbers: `{1}`, `{2}`, etc. - Generic mana costs
 
 **Priority:** Low - Visual enhancement that improves readability but not critical to functionality.
+
+## Uncentering Full View Artwork
+
+**Status:** Nice-to-have UI enhancement
+
+Currently, Full View artwork mode centers the artwork vertically on the token card (equal cropping from top/bottom). This can cut off important elements of the artwork.
+
+**Requested Change:**
+- Align artwork to the top of the card instead of centering vertically
+- This matches the Fadeout mode behavior (top-aligned)
+- Would make both display styles consistent in vertical alignment
+
+**Implementation:**
+- Simple one-line change in `CroppedArtworkWidget` (line 96)
+- Change `final dstTop = (size.height - scaledHeight) / 2;` to `final dstTop = 0;`
+
+**Priority:** Low - Minor visual preference, current centered alignment is functional
+
+## Sort By Options
+
+**Status:** Feature idea - not yet implemented
+
+Allow users to customize how token search results are sorted in TokenSearchScreen.
+
+**Current Behavior:**
+- Results are hardcoded to sort by popularity first, then alphabetically
+- No user control over sort order
+
+**Proposed Options:**
+1. **Alphabetical** - Sort tokens A-Z by name
+2. **Popular** - Sort by popularity/usage frequency (current default)
+3. **Recent** - Sort by most recently used tokens first
+
+**Implementation Notes:**
+- Add sort dropdown/segmented control to TokenSearchScreen
+- Store preference in SharedPreferences (persist across sessions)
+- Apply sort to filtered results (after search query + category filters)
+- Default to "Popular" to maintain current behavior for new users
+
+**Benefits:**
+- Users who know exact token names can find them faster with alphabetical sort
+- "Recent" sort provides quick access pattern different from existing Recent tab
+- Flexibility for different user preferences and search patterns
+
+**Priority:** Medium - Nice QoL improvement, current popularity sort works but isn't ideal for all use cases
 
 ## Condensed Condensed View
 

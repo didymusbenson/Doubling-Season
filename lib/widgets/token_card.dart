@@ -8,6 +8,7 @@ import '../providers/token_provider.dart';
 import '../screens/expanded_token_screen.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
+import '../utils/color_utils.dart';
 import 'counter_pill.dart';
 import 'split_stack_sheet.dart';
 import 'cropped_artwork_widget.dart';
@@ -136,7 +137,15 @@ class _TokenCardState extends State<TokenCard> {
                 ),
               ),
 
-              // Artwork layer (background, if artwork selected)
+              // Gradient background layer (Custom Artwork Feature)
+              // Shows immediately as placeholder while artwork loads, or permanently for artless tokens
+              if (widget.item.artworkUrl == null || widget.item.artworkUrl!.isEmpty)
+                _buildGradientLayer(context)
+              else
+                // Show gradient while artwork is loading
+                _buildConditionalGradient(context),
+
+              // Artwork layer (appears on top of gradient when file is available)
               if (widget.item.artworkUrl != null)
                 _buildArtworkLayer(context, constraints, artworkDisplayStyle),
 
@@ -220,26 +229,6 @@ class _TokenCardState extends State<TokenCard> {
               ],
             ),
 
-            // Type (hidden for emblems)
-            if (widget.item.type.isNotEmpty && !widget.item.isEmblem) ...[
-              const SizedBox(height: UIConstants.verticalSpacing),
-              Padding(
-                padding: EdgeInsets.only(right: kIsWeb ? 40 : 0),
-                child: _buildTextWithBackground(
-                  context: context,
-                  child: Text(
-                    widget.item.type,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontStyle: FontStyle.italic,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
-                    ),
-                    textAlign: TextAlign.left,
-                  ),
-                ),
-              ),
-            ],
-
             // Counter pills
             if (widget.item.counters.isNotEmpty ||
                 widget.item.plusOneCounters > 0 ||
@@ -266,19 +255,21 @@ class _TokenCardState extends State<TokenCard> {
               ),
             ],
 
-            // Abilities and P/T - conditional layout based on P/T size
-            if (widget.item.abilities.isNotEmpty || (!widget.item.isEmblem && widget.item.pt.isNotEmpty)) ...[
+            // Type, Abilities, and P/T - combined section (condensed layout)
+            if ((widget.item.type.isNotEmpty && !widget.item.isEmblem) ||
+                widget.item.abilities.isNotEmpty ||
+                (!widget.item.isEmblem && widget.item.pt.isNotEmpty)) ...[
               const SizedBox(height: UIConstants.mediumSpacing),
               Padding(
-                padding: EdgeInsets.only(right: kIsWeb ? 40 : 0, bottom: UIConstants.mediumSpacing),
+                padding: EdgeInsets.only(right: kIsWeb ? 40 : 0),
                 // Use Column layout if formatted P/T is too long (>= 8 chars like "1000/1000")
                 child: (!widget.item.isEmblem && widget.item.pt.isNotEmpty && widget.item.formattedPowerToughness.length >= 8)
-                    ? _buildStackedAbilitiesAndPT(context, widget.item)
-                    : _buildInlineAbilitiesAndPT(context, widget.item),
+                    ? _buildStackedTypeAbilitiesAndPT(context, widget.item)
+                    : _buildInlineTypeAbilitiesAndPT(context, widget.item),
               ),
             ],
 
-            const SizedBox(height: UIConstants.largeSpacing),
+            const SizedBox(height: UIConstants.mediumSpacing),
 
             // Button Row (centered)
             _buildActionButtons(context, context.read<SettingsProvider>()),
@@ -485,10 +476,9 @@ class _TokenCardState extends State<TokenCard> {
   }) {
     final effectiveColor = disabled ? color.withValues(alpha: UIConstants.disabledOpacity) : color;
 
-    // Use card background color for button backgrounds (only when artwork exists)
-    final buttonBackgroundColor = widget.item.artworkUrl != null
-        ? Theme.of(context).cardColor.withValues(alpha: 0.85)
-        : effectiveColor.withValues(alpha: 0.15); // Original transparent style when no artwork
+    // Use card background color for button backgrounds (needed for artwork or gradient)
+    // Always use solid background since tokens always have either artwork or gradient background
+    final buttonBackgroundColor = Theme.of(context).cardColor.withValues(alpha: 0.85);
 
     return Padding(
       padding: EdgeInsets.only(right: spacing),
@@ -515,6 +505,51 @@ class _TokenCardState extends State<TokenCard> {
     );
   }
 
+  /// Build gradient background layer for artless tokens (Custom Artwork Feature)
+  Widget _buildGradientLayer(BuildContext context) {
+    // NOTE: Current gradient matches border exactly (same colors, same stops).
+    // If visual appearance is unsatisfactory, explore alternatives:
+    // - Modified opacity (e.g., gradient with 0.6 alpha for subtler effect)
+    // - Radial gradient instead of linear
+    // - Partial coverage (e.g., only bottom 50% of card)
+    // - Color-shifted variants (lighter/darker hues)
+    // - Different gradient direction (vertical, diagonal, etc.)
+
+    final gradient = ColorUtils.gradientForColors(widget.item.colors, isEmblem: widget.item.isEmblem);
+
+    return Positioned.fill(
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+        ),
+      ),
+    );
+  }
+
+  /// Build conditional gradient that only shows while artwork is loading
+  Widget _buildConditionalGradient(BuildContext context) {
+    return Positioned.fill(
+      child: FutureBuilder<File?>(
+        future: ArtworkManager.getCachedArtworkFile(widget.item.artworkUrl!),
+        builder: (context, snapshot) {
+          // Only show gradient if artwork file is NOT available yet
+          if (!snapshot.hasData || snapshot.data == null) {
+            final gradient = ColorUtils.gradientForColors(widget.item.colors, isEmblem: widget.item.isEmblem);
+            return Container(
+              decoration: BoxDecoration(
+                gradient: gradient,
+                borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+              ),
+            );
+          }
+          // Artwork is loaded, hide gradient
+          return const SizedBox.shrink();
+        },
+      ),
+    );
+  }
+
   /// Build artwork background layer - switches between full view and fadeout
   Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints, String artworkStyle) {
     if (artworkStyle == 'fadeout') {
@@ -526,7 +561,7 @@ class _TokenCardState extends State<TokenCard> {
 
   /// Build full-width artwork background layer
   Widget _buildFullViewArtwork(BuildContext context, BoxConstraints constraints) {
-    final crop = ArtworkManager.getCropPercentages();
+    final crop = ArtworkManager.getCropPercentages(widget.item.artworkUrl);
 
     return Positioned.fill(
       child: FutureBuilder<File?>(
@@ -575,7 +610,7 @@ class _TokenCardState extends State<TokenCard> {
 
   /// Build fadeout artwork layer (right-side with gradient)
   Widget _buildFadeoutArtwork(BuildContext context, BoxConstraints constraints) {
-    final crop = ArtworkManager.getCropPercentages();
+    final crop = ArtworkManager.getCropPercentages(widget.item.artworkUrl);
     final cardWidth = constraints.maxWidth;
     final artworkWidth = cardWidth * 0.50;
 
@@ -640,16 +675,17 @@ class _TokenCardState extends State<TokenCard> {
     );
   }
 
-  /// Wrap text with solid background for readability over artwork
+  /// Wrap text with solid background for readability over artwork or gradient
   Widget _buildTextWithBackground({
     required BuildContext context,
     required Widget child,
     EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
   }) {
-    // Only add background if artwork exists
-    if (widget.item.artworkUrl == null) {
-      return child;
-    }
+    // Text backgrounds are needed for readability over:
+    // 1. Artwork (artworkUrl != null)
+    // 2. Gradient backgrounds (artworkUrl == null/empty)
+    // Since we always have one or the other now, always add backgrounds
+    // (No longer conditional - gradient backgrounds added for artless tokens)
 
     return Container(
       padding: padding,
@@ -661,38 +697,57 @@ class _TokenCardState extends State<TokenCard> {
     );
   }
 
-  /// Build inline layout (Row) for abilities and P/T side by side
-  Widget _buildInlineAbilitiesAndPT(BuildContext context, Item item) {
+  /// Build inline layout (Row) for type, abilities, and P/T
+  Widget _buildInlineTypeAbilitiesAndPT(BuildContext context, Item item) {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Abilities (top-left)
-          if (widget.item.abilities.isNotEmpty)
-            Expanded(
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: _buildTextWithBackground(
-                  context: context,
-                  child: Text(
-                    widget.item.abilities,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+          // Type and Abilities in a Column (left side)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Type (if present)
+                if (widget.item.type.isNotEmpty && !item.isEmblem)
+                  _buildTextWithBackground(
+                    context: context,
+                    child: Text(
+                      widget.item.type,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                      ),
+                      textAlign: TextAlign.left,
                     ),
-                    textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ),
+
+                // Spacing between type and abilities
+                if (widget.item.type.isNotEmpty && widget.item.abilities.isNotEmpty && !item.isEmblem)
+                  const SizedBox(height: UIConstants.verticalSpacing),
+
+                // Abilities (if present)
+                if (widget.item.abilities.isNotEmpty)
+                  _buildTextWithBackground(
+                    context: context,
+                    child: Text(
+                      widget.item.abilities,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
             ),
+          ),
 
-          // Spacer when no abilities (pushes P/T to the right)
-          if (widget.item.abilities.isEmpty && !item.isEmblem && item.pt.isNotEmpty)
-            const Spacer(),
-
-          // Spacing between abilities and P/T
-          if (widget.item.abilities.isNotEmpty && !item.isEmblem && item.pt.isNotEmpty)
+          // Spacing between content and P/T
+          if (!item.isEmblem && item.pt.isNotEmpty)
             const SizedBox(width: UIConstants.mediumSpacing),
 
           // P/T (bottom-right)
@@ -706,13 +761,35 @@ class _TokenCardState extends State<TokenCard> {
     );
   }
 
-  /// Build stacked layout (Column) for abilities full width with P/T below
-  Widget _buildStackedAbilitiesAndPT(BuildContext context, Item item) {
+  /// Build stacked layout (Column) for type, abilities, and P/T with long P/T
+  Widget _buildStackedTypeAbilitiesAndPT(BuildContext context, Item item) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Abilities (full width on top)
+        // Type (if present)
+        if (widget.item.type.isNotEmpty && !item.isEmblem)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: _buildTextWithBackground(
+              context: context,
+              child: Text(
+                widget.item.type,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                ),
+                textAlign: TextAlign.left,
+              ),
+            ),
+          ),
+
+        // Spacing between type and abilities
+        if (widget.item.type.isNotEmpty && widget.item.abilities.isNotEmpty && !item.isEmblem)
+          const SizedBox(height: UIConstants.verticalSpacing),
+
+        // Abilities (full width)
         if (widget.item.abilities.isNotEmpty)
           Align(
             alignment: Alignment.centerLeft,
@@ -730,12 +807,13 @@ class _TokenCardState extends State<TokenCard> {
             ),
           ),
 
-        // Spacing between abilities and P/T
-        if (widget.item.abilities.isNotEmpty && item.pt.isNotEmpty)
+        // Spacing before P/T
+        if (item.pt.isNotEmpty &&
+            (widget.item.type.isNotEmpty || widget.item.abilities.isNotEmpty))
           const SizedBox(height: UIConstants.mediumSpacing),
 
         // P/T (right-aligned in its own row)
-        if (widget.item.pt.isNotEmpty)
+        if (item.pt.isNotEmpty)
           Align(
             alignment: Alignment.centerRight,
             child: _buildPTWidget(context),

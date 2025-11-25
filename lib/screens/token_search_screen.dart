@@ -10,6 +10,7 @@ import '../widgets/new_token_sheet.dart';
 import '../widgets/color_filter_button.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
+import '../utils/artwork_preference_manager.dart';
 
 enum SearchTab { all, recent, favorites }
 
@@ -226,33 +227,34 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
   }
 
   Widget _buildCategoryFilter() {
-    // Only show Creature, Artifact, and Emblem categories
+    // Only show Creature, Artifact, Myriad, and Emblem categories
     const allowedCategories = [
       token_models.Category.creature,
       token_models.Category.artifact,
+      token_models.Category.myriad,
       token_models.Category.emblem,
     ];
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 8,
+        runSpacing: 8,
         children: allowedCategories.map((category) {
           final isSelected = _selectedCategory == category;
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: FilterChip(
-              label: Text(category.displayName),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  _selectedCategory = selected ? category : null;
-                  _tokenDatabase.selectedCategory = _selectedCategory;
-                });
-              },
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.white : null,
-              ),
+          return FilterChip(
+            label: Text(category.displayName),
+            selected: isSelected,
+            showCheckmark: false,
+            onSelected: (selected) {
+              setState(() {
+                _selectedCategory = selected ? category : null;
+                _tokenDatabase.selectedCategory = _selectedCategory;
+              });
+            },
+            labelStyle: TextStyle(
+              color: isSelected ? Colors.white : null,
             ),
           );
         }).toList(),
@@ -536,7 +538,21 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
     _tokenDatabase.addToRecent(token, settingsProvider);
 
     // Pre-cache artwork while user is choosing quantity (performance optimization)
-    if (token.artwork.isNotEmpty) {
+    // Check if user has custom artwork preference first
+    final artworkPrefManager = ArtworkPreferenceManager();
+    final tokenIdentity = token.id;
+    final preferredArtwork = artworkPrefManager.getPreferredArtwork(tokenIdentity);
+
+    // Only download if it's a Scryfall URL (not custom file://)
+    if (preferredArtwork != null && !preferredArtwork.startsWith('file://')) {
+      ArtworkManager.downloadArtwork(preferredArtwork).then((_) {
+        debugPrint('Pre-cached artwork for ${token.name}');
+      }).catchError((error) {
+        debugPrint('Pre-cache failed for ${token.name}: $error');
+        // Silent failure - will retry during creation if needed
+      });
+    } else if (preferredArtwork == null && token.artwork.isNotEmpty) {
+      // No preference - precache first database artwork
       final firstArtwork = token.artwork[0];
       ArtworkManager.downloadArtwork(firstArtwork.url).then((_) {
         debugPrint('Pre-cached artwork for ${token.name}');
@@ -820,9 +836,26 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                     createTapped: _createTapped,
                   );
 
+                  // Load preferred artwork from preferences (Custom Artwork Feature)
+                  final artworkPrefManager = ArtworkPreferenceManager();
+                  final tokenIdentity = token.id; // Composite ID
+                  final preferredArtwork = artworkPrefManager.getPreferredArtwork(tokenIdentity);
+
                   // Assign artwork URL immediately (synchronous, no download)
-                  // These are plain fields without setters, safe to set before insert
-                  if (token.artwork.isNotEmpty) {
+                  // Prefer user's saved preference, fallback to first available artwork
+                  if (preferredArtwork != null) {
+                    newItem.artworkUrl = preferredArtwork;
+                    // Set artworkSet if it's a Scryfall URL (not custom file://)
+                    if (!preferredArtwork.startsWith('file://') && token.artwork.isNotEmpty) {
+                      // Try to find matching artwork variant by URL
+                      final matchingArtwork = token.artwork.firstWhere(
+                        (art) => art.url == preferredArtwork,
+                        orElse: () => token.artwork[0],
+                      );
+                      newItem.artworkSet = matchingArtwork.set;
+                    }
+                  } else if (token.artwork.isNotEmpty) {
+                    // No preference - use first available artwork
                     final firstArtwork = token.artwork[0];
                     newItem.artworkUrl = firstArtwork.url;
                     newItem.artworkSet = firstArtwork.set;
@@ -831,8 +864,11 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                   // Insert token immediately - it's now visible and fully functional
                   await tokenProvider.insertItem(newItem);
 
-                  // Apply summoning sickness if enabled (must be after insert because setter calls save())
-                  if (settingsProvider.summoningSicknessEnabled) {
+                  // Apply summoning sickness if enabled AND token is a creature without Haste
+                  // (must be after insert because setter calls save())
+                  if (settingsProvider.summoningSicknessEnabled &&
+                      newItem.hasPowerToughness &&
+                      !newItem.hasHaste) {
                     newItem.summoningSick = finalAmount;
                   }
 
@@ -848,8 +884,9 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                   }
 
                   // Download artwork in background (non-blocking, fire-and-forget)
-                  if (token.artwork.isNotEmpty) {
-                    final artworkUrl = token.artwork[0].url;
+                  // Skip if custom artwork (file://) - already local
+                  if (newItem.artworkUrl != null && !newItem.artworkUrl!.startsWith('file://')) {
+                    final artworkUrl = newItem.artworkUrl!;
                     ArtworkManager.downloadArtwork(artworkUrl).then((file) {
                       if (file == null) {
                         // Download failed - reset artworkUrl so it doesn't try to load

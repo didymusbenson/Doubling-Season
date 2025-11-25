@@ -10,6 +10,7 @@ import '../widgets/split_stack_sheet.dart';
 import '../widgets/artwork_selection_sheet.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
+import '../utils/artwork_preference_manager.dart';
 import '../database/token_database.dart';
 import 'counter_search_screen.dart';
 
@@ -142,27 +143,6 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
   }
 
   void _showArtworkSelection() {
-    if (_tokenDefinition == null || _tokenDefinition!.artwork.isEmpty) {
-      // No artwork available
-      showModalBottomSheet(
-        context: context,
-        builder: (context) => ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.85,
-          ),
-          child: ArtworkSelectionSheet(
-            artworkVariants: const [],
-            onArtworkSelected: (url, setCode) {},
-            onRemoveArtwork: widget.item.artworkUrl != null ? _removeArtwork : null,
-            currentArtworkUrl: widget.item.artworkUrl,
-            currentArtworkSet: widget.item.artworkSet,
-            tokenName: widget.item.name,
-          ),
-        ),
-      );
-      return;
-    }
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -171,20 +151,34 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
           maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
         child: ArtworkSelectionSheet(
-          artworkVariants: _tokenDefinition!.artwork,
+          artworkVariants: _tokenDefinition?.artwork ?? const [],
           onArtworkSelected: _handleArtworkSelected,
           onRemoveArtwork: widget.item.artworkUrl != null ? _removeArtwork : null,
           currentArtworkUrl: widget.item.artworkUrl,
           currentArtworkSet: widget.item.artworkSet,
           tokenName: widget.item.name,
+          tokenIdentity: '${widget.item.name}|${widget.item.pt}|${widget.item.colors}|${widget.item.type}|${widget.item.abilities}',
         ),
       ),
     );
   }
 
   Future<void> _handleArtworkSelected(String url, String setCode) async {
-    // Download and cache artwork if not already cached
-    final file = await ArtworkManager.downloadArtwork(url);
+    // Skip download for custom artwork (file:// URLs) - already local
+    final isCustomArtwork = url.startsWith('file://');
+
+    File? file;
+    if (!isCustomArtwork) {
+      // Download and cache Scryfall artwork if not already cached
+      file = await ArtworkManager.downloadArtwork(url);
+    } else {
+      // Custom artwork - just verify file exists
+      final localPath = url.replaceFirst('file://', '');
+      final localFile = File(localPath);
+      if (localFile.existsSync()) {
+        file = localFile; // File exists, proceed
+      }
+    }
 
     if (file != null && mounted) {
       setState(() {
@@ -194,11 +188,18 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
 
       widget.item.save();
       context.read<TokenProvider>().updateItem(widget.item);
+
+      // Save artwork preference (Custom Artwork Feature)
+      final artworkPrefManager = ArtworkPreferenceManager();
+      final tokenIdentity = '${widget.item.name}|${widget.item.pt}|${widget.item.colors}|${widget.item.type}|${widget.item.abilities}';
+      await artworkPrefManager.setPreferredArtwork(tokenIdentity, url);
     } else if (mounted) {
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to download artwork. Please check your internet connection.'),
+        SnackBar(
+          content: Text(isCustomArtwork
+            ? 'Custom artwork file not found.'
+            : 'Failed to download artwork. Please check your internet connection.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -453,6 +454,12 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                       onIncrement: () {
                         setState(() {
                           widget.item.amount++;
+                          // Apply summoning sickness to new token if enabled AND token is a creature without Haste
+                          if (summoningSicknessEnabled &&
+                              widget.item.hasPowerToughness &&
+                              !widget.item.hasHaste) {
+                            widget.item.summoningSick++;
+                          }
                           tokenProvider.updateItem(widget.item);
                         });
                       },
@@ -466,7 +473,16 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                           : null,
                       onManualSet: (value) {
                         setState(() {
+                          final oldAmount = widget.item.amount;
                           widget.item.amount = value;
+                          // If amount increased, apply summoning sickness to new tokens
+                          if (value > oldAmount &&
+                              summoningSicknessEnabled &&
+                              widget.item.hasPowerToughness &&
+                              !widget.item.hasHaste) {
+                            final addedTokens = value - oldAmount;
+                            widget.item.summoningSick += addedTokens;
+                          }
                           tokenProvider.updateItem(widget.item);
                         });
                       },
@@ -1198,10 +1214,14 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                 ),
                 builder: (context, snapshot) {
                   if (snapshot.hasData && snapshot.data != null) {
+                    final file = snapshot.data!;
+                    // Add unique key for custom artwork to force reload on replacement
+                    final isCustomArtwork = widget.item.artworkUrl!.startsWith('file://');
                     return ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Image.file(
-                        snapshot.data!,
+                        file,
+                        key: isCustomArtwork ? ValueKey(file.path + file.lastModifiedSync().toString()) : null,
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: 60,

@@ -151,6 +151,16 @@ class Item extends HiveObject {
       name.toLowerCase().contains('emblem') ||
       type.toLowerCase().contains('emblem');
 
+  /// Returns true if this token has power/toughness stats
+  bool get hasPowerToughness {
+    return pt.isNotEmpty && pt.trim() != '';
+  }
+
+  /// Returns true if this token has Haste (negates summoning sickness)
+  bool get hasHaste {
+    return abilities.toLowerCase().contains('haste');
+  }
+
   int get netPlusOneCounters => plusOneCounters - minusOneCounters;
 
   bool get isPowerToughnessModified => netPlusOneCounters != 0;

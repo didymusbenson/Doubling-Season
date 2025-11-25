@@ -1,0 +1,207 @@
+[
+  {
+    "name": "Scute Swarm",
+    "pt": "1/1",
+    "colors": "G",
+    "abilities": "Landfall — Create a 1/1 green Insect creature token. If you control six or more lands, create a token that's a copy of Scute Swarm instead.",
+    "type": "Creature — Insect",
+    "artwork": [
+      {
+        "set": "DSC",
+        "url": "https://cards.scryfall.io/large/front/e/a/ea630ba1-22f9-4a10-bdc6-0d03128214f4.jpg?1726285123"
+      },
+      {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/6/2/62c19f87-1bbc-4309-8781-4519db8b91a2.jpg?1763477698"
+      },
+      {
+        "set": "ZNR",
+        "url": "https://cards.scryfall.io/large/front/3/0/309b2cb5-b9a8-417d-b5ae-0a7d03ff93f0.jpg?1604202878"
+      }
+    ]
+  },
+  {
+    "name": "Banshee of the Dread Choir",
+    "pt": "4/4",
+    "colors": "B",
+    "abilities": "Myriad, Whenever this creature deals combat damage to a player, that player discards a card.",
+    "type": "Creature — Spirit",
+    "artwork": []
+  },
+  {
+    "name": "Battle Angels of Tyr",
+    "pt": "4/4",
+    "colors": "W",
+    "abilities": "Flying, myriad, Whenever this creature deals combat damage to a player, draw a card if that player has more cards in hand than each other player. Then you create a Treasure token if that player controls more lands than each other player. Then you gain 3 life if that player has more life than each other player.",
+    "type": "Creature — Angel Knight",
+    "artwork": []
+  },
+  {
+    "name": "Broodbirth Viper",
+    "pt": "3/3",
+    "colors": "U",
+    "abilities": "Myriad, Whenever this creature deals combat damage to a player, you may draw a card.",
+    "type": "Creature — Snake",
+    "artwork": []
+  },
+  {
+    "name": "Caller of the Pack",
+    "pt": "8/6",
+    "colors": "G",
+    "abilities": "Trample, Myriad",
+    "type": "Creature — Beast",
+    "artwork": []
+  },
+  {
+    "name": "Chittering Dispatcher",
+    "pt": "2/3",
+    "colors": "G",
+    "abilities": "Devoid, Myriad, When this creature leaves the battlefield, create a 0/1 colorless Eldrazi Spawn creature token with \"Sacrifice this token: Add {C}.\"",
+    "type": "Creature — Eldrazi Drone",
+    "artwork": []
+  },
+  {
+    "name": "Conclave Evangelist",
+    "pt": "4/4",
+    "colors": "WG",
+    "abilities": "Myriad, Whenever this creature deals combat damage to a player, create a token that's a copy of this creature.",
+    "type": "Creature — Elephant Cleric",
+    "artwork": []
+  },
+  {
+    "name": "Dalek Squadron",
+    "pt": "3/3",
+    "colors": "B",
+    "abilities": "Menace, Myriad",
+    "type": "Artifact Creature — Dalek",
+    "artwork": []
+  },
+  {
+    "name": "Elturel Survivors",
+    "pt": "0/4",
+    "colors": "R",
+    "abilities": "Trample, myriad, As long as this creature is attacking, it gets +X/+0, where X is the number of lands defending player controls.",
+    "type": "Creature — Tiefling Peasant",
+    "artwork": []
+  },
+  {
+    "name": "Genasi Enforcers",
+    "pt": "1/3",
+    "colors": "R",
+    "abilities": "Myriad, {1}{R}: Creatures you control named Genasi Enforcers get +1/+0 until end of turn.",
+    "type": "Creature — Elemental Shaman",
+    "artwork": []
+  },
+  {
+    "name": "Gnoll War Band",
+    "pt": "5/5",
+    "colors": "R",
+    "abilities": "This spell costs {1} less to cast for each opponent who was dealt damage this turn, Menace, Myriad",
+    "type": "Creature — Gnoll",
+    "artwork": []
+  },
+  {
+    "name": "Goldlust Triad",
+    "pt": "4/3",
+    "colors": "R",
+    "abilities": "Flying, Myriad, Whenever this creature deals combat damage to a player, create a Treasure token.",
+    "type": "Creature — Dragon",
+    "artwork": []
+  },
+  {
+    "name": "Hammers of Moradin",
+    "pt": "3/3",
+    "colors": "W",
+    "abilities": "Myriad, Whenever this creature attacks, for each opponent, tap up to one target creature that player controls.",
+    "type": "Creature — Dwarf Cleric",
+    "artwork": []
+  },
+  {
+    "name": "Herald of the Host",
+    "pt": "4/4",
+    "colors": "W",
+    "abilities": "Flying, vigilance, Myriad",
+    "type": "Creature — Angel",
+    "artwork": []
+  },
+  {
+    "name": "Polygoyf",
+    "pt": "*/1+*",
+    "colors": "G",
+    "abilities": "Trample, myriad, Polygoyf's power is equal to the number of card types among cards in all graveyards and its toughness is equal to that number plus 1.",
+    "type": "Creature — Lhurgoyf",
+    "artwork": []
+  },
+  {
+    "name": "Scion of Calamity",
+    "pt": "5/5",
+    "colors": "G",
+    "abilities": "Myriad, Whenever this creature deals combat damage to a player, destroy target artifact or enchantment that player controls.",
+    "type": "Creature — Dinosaur",
+    "artwork": []
+  },
+  {
+    "name": "Scurry of Squirrels",
+    "pt": "2/2",
+    "colors": "G",
+    "abilities": "Myriad, myriad, Whenever this creature deals combat damage to a player, put a +1/+1 counter on target creature you control.",
+    "type": "Creature — Squirrel Scout",
+    "artwork": []
+  },
+  {
+    "name": "Sumala Rumblers",
+    "pt": "*/4",
+    "colors": "WG",
+    "abilities": "Sumala Rumblers's power is equal to the number of creatures you control, Myriad",
+    "type": "Creature — Wurm",
+    "artwork": []
+  },
+  {
+    "name": "Tabaxi Toucaneers",
+    "pt": "3/2",
+    "colors": "W",
+    "abilities": "Flying, Myriad",
+    "type": "Creature — Cat Ranger",
+    "artwork": []
+  },
+  {
+    "name": "The Master, Multiplied",
+    "pt": "4/3",
+    "colors": "BR",
+    "abilities": "Myriad, The \"legend rule\" doesn't apply to creature tokens you control, Triggered abilities you control can't cause you to sacrifice or exile creature tokens you control.",
+    "type": "Legendary Creature — Time Lord Rogue",
+    "artwork": []
+  },
+  {
+    "name": "Tiamat's Fanatics",
+    "pt": "4/3",
+    "colors": "R",
+    "abilities": "Haste, Myriad",
+    "type": "Creature — Dragon Warrior",
+    "artwork": []
+  },
+  {
+    "name": "Warchief Giant",
+    "pt": "5/3",
+    "colors": "R",
+    "abilities": "Haste, Myriad",
+    "type": "Creature — Giant Warrior",
+    "artwork": []
+  },
+  {
+    "name": "Wizards of Thay",
+    "pt": "3/3",
+    "colors": "U",
+    "abilities": "Myriad, Instant and sorcery spells you cast cost {1} less to cast, You may cast sorcery spells as though they had flash.",
+    "type": "Creature — Human Wizard",
+    "artwork": []
+  },
+  {
+    "name": "Wyrm's Crossing Patrol",
+    "pt": "1/1",
+    "colors": "W",
+    "abilities": "Myriad",
+    "type": "Creature — Human Soldier",
+    "artwork": []
+  }
+]

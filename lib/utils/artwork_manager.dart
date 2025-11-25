@@ -12,6 +12,11 @@ class ArtworkManager {
 
   /// Get the artwork cache directory path
   static Future<Directory> getArtworkCacheDirectory() async {
+    if (kIsWeb) {
+      // Web doesn't support file system access
+      throw UnsupportedError('File system caching not available on web platform');
+    }
+
     final appDir = await getApplicationSupportDirectory();
     final cacheDir = Directory('${appDir.path}/artwork_cache');
 
@@ -32,6 +37,22 @@ class ArtworkManager {
 
   /// Get the local file path for a cached artwork (null if not cached)
   static Future<File?> getCachedArtworkFile(String url) async {
+    if (kIsWeb) {
+      // Web doesn't support file caching - images load directly from network
+      return null;
+    }
+
+    // Handle custom artwork (file:// URLs) - already local
+    if (url.startsWith('file://')) {
+      final localPath = url.replaceFirst('file://', '');
+      final file = File(localPath);
+      if (await file.exists()) {
+        return file;
+      }
+      return null;
+    }
+
+    // Handle Scryfall URLs - check cache directory
     final cacheDir = await getArtworkCacheDirectory();
     final filename = _urlToFilename(url);
     final file = File('${cacheDir.path}/$filename');
@@ -56,6 +77,19 @@ class ArtworkManager {
     String url, {
     Function(double)? onProgress,
   }) async {
+    if (kIsWeb) {
+      // Web doesn't support file caching - images load directly from network
+      // Signal completion for progress callbacks
+      onProgress?.call(1.0);
+      return null;
+    }
+
+    // Safety check: Skip file:// URLs (custom artwork is already local)
+    if (url.startsWith('file://')) {
+      debugPrint('Skipping download for local file:// URL');
+      return null;
+    }
+
     // Check if already cached
     final existing = await getCachedArtworkFile(url);
     if (existing != null) {
@@ -112,6 +146,11 @@ class ArtworkManager {
 
   /// Delete a specific cached artwork
   static Future<bool> deleteCachedArtwork(String url) async {
+    if (kIsWeb) {
+      // Web doesn't support file caching - nothing to delete
+      return false;
+    }
+
     try {
       final file = await getCachedArtworkFile(url);
       if (file != null) {
@@ -129,6 +168,11 @@ class ArtworkManager {
 
   /// Get total size of artwork cache in bytes
   static Future<int> getTotalCacheSize() async {
+    if (kIsWeb) {
+      // Web doesn't support file caching - cache size is always 0
+      return 0;
+    }
+
     try {
       final cacheDir = await getArtworkCacheDirectory();
 
@@ -155,6 +199,11 @@ class ArtworkManager {
 
   /// Clear all cached artwork
   static Future<bool> clearAllArtwork() async {
+    if (kIsWeb) {
+      // Web doesn't support file caching - nothing to clear
+      return true;
+    }
+
     try {
       final cacheDir = await getArtworkCacheDirectory();
 
@@ -194,9 +243,21 @@ class ArtworkManager {
   }
 
   /// Crop artwork to remove card border and text areas
-  /// Crop percentages: 8.8% left/right, 14.5% top, 36.8% bottom
+  /// For Scryfall artwork: 8.8% left/right, 14.5% top, 36.8% bottom
+  /// For custom artwork (file:// URLs): No cropping (0% on all sides)
   /// This is applied on-the-fly during display, not during download
-  static Map<String, double> getCropPercentages() {
+  static Map<String, double> getCropPercentages([String? artworkUrl]) {
+    // Custom artwork should not be cropped (user already cropped it before upload)
+    if (artworkUrl != null && artworkUrl.startsWith('file://')) {
+      return {
+        'left': 0.0,
+        'right': 0.0,
+        'top': 0.0,
+        'bottom': 0.0,
+      };
+    }
+
+    // Scryfall artwork uses standard crop percentages
     return {
       'left': 0.088,
       'right': 0.088,

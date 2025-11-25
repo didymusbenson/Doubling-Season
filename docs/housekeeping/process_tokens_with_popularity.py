@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 from urllib.request import urlopen
 from typing import Dict, List, Optional, Set
 from collections import defaultdict
+import os
 
 def fetch_xml_data(url: str) -> str:
     """Fetch XML data from the given URL."""
@@ -294,6 +295,60 @@ def analyze_popularity_distribution(tokens: List[Dict]) -> Dict:
 
     return stats
 
+def load_custom_tokens(custom_file: str = 'custom_tokens.json') -> List[Dict]:
+    """Load custom tokens from JSON file. Gracefully handles missing or empty files."""
+    if not os.path.exists(custom_file):
+        print(f"No custom tokens file found at {custom_file}")
+        return []
+
+    try:
+        with open(custom_file, 'r', encoding='utf-8') as f:
+            custom_tokens = json.load(f)
+
+        # Handle empty array gracefully
+        if not custom_tokens:
+            print(f"Custom tokens file is empty (no tokens to merge)")
+            return []
+
+        # Validate that it's a list
+        if not isinstance(custom_tokens, list):
+            print(f"Warning: Custom tokens file is not a JSON array, skipping")
+            return []
+
+        print(f"Loaded {len(custom_tokens)} custom tokens")
+        return custom_tokens
+    except json.JSONDecodeError as e:
+        print(f"Error parsing custom tokens JSON: {e}")
+        return []
+    except Exception as e:
+        print(f"Error loading custom tokens: {e}")
+        return []
+
+def merge_custom_tokens(generated_tokens: List[Dict], custom_tokens: List[Dict]) -> List[Dict]:
+    """
+    Merge custom tokens with generated tokens.
+    Custom tokens are appended after generated tokens, so during deduplication
+    they will override generated tokens with matching composite IDs (last-write-wins).
+    """
+    if not custom_tokens:
+        return generated_tokens
+
+    print(f"Merging {len(custom_tokens)} custom tokens with {len(generated_tokens)} generated tokens")
+
+    # Convert custom tokens to match the format of generated tokens
+    # Custom tokens don't have reverse_related or artwork, so we add empty defaults
+    for token in custom_tokens:
+        if 'reverse_related' not in token:
+            token['reverse_related'] = []
+        if 'artwork' not in token:
+            token['artwork'] = []
+
+    # Append custom tokens after generated tokens (ensures they override during dedup)
+    merged = generated_tokens + custom_tokens
+    print(f"Merged list contains {len(merged)} total tokens (before deduplication)")
+
+    return merged
+
 def save_json_database(tokens: List[Dict], output_path: str):
     """Save tokens to JSON file."""
     print(f"\nSaving {len(tokens)} tokens to {output_path}")
@@ -319,9 +374,15 @@ def main():
         raw_tokens = parse_token_xml(xml_content)
         print(f"Found {len(raw_tokens)} raw token entries")
 
-        # Clean and normalize the data
-        cleaned_tokens = clean_token_data(raw_tokens)
-        print(f"Processed {len(cleaned_tokens)} unique tokens after cleaning")
+        # Load custom tokens
+        custom_tokens = load_custom_tokens('custom_tokens.json')
+
+        # Merge custom tokens with generated tokens (before cleaning)
+        merged_tokens = merge_custom_tokens(raw_tokens, custom_tokens)
+
+        # Clean and normalize the data (this includes deduplication)
+        cleaned_tokens = clean_token_data(merged_tokens)
+        print(f"Processed {len(cleaned_tokens)} unique tokens after cleaning and deduplication")
 
         # Analyze popularity distribution
         stats = analyze_popularity_distribution(cleaned_tokens)

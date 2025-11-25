@@ -80,7 +80,7 @@ class TokenDefinition {
       type: type,
       amount: amount,
       tapped: createTapped ? amount : 0,
-      summoningSick: amount, // Always apply summoning sickness to new tokens
+      summoningSick: 0, // Summoning sickness will be applied by caller based on settings and Haste
       artworkOptions: artwork.isNotEmpty ? List.from(artwork) : null,
     );
   }
@@ -93,6 +93,8 @@ class TokenDefinition {
   // Category for filtering
   Category get category {
     final lowerType = type.toLowerCase();
+    final lowerAbilities = abilities.toLowerCase();
+    if (lowerAbilities.contains('myriad')) return Category.myriad;
     if (lowerType.contains('creature')) return Category.creature;
     if (lowerType.contains('artifact')) return Category.artifact;
     if (lowerType.contains('enchantment')) return Category.enchantment;
@@ -104,6 +106,7 @@ class TokenDefinition {
 }
 
 enum Category {
+  myriad,
   creature,
   artifact,
   enchantment,
@@ -114,6 +117,8 @@ enum Category {
 
   String get displayName {
     switch (this) {
+      case Category.myriad:
+        return 'Myriad';
       case Category.creature:
         return 'Creature';
       case Category.artifact:

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/item.dart';
 import '../providers/token_provider.dart';
 import '../providers/settings_provider.dart';
+import '../utils/artwork_preference_manager.dart';
 import 'color_selection_button.dart';
 
 class NewTokenSheet extends StatefulWidget {
@@ -232,43 +233,41 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
     final multiplier = settings.tokenMultiplier;
     final finalAmount = _amount * multiplier;
 
-    // Create placeholder with amount=0
-    final placeholderItem = Item(
-      name: '${_nameController.text} (loading...)',
+    // Create final token immediately (no placeholder)
+    final newItem = Item(
+      name: _nameController.text,
       pt: _ptController.text,
       type: _typeController.text.trim(),
       colors: _getColorString(),
       abilities: _abilitiesController.text,
-      amount: 0, // Placeholder
-      tapped: 0,
-      summoningSick: 0,
+      amount: finalAmount,
+      tapped: _createTapped ? finalAmount : 0,
+      summoningSick: 0, // Will be set below if needed
     );
 
-    // Insert placeholder immediately
-    await tokenProvider.insertItem(placeholderItem);
-
-    // Close dialog immediately (before async gap)
-    if (mounted) {
-      Navigator.pop(context);
+    // Load preferred artwork from preferences (Custom Artwork Feature)
+    // Custom tokens may have preferences if user previously uploaded artwork
+    final artworkPrefManager = ArtworkPreferenceManager();
+    final tokenIdentity = '${newItem.name}|${newItem.pt}|${newItem.colors}|${newItem.type}|${newItem.abilities}';
+    final preferredArtwork = artworkPrefManager.getPreferredArtwork(tokenIdentity);
+    if (preferredArtwork != null) {
+      newItem.artworkUrl = preferredArtwork;
     }
 
-    // Update placeholder with final data in background
-    try {
-      placeholderItem.name = _nameController.text; // Remove "(loading...)"
-      placeholderItem.amount = finalAmount;
-      placeholderItem.tapped = _createTapped ? finalAmount : 0;
-      placeholderItem.summoningSick =
-          settings.summoningSicknessEnabled ? finalAmount : 0;
-      await placeholderItem.save();
-    } catch (error) {
-      debugPrint('Error finalizing custom token creation: $error');
-      // Ensure token is created even if update fails
-      placeholderItem.name = _nameController.text;
-      placeholderItem.amount = finalAmount;
-      placeholderItem.tapped = _createTapped ? finalAmount : 0;
-      placeholderItem.summoningSick =
-          settings.summoningSicknessEnabled ? finalAmount : 0;
-      await placeholderItem.save();
+    // Insert token immediately
+    await tokenProvider.insertItem(newItem);
+
+    // Apply summoning sickness if enabled AND token is a creature without Haste
+    // (must be after insert because setter calls save())
+    if (settings.summoningSicknessEnabled &&
+        newItem.hasPowerToughness &&
+        !newItem.hasHaste) {
+      newItem.summoningSick = finalAmount;
+    }
+
+    // Close dialog - token is on board and usable
+    if (mounted) {
+      Navigator.pop(context);
     }
   }
 }
