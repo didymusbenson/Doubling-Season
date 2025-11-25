@@ -12,6 +12,11 @@ class ArtworkManager {
 
   /// Get the artwork cache directory path
   static Future<Directory> getArtworkCacheDirectory() async {
+    if (kIsWeb) {
+      // Web doesn't support file system access
+      throw UnsupportedError('File system caching not available on web platform');
+    }
+
     final appDir = await getApplicationSupportDirectory();
     final cacheDir = Directory('${appDir.path}/artwork_cache');
 
@@ -32,6 +37,11 @@ class ArtworkManager {
 
   /// Get the local file path for a cached artwork (null if not cached)
   static Future<File?> getCachedArtworkFile(String url) async {
+    if (kIsWeb) {
+      // Web doesn't support file caching - images load directly from network
+      return null;
+    }
+
     // Handle custom artwork (file:// URLs) - already local
     if (url.startsWith('file://')) {
       final localPath = url.replaceFirst('file://', '');
@@ -67,6 +77,13 @@ class ArtworkManager {
     String url, {
     Function(double)? onProgress,
   }) async {
+    if (kIsWeb) {
+      // Web doesn't support file caching - images load directly from network
+      // Signal completion for progress callbacks
+      onProgress?.call(1.0);
+      return null;
+    }
+
     // Safety check: Skip file:// URLs (custom artwork is already local)
     if (url.startsWith('file://')) {
       debugPrint('Skipping download for local file:// URL');
@@ -129,6 +146,11 @@ class ArtworkManager {
 
   /// Delete a specific cached artwork
   static Future<bool> deleteCachedArtwork(String url) async {
+    if (kIsWeb) {
+      // Web doesn't support file caching - nothing to delete
+      return false;
+    }
+
     try {
       final file = await getCachedArtworkFile(url);
       if (file != null) {
@@ -146,6 +168,11 @@ class ArtworkManager {
 
   /// Get total size of artwork cache in bytes
   static Future<int> getTotalCacheSize() async {
+    if (kIsWeb) {
+      // Web doesn't support file caching - cache size is always 0
+      return 0;
+    }
+
     try {
       final cacheDir = await getArtworkCacheDirectory();
 
@@ -172,6 +199,11 @@ class ArtworkManager {
 
   /// Clear all cached artwork
   static Future<bool> clearAllArtwork() async {
+    if (kIsWeb) {
+      // Web doesn't support file caching - nothing to clear
+      return true;
+    }
+
     try {
       final cacheDir = await getArtworkCacheDirectory();
 
