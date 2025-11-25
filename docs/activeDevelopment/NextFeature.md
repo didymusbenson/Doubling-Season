@@ -1,7 +1,7 @@
-# Quick Create FAB for Custom Tokens
+# Quick Create FAB for Token Search
 
 ## Overview
-Adding a dedicated FAB (Floating Action Button) next to the menu button for quick access to custom token creation without opening the menu.
+Adding a dedicated FAB (Floating Action Button) next to the menu button for quick access to token search without opening the menu.
 
 ## User Feedback
 Users requested easier access to token creation. Initial attempts with buttons in the scrollable list proved complex due to reordering conflicts. A dedicated FAB is a simpler, more intuitive solution.
@@ -12,7 +12,7 @@ Users requested easier access to token creation. Initial attempts with buttons i
 Bottom bar arrangement (left to right):
 - **Multiplier View** (bottom-left, fixed)
 - **Space** (flexible gap)
-- **"+" FAB** (bottom-right area, opens NewTokenSheet)
+- **"+" FAB** (bottom-right area, opens TokenSearchScreen)
 - **Menu FAB** (bottom-right, opens action menu)
 
 Visual: `[Multiplier][space][+][Menu]`
@@ -23,9 +23,7 @@ Visual: `[Multiplier][space][+][Menu]`
 `lib/screens/content_screen.dart` - Modify the Stack's positioned widgets
 
 #### Changes Made
-1. Added import for `NewTokenSheet`
-2. Created `_showNewTokenSheet()` navigation method
-3. Wrapped existing FloatingActionMenu in a Row with new FAB:
+1. Wrapped existing FloatingActionMenu in a Row with new FAB:
 ```dart
 Positioned(
   bottom: UIConstants.standardPadding,
@@ -34,8 +32,8 @@ Positioned(
     mainAxisSize: MainAxisSize.min,
     children: [
       FloatingActionButton(
-        heroTag: 'new_custom_fab',
-        onPressed: _showNewTokenSheet,
+        heroTag: 'new_token_fab',
+        onPressed: _showTokenSearch,
         child: const Icon(Icons.add, size: 28),
       ),
       const SizedBox(width: UIConstants.smallPadding),
@@ -46,8 +44,8 @@ Positioned(
 ```
 
 ### Behavior
-- **"+" FAB**: Opens NewTokenSheet directly (custom token creation)
-- **Menu FAB**: Opens FloatingActionMenu (all other actions)
+- **"+" FAB**: Opens TokenSearchScreen directly (search and create tokens from database)
+- **Menu FAB**: Opens FloatingActionMenu (custom tokens, board updates, deck management)
 - **Always visible**: FABs remain on screen regardless of token count
 - **No reordering conflicts**: FABs are fixed overlays, not part of list
 
@@ -59,13 +57,15 @@ Positioned(
 5. **Better UX**: Fixed position makes it more discoverable
 
 ### Navigation Pattern
-- Opens NewTokenSheet as fullscreen dialog using `Navigator.push()`
+- Opens TokenSearchScreen as fullscreen dialog using `Navigator.push()`
+- Reuses existing `_showTokenSearch()` method
 - Consistent with existing navigation patterns
-- Clean separation from menu actions
+- Menu still provides access to custom token creation via NewTokenSheet
 
 ## Testing Checklist
-- [ ] "+" FAB opens NewTokenSheet
+- [ ] "+" FAB opens TokenSearchScreen
 - [ ] Menu FAB still opens action menu
+- [ ] Menu "New Token" option also opens TokenSearchScreen (duplicate access is okay)
 - [ ] FABs positioned correctly (side by side, bottom-right)
 - [ ] Spacing between FABs looks clean
 - [ ] No overlap with MultiplierView

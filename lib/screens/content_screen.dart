@@ -51,8 +51,8 @@ class _ContentScreenState extends State<ContentScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 FloatingActionButton(
-                  heroTag: 'new_custom_fab',
-                  onPressed: _showNewTokenSheet,
+                  heroTag: 'new_token_fab',
+                  onPressed: _showTokenSearch,
                   child: const Icon(Icons.add, size: 28),
                 ),
                 const SizedBox(width: UIConstants.smallPadding),
