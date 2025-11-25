@@ -15,6 +15,7 @@ import '../widgets/token_card.dart';
 import '../widgets/multiplier_view.dart';
 import '../widgets/load_deck_sheet.dart';
 import '../widgets/floating_action_menu.dart';
+import '../widgets/new_token_sheet.dart';
 import 'token_search_screen.dart';
 import 'about_screen.dart';
 
@@ -42,20 +43,31 @@ class _ContentScreenState extends State<ContentScreen> {
             child: MultiplierView(),
           ),
 
-          // Floating action menu (bottom right)
+          // FAB row (bottom right) - + button and menu
           Positioned(
             bottom: UIConstants.standardPadding,
             right: UIConstants.standardPadding,
-            child: FloatingActionMenu(
-              onNewToken: _showTokenSearch,
-              onWidgets: _showWidgetSelection,
-              onAddCountersToAll: _handleAddCountersToAll,
-              onMinusOneToAll: _handleMinusOneToAll,
-              onUntapAll: _showUntapAllDialog,
-              onClearSickness: _handleClearSickness,
-              onSaveDeck: _showSaveDeckDialog,
-              onLoadDeck: _showLoadDeckSheet,
-              onBoardWipe: _showBoardWipeDialog,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FloatingActionButton(
+                  heroTag: 'new_custom_fab',
+                  onPressed: _showNewTokenSheet,
+                  child: const Icon(Icons.add, size: 28),
+                ),
+                const SizedBox(width: UIConstants.smallPadding),
+                FloatingActionMenu(
+                  onNewToken: _showTokenSearch,
+                  onWidgets: _showWidgetSelection,
+                  onAddCountersToAll: _handleAddCountersToAll,
+                  onMinusOneToAll: _handleMinusOneToAll,
+                  onUntapAll: _showUntapAllDialog,
+                  onClearSickness: _handleClearSickness,
+                  onSaveDeck: _showSaveDeckDialog,
+                  onLoadDeck: _showLoadDeckSheet,
+                  onBoardWipe: _showBoardWipeDialog,
+                ),
+              ],
             ),
           ),
         ],
@@ -420,6 +432,15 @@ class _ContentScreenState extends State<ContentScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => const TokenSearchScreen(),
+        fullscreenDialog: true,
+      ),
+    );
+  }
+
+  void _showNewTokenSheet() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const NewTokenSheet(),
         fullscreenDialog: true,
       ),
     );

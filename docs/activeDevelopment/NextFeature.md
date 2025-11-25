@@ -1,87 +1,73 @@
-# Quick Create Buttons at Bottom of Token List
+# Quick Create FAB for Custom Tokens
 
 ## Overview
-Adding two quick-access buttons at the bottom of the token list to streamline token creation without opening the floating action menu.
+Adding a dedicated FAB (Floating Action Button) next to the menu button for quick access to custom token creation without opening the menu.
 
 ## User Feedback
-Users requested easier access to token creation, specifically wanting buttons directly in the token list view for faster workflow.
+Users requested easier access to token creation. Initial attempts with buttons in the scrollable list proved complex due to reordering conflicts. A dedicated FAB is a simpler, more intuitive solution.
 
 ## Design Specifications
 
-### Button Layout
-- **Position**: At the end of the scrollable token list (not fixed position)
-- **Count**: Two buttons in a horizontal row
-- **Labels**: "+ New" and "+ Custom"
-- **Styling**: Similar to TokenCard buttons with matching borders/colors
-- **Width**: Centered with padding (not full-width)
-- **Visual Layer**: Same layer as token cards, scrolls with list content
+### Layout
+Bottom bar arrangement (left to right):
+- **Multiplier View** (bottom-left, fixed)
+- **Space** (flexible gap)
+- **"+" FAB** (bottom-right area, opens NewTokenSheet)
+- **Menu FAB** (bottom-right, opens action menu)
 
-### Behavior
-- **+ New Button**: Opens TokenSearchScreen directly
-- **+ Custom Button**: Opens NewTokenSheet directly
-- **Empty State**: Buttons do NOT appear when token list is empty (existing empty state card remains)
-- **Visibility**: Only visible when at least one token exists on the board
-- **Reordering**: Buttons are NOT part of the reorderable list - tokens cannot be dragged "under" these buttons
+Visual: `[Multiplier][space][+][Menu]`
 
 ### Implementation Details
 
 #### Location
-`lib/screens/content_screen.dart` - Modify `_buildTokenList()` method
+`lib/screens/content_screen.dart` - Modify the Stack's positioned widgets
 
-#### Approach
-1. Change `ReorderableListView.builder` itemCount to `items.length + 1`
-2. Add conditional logic in `itemBuilder`:
-   - If `index < items.length` ’ render TokenCard
-   - If `index == items.length` ’ render button row widget
-3. Handle reorder logic to ignore the button row index
-4. Create new widget `_QuickCreateButtons` for the button row
-
-#### Button Row Widget Structure
+#### Changes Made
+1. Added import for `NewTokenSheet`
+2. Created `_showNewTokenSheet()` navigation method
+3. Wrapped existing FloatingActionMenu in a Row with new FAB:
 ```dart
-Row(
-  mainAxisAlignment: MainAxisAlignment.center,
-  children: [
-    _QuickCreateButton(
-      label: "+ New",
-      onTap: () => _showTokenSearch(),
-    ),
-    SizedBox(width: standard spacing),
-    _QuickCreateButton(
-      label: "+ Custom",
-      onTap: () => _showNewTokenSheet(),
-    ),
-  ],
+Positioned(
+  bottom: UIConstants.standardPadding,
+  right: UIConstants.standardPadding,
+  child: Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      FloatingActionButton(
+        heroTag: 'new_custom_fab',
+        onPressed: _showNewTokenSheet,
+        child: const Icon(Icons.add, size: 28),
+      ),
+      const SizedBox(width: UIConstants.smallPadding),
+      FloatingActionMenu(...),
+    ],
+  ),
 )
 ```
 
-#### Styling Consistency
-- Use `Theme.of(context).cardColor` for background
-- Use `BorderRadius.circular(UIConstants.borderRadius)`
-- Add subtle border or elevation to match token cards
-- Maintain standard padding/spacing constants
+### Behavior
+- **"+" FAB**: Opens NewTokenSheet directly (custom token creation)
+- **Menu FAB**: Opens FloatingActionMenu (all other actions)
+- **Always visible**: FABs remain on screen regardless of token count
+- **No reordering conflicts**: FABs are fixed overlays, not part of list
+
+### Benefits Over List Button Approach
+1. **Simpler implementation**: No ReorderableListView conflicts
+2. **Always accessible**: Users don't need to scroll to access
+3. **Familiar pattern**: FABs are standard UI for primary actions
+4. **No edge cases**: No empty state handling, no dragging artifacts
+5. **Better UX**: Fixed position makes it more discoverable
 
 ### Navigation Pattern
-- Both buttons close themselves and navigate using `Navigator.push()`
-- No new methods needed - reuse existing `_showTokenSearch()`
-- Add new method `_showNewTokenSheet()` to navigate to NewTokenSheet
-
-### Layout Relationships
-- **MultiplierView**: Remains fixed at bottom-left (different layer, no conflict)
-- **FloatingActionMenu**: Remains fixed at bottom-right (different layer, no conflict)
-- **Buttons**: Scroll with content, positioned logically after last token
-
-### Considerations
-- After token creation, user may need to scroll down to see buttons again (acceptable UX)
-- Buttons only appear when scrolling to end of list (natural discovery pattern)
-- No sheet closing conflicts - standard navigation flow
+- Opens NewTokenSheet as fullscreen dialog using `Navigator.push()`
+- Consistent with existing navigation patterns
+- Clean separation from menu actions
 
 ## Testing Checklist
-- [ ] Buttons appear when 1+ tokens exist
-- [ ] Buttons hidden on empty board
-- [ ] "+ New" opens TokenSearchScreen
-- [ ] "+ Custom" opens NewTokenSheet
-- [ ] Tokens can be reordered without affecting button position
-- [ ] Buttons cannot have tokens dragged below them
-- [ ] Styling matches existing token cards
+- [ ] "+" FAB opens NewTokenSheet
+- [ ] Menu FAB still opens action menu
+- [ ] FABs positioned correctly (side by side, bottom-right)
+- [ ] Spacing between FABs looks clean
+- [ ] No overlap with MultiplierView
 - [ ] Works in both light and dark mode
-- [ ] No layout conflicts with MultiplierView/FloatingActionMenu
+- [ ] Hero tags prevent animation conflicts
