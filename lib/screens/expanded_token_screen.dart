@@ -43,6 +43,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
 
   // Artwork-related state
   TokenDefinition? _tokenDefinition;
+  bool _artworkCleanupAttempted = false;
 
   @override
   void initState() {
@@ -1228,6 +1229,24 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                       ),
                     );
                   }
+
+                  // If artwork file is missing, clear the invalid reference
+                  if (snapshot.connectionState == ConnectionState.done &&
+                      snapshot.data == null &&
+                      !_artworkCleanupAttempted) {
+                    _artworkCleanupAttempted = true;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        widget.item.artworkUrl = null;
+                        widget.item.artworkSet = null;
+                        widget.item.artworkOptions = null;
+                        widget.item.save();
+                        // Trigger rebuild to show "select" text
+                        setState(() {});
+                      }
+                    });
+                  }
+
                   return const SizedBox(height: 60);
                 },
               )

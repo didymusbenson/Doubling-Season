@@ -105,6 +105,7 @@ class TokenCard extends StatefulWidget {
 class _TokenCardState extends State<TokenCard> {
   final DateTime _createdAt = DateTime.now();
   bool _artworkAnimated = false;
+  bool _artworkCleanupAttempted = false;
 
   @override
   Widget build(BuildContext context) {
@@ -601,7 +602,23 @@ class _TokenCardState extends State<TokenCard> {
               ),
             );
           }
-          // Show empty background while loading
+
+          // If artwork file is missing, clear the invalid reference
+          if (snapshot.connectionState == ConnectionState.done &&
+              snapshot.data == null &&
+              !_artworkCleanupAttempted) {
+            _artworkCleanupAttempted = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                widget.item.artworkUrl = null;
+                widget.item.artworkSet = null;
+                widget.item.artworkOptions = null;
+                widget.item.save();
+              }
+            });
+          }
+
+          // Show empty background while loading or if file missing
           return const SizedBox.shrink();
         },
       ),
@@ -668,7 +685,23 @@ class _TokenCardState extends State<TokenCard> {
               ),
             );
           }
-          // Show empty background while loading
+
+          // If artwork file is missing, clear the invalid reference
+          if (snapshot.connectionState == ConnectionState.done &&
+              snapshot.data == null &&
+              !_artworkCleanupAttempted) {
+            _artworkCleanupAttempted = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                widget.item.artworkUrl = null;
+                widget.item.artworkSet = null;
+                widget.item.artworkOptions = null;
+                widget.item.save();
+              }
+            });
+          }
+
+          // Show empty background while loading or if file missing
           return const SizedBox.shrink();
         },
       ),
