@@ -237,24 +237,24 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 8,
+        runSpacing: 8,
         children: allowedCategories.map((category) {
           final isSelected = _selectedCategory == category;
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: FilterChip(
-              label: Text(category.displayName),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  _selectedCategory = selected ? category : null;
-                  _tokenDatabase.selectedCategory = _selectedCategory;
-                });
-              },
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.white : null,
-              ),
+          return FilterChip(
+            label: Text(category.displayName),
+            selected: isSelected,
+            showCheckmark: false,
+            onSelected: (selected) {
+              setState(() {
+                _selectedCategory = selected ? category : null;
+                _tokenDatabase.selectedCategory = _selectedCategory;
+              });
+            },
+            labelStyle: TextStyle(
+              color: isSelected ? Colors.white : null,
             ),
           );
         }).toList(),
