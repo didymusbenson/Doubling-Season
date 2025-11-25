@@ -121,17 +121,18 @@ class _ActionBottomSheet extends StatelessWidget {
               },
             ),
             const SizedBox(height: 4),
-            _buildActionTile(
-              context: context,
-              icon: Icons.widgets,
-              label: 'Widgets',
-              color: Colors.deepPurple,
-              onTap: () {
-                Navigator.pop(context);
-                onWidgets();
-              },
-            ),
-            const SizedBox(height: 4),
+            // TODO: Uncomment when Widgets feature is ready for release
+            // _buildActionTile(
+            //   context: context,
+            //   icon: Icons.widgets,
+            //   label: 'Widgets',
+            //   color: Colors.deepPurple,
+            //   onTap: () {
+            //     Navigator.pop(context);
+            //     onWidgets();
+            //   },
+            // ),
+            // const SizedBox(height: 4),
             _buildActionTile(
               context: context,
               icon: Icons.update,
