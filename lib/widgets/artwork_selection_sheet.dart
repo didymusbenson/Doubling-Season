@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
@@ -297,6 +298,7 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                             return _CustomArtworkTile(
                               tokenIdentity: widget.tokenIdentity,
                               isSelected: widget.currentArtworkUrl?.startsWith('file://') ?? false,
+                              currentArtworkUrl: widget.currentArtworkUrl,
                               onUploadComplete: (filePath) {
                                 // Apply custom artwork to token
                                 setState(() {});
@@ -539,12 +541,14 @@ class _ArtworkConfirmationDialog extends StatelessWidget {
 class _CustomArtworkTile extends StatefulWidget {
   final String tokenIdentity;
   final bool isSelected; // Is the current artwork the custom artwork?
+  final String? currentArtworkUrl; // Current artwork URL to check at deletion time
   final Function(String filePath) onUploadComplete;
   final VoidCallback? onRemoveArtwork; // Called when custom artwork is deleted
 
   const _CustomArtworkTile({
     required this.tokenIdentity,
     required this.isSelected,
+    required this.currentArtworkUrl,
     required this.onUploadComplete,
     this.onRemoveArtwork,
   });
@@ -577,8 +581,8 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
         content: const Text(
           'For best results:\n\n'
           '• Use high-quality images\n'
-          '• Artwork will be cropped to fit the card\n'
-          '• Consider pre-cropping to portrait orientation\n\n'
+          '• You will be prompted to crop to a 4:3 aspect ratio\n'
+          '• The cropped image will fit perfectly on the token card\n\n'
           'Ready to select an image?',
         ),
         actions: [
@@ -723,15 +727,24 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
         // Clear the preference
         await _artworkPrefManager.setCustomArtwork(widget.tokenIdentity, null);
 
-        // Only clear the currently selected artwork if the custom artwork WAS selected
-        // Check if current selection is the custom artwork (starts with file://)
-        if (widget.onRemoveArtwork != null && widget.isSelected) {
-          widget.onRemoveArtwork!();
-        }
-
-        // Update UI
-        if (mounted) {
-          setState(() {});
+        // Only clear the currently selected artwork if the custom artwork IS CURRENTLY selected
+        // Check current selection at deletion time (not cached isSelected from sheet open)
+        final isCustomCurrentlySelected = widget.currentArtworkUrl?.startsWith('file://') ?? false;
+        if (widget.onRemoveArtwork != null && isCustomCurrentlySelected) {
+          // Close the artwork selection sheet (to avoid showing stale "Currently Selected")
+          // Then the parent will clear the item's artwork
+          if (mounted) {
+            // Pop the sheet, then notify parent after a frame
+            Navigator.of(context, rootNavigator: true).pop();
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              widget.onRemoveArtwork!();
+            });
+          }
+        } else {
+          // Update UI if custom wasn't selected (tile changes from thumbnail to upload icon)
+          if (mounted) {
+            setState(() {});
+          }
         }
       }
     } catch (e) {
@@ -742,12 +755,69 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
 
   Future<void> _pickAndSaveImage() async {
     try {
+      // Step 1: Pick image from gallery
       final XFile? image = await _imagePicker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 85,
       );
 
       if (image == null) return;
+
+      // Get theme colors to match app styling
+      final theme = Theme.of(context);
+      final primaryColor = theme.colorScheme.primary;
+      final isDark = theme.brightness == Brightness.dark;
+
+      // Theme-aware colors
+      final backgroundColor = isDark ? const Color(0xFF181818) : Colors.white;
+      final toolbarWidgetColor = Colors.white;
+      final statusBarColor = Color.alphaBlend(
+        Colors.black.withValues(alpha: 0.2),
+        primaryColor,
+      ); // Slightly darker than toolbar
+      final cropFrameColor = isDark ? Colors.white : Colors.black;
+      final cropGridColor = isDark
+          ? Colors.white.withValues(alpha: 0.3)
+          : Colors.black.withValues(alpha: 0.3);
+      final dimmedLayerColor = isDark ? Colors.black : Colors.white.withValues(alpha: 0.5);
+
+      // Step 2: Crop image with locked 4:3 aspect ratio
+      final CroppedFile? croppedFile = await ImageCropper().cropImage(
+        sourcePath: image.path,
+        aspectRatio: const CropAspectRatio(ratioX: 4, ratioY: 3),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Token Artwork',
+            toolbarColor: primaryColor,
+            toolbarWidgetColor: toolbarWidgetColor,
+            statusBarColor: statusBarColor,
+            backgroundColor: backgroundColor,
+            activeControlsWidgetColor: primaryColor,
+            dimmedLayerColor: dimmedLayerColor,
+            cropFrameColor: cropFrameColor,
+            cropGridColor: cropGridColor,
+            cropGridStrokeWidth: 1,
+            cropFrameStrokeWidth: 2,
+            initAspectRatio: CropAspectRatioPreset.ratio4x3,
+            lockAspectRatio: true,
+            hideBottomControls: false,
+            showCropGrid: true,
+          ),
+          IOSUiSettings(
+            title: 'Crop Token Artwork',
+            doneButtonTitle: 'Done',
+            cancelButtonTitle: 'Cancel',
+            aspectRatioLockEnabled: true,
+            resetAspectRatioEnabled: false,
+            aspectRatioPickerButtonHidden: true,
+            rotateButtonsHidden: false,
+            rotateClockwiseButtonHidden: false,
+          ),
+        ],
+      );
+
+      // User cancelled cropping
+      if (croppedFile == null) return;
 
       // Delete old custom artwork file if it exists AND clear image cache
       final oldCustomPath = _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
@@ -772,12 +842,12 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
 
       // Generate unique filename using hash of token identity
       final identityHash = md5.convert(utf8.encode(widget.tokenIdentity)).toString();
-      final extension = image.path.split('.').last;
+      final extension = croppedFile.path.split('.').last;
       final fileName = 'custom_$identityHash.$extension';
       final filePath = '${customArtDir.path}/$fileName';
 
-      // Copy image to app directory
-      await File(image.path).copy(filePath);
+      // Copy cropped image to app directory
+      await File(croppedFile.path).copy(filePath);
 
       // Save preference with file:// protocol
       final fileUrl = 'file://$filePath';

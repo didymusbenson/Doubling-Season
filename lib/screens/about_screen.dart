@@ -177,6 +177,30 @@ class _AboutScreenState extends State<AboutScreen> {
               ),
             ),
 
+            const SizedBox(height: 16),
+
+            // Open Source Licenses
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => showLicensePage(
+                  context: context,
+                  applicationName: 'Doubling Season',
+                  applicationVersion: _version,
+                  applicationIcon: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.asset(
+                      'assets/AppIconSource.png',
+                      width: 60,
+                      height: 60,
+                    ),
+                  ),
+                ),
+                icon: const Icon(Icons.description),
+                label: const Text('View Open Source Licenses'),
+              ),
+            ),
+
             const SizedBox(height: 24),
           ],
         ),
