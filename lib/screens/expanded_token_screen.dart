@@ -44,6 +44,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
   // Artwork-related state
   TokenDefinition? _tokenDefinition;
   bool _artworkCleanupAttempted = false;
+  bool _databaseLoadError = false;
 
   @override
   void initState() {
@@ -128,6 +129,11 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
       }
     } catch (e) {
       print('Error loading token definition: $e');
+      if (mounted) {
+        setState(() {
+          _databaseLoadError = true;
+        });
+      }
     }
   }
 
@@ -159,6 +165,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
           currentArtworkSet: widget.item.artworkSet,
           tokenName: widget.item.name,
           tokenIdentity: '${widget.item.name}|${widget.item.pt}|${widget.item.colors}|${widget.item.type}|${widget.item.abilities}',
+          databaseLoadError: _databaseLoadError,
         ),
       ),
     );

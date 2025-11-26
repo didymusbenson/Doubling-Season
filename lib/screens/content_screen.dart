@@ -696,11 +696,10 @@ class _ContentScreenState extends State<ContentScreen> {
           ),
         ],
       ),
-    );
-
-    // Wait for dialog animation to complete before disposing controller
-    await Future.delayed(const Duration(milliseconds: 300));
-    controller.dispose();
+    ).then((_) {
+      // Dispose controller after dialog closes, regardless of how it was dismissed
+      controller.dispose();
+    });
   }
 
   void _showLoadDeckSheet() {

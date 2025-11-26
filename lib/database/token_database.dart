@@ -13,12 +13,21 @@ class TokenDatabase extends ChangeNotifier {
   token_models.Category? _selectedCategory;
   Set<String> _selectedColors = {};
 
+  // Cache for filtered tokens to avoid recomputation
+  List<token_models.TokenDefinition>? _cachedFilteredTokens;
+
   bool get isLoading => _isLoading;
   String? get loadError => _loadError;
   List<token_models.TokenDefinition> get allTokens => _allTokens;
 
   // Filtered tokens based on search, category, and color
   List<token_models.TokenDefinition> get filteredTokens {
+    // Return cached result if available
+    if (_cachedFilteredTokens != null) {
+      return _cachedFilteredTokens!;
+    }
+
+    // Compute and cache
     final filtered = _allTokens.where((token) {
       final matchesSearch = token.matches(searchQuery: _searchQuery);
       final matchesCategory =
@@ -38,24 +47,28 @@ class TokenDatabase extends ChangeNotifier {
       return a.name.compareTo(b.name);
     });
 
+    _cachedFilteredTokens = filtered;
     return filtered;
   }
 
   String get searchQuery => _searchQuery;
   set searchQuery(String value) {
     _searchQuery = value;
+    _cachedFilteredTokens = null; // Invalidate cache
     notifyListeners();
   }
 
   token_models.Category? get selectedCategory => _selectedCategory;
   set selectedCategory(token_models.Category? value) {
     _selectedCategory = value;
+    _cachedFilteredTokens = null; // Invalidate cache
     notifyListeners();
   }
 
   Set<String> get selectedColors => _selectedColors;
   set selectedColors(Set<String> value) {
     _selectedColors = value;
+    _cachedFilteredTokens = null; // Invalidate cache
     notifyListeners();
   }
 
@@ -105,6 +118,7 @@ class TokenDatabase extends ChangeNotifier {
     _searchQuery = '';
     _selectedCategory = null;
     _selectedColors = {};
+    _cachedFilteredTokens = null; // Invalidate cache
     notifyListeners();
   }
 

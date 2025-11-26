@@ -18,6 +18,7 @@ class ArtworkSelectionSheet extends StatefulWidget {
   final String? currentArtworkSet;
   final String tokenName;
   final String tokenIdentity; // Composite ID for preference lookup (NEW - Custom Artwork Feature)
+  final bool databaseLoadError; // Whether token database failed to load
 
   const ArtworkSelectionSheet({
     super.key,
@@ -28,6 +29,7 @@ class ArtworkSelectionSheet extends StatefulWidget {
     this.currentArtworkSet,
     required this.tokenName,
     required this.tokenIdentity,
+    this.databaseLoadError = false,
   });
 
   @override
@@ -170,6 +172,35 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
+                    // Database load error message
+                    if (widget.databaseLoadError)
+                      Container(
+                        margin: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.errorContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: Theme.of(context).colorScheme.error,
+                              size: 40,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Text(
+                                'Token database failed to load. Artwork options may not be available.',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onErrorContainer,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     // Currently selected artwork (only show if there's artwork selected)
                     if (widget.currentArtworkUrl != null && widget.onRemoveArtwork != null)
                       Container(

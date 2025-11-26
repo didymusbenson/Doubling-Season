@@ -10,6 +10,7 @@ import 'providers/deck_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/content_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/error_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,6 +59,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late SettingsProvider settingsProvider;
   bool _isInitialized = false;
   bool _providersReady = false;
+  bool _hasError = false;
 
   @override
   void initState() {
@@ -110,7 +112,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         print(stackTrace);
         print('════════════════════════════════════════════');
       }
-      rethrow;
+
+      // Show error screen to user instead of crashing
+      setState(() {
+        _hasError = true;
+      });
     }
   }
 
@@ -169,6 +175,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (_isInitialized) {
       tokenProvider.dispose();
       deckProvider.dispose();
+      settingsProvider.dispose();
     }
     super.dispose();
   }
@@ -207,6 +214,34 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    // Show error screen if initialization failed
+    if (_hasError) {
+      return MaterialApp(
+        title: 'Doubling Season',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+          useMaterial3: true,
+        ),
+        darkTheme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.blue,
+            brightness: Brightness.dark,
+          ).copyWith(
+            surface: const Color(0xFF181818),
+            surfaceContainerHighest: const Color(0xFF37373C),
+          ),
+          cardTheme: const CardThemeData(
+            color: Color(0xFF37373C),
+          ),
+          scaffoldBackgroundColor: const Color(0xFF181818),
+          useMaterial3: true,
+        ),
+        themeMode: ThemeMode.system,
+        debugShowCheckedModeBanner: false,
+        home: const ErrorScreen(),
+      );
+    }
+
     // CRITICAL: MultiProvider must wrap MaterialApp so providers are available
     // to ALL routes, including those pushed via Navigator.push()
     if (!_isInitialized) {

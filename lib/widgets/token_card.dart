@@ -108,6 +108,15 @@ class _TokenCardState extends State<TokenCard> {
   bool _artworkCleanupAttempted = false;
 
   @override
+  void didUpdateWidget(TokenCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reset cleanup flag if artwork URL changed (e.g., user removed then re-added artwork)
+    if (oldWidget.item.artworkUrl != widget.item.artworkUrl) {
+      _artworkCleanupAttempted = false;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Use Selector to only rebuild when summoningSicknessEnabled or artworkDisplayStyle changes
     // This prevents rebuilds when multiplier changes

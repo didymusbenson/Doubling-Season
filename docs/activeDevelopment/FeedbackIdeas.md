@@ -1,3 +1,26 @@
+## Code Quality: Hardcoded Timing Delays
+
+**Status:** Technical debt - document for future review
+
+Throughout the codebase, there are several hardcoded timing delays (magic numbers) that could benefit from documentation or centralization:
+
+### Current Delays
+- `token_search_screen.dart:507`: `UIConstants.sheetDismissDelay` (300ms) - Wait for sheet animation before operations
+- `token_card.dart:575`: `elapsed > 100` milliseconds - Animation timing check for P/T pop effect
+- Various sheet dismissal delays to avoid state conflicts
+
+### Recommendations
+1. **Document timing rationale**: Add comments explaining why specific durations were chosen
+2. **Consider platform variations**: Some delays may need adjustment for slower devices
+3. **Centralize constants**: Move magic numbers to `lib/utils/constants.dart` with descriptive names
+4. **Review necessity**: Some delays may be workarounds for underlying issues that could be fixed differently
+
+**Priority:** Low - Current delays work correctly, but maintenance and clarity would improve
+
+**Decision:** Document for now, revisit if timing issues emerge on different devices/platforms
+
+---
+
 ## FLUTTER IN APP PURCHASE HANDLING.
 Add in-app purchases for "tip jar" in order for users to support the developer and unlock app icons.
 Flutter provides three main patterns for handling platform differences:

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:hive/hive.dart';
 import '../models/token_artwork_preference.dart';
 
@@ -79,9 +80,16 @@ class ArtworkPreferenceManager {
 
     // Delete file if exists
     if (preference.customArtworkPath != null) {
-      // TODO: Delete file from filesystem
-      // final file = File(preference.customArtworkPath!.replaceFirst('file://', ''));
-      // if (await file.exists()) await file.delete();
+      try {
+        final file = File(preference.customArtworkPath!.replaceFirst('file://', ''));
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } catch (e) {
+        // File deletion failed - log but don't throw
+        // (preference will still be cleared even if file deletion fails)
+        print('Warning: Failed to delete custom artwork file: $e');
+      }
     }
 
     // Clear custom artwork fields

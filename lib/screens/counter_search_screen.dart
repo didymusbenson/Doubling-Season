@@ -219,8 +219,8 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
               onPressed: () {
                 _addCounter(counterName, quantity, applyToAll: true);
                 controller.dispose();
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context); // Close counter search
+                if (context.mounted) Navigator.pop(context); // Close dialog
+                if (context.mounted) Navigator.pop(context); // Close counter search
               },
               child: const Text('Add to All'),
             ),
@@ -228,9 +228,9 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
               onPressed: () {
                 _addCounter(counterName, quantity, applyToAll: false);
                 controller.dispose();
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context); // Close counter search
-                Navigator.pop(context); // Close expanded token screen
+                if (context.mounted) Navigator.pop(context); // Close dialog
+                if (context.mounted) Navigator.pop(context); // Close counter search
+                if (context.mounted) Navigator.pop(context); // Close expanded token screen
               },
               child: const Text('Split & Add to One'),
             ),
