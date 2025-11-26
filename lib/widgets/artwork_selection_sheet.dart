@@ -775,15 +775,19 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
 
       // Get theme colors to match app styling
       final theme = Theme.of(context);
-      final primaryColor = theme.colorScheme.primary;
       final isDark = theme.brightness == Brightness.dark;
+
+      // AESTHETIC DECISION: Use Material 3 light mode primary blue for toolbar in both modes
+      // Dark mode's auto-generated lighter blue was too light; this darker blue provides
+      // better visual consistency and matches the button colors users see in light mode
+      final toolbarColor = const Color(0xFF0061a4);
 
       // Theme-aware colors
       final backgroundColor = isDark ? const Color(0xFF181818) : Colors.white;
       final toolbarWidgetColor = Colors.white;
       final statusBarColor = Color.alphaBlend(
         Colors.black.withValues(alpha: 0.2),
-        primaryColor,
+        toolbarColor,
       ); // Slightly darker than toolbar
       final cropFrameColor = isDark ? Colors.white : Colors.black;
       final cropGridColor = isDark
@@ -798,11 +802,11 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Crop Token Artwork',
-            toolbarColor: primaryColor,
+            toolbarColor: toolbarColor,
             toolbarWidgetColor: toolbarWidgetColor,
             statusBarColor: statusBarColor,
             backgroundColor: backgroundColor,
-            activeControlsWidgetColor: primaryColor,
+            activeControlsWidgetColor: toolbarColor,
             dimmedLayerColor: dimmedLayerColor,
             cropFrameColor: cropFrameColor,
             cropGridColor: cropGridColor,
