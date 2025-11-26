@@ -217,6 +217,25 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                                     final file = snapshot.data!;
                                     // Add unique key for custom artwork to force reload on replacement
                                     final isCustomArtwork = widget.currentArtworkUrl!.startsWith('file://');
+
+                                    // Safety check: verify file exists before accessing modification time
+                                    if (!file.existsSync()) {
+                                      debugPrint('⚠️  Currently selected artwork file missing: ${file.path}');
+                                      return Container(
+                                        width: 80,
+                                        height: 112,
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey[300],
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Icon(
+                                          Icons.image,
+                                          size: 40,
+                                          color: Colors.grey[600],
+                                        ),
+                                      );
+                                    }
+
                                     return ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
                                       child: Image.file(
@@ -571,6 +590,28 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
   final _artworkPrefManager = ArtworkPreferenceManager();
   final _imagePicker = ImagePicker();
 
+  /// Validates that custom artwork file exists, cleans up stale reference if not
+  /// Returns the file if valid, null if stale/missing
+  Future<File?> _validateCustomArtwork(String? customPath) async {
+    if (customPath == null) return null;
+
+    final file = File(customPath.replaceFirst('file://', ''));
+
+    if (!await file.exists()) {
+      // Stale reference detected - file doesn't exist
+      debugPrint('⚠️  Custom artwork stale reference detected: $customPath');
+      debugPrint('   Token: ${widget.tokenIdentity}');
+      debugPrint('   Cleaning up preference...');
+
+      // Silently remove stale reference from storage
+      await _artworkPrefManager.setCustomArtwork(widget.tokenIdentity, null);
+
+      return null;
+    }
+
+    return file;
+  }
+
   Future<void> _handleTap() async {
     final hasCustom = _artworkPrefManager.hasCustomArtwork(widget.tokenIdentity);
 
@@ -647,18 +688,49 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
 
               // Custom artwork preview
               if (customPath != null)
-                Builder(
-                  builder: (context) {
-                    final file = File(customPath.replaceFirst('file://', ''));
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.file(
-                        file,
-                        key: ValueKey(file.path + file.lastModifiedSync().toString()),
+                FutureBuilder<File?>(
+                  future: _validateCustomArtwork(customPath),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData && snapshot.data != null) {
+                      final file = snapshot.data!;
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          file,
+                          key: ValueKey(file.path + file.lastModifiedSync().toString()),
+                          height: 200,
+                          fit: BoxFit.cover,
+                        ),
+                      );
+                    } else if (snapshot.connectionState == ConnectionState.waiting) {
+                      // Loading state
+                      return const SizedBox(
                         height: 200,
-                        fit: BoxFit.cover,
-                      ),
-                    );
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    } else {
+                      // File missing - stale reference was cleaned up
+                      return Container(
+                        height: 200,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.image_not_supported, size: 48, color: Colors.grey[600]),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Custom artwork not available',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
                   },
                 ),
               const SizedBox(height: 24),
@@ -861,14 +933,22 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
       final filePath = '${customArtDir.path}/$fileName';
 
       // Copy cropped image to app directory
-      await File(croppedFile.path).copy(filePath);
+      final newFile = await File(croppedFile.path).copy(filePath);
 
-      // Save preference with file:// protocol
+      // Verify file was written successfully before saving preference (atomic save)
+      if (!await newFile.exists()) {
+        throw Exception('File copy verification failed');
+      }
+
+      // Save preference with file:// protocol (only after confirming file exists)
       final fileUrl = 'file://$filePath';
       await _artworkPrefManager.setCustomArtwork(widget.tokenIdentity, fileUrl);
 
+      debugPrint('✅ Custom artwork uploaded successfully');
+      debugPrint('   Token: ${widget.tokenIdentity}');
+      debugPrint('   Path: $filePath');
+
       // Clear any cached version of the new file path (defensive)
-      final newFile = File(filePath);
       final newFileImage = FileImage(newFile);
       newFileImage.evict();
 
@@ -877,8 +957,9 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
         widget.onUploadComplete(fileUrl);
       }
     } catch (e) {
-      // Silent failure - no user feedback needed
-      debugPrint('Failed to upload custom artwork: $e');
+      // Log failure for debugging
+      debugPrint('❌ Failed to upload custom artwork: $e');
+      debugPrint('   Token: ${widget.tokenIdentity}');
     }
   }
 
@@ -887,9 +968,21 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
     final hasCustom = _artworkPrefManager.hasCustomArtwork(widget.tokenIdentity);
     final customPath = _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
 
-    // Check if custom file actually exists
+    // Check if custom file actually exists (synchronous check for initial render)
     final customFile = customPath != null ? File(customPath.replaceFirst('file://', '')) : null;
     final customFileExists = customFile?.existsSync() ?? false;
+
+    // If we have a stale reference, schedule cleanup for next frame
+    if (hasCustom && customPath != null && !customFileExists) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        debugPrint('⚠️  Stale custom artwork reference detected in build: $customPath');
+        debugPrint('   Token: ${widget.tokenIdentity}');
+        debugPrint('   Scheduling cleanup...');
+        await _artworkPrefManager.setCustomArtwork(widget.tokenIdentity, null);
+        if (mounted) setState(() {});
+      });
+    }
+
     final showCustomThumbnail = hasCustom && customPath != null && customFileExists;
 
     return InkWell(
@@ -915,7 +1008,9 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
                             borderRadius: BorderRadius.circular(8),
                             child: Image.file(
                               customFile!,
-                              key: ValueKey(customFile!.path + customFile!.lastModifiedSync().toString()),
+                              // Safe to call lastModifiedSync here because showCustomThumbnail
+                              // guarantees file exists (via existsSync check above)
+                              key: ValueKey(customFile.path + customFile.lastModifiedSync().toString()),
                               fit: BoxFit.contain,
                             ),
                           ),
