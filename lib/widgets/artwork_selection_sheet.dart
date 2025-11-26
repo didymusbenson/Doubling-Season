@@ -101,27 +101,6 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
       setState(() {
         _isDownloading = false;
       });
-
-      // Show result feedback
-      if (failCount > 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              hadNetworkError
-                  ? 'Downloaded $successCount/${successCount + failCount} images. Please check your internet connection.'
-                  : 'Downloaded $successCount/${successCount + failCount} images. Some downloads failed.',
-            ),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      } else if (successCount > 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Successfully downloaded all artwork ($successCount images)'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
     }
   }
 
