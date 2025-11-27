@@ -29,17 +29,6 @@ Flutter provides three main patterns for handling platform differences:
 2. **Platform checks in Dart**: Use `Platform.isIOS` / `Platform.isAndroid` for minor variations
 3. **Platform channels**: Write custom native code when needed
 
-## Global Counter Tools
-
-### -1/-1 Everything
-Similar to "+1/+1 Everything", adds a -1/-1 counter to all tokens with power/toughness. Useful for effects like Night of Souls' Betrayal, Black Sun's Zenith, etc.
-
-Implementation would mirror the +1/+1 tool:
-- Same position in action menu
-- Same snapshot-based iteration
-- Same P/T pop animation
-- Red color theme (debuff/weakening)
-
 ## Gradient Backgrounds in Fadeout Mode
 
 **Status:** Experimental idea - needs more exploration

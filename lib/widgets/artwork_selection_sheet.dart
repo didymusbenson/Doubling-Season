@@ -845,6 +845,31 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
 
       if (image == null) return;
 
+      // Show loading overlay while cropper initializes (prevents perceived hang)
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Preparing image...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Small delay to ensure loading dialog renders before cropper launches
+      await Future.delayed(const Duration(milliseconds: 100));
+
       // Get theme colors to match app styling
       final theme = Theme.of(context);
       final isDark = theme.brightness == Brightness.dark;
@@ -902,6 +927,11 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
         ],
       );
 
+      // Dismiss loading overlay now that cropper has finished
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
       // User cancelled cropping
       if (croppedFile == null) return;
 
@@ -957,6 +987,16 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
         widget.onUploadComplete(fileUrl);
       }
     } catch (e) {
+      // Dismiss loading overlay if it's still showing
+      if (mounted) {
+        // Try to pop the loading dialog if there was an error before cropper launched
+        try {
+          Navigator.of(context).pop();
+        } catch (_) {
+          // Dialog might already be dismissed, ignore
+        }
+      }
+
       // Log failure for debugging
       debugPrint('❌ Failed to upload custom artwork: $e');
       debugPrint('   Token: ${widget.tokenIdentity}');
