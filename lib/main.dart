@@ -8,6 +8,8 @@ import 'database/database_maintenance.dart';
 import 'providers/token_provider.dart';
 import 'providers/deck_provider.dart';
 import 'providers/settings_provider.dart';
+import 'providers/tracker_provider.dart'; // NEW - Widget Cards Feature
+import 'providers/toggle_provider.dart'; // NEW - Widget Cards Feature
 import 'screens/content_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/error_screen.dart';
@@ -57,6 +59,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late TokenProvider tokenProvider;
   late DeckProvider deckProvider;
   late SettingsProvider settingsProvider;
+  late TrackerProvider trackerProvider; // NEW - Widget Cards Feature
+  late ToggleProvider toggleProvider; // NEW - Widget Cards Feature
   bool _isInitialized = false;
   bool _providersReady = false;
   bool _hasError = false;
@@ -88,11 +92,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         _initTokenProvider(),
         _initDeckProvider(),
         _initSettingsProvider(),
+        _initTrackerProvider(), // NEW - Widget Cards Feature
+        _initToggleProvider(), // NEW - Widget Cards Feature
       ]);
 
       tokenProvider = results[0] as TokenProvider;
       deckProvider = results[1] as DeckProvider;
       settingsProvider = results[2] as SettingsProvider;
+      trackerProvider = results[3] as TrackerProvider; // NEW - Widget Cards Feature
+      toggleProvider = results[4] as ToggleProvider; // NEW - Widget Cards Feature
 
       stopwatch.stop();
       debugPrint('═══ App Initialization Complete: ${stopwatch.elapsedMilliseconds}ms ═══');
@@ -147,6 +155,24 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     return provider;
   }
 
+  Future<TrackerProvider> _initTrackerProvider() async {
+    final stopwatch = Stopwatch()..start();
+    final provider = TrackerProvider();
+    await provider.init();
+    stopwatch.stop();
+    debugPrint('TrackerProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
+    return provider;
+  }
+
+  Future<ToggleProvider> _initToggleProvider() async {
+    final stopwatch = Stopwatch()..start();
+    final provider = ToggleProvider();
+    await provider.init();
+    stopwatch.stop();
+    debugPrint('ToggleProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
+    return provider;
+  }
+
   void _runBackgroundMaintenance() {
     // Run after first frame is rendered
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -176,6 +202,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       tokenProvider.dispose();
       deckProvider.dispose();
       settingsProvider.dispose();
+      trackerProvider.dispose(); // NEW - Widget Cards Feature
+      toggleProvider.dispose(); // NEW - Widget Cards Feature
     }
     super.dispose();
   }
@@ -279,6 +307,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ChangeNotifierProvider.value(value: tokenProvider),
         ChangeNotifierProvider.value(value: deckProvider),
         ChangeNotifierProvider.value(value: settingsProvider),
+        ChangeNotifierProvider.value(value: trackerProvider), // NEW - Widget Cards Feature
+        ChangeNotifierProvider.value(value: toggleProvider), // NEW - Widget Cards Feature
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settings, child) {

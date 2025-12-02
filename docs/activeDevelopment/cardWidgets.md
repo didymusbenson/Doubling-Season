@@ -497,22 +497,21 @@ class ExpandedWidgetScreen extends StatelessWidget {
 ### 5. Widget Selection Screen
 Opens when user taps "Widgets" in FloatingActionMenu:
 
-**Layout:**
-- Scrollable list (NOT search-based like TokenSearchScreen)
-- Type filter buttons at top: [All] [Tracker] [Toggle] [Special]
+**Layout (follows TokenSearchScreen pattern):**
+- Full-screen Scaffold with AppBar (title: "Select Widget", close button)
+- Search bar at top (debounced search like TokenSearchScreen)
+- Type filter chips below search: [All] [Tracker] [Toggle]
+- Scrollable list of matching widgets below filters
 - Each row shows: Widget name, type tag, brief description
-
-**Predefined Widgets:**
-- Life Total, Poison Counters, Energy, Experience, etc.
-- Monarch, Initiative, Day/Night, City's Blessing, etc.
 - Tapping a predefined widget creates instance immediately
 
 **Custom Widget Creation:**
-- "Create Custom Tracker" button at top
-- "Create Custom Toggle" button at top
-- Opens `NewTrackerSheet` or `NewToggleSheet` with form:
-  - **Tracker form**: Name, Description, Default Value, Min/Max (optional), Tap/Long-press increments, Color Identity selector
-  - **Toggle form**: Name, ON Description, OFF Description, Color Identity selector
+- "Create Custom Tracker" button at top of list (sticky)
+- "Create Custom Toggle" button at top of list (sticky)
+- Opens `NewTrackerSheet` or `NewToggleSheet` (full-screen Scaffold like NewTokenSheet)
+  - **Tracker form**: Name (TextField), Description (TextField), Default Value (stepper), Color Identity (ColorSelectionButton)
+  - **Toggle form**: Name (TextField), ON Description (TextField), OFF Description (TextField), Color Identity (ColorSelectionButton)
+  - "Create" button in AppBar actions (same pattern as NewTokenSheet)
 - Creates and inserts custom widget instance
 
 **Widget Storage:**
@@ -585,6 +584,54 @@ These widgets are marked as `WidgetType.special` and have complex, commander-spe
 - **Blood Artist**: Tracks life gain/loss triggers on creature death
   - Color: B
   - Listens to CreatureDiedEvent → increments trigger counter
+
+## Implementation Decisions (Finalized)
+
+### Widget Selection Screen
+Following existing TokenSearchScreen pattern for consistency:
+- **Screen Type**: Full-screen Scaffold (not bottom sheet)
+- **AppBar**: Title "Select Widget" with close button
+- **Search Bar**: Debounced search at top (300ms delay like TokenSearchScreen)
+- **Filter Chips**: Type filters below search - [All] [Tracker] [Toggle]
+- **Widget List**: Scrollable list of matching predefined widgets
+- **Custom Creation Buttons**: "Create Custom Tracker" and "Create Custom Toggle" at top of list (sticky)
+- **Selection Behavior**: Tap predefined widget → creates instance immediately and closes screen
+
+### Custom Widget Creation Forms
+Following existing NewTokenSheet pattern for consistency:
+- **NewTrackerSheet** (full-screen Scaffold):
+  - Name (TextField)
+  - Description (TextField)
+  - Default Value (stepper widget, starts at 0)
+  - Color Identity (ColorSelectionButton - same as tokens)
+  - "Create" button in AppBar actions
+- **NewToggleSheet** (full-screen Scaffold):
+  - Name (TextField)
+  - ON Description (TextField)
+  - OFF Description (TextField)
+  - Color Identity (ColorSelectionButton - same as tokens)
+  - "Create" button in AppBar actions
+
+### FAB Menu Integration
+- **Location**: Line ~123 in FloatingActionMenu (between "New Token" and "Untap All")
+- **Action Level**: Same level as "New Token" (not nested submenu)
+- **Implementation**: Uncomment existing lines 124-135 in floating_action_menu.dart
+- **Icon**: `Icons.widgets`
+- **Color**: `Colors.deepPurple`
+
+### Initial Predefined Widget Catalog (Phase 1)
+Start with 4 essential widgets to validate implementation:
+1. **Life Total** (Tracker, default: 40, colorless)
+2. **Poison Counters** (Tracker, default: 0, BG)
+3. **Monarch** (Toggle, R)
+4. **Day/Night** (Toggle, WG)
+
+Additional widgets can be added incrementally after Phase 1 validation.
+
+### Board Wipe Behavior
+- **"Delete All"**: Use `item is Item` type check to filter - deletes only tokens, preserves widgets
+- **"Set to 0"**: Only operates on `Item` objects (widgets have no `amount` field)
+- **Future "Reset Widgets"**: Not implemented in Phase 1, can add if users request it
 
 ## Migration Strategy
 ### Phase 1: Foundation (Current)
@@ -794,7 +841,7 @@ Following TokenTemplate approach with bug fix:
 2. ✅ **Widget Types**: Tracker (numeric counter) and Toggle (binary state)
 3. ✅ **Default Values**: Life Total = 40, all other trackers = 0 unless specified
 4. ✅ **Experience Counter**: Normal tracker controls (decrement allowed, even though rare in practice)
-5. ✅ **Widget Selection UI**: Scrollable list with type filters (tracker, toggle, special)
+5. ✅ **Widget Selection UI**: Full-screen with search bar + type filters (All, Tracker, Toggle), scrollable list
 6. ✅ **Custom Widgets**: Users can create custom trackers and toggles
 7. ✅ **Gradient Background**: Artless widgets get color gradient backgrounds (consistency with tokens)
 8. ✅ **Toggle Animation**: Cross-fade when toggling states (artwork and text)
@@ -805,7 +852,10 @@ Following TokenTemplate approach with bug fix:
 13. ✅ **Board Wipe Behavior**:
     - "Delete All": Deletes tokens only, keeps widgets
     - "Set to 0": Sets token amounts to 0, doesn't affect widgets
-14. **Event System**: Defer to Advanced Widgets phase (not needed for basic tracker/toggle)
+14. ✅ **Event System**: Defer to Advanced Widgets phase (not needed for basic tracker/toggle)
+15. ✅ **Custom Widget Forms**: Follow NewTokenSheet pattern - full-screen Scaffold with TextFields and ColorSelectionButton
+16. ✅ **FAB Menu Integration**: Uncomment existing lines 124-135 in floating_action_menu.dart (same level as New Token)
+17. ✅ **Initial Widget Catalog**: Start with 4 widgets (Life Total, Poison, Monarch, Day/Night) to validate implementation
 
 ## Success Criteria
 

@@ -15,6 +15,8 @@ class HiveTypeIds {
   static const int tokenTemplate = 3;
   static const int artworkVariant = 4;
   static const int artworkPreference = 5; // NEW - Custom Artwork Feature
+  static const int trackerWidget = 6; // NEW - Widget Cards Feature
+  static const int toggleWidget = 7; // NEW - Widget Cards Feature
 }
 
 /// UI constants
@@ -94,6 +96,8 @@ class DatabaseConstants {
   static const String countersBox = 'counters';
   static const String decksBox = 'decks';
   static const String templatesBox = 'templates';
+  static const String trackerWidgetsBox = 'trackerWidgets'; // NEW - Widget Cards Feature
+  static const String toggleWidgetsBox = 'toggleWidgets'; // NEW - Widget Cards Feature
 }
 
 /// SharedPreferences keys

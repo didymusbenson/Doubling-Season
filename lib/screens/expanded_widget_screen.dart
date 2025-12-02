@@ -1,0 +1,297 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../models/tracker_widget.dart';
+import '../models/toggle_widget.dart';
+import '../providers/tracker_provider.dart';
+import '../providers/toggle_provider.dart';
+import '../widgets/artwork_selection_sheet.dart';
+import '../utils/artwork_manager.dart';
+
+class ExpandedWidgetScreen extends StatefulWidget {
+  final dynamic widget; // TrackerWidget or ToggleWidget
+  final bool isTracker;
+
+  const ExpandedWidgetScreen({
+    super.key,
+    required this.widget,
+    required this.isTracker,
+  });
+
+  @override
+  State<ExpandedWidgetScreen> createState() => _ExpandedWidgetScreenState();
+}
+
+class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
+  bool _artworkCleanupAttempted = false;
+
+  String get _widgetId {
+    return widget.isTracker
+        ? (widget.widget as TrackerWidget).widgetId
+        : (widget.widget as ToggleWidget).widgetId;
+  }
+
+  String get _name {
+    return widget.isTracker
+        ? (widget.widget as TrackerWidget).name
+        : (widget.widget as ToggleWidget).name;
+  }
+
+  String get _description {
+    if (widget.isTracker) {
+      return (widget.widget as TrackerWidget).description;
+    } else {
+      final toggle = widget.widget as ToggleWidget;
+      return '${toggle.onDescription}\n\n${toggle.offDescription}';
+    }
+  }
+
+  String? get _artworkUrl {
+    return widget.isTracker
+        ? (widget.widget as TrackerWidget).artworkUrl
+        : (widget.widget as ToggleWidget).artworkUrl;
+  }
+
+  set _artworkUrl(String? value) {
+    if (widget.isTracker) {
+      (widget.widget as TrackerWidget).artworkUrl = value;
+    } else {
+      (widget.widget as ToggleWidget).artworkUrl = value;
+    }
+  }
+
+  void _saveWidget() {
+    if (widget.isTracker) {
+      context.read<TrackerProvider>().updateTracker(widget.widget as TrackerWidget);
+    } else {
+      context.read<ToggleProvider>().updateToggle(widget.widget as ToggleWidget);
+    }
+  }
+
+  void _deleteWidget() {
+    if (widget.isTracker) {
+      context.read<TrackerProvider>().deleteTracker(widget.widget as TrackerWidget);
+    } else {
+      context.read<ToggleProvider>().deleteToggle(widget.widget as ToggleWidget);
+    }
+  }
+
+  void _showArtworkSelection() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        child: ArtworkSelectionSheet(
+          artworkVariants: const [], // Widgets don't have predefined artwork variants
+          onArtworkSelected: _handleArtworkSelected,
+          onRemoveArtwork: _artworkUrl != null ? _removeArtwork : null,
+          currentArtworkUrl: _artworkUrl,
+          currentArtworkSet: null,
+          tokenName: _name,
+          tokenIdentity: _widgetId, // Use widget ID as identity
+          databaseLoadError: false,
+        ),
+      ),
+    );
+  }
+
+  void _handleArtworkSelected(String artworkUrl, String? setCode) {
+    setState(() {
+      _artworkUrl = artworkUrl;
+      _saveWidget();
+    });
+  }
+
+  void _removeArtwork() {
+    setState(() {
+      _artworkUrl = null;
+      _saveWidget();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Widget Details'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete, color: Colors.red),
+            onPressed: () {
+              _deleteWidget();
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Name (read-only)
+            _buildReadOnlyField(
+              label: 'Name',
+              value: _name,
+              context: context,
+            ),
+
+            const SizedBox(height: 16),
+
+            // Description (read-only, multi-line)
+            _buildReadOnlyField(
+              label: widget.isTracker ? 'Description' : 'States',
+              value: _description,
+              context: context,
+              maxLines: null,
+            ),
+
+            const SizedBox(height: 24),
+
+            // Artwork Selection
+            _buildArtworkSection(context),
+
+            const SizedBox(height: 24),
+
+            // Help text
+            Text(
+              widget.isTracker
+                  ? 'Tap +/- to adjust value. Long-press for ${(widget.widget as TrackerWidget).longPressIncrement}.'
+                  : 'Tap card to toggle state. Long-press to open details.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReadOnlyField({
+    required String label,
+    required String value,
+    required BuildContext context,
+    int? maxLines = 1,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          width: double.infinity,
+          child: Text(
+            value,
+            style: Theme.of(context).textTheme.bodyLarge,
+            maxLines: maxLines,
+            overflow: maxLines != null ? TextOverflow.ellipsis : null,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildArtworkSection(BuildContext context) {
+    return GestureDetector(
+      onTap: _showArtworkSelection,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Artwork',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Display artwork thumbnail or "select" text
+            if (_artworkUrl != null)
+              FutureBuilder<File?>(
+                future: ArtworkManager.getCachedArtworkFile(_artworkUrl!),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const SizedBox(
+                      height: 100,
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
+                  if (snapshot.connectionState == ConnectionState.done) {
+                    if (snapshot.data == null) {
+                      // Cleanup: Remove invalid artwork URL
+                      if (!_artworkCleanupAttempted) {
+                        _artworkCleanupAttempted = true;
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            setState(() {
+                              _artworkUrl = null;
+                              _saveWidget();
+                            });
+                          }
+                        });
+                      }
+                      return _buildSelectArtworkPrompt(context);
+                    }
+
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        snapshot.data!,
+                        height: 100,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    );
+                  }
+
+                  return const SizedBox.shrink();
+                },
+              )
+            else
+              _buildSelectArtworkPrompt(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectArtworkPrompt(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          Icons.image,
+          color: Theme.of(context).colorScheme.primary,
+          size: 32,
+        ),
+        const SizedBox(width: 12),
+        Text(
+          'Tap to select artwork',
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      ],
+    );
+  }
+}
