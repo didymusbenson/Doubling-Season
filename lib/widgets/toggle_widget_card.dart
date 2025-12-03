@@ -206,6 +206,10 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
 
           final artworkWidget = CroppedArtworkWidget(
             imageFile: snapshot.data!,
+            cropLeft: 0.088,
+            cropRight: 0.088,
+            cropTop: 0.145,
+            cropBottom: 0.368,
             fillWidth: artworkDisplayStyle == 'fullView',
           );
 
