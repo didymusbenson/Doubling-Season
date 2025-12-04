@@ -45,6 +45,8 @@ class ContentScreen extends StatefulWidget {
 }
 
 class _ContentScreenState extends State<ContentScreen> {
+  final Map<String, ValueNotifier<bool>> _dismissStates = {}; // Track dismiss state per item
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -178,7 +180,7 @@ class _ContentScreenState extends State<ContentScreen> {
   }
 
   Widget _buildBoardItemCard(_BoardItem boardItem, int index) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    // final isDarkMode = Theme.of(context).brightness == Brightness.dark; // Unused since boxShadow commented out
     const borderWidth = 3.0;
     final innerBorderRadius = UIConstants.borderRadius - borderWidth;
 
@@ -196,29 +198,39 @@ class _ContentScreenState extends State<ContentScreen> {
       colorIdentity = (boardItem.item as ToggleWidget).colorIdentity;
     }
 
-    return Container(
-      key: ValueKey(boardItem.key),
-      margin: const EdgeInsets.symmetric(vertical: UIConstants.verticalSpacing),
-      decoration: BoxDecoration(
-        color: Colors.red, // Matches dismissible background - ensures rounded corners during swipe animation
-        borderRadius: BorderRadius.circular(UIConstants.borderRadius),
-      ),
-      // clipBehavior removed - was clipping the drop shadow in light mode
+    // Ensure ValueNotifier exists for this item
+    _dismissStates.putIfAbsent(boardItem.key, () => ValueNotifier<bool>(false));
+
+    return ValueListenableBuilder<bool>(
+      key: ValueKey(boardItem.key), // Key must be on outer widget for ReorderableListView
+      valueListenable: _dismissStates[boardItem.key]!,
+      builder: (context, isDismissing, child) {
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 100),
+          margin: const EdgeInsets.symmetric(vertical: UIConstants.verticalSpacing),
+          decoration: BoxDecoration(
+            color: isDismissing ? Colors.red : Colors.transparent, // Red only during swipe animation
+            borderRadius: BorderRadius.circular(UIConstants.borderRadius),
+          ),
+          // clipBehavior removed - was clipping the drop shadow in light mode
+          child: child,
+        );
+      },
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(UIConstants.borderRadius),
-          boxShadow: isDarkMode ? null : [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: UIConstants.shadowOpacity),
-              blurRadius: UIConstants.shadowBlurRadius,
-              offset: const Offset(UIConstants.shadowOffsetX, UIConstants.shadowOffsetY),
-            ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha: UIConstants.lightShadowOpacity),
-              blurRadius: UIConstants.lightShadowBlurRadius,
-              offset: const Offset(UIConstants.lightShadowOffsetX, UIConstants.lightShadowOffsetY),
-            ),
-          ],
+          // boxShadow: isDarkMode ? null : [
+          //   BoxShadow(
+          //     color: Colors.black.withValues(alpha: UIConstants.shadowOpacity),
+          //     blurRadius: UIConstants.shadowBlurRadius,
+          //     offset: const Offset(UIConstants.shadowOffsetX, UIConstants.shadowOffsetY),
+          //   ),
+          //   BoxShadow(
+          //     color: Colors.black.withValues(alpha: UIConstants.lightShadowOpacity),
+          //     blurRadius: UIConstants.lightShadowBlurRadius,
+          //     offset: const Offset(UIConstants.lightShadowOffsetX, UIConstants.lightShadowOffsetY),
+          //   ),
+          // ],
           border: GradientBoxBorder(
             gradient: ColorUtils.gradientForColors(colorIdentity, isEmblem: isEmblem),
             width: borderWidth,
@@ -248,6 +260,16 @@ class _ContentScreenState extends State<ContentScreen> {
           child: const Icon(Icons.delete, color: Colors.white),
         ),
       ),
+      onUpdate: (details) {
+        // Track dismiss state without setState - only updates this specific item's container
+        final notifier = _dismissStates[boardItem.key];
+        if (notifier != null) {
+          final shouldShowRed = details.progress > 0;
+          if (notifier.value != shouldShowRed) {
+            notifier.value = shouldShowRed;
+          }
+        }
+      },
       onDismissed: (_) => _deleteItem(boardItem),
       child: _buildCardContent(boardItem),
     );
