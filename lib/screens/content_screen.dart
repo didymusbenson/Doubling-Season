@@ -66,27 +66,31 @@ class _ContentScreenState extends State<ContentScreen> {
           Positioned(
             bottom: UIConstants.standardPadding,
             right: UIConstants.standardPadding,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                FloatingActionButton(
-                  heroTag: 'new_token_fab',
-                  onPressed: _showTokenSearch,
-                  child: const Icon(Icons.add, size: 28),
-                ),
-                const SizedBox(width: UIConstants.smallPadding),
-                FloatingActionMenu(
-                  onNewToken: _showTokenSearch,
-                  onWidgets: _showWidgetSelection,
-                  onAddCountersToAll: _handleAddCountersToAll,
-                  onMinusOneToAll: _handleMinusOneToAll,
-                  onUntapAll: _showUntapAllDialog,
-                  onClearSickness: _handleClearSickness,
-                  onSaveDeck: _showSaveDeckDialog,
-                  onLoadDeck: _showLoadDeckSheet,
-                  onBoardWipe: _showBoardWipeDialog,
-                ),
-              ],
+            child: Consumer<SettingsProvider>(
+              builder: (context, settings, child) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    FloatingActionButton(
+                      heroTag: 'new_token_fab',
+                      onPressed: _showTokenSearch,
+                      child: const Icon(Icons.add, size: 28),
+                    ),
+                    const SizedBox(width: UIConstants.smallPadding),
+                    FloatingActionMenu(
+                      onNewToken: _showTokenSearch,
+                      onWidgets: settings.experimentalFeaturesEnabled ? _showWidgetSelection : null,
+                      onAddCountersToAll: _handleAddCountersToAll,
+                      onMinusOneToAll: _handleMinusOneToAll,
+                      onUntapAll: _showUntapAllDialog,
+                      onClearSickness: _handleClearSickness,
+                      onSaveDeck: _showSaveDeckDialog,
+                      onLoadDeck: _showLoadDeckSheet,
+                      onBoardWipe: _showBoardWipeDialog,
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -564,6 +568,31 @@ class _ContentScreenState extends State<ContentScreen> {
     tokenProvider.untapAll();
   }
 
+  void _showExperimentalFeaturesConfirmation(BuildContext context, SettingsProvider settings) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Enable Experimental Features?'),
+        content: const Text(
+          'Are you sure? Enabling this setting provides access to in-development experimental features. This could impact your board state, theme, and other data.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              settings.setExperimentalFeaturesEnabled(true);
+              Navigator.pop(dialogContext);
+            },
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showSummoningSicknessToggle() {
     showDialog(
       context: context,
@@ -580,6 +609,22 @@ class _ContentScreenState extends State<ContentScreen> {
                   value: settings.summoningSicknessEnabled,
                   onChanged: (value) {
                     settings.setSummoningSicknessEnabled(value);
+                  },
+                  contentPadding: EdgeInsets.zero,
+                ),
+
+                // Experimental features toggle
+                SwitchListTile(
+                  title: const Text('Enable experimental features'),
+                  value: settings.experimentalFeaturesEnabled,
+                  onChanged: (value) {
+                    if (value) {
+                      // Show confirmation dialog when enabling
+                      _showExperimentalFeaturesConfirmation(context, settings);
+                    } else {
+                      // Allow disabling without confirmation
+                      settings.setExperimentalFeaturesEnabled(false);
+                    }
                   },
                   contentPadding: EdgeInsets.zero,
                 ),
@@ -755,8 +800,10 @@ class _ContentScreenState extends State<ContentScreen> {
         ],
       ),
     ).then((_) {
-      // Dispose controller after dialog closes, regardless of how it was dismissed
-      controller.dispose();
+      // Dispose controller after all frames have been processed to avoid accessing disposed controller during teardown
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        controller.dispose();
+      });
     });
   }
 

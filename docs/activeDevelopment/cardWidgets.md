@@ -8,14 +8,36 @@ Widget cards are utility cards that provide game-tracking tools (like life count
 There are two fundamental widget types:
 
 ### 1. Tracker Widget
-A numeric counter with stepper buttons.
+A numeric counter with stepper buttons. Trackers emphasize the VALUE as the primary display element.
+
+**Layout Structure:**
+Trackers use a single-row layout that mirrors token name vs tapped/untapped structure:
+- **Left Side (Expanded)**: Column containing Name, Description (optional), and Buttons
+- **Right Side (shrink-wrap)**: VALUE display (centered, prominent)
 
 **Components:**
 - **Name**: Read-only title (e.g., "Life Total", "Poison Counters", "Experience")
-- **Value**: Numeric display (tap to manually edit)
+  - Max 75% width (naturally constrained by Expanded layout)
+  - Truncates with ellipsis if too long
+  - Same styling as token names
+- **Description**: Optional explanation text (e.g., "Tap +/- to adjust life total")
+  - Lives in same 75% column as Name (cannot overlap with Value)
+  - **Editable**: Users can add/edit descriptions for any tracker (via ExpandedWidgetScreen)
+  - By default, predefined widgets (Life Total, Poison Counters) have no description
+  - Players know what these are, no need for explanatory text
+  - Custom trackers can have descriptions if user wants
+- **Value**: Large numeric display (tap to manually edit)
+  - Right-aligned, takes remaining space (typically ~25%)
+  - **BIG NUMBER emphasis**: Uses displayMedium font with bold weight
+  - Semi-transparent background (same as token tapped/untapped)
+  - NO border (unlike buttons)
+  - Vertically centered to take full card height
+  - Padding: 12px horizontal, 8px vertical
 - **Buttons**: Decrement (-), Increment (+)
-  - Tap: Change by 1 (or widget-specific amount)
-  - Long-press: Change by 5 (or widget-specific amount)
+  - Left-aligned in the 75% column below Name/Description
+  - Spaced using token button spacing calculation (LayoutBuilder with clamp)
+  - Tap: Change by widget's tapIncrement (default: 1)
+  - Long-press: Change by widget's longPressIncrement (default: 5)
 
 **Examples:**
 - Life Total (starting value: 40 or 20)
@@ -102,24 +124,29 @@ Widget cards have text fields that map to token card equivalents:
     - Background: `cardColor.withValues(alpha: 0.85)` for readability
     - Read-only (set by widget type, cannot be edited by user)
 - **DESCRIPTION**: Widget explanation/rules text (maps to token's `abilities` field)
-    - **Tracker widgets**: Instructions like "Tap +/- to adjust life total" (single line)
+    - **Tracker widgets**: Optional text field (editable by user in ExpandedWidgetScreen)
+      - By default empty for predefined trackers (Life Total, Poison Counters)
+      - Users can add custom descriptions if desired
+      - **Compact Card**: 3-line max with ellipsis overflow
+      - **Expanded View**: Editable TextField with 3-line height
     - **Toggle widgets**: Current state text (e.g., "You are the Monarch" or "Not the Monarch")
-    - **Compact Card**: 3-line max with ellipsis overflow
-    - **Expanded View**: Full multi-line text without truncation
+      - Read-only (set by widget type via onDescription/offDescription)
+      - **Compact Card**: 3-line max with ellipsis overflow
+      - **Expanded View**: Full multi-line text without truncation, read-only
     - Background: `cardColor.withValues(alpha: 0.85)` for readability
-    - Read-only (set by widget type, cannot be edited by user)
-    - Provides clear instructions on how the widget works and how to use it
 
 ### Widget Color Identity and Artwork
 
 **Color Identity:**
-- **Hard-coded Color**: Each widget type has a fixed color identity (cannot be changed by user)
+- **Editable**: Users can manually set color identity for any widget (same as tokens)
+- **Color Selection**: Via ExpandedWidgetScreen using ColorSelectionButton (W/U/B/R/G)
 - **Border Gradient**: Uses `ColorUtils.gradientForColors()` like token cards
-- **Examples**:
-    - Life Counter: Colorless (gray)
-    - Commander Damage: Red (R)
-    - Energy Counter: Blue (U)
-    - Poison Counter: Black/Green (BG)
+- **Background Gradient**: Widgets without artwork show gradient background based on color identity
+- **Default Colors** (predefined widgets):
+    - Life Total: Colorless (empty string)
+    - Poison Counters: Black/Green (BG)
+    - The Monarch: Red (R)
+    - Day/Night: White/Green (WG)
 
 **Artwork Behavior (from TokenCard):**
 - **Selection**: Via `ExpandedWidgetScreen` using `ArtworkManager` (same as tokens)
@@ -163,10 +190,10 @@ Widget cards have action buttons styled identically to token cards:
 - Last button gets 0 trailing spacing
 
 **Widget-Specific Buttons:**
-- **Tracker widgets**: 3 buttons in centered row
+- **Tracker widgets**: 2 buttons in left-aligned row (with token spacing calculation)
   - Decrement button (-): Icons.remove, tap = -1, long-press = -5 (configurable)
-  - Value display (center): Tappable text with background, opens numeric keyboard
   - Increment button (+): Icons.add, tap = +1, long-press = +5 (configurable)
+  - Value display: Separate element on right side (NOT in button row), tappable to edit
 - **Toggle widgets**: No action buttons (entire card is tappable to toggle state)
 
 ### What Widgets DON'T Have (vs Tokens)
@@ -218,22 +245,31 @@ Widget cards have action buttons styled identically to token cards:
 - **Navigation**:
   - Tracker widgets: Tap card background
   - Toggle widgets: Long-press card
-- **Description Display**: Shows full widget description explaining how it works and how to use it
-    - Multi-line text without truncation
-    - Scrollable if needed
-    - Same text styling as token abilities in expanded view
+- **Name Display**: Widget name shown as read-only text (not editable)
+- **Description**:
+    - **Tracker widgets**: Editable TextField with 3-line height
+      - Label: "Description (Optional)"
+      - Hint text: "Add optional description..."
+      - Auto-saves on change
+      - Users can add/edit/remove descriptions as desired
+    - **Toggle widgets**: Read-only display showing both ON and OFF state descriptions
+      - Multi-line text without truncation
+      - Scrollable if needed
+- **Color Selection**: Editable for all widgets via ColorSelectionButton (W/U/B/R/G)
+    - Same UI as ExpandedTokenScreen
+    - Auto-saves on change
+    - Updates gradient background when widget has no artwork
 - **Artwork Selection**: Uses exact same artwork selection logic as tokens
     - Scryfall API integration via `ArtworkManager`
     - Same artwork picker UI from `ExpandedTokenScreen`
     - Same cropping/caching behavior
     - Artwork displayed on widget card using same styling as tokens (Full View or Fadeout)
-- **No Field Editing**: Unlike tokens, widget NAME and DESCRIPTION are read-only (cannot be edited)
 - **No Counter Management**: Widgets don't have +1/+1 counters or custom counters
 - **No Widget-Specific Controls**: Base `ExpandedWidgetScreen` has no special function controls
     - If future widgets need custom controls, extend the base class (e.g., `ExpandedLifeCounterScreen extends ExpandedWidgetScreen`)
     - Similar inheritance pattern to `BaseWidgetCard`
 - **Delete Button**: Widgets can be deleted from the board
-- **Rationale**: Universal expanded view provides artwork selection and delete without cluttering the compact card
+- **Rationale**: Universal expanded view provides artwork selection, description editing (trackers), and delete without cluttering the compact card
 
 ### Widget Event System
 Widgets can listen to token-related events for automatic trigger tracking:
@@ -396,29 +432,47 @@ class TrackerWidgetCard extends BaseWidgetCard {
 
   @override
   Widget build(BuildContext context) {
-    // Uses BaseWidgetCard structure
-    // Action buttons: [-] [Value] [+]
+    // Layout: Single row mirroring token name vs tapped/untapped
+    // Left: Expanded column (Name, Description, Buttons)
+    // Right: Value display (shrink-wrap, centered)
     return GestureDetector(
       onTap: () => _openExpandedView(),
       child: Stack([
         _buildGradientBackground(tracker.colorIdentity),
         _buildArtworkLayer(tracker.artworkUrl),
-        Column([
-          _buildNameSection(tracker.name),
-          _buildDescriptionSection(tracker.description),
-          _buildActionButtons([
-            _buildActionButton(
-              icon: Icons.remove,
-              onTap: () => _decrement(tracker.tapIncrement),
-              onLongPress: () => _decrement(tracker.longPressIncrement),
+        Row([
+          // Left side: Name, Description, Buttons (75% naturally via Expanded)
+          Expanded(
+            child: Column([
+              _buildTextWithBackground(
+                child: Text(tracker.name, overflow: TextOverflow.ellipsis),
+              ),
+              if (tracker.description.isNotEmpty)
+                _buildTextWithBackground(
+                  child: Text(tracker.description, maxLines: 3),
+                ),
+              _buildActionButtons([  // Left-aligned, token spacing
+                _buildActionButton(
+                  icon: Icons.remove,
+                  onTap: () => _decrement(tracker.tapIncrement),
+                  onLongPress: () => _decrement(tracker.longPressIncrement),
+                ),
+                _buildActionButton(
+                  icon: Icons.add,
+                  onTap: () => _increment(tracker.tapIncrement),
+                  onLongPress: () => _increment(tracker.longPressIncrement),
+                ),
+              ]),
+            ]),
+          ),
+          // Right side: Value display (25% naturally via shrink-wrap)
+          _buildTextWithBackground(
+            child: Text(
+              '${tracker.currentValue}',
+              style: titleLarge,
+              textAlign: TextAlign.center,
             ),
-            _buildValueDisplay(tracker.currentValue), // Tappable to edit
-            _buildActionButton(
-              icon: Icons.add,
-              onTap: () => _increment(tracker.tapIncrement),
-              onLongPress: () => _increment(tracker.longPressIncrement),
-            ),
-          ]),
+          ), // Tappable to edit via GestureDetector wrapper
         ]),
       ]),
     );

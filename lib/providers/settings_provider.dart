@@ -86,4 +86,12 @@ class SettingsProvider extends ChangeNotifier {
     await _prefs.setStringList(PreferenceKeys.recentTokens, recent);
     notifyListeners();
   }
+
+  bool get experimentalFeaturesEnabled =>
+      _prefs.getBool(PreferenceKeys.experimentalFeaturesEnabled) ?? false;
+
+  Future<void> setExperimentalFeaturesEnabled(bool value) async {
+    await _prefs.setBool(PreferenceKeys.experimentalFeaturesEnabled, value);
+    notifyListeners();
+  }
 }

@@ -837,11 +837,41 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
 
   Future<void> _pickAndSaveImage() async {
     try {
+      // Show brief loading indicator to acknowledge button press
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Opening gallery...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Brief delay to ensure loading dialog renders
+      await Future.delayed(const Duration(milliseconds: 150));
+
       // Step 1: Pick image from gallery
       final XFile? image = await _imagePicker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 85,
       );
+
+      // Dismiss "opening gallery" dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
 
       if (image == null) return;
 
@@ -867,8 +897,8 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
         ),
       );
 
-      // Small delay to ensure loading dialog renders before cropper launches
-      await Future.delayed(const Duration(milliseconds: 100));
+      // Delay to ensure loading dialog renders before cropper launches
+      await Future.delayed(const Duration(milliseconds: 200));
 
       // Get theme colors to match app styling
       final theme = Theme.of(context);
@@ -987,14 +1017,15 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
         widget.onUploadComplete(fileUrl);
       }
     } catch (e) {
-      // Dismiss loading overlay if it's still showing
+      // Dismiss any loading overlays that might be showing
       if (mounted) {
-        // Try to pop the loading dialog if there was an error before cropper launched
+        // Try to pop up to 2 loading dialogs (gallery + cropper) if error occurred
         try {
-          Navigator.of(context).pop();
-        } catch (_) {
-          // Dialog might already be dismissed, ignore
-        }
+          Navigator.of(context).pop(); // First dialog
+        } catch (_) {}
+        try {
+          Navigator.of(context).pop(); // Second dialog (if exists)
+        } catch (_) {}
       }
 
       // Log failure for debugging

@@ -5,6 +5,8 @@ import 'package:collection/collection.dart';
 import '../models/token_definition.dart' as token_models;
 import '../database/token_database.dart';
 import '../providers/token_provider.dart';
+import '../providers/tracker_provider.dart';
+import '../providers/toggle_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/new_token_sheet.dart';
 import '../widgets/color_filter_button.dart';
@@ -827,14 +829,27 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
 
                   // Capture provider references BEFORE any async operations
                   final tokenProvider = context.read<TokenProvider>();
+                  final trackerProvider = context.read<TrackerProvider>();
+                  final toggleProvider = context.read<ToggleProvider>();
                   final settingsProvider = context.read<SettingsProvider>();
                   final finalAmount = _tokenQuantity * multiplier;
+
+                  // Calculate max order across ALL board items (tokens + trackers + toggles)
+                  final allOrders = <double>[];
+                  allOrders.addAll(tokenProvider.items.map((item) => item.order));
+                  allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
+                  allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
+                  final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
+                  final newOrder = maxOrder.floor() + 1.0;
 
                   // Create final token immediately (no placeholder)
                   final newItem = token.toItem(
                     amount: finalAmount,
                     createTapped: _createTapped,
                   );
+
+                  // Set explicit order to prevent provider fallback
+                  newItem.order = newOrder;
 
                   // Load preferred artwork from preferences (Custom Artwork Feature)
                   final artworkPrefManager = ArtworkPreferenceManager();

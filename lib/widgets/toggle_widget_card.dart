@@ -24,6 +24,8 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
   final DateTime _createdAt = DateTime.now();
   bool _artworkAnimated = false;
   bool _artworkCleanupAttempted = false;
+  Future<File?>? _cachedArtworkFuture;
+  String? _cachedArtworkUrl;
 
   @override
   void didUpdateWidget(ToggleWidgetCard oldWidget) {
@@ -34,20 +36,23 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
     }
   }
 
+  Future<File?> _getArtworkFuture(String artworkUrl) {
+    // Cache the future only if URL hasn't changed
+    if (_cachedArtworkUrl != artworkUrl || _cachedArtworkFuture == null) {
+      _cachedArtworkUrl = artworkUrl;
+      _cachedArtworkFuture = ArtworkManager.getCachedArtworkFile(artworkUrl);
+    }
+    return _cachedArtworkFuture!;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Selector<SettingsProvider, String>(
       selector: (context, settings) => settings.artworkDisplayStyle,
       builder: (context, artworkDisplayStyle, child) {
         return GestureDetector(
-          // Tap to toggle
+          // Tap card body to open expanded view
           onTap: () {
-            final toggleProvider = context.read<ToggleProvider>();
-            widget.toggle.toggle();
-            toggleProvider.updateToggle(widget.toggle);
-          },
-          // Long-press to open expanded view
-          onLongPress: () {
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (context) => ExpandedWidgetScreen(
@@ -83,15 +88,17 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
                   Container(
                     color: Colors.transparent,
                     padding: const EdgeInsets.all(UIConstants.cardPadding),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Name
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildTextWithBackground(
+                        // Left side: Name and Description (takes remaining space)
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Name
+                              _buildTextWithBackground(
                                 context: context,
                                 child: Text(
                                   widget.toggle.name,
@@ -102,35 +109,27 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
                                   maxLines: 1,
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: UIConstants.mediumSpacing),
-                            // State indicator
-                            _buildTextWithBackground(
-                              context: context,
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              child: Icon(
-                                widget.toggle.isActive ? Icons.check_circle : Icons.circle_outlined,
-                                size: UIConstants.iconSize,
-                                color: widget.toggle.isActive
-                                    ? Colors.green
-                                    : Theme.of(context).textTheme.bodyMedium?.color,
+
+                              const SizedBox(height: UIConstants.mediumSpacing),
+
+                              // Current description (ON or OFF)
+                              _buildTextWithBackground(
+                                context: context,
+                                child: Text(
+                                  widget.toggle.currentDescription,
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 3,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: UIConstants.mediumSpacing),
-
-                        // Current description (ON or OFF)
-                        _buildTextWithBackground(
-                          context: context,
-                          child: Text(
-                            widget.toggle.currentDescription,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 3,
+                            ],
                           ),
                         ),
+
+                        const SizedBox(width: UIConstants.mediumSpacing),
+
+                        // Right side: Toggle button (shrink-wraps)
+                        _buildToggleButton(context),
                       ],
                     ),
                   ),
@@ -143,16 +142,42 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
     );
   }
 
+  Widget _buildToggleButton(BuildContext context) {
+    final toggleProvider = context.read<ToggleProvider>();
+    final activeColor = Colors.green;
+    final inactiveColor = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+
+    return GestureDetector(
+      onTap: () {
+        widget.toggle.toggle();
+        toggleProvider.updateToggle(widget.toggle);
+      },
+      child: _buildTextWithBackground(
+        context: context,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Icon(
+          widget.toggle.isActive ? Icons.check_box : Icons.check_box_outline_blank,
+          size: 48, // Large size to match tracker value emphasis
+          color: widget.toggle.isActive ? activeColor : inactiveColor,
+        ),
+      ),
+    );
+  }
+
   String? _getCurrentArtworkUrl() {
     // Use state-specific artwork if available, otherwise fall back to general artwork
     return widget.toggle.currentArtworkUrl;
   }
 
   Widget _buildGradientLayer(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: ColorUtils.gradientForColors(widget.toggle.colorIdentity, isEmblem: false),
-        borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+    final gradient = ColorUtils.gradientForColors(widget.toggle.colorIdentity, isEmblem: false);
+
+    return Positioned.fill(
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+        ),
       ),
     );
   }
@@ -161,14 +186,22 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
     final artworkUrl = _getCurrentArtworkUrl();
     if (artworkUrl == null) return const SizedBox.shrink();
 
-    return FutureBuilder<File?>(
-      future: ArtworkManager.getCachedArtworkFile(artworkUrl),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.done && snapshot.data == null) {
-          return _buildGradientLayer(context);
-        }
-        return const SizedBox.shrink();
-      },
+    return Positioned.fill(
+      child: FutureBuilder<File?>(
+        future: _getArtworkFuture(artworkUrl),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.done && snapshot.data == null) {
+            final gradient = ColorUtils.gradientForColors(widget.toggle.colorIdentity, isEmblem: false);
+            return Container(
+              decoration: BoxDecoration(
+                gradient: gradient,
+                borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+              ),
+            );
+          }
+          return const SizedBox.shrink();
+        },
+      ),
     );
   }
 
@@ -176,21 +209,24 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
     final artworkUrl = _getCurrentArtworkUrl();
     if (artworkUrl == null) return const SizedBox.shrink();
 
-    return FutureBuilder<File?>(
-      future: ArtworkManager.getCachedArtworkFile(artworkUrl),
-      builder: (context, snapshot) {
+    return Positioned.fill(
+      child: FutureBuilder<File?>(
+        future: _getArtworkFuture(artworkUrl),
+        builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SizedBox.shrink();
         }
 
         if (snapshot.connectionState == ConnectionState.done) {
           if (snapshot.data == null) {
-            // Cleanup: Remove invalid artwork URL
+            // Cleanup: Remove invalid artwork URL (with 2-second delay to prevent interference with drag/upload operations)
             if (!_artworkCleanupAttempted) {
               _artworkCleanupAttempted = true;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                widget.toggle.artworkUrl = null;
-                widget.toggle.save();
+              Future.delayed(const Duration(seconds: 2), () {
+                if (mounted) {
+                  widget.toggle.artworkUrl = null;
+                  widget.toggle.save();
+                }
               });
             }
             return const SizedBox.shrink();
@@ -244,7 +280,8 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
         }
 
         return const SizedBox.shrink();
-      },
+        },
+      ),
     );
   }
 

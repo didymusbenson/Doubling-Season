@@ -6,6 +6,7 @@ import '../models/toggle_widget.dart';
 import '../providers/tracker_provider.dart';
 import '../providers/toggle_provider.dart';
 import '../widgets/artwork_selection_sheet.dart';
+import '../widgets/color_selection_button.dart';
 import '../utils/artwork_manager.dart';
 
 class ExpandedWidgetScreen extends StatefulWidget {
@@ -24,6 +25,43 @@ class ExpandedWidgetScreen extends StatefulWidget {
 
 class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
   bool _artworkCleanupAttempted = false;
+  late TextEditingController _descriptionController;
+
+  // Color selection state (same as ExpandedTokenScreen)
+  late bool _whiteSelected;
+  late bool _blueSelected;
+  late bool _blackSelected;
+  late bool _redSelected;
+  late bool _greenSelected;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize description controller for trackers
+    if (widget.isTracker) {
+      _descriptionController = TextEditingController(
+        text: (widget.widget as TrackerWidget).description,
+      );
+    }
+
+    // Initialize color selections from widget's colorIdentity
+    final colorIdentity = widget.isTracker
+        ? (widget.widget as TrackerWidget).colorIdentity
+        : (widget.widget as ToggleWidget).colorIdentity;
+    _whiteSelected = colorIdentity.contains('W');
+    _blueSelected = colorIdentity.contains('U');
+    _blackSelected = colorIdentity.contains('B');
+    _redSelected = colorIdentity.contains('R');
+    _greenSelected = colorIdentity.contains('G');
+  }
+
+  @override
+  void dispose() {
+    if (widget.isTracker) {
+      _descriptionController.dispose();
+    }
+    super.dispose();
+  }
 
   String get _widgetId {
     return widget.isTracker
@@ -66,6 +104,22 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
     } else {
       context.read<ToggleProvider>().updateToggle(widget.widget as ToggleWidget);
     }
+  }
+
+  void _updateColors() {
+    String newColors = '';
+    if (_whiteSelected) newColors += 'W';
+    if (_blueSelected) newColors += 'U';
+    if (_blackSelected) newColors += 'B';
+    if (_redSelected) newColors += 'R';
+    if (_greenSelected) newColors += 'G';
+
+    if (widget.isTracker) {
+      (widget.widget as TrackerWidget).colorIdentity = newColors;
+    } else {
+      (widget.widget as ToggleWidget).colorIdentity = newColors;
+    }
+    _saveWidget();
   }
 
   void _deleteWidget() {
@@ -141,15 +195,95 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
 
             const SizedBox(height: 16),
 
-            // Description (read-only, multi-line)
-            _buildReadOnlyField(
-              label: widget.isTracker ? 'Description' : 'States',
-              value: _description,
-              context: context,
-              maxLines: null,
+            // Description (editable for trackers, read-only for toggles)
+            if (widget.isTracker)
+              _buildEditableDescriptionField(context)
+            else
+              _buildReadOnlyField(
+                label: 'States',
+                value: _description,
+                context: context,
+                maxLines: null,
+              ),
+
+            const SizedBox(height: 16),
+
+            // Color Selection
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Colors',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        ColorSelectionButton(
+                          symbol: 'W',
+                          isSelected: _whiteSelected,
+                          color: Colors.yellow,
+                          label: 'White',
+                          onChanged: (value) {
+                            setState(() => _whiteSelected = value);
+                            _updateColors();
+                          },
+                        ),
+                        ColorSelectionButton(
+                          symbol: 'U',
+                          isSelected: _blueSelected,
+                          color: Colors.blue,
+                          label: 'Blue',
+                          onChanged: (value) {
+                            setState(() => _blueSelected = value);
+                            _updateColors();
+                          },
+                        ),
+                        ColorSelectionButton(
+                          symbol: 'B',
+                          isSelected: _blackSelected,
+                          color: Colors.purple,
+                          label: 'Black',
+                          onChanged: (value) {
+                            setState(() => _blackSelected = value);
+                            _updateColors();
+                          },
+                        ),
+                        ColorSelectionButton(
+                          symbol: 'R',
+                          isSelected: _redSelected,
+                          color: Colors.red,
+                          label: 'Red',
+                          onChanged: (value) {
+                            setState(() => _redSelected = value);
+                            _updateColors();
+                          },
+                        ),
+                        ColorSelectionButton(
+                          symbol: 'G',
+                          isSelected: _greenSelected,
+                          color: Colors.green,
+                          label: 'Green',
+                          onChanged: (value) {
+                            setState(() => _greenSelected = value);
+                            _updateColors();
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
 
             // Artwork Selection
             _buildArtworkSection(context),
@@ -160,7 +294,7 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
             Text(
               widget.isTracker
                   ? 'Tap +/- to adjust value. Long-press for ${(widget.widget as TrackerWidget).longPressIncrement}.'
-                  : 'Tap card to toggle state. Long-press to open details.',
+                  : 'Tap the checkbox button on the card to toggle ON/OFF state.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
               ),
@@ -169,6 +303,34 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildEditableDescriptionField(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Description (Optional)',
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _descriptionController,
+          decoration: const InputDecoration(
+            hintText: 'Add optional description...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+          onChanged: (value) {
+            // Save description to tracker
+            (widget.widget as TrackerWidget).description = value;
+            _saveWidget();
+          },
+        ),
+      ],
     );
   }
 

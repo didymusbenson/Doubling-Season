@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/item.dart';
 import '../providers/token_provider.dart';
+import '../providers/tracker_provider.dart';
+import '../providers/toggle_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/artwork_preference_manager.dart';
 import 'color_selection_button.dart';
@@ -229,9 +231,19 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
     setState(() => _isCreating = true);
 
     final tokenProvider = context.read<TokenProvider>();
+    final trackerProvider = context.read<TrackerProvider>();
+    final toggleProvider = context.read<ToggleProvider>();
     final settings = context.read<SettingsProvider>();
     final multiplier = settings.tokenMultiplier;
     final finalAmount = _amount * multiplier;
+
+    // Calculate max order across ALL board items (tokens + trackers + toggles)
+    final allOrders = <double>[];
+    allOrders.addAll(tokenProvider.items.map((item) => item.order));
+    allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
+    allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
+    final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
+    final newOrder = maxOrder.floor() + 1.0;
 
     // Create final token immediately (no placeholder)
     final newItem = Item(
@@ -243,6 +255,7 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
       amount: finalAmount,
       tapped: _createTapped ? finalAmount : 0,
       summoningSick: 0, // Will be set below if needed
+      order: newOrder,
     );
 
     // Load preferred artwork from preferences (Custom Artwork Feature)

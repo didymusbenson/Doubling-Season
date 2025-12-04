@@ -725,6 +725,24 @@ showModalBottomSheet(
 );
 ```
 
+### Widget Development Pattern
+
+**CRITICAL: TokenCard is the canonical reference implementation for all board items.**
+
+When implementing features for widgets (TrackerWidget, ToggleWidget, or any future widget types):
+1. **Always check TokenCard first** - See if a similar feature already exists in `lib/widgets/token_card.dart`
+2. **Use TokenCard as the reference** - Copy and adapt patterns from TokenCard when implementing features on widget cards
+3. **Apply consistently** - This rule applies to any type of widget that displays in the ContentScreen board list
+
+Examples where this pattern applies:
+- Artwork display layers (use `Positioned.fill()` wrapper like TokenCard)
+- Text overlays with semi-transparent backgrounds (use same alpha values)
+- Stack-based layouts (follow same layer ordering: base → gradient → artwork → content)
+- Animation patterns (copy animation controllers and timing)
+- Provider usage patterns (use same Selector patterns)
+
+This ensures consistency across all board items and prevents reimplementing solutions that already exist.
+
 ### UI Conventions
 - Use `Navigator.of(context).push()` for full-screen navigation
 - Use `showDialog()` for alerts and confirmations

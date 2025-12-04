@@ -24,6 +24,8 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
   final DateTime _createdAt = DateTime.now();
   bool _artworkAnimated = false;
   bool _artworkCleanupAttempted = false;
+  Future<File?>? _cachedArtworkFuture;
+  String? _cachedArtworkUrl;
 
   @override
   void didUpdateWidget(TrackerWidgetCard oldWidget) {
@@ -32,6 +34,15 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
     if (oldWidget.tracker.artworkUrl != widget.tracker.artworkUrl) {
       _artworkCleanupAttempted = false;
     }
+  }
+
+  Future<File?> _getArtworkFuture(String artworkUrl) {
+    // Cache the future only if URL hasn't changed
+    if (_cachedArtworkUrl != artworkUrl || _cachedArtworkFuture == null) {
+      _cachedArtworkUrl = artworkUrl;
+      _cachedArtworkFuture = ArtworkManager.getCachedArtworkFile(artworkUrl);
+    }
+    return _cachedArtworkFuture!;
   }
 
   @override
@@ -76,40 +87,54 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
                   Container(
                     color: Colors.transparent,
                     padding: const EdgeInsets.all(UIConstants.cardPadding),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Name
-                        _buildTextWithBackground(
-                          context: context,
-                          child: Text(
-                            widget.tracker.name,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
+                        // Left side: Name, Description, Buttons (takes remaining space)
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Name
+                              _buildTextWithBackground(
+                                context: context,
+                                child: Text(
+                                  widget.tracker.name,
+                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+
+                              // Description (if present)
+                              if (widget.tracker.description.isNotEmpty) ...[
+                                const SizedBox(height: UIConstants.mediumSpacing),
+                                _buildTextWithBackground(
+                                  context: context,
+                                  child: Text(
+                                    widget.tracker.description,
+                                    style: Theme.of(context).textTheme.bodyMedium,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 3,
+                                  ),
+                                ),
+                              ],
+
+                              const SizedBox(height: UIConstants.mediumSpacing),
+
+                              // Button Row (left-aligned)
+                              _buildActionButtons(context),
+                            ],
                           ),
                         ),
 
-                        const SizedBox(height: UIConstants.mediumSpacing),
+                        const SizedBox(width: UIConstants.mediumSpacing),
 
-                        // Description
-                        _buildTextWithBackground(
-                          context: context,
-                          child: Text(
-                            widget.tracker.description,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 3,
-                          ),
-                        ),
-
-                        const SizedBox(height: UIConstants.mediumSpacing),
-
-                        // Button Row (centered)
-                        _buildActionButtons(context),
+                        // Right side: Value display (shrink-wraps)
+                        _buildValueDisplay(context),
                       ],
                     ),
                   ),
@@ -126,7 +151,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
     final trackerProvider = context.read<TrackerProvider>();
     final primaryColor = Theme.of(context).colorScheme.primary;
 
-    const int buttonCount = 3; // Decrement, Value, Increment
+    const int buttonCount = 2; // Decrement, Increment
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -139,7 +164,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
         );
 
         return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
             // Decrement button
             _buildActionButton(
@@ -156,9 +181,6 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
               color: primaryColor,
               spacing: spacing,
             ),
-
-            // Value display (tappable to manually edit)
-            _buildValueDisplay(context, spacing),
 
             // Increment button
             _buildActionButton(
@@ -181,31 +203,19 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
     );
   }
 
-  Widget _buildValueDisplay(BuildContext context, double spacing) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
-    final buttonBackgroundColor = Theme.of(context).cardColor.withValues(alpha: 0.85);
-
-    return Padding(
-      padding: EdgeInsets.only(right: spacing),
-      child: GestureDetector(
-        onTap: () => _showValueEditDialog(context),
-        child: Container(
-          padding: const EdgeInsets.all(UIConstants.actionButtonPadding),
-          decoration: BoxDecoration(
-            color: buttonBackgroundColor,
-            borderRadius: BorderRadius.circular(UIConstants.actionButtonBorderRadius),
-            border: Border.all(
-              color: primaryColor,
-              width: UIConstants.actionButtonBorderWidth,
-            ),
+  Widget _buildValueDisplay(BuildContext context) {
+    // Big number display - takes full vertical space
+    return GestureDetector(
+      onTap: () => _showValueEditDialog(context),
+      child: _buildTextWithBackground(
+        context: context,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Text(
+          '${widget.tracker.currentValue}',
+          style: Theme.of(context).textTheme.displayMedium?.copyWith(
+            fontWeight: FontWeight.bold,
           ),
-          child: Text(
-            '${widget.tracker.currentValue}',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: primaryColor,
-            ),
-          ),
+          textAlign: TextAlign.center,
         ),
       ),
     );
@@ -289,42 +299,57 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
   }
 
   Widget _buildGradientLayer(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: ColorUtils.gradientForColors(widget.tracker.colorIdentity, isEmblem: false),
-        borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+    final gradient = ColorUtils.gradientForColors(widget.tracker.colorIdentity, isEmblem: false);
+
+    return Positioned.fill(
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+        ),
       ),
     );
   }
 
   Widget _buildConditionalGradient(BuildContext context) {
-    return FutureBuilder<File?>(
-      future: ArtworkManager.getCachedArtworkFile(widget.tracker.artworkUrl!),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.done && snapshot.data == null) {
-          return _buildGradientLayer(context);
-        }
-        return const SizedBox.shrink();
-      },
+    return Positioned.fill(
+      child: FutureBuilder<File?>(
+        future: _getArtworkFuture(widget.tracker.artworkUrl!),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.done && snapshot.data == null) {
+            final gradient = ColorUtils.gradientForColors(widget.tracker.colorIdentity, isEmblem: false);
+            return Container(
+              decoration: BoxDecoration(
+                gradient: gradient,
+                borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+              ),
+            );
+          }
+          return const SizedBox.shrink();
+        },
+      ),
     );
   }
 
   Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints, String artworkDisplayStyle) {
-    return FutureBuilder<File?>(
-      future: ArtworkManager.getCachedArtworkFile(widget.tracker.artworkUrl!),
-      builder: (context, snapshot) {
+    return Positioned.fill(
+      child: FutureBuilder<File?>(
+        future: _getArtworkFuture(widget.tracker.artworkUrl!),
+        builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SizedBox.shrink();
         }
 
         if (snapshot.connectionState == ConnectionState.done) {
           if (snapshot.data == null) {
-            // Cleanup: Remove invalid artwork URL
+            // Cleanup: Remove invalid artwork URL (with 2-second delay to prevent interference with drag/upload operations)
             if (!_artworkCleanupAttempted) {
               _artworkCleanupAttempted = true;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                widget.tracker.artworkUrl = null;
-                widget.tracker.save();
+              Future.delayed(const Duration(seconds: 2), () {
+                if (mounted) {
+                  widget.tracker.artworkUrl = null;
+                  widget.tracker.save();
+                }
               });
             }
             return const SizedBox.shrink();
@@ -378,7 +403,8 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
         }
 
         return const SizedBox.shrink();
-      },
+        },
+      ),
     );
   }
 

@@ -613,18 +613,22 @@ class _TokenCardState extends State<TokenCard> {
           }
 
           // If artwork file is missing, clear the invalid reference
+          // BUT: Only do this if widget has been stable for >2 seconds to avoid cleanup during drag/scroll
           if (snapshot.connectionState == ConnectionState.done &&
               snapshot.data == null &&
               !_artworkCleanupAttempted) {
-            _artworkCleanupAttempted = true;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                widget.item.artworkUrl = null;
-                widget.item.artworkSet = null;
-                widget.item.artworkOptions = null;
-                widget.item.save();
-              }
-            });
+            final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
+            if (elapsed > 2000) {
+              _artworkCleanupAttempted = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  widget.item.artworkUrl = null;
+                  widget.item.artworkSet = null;
+                  widget.item.artworkOptions = null;
+                  widget.item.save();
+                }
+              });
+            }
           }
 
           // Show empty background while loading or if file missing
@@ -696,18 +700,22 @@ class _TokenCardState extends State<TokenCard> {
           }
 
           // If artwork file is missing, clear the invalid reference
+          // BUT: Only do this if widget has been stable for >2 seconds to avoid cleanup during drag/scroll
           if (snapshot.connectionState == ConnectionState.done &&
               snapshot.data == null &&
               !_artworkCleanupAttempted) {
-            _artworkCleanupAttempted = true;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                widget.item.artworkUrl = null;
-                widget.item.artworkSet = null;
-                widget.item.artworkOptions = null;
-                widget.item.save();
-              }
-            });
+            final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
+            if (elapsed > 2000) {
+              _artworkCleanupAttempted = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  widget.item.artworkUrl = null;
+                  widget.item.artworkSet = null;
+                  widget.item.artworkOptions = null;
+                  widget.item.save();
+                }
+              });
+            }
           }
 
           // Show empty background while loading or if file missing

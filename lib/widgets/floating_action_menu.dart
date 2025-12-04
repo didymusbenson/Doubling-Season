@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class FloatingActionMenu extends StatelessWidget {
   final VoidCallback onNewToken;
-  final VoidCallback onWidgets;
+  final VoidCallback? onWidgets;
   final VoidCallback onAddCountersToAll;
   final VoidCallback onMinusOneToAll;
   final VoidCallback onUntapAll;
@@ -14,7 +14,7 @@ class FloatingActionMenu extends StatelessWidget {
   const FloatingActionMenu({
     super.key,
     required this.onNewToken,
-    required this.onWidgets,
+    this.onWidgets,
     required this.onAddCountersToAll,
     required this.onMinusOneToAll,
     required this.onUntapAll,
@@ -55,7 +55,7 @@ class FloatingActionMenu extends StatelessWidget {
 
 class _ActionBottomSheet extends StatelessWidget {
   final VoidCallback onNewToken;
-  final VoidCallback onWidgets;
+  final VoidCallback? onWidgets;
   final VoidCallback onAddCountersToAll;
   final VoidCallback onMinusOneToAll;
   final VoidCallback onUntapAll;
@@ -66,7 +66,7 @@ class _ActionBottomSheet extends StatelessWidget {
 
   const _ActionBottomSheet({
     required this.onNewToken,
-    required this.onWidgets,
+    this.onWidgets,
     required this.onAddCountersToAll,
     required this.onMinusOneToAll,
     required this.onUntapAll,
@@ -120,17 +120,19 @@ class _ActionBottomSheet extends StatelessWidget {
                 onNewToken();
               },
             ),
-            const SizedBox(height: 4),
-            _buildActionTile(
-              context: context,
-              icon: Icons.widgets,
-              label: 'Widgets',
-              color: Colors.deepPurple,
-              onTap: () {
-                Navigator.pop(context);
-                onWidgets();
-              },
-            ),
+            if (onWidgets != null) ...[
+              const SizedBox(height: 4),
+              _buildActionTile(
+                context: context,
+                icon: Icons.widgets,
+                label: 'Widgets',
+                color: Colors.deepPurple,
+                onTap: () {
+                  Navigator.pop(context);
+                  onWidgets!();
+                },
+              ),
+            ],
             const SizedBox(height: 4),
             _buildActionTile(
               context: context,

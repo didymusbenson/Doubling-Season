@@ -106,6 +106,7 @@ class PreferenceKeys {
   static const String summoningSicknessEnabled = 'summoningSicknessEnabled';
   static const String favoriteTokens = 'favoriteTokens';
   static const String recentTokens = 'recentTokens';
+  static const String experimentalFeaturesEnabled = 'experimentalFeaturesEnabled';
 }
 
 /// Asset paths

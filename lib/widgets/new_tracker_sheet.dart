@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../models/tracker_widget.dart';
+import '../providers/token_provider.dart';
 import '../providers/tracker_provider.dart';
+import '../providers/toggle_provider.dart';
 import 'color_selection_button.dart';
 
 class NewTrackerSheet extends StatefulWidget {
@@ -52,12 +54,18 @@ class _NewTrackerSheetState extends State<NewTrackerSheet> {
       _isCreating = true;
     });
 
+    // Calculate max order across ALL board items (tokens + trackers + toggles)
+    final tokenProvider = context.read<TokenProvider>();
     final trackerProvider = context.read<TrackerProvider>();
+    final toggleProvider = context.read<ToggleProvider>();
 
-    // Get max order
-    final maxOrder = trackerProvider.trackers.isEmpty
-        ? 0.0
-        : trackerProvider.trackers.map((t) => t.order).reduce((a, b) => a > b ? a : b);
+    final allOrders = <double>[];
+    allOrders.addAll(tokenProvider.items.map((item) => item.order));
+    allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
+    allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
+
+    final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
+    final newOrder = maxOrder.floor() + 1.0;
 
     final tracker = TrackerWidget(
       widgetId: const Uuid().v4(),
@@ -66,7 +74,7 @@ class _NewTrackerSheetState extends State<NewTrackerSheet> {
           ? 'Custom tracker'
           : _descriptionController.text.trim(),
       colorIdentity: _getColorString(),
-      order: maxOrder + 1.0,
+      order: newOrder,
       createdAt: DateTime.now(),
       currentValue: _defaultValue,
       defaultValue: _defaultValue,

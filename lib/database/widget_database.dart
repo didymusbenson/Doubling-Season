@@ -38,7 +38,7 @@ class WidgetDatabase extends ChangeNotifier {
         id: 'life_total',
         type: WidgetType.tracker,
         name: 'Life Total',
-        description: 'Track your life total. Tap +/- to adjust by 1, long-press to adjust by 5.',
+        description: '', // No description needed - players know what life totals are
         colorIdentity: '', // Colorless
         defaultValue: 40,
         tapIncrement: 1,
@@ -48,7 +48,7 @@ class WidgetDatabase extends ChangeNotifier {
         id: 'poison_counters',
         type: WidgetType.tracker,
         name: 'Poison Counters',
-        description: 'Track poison counters. You lose when you reach 10 poison counters.',
+        description: '', // No description needed - players know what poison counters are
         colorIdentity: 'BG', // Black/Green
         defaultValue: 0,
         tapIncrement: 1,

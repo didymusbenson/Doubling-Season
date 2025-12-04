@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/widget_definition.dart';
 import '../database/widget_database.dart';
+import '../providers/token_provider.dart';
 import '../providers/tracker_provider.dart';
 import '../providers/toggle_provider.dart';
 import '../widgets/new_tracker_sheet.dart';
@@ -237,21 +238,24 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
   }
 
   void _createWidget(WidgetDefinition definition) async {
-    if (definition.type == WidgetType.tracker) {
-      final trackerProvider = context.read<TrackerProvider>();
-      final maxOrder = trackerProvider.trackers.isEmpty
-          ? 0.0
-          : trackerProvider.trackers.map((t) => t.order).reduce((a, b) => a > b ? a : b);
+    // Calculate max order across ALL board items (tokens + trackers + toggles)
+    final tokenProvider = context.read<TokenProvider>();
+    final trackerProvider = context.read<TrackerProvider>();
+    final toggleProvider = context.read<ToggleProvider>();
 
-      final tracker = definition.toTrackerWidget(order: maxOrder + 1.0);
+    final allOrders = <double>[];
+    allOrders.addAll(tokenProvider.items.map((item) => item.order));
+    allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
+    allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
+
+    final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
+    final newOrder = maxOrder.floor() + 1.0;
+
+    if (definition.type == WidgetType.tracker) {
+      final tracker = definition.toTrackerWidget(order: newOrder);
       await trackerProvider.insertTracker(tracker);
     } else {
-      final toggleProvider = context.read<ToggleProvider>();
-      final maxOrder = toggleProvider.toggles.isEmpty
-          ? 0.0
-          : toggleProvider.toggles.map((t) => t.order).reduce((a, b) => a > b ? a : b);
-
-      final toggle = definition.toToggleWidget(order: maxOrder + 1.0);
+      final toggle = definition.toToggleWidget(order: newOrder);
       await toggleProvider.insertToggle(toggle);
     }
 
