@@ -70,7 +70,7 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
                   Container(
                     decoration: BoxDecoration(
                       color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+                      borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
                     ),
                   ),
 
@@ -176,7 +176,7 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
       child: Container(
         decoration: BoxDecoration(
           gradient: gradient,
-          borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+          borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
         ),
       ),
     );
@@ -195,7 +195,7 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
             return Container(
               decoration: BoxDecoration(
                 gradient: gradient,
-                borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+                borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
               ),
             );
           }

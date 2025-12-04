@@ -140,10 +140,11 @@ class _TokenCardState extends State<TokenCard> {
           return Stack(
             children: [
               // Base card background layer (ensures left side is solid in fadeout mode)
+              // Uses borderRadius - borderWidth to fit inside the gradient border
               Container(
                 decoration: BoxDecoration(
                   color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+                  borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
                 ),
               ),
 
@@ -531,7 +532,7 @@ class _TokenCardState extends State<TokenCard> {
       child: Container(
         decoration: BoxDecoration(
           gradient: gradient,
-          borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+          borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
         ),
       ),
     );
@@ -549,7 +550,7 @@ class _TokenCardState extends State<TokenCard> {
             return Container(
               decoration: BoxDecoration(
                 gradient: gradient,
-                borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+                borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
               ),
             );
           }
@@ -599,7 +600,7 @@ class _TokenCardState extends State<TokenCard> {
               duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
               curve: Curves.easeIn,
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+                borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
                 child: CroppedArtworkWidget(
                   imageFile: snapshot.data!,
                   cropLeft: crop['left']!,

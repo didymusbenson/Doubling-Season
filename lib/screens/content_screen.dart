@@ -197,9 +197,14 @@ class _ContentScreenState extends State<ContentScreen> {
       colorIdentity = (boardItem.item as ToggleWidget).colorIdentity;
     }
 
-    return Padding(
+    return Container(
       key: ValueKey(boardItem.key),
-      padding: const EdgeInsets.symmetric(vertical: UIConstants.verticalSpacing),
+      margin: const EdgeInsets.symmetric(vertical: UIConstants.verticalSpacing),
+      decoration: BoxDecoration(
+        color: Colors.red,
+        borderRadius: BorderRadius.circular(UIConstants.borderRadius),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(UIConstants.borderRadius),
@@ -222,24 +227,27 @@ class _ContentScreenState extends State<ContentScreen> {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(innerBorderRadius),
-          child: Container(
-            color: Theme.of(context).cardColor,
-            child: _buildDismissibleCard(boardItem),
-          ),
+          child: _buildDismissibleCard(boardItem),
         ),
       ),
     );
   }
 
   Widget _buildDismissibleCard(_BoardItem boardItem) {
+    const borderWidth = 3.0;
+    final innerBorderRadius = UIConstants.borderRadius - borderWidth;
+
     return Dismissible(
       key: ValueKey('dismissible_${boardItem.key}'),
       direction: DismissDirection.endToStart,
-      background: Container(
+      background: Material(
         color: Colors.red,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: UIConstants.standardPadding),
-        child: const Icon(Icons.delete, color: Colors.white),
+        borderRadius: BorderRadius.circular(innerBorderRadius),
+        child: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: UIConstants.standardPadding),
+          child: const Icon(Icons.delete, color: Colors.white),
+        ),
       ),
       onDismissed: (_) => _deleteItem(boardItem),
       child: _buildCardContent(boardItem),

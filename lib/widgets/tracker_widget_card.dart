@@ -69,7 +69,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
                   Container(
                     decoration: BoxDecoration(
                       color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+                      borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
                     ),
                   ),
 
@@ -305,7 +305,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
       child: Container(
         decoration: BoxDecoration(
           gradient: gradient,
-          borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+          borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
         ),
       ),
     );
@@ -321,7 +321,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
             return Container(
               decoration: BoxDecoration(
                 gradient: gradient,
-                borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+                borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
               ),
             );
           }
