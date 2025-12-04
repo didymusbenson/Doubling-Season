@@ -8,7 +8,6 @@ import '../providers/settings_provider.dart';
 import '../widgets/color_selection_button.dart';
 import '../widgets/split_stack_sheet.dart';
 import '../widgets/artwork_selection_sheet.dart';
-import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
 import '../utils/artwork_preference_manager.dart';
 import '../database/token_database.dart';
@@ -128,7 +127,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
         });
       }
     } catch (e) {
-      print('Error loading token definition: $e');
+      debugPrint('Error loading token definition: $e');
       if (mounted) {
         setState(() {
           _databaseLoadError = true;

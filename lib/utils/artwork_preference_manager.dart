@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import '../models/token_artwork_preference.dart';
 
@@ -88,7 +89,7 @@ class ArtworkPreferenceManager {
       } catch (e) {
         // File deletion failed - log but don't throw
         // (preference will still be cleared even if file deletion fails)
-        print('Warning: Failed to delete custom artwork file: $e');
+        debugPrint('Warning: Failed to delete custom artwork file: $e');
       }
     }
 

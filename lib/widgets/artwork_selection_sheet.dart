@@ -64,10 +64,6 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
       _isDownloading = true;
     });
 
-    int successCount = 0;
-    int failCount = 0;
-    bool hadNetworkError = false;
-
     // Download each artwork sequentially
     for (final variant in widget.artworkVariants) {
       try {
@@ -75,26 +71,14 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
         final cachedFile = await ArtworkManager.getCachedArtworkFile(variant.url);
         if (cachedFile == null) {
           // Download if not cached
-          final result = await ArtworkManager.downloadArtwork(variant.url);
-          if (result != null) {
-            successCount++;
-          } else {
-            failCount++;
-          }
+          await ArtworkManager.downloadArtwork(variant.url);
           // Rebuild after each download to show progress
           if (mounted) {
             setState(() {});
           }
-        } else {
-          successCount++;
         }
       } catch (e) {
         debugPrint('Failed to download artwork from ${variant.set}: $e');
-        failCount++;
-        if (e.toString().contains('SocketException') ||
-            e.toString().contains('Failed host lookup')) {
-          hadNetworkError = true;
-        }
         // Continue with next artwork even if one fails
       }
     }

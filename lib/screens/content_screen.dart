@@ -20,7 +20,6 @@ import '../widgets/toggle_widget_card.dart'; // NEW - Widget Cards Feature
 import '../widgets/multiplier_view.dart';
 import '../widgets/load_deck_sheet.dart';
 import '../widgets/floating_action_menu.dart';
-import '../widgets/new_token_sheet.dart';
 import 'token_search_screen.dart';
 import 'widget_selection_screen.dart'; // NEW - Widget Cards Feature
 import 'about_screen.dart';
@@ -201,10 +200,10 @@ class _ContentScreenState extends State<ContentScreen> {
       key: ValueKey(boardItem.key),
       margin: const EdgeInsets.symmetric(vertical: UIConstants.verticalSpacing),
       decoration: BoxDecoration(
-        color: Colors.red,
+        color: Colors.red, // Matches dismissible background - ensures rounded corners during swipe animation
         borderRadius: BorderRadius.circular(UIConstants.borderRadius),
       ),
-      clipBehavior: Clip.antiAlias,
+      // clipBehavior removed - was clipping the drop shadow in light mode
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(UIConstants.borderRadius),
@@ -553,14 +552,6 @@ class _ContentScreenState extends State<ContentScreen> {
     );
   }
 
-  void _showNewTokenSheet() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const NewTokenSheet(),
-        fullscreenDialog: true,
-      ),
-    );
-  }
 
   void _showWidgetSelection() {
     Navigator.of(context).push(
