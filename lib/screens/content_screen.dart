@@ -101,7 +101,7 @@ class _ContentScreenState extends State<ContentScreen> {
 
   AppBar _buildAppBar() {
     return AppBar(
-      title: const Text('Tokening Season'),
+      title: const Text('Tripling Season'),
       centerTitle: true,
       actions: [
         // Settings (long press on summoning sickness icon)
@@ -429,7 +429,7 @@ class _ContentScreenState extends State<ContentScreen> {
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
-                      'About Tokening Season',
+                      'About Tripling Season',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                       ),

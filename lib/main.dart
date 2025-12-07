@@ -245,7 +245,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     // Show error screen if initialization failed
     if (_hasError) {
       return MaterialApp(
-        title: 'Tokening Season',
+        title: 'Tripling Season',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
           useMaterial3: true,
@@ -274,7 +274,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     // to ALL routes, including those pushed via Navigator.push()
     if (!_isInitialized) {
       return MaterialApp(
-        title: 'Tokening Season',
+        title: 'Tripling Season',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
           useMaterial3: true,

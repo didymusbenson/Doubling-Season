@@ -105,7 +105,7 @@ class _AboutScreenState extends State<AboutScreen> {
             const SizedBox(height: 24),
 
             Text(
-              'Tokening Season',
+              'Tripling Season',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -138,10 +138,10 @@ class _AboutScreenState extends State<AboutScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Tokening Season is a token tracker for Magic: The Gathering. '
+                      'Tripling Season is a token tracker for Magic: The Gathering. '
                       'This project is a labor of love for the Magic community and is '
                       'committed to being 100% free and ad free forever. Your support '
-                      'helps keep Tokening Season free.',
+                      'helps keep Tripling Season free.',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],
@@ -215,7 +215,7 @@ class _AboutScreenState extends State<AboutScreen> {
                       'Card images © Wizards of the Coast LLC '
                       'Images provided by Scryfall. Scryfall is not produced by or endorsed '
                       'by Wizards of the Coast.\n\n'
-                      'Tokening Season is unofficial Fan Content permitted under the Fan '
+                      'Tripling Season is unofficial Fan Content permitted under the Fan '
                       'Content Policy. Not approved/endorsed by Wizards. Portions of the '
                       'materials used are property of Wizards of the Coast. © Wizards of '
                       'the Coast LLC.',
@@ -284,7 +284,7 @@ class _AboutScreenState extends State<AboutScreen> {
               child: OutlinedButton.icon(
                 onPressed: () => showLicensePage(
                   context: context,
-                  applicationName: 'Tokening Season',
+                  applicationName: 'Tripling Season',
                   applicationVersion: _version,
                   applicationIcon: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
