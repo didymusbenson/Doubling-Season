@@ -103,269 +103,94 @@ This checklist documents ALL steps required when adding a new utility type (like
 
 ---
 
-## Krenko, Mob Boss Utility (Special Utility Type)
+## Action Trackers (Trackers with Action Buttons)
 
 ### Overview
-A special utility widget for Krenko, Mob Boss Commander decks. Provides quick goblin token generation based on Krenko's power and battlefield goblin count. Unlike standard trackers/toggles, this is a **button-action utility** with custom card layout and behavior.
+Action Trackers extend the standard TrackerWidget with an optional action button. This allows trackers to not only track a value but also perform custom actions based on that value.
 
-**Magic Context:** Krenko, Mob Boss has the ability _"Tap: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control."_
+**Implementation:** Action trackers use the same base TrackerWidget class with additional fields for action button configuration, following DRY principles.
 
-### Utility Card Layout
+### Current Action Trackers
 
-**Type:** Special utility (UtilityType.special)
-**Color Identity:** R (Red)
-**Name:** "Krenko, Mob Boss"
-**Reorderable:** Yes (can be dragged among tokens/utilities in ContentScreen)
+#### 1. Krenko, Mob Boss
+- **Tracks:** Nontoken goblins you control
+- **Action:** "Make Goblins" button creates goblin tokens equal to total goblins controlled (including token goblins) × multiplier
+- **Default value:** 1 (Krenko himself)
 
-**Card Structure (similar to TrackerUtilityCard but custom):**
+#### 2. Krenko, Tin Street Kingpin
+- **Tracks:** Krenko's power
+- **Action:** "Make Goblins" button creates goblin tokens equal to Krenko's power × multiplier
+- **Default value:** 1 (Krenko starts as 1/1)
+
+### Data Model Extension
+
+Action trackers use the existing `TrackerWidget` model with optional action fields:
+```dart
+@HiveField(12) bool hasAction; // True if this tracker has an action button
+@HiveField(13) String? actionButtonText; // Text for action button (e.g., "Make Goblins")
+@HiveField(14) String? actionType; // Type of action (e.g., "krenko_mob_boss")
 ```
-┌─────────────────────────────────────┐
-│ Krenko, Mob Boss            [Red]   │ ← Name + color border
-├─────────────────────────────────────┤
-│ Krenko's Power:    [3]    [-] [+]   │ ← Editable value with steppers
-│ Nontoken Goblins:  [1]    [-] [+]   │ ← Editable value with steppers
-│                                      │
-│         [    WAAAGH!    ]            │ ← Primary action button (red)
-└─────────────────────────────────────┘
-```
 
-**Components:**
-1. **Krenko's Power** - Editable numeric value (default: 3)
-   - Stepper buttons: -1 / +1
-   - Tap value to edit manually (numeric keyboard)
-   - Range: 1-99
-   - Persisted in Hive with utility instance
+### Implementation Pattern
 
-2. **Nontoken Goblins** - Editable numeric value (default: 1)
-   - Counts non-token goblins on battlefield (Krenko himself + others)
-   - Stepper buttons: -1 / +1
-   - Tap value to edit manually (numeric keyboard)
-   - Range: 0-99
-   - Persisted in Hive with utility instance
+1. **Definition** (`widget_database.dart`): Add utility with `hasAction: true` and `actionType` set
+2. **Card Rendering** (`tracker_widget_card.dart`): Conditionally renders action button inline with +/- buttons
+3. **Action Handler** (`tracker_widget_card.dart`): Switch statement routes to specific action based on `actionType`
 
-3. **WAAAGH! Button** - Primary action button
-   - Style: Red background (matches Krenko color identity)
-   - Full width, prominent
-   - Opens confirmation dialog (see below)
-
-### Tap Behavior
-
-**Tap card background:** Opens ExpandedUtilityScreen (for artwork selection/delete)
-**Tap stepper buttons:** Increment/decrement values by 1
-**Tap numeric values:** Open manual input dialog (numeric keyboard)
-**Tap WAAAGH! button:** Open goblin creation confirmation dialog
-
-### WAAAGH! Confirmation Dialog
-
-**Title:** "Create Goblin Tokens"
-
-**Body text:** Display both calculated amounts:
-- "Krenko's Power: [X] goblins (Power × Multiplier)"
-- "All Goblins: [Y] goblins (Total Goblins × Multiplier)"
-
-**Three buttons:**
-
-1. **"Create [X] Goblins"** (based on Krenko's Power)
-   - Calculation: `krenkoPower × globalMultiplier`
-   - Example: Power = 5, Multiplier = 2 → Creates 10 goblins
-   - Label dynamically updates with calculated amount
-
-2. **"Create [Y] Goblins"** (based on all goblins controlled)
-   - Calculation: `(totalTokenGoblins + nontokenGoblins) × globalMultiplier`
-   - Counts all tokens with "goblin" in type (case-insensitive substring match)
-   - Example: 8 token goblins + 2 nontoken = 10, Multiplier = 1 → Creates 10 goblins
-   - Label dynamically updates with calculated amount
-
-3. **"Cancel"** - Dismiss dialog without action
-
-**Dialog Style:**
-- Standard AlertDialog
-- Red accent color (matches Krenko theme)
-- Buttons stack vertically for clarity
-- Show real-time calculations in button labels
-
-### Token Creation Logic
+### Token Creation Behavior
 
 **Standard Goblin Token:**
-- Name: "Goblin"
-- Power/Toughness: "1/1"
-- Colors: "R" (Red)
-- Type: "Creature — Goblin"
-- Abilities: "" (empty)
+- Name: "Goblin", P/T: "1/1", Colors: "R", Type: "Creature — Goblin", Abilities: ""
 
-**Smart Token Merging:**
-If matching goblin token already exists on board:
-- Search criteria: name="Goblin", pt="1/1", colors="R", type contains "Goblin", abilities=""
-- If found: Add to existing token's amount (don't create duplicate card)
-- If multiple matches: Add to first match (shouldn't happen with standard goblins)
+**Smart Token Merging:** If matching goblin token exists on board, adds to existing amount instead of creating duplicate card.
 
-If no match exists:
-- Create new token card with standard goblin definition
-- Set amount to calculated value
-- Insert into token list with standard ordering
-
-**Summoning Sickness:**
-- Apply if global summoning sickness setting is enabled
-- Set `summoningSick = amount` on creation
-- Applied to newly created goblins only (not existing tokens being merged into)
-
-**Goblin Counting Logic (Option 2):**
-```dart
-// Count all tokens with "goblin" in type (case-insensitive)
-int tokenGoblinCount = 0;
-for (final item in tokenProvider.items) {
-  final type = item.type?.toLowerCase() ?? '';
-  if (type.contains('goblin')) {
-    tokenGoblinCount += item.amount;
-  }
-}
-
-// Add nontoken goblins from Krenko utility
-final nontokenGoblins = krenkoUtility.nontokenGoblins;
-final totalGoblins = tokenGoblinCount + nontokenGoblins;
-
-// Apply global multiplier
-final multiplier = settingsProvider.tokenMultiplier;
-final goblinsToCreate = totalGoblins * multiplier;
-```
-
-**Type Matching Examples:**
-- "Creature — Goblin" ✅
-- "Creature — Goblin Warrior" ✅
-- "Artifact Creature — Goblin" ✅
-- "Creature — Elf" ❌
-
-### Data Model
-
-```dart
-@HiveType(typeId: 8) // Next available typeId
-class KrenkoUtility extends HiveObject {
-  @HiveField(0) String utilityId;
-  @HiveField(1) String name; // "Krenko, Mob Boss"
-  @HiveField(2) String colorIdentity; // "R"
-  @HiveField(3) String? artworkUrl;
-  @HiveField(4) double order;
-  @HiveField(5) DateTime createdAt;
-  @HiveField(6) int krenkoPower; // Default: 3
-  @HiveField(7) int nontokenGoblins; // Default: 1
-  @HiveField(8) bool isCustom; // false for predefined Krenko
-}
-```
-
-### Implementation Notes
-
-**Custom Card Widget:**
-- Create `KrenkoUtilityCard extends StatefulWidget` (not BaseUtilityCard)
-- Custom layout with two rows of steppers + action button
-- Follows TokenCard styling (borders, shadows, padding)
-- Red color theme throughout
-
-**Provider:**
-- Option A: Add to existing TrackerProvider/ToggleProvider with type union
-- Option B: Create dedicated `KrenkoProvider` (cleaner separation)
-- Recommendation: Option A for simplicity, as it's a single special utility
-
-**Widget Database:**
-```dart
-WidgetDefinition(
-  id: 'krenko_mob_boss',
-  type: WidgetType.special,
-  name: 'Krenko, Mob Boss',
-  description: 'Tap to create goblin tokens based on Krenko\'s power or goblins controlled.',
-  colorIdentity: 'R',
-  defaultValue: 3, // Krenko's base power
-  // Special fields for Krenko-specific data
-)
-```
-
-**Expanded View:**
-- Use ExpandedUtilityScreen (standard utility expanded view)
-- Shows name (read-only), no description field
-- Artwork selection works (same as other utilities)
-- Delete button functional
-- No special controls needed (all editing on compact card)
-
-### Future Considerations
-
-**IMPORTANT NOTE - Potential Split:**
-The current design combines both Krenko, Mob Boss and Krenko, Tin Street Kingpin into a single utility. We may split this into **two separate utilities**:
-- **Krenko, Mob Boss** - Creates goblins based on power OR total goblins controlled
-- **Krenko, Tin Street Kingpin** - Different ability: "Whenever a creature you control attacks, defending player may pay {1}. If they don't, create a 1/1 red Goblin creature token"
-
-**Current Implementation:** Single utility with both options available. If split is needed, can create separate KrenkoMobBossUtility and KrenkoTinStreetUtility classes with shared base logic.
-
-**Other Krenko Cards:**
-This design focuses on **Krenko, Mob Boss**. For **Krenko, Street Kingpin** or other Krenko variants:
-- Could extend KrenkoUtility with `krenkoType` enum
-- Different button actions based on card
-- For now: Implement Mob Boss only, design allows future expansion
-
-**Similar Commander Utilities:**
-This pattern could apply to other commander-specific tools:
-- Rhys the Redeemed (doubles all tokens)
-- Brudiclad (converts all tokens to chosen type)
-- Pattern: Special utility with custom card layout + action button(s)
-
-### Success Criteria
-
-- [ ] Krenko utility can be added from utility selection screen
-- [ ] Card displays with two editable values and WAAAGH! button
-- [ ] Stepper buttons increment/decrement values correctly
-- [ ] Tap values to edit manually with numeric keyboard
-- [ ] WAAAGH! button opens dialog with calculated amounts
-- [ ] Option 1 (Krenko's Power) creates correct number of goblins
-- [ ] Option 2 (All Goblins) counts token goblins correctly + applies multiplier
-- [ ] Smart merging: New goblins add to existing goblin tokens
-- [ ] Summoning sickness applied when setting enabled
-- [ ] Utility can be reordered with tokens/other utilities
-- [ ] Expanded view works (artwork selection, delete)
-- [ ] State persists across app restarts
-- [ ] Red color theme consistent throughout
+**Summoning Sickness:** Applied when global setting enabled.
 
 
 # LATEST COMPLETED WORK
-⏺ Perfect! The Krenko utility implementation is complete and ready for
-  testing. Here's the status:
 
-  ✅ Implementation Complete
+## Action Tracker Implementation (Krenko Utilities)
 
-  All 12 checklist items from NextFeature.md have been implemented:
+✅ **Implemented Action Tracker Pattern (DRY Solution)**
 
-  Core Files Created:
-  - ✅ lib/models/krenko_utility.dart - Data model with Hive annotations
-  - ✅ lib/providers/krenko_provider.dart - State management with CRUD
-  operations
-  - ✅ lib/widgets/krenko_utility_card.dart - Custom card with two value
-  rows + WAAAGH button
+Instead of creating a separate utility type for Krenko, we extended the existing TrackerWidget infrastructure with optional action button support. This follows DRY principles and makes it easy to add more action trackers in the future.
 
-  Integration Points Updated:
-  - ✅ lib/utils/constants.dart - Added typeId 8 and box name
-  - ✅ lib/database/hive_setup.dart - Registered adapter and opened box
-  - ✅ lib/main.dart - KrenkoProvider initialization
-  - ✅ lib/models/widget_definition.dart - Added special type and
-  toKrenkoUtility() method
-  - ✅ lib/database/widget_database.dart - Added Krenko predefined utility
-  - ✅ lib/screens/content_screen.dart - Full board integration (display,
-  reorder, delete)
-  - ✅ lib/screens/widget_selection_screen.dart - Special type creation
-  handling
+### Changes Made:
 
-  🔧 Next Steps
+**Data Model Extension** (`lib/models/tracker_widget.dart`):
+- ✅ Added `@HiveField(12) bool hasAction`
+- ✅ Added `@HiveField(13) String? actionButtonText`
+- ✅ Added `@HiveField(14) String? actionType`
+- ✅ Regenerated Hive adapters
 
-  1. Generate Hive adapter (required before running):
-  flutter pub run build_runner build --delete-conflicting-outputs
-  2. Full app restart (hot reload won't work for Hive changes):
-  flutter run
-  3. Test the utility:
-    - Open Utilities menu → Select "Krenko, Mob Boss"
-    - Verify stepper buttons work for both values
-    - Tap values to test manual input
-    - Tap WAAAGH button → test goblin creation (both options)
-    - Verify smart goblin merging (adds to existing goblins)
-    - Test reordering with tokens
-    - Test deletion via swipe
+**Card Rendering** (`lib/widgets/tracker_widget_card.dart`):
+- ✅ Updated `_buildActionButtons()` to conditionally render third button when `hasAction == true`
+- ✅ Added `_buildTextActionButton()` for text-based action buttons (inline with +/- buttons)
+- ✅ Added `_performAction()` switch statement routing to specific actions
+- ✅ Implemented `_performKrenkoMobBossAction()` - creates goblins based on total goblins controlled
+- ✅ Implemented `_performKrenkoTinStreetAction()` - creates goblins based on Krenko's power
+- ✅ Implemented `_createGoblins()` helper with smart token merging
 
-  The comprehensive checklist in NextFeature.md documents all steps for
-  future utility types, addressing your main concern about having a
-  repeatable process.
+**Widget Definitions** (`lib/database/widget_database.dart`):
+- ✅ Added "Krenko, Mob Boss" tracker (tracks nontoken goblins, action creates based on total)
+- ✅ Added "Krenko, Tin Street Kingpin" tracker (tracks power, action creates based on power)
+- ✅ Both use `hasAction: true`, `actionButtonText: 'Make Goblins'`, different `actionType`
+
+**Widget Definition Model** (`lib/models/widget_definition.dart`):
+- ✅ Added action tracker fields to WidgetDefinition class
+- ✅ Updated `toTrackerWidget()` to pass action fields through
+
+### Benefits:
+- No new Hive types needed
+- No new providers needed
+- No new card widgets needed
+- Consistent styling with all other trackers
+- Easy to add more action trackers (just add new case to switch statement)
+
+### Testing:
+- ✅ Build succeeds with no errors
+- ✅ Both Krenko utilities available in utility selection
+- ✅ Action buttons render inline with +/- buttons
+- ✅ Goblin creation works with multiplier support
+- ✅ Smart token merging prevents duplicate goblin cards
 
