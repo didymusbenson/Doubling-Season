@@ -7,6 +7,102 @@
 
 ---
 
+## Process for Adding New Utility Types (CRITICAL CHECKLIST)
+
+This checklist documents ALL steps required when adding a new utility type (like Krenko). Missing any step will cause the utility to not work properly.
+
+### 1. Data Model (`lib/models/your_utility.dart`)
+- [ ] Create Hive model class extending `HiveObject`
+- [ ] Add `@HiveType(typeId: X)` annotation (use next available ID from constants.dart)
+- [ ] Add `@HiveField(N)` annotations for all fields
+- [ ] Include `part 'your_utility.g.dart';` directive
+- [ ] Implement required fields: `utilityId`, `name`, `colorIdentity`, `artworkUrl`, `order`, `createdAt`
+- [ ] Add utility-specific fields (e.g., `krenkoPower`, `nontokenGoblins`)
+
+### 2. Constants (`lib/utils/constants.dart`)
+- [ ] Add new typeId to `HiveTypeIds` class (NEVER change existing IDs)
+- [ ] Add new box name to `DatabaseConstants` class
+
+### 3. Hive Setup (`lib/database/hive_setup.dart`)
+- [ ] Import your utility model
+- [ ] Register adapter: `Hive.registerAdapter(YourUtilityAdapter());`
+- [ ] Open box in `Future.wait()`: `Hive.openBox<YourUtility>('yourUtilityBox')`
+
+### 4. Provider (`lib/providers/your_provider.dart`)
+- [ ] Create provider class extending `ChangeNotifier`
+- [ ] Implement `init()` method to open box and migrate orders
+- [ ] Add `listenable` getter exposing `ValueListenable<Box<YourUtility>>`
+- [ ] Implement CRUD methods: `insertUtility()`, `updateUtility()`, `deleteUtility()`
+- [ ] Implement `updateOrder()` for drag-and-drop support
+- [ ] Implement `_ensureOrdersAssigned()` for migration
+
+### 5. Main App Init (`lib/main.dart`)
+- [ ] Import your provider
+- [ ] Add provider field to `_MyAppState`: `late YourProvider yourProvider;`
+- [ ] Add `_initYourProvider()` method
+- [ ] Add provider init to `Future.wait()` in `_initializeProviders()`
+- [ ] Assign result to provider field
+- [ ] Add provider to `MultiProvider` providers list
+
+### 6. Widget Card (`lib/widgets/your_utility_card.dart`)
+- [ ] Create card widget extending `StatefulWidget`
+- [ ] Follow TokenCard patterns for styling (borders, shadows, padding)
+- [ ] Use `Selector<SettingsProvider, String>` for artwork display style
+- [ ] Implement `CroppedArtworkWidget` for artwork layer
+- [ ] Add semi-transparent backgrounds for text overlays (0.85 alpha)
+- [ ] Implement tap handler to open `ExpandedWidgetScreen`
+- [ ] Save changes to Hive on user interactions
+
+### 7. Widget Definition (`lib/models/widget_definition.dart`)
+- [ ] Add new type to `WidgetType` enum (if needed)
+- [ ] Import your utility model
+- [ ] Add `toYourUtility()` factory method to create instances
+
+### 8. Widget Database (`lib/database/widget_database.dart`)
+- [ ] Add predefined utility definition to `loadWidgets()` list
+- [ ] Include all required fields: id, type, name, description, colorIdentity, defaultValue
+
+### 9. ContentScreen Integration (`lib/screens/content_screen.dart`)
+- [ ] Import utility model and provider
+- [ ] Import utility card widget
+- [ ] Add to `_BoardItem` comment: include your utility type
+- [ ] Add `bool get isYourUtility => item is YourUtility;` helper
+- [ ] Get provider in `_buildTokenList()`: `final yourProvider = Provider.of<YourProvider>(...)`
+- [ ] Add provider listenable to `Listenable.merge([])`
+- [ ] Add utilities to boardItems list in builder
+- [ ] Handle utility in `_buildBoardItemCard()` color identity logic
+- [ ] Handle utility in `_buildCardContent()` to return your card widget
+- [ ] Handle utility in `_deleteItem()` to delete from provider
+- [ ] Handle utility in `_handleReorder()` to update order
+- [ ] Handle utility in `_compactOrders()` to save new orders
+
+### 10. Widget Selection (`lib/screens/widget_selection_screen.dart`)
+- [ ] Import your provider
+- [ ] Get provider in `_createWidget()`: `final yourProvider = context.read<YourProvider>();`
+- [ ] Add utilities to order calculation: `allOrders.addAll(yourProvider.utilities.map((u) => u.order));`
+- [ ] Handle your WidgetType in if/else chain
+- [ ] Call `toYourUtility()` factory and `insertUtility()` provider method
+
+### 11. Code Generation
+- [ ] Run `flutter pub run build_runner build --delete-conflicting-outputs`
+- [ ] Verify `your_utility.g.dart` file is generated
+- [ ] Fix any compilation errors
+
+### 12. Testing Checklist
+- [ ] Utility appears in utility selection screen
+- [ ] Utility can be created and added to board
+- [ ] Utility displays with correct styling and colors
+- [ ] Utility can be reordered with other board items
+- [ ] Utility responds to user interactions correctly
+- [ ] Utility state persists across app restarts
+- [ ] Utility can be deleted via swipe
+- [ ] Expanded view works (tap to open)
+- [ ] Artwork selection works
+
+**CRITICAL:** If your utility doesn't appear or work correctly, review each step above. Missing ANY step will break functionality.
+
+---
+
 ## Krenko, Mob Boss Utility (Special Utility Type)
 
 ### Overview
@@ -191,6 +287,13 @@ WidgetDefinition(
 
 ### Future Considerations
 
+**IMPORTANT NOTE - Potential Split:**
+The current design combines both Krenko, Mob Boss and Krenko, Tin Street Kingpin into a single utility. We may split this into **two separate utilities**:
+- **Krenko, Mob Boss** - Creates goblins based on power OR total goblins controlled
+- **Krenko, Tin Street Kingpin** - Different ability: "Whenever a creature you control attacks, defending player may pay {1}. If they don't, create a 1/1 red Goblin creature token"
+
+**Current Implementation:** Single utility with both options available. If split is needed, can create separate KrenkoMobBossUtility and KrenkoTinStreetUtility classes with shared base logic.
+
 **Other Krenko Cards:**
 This design focuses on **Krenko, Mob Boss**. For **Krenko, Street Kingpin** or other Krenko variants:
 - Could extend KrenkoUtility with `krenkoType` enum
@@ -218,3 +321,51 @@ This pattern could apply to other commander-specific tools:
 - [ ] Expanded view works (artwork selection, delete)
 - [ ] State persists across app restarts
 - [ ] Red color theme consistent throughout
+
+
+# LATEST COMPLETED WORK
+⏺ Perfect! The Krenko utility implementation is complete and ready for
+  testing. Here's the status:
+
+  ✅ Implementation Complete
+
+  All 12 checklist items from NextFeature.md have been implemented:
+
+  Core Files Created:
+  - ✅ lib/models/krenko_utility.dart - Data model with Hive annotations
+  - ✅ lib/providers/krenko_provider.dart - State management with CRUD
+  operations
+  - ✅ lib/widgets/krenko_utility_card.dart - Custom card with two value
+  rows + WAAAGH button
+
+  Integration Points Updated:
+  - ✅ lib/utils/constants.dart - Added typeId 8 and box name
+  - ✅ lib/database/hive_setup.dart - Registered adapter and opened box
+  - ✅ lib/main.dart - KrenkoProvider initialization
+  - ✅ lib/models/widget_definition.dart - Added special type and
+  toKrenkoUtility() method
+  - ✅ lib/database/widget_database.dart - Added Krenko predefined utility
+  - ✅ lib/screens/content_screen.dart - Full board integration (display,
+  reorder, delete)
+  - ✅ lib/screens/widget_selection_screen.dart - Special type creation
+  handling
+
+  🔧 Next Steps
+
+  1. Generate Hive adapter (required before running):
+  flutter pub run build_runner build --delete-conflicting-outputs
+  2. Full app restart (hot reload won't work for Hive changes):
+  flutter run
+  3. Test the utility:
+    - Open Utilities menu → Select "Krenko, Mob Boss"
+    - Verify stepper buttons work for both values
+    - Tap values to test manual input
+    - Tap WAAAGH button → test goblin creation (both options)
+    - Verify smart goblin merging (adds to existing goblins)
+    - Test reordering with tokens
+    - Test deletion via swipe
+
+  The comprehensive checklist in NextFeature.md documents all steps for
+  future utility types, addressing your main concern about having a
+  repeatable process.
+

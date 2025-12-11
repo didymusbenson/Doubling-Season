@@ -138,6 +138,16 @@ class WidgetDatabase extends ChangeNotifier {
         offDescription: 'You do not have the Initiative.',
         colorIdentity: '', // Colorless
       ),
+
+      // Special Widgets
+      WidgetDefinition(
+        id: 'krenko_mob_boss',
+        type: WidgetType.special,
+        name: 'Krenko, Mob Boss',
+        description: 'Create goblin tokens based on Krenko\'s power or goblins controlled.',
+        colorIdentity: 'R', // Red
+        defaultValue: 3, // Krenko's base power
+      ),
     ];
 
     _isLoaded = true;

@@ -1,8 +1,9 @@
 import 'package:uuid/uuid.dart';
 import 'tracker_widget.dart';
 import 'toggle_widget.dart';
+import 'krenko_utility.dart';
 
-enum WidgetType { tracker, toggle }
+enum WidgetType { tracker, toggle, special }
 
 class WidgetDefinition {
   final String id; // Unique identifier (e.g., "life_total", "monarch")
@@ -70,6 +71,22 @@ class WidgetDefinition {
       onDescription: description, // description field is ON description
       offDescription: offDescription!,
       isCustom: false, // Predefined widget
+    );
+  }
+
+  /// Convert definition to KrenkoUtility instance
+  KrenkoUtility toKrenkoUtility({required double order}) {
+    assert(type == WidgetType.special, 'Can only convert special definitions to KrenkoUtility');
+
+    return KrenkoUtility(
+      utilityId: const Uuid().v4(),
+      name: name,
+      colorIdentity: colorIdentity,
+      order: order,
+      createdAt: DateTime.now(),
+      krenkoPower: defaultValue ?? 3, // Krenko's base power
+      nontokenGoblins: 1, // Krenko himself
+      isCustom: false, // Predefined utility
     );
   }
 }

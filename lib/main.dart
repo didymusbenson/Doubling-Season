@@ -10,6 +10,7 @@ import 'providers/deck_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/tracker_provider.dart'; // NEW - Widget Cards Feature
 import 'providers/toggle_provider.dart'; // NEW - Widget Cards Feature
+import 'providers/krenko_provider.dart'; // NEW - Krenko Special Utility
 import 'screens/content_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/error_screen.dart';
@@ -61,6 +62,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late SettingsProvider settingsProvider;
   late TrackerProvider trackerProvider; // NEW - Widget Cards Feature
   late ToggleProvider toggleProvider; // NEW - Widget Cards Feature
+  late KrenkoProvider krenkoProvider; // NEW - Krenko Special Utility
   bool _isInitialized = false;
   bool _providersReady = false;
   bool _hasError = false;
@@ -94,6 +96,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         _initSettingsProvider(),
         _initTrackerProvider(), // NEW - Widget Cards Feature
         _initToggleProvider(), // NEW - Widget Cards Feature
+        _initKrenkoProvider(), // NEW - Krenko Special Utility
       ]);
 
       tokenProvider = results[0] as TokenProvider;
@@ -101,6 +104,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       settingsProvider = results[2] as SettingsProvider;
       trackerProvider = results[3] as TrackerProvider; // NEW - Widget Cards Feature
       toggleProvider = results[4] as ToggleProvider; // NEW - Widget Cards Feature
+      krenkoProvider = results[5] as KrenkoProvider; // NEW - Krenko Special Utility
 
       stopwatch.stop();
       debugPrint('═══ App Initialization Complete: ${stopwatch.elapsedMilliseconds}ms ═══');
@@ -170,6 +174,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     await provider.init();
     stopwatch.stop();
     debugPrint('ToggleProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
+    return provider;
+  }
+
+  Future<KrenkoProvider> _initKrenkoProvider() async {
+    final stopwatch = Stopwatch()..start();
+    final provider = KrenkoProvider();
+    await provider.init();
+    stopwatch.stop();
+    debugPrint('KrenkoProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
     return provider;
   }
 
@@ -309,6 +322,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ChangeNotifierProvider.value(value: settingsProvider),
         ChangeNotifierProvider.value(value: trackerProvider), // NEW - Widget Cards Feature
         ChangeNotifierProvider.value(value: toggleProvider), // NEW - Widget Cards Feature
+        ChangeNotifierProvider.value(value: krenkoProvider), // NEW - Krenko Special Utility
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settings, child) {

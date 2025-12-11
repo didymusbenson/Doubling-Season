@@ -17,6 +17,7 @@ class HiveTypeIds {
   static const int artworkPreference = 5; // NEW - Custom Artwork Feature
   static const int trackerWidget = 6; // NEW - Widget Cards Feature
   static const int toggleWidget = 7; // NEW - Widget Cards Feature
+  static const int krenkoUtility = 8; // NEW - Krenko Special Utility
 }
 
 /// UI constants
@@ -98,6 +99,7 @@ class DatabaseConstants {
   static const String templatesBox = 'templates';
   static const String trackerWidgetsBox = 'trackerWidgets'; // NEW - Widget Cards Feature
   static const String toggleWidgetsBox = 'toggleWidgets'; // NEW - Widget Cards Feature
+  static const String krenkoUtilityBox = 'krenkoUtilities'; // NEW - Krenko Special Utility
 }
 
 /// SharedPreferences keys

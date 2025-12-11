@@ -6,6 +6,7 @@ import '../database/widget_database.dart';
 import '../providers/token_provider.dart';
 import '../providers/tracker_provider.dart';
 import '../providers/toggle_provider.dart';
+import '../providers/krenko_provider.dart';
 import '../widgets/new_tracker_sheet.dart';
 import '../widgets/new_toggle_sheet.dart';
 import '../utils/constants.dart';
@@ -238,15 +239,17 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
   }
 
   void _createWidget(WidgetDefinition definition) async {
-    // Calculate max order across ALL board items (tokens + trackers + toggles)
+    // Calculate max order across ALL board items (tokens + trackers + toggles + krenkos)
     final tokenProvider = context.read<TokenProvider>();
     final trackerProvider = context.read<TrackerProvider>();
     final toggleProvider = context.read<ToggleProvider>();
+    final krenkoProvider = context.read<KrenkoProvider>();
 
     final allOrders = <double>[];
     allOrders.addAll(tokenProvider.items.map((item) => item.order));
     allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
     allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
+    allOrders.addAll(krenkoProvider.krenkos.map((k) => k.order));
 
     final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
     final newOrder = maxOrder.floor() + 1.0;
@@ -254,9 +257,12 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
     if (definition.type == WidgetType.tracker) {
       final tracker = definition.toTrackerWidget(order: newOrder);
       await trackerProvider.insertTracker(tracker);
-    } else {
+    } else if (definition.type == WidgetType.toggle) {
       final toggle = definition.toToggleWidget(order: newOrder);
       await toggleProvider.insertToggle(toggle);
+    } else if (definition.type == WidgetType.special) {
+      final krenko = definition.toKrenkoUtility(order: newOrder);
+      await krenkoProvider.insertKrenko(krenko);
     }
 
     if (mounted) {
