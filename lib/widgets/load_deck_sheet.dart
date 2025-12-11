@@ -162,7 +162,7 @@ class LoadDeckSheet extends StatelessWidget {
     for (int i = 0; i < sortedTemplates.length; i++) {
       final template = sortedTemplates[i];
       final item = template.toItem(
-        amount: 1, // Default amount
+        amount: 0, // Initialize with 0 tokens (user adds as needed)
         createTapped: false,
       );
       // Override order to position correctly (clear: 0,1,2... or add: maxOrder+1, maxOrder+2...)

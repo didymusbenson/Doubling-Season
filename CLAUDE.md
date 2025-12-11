@@ -68,7 +68,7 @@ This document is Claude's source of truth - keep it current!
 
 The app targets iOS, Android, Web, macOS, and Windows platforms using Flutter's single codebase approach.
 
-**Current Version:** 1.3.0+8 (as of November 2025)
+**Current Version:** 1.8.0+16 (as of December 2025)
 
 ## What's New in v1.3.0
 
@@ -129,7 +129,7 @@ The app targets iOS, Android, Web, macOS, and Windows platforms using Flutter's 
 - Also set as `namespace` in the same file
 
 **App Version:**
-- Current: `1.3.0+8` (Version 1.3.0, Build 8)
+- Current: `1.8.0+16` (Version 1.8.0, Build 16)
 - Location: `pubspec.yaml` → `version: X.Y.Z+B`
 - Format: `MAJOR.MINOR.PATCH+BUILD_NUMBER`
 - Example: `1.0.1+1` = Version 1.0.1, Build 1
