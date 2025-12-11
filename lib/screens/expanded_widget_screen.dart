@@ -139,13 +139,13 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
           maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
         child: ArtworkSelectionSheet(
-          artworkVariants: const [], // Widgets don't have predefined artwork variants
+          artworkVariants: const [], // Utilities don't have predefined artwork variants
           onArtworkSelected: _handleArtworkSelected,
           onRemoveArtwork: _artworkUrl != null ? _removeArtwork : null,
           currentArtworkUrl: _artworkUrl,
           currentArtworkSet: null,
           tokenName: _name,
-          tokenIdentity: _widgetId, // Use widget ID as identity
+          tokenIdentity: _widgetId, // Use utility ID as identity
           databaseLoadError: false,
         ),
       ),
@@ -170,7 +170,7 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Widget Details'),
+        title: const Text('Utility Details'),
         actions: [
           IconButton(
             icon: const Icon(Icons.delete, color: Colors.red),

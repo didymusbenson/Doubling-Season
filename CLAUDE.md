@@ -114,6 +114,36 @@ The app targets iOS, Android, Web, macOS, and Windows platforms using Flutter's 
 - Added `Item.artworkOptions` (@HiveField 15)
 - Added `TokenTemplate.artworkUrl` for deck persistence
 
+## Experimental Feature: Utilities (formerly "Widget Cards")
+
+**IMPORTANT TERMINOLOGY:**
+- **User-facing:** "Utilities" (appears in all UI text, menus, documentation)
+- **Internal code:** "Widget" class names and file names (TrackerWidget, ToggleWidget, widget_selection_screen.dart)
+- **Hive boxes:** `'trackerWidgets'` and `'toggleWidgets'` (DO NOT rename - migration risk)
+
+**Why the split?**
+- Feature is experimental with active users
+- Renaming Hive boxes or classes risks data loss
+- "Widget" conflicts with Flutter's widget terminology (user confusion)
+- Solution: Changed user-facing strings to "Utilities" but kept internal code stable
+
+**Current implementation status:**
+- ✅ Menu label: "Utilities" (FloatingActionMenu)
+- ✅ Screen title: "Select Utility" (WidgetSelectionScreen)
+- ✅ Details screen: "Utility Details" (ExpandedWidgetScreen)
+- ⚠️ Internal classes: Still named TrackerWidget, ToggleWidget (stability)
+- ⚠️ File names: Still widget_*.dart (can rename later, low risk)
+
+**Development guideline:**
+- When adding features, use "utility" in user-facing strings and documentation
+- Use "widget" when referring to class names in code or technical discussion
+- See `docs/activeDevelopment/cardWidgets.md` for full feature specification
+
+**Data model:**
+- `TrackerWidget` class (typeId: 6) - stores in `Box<TrackerWidget>('trackerWidgets')`
+- `ToggleWidget` class (typeId: 7) - stores in `Box<ToggleWidget>('toggleWidgets')`
+- DO NOT change typeIds or box names - breaks existing user data
+
 ## Project Configuration
 
 ### Critical Identifiers (NEVER use defaults)
@@ -727,14 +757,14 @@ showModalBottomSheet(
 );
 ```
 
-### Widget Development Pattern
+### Utility Development Pattern
 
 **CRITICAL: TokenCard is the canonical reference implementation for all board items.**
 
-When implementing features for widgets (TrackerWidget, ToggleWidget, or any future widget types):
+When implementing features for utilities (TrackerWidget, ToggleWidget, or any future utility types):
 1. **Always check TokenCard first** - See if a similar feature already exists in `lib/widgets/token_card.dart`
-2. **Use TokenCard as the reference** - Copy and adapt patterns from TokenCard when implementing features on widget cards
-3. **Apply consistently** - This rule applies to any type of widget that displays in the ContentScreen board list
+2. **Use TokenCard as the reference** - Copy and adapt patterns from TokenCard when implementing features on utility cards
+3. **Apply consistently** - This rule applies to any type of utility that displays in the ContentScreen board list
 
 Examples where this pattern applies:
 - Artwork display layers (use `Positioned.fill()` wrapper like TokenCard)

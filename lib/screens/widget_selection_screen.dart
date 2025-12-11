@@ -59,7 +59,7 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: _searchFocusNode.hasFocus ? null : const Text('Select Widget'),
+        title: _searchFocusNode.hasFocus ? null : const Text('Select Utility'),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
@@ -99,7 +99,7 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
         controller: _searchController,
         focusNode: _searchFocusNode,
         decoration: InputDecoration(
-          hintText: 'Search widgets...',
+          hintText: 'Search utilities...',
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
@@ -195,7 +195,7 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
         if (widgets.isEmpty) {
           return Center(
             child: Text(
-              'No widgets found',
+              'No utilities found',
               style: Theme.of(context).textTheme.bodyLarge,
             ),
           );

@@ -54,6 +54,56 @@ class WidgetDatabase extends ChangeNotifier {
         tapIncrement: 1,
         longPressIncrement: 5,
       ),
+      WidgetDefinition(
+        id: 'radiation_counters',
+        type: WidgetType.tracker,
+        name: 'Radiation Counters',
+        description: '',
+        colorIdentity: 'UGB', // Blue/Green/Black
+        defaultValue: 0,
+        tapIncrement: 1,
+        longPressIncrement: 5,
+      ),
+      WidgetDefinition(
+        id: 'energy_counters',
+        type: WidgetType.tracker,
+        name: 'Energy Counters',
+        description: '',
+        colorIdentity: 'GUR', // Green/Blue/Red
+        defaultValue: 0,
+        tapIncrement: 1,
+        longPressIncrement: 5,
+      ),
+      WidgetDefinition(
+        id: 'experience_counters',
+        type: WidgetType.tracker,
+        name: 'Experience Counters',
+        description: '',
+        colorIdentity: 'WUBRG', // All colors
+        defaultValue: 0,
+        tapIncrement: 1,
+        longPressIncrement: 5,
+      ),
+      WidgetDefinition(
+        id: 'storm_count',
+        type: WidgetType.tracker,
+        name: 'Storm Count',
+        description: '',
+        colorIdentity: 'UR', // Blue/Red
+        defaultValue: 0,
+        tapIncrement: 1,
+        longPressIncrement: 5,
+      ),
+      WidgetDefinition(
+        id: 'commander_tax',
+        type: WidgetType.tracker,
+        name: 'Commander Tax',
+        description: '',
+        colorIdentity: 'WUBRG', // All colors
+        defaultValue: 0,
+        tapIncrement: 1,
+        longPressIncrement: 5,
+      ),
 
       // Toggle Widgets
       WidgetDefinition(
@@ -71,6 +121,22 @@ class WidgetDatabase extends ChangeNotifier {
         description: 'It is Day.',
         offDescription: 'It is Night.',
         colorIdentity: 'WG', // White/Green
+      ),
+      WidgetDefinition(
+        id: 'citys_blessing',
+        type: WidgetType.toggle,
+        name: "City's Blessing",
+        description: "You have the City's Blessing.",
+        offDescription: "You do not have the City's Blessing.",
+        colorIdentity: 'W', // White
+      ),
+      WidgetDefinition(
+        id: 'initiative',
+        type: WidgetType.toggle,
+        name: 'The Initiative',
+        description: 'You have the Initiative.',
+        offDescription: 'You do not have the Initiative.',
+        colorIdentity: '', // Colorless
       ),
     ];
 

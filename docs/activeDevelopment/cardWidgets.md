@@ -1,13 +1,13 @@
-# Next Feature: Widget Cards
+# Next Feature: Utility Cards
 
 ## Overview
-Widget cards are utility cards that provide game-tracking tools (like life counters, poison counters, monarch status, etc.) that live alongside token cards in the main game board.
+Utility cards are game-tracking tools (like life counters, poison counters, monarch status, etc.) that live alongside token cards in the main game board.
 
-## Widget Types
+## Utility Types
 
-There are two fundamental widget types:
+There are two fundamental utility types:
 
-### 1. Tracker Widget
+### 1. Tracker Utility
 A numeric counter with stepper buttons. Trackers emphasize the VALUE as the primary display element.
 
 **Layout Structure:**
@@ -22,8 +22,8 @@ Trackers use a single-row layout that mirrors token name vs tapped/untapped stru
   - Same styling as token names
 - **Description**: Optional explanation text (e.g., "Tap +/- to adjust life total")
   - Lives in same 75% column as Name (cannot overlap with Value)
-  - **Editable**: Users can add/edit descriptions for any tracker (via ExpandedWidgetScreen)
-  - By default, predefined widgets (Life Total, Poison Counters) have no description
+  - **Editable**: Users can add/edit descriptions for any tracker (via ExpandedUtilityScreen)
+  - By default, predefined utilities (Life Total, Poison Counters) have no description
   - Players know what these are, no need for explanatory text
   - Custom trackers can have descriptions if user wants
 - **Value**: Large numeric display (tap to manually edit)
@@ -36,8 +36,8 @@ Trackers use a single-row layout that mirrors token name vs tapped/untapped stru
 - **Buttons**: Decrement (-), Increment (+)
   - Left-aligned in the 75% column below Name/Description
   - Spaced using token button spacing calculation (LayoutBuilder with clamp)
-  - Tap: Change by widget's tapIncrement (default: 1)
-  - Long-press: Change by widget's longPressIncrement (default: 5)
+  - Tap: Change by utility's tapIncrement (default: 1)
+  - Long-press: Change by utility's longPressIncrement (default: 5)
 
 **Examples:**
 - Life Total (starting value: 40 or 20)
@@ -50,12 +50,12 @@ Trackers use a single-row layout that mirrors token name vs tapped/untapped stru
 
 **State Persistence:**
 - Current value
-- Name (fixed by widget type)
-- Description (fixed by widget type)
+- Name (fixed by utility type)
+- Description (fixed by utility type)
 - Artwork URL (optional)
-- Color identity (fixed by widget type)
+- Color identity (fixed by utility type)
 
-### 2. Toggle Widget
+### 2. Toggle Utility
 A binary state indicator that switches between two views.
 
 **Behavior:**
@@ -71,16 +71,16 @@ A binary state indicator that switches between two views.
 
 **State Persistence:**
 - Current state (boolean: true/false)
-- Name (fixed by widget type)
-- ON description (fixed by widget type)
-- OFF description (fixed by widget type)
+- Name (fixed by utility type)
+- ON description (fixed by utility type)
+- OFF description (fixed by utility type)
 - Artwork URL (optional)
-- Color identity (fixed by widget type)
+- Color identity (fixed by utility type)
 
 ## Core Requirements
 
 ### Visual Consistency
-Widget cards MUST match token card styling exactly:
+Utility cards MUST match token card styling exactly:
 
 **Structure (from ContentScreen):**
 - **Container Wrapper**: GradientBoxBorder with 3px border width
@@ -92,8 +92,8 @@ Widget cards MUST match token card styling exactly:
 **Card Appearance:**
 - **Size**:
 - Same width constraints as `TokenCard`
-- Height: Naturally shorter for widgets without action buttons (toggles)
-- Optional: 2-per-row layout for compact widgets (if drag-and-drop compatible)
+- Height: Naturally shorter for utilities without action buttons (toggles)
+- Optional: 2-per-row layout for compact utilities (if drag-and-drop compatible)
 - **Border**: Same border radius and 3px gradient border
 - **Background**: `Theme.of(context).cardColor`
 - **Padding**: `UIConstants.cardPadding`
@@ -117,39 +117,39 @@ Widget cards MUST match token card styling exactly:
 - Elevation 8 with shadow opacity 0.3 when dragging
 - Uses `order` field (double) for fractional positioning
 
-### Widget Content Fields
-Widget cards have text fields that map to token card equivalents:
-- **NAME**: Widget title (maps to token's `name` field)
+### Utility Content Fields
+Utility cards have text fields that map to token card equivalents:
+- **NAME**: Utility title (maps to token's `name` field)
     - Displayed in title position with same typography
     - Background: `cardColor.withValues(alpha: 0.85)` for readability
-    - Read-only (set by widget type, cannot be edited by user)
-- **DESCRIPTION**: Widget explanation/rules text (maps to token's `abilities` field)
-    - **Tracker widgets**: Optional text field (editable by user in ExpandedWidgetScreen)
+    - Read-only (set by utility type, cannot be edited by user)
+- **DESCRIPTION**: Utility explanation/rules text (maps to token's `abilities` field)
+    - **Tracker utilities**: Optional text field (editable by user in ExpandedUtilityScreen)
       - By default empty for predefined trackers (Life Total, Poison Counters)
       - Users can add custom descriptions if desired
       - **Compact Card**: 3-line max with ellipsis overflow
       - **Expanded View**: Editable TextField with 3-line height
-    - **Toggle widgets**: Current state text (e.g., "You are the Monarch" or "Not the Monarch")
-      - Read-only (set by widget type via onDescription/offDescription)
+    - **Toggle utilities**: Current state text (e.g., "You are the Monarch" or "Not the Monarch")
+      - Read-only (set by utility type via onDescription/offDescription)
       - **Compact Card**: 3-line max with ellipsis overflow
       - **Expanded View**: Full multi-line text without truncation, read-only
     - Background: `cardColor.withValues(alpha: 0.85)` for readability
 
-### Widget Color Identity and Artwork
+### Utility Color Identity and Artwork
 
 **Color Identity:**
-- **Editable**: Users can manually set color identity for any widget (same as tokens)
-- **Color Selection**: Via ExpandedWidgetScreen using ColorSelectionButton (W/U/B/R/G)
+- **Editable**: Users can manually set color identity for any utility (same as tokens)
+- **Color Selection**: Via ExpandedUtilityScreen using ColorSelectionButton (W/U/B/R/G)
 - **Border Gradient**: Uses `ColorUtils.gradientForColors()` like token cards
-- **Background Gradient**: Widgets without artwork show gradient background based on color identity
-- **Default Colors** (predefined widgets):
+- **Background Gradient**: Utilities without artwork show gradient background based on color identity
+- **Default Colors** (predefined utilities):
     - Life Total: Colorless (empty string)
     - Poison Counters: Black/Green (BG)
     - The Monarch: Red (R)
     - Day/Night: White/Green (WG)
 
 **Artwork Behavior (from TokenCard):**
-- **Selection**: Via `ExpandedWidgetScreen` using `ArtworkManager` (same as tokens)
+- **Selection**: Via `ExpandedUtilityScreen` using `ArtworkManager` (same as tokens)
 - **Caching**: Uses `ArtworkManager.getCachedArtworkFile()` and `ArtworkManager.downloadArtwork()`
 - **Cropping**: Same crop percentages as tokens (8.8% left/right, 14.5% top, 36.8% bottom)
 - **Display Styles**:
@@ -161,10 +161,10 @@ Widget cards have text fields that map to token card equivalents:
   - If artwork loads <100ms (cached): No animation, instant display
 - **Cleanup**: Auto-removes invalid `artworkUrl` when file is missing (after ConnectionState.done)
 - **Gradient Placeholder**: Shows color gradient while artwork is loading, then hides when loaded
-- **Persistence**: `artworkUrl` saved in Hive with widget data
+- **Persistence**: `artworkUrl` saved in Hive with utility data
 
 ### Action Button Styling
-Widget cards have action buttons styled identically to token cards:
+Utility cards have action buttons styled identically to token cards:
 
 **Button Style (from TokenCard._buildActionButton):**
 - Border width: `UIConstants.actionButtonBorderWidth`
@@ -189,26 +189,26 @@ Widget cards have action buttons styled identically to token cards:
   ```
 - Last button gets 0 trailing spacing
 
-**Widget-Specific Buttons:**
-- **Tracker widgets**: 2 buttons in left-aligned row (with token spacing calculation)
+**Utility-Specific Buttons:**
+- **Tracker utilities**: 2 buttons in left-aligned row (with token spacing calculation)
   - Decrement button (-): Icons.remove, tap = -1, long-press = -5 (configurable)
   - Increment button (+): Icons.add, tap = +1, long-press = +5 (configurable)
   - Value display: Separate element on right side (NOT in button row), tappable to edit
-- **Toggle widgets**: No action buttons (entire card is tappable to toggle state)
+- **Toggle utilities**: No action buttons (entire card is tappable to toggle state)
 
-### What Widgets DON'T Have (vs Tokens)
+### What Utilities DON'T Have (vs Tokens)
 
 **Fields:**
-- No editable name/description (read-only, set by widget type)
+- No editable name/description (read-only, set by utility type)
 - No power/toughness
 - No abilities text
 - No type line
-- No color selection (hard-coded by widget type)
+- No color selection (hard-coded by utility type)
 - No +1/+1 or -1/-1 counters
 - No custom counter management
 - No tapped/untapped state
 - No summoning sickness
-- No "amount" field (widgets are singular items)
+- No "amount" field (utilities are singular items)
 
 **Actions:**
 - No add/remove amount buttons
@@ -219,60 +219,60 @@ Widget cards have action buttons styled identically to token cards:
 - No counter pills displayed
 
 **Behavior:**
-- No opacity change based on amount (widgets don't have amount=0 state)
+- No opacity change based on amount (utilities don't have amount=0 state)
 - No special handling for emblems or Scute Swarm
 
 ### Tap Behavior
 
-**Tracker Widgets:**
-- **Tap card background**: Opens `ExpandedWidgetScreen` (for artwork selection/delete)
+**Tracker Utilities:**
+- **Tap card background**: Opens `ExpandedUtilityScreen` (for artwork selection/delete)
 - **Tap decrement button**: Decrease value by tap increment
 - **Long-press decrement button**: Decrease value by long-press increment
 - **Tap value display**: Opens numeric keyboard for manual editing
 - **Tap increment button**: Increase value by tap increment
 - **Long-press increment button**: Increase value by long-press increment
 
-**Toggle Widgets:**
+**Toggle Utilities:**
 - **Tap anywhere on card**: Toggle state (ON ↔ OFF) with cross-fade animation
   - Cross-fade between artwork states if both `onArtworkUrl` and `offArtworkUrl` set
   - Cross-fade text opacity when description changes
   - Note: Cross-fade for background images may be challenging (document if not feasible)
-- **Long-press on card**: Opens `ExpandedWidgetScreen` (for artwork selection/delete)
+- **Long-press on card**: Opens `ExpandedUtilityScreen` (for artwork selection/delete)
 - Rationale: Toggle should be instant (tap), expanded view is secondary (long-press)
 
 ### Expanded View
-- **Universal Component**: All widgets use the same `ExpandedWidgetScreen` component (not widget-specific)
+- **Universal Component**: All utilities use the same `ExpandedUtilityScreen` component (not utility-specific)
 - **Navigation**:
-  - Tracker widgets: Tap card background
-  - Toggle widgets: Long-press card
-- **Name Display**: Widget name shown as read-only text (not editable)
+  - Tracker utilities: Tap card background
+  - Toggle utilities: Long-press card
+- **Name Display**: Utility name shown as read-only text (not editable)
 - **Description**:
-    - **Tracker widgets**: Editable TextField with 3-line height
+    - **Tracker utilities**: Editable TextField with 3-line height
       - Label: "Description (Optional)"
       - Hint text: "Add optional description..."
       - Auto-saves on change
       - Users can add/edit/remove descriptions as desired
-    - **Toggle widgets**: Read-only display showing both ON and OFF state descriptions
+    - **Toggle utilities**: Read-only display showing both ON and OFF state descriptions
       - Multi-line text without truncation
       - Scrollable if needed
-- **Color Selection**: Editable for all widgets via ColorSelectionButton (W/U/B/R/G)
+- **Color Selection**: Editable for all utilities via ColorSelectionButton (W/U/B/R/G)
     - Same UI as ExpandedTokenScreen
     - Auto-saves on change
-    - Updates gradient background when widget has no artwork
+    - Updates gradient background when utility has no artwork
 - **Artwork Selection**: Uses exact same artwork selection logic as tokens
     - Scryfall API integration via `ArtworkManager`
     - Same artwork picker UI from `ExpandedTokenScreen`
     - Same cropping/caching behavior
-    - Artwork displayed on widget card using same styling as tokens (Full View or Fadeout)
-- **No Counter Management**: Widgets don't have +1/+1 counters or custom counters
-- **No Widget-Specific Controls**: Base `ExpandedWidgetScreen` has no special function controls
-    - If future widgets need custom controls, extend the base class (e.g., `ExpandedLifeCounterScreen extends ExpandedWidgetScreen`)
-    - Similar inheritance pattern to `BaseWidgetCard`
-- **Delete Button**: Widgets can be deleted from the board
+    - Artwork displayed on utility card using same styling as tokens (Full View or Fadeout)
+- **No Counter Management**: Utilities don't have +1/+1 counters or custom counters
+- **No Utility-Specific Controls**: Base `ExpandedUtilityScreen` has no special function controls
+    - If future utilities need custom controls, extend the base class (e.g., `ExpandedLifeCounterScreen extends ExpandedUtilityScreen`)
+    - Similar inheritance pattern to `BaseUtilityCard`
+- **Delete Button**: Utilities can be deleted from the board
 - **Rationale**: Universal expanded view provides artwork selection, description editing (trackers), and delete without cluttering the compact card
 
-### Widget Event System
-Widgets can listen to token-related events for automatic trigger tracking:
+### Utility Event System
+Utilities can listen to token-related events for automatic trigger tracking:
 
 **Event Architecture:**
 ```dart
@@ -281,7 +281,7 @@ class CreatureEnteredEvent {
   final int amount;           // Required: number of creatures that entered
   final Item? token;          // Optional: the token that was created/modified
   final String? source;       // Optional: 'addTokens', 'insertItem', 'copyToken', etc.
-  // Future fields can be added here without breaking existing widgets
+  // Future fields can be added here without breaking existing utilities
 
   CreatureEnteredEvent({
     required this.amount,
@@ -307,7 +307,7 @@ class TokenProvider {
       try {
         callback(event);
       } catch (e) {
-        debugPrint('Widget callback failed: $e');
+        debugPrint('Utility callback failed: $e');
         _onCreatureEnteredCallbacks.remove(callback); // Auto-cleanup dead callbacks
       }
     }
@@ -315,9 +315,9 @@ class TokenProvider {
 }
 ```
 
-**Widget Implementation:**
+**Utility Implementation:**
 ```dart
-class CatharsCrusadeWidget {
+class CatharsCrusadeUtility {
   int pendingTriggers = 0;
 
   void init(BoardProvider provider) {
@@ -357,55 +357,55 @@ class CatharsCrusadeWidget {
 
 **Benefits:**
 - ✅ Non-intrusive: Doesn't block token creation flow
-- ✅ User control: Widgets accumulate triggers, user resolves when ready
-- ✅ Future-proof: Adding optional fields to events doesn't break existing widgets
+- ✅ User control: Utilities accumulate triggers, user resolves when ready
+- ✅ Future-proof: Adding optional fields to events doesn't break existing utilities
 - ✅ Type-safe: Compiler catches callback signature mismatches
 - ✅ Self-cleaning: Dead callbacks auto-removed on error
 
 ### List Integration
-Widget cards are part of the same reorderable list as token cards:
-- **Data Model**: Widgets and tokens share a common interface or union type
-- **Ordering**: Widgets can be dragged/reordered among tokens
-- **Persistence**: Widget position and state saved in same Hive box as tokens
-- **Creation**: Widgets added via FloatingActionMenu (same entry point as tokens)
+Utility cards are part of the same reorderable list as token cards:
+- **Data Model**: Utilities and tokens share a common interface or union type
+- **Ordering**: Utilities can be dragged/reordered among tokens
+- **Persistence**: Utility position and state saved in same Hive box as tokens
+- **Creation**: Utilities added via FloatingActionMenu (same entry point as tokens)
 
 ## Implementation Plan
 
 ### 1. Data Model
-Create a unified model for board items (tokens + widgets):
+Create a unified model for board items (tokens + utilities):
 ```dart
 // Option A: Union type
 abstract class BoardItem extends HiveObject {
-  String get displayType; // "token" or "widget"
+  String get displayType; // "token" or "utility"
   double order; // For drag-and-drop
 }
 
 class Item extends BoardItem { /* existing token model */ }
-class Widget extends BoardItem { /* new widget model */ }
+class Utility extends BoardItem { /* new utility model */ }
 
 // Option B: Single model with type field
 class BoardItem extends HiveObject {
-  String itemType; // "token" or "widget"
-  // ... token-specific fields (nullable for widgets)
-  // ... widget-specific fields (nullable for tokens)
+  String itemType; // "token" or "utility"
+  // ... token-specific fields (nullable for utilities)
+  // ... utility-specific fields (nullable for tokens)
 }
 ```
 
-### 2. Widget Card Components
+### 2. Utility Card Components
 
-#### Base Widget Card
+#### Base Utility Card
 ```dart
-/// Base class for all widget cards - enforces visual consistency
-abstract class BaseWidgetCard extends StatefulWidget {
-  final Widget widget;
+/// Base class for all utility cards - enforces visual consistency
+abstract class BaseUtilityCard extends StatefulWidget {
+  final dynamic utility;
 
-  const BaseWidgetCard({required this.widget, super.key});
+  const BaseUtilityCard({required this.utility, super.key});
 
   @override
-  State<BaseWidgetCard> createState() => _BaseWidgetCardState();
+  State<BaseUtilityCard> createState() => _BaseUtilityCardState();
 }
 
-class _BaseWidgetCardState extends State<BaseWidgetCard> {
+class _BaseUtilityCardState extends State<BaseUtilityCard> {
   @override
   Widget build(BuildContext context) {
     // Enforces TokenCard structure:
@@ -414,7 +414,7 @@ class _BaseWidgetCardState extends State<BaseWidgetCard> {
     // - Name + Description layout (maps to token's name + abilities)
     // - Action buttons using _buildActionButton() pattern (trackers only)
     // - Hard-coded color border gradient
-    // - GestureDetector opens ExpandedWidgetScreen (for artwork/delete)
+    // - GestureDetector opens ExpandedUtilityScreen (for artwork/delete)
   }
 
   Widget _buildActionButton(...) {
@@ -423,10 +423,10 @@ class _BaseWidgetCardState extends State<BaseWidgetCard> {
 }
 ```
 
-#### Tracker Widget Card
+#### Tracker Utility Card
 ```dart
-class TrackerWidgetCard extends BaseWidgetCard {
-  final TrackerWidget tracker;
+class TrackerUtilityCard extends BaseUtilityCard {
+  final TrackerUtility tracker;
 
   const TrackerWidgetCard({required this.tracker, super.key});
 
@@ -480,10 +480,10 @@ class TrackerWidgetCard extends BaseWidgetCard {
 }
 ```
 
-#### Toggle Widget Card
+#### Toggle Utility Card
 ```dart
-class ToggleWidgetCard extends BaseWidgetCard {
-  final ToggleWidget toggle;
+class ToggleUtilityCard extends BaseUtilityCard {
+  final ToggleUtility toggle;
 
   const ToggleWidgetCard({required this.toggle, super.key});
 
@@ -510,22 +510,22 @@ class ToggleWidgetCard extends BaseWidgetCard {
   }
 }
 
-/// Single expanded view component for ALL widget cards
-class ExpandedWidgetScreen extends StatelessWidget {
-  final Widget widget;
+/// Single expanded view component for ALL utility cards
+class ExpandedUtilityScreen extends StatelessWidget {
+  final dynamic utility;
 
-  // Universal widget detail screen - works for all widget types:
+  // Universal utility detail screen - works for all utility types:
   // - NAME displayed as read-only text (not TextField)
   // - Full DESCRIPTION displayed without truncation (scrollable)
   // - Artwork selection UI (identical to ExpandedTokenScreen)
-  // - No ColorSelectionButton (color identity is hard-coded per widget type)
+  // - No ColorSelectionButton (color identity is hard-coded per utility type)
   // - No counter management (no +1/+1, no custom counters)
   // - Delete button present
   // - No stack splitting
-  // - No widget-specific controls in base implementation
+  // - No utility-specific controls in base implementation
   //
-  // NOTE: If future widgets need custom controls in expanded view,
-  // create specialized screens (e.g., ExpandedLifeCounterScreen extends ExpandedWidgetScreen)
+  // NOTE: If future utilities need custom controls in expanded view,
+  // create specialized screens (e.g., ExpandedLifeCounterScreen extends ExpandedUtilityScreen)
   // and override buildCustomControls() method. For now, base class has no special functions.
 }
 ```
@@ -538,7 +538,7 @@ class ExpandedWidgetScreen extends StatelessWidget {
     final item = items[index];
     return item is Item
       ? TokenCard(item: item)
-      : WidgetCard(widget: item as Widget);
+      : UtilityCard(utility: item as Utility);
   }
   ```
 - **Reordering**: Existing drag-and-drop logic works with unified `order` field
@@ -595,7 +595,7 @@ Opens when user taps "Widgets" in FloatingActionMenu:
 **Custom Tracker:**
 - User-defined tracker with custom name, description, default value, min/max, increments, color
 
-### Toggle Widgets (To Implement)
+### Toggle Utilities (To Implement)
 
 **Status Indicators:**
 - **Monarch**: "You are the Monarch" / "Not the Monarch" (color: R)
@@ -607,20 +607,20 @@ Opens when user taps "Widgets" in FloatingActionMenu:
 **Custom Toggle:**
 - User-defined toggle with custom name, ON/OFF descriptions, color
 
-### Special Widgets (Future - Advanced Features)
-These widgets are marked as `WidgetType.special` and have complex, commander-specific functionality beyond basic trackers/toggles. They may listen to game events or provide unique button actions.
+### Special Utilities (Future - Advanced Features)
+These utilities are marked as `UtilityType.special` and have complex, commander-specific functionality beyond basic trackers/toggles. They may listen to game events or provide unique button actions.
 
-**Trigger Trackers (based on Tracker widget):**
+**Trigger Trackers (based on Tracker utility):**
 - **Cathars' Crusade**: Tracks ETB triggers, button applies +X/+X to all tokens
 - **Impact Tremors**: Tracks damage dealt (1 per creature entered)
 - **Purphoros**: Tracks damage (2 per creature entered)
 
-**Replacement Effect Toggles (based on Toggle widget):**
+**Replacement Effect Toggles (based on Toggle utility):**
 - **Doubling Season**: When ON, auto-doubles token creation
 - **Parallel Lives**: When ON, auto-doubles token creation
 - **Anointed Procession**: When ON, auto-doubles token creation
 
-**Button-Action Widgets (special type, custom card implementations):**
+**Button-Action Utilities (special type, custom card implementations):**
 - **Krenko, Mob Boss**: Button creates X goblins where X = goblins you control
   - Color: R
   - Button: "Tap Krenko" → counts goblin tokens → creates that many 1/1 goblins
@@ -641,17 +641,17 @@ These widgets are marked as `WidgetType.special` and have complex, commander-spe
 
 ## Implementation Decisions (Finalized)
 
-### Widget Selection Screen
+### Utility Selection Screen
 Following existing TokenSearchScreen pattern for consistency:
 - **Screen Type**: Full-screen Scaffold (not bottom sheet)
-- **AppBar**: Title "Select Widget" with close button
+- **AppBar**: Title "Select Utility" with close button
 - **Search Bar**: Debounced search at top (300ms delay like TokenSearchScreen)
 - **Filter Chips**: Type filters below search - [All] [Tracker] [Toggle]
-- **Widget List**: Scrollable list of matching predefined widgets
+- **Utility List**: Scrollable list of matching predefined utilities
 - **Custom Creation Buttons**: "Create Custom Tracker" and "Create Custom Toggle" at top of list (sticky)
-- **Selection Behavior**: Tap predefined widget → creates instance immediately and closes screen
+- **Selection Behavior**: Tap predefined utility → creates instance immediately and closes screen
 
-### Custom Widget Creation Forms
+### Custom Utility Creation Forms
 Following existing NewTokenSheet pattern for consistency:
 - **NewTrackerSheet** (full-screen Scaffold):
   - Name (TextField)
@@ -670,55 +670,55 @@ Following existing NewTokenSheet pattern for consistency:
 - **Location**: Line ~123 in FloatingActionMenu (between "New Token" and "Untap All")
 - **Action Level**: Same level as "New Token" (not nested submenu)
 - **Implementation**: Uncomment existing lines 124-135 in floating_action_menu.dart
-- **Icon**: `Icons.widgets`
+- **Icon**: `Icons.apps`
 - **Color**: `Colors.deepPurple`
 
-### Initial Predefined Widget Catalog (Phase 1)
-Start with 4 essential widgets to validate implementation:
+### Initial Predefined Utility Catalog (Phase 1)
+Start with 4 essential utilities to validate implementation:
 1. **Life Total** (Tracker, default: 40, colorless)
 2. **Poison Counters** (Tracker, default: 0, BG)
 3. **Monarch** (Toggle, R)
 4. **Day/Night** (Toggle, WG)
 
-Additional widgets can be added incrementally after Phase 1 validation.
+Additional utilities can be added incrementally after Phase 1 validation.
 
 ### Board Wipe Behavior
-- **"Delete All"**: Use `item is Item` type check to filter - deletes only tokens, preserves widgets
-- **"Set to 0"**: Only operates on `Item` objects (widgets have no `amount` field)
-- **Future "Reset Widgets"**: Not implemented in Phase 1, can add if users request it
+- **"Delete All"**: Use `item is Item` type check to filter - deletes only tokens, preserves utilities
+- **"Set to 0"**: Only operates on `Item` objects (utilities have no `amount` field)
+- **Future "Reset Utilities"**: Not implemented in Phase 1, can add if users request it
 
 ## Migration Strategy
 ### Phase 1: Foundation (Current)
 - Create `BoardItem` abstract class
-- Implement `WidgetCard` component
-- Add widget creation flow
+- Implement `UtilityCard` component
+- Add utility creation flow
 
 ### Phase 2: Data Migration
 - Migrate Hive box from `Box<Item>` to `Box<BoardItem>`
 - Handle existing user data (all items become tokens)
 - Update provider layer
 
-### Phase 3: First Widget
-- Implement simplest widget (e.g., Life Counter)
+### Phase 3: First Utility
+- Implement simplest utility (e.g., Life Counter)
 - Test integration with token list
 - Validate reordering and persistence
 
 ## Design Decisions (Resolved)
-1. ✅ **Color Identity**: Each widget type has hard-coded color identity (cannot be changed by user)
-2. ✅ **Expanded View**: Widgets DO have `ExpandedWidgetScreen` for description + artwork selection
-3. ✅ **Content Fields**: Widgets have NAME and DESCRIPTION (map to token's name/abilities, read-only)
-4. ✅ **Base Class**: All widgets inherit from `BaseWidgetCard` for visual consistency
-5. ✅ **Artwork Support**: Widgets can have custom artwork selected via Scryfall (same logic as tokens)
+1. ✅ **Color Identity**: Each utility type has hard-coded color identity (cannot be changed by user)
+2. ✅ **Expanded View**: Utilities DO have `ExpandedUtilityScreen` for description + artwork selection
+3. ✅ **Content Fields**: Utilities have NAME and DESCRIPTION (map to token's name/abilities, read-only)
+4. ✅ **Base Class**: All utilities inherit from `BaseUtilityCard` for visual consistency
+5. ✅ **Artwork Support**: Utilities can have custom artwork selected via Scryfall (same logic as tokens)
 
 ## Data Model
 
-### Widget Base Class
+### Utility Base Class
 ```dart
 @HiveType(typeId: 4)
-abstract class Widget extends BoardItem {
-  @HiveField(0) String widgetId; // Unique ID for this widget instance
-  @HiveField(1) String widgetType; // "tracker" or "toggle"
-  @HiveField(2) String name; // Display name (read-only, set by widget definition)
+abstract class Utility extends BoardItem {
+  @HiveField(0) String utilityId; // Unique ID for this utility instance
+  @HiveField(1) String utilityType; // "tracker" or "toggle"
+  @HiveField(2) String name; // Display name (read-only, set by utility definition)
   @HiveField(3) String description; // Explanation text (read-only)
   @HiveField(4) String colorIdentity; // Color(s) for border gradient (read-only)
   @HiveField(5) String? artworkUrl; // Optional custom artwork
@@ -727,11 +727,11 @@ abstract class Widget extends BoardItem {
 }
 ```
 
-### Tracker Widget
+### Tracker Utility
 ```dart
 @HiveType(typeId: 6)  // CORRECTED: 4 and 5 are already used by ArtworkVariant and TokenArtworkPreference
-class TrackerWidget extends HiveObject {
-  @HiveField(0) String widgetId; // Unique ID (UUID)
+class TrackerUtility extends HiveObject {
+  @HiveField(0) String utilityId; // Unique ID (UUID)
   @HiveField(1) String name; // Display name (user can edit for custom trackers)
   @HiveField(2) String description; // Explanation text (user can edit for custom trackers)
   @HiveField(3) String colorIdentity; // Color(s) for border gradient
@@ -752,11 +752,11 @@ class TrackerWidget extends HiveObject {
 }
 ```
 
-### Toggle Widget
+### Toggle Utility
 ```dart
-@HiveType(typeId: 7)  // CORRECTED: 6 is TrackerWidget
-class ToggleWidget extends HiveObject {
-  @HiveField(0) String widgetId; // Unique ID (UUID)
+@HiveType(typeId: 7)  // CORRECTED: 6 is TrackerUtility
+class ToggleUtility extends HiveObject {
+  @HiveField(0) String utilityId; // Unique ID (UUID)
   @HiveField(1) String name; // Display name (user can edit for custom toggles)
   @HiveField(2) String colorIdentity; // Color(s) for border gradient
   @HiveField(3) String? artworkUrl; // Optional custom artwork (used for both states if no per-state artwork)
@@ -776,11 +776,11 @@ class ToggleWidget extends HiveObject {
 }
 ```
 
-### Widget Definition (Not Persisted)
+### Utility Definition (Not Persisted)
 ```dart
-class WidgetDefinition {
+class UtilityDefinition {
   final String id; // Unique identifier (e.g., "life_total", "monarch")
-  final WidgetType type; // tracker, toggle, or special
+  final UtilityType type; // tracker, toggle, or special
   final String name;
   final String description; // Or onDescription for toggles
   final String? offDescription; // For toggles only
@@ -791,12 +791,12 @@ class WidgetDefinition {
   final int tapIncrement; // For trackers (default: 1)
   final int longPressIncrement; // For trackers (default: 5)
 
-  // Factory method to create widget instance from definition
-  TrackerWidget toTrackerWidget() { ... }
-  ToggleWidget toToggleWidget() { ... }
+  // Factory method to create utility instance from definition
+  TrackerUtility toTrackerUtility() { ... }
+  ToggleUtility toToggleUtility() { ... }
 }
 
-enum WidgetType { tracker, toggle, special }
+enum UtilityType { tracker, toggle, special }
 ```
 
 ## Technical Implementation Details (From Codebase Research)
@@ -817,22 +817,22 @@ enum WidgetType { tracker, toggle, special }
 // 3 = TokenTemplate
 // 4 = ArtworkVariant (ALREADY USED)
 // 5 = TokenArtworkPreference (ALREADY USED)
-// 6 = TrackerWidget (NEW)
-// 7 = ToggleWidget (NEW)
+// 6 = TrackerUtility (NEW)
+// 7 = ToggleUtility (NEW)
 ```
 
 **Box Strategy:**
 - Keep existing `Box<Item>('items')` as-is (no migration)
-- Add new `Box<TrackerWidget>('trackerWidgets')`
-- Add new `Box<ToggleWidget>('toggleWidgets')`
+- Add new `Box<TrackerUtility>('trackerUtilities')`
+- Add new `Box<ToggleUtility>('toggleUtilities')`
 - ContentScreen merges lists by `order` field
 
 ### Provider Pattern
 Following existing patterns:
 - `TokenProvider` wraps `Box<Item>`
 - `DeckProvider` wraps `LazyBox<Deck>`
-- Create `TrackerProvider` wraps `Box<TrackerWidget>`
-- Create `ToggleProvider` wraps `Box<ToggleWidget>`
+- Create `TrackerProvider` wraps `Box<TrackerUtility>`
+- Create `ToggleProvider` wraps `Box<ToggleUtility>`
 - Each provider has: `insert()`, `update()`, `delete()`, `ValueListenable<Box<T>>`
 
 ### ContentScreen Integration
@@ -849,8 +849,8 @@ final boardItems = [...items, ...trackers, ...toggles]
 itemBuilder: (context, index) {
   final item = boardItems[index];
   if (item is Item) return TokenCard(item: item);
-  if (item is TrackerWidget) return TrackerWidgetCard(tracker: item);
-  if (item is ToggleWidget) return ToggleWidgetCard(toggle: item);
+  if (item is TrackerUtility) return TrackerUtilityCard(tracker: item);
+  if (item is ToggleUtility) return ToggleUtilityCard(toggle: item);
 }
 ```
 
@@ -888,41 +888,41 @@ Following TokenTemplate approach with bug fix:
   - Current code: `final item = template.toItem(amount: 1, createTapped: false);`
   - Correct code: `final item = template.toItem(amount: 0, createTapped: false);`
   - Rationale: User manually adds tokens during gameplay, deck should only define token types
-- Widgets: Template stores widget config, resets to `defaultValue` and `isActive: false`
+- Utilities: Template stores utility config, resets to `defaultValue` and `isActive: false`
 
 ## Design Decisions (Resolved)
-1. ✅ **Hive Type IDs**: TrackerWidget (6), ToggleWidget (7)
-2. ✅ **Widget Types**: Tracker (numeric counter) and Toggle (binary state)
+1. ✅ **Hive Type IDs**: TrackerUtility (6), ToggleUtility (7)
+2. ✅ **Utility Types**: Tracker (numeric counter) and Toggle (binary state)
 3. ✅ **Default Values**: Life Total = 40, all other trackers = 0 unless specified
 4. ✅ **Experience Counter**: Normal tracker controls (decrement allowed, even though rare in practice)
-5. ✅ **Widget Selection UI**: Full-screen with search bar + type filters (All, Tracker, Toggle), scrollable list
-6. ✅ **Custom Widgets**: Users can create custom trackers and toggles
-7. ✅ **Gradient Background**: Artless widgets get color gradient backgrounds (consistency with tokens)
+5. ✅ **Utility Selection UI**: Full-screen with search bar + type filters (All, Tracker, Toggle), scrollable list
+6. ✅ **Custom Utilities**: Users can create custom trackers and toggles
+7. ✅ **Gradient Background**: Artless utilities get color gradient backgrounds (consistency with tokens)
 8. ✅ **Toggle Animation**: Cross-fade when toggling states (artwork and text)
 9. ✅ **Toggle Height**: Reserve space for longest description to prevent height changes
 10. ✅ **Tracker Bounds**: Minimum 0, no maximum (truncate with "XXXXX..." if overflow, NO TEXT OVERFLOWS)
-11. ✅ **Deck Persistence**: Widgets save to templates, always reset to defaults on load
+11. ✅ **Deck Persistence**: Utilities save to templates, always reset to defaults on load
 12. ✅ **Deck Bug Fix**: Tokens should initialize to amount=0 (not 1) when loading deck
 13. ✅ **Board Wipe Behavior**:
-    - "Delete All": Deletes tokens only, keeps widgets
-    - "Set to 0": Sets token amounts to 0, doesn't affect widgets
-14. ✅ **Event System**: Defer to Advanced Widgets phase (not needed for basic tracker/toggle)
-15. ✅ **Custom Widget Forms**: Follow NewTokenSheet pattern - full-screen Scaffold with TextFields and ColorSelectionButton
+    - "Delete All": Deletes tokens only, keeps utilities
+    - "Set to 0": Sets token amounts to 0, doesn't affect utilities
+14. ✅ **Event System**: Defer to Advanced Utilities phase (not needed for basic tracker/toggle)
+15. ✅ **Custom Utility Forms**: Follow NewTokenSheet pattern - full-screen Scaffold with TextFields and ColorSelectionButton
 16. ✅ **FAB Menu Integration**: Uncomment existing lines 124-135 in floating_action_menu.dart (same level as New Token)
-17. ✅ **Initial Widget Catalog**: Start with 4 widgets (Life Total, Poison, Monarch, Day/Night) to validate implementation
+17. ✅ **Initial Utility Catalog**: Start with 4 utilities (Life Total, Poison, Monarch, Day/Night) to validate implementation
 
 ## Success Criteria
 
 ### Foundation
-- [ ] Widget card visually indistinguishable from token card (except content)
+- [ ] Utility card visually indistinguishable from token card (except content)
 - [ ] Action buttons styled identically to token buttons
-- [ ] Widgets can be reordered freely among tokens
-- [ ] Widget NAME and DESCRIPTION are read-only (cannot be edited)
-- [ ] Widget state persists across app restarts
-- [ ] Artless widgets display color gradient backgrounds matching their color identity
-- [ ] Custom artwork displays on widget card with Full View/Fadeout styles (same as tokens)
+- [ ] Utilities can be reordered freely among tokens
+- [ ] Utility NAME and DESCRIPTION are read-only (cannot be edited)
+- [ ] Utility state persists across app restarts
+- [ ] Artless utilities display color gradient backgrounds matching their color identity
+- [ ] Custom artwork displays on utility card with Full View/Fadeout styles (same as tokens)
 
-### Tracker Widget
+### Tracker Utility
 - [ ] Displays name, description, and current value
 - [ ] Decrement button (-): Tap = -1, Long-press = -5
 - [ ] Increment button (+): Tap = +1, Long-press = +5
@@ -931,7 +931,7 @@ Following TokenTemplate approach with bug fix:
 - [ ] Life Total tracker works (starting at 40 or 20)
 - [ ] Poison Counter tracker works (starting at 0)
 
-### Toggle Widget
+### Toggle Utility
 - [ ] Displays name and current state description
 - [ ] Tap anywhere on card to toggle state
 - [ ] Description updates to show current state (ON/OFF text)
@@ -940,27 +940,27 @@ Following TokenTemplate approach with bug fix:
 - [ ] Day/Night toggle works ("It is Day" / "It is Night")
 
 ### Expanded View
-- [ ] Tapping widget opens `ExpandedWidgetScreen`
+- [ ] Tapping utility opens `ExpandedUtilityScreen`
 - [ ] Expanded view shows full description without truncation
 - [ ] Artwork selection works identically to tokens (Scryfall API)
 - [ ] Delete button present and functional
 - [ ] No field editing (name/description are read-only)
 
 ### Integration
-- [ ] FloatingActionMenu "Widgets" button opens widget selection
-- [ ] Widget selection screen shows categorized list (Trackers, Toggles)
-- [ ] Creating widget inserts it into board with correct order
-- [ ] Widgets save to deck templates
-- [ ] Loading deck restores widget configuration, resets to defaults (defaultValue, isActive: false)
+- [ ] FloatingActionMenu "Utilities" button opens utility selection
+- [ ] Utility selection screen shows categorized list (Trackers, Toggles)
+- [ ] Creating utility inserts it into board with correct order
+- [ ] Utilities save to deck templates
+- [ ] Loading deck restores utility configuration, resets to defaults (defaultValue, isActive: false)
 - [ ] Loading deck initializes tokens to amount=0 (BUG FIX: currently initializes to 1)
 
 ### Board Wipe Behavior
-- [ ] "Delete All": Deletes tokens only, keeps widgets
-- [ ] "Set to 0": Sets token amounts to 0, doesn't affect widgets
-- [ ] Optional: "Reset/Remove Widgets" action for clearing widgets separately
+- [ ] "Delete All": Deletes tokens only, keeps utilities
+- [ ] "Set to 0": Sets token amounts to 0, doesn't affect utilities
+- [ ] Optional: "Reset/Remove Utilities" action for clearing utilities separately
 
 ### Optional Requirements
-- [ ] 2-per-row layout for compact widgets (if compatible with drag-and-drop)
+- [ ] 2-per-row layout for compact utilities (if compatible with drag-and-drop)
 - [ ] Cross-fade animation for toggle state changes (artwork and text)
   - Note: May be challenging based on past background image fade issues
   - Document if cross-fade isn't feasible

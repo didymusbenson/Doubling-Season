@@ -124,8 +124,8 @@ class _ActionBottomSheet extends StatelessWidget {
               const SizedBox(height: 4),
               _buildActionTile(
                 context: context,
-                icon: Icons.widgets,
-                label: 'Widgets',
+                icon: Icons.apps,
+                label: 'Utilities',
                 color: Colors.deepPurple,
                 onTap: () {
                   Navigator.pop(context);
