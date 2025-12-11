@@ -41,6 +41,16 @@ class TrackerWidget extends HiveObject {
   @HiveField(11)
   bool isCustom; // True if user-created, false if predefined
 
+  // Action Tracker fields (optional)
+  @HiveField(12)
+  bool hasAction; // True if this tracker has an action button
+
+  @HiveField(13)
+  String? actionButtonText; // Text for action button (e.g., "WAAAGH!")
+
+  @HiveField(14)
+  String? actionType; // Type of action to perform (e.g., "krenko_goblins")
+
   TrackerWidget({
     required this.widgetId,
     required this.name,
@@ -54,6 +64,9 @@ class TrackerWidget extends HiveObject {
     this.tapIncrement = 1,
     this.longPressIncrement = 5,
     this.isCustom = false,
+    this.hasAction = false,
+    this.actionButtonText,
+    this.actionType,
   });
 
   /// Increment the current value by the specified amount

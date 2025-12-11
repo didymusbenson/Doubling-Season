@@ -29,13 +29,16 @@ class TrackerWidgetAdapter extends TypeAdapter<TrackerWidget> {
       tapIncrement: fields[9] as int,
       longPressIncrement: fields[10] as int,
       isCustom: fields[11] as bool,
+      hasAction: fields[12] as bool,
+      actionButtonText: fields[13] as String?,
+      actionType: fields[14] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, TrackerWidget obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.widgetId)
       ..writeByte(1)
@@ -59,7 +62,13 @@ class TrackerWidgetAdapter extends TypeAdapter<TrackerWidget> {
       ..writeByte(10)
       ..write(obj.longPressIncrement)
       ..writeByte(11)
-      ..write(obj.isCustom);
+      ..write(obj.isCustom)
+      ..writeByte(12)
+      ..write(obj.hasAction)
+      ..writeByte(13)
+      ..write(obj.actionButtonText)
+      ..writeByte(14)
+      ..write(obj.actionType);
   }
 
   @override

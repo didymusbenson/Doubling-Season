@@ -3,8 +3,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/tracker_widget.dart';
+import '../models/token_definition.dart';
 import '../providers/settings_provider.dart';
 import '../providers/tracker_provider.dart';
+import '../providers/token_provider.dart';
 import '../screens/expanded_widget_screen.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
@@ -151,17 +153,19 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
     final trackerProvider = context.read<TrackerProvider>();
     final primaryColor = Theme.of(context).colorScheme.primary;
 
-    const int buttonCount = 2; // Decrement, Increment
+    final int buttonCount = widget.tracker.hasAction ? 3 : 2; // +/- buttons, plus optional action button
 
     return LayoutBuilder(
       builder: (context, constraints) {
         const double buttonInternalWidth = UIConstants.actionButtonInternalWidth;
-        const double totalButtonWidth = buttonCount * buttonInternalWidth;
+        final double totalButtonWidth = buttonCount * buttonInternalWidth;
         final double availableSpacingWidth = constraints.maxWidth - totalButtonWidth;
-        final double spacing = (availableSpacingWidth / (buttonCount - 1)).clamp(
-          UIConstants.minButtonSpacing,
-          UIConstants.maxButtonSpacing,
-        );
+        final double spacing = buttonCount > 1
+            ? (availableSpacingWidth / (buttonCount - 1)).clamp(
+                UIConstants.minButtonSpacing,
+                UIConstants.maxButtonSpacing,
+              )
+            : 0.0;
 
         return Row(
           mainAxisAlignment: MainAxisAlignment.start,
@@ -195,8 +199,18 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
                 trackerProvider.updateTracker(widget.tracker);
               },
               color: primaryColor,
-              spacing: 0, // Last button gets no spacing
+              spacing: widget.tracker.hasAction ? spacing : 0, // Spacing if action button follows
             ),
+
+            // Action button (conditional)
+            if (widget.tracker.hasAction)
+              _buildTextActionButton(
+                context,
+                text: widget.tracker.actionButtonText ?? 'Action',
+                onTap: () => _performAction(context),
+                color: primaryColor,
+                spacing: 0, // Last button gets no spacing
+              ),
           ],
         );
       },
@@ -296,6 +310,223 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
         ),
       ),
     );
+  }
+
+  Widget _buildTextActionButton(
+    BuildContext context, {
+    required String text,
+    required VoidCallback? onTap,
+    required Color color,
+    required double spacing,
+  }) {
+    final buttonBackgroundColor = Theme.of(context).cardColor.withValues(alpha: 0.85);
+
+    return Padding(
+      padding: EdgeInsets.only(right: spacing),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: UIConstants.actionButtonPadding + 2,
+            vertical: UIConstants.actionButtonPadding,
+          ),
+          decoration: BoxDecoration(
+            color: buttonBackgroundColor,
+            borderRadius: BorderRadius.circular(UIConstants.actionButtonBorderRadius),
+            border: Border.all(
+              color: color,
+              width: UIConstants.actionButtonBorderWidth,
+            ),
+          ),
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _performAction(BuildContext context) {
+    final actionType = widget.tracker.actionType;
+
+    if (actionType == null) return;
+
+    switch (actionType) {
+      case 'krenko_mob_boss':
+        _performKrenkoMobBossAction(context);
+        break;
+      case 'krenko_tin_street':
+        _performKrenkoTinStreetAction(context);
+        break;
+      // Future action types can be added here
+      default:
+        break;
+    }
+  }
+
+  Future<void> _performKrenkoMobBossAction(BuildContext context) async {
+    final tokenProvider = context.read<TokenProvider>();
+    final settingsProvider = context.read<SettingsProvider>();
+    final multiplier = settingsProvider.tokenMultiplier;
+
+    // Count existing goblin tokens
+    int tokenGoblinCount = 0;
+    for (final item in tokenProvider.items) {
+      final type = item.type.toLowerCase();
+      if (type.contains('goblin')) {
+        tokenGoblinCount += item.amount;
+      }
+    }
+
+    // Calculate goblin creation amounts
+    final nontokenGoblins = widget.tracker.currentValue;
+    final totalGoblins = tokenGoblinCount + nontokenGoblins;
+    final byTotalGoblins = totalGoblins * multiplier;
+
+    // Show dialog to choose which calculation to use
+    final shouldCreate = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Create Goblin Tokens'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Based on all goblins controlled ($totalGoblins):',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$byTotalGoblins goblins',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, byTotalGoblins),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Create $byTotalGoblins Goblins'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldCreate == null) return;
+
+    // Create goblin tokens
+    await _createGoblins(context, shouldCreate);
+  }
+
+  Future<void> _performKrenkoTinStreetAction(BuildContext context) async {
+    final settingsProvider = context.read<SettingsProvider>();
+    final multiplier = settingsProvider.tokenMultiplier;
+
+    // Calculate goblin creation amount based on Krenko's power
+    final krenkoPower = widget.tracker.currentValue;
+    final goblinsToCreate = krenkoPower * multiplier;
+
+    // Show dialog
+    final shouldCreate = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Create Goblin Tokens'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Based on Krenko's power ($krenkoPower):",
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$goblinsToCreate goblins',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, goblinsToCreate),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Create $goblinsToCreate Goblins'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldCreate == null) return;
+
+    // Create goblin tokens
+    await _createGoblins(context, shouldCreate);
+  }
+
+  Future<void> _createGoblins(BuildContext context, int amount) async {
+    final tokenProvider = context.read<TokenProvider>();
+    final settingsProvider = context.read<SettingsProvider>();
+
+    // Standard goblin token definition
+    final goblinDefinition = TokenDefinition(
+      name: 'Goblin',
+      abilities: '',
+      pt: '1/1',
+      colors: 'R',
+      type: 'Creature — Goblin',
+      popularity: 0,
+    );
+
+    // Check if matching goblin token already exists
+    final existingGoblin = tokenProvider.items.where((item) {
+      return item.name == 'Goblin' &&
+          item.pt == '1/1' &&
+          item.colors == 'R' &&
+          item.type.toLowerCase().contains('goblin') &&
+          item.abilities.isEmpty;
+    }).firstOrNull;
+
+    if (existingGoblin != null) {
+      // Add to existing token
+      existingGoblin.amount += amount;
+      existingGoblin.save();
+    } else {
+      // Create new token
+      final newGoblin = goblinDefinition.toItem(
+        amount: amount,
+        createTapped: false,
+      );
+      await tokenProvider.insertItem(newGoblin);
+
+      // Apply summoning sickness if enabled
+      if (settingsProvider.summoningSicknessEnabled &&
+          newGoblin.hasPowerToughness &&
+          !newGoblin.hasHaste) {
+        newGoblin.summoningSick = amount;
+      }
+    }
   }
 
   Widget _buildGradientLayer(BuildContext context) {

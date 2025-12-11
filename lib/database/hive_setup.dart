@@ -7,7 +7,6 @@ import '../models/token_definition.dart';
 import '../models/token_artwork_preference.dart';
 import '../models/tracker_widget.dart'; // NEW - Widget Cards Feature
 import '../models/toggle_widget.dart'; // NEW - Widget Cards Feature
-import '../models/krenko_utility.dart'; // NEW - Krenko Special Utility
 
 Future<void> initHive() async {
   await Hive.initFlutter();
@@ -21,7 +20,6 @@ Future<void> initHive() async {
   Hive.registerAdapter(TokenArtworkPreferenceAdapter()); // NEW - Custom Artwork Feature
   Hive.registerAdapter(TrackerWidgetAdapter()); // NEW - Widget Cards Feature
   Hive.registerAdapter(ToggleWidgetAdapter()); // NEW - Widget Cards Feature
-  Hive.registerAdapter(KrenkoUtilityAdapter()); // NEW - Krenko Special Utility
 
   // Open boxes in parallel for optimal startup performance
   await Future.wait([
@@ -30,6 +28,5 @@ Future<void> initHive() async {
     Hive.openBox<TokenArtworkPreference>('artworkPreferences'), // NEW - Custom Artwork Feature
     Hive.openBox<TrackerWidget>('trackerWidgets'), // NEW - Widget Cards Feature
     Hive.openBox<ToggleWidget>('toggleWidgets'), // NEW - Widget Cards Feature
-    Hive.openBox<KrenkoUtility>('krenkoUtilities'), // NEW - Krenko Special Utility
   ]);
 }

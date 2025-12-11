@@ -7,19 +7,16 @@ import '../models/token_template.dart';
 import '../models/deck.dart';
 import '../models/tracker_widget.dart'; // NEW - Widget Cards Feature
 import '../models/toggle_widget.dart'; // NEW - Widget Cards Feature
-import '../models/krenko_utility.dart'; // NEW - Krenko Special Utility
 import '../providers/token_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/deck_provider.dart';
 import '../providers/tracker_provider.dart'; // NEW - Widget Cards Feature
 import '../providers/toggle_provider.dart'; // NEW - Widget Cards Feature
-import '../providers/krenko_provider.dart'; // NEW - Krenko Special Utility
 import '../utils/constants.dart';
 import '../utils/color_utils.dart';
 import '../widgets/token_card.dart';
 import '../widgets/tracker_widget_card.dart'; // NEW - Widget Cards Feature
 import '../widgets/toggle_widget_card.dart'; // NEW - Widget Cards Feature
-import '../widgets/krenko_utility_card.dart'; // NEW - Krenko Special Utility
 import '../widgets/multiplier_view.dart';
 import '../widgets/load_deck_sheet.dart';
 import '../widgets/floating_action_menu.dart';
@@ -29,7 +26,7 @@ import 'about_screen.dart';
 
 // Helper class to wrap board items (tokens and widgets) for unified list display
 class _BoardItem {
-  final dynamic item; // Item, TrackerWidget, ToggleWidget, or KrenkoUtility
+  final dynamic item; // Item, TrackerWidget, or ToggleWidget
   final double order;
   final String key; // Unique key for ReorderableListView
 
@@ -38,7 +35,6 @@ class _BoardItem {
   bool get isToken => item is Item;
   bool get isTracker => item is TrackerWidget;
   bool get isToggle => item is ToggleWidget;
-  bool get isKrenko => item is KrenkoUtility;
 }
 
 class ContentScreen extends StatefulWidget {
@@ -129,7 +125,6 @@ class _ContentScreenState extends State<ContentScreen> {
     final tokenProvider = Provider.of<TokenProvider>(context, listen: false);
     final trackerProvider = Provider.of<TrackerProvider>(context, listen: false);
     final toggleProvider = Provider.of<ToggleProvider>(context, listen: false);
-    final krenkoProvider = Provider.of<KrenkoProvider>(context, listen: false);
 
     // Combine all listenables into one
     return ListenableBuilder(
@@ -137,7 +132,6 @@ class _ContentScreenState extends State<ContentScreen> {
         tokenProvider.listenable,
         trackerProvider.listenable,
         toggleProvider.listenable,
-        krenkoProvider.listenable,
       ]),
       builder: (context, _) {
         // Merge all board items
@@ -156,11 +150,6 @@ class _ContentScreenState extends State<ContentScreen> {
         // Add toggles
         for (final toggle in toggleProvider.toggles) {
           boardItems.add(_BoardItem(toggle, toggle.order, 'toggle_${toggle.widgetId}'));
-        }
-
-        // Add Krenko utilities
-        for (final krenko in krenkoProvider.krenkos) {
-          boardItems.add(_BoardItem(krenko, krenko.order, 'krenko_${krenko.utilityId}'));
         }
 
         // Sort by order
@@ -207,8 +196,6 @@ class _ContentScreenState extends State<ContentScreen> {
       colorIdentity = (boardItem.item as TrackerWidget).colorIdentity;
     } else if (boardItem.isToggle) {
       colorIdentity = (boardItem.item as ToggleWidget).colorIdentity;
-    } else if (boardItem.isKrenko) {
-      colorIdentity = (boardItem.item as KrenkoUtility).colorIdentity;
     }
 
     // Ensure ValueNotifier exists for this item
@@ -295,8 +282,6 @@ class _ContentScreenState extends State<ContentScreen> {
       return TrackerWidgetCard(tracker: boardItem.item as TrackerWidget);
     } else if (boardItem.isToggle) {
       return ToggleWidgetCard(toggle: boardItem.item as ToggleWidget);
-    } else if (boardItem.isKrenko) {
-      return KrenkoUtilityCard(krenko: boardItem.item as KrenkoUtility);
     }
     return const SizedBox.shrink();
   }
@@ -308,8 +293,6 @@ class _ContentScreenState extends State<ContentScreen> {
       context.read<TrackerProvider>().deleteTracker(boardItem.item as TrackerWidget);
     } else if (boardItem.isToggle) {
       context.read<ToggleProvider>().deleteToggle(boardItem.item as ToggleWidget);
-    } else if (boardItem.isKrenko) {
-      context.read<KrenkoProvider>().deleteKrenko(boardItem.item as KrenkoUtility);
     }
   }
 
@@ -507,10 +490,6 @@ class _ContentScreenState extends State<ContentScreen> {
       final toggle = boardItem.item as ToggleWidget;
       toggle.order = newOrder;
       toggle.save();
-    } else if (boardItem.isKrenko) {
-      final krenko = boardItem.item as KrenkoUtility;
-      krenko.order = newOrder;
-      krenko.save();
     }
 
     // Check if we need compacting (when gap becomes too small)
@@ -544,10 +523,6 @@ class _ContentScreenState extends State<ContentScreen> {
         final toggle = boardItems[i].item as ToggleWidget;
         toggle.order = i.toDouble();
         toggle.save();
-      } else if (boardItems[i].isKrenko) {
-        final krenko = boardItems[i].item as KrenkoUtility;
-        krenko.order = i.toDouble();
-        krenko.save();
       }
     }
   }

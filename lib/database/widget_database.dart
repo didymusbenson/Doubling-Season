@@ -139,14 +139,28 @@ class WidgetDatabase extends ChangeNotifier {
         colorIdentity: '', // Colorless
       ),
 
-      // Special Widgets
+      // Action Trackers
       WidgetDefinition(
         id: 'krenko_mob_boss',
-        type: WidgetType.special,
+        type: WidgetType.tracker,
         name: 'Krenko, Mob Boss',
-        description: 'Create goblin tokens based on Krenko\'s power or goblins controlled.',
+        description: 'Nontoken goblins you control',
         colorIdentity: 'R', // Red
-        defaultValue: 3, // Krenko's base power
+        defaultValue: 1, // Start with Krenko himself
+        hasAction: true,
+        actionButtonText: 'Make Goblins',
+        actionType: 'krenko_mob_boss',
+      ),
+      WidgetDefinition(
+        id: 'krenko_tin_street',
+        type: WidgetType.tracker,
+        name: 'Krenko, Tin Street Kingpin',
+        description: "Krenko's power",
+        colorIdentity: 'R', // Red
+        defaultValue: 1, // Krenko starts as a 1/1
+        hasAction: true,
+        actionButtonText: 'Make Goblins',
+        actionType: 'krenko_tin_street',
       ),
     ];
 

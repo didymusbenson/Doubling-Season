@@ -1,9 +1,8 @@
 import 'package:uuid/uuid.dart';
 import 'tracker_widget.dart';
 import 'toggle_widget.dart';
-import 'krenko_utility.dart';
 
-enum WidgetType { tracker, toggle, special }
+enum WidgetType { tracker, toggle }
 
 class WidgetDefinition {
   final String id; // Unique identifier (e.g., "life_total", "monarch")
@@ -15,6 +14,10 @@ class WidgetDefinition {
   final int? defaultValue; // For trackers
   final int tapIncrement; // For trackers (default: 1)
   final int longPressIncrement; // For trackers (default: 5)
+  // Action tracker fields
+  final bool hasAction; // True if this tracker has an action button
+  final String? actionButtonText; // Text for action button
+  final String? actionType; // Type of action (e.g., "krenko_goblins")
 
   WidgetDefinition({
     required this.id,
@@ -26,6 +29,9 @@ class WidgetDefinition {
     this.defaultValue,
     this.tapIncrement = 1,
     this.longPressIncrement = 5,
+    this.hasAction = false,
+    this.actionButtonText,
+    this.actionType,
   });
 
   /// Check if widget matches search query
@@ -53,6 +59,9 @@ class WidgetDefinition {
       tapIncrement: tapIncrement,
       longPressIncrement: longPressIncrement,
       isCustom: false, // Predefined widget
+      hasAction: hasAction, // Action tracker fields
+      actionButtonText: actionButtonText,
+      actionType: actionType,
     );
   }
 
@@ -71,22 +80,6 @@ class WidgetDefinition {
       onDescription: description, // description field is ON description
       offDescription: offDescription!,
       isCustom: false, // Predefined widget
-    );
-  }
-
-  /// Convert definition to KrenkoUtility instance
-  KrenkoUtility toKrenkoUtility({required double order}) {
-    assert(type == WidgetType.special, 'Can only convert special definitions to KrenkoUtility');
-
-    return KrenkoUtility(
-      utilityId: const Uuid().v4(),
-      name: name,
-      colorIdentity: colorIdentity,
-      order: order,
-      createdAt: DateTime.now(),
-      krenkoPower: defaultValue ?? 3, // Krenko's base power
-      nontokenGoblins: 1, // Krenko himself
-      isCustom: false, // Predefined utility
     );
   }
 }
