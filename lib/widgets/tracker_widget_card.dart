@@ -513,11 +513,19 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
       existingGoblin.amount += amount;
       existingGoblin.save();
     } else {
-      // Create new token
+      // Calculate order: Place at bottom of token list (before utilities)
+      // Get max order across ALL tokens only (not utilities)
+      final allTokenOrders = tokenProvider.items.map((item) => item.order).toList();
+      final maxTokenOrder = allTokenOrders.isEmpty ? -1.0 : allTokenOrders.reduce((a, b) => a > b ? a : b);
+      final newOrder = maxTokenOrder.floor() + 1.0;
+
+      // Create new token with explicit order
       final newGoblin = goblinDefinition.toItem(
         amount: amount,
         createTapped: false,
       );
+      newGoblin.order = newOrder; // Set order before inserting
+
       await tokenProvider.insertItem(newGoblin);
 
       // Apply summoning sickness if enabled
