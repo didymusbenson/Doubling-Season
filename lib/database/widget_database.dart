@@ -112,7 +112,7 @@ class WidgetDatabase extends ChangeNotifier {
         name: 'The Monarch',
         description: 'You are the Monarch. Draw an extra card at end of turn.',
         offDescription: 'You are not the Monarch.',
-        colorIdentity: 'R', // Red
+        colorIdentity: 'WBR', // White/Black/Red
       ),
       WidgetDefinition(
         id: 'day_night',
