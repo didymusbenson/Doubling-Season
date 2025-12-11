@@ -1,27 +1,50 @@
 ✅ Removed the "Board Update" submenu - all actions now in main menu for fewer taps.
 
-## Bug Fixes (2025-12-03)
+# ✅ RESOLVED: Copy Counter issue (v1.8.0)
 
-### Drag-and-Drop Artwork Loading Crash
-**Symptom:** App crash when dragging token from bottom to top of list with 5+ unloaded artworks visible. Crash occurred when dropping the token, as all unloaded artwork tried to load simultaneously.
+**Resolution:** Counter copying has been **disabled** in v1.8.0. The Copy button now creates fresh token stacks without any counters (+1/+1, -1/-1, or custom). Users should use "Split Stack" feature to preserve counters when dividing stacks.
 
-**Root Cause:** During drag operations, widgets rebuild rapidly. Each rebuild created a new image decode operation. With multiple unloaded artworks, this resulted in 15-25+ concurrent decode operations overwhelming the system (O(rebuilds × widgets) complexity).
+## Original Bug Description
 
-**Fixes Implemented:**
-1. **Image Caching (CroppedArtworkWidget):** Converted to StatefulWidget that caches decoded ui.Image. Subsequent rebuilds reuse cached image instead of re-decoding. Reduces to O(widgets) decode operations.
-2. **Mounted Checks:** Added mounted checks before setState to prevent crashes from disposed widgets during async image loading.
-3. **Cleanup Protection (TokenCard):** Delayed artwork URL cleanup by 2 seconds to prevent Hive modifications during drag/scroll operations.
+When a user pressed "Copy" to copy a token stack, custom counters appeared to be "linked" between the original and copy. Modifying a custom counter on one token would update all copies.
 
-**Files Modified:**
-- `lib/widgets/cropped_artwork_widget.dart` - Added image caching and lifecycle management
-- `lib/widgets/token_card.dart` - Added cleanup delay and mounted checks
+**Root Cause:** Shallow copy bug in `token_provider.dart:274-277`
+- The code added the **same** `TokenCounter` object references to both token stacks
+- When modifying `counter.amount` on one token, it modified the shared object appearing in both lists
+- +1/+1 counters didn't have this bug because they're primitive `int` fields (copied by value, not reference)
 
-### Save Deck Dialog Crash
-**Symptom:** TextEditingController disposed exception when saving deck.
+**Steps to reproduce the bug:**
+- Create any token
+- Add a custom counter (e.g., "Age" or "FooBar")
+- Press "Copy" button
+- Increase custom counter on first token
+- Both token cards show the updated counter value
 
-**Root Cause:** Controller disposed immediately when dialog closed, but TextField still rebuilding during dismissal animation.
+## Fix Applied
 
-**Fix:** Delayed controller disposal using `WidgetsBinding.instance.addPostFrameCallback()` to wait until all frames processed.
+The fix creates proper deep copies of `TokenCounter` objects:
+```dart
+for (final counter in original.counters) {
+  newItem.counters.add(TokenCounter(
+    name: counter.name,
+    amount: counter.amount,
+  ));
+}
+```
 
-**Files Modified:**
-- `lib/screens/content_screen.dart:757-762` - Added postFrameCallback for controller disposal
+However, this fix is **commented out** in the code with documentation for future reference.
+
+## Design Decision
+
+Counter copying was disabled (not just fixed) because:
+1. **Better UX**: Copy button creates fresh stacks for independent tracking
+2. **Clear separation of concerns**: "Split Stack" feature already exists for preserving counters
+3. **Typical use case**: Players usually want separate stacks to manage independently
+
+**Code location:** `lib/providers/token_provider.dart:274-289`
+
+## Other Fields Investigated
+
+- ✅ `artworkOptions`: Already correctly deep-copied with `List.from()`
+- ✅ All primitive fields (strings, ints, etc.): Copied by value
+- ✅ **Only `counters` list had the shallow copy bug** 
