@@ -3,7 +3,7 @@ import 'tracker_widget.dart';
 import 'toggle_widget.dart';
 import 'token_definition.dart'; // For ArtworkVariant
 
-enum WidgetType { tracker, toggle }
+enum WidgetType { tracker, toggle, special }
 
 class WidgetDefinition {
   final String id; // Unique identifier (e.g., "life_total", "monarch")
@@ -49,7 +49,7 @@ class WidgetDefinition {
 
   /// Convert definition to TrackerWidget instance
   TrackerWidget toTrackerWidget({required double order}) {
-    assert(type == WidgetType.tracker, 'Can only convert tracker definitions to TrackerWidget');
+    assert(type == WidgetType.tracker || type == WidgetType.special, 'Can only convert tracker/special definitions to TrackerWidget');
 
     return TrackerWidget(
       widgetId: const Uuid().v4(),

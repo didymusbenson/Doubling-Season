@@ -130,6 +130,8 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
             _buildFilterChip('Tracker', WidgetType.tracker),
             const SizedBox(width: 8),
             _buildFilterChip('Toggle', WidgetType.toggle),
+            const SizedBox(width: 8),
+            _buildFilterChip('Special', WidgetType.special),
           ],
         ),
       ),
@@ -213,9 +215,33 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
   }
 
   Widget _buildWidgetTile(WidgetDefinition widget) {
+    // Determine icon based on type
+    IconData icon;
+    if (widget.type == WidgetType.special) {
+      icon = Icons.stars;
+    } else if (widget.type == WidgetType.tracker) {
+      icon = Icons.show_chart;
+    } else {
+      icon = Icons.toggle_on;
+    }
+
+    // Determine label based on type
+    String label;
+    Color backgroundColor;
+    if (widget.type == WidgetType.special) {
+      label = 'Special';
+      backgroundColor = Colors.orange.withValues(alpha: 0.2);
+    } else if (widget.type == WidgetType.tracker) {
+      label = 'Tracker';
+      backgroundColor = Colors.blue.withValues(alpha: 0.2);
+    } else {
+      label = 'Toggle';
+      backgroundColor = Colors.purple.withValues(alpha: 0.2);
+    }
+
     return ListTile(
       leading: Icon(
-        widget.type == WidgetType.tracker ? Icons.show_chart : Icons.toggle_on,
+        icon,
         color: Theme.of(context).colorScheme.primary,
       ),
       title: Text(widget.name),
@@ -226,12 +252,10 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
       ),
       trailing: Chip(
         label: Text(
-          widget.type == WidgetType.tracker ? 'Tracker' : 'Toggle',
+          label,
           style: const TextStyle(fontSize: 12),
         ),
-        backgroundColor: widget.type == WidgetType.tracker
-            ? Colors.blue.withValues(alpha: 0.2)
-            : Colors.purple.withValues(alpha: 0.2),
+        backgroundColor: backgroundColor,
       ),
       onTap: () => _createWidget(widget),
     );
@@ -251,7 +275,7 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
     final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
     final newOrder = maxOrder.floor() + 1.0;
 
-    if (definition.type == WidgetType.tracker) {
+    if (definition.type == WidgetType.tracker || definition.type == WidgetType.special) {
       final tracker = definition.toTrackerWidget(order: newOrder);
 
       // Apply first artwork if available (matching token pattern)

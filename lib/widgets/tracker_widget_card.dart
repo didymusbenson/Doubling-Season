@@ -6,6 +6,7 @@ import '../models/tracker_widget.dart';
 import '../models/token_definition.dart';
 import '../providers/settings_provider.dart';
 import '../providers/tracker_provider.dart';
+import '../providers/toggle_provider.dart';
 import '../providers/token_provider.dart';
 import '../screens/expanded_widget_screen.dart';
 import '../utils/constants.dart';
@@ -487,9 +488,11 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
 
   Future<void> _createGoblins(BuildContext context, int amount) async {
     final tokenProvider = context.read<TokenProvider>();
+    final trackerProvider = context.read<TrackerProvider>();
+    final toggleProvider = context.read<ToggleProvider>();
     final settingsProvider = context.read<SettingsProvider>();
 
-    // Standard goblin token definition
+    // Standard goblin token definition with default artwork
     final goblinDefinition = TokenDefinition(
       name: 'Goblin',
       abilities: '',
@@ -497,34 +500,57 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
       colors: 'R',
       type: 'Creature — Goblin',
       popularity: 0,
+      artwork: [
+        ArtworkVariant(
+          set: 'TDM',
+          url: 'https://cards.scryfall.io/large/front/e/2/e265ca24-96c0-4654-a8f3-bbffe288970a.jpg?1742506636',
+        ),
+      ],
     );
 
-    // Check if matching goblin token already exists
-    final existingGoblin = tokenProvider.items.where((item) {
-      return item.name == 'Goblin' &&
+    // Check if matching goblin token WITHOUT counters already exists
+    final existingGoblinWithoutCounters = tokenProvider.items.where((item) {
+      // Check if it matches goblin criteria
+      final isMatchingGoblin = item.name == 'Goblin' &&
           item.pt == '1/1' &&
           item.colors == 'R' &&
           item.type.toLowerCase().contains('goblin') &&
           item.abilities.isEmpty;
+
+      // Check if it has NO counters (any type)
+      final hasNoCounters = item.plusOneCounters == 0 &&
+          item.minusOneCounters == 0 &&
+          item.counters.isEmpty;
+
+      return isMatchingGoblin && hasNoCounters;
     }).firstOrNull;
 
-    if (existingGoblin != null) {
-      // Add to existing token
-      existingGoblin.amount += amount;
-      existingGoblin.save();
+    if (existingGoblinWithoutCounters != null) {
+      // Add to existing token without counters
+      existingGoblinWithoutCounters.amount += amount;
+      existingGoblinWithoutCounters.save();
     } else {
-      // Calculate order: Place at bottom of token list (before utilities)
-      // Get max order across ALL tokens only (not utilities)
-      final allTokenOrders = tokenProvider.items.map((item) => item.order).toList();
-      final maxTokenOrder = allTokenOrders.isEmpty ? -1.0 : allTokenOrders.reduce((a, b) => a > b ? a : b);
-      final newOrder = maxTokenOrder.floor() + 1.0;
+      // Calculate max order across ALL board items (tokens + trackers + toggles)
+      final allOrders = <double>[];
+      allOrders.addAll(tokenProvider.items.map((item) => item.order));
+      allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
+      allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
 
-      // Create new token with explicit order
+      final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
+      final newOrder = maxOrder.floor() + 1.0;
+
+      // Create new token with explicit order and default artwork
       final newGoblin = goblinDefinition.toItem(
         amount: amount,
         createTapped: false,
       );
       newGoblin.order = newOrder; // Set order before inserting
+
+      // Set default artwork if available
+      if (goblinDefinition.artwork.isNotEmpty) {
+        newGoblin.artworkUrl = goblinDefinition.artwork.first.url;
+        newGoblin.artworkSet = goblinDefinition.artwork.first.set;
+      }
 
       await tokenProvider.insertItem(newGoblin);
 

@@ -145,10 +145,10 @@ class WidgetDatabase extends ChangeNotifier {
         colorIdentity: '', // Colorless
       ),
 
-      // Action Trackers
+      // Special Utilities (Action Trackers)
       WidgetDefinition(
         id: 'krenko_mob_boss',
-        type: WidgetType.tracker,
+        type: WidgetType.special,
         name: 'Krenko, Mob Boss',
         description: 'Nontoken goblins you control',
         colorIdentity: 'R', // Red
@@ -164,7 +164,7 @@ class WidgetDatabase extends ChangeNotifier {
       ),
       WidgetDefinition(
         id: 'krenko_tin_street',
-        type: WidgetType.tracker,
+        type: WidgetType.special,
         name: 'Krenko, Tin Street Kingpin',
         description: "Krenko's power",
         colorIdentity: 'R', // Red
