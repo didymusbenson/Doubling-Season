@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 /// Widget that displays cropped artwork based on image-relative crop percentages
-class CroppedArtworkWidget extends StatelessWidget {
+class CroppedArtworkWidget extends StatefulWidget {
   final File imageFile;
   final double cropLeft;
   final double cropRight;
@@ -22,26 +22,61 @@ class CroppedArtworkWidget extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<ui.Image>(
-      future: _loadImage(imageFile),
-      builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          return CustomPaint(
-            painter: _CroppedArtworkPainter(
-              image: snapshot.data!,
-              cropLeft: cropLeft,
-              cropRight: cropRight,
-              cropTop: cropTop,
-              cropBottom: cropBottom,
-              fillWidth: fillWidth,
-            ),
-            size: Size.infinite,
-          );
-        }
-        return const SizedBox.shrink();
-      },
-    );
+  State<CroppedArtworkWidget> createState() => _CroppedArtworkWidgetState();
+}
+
+class _CroppedArtworkWidgetState extends State<CroppedArtworkWidget> {
+  ui.Image? _cachedImage;
+  File? _cachedFile;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImageIfNeeded();
+  }
+
+  @override
+  void didUpdateWidget(CroppedArtworkWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload image if the file changed
+    if (oldWidget.imageFile.path != widget.imageFile.path) {
+      _loadImageIfNeeded();
+    }
+  }
+
+  @override
+  void dispose() {
+    _cachedImage?.dispose();
+    super.dispose();
+  }
+
+  void _loadImageIfNeeded() {
+    // Skip if already loading or if image is already cached for this file
+    if (_isLoading || (_cachedImage != null && _cachedFile?.path == widget.imageFile.path)) {
+      return;
+    }
+
+    _isLoading = true;
+    _loadImage(widget.imageFile).then((image) {
+      if (mounted) {
+        setState(() {
+          _cachedImage?.dispose(); // Dispose old image if exists
+          _cachedImage = image;
+          _cachedFile = widget.imageFile;
+          _isLoading = false;
+        });
+      } else {
+        // Widget was disposed during loading, clean up the image
+        image.dispose();
+      }
+    }).catchError((error) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    });
   }
 
   Future<ui.Image> _loadImage(File file) async {
@@ -49,6 +84,24 @@ class CroppedArtworkWidget extends StatelessWidget {
     final codec = await ui.instantiateImageCodec(bytes);
     final frame = await codec.getNextFrame();
     return frame.image;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_cachedImage != null) {
+      return CustomPaint(
+        painter: _CroppedArtworkPainter(
+          image: _cachedImage!,
+          cropLeft: widget.cropLeft,
+          cropRight: widget.cropRight,
+          cropTop: widget.cropTop,
+          cropBottom: widget.cropBottom,
+          fillWidth: widget.fillWidth,
+        ),
+        size: Size.infinite,
+      );
+    }
+    return const SizedBox.shrink();
   }
 }
 

@@ -26,7 +26,12 @@
     "colors": "B",
     "abilities": "Myriad, Whenever this creature deals combat damage to a player, that player discards a card.",
     "type": "Creature — Spirit",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CMA",
+        "url": "https://cards.scryfall.io/large/front/b/0/b019f6b5-ce8f-4b95-8fcb-72dc4931b3aa.jpg?1592672586"
+      }
+    ]
   },
   {
     "name": "Battle Angels of Tyr",
@@ -34,7 +39,12 @@
     "colors": "W",
     "abilities": "Flying, myriad, Whenever this creature deals combat damage to a player, draw a card if that player has more cards in hand than each other player. Then you create a Treasure token if that player controls more lands than each other player. Then you gain 3 life if that player has more life than each other player.",
     "type": "Creature — Angel Knight",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLB",
+        "url": "https://cards.scryfall.io/large/front/4/c/4c91dbf4-94fa-45d0-b8ed-a778b11d789b.jpg?1674134922"
+      }
+    ]
   },
   {
     "name": "Broodbirth Viper",
@@ -42,7 +52,12 @@
     "colors": "U",
     "abilities": "Myriad, Whenever this creature deals combat damage to a player, you may draw a card.",
     "type": "Creature — Snake",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "C15",
+        "url": "https://cards.scryfall.io/large/front/e/b/ebf51c44-aa06-476e-b081-b71c11b1e8ba.jpg?1562711094"
+      }
+    ]
   },
   {
     "name": "Caller of the Pack",
@@ -50,7 +65,12 @@
     "colors": "G",
     "abilities": "Trample, Myriad",
     "type": "Creature — Beast",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CMA",
+        "url": "https://cards.scryfall.io/large/front/0/8/08620dc9-3a83-4d09-a6d4-b25a7d0ac644.jpg?1592672874"
+      }
+    ]
   },
   {
     "name": "Chittering Dispatcher",
@@ -58,7 +78,12 @@
     "colors": "G",
     "abilities": "Devoid, Myriad, When this creature leaves the battlefield, create a 0/1 colorless Eldrazi Spawn creature token with \"Sacrifice this token: Add {C}.\"",
     "type": "Creature — Eldrazi Drone",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "M3C",
+        "url": "https://cards.scryfall.io/large/front/e/c/ec5fe7d0-b444-4488-b058-f3916e404cac.jpg?1751719937"
+      }
+    ]
   },
   {
     "name": "Conclave Evangelist",
@@ -66,7 +91,12 @@
     "colors": "WG",
     "abilities": "Myriad, Whenever this creature deals combat damage to a player, create a token that's a copy of this creature.",
     "type": "Creature — Elephant Cleric",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLU",
+        "url": "https://cards.scryfall.io/large/front/0/d/0dcccbd8-2135-45e6-8802-8dcaa382a398.jpg?1706239632"
+      }
+    ]
   },
   {
     "name": "Dalek Squadron",
@@ -74,7 +104,12 @@
     "colors": "B",
     "abilities": "Menace, Myriad",
     "type": "Artifact Creature — Dalek",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "WHO",
+        "url": "https://cards.scryfall.io/large/front/7/6/76573f9d-f0f2-47b8-88e7-17d58d0d20d3.jpg?1696636600"
+      }
+    ]
   },
   {
     "name": "Elturel Survivors",
@@ -82,7 +117,12 @@
     "colors": "R",
     "abilities": "Trample, myriad, As long as this creature is attacking, it gets +X/+0, where X is the number of lands defending player controls.",
     "type": "Creature — Tiefling Peasant",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLB",
+        "url": "https://cards.scryfall.io/large/front/e/3/e376b59a-5702-4706-b713-01cab4e253cc.jpg?1674136527"
+      }
+    ]
   },
   {
     "name": "Genasi Enforcers",
@@ -90,7 +130,12 @@
     "colors": "R",
     "abilities": "Myriad, {1}{R}: Creatures you control named Genasi Enforcers get +1/+0 until end of turn.",
     "type": "Creature — Elemental Shaman",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLB",
+        "url": "https://cards.scryfall.io/large/front/5/a/5ac424e1-7806-46ee-84a9-ca2f0dd468a4.jpg?1674136572"
+      }
+    ]
   },
   {
     "name": "Gnoll War Band",
@@ -98,7 +143,12 @@
     "colors": "R",
     "abilities": "This spell costs {1} less to cast for each opponent who was dealt damage this turn, Menace, Myriad",
     "type": "Creature — Gnoll",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLB",
+        "url": "https://cards.scryfall.io/large/front/a/c/acfecffd-33af-43a9-b26c-f1ff193c6323.jpg?1674136580"
+      }
+    ]
   },
   {
     "name": "Goldlust Triad",
@@ -106,7 +156,12 @@
     "colors": "R",
     "abilities": "Flying, Myriad, Whenever this creature deals combat damage to a player, create a Treasure token.",
     "type": "Creature — Dragon",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "TDC",
+        "url": "https://cards.scryfall.io/large/front/2/8/2876d57a-a17e-4892-9992-321a32562e13.jpg?1743205804"
+      }
+    ]
   },
   {
     "name": "Hammers of Moradin",
@@ -114,7 +169,12 @@
     "colors": "W",
     "abilities": "Myriad, Whenever this creature attacks, for each opponent, tap up to one target creature that player controls.",
     "type": "Creature — Dwarf Cleric",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLB",
+        "url": "https://cards.scryfall.io/large/front/e/7/e7429a5b-5579-4c4e-89ff-ee7f43db37e4.jpg?1674135100"
+      }
+    ]
   },
   {
     "name": "Herald of the Host",
@@ -122,7 +182,12 @@
     "colors": "W",
     "abilities": "Flying, vigilance, Myriad",
     "type": "Creature — Angel",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CMM",
+        "url": "https://cards.scryfall.io/large/front/e/8/e8d57d75-275d-45c8-85f4-aab230af35b2.jpg?1689995738"
+      }
+    ]
   },
   {
     "name": "Polygoyf",
@@ -130,7 +195,12 @@
     "colors": "G",
     "abilities": "Trample, myriad, Polygoyf's power is equal to the number of card types among cards in all graveyards and its toughness is equal to that number plus 1.",
     "type": "Creature — Lhurgoyf",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "M3C",
+        "url": "https://cards.scryfall.io/large/front/0/0/00b4625c-ce91-4b86-8db7-a6c2d4fb9c92.jpg?1717189926"
+      }
+    ]
   },
   {
     "name": "Scion of Calamity",
@@ -138,7 +208,12 @@
     "colors": "G",
     "abilities": "Myriad, Whenever this creature deals combat damage to a player, destroy target artifact or enchantment that player controls.",
     "type": "Creature — Dinosaur",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "LCC",
+        "url": "https://cards.scryfall.io/large/front/7/5/75db3c02-7a03-4de5-a70e-220777227dd3.jpg?1698987996"
+      }
+    ]
   },
   {
     "name": "Scurry of Squirrels",
@@ -146,7 +221,12 @@
     "colors": "G",
     "abilities": "Myriad, myriad, Whenever this creature deals combat damage to a player, put a +1/+1 counter on target creature you control.",
     "type": "Creature — Squirrel Scout",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "BLC",
+        "url": "https://cards.scryfall.io/large/front/c/3/c343b965-af2b-45c3-babb-9242736cf1e5.jpg?1721428298"
+      }
+    ]
   },
   {
     "name": "Sumala Rumblers",
@@ -154,7 +234,12 @@
     "colors": "WG",
     "abilities": "Sumala Rumblers's power is equal to the number of creatures you control, Myriad",
     "type": "Creature — Wurm",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLU",
+        "url": "https://cards.scryfall.io/large/front/3/1/314e1434-61a8-4587-812e-720a92493fb3.jpg?1706239684"
+      }
+    ]
   },
   {
     "name": "Tabaxi Toucaneers",
@@ -162,7 +247,12 @@
     "colors": "W",
     "abilities": "Flying, Myriad",
     "type": "Creature — Cat Ranger",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLB",
+        "url": "https://cards.scryfall.io/large/front/4/3/43e38761-70e0-4f6e-a4c2-7c9a17557d25.jpg?1674135300"
+      }
+    ]
   },
   {
     "name": "The Master, Multiplied",
@@ -170,7 +260,12 @@
     "colors": "BR",
     "abilities": "Myriad, The \"legend rule\" doesn't apply to creature tokens you control, Triggered abilities you control can't cause you to sacrifice or exile creature tokens you control.",
     "type": "Legendary Creature — Time Lord Rogue",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "WHO",
+        "url": "https://cards.scryfall.io/large/front/7/f/7f734ca0-91bc-4496-9bd7-2d09415e850f.jpg?1696636744"
+      }
+    ]
   },
   {
     "name": "Tiamat's Fanatics",
@@ -178,7 +273,12 @@
     "colors": "R",
     "abilities": "Haste, Myriad",
     "type": "Creature — Dragon Warrior",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLB",
+        "url": "https://cards.scryfall.io/large/front/2/7/279c2ec3-abfc-4054-bdd9-3c8fa7d8b426.jpg?1674136801"
+      }
+    ]
   },
   {
     "name": "Warchief Giant",
@@ -186,7 +286,12 @@
     "colors": "R",
     "abilities": "Haste, Myriad",
     "type": "Creature — Giant Warrior",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CM2",
+        "url": "https://cards.scryfall.io/large/front/4/9/49b311c5-90f5-4d26-86ce-b9f645c137e4.jpg?1562273850"
+      }
+    ]
   },
   {
     "name": "Wizards of Thay",
@@ -194,7 +299,12 @@
     "colors": "U",
     "abilities": "Myriad, Instant and sorcery spells you cast cost {1} less to cast, You may cast sorcery spells as though they had flash.",
     "type": "Creature — Human Wizard",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLB",
+        "url": "https://cards.scryfall.io/large/front/9/5/952e4e6b-fe74-4f3c-95d1-8e043f72072c.jpg?1674135888"
+      }
+    ]
   },
   {
     "name": "Wyrm's Crossing Patrol",
@@ -202,6 +312,11 @@
     "colors": "W",
     "abilities": "Myriad",
     "type": "Creature — Human Soldier",
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLB",
+        "url": "https://cards.scryfall.io/large/front/f/0/f00a57fc-b4a6-48fa-a20c-864c10099e4b.jpg?1674135352"
+      }
+    ]
   }
 ]

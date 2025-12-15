@@ -1,22 +1,41 @@
 import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:gradient_borders/gradient_borders.dart';
 import '../models/item.dart';
 import '../models/token_template.dart';
 import '../models/deck.dart';
+import '../models/tracker_widget.dart'; // NEW - Widget Cards Feature
+import '../models/toggle_widget.dart'; // NEW - Widget Cards Feature
 import '../providers/token_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/deck_provider.dart';
+import '../providers/tracker_provider.dart'; // NEW - Widget Cards Feature
+import '../providers/toggle_provider.dart'; // NEW - Widget Cards Feature
 import '../utils/constants.dart';
 import '../utils/color_utils.dart';
 import '../widgets/token_card.dart';
+import '../widgets/tracker_widget_card.dart'; // NEW - Widget Cards Feature
+import '../widgets/toggle_widget_card.dart'; // NEW - Widget Cards Feature
 import '../widgets/multiplier_view.dart';
 import '../widgets/load_deck_sheet.dart';
 import '../widgets/floating_action_menu.dart';
 import 'token_search_screen.dart';
+import 'widget_selection_screen.dart'; // NEW - Widget Cards Feature
 import 'about_screen.dart';
+
+// Helper class to wrap board items (tokens and widgets) for unified list display
+class _BoardItem {
+  final dynamic item; // Item, TrackerWidget, or ToggleWidget
+  final double order;
+  final String key; // Unique key for ReorderableListView
+
+  _BoardItem(this.item, this.order, this.key);
+
+  bool get isToken => item is Item;
+  bool get isTracker => item is TrackerWidget;
+  bool get isToggle => item is ToggleWidget;
+}
 
 class ContentScreen extends StatefulWidget {
   const ContentScreen({super.key});
@@ -26,6 +45,8 @@ class ContentScreen extends StatefulWidget {
 }
 
 class _ContentScreenState extends State<ContentScreen> {
+  final Map<String, ValueNotifier<bool>> _dismissStates = {}; // Track dismiss state per item
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,20 +63,35 @@ class _ContentScreenState extends State<ContentScreen> {
             child: MultiplierView(),
           ),
 
-          // Floating action menu (bottom right)
+          // FAB row (bottom right) - + button and menu
           Positioned(
             bottom: UIConstants.standardPadding,
             right: UIConstants.standardPadding,
-            child: FloatingActionMenu(
-              onNewToken: _showTokenSearch,
-              onWidgets: _showWidgetSelection,
-              onAddCountersToAll: _handleAddCountersToAll,
-              onMinusOneToAll: _handleMinusOneToAll,
-              onUntapAll: _showUntapAllDialog,
-              onClearSickness: _handleClearSickness,
-              onSaveDeck: _showSaveDeckDialog,
-              onLoadDeck: _showLoadDeckSheet,
-              onBoardWipe: _showBoardWipeDialog,
+            child: Consumer<SettingsProvider>(
+              builder: (context, settings, child) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    FloatingActionButton(
+                      heroTag: 'new_token_fab',
+                      onPressed: _showTokenSearch,
+                      child: const Icon(Icons.add, size: 28),
+                    ),
+                    const SizedBox(width: UIConstants.smallPadding),
+                    FloatingActionMenu(
+                      onNewToken: _showTokenSearch,
+                      onWidgets: settings.experimentalFeaturesEnabled ? _showWidgetSelection : null,
+                      onAddCountersToAll: _handleAddCountersToAll,
+                      onMinusOneToAll: _handleMinusOneToAll,
+                      onUntapAll: _showUntapAllDialog,
+                      onClearSickness: _handleClearSickness,
+                      onSaveDeck: _showSaveDeckDialog,
+                      onLoadDeck: _showLoadDeckSheet,
+                      onBoardWipe: _showBoardWipeDialog,
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -65,7 +101,7 @@ class _ContentScreenState extends State<ContentScreen> {
 
   AppBar _buildAppBar() {
     return AppBar(
-      title: const Text('Doubling Season'),
+      title: const Text('Tripling Season'),
       centerTitle: true,
       actions: [
         // Settings (long press on summoning sickness icon)
@@ -85,89 +121,179 @@ class _ContentScreenState extends State<ContentScreen> {
   }
 
   Widget _buildTokenList() {
-    // Use Provider.of with listen: false to get the provider reference once
+    // Get all providers
     final tokenProvider = Provider.of<TokenProvider>(context, listen: false);
+    final trackerProvider = Provider.of<TrackerProvider>(context, listen: false);
+    final toggleProvider = Provider.of<ToggleProvider>(context, listen: false);
 
-    // Only use ValueListenableBuilder for reactivity - no need for Consumer
-    return ValueListenableBuilder<Box<Item>>(
-      valueListenable: tokenProvider.listenable,
-      builder: (context, box, _) {
-        // Check empty state directly on box (efficient)
-        if (box.isEmpty) {
+    // Combine all listenables into one
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        tokenProvider.listenable,
+        trackerProvider.listenable,
+        toggleProvider.listenable,
+      ]),
+      builder: (context, _) {
+        // Merge all board items
+        final boardItems = <_BoardItem>[];
+
+        // Add tokens
+        for (final item in tokenProvider.items) {
+          boardItems.add(_BoardItem(item, item.order, 'token_${item.createdAt}'));
+        }
+
+        // Add trackers
+        for (final tracker in trackerProvider.trackers) {
+          boardItems.add(_BoardItem(tracker, tracker.order, 'tracker_${tracker.widgetId}'));
+        }
+
+        // Add toggles
+        for (final toggle in toggleProvider.toggles) {
+          boardItems.add(_BoardItem(toggle, toggle.order, 'toggle_${toggle.widgetId}'));
+        }
+
+        // Sort by order
+        boardItems.sort((a, b) => a.order.compareTo(b.order));
+
+        // Check empty state
+        if (boardItems.isEmpty) {
           return _buildEmptyState();
         }
 
-        final items = box.values.toList()
-          ..sort((a, b) => a.order.compareTo(b.order));
-
         return ReorderableListView.builder(
-          itemCount: items.length,
+          itemCount: boardItems.length,
           padding: const EdgeInsets.only(
             top: UIConstants.listTopPadding,
             left: UIConstants.smallPadding,
             right: UIConstants.smallPadding,
             bottom: UIConstants.listBottomPadding,
           ),
-          onReorder: (oldIndex, newIndex) => _handleReorder(items, oldIndex, newIndex),
+          onReorder: (oldIndex, newIndex) => _handleReorder(boardItems, oldIndex, newIndex),
           proxyDecorator: _buildDragProxy,
           itemBuilder: (context, index) {
-            final item = items[index];
-            final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-            // Use consistent 3px border for both artwork styles
-            const borderWidth = 3.0;
-
-            // Adjust inner border radius to fit inside the border
-            final innerBorderRadius = UIConstants.borderRadius - borderWidth;
-
-            return Padding(
-              key: ValueKey(item.createdAt),
-              padding: const EdgeInsets.symmetric(vertical: UIConstants.verticalSpacing),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(UIConstants.borderRadius),
-                  // Only apply shadows in light mode
-                  boxShadow: isDarkMode ? null : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: UIConstants.shadowOpacity),
-                      blurRadius: UIConstants.shadowBlurRadius,
-                      offset: const Offset(UIConstants.shadowOffsetX, UIConstants.shadowOffsetY),
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: UIConstants.lightShadowOpacity),
-                      blurRadius: UIConstants.lightShadowBlurRadius,
-                      offset: const Offset(UIConstants.lightShadowOffsetX, UIConstants.lightShadowOffsetY),
-                    ),
-                  ],
-                  border: GradientBoxBorder(
-                    gradient: ColorUtils.gradientForColors(item.colors, isEmblem: item.isEmblem),
-                    width: borderWidth,
-                  ),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(innerBorderRadius),
-                  child: Container(
-                    color: Theme.of(context).cardColor,
-                    child: Dismissible(
-                      key: ValueKey('dismissible_${item.createdAt}'), // Use different key for Dismissible
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        color: Colors.red,
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: UIConstants.standardPadding),
-                        child: const Icon(Icons.delete, color: Colors.white),
-                      ),
-                      onDismissed: (_) => tokenProvider.deleteItem(item),
-                      child: TokenCard(item: item),
-                    ),
-                  ),
-                ),
-              ),
-            );
+            final boardItem = boardItems[index];
+            return _buildBoardItemCard(boardItem, index);
           },
         );
       },
     );
+  }
+
+  Widget _buildBoardItemCard(_BoardItem boardItem, int index) {
+    // final isDarkMode = Theme.of(context).brightness == Brightness.dark; // Unused since boxShadow commented out
+    const borderWidth = 3.0;
+    final innerBorderRadius = UIConstants.borderRadius - borderWidth;
+
+    // Determine colors for border gradient
+    String colorIdentity = '';
+    bool isEmblem = false;
+
+    if (boardItem.isToken) {
+      final item = boardItem.item as Item;
+      colorIdentity = item.colors;
+      isEmblem = item.isEmblem;
+    } else if (boardItem.isTracker) {
+      colorIdentity = (boardItem.item as TrackerWidget).colorIdentity;
+    } else if (boardItem.isToggle) {
+      colorIdentity = (boardItem.item as ToggleWidget).colorIdentity;
+    }
+
+    // Ensure ValueNotifier exists for this item
+    _dismissStates.putIfAbsent(boardItem.key, () => ValueNotifier<bool>(false));
+
+    return ValueListenableBuilder<bool>(
+      key: ValueKey(boardItem.key), // Key must be on outer widget for ReorderableListView
+      valueListenable: _dismissStates[boardItem.key]!,
+      builder: (context, isDismissing, child) {
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 100),
+          margin: const EdgeInsets.symmetric(vertical: UIConstants.verticalSpacing),
+          decoration: BoxDecoration(
+            color: isDismissing ? Colors.red : Colors.transparent, // Red only during swipe animation
+            borderRadius: BorderRadius.circular(UIConstants.borderRadius),
+          ),
+          // clipBehavior removed - was clipping the drop shadow in light mode
+          child: child,
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(UIConstants.borderRadius),
+          // boxShadow: isDarkMode ? null : [
+          //   BoxShadow(
+          //     color: Colors.black.withValues(alpha: UIConstants.shadowOpacity),
+          //     blurRadius: UIConstants.shadowBlurRadius,
+          //     offset: const Offset(UIConstants.shadowOffsetX, UIConstants.shadowOffsetY),
+          //   ),
+          //   BoxShadow(
+          //     color: Colors.black.withValues(alpha: UIConstants.lightShadowOpacity),
+          //     blurRadius: UIConstants.lightShadowBlurRadius,
+          //     offset: const Offset(UIConstants.lightShadowOffsetX, UIConstants.lightShadowOffsetY),
+          //   ),
+          // ],
+          border: GradientBoxBorder(
+            gradient: ColorUtils.gradientForColors(colorIdentity, isEmblem: isEmblem),
+            width: borderWidth,
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(innerBorderRadius),
+          child: _buildDismissibleCard(boardItem),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDismissibleCard(_BoardItem boardItem) {
+    const borderWidth = 3.0;
+    final innerBorderRadius = UIConstants.borderRadius - borderWidth;
+
+    return Dismissible(
+      key: ValueKey('dismissible_${boardItem.key}'),
+      direction: DismissDirection.endToStart,
+      background: Material(
+        color: Colors.red,
+        borderRadius: BorderRadius.circular(innerBorderRadius),
+        child: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: UIConstants.standardPadding),
+          child: const Icon(Icons.delete, color: Colors.white),
+        ),
+      ),
+      onUpdate: (details) {
+        // Track dismiss state without setState - only updates this specific item's container
+        final notifier = _dismissStates[boardItem.key];
+        if (notifier != null) {
+          final shouldShowRed = details.progress > 0;
+          if (notifier.value != shouldShowRed) {
+            notifier.value = shouldShowRed;
+          }
+        }
+      },
+      onDismissed: (_) => _deleteItem(boardItem),
+      child: _buildCardContent(boardItem),
+    );
+  }
+
+  Widget _buildCardContent(_BoardItem boardItem) {
+    if (boardItem.isToken) {
+      return TokenCard(item: boardItem.item as Item);
+    } else if (boardItem.isTracker) {
+      return TrackerWidgetCard(tracker: boardItem.item as TrackerWidget);
+    } else if (boardItem.isToggle) {
+      return ToggleWidgetCard(toggle: boardItem.item as ToggleWidget);
+    }
+    return const SizedBox.shrink();
+  }
+
+  void _deleteItem(_BoardItem boardItem) {
+    if (boardItem.isToken) {
+      context.read<TokenProvider>().deleteItem(boardItem.item as Item);
+    } else if (boardItem.isTracker) {
+      context.read<TrackerProvider>().deleteTracker(boardItem.item as TrackerWidget);
+    } else if (boardItem.isToggle) {
+      context.read<ToggleProvider>().deleteToggle(boardItem.item as ToggleWidget);
+    }
   }
 
   Widget _buildEmptyState() {
@@ -303,7 +429,7 @@ class _ContentScreenState extends State<ContentScreen> {
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
-                      'About Doubling Season',
+                      'About Tripling Season',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                       ),
@@ -318,7 +444,7 @@ class _ContentScreenState extends State<ContentScreen> {
     );
   }
 
-  void _handleReorder(List<Item> items, int oldIndex, int newIndex) {
+  void _handleReorder(List<_BoardItem> boardItems, int oldIndex, int newIndex) {
     // Track if moving down before adjustment
     final movingDown = newIndex > oldIndex;
 
@@ -326,55 +452,78 @@ class _ContentScreenState extends State<ContentScreen> {
       newIndex -= 1;
     }
 
-    final item = items[oldIndex];
+    final boardItem = boardItems[oldIndex];
 
     // Calculate new fractional order
     double newOrder;
     if (newIndex == 0) {
       // Moving to top
-      newOrder = items.first.order - 1.0;
-    } else if (newIndex == items.length - 1) {
+      newOrder = boardItems.first.order - 1.0;
+    } else if (newIndex == boardItems.length - 1) {
       // Moving to bottom
-      newOrder = items.last.order + 1.0;
+      newOrder = boardItems.last.order + 1.0;
     } else {
       // Moving between two items
       if (movingDown) {
-        // Item moves after items[newIndex]
-        final prevOrder = items[newIndex].order;
-        final nextOrder = items[newIndex + 1].order;
+        // Item moves after boardItems[newIndex]
+        final prevOrder = boardItems[newIndex].order;
+        final nextOrder = boardItems[newIndex + 1].order;
         newOrder = (prevOrder + nextOrder) / 2.0;
       } else {
-        // Item moves before items[newIndex]
-        final prevOrder = items[newIndex - 1].order;
-        final nextOrder = items[newIndex].order;
+        // Item moves before boardItems[newIndex]
+        final prevOrder = boardItems[newIndex - 1].order;
+        final nextOrder = boardItems[newIndex].order;
         newOrder = (prevOrder + nextOrder) / 2.0;
       }
     }
 
-    item.order = newOrder;
-    item.save();
+    // Update order based on item type
+    if (boardItem.isToken) {
+      final item = boardItem.item as Item;
+      item.order = newOrder;
+      item.save();
+    } else if (boardItem.isTracker) {
+      final tracker = boardItem.item as TrackerWidget;
+      tracker.order = newOrder;
+      tracker.save();
+    } else if (boardItem.isToggle) {
+      final toggle = boardItem.item as ToggleWidget;
+      toggle.order = newOrder;
+      toggle.save();
+    }
 
     // Check if we need compacting (when gap becomes too small)
-    _checkAndCompactOrders(items);
+    _checkAndCompactOrders(boardItems);
   }
 
-  void _checkAndCompactOrders(List<Item> items) {
+  void _checkAndCompactOrders(List<_BoardItem> boardItems) {
     // If any two adjacent items have order difference < 0.001, compact all orders
-    items.sort((a, b) => a.order.compareTo(b.order));
+    boardItems.sort((a, b) => a.order.compareTo(b.order));
 
-    for (int i = 0; i < items.length - 1; i++) {
-      if ((items[i + 1].order - items[i].order) < 0.001) {
-        _compactOrders(items);
+    for (int i = 0; i < boardItems.length - 1; i++) {
+      if ((boardItems[i + 1].order - boardItems[i].order) < 0.001) {
+        _compactOrders(boardItems);
         return;
       }
     }
   }
 
-  void _compactOrders(List<Item> items) {
-    items.sort((a, b) => a.order.compareTo(b.order));
-    for (int i = 0; i < items.length; i++) {
-      items[i].order = i.toDouble();
-      items[i].save();
+  void _compactOrders(List<_BoardItem> boardItems) {
+    boardItems.sort((a, b) => a.order.compareTo(b.order));
+    for (int i = 0; i < boardItems.length; i++) {
+      if (boardItems[i].isToken) {
+        final item = boardItems[i].item as Item;
+        item.order = i.toDouble();
+        item.save();
+      } else if (boardItems[i].isTracker) {
+        final tracker = boardItems[i].item as TrackerWidget;
+        tracker.order = i.toDouble();
+        tracker.save();
+      } else if (boardItems[i].isToggle) {
+        final toggle = boardItems[i].item as ToggleWidget;
+        toggle.order = i.toDouble();
+        toggle.save();
+      }
     }
   }
 
@@ -425,57 +574,12 @@ class _ContentScreenState extends State<ContentScreen> {
     );
   }
 
+
   void _showWidgetSelection() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-        child: SafeArea(
-          minimum: const EdgeInsets.only(bottom: 24),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  children: [
-                    const Icon(Icons.widgets, size: 28),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Widgets',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Widget functionality coming soon!',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Widgets will allow you to add special cards to your token list for tracking commander abilities like Krenko, Mob Boss.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.7),
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
-            ),
-          ),
-        ),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const WidgetSelectionScreen(),
+        fullscreenDialog: true,
       ),
     );
   }
@@ -483,6 +587,31 @@ class _ContentScreenState extends State<ContentScreen> {
   void _showUntapAllDialog() {
     final tokenProvider = context.read<TokenProvider>();
     tokenProvider.untapAll();
+  }
+
+  void _showExperimentalFeaturesConfirmation(BuildContext context, SettingsProvider settings) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Enable Experimental Features?'),
+        content: const Text(
+          'Are you sure? Enabling this setting provides access to in-development experimental features. This could impact your board state, theme, and other data.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              settings.setExperimentalFeaturesEnabled(true);
+              Navigator.pop(dialogContext);
+            },
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSummoningSicknessToggle() {
@@ -501,6 +630,22 @@ class _ContentScreenState extends State<ContentScreen> {
                   value: settings.summoningSicknessEnabled,
                   onChanged: (value) {
                     settings.setSummoningSicknessEnabled(value);
+                  },
+                  contentPadding: EdgeInsets.zero,
+                ),
+
+                // Experimental features toggle
+                SwitchListTile(
+                  title: const Text('Enable experimental features'),
+                  value: settings.experimentalFeaturesEnabled,
+                  onChanged: (value) {
+                    if (value) {
+                      // Show confirmation dialog when enabling
+                      _showExperimentalFeaturesConfirmation(context, settings);
+                    } else {
+                      // Allow disabling without confirmation
+                      settings.setExperimentalFeaturesEnabled(false);
+                    }
                   },
                   contentPadding: EdgeInsets.zero,
                 ),
@@ -675,11 +820,12 @@ class _ContentScreenState extends State<ContentScreen> {
           ),
         ],
       ),
-    );
-
-    // Wait for dialog animation to complete before disposing controller
-    await Future.delayed(const Duration(milliseconds: 300));
-    controller.dispose();
+    ).then((_) {
+      // Dispose controller after all frames have been processed to avoid accessing disposed controller during teardown
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        controller.dispose();
+      });
+    });
   }
 
   void _showLoadDeckSheet() {

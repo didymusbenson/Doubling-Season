@@ -62,11 +62,13 @@ This document is Claude's source of truth - keep it current!
 
 ## Project Overview
 
-**Doubling Season** is a cross-platform Flutter app for tracking Magic: The Gathering tokens during gameplay. It manages token stacks with tapped/untapped states, summoning sickness, counters (+1/+1, -1/-1, and custom counters), token artwork display, and provides a searchable database of 883 token types.
+**Tripling Season** is a cross-platform Flutter app for tracking Magic: The Gathering tokens during gameplay. It manages token stacks with tapped/untapped states, summoning sickness, counters (+1/+1, -1/-1, and custom counters), token artwork display, and provides a searchable database of 883 token types.
+
+**Note:** The app's official name is "Tripling Season" (as of December 2025). Display name, bundle identifiers, and package names reflect this branding.
 
 The app targets iOS, Android, Web, macOS, and Windows platforms using Flutter's single codebase approach.
 
-**Current Version:** 1.3.0+8 (as of November 2025)
+**Current Version:** 1.8.0+16 (as of December 2025)
 
 ## What's New in v1.3.0
 
@@ -112,6 +114,36 @@ The app targets iOS, Android, Web, macOS, and Windows platforms using Flutter's 
 - Added `Item.artworkOptions` (@HiveField 15)
 - Added `TokenTemplate.artworkUrl` for deck persistence
 
+## Experimental Feature: Utilities (formerly "Widget Cards")
+
+**IMPORTANT TERMINOLOGY:**
+- **User-facing:** "Utilities" (appears in all UI text, menus, documentation)
+- **Internal code:** "Widget" class names and file names (TrackerWidget, ToggleWidget, widget_selection_screen.dart)
+- **Hive boxes:** `'trackerWidgets'` and `'toggleWidgets'` (DO NOT rename - migration risk)
+
+**Why the split?**
+- Feature is experimental with active users
+- Renaming Hive boxes or classes risks data loss
+- "Widget" conflicts with Flutter's widget terminology (user confusion)
+- Solution: Changed user-facing strings to "Utilities" but kept internal code stable
+
+**Current implementation status:**
+- ✅ Menu label: "Utilities" (FloatingActionMenu)
+- ✅ Screen title: "Select Utility" (WidgetSelectionScreen)
+- ✅ Details screen: "Utility Details" (ExpandedWidgetScreen)
+- ⚠️ Internal classes: Still named TrackerWidget, ToggleWidget (stability)
+- ⚠️ File names: Still widget_*.dart (can rename later, low risk)
+
+**Development guideline:**
+- When adding features, use "utility" in user-facing strings and documentation
+- Use "widget" when referring to class names in code or technical discussion
+- See `docs/activeDevelopment/cardWidgets.md` for full feature specification
+
+**Data model:**
+- `TrackerWidget` class (typeId: 6) - stores in `Box<TrackerWidget>('trackerWidgets')`
+- `ToggleWidget` class (typeId: 7) - stores in `Box<ToggleWidget>('toggleWidgets')`
+- DO NOT change typeIds or box names - breaks existing user data
+
 ## Project Configuration
 
 ### Critical Identifiers (NEVER use defaults)
@@ -127,7 +159,7 @@ The app targets iOS, Android, Web, macOS, and Windows platforms using Flutter's 
 - Also set as `namespace` in the same file
 
 **App Version:**
-- Current: `1.3.0+8` (Version 1.3.0, Build 8)
+- Current: `1.8.0+16` (Version 1.8.0, Build 16)
 - Location: `pubspec.yaml` → `version: X.Y.Z+B`
 - Format: `MAJOR.MINOR.PATCH+BUILD_NUMBER`
 - Example: `1.0.1+1` = Version 1.0.1, Build 1
@@ -724,6 +756,24 @@ showModalBottomSheet(
   builder: (context) => LoadDeckSheet(),
 );
 ```
+
+### Utility Development Pattern
+
+**CRITICAL: TokenCard is the canonical reference implementation for all board items.**
+
+When implementing features for utilities (TrackerWidget, ToggleWidget, or any future utility types):
+1. **Always check TokenCard first** - See if a similar feature already exists in `lib/widgets/token_card.dart`
+2. **Use TokenCard as the reference** - Copy and adapt patterns from TokenCard when implementing features on utility cards
+3. **Apply consistently** - This rule applies to any type of utility that displays in the ContentScreen board list
+
+Examples where this pattern applies:
+- Artwork display layers (use `Positioned.fill()` wrapper like TokenCard)
+- Text overlays with semi-transparent backgrounds (use same alpha values)
+- Stack-based layouts (follow same layer ordering: base → gradient → artwork → content)
+- Animation patterns (copy animation controllers and timing)
+- Provider usage patterns (use same Selector patterns)
+
+This ensures consistency across all board items and prevents reimplementing solutions that already exist.
 
 ### UI Conventions
 - Use `Navigator.of(context).push()` for full-screen navigation

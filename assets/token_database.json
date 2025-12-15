@@ -875,7 +875,12 @@
     "colors": "B",
     "type": "Creature — Spirit",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CMA",
+        "url": "https://cards.scryfall.io/large/front/b/0/b019f6b5-ce8f-4b95-8fcb-72dc4931b3aa.jpg?1592672586"
+      }
+    ]
   },
   {
     "name": "Basri Ket Emblem",
@@ -972,7 +977,12 @@
     "colors": "W",
     "type": "Creature — Angel Knight",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLB",
+        "url": "https://cards.scryfall.io/large/front/4/c/4c91dbf4-94fa-45d0-b8ed-a778b11d789b.jpg?1674134922"
+      }
+    ]
   },
   {
     "name": "Bear",
@@ -1963,7 +1973,12 @@
     "colors": "U",
     "type": "Creature — Snake",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "C15",
+        "url": "https://cards.scryfall.io/large/front/e/b/ebf51c44-aa06-476e-b081-b71c11b1e8ba.jpg?1562711094"
+      }
+    ]
   },
   {
     "name": "Bushy Bodyguard (Token)",
@@ -2000,7 +2015,12 @@
     "colors": "G",
     "type": "Creature — Beast",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CMA",
+        "url": "https://cards.scryfall.io/large/front/0/8/08620dc9-3a83-4d09-a6d4-b25a7d0ac644.jpg?1592672874"
+      }
+    ]
   },
   {
     "name": "Camarid",
@@ -2523,7 +2543,12 @@
     "colors": "G",
     "type": "Creature — Eldrazi Drone",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "M3C",
+        "url": "https://cards.scryfall.io/large/front/e/c/ec5fe7d0-b444-4488-b058-f3916e404cac.jpg?1751719937"
+      }
+    ]
   },
   {
     "name": "Citizen",
@@ -2801,7 +2826,12 @@
     "colors": "WG",
     "type": "Creature — Elephant Cleric",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLU",
+        "url": "https://cards.scryfall.io/large/front/0/d/0dcccbd8-2135-45e6-8802-8dcaa382a398.jpg?1706239632"
+      }
+    ]
   },
   {
     "name": "Construct",
@@ -3228,7 +3258,12 @@
     "colors": "B",
     "type": "Artifact Creature — Dalek",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "WHO",
+        "url": "https://cards.scryfall.io/large/front/7/6/76573f9d-f0f2-47b8-88e7-17d58d0d20d3.jpg?1696636600"
+      }
+    ]
   },
   {
     "name": "Daretti, Scrap Savant Emblem",
@@ -5498,7 +5533,12 @@
     "colors": "R",
     "type": "Creature — Tiefling Peasant",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLB",
+        "url": "https://cards.scryfall.io/large/front/e/3/e376b59a-5702-4706-b713-01cab4e253cc.jpg?1674136527"
+      }
+    ]
   },
   {
     "name": "Ersta, Friend to All Emblem",
@@ -6155,7 +6195,12 @@
     "colors": "R",
     "type": "Creature — Elemental Shaman",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLB",
+        "url": "https://cards.scryfall.io/large/front/5/a/5ac424e1-7806-46ee-84a9-ca2f0dd468a4.jpg?1674136572"
+      }
+    ]
   },
   {
     "name": "Giant",
@@ -6312,7 +6357,12 @@
     "colors": "R",
     "type": "Creature — Gnoll",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLB",
+        "url": "https://cards.scryfall.io/large/front/a/c/acfecffd-33af-43a9-b26c-f1ff193c6323.jpg?1674136580"
+      }
+    ]
   },
   {
     "name": "Gnome",
@@ -6823,7 +6873,12 @@
     "colors": "R",
     "type": "Creature — Dragon",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "TDC",
+        "url": "https://cards.scryfall.io/large/front/2/8/2876d57a-a17e-4892-9992-321a32562e13.jpg?1743205804"
+      }
+    ]
   },
   {
     "name": "Goldmeadow Harrier (Token)",
@@ -7184,7 +7239,12 @@
     "colors": "W",
     "type": "Creature — Dwarf Cleric",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLB",
+        "url": "https://cards.scryfall.io/large/front/e/7/e7429a5b-5579-4c4e-89ff-ee7f43db37e4.jpg?1674135100"
+      }
+    ]
   },
   {
     "name": "Hamster",
@@ -7257,7 +7317,12 @@
     "colors": "W",
     "type": "Creature — Angel",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CMM",
+        "url": "https://cards.scryfall.io/large/front/e/8/e8d57d75-275d-45c8-85f4-aab230af35b2.jpg?1689995738"
+      }
+    ]
   },
   {
     "name": "Hero",
@@ -11523,7 +11588,12 @@
     "colors": "G",
     "type": "Creature — Lhurgoyf",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "M3C",
+        "url": "https://cards.scryfall.io/large/front/0/0/00b4625c-ce91-4b86-8db7-a6c2d4fb9c92.jpg?1717189926"
+      }
+    ]
   },
   {
     "name": "Powerstone",
@@ -12537,7 +12607,12 @@
     "colors": "G",
     "type": "Creature — Dinosaur",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "LCC",
+        "url": "https://cards.scryfall.io/large/front/7/5/75db3c02-7a03-4de5-a70e-220777227dd3.jpg?1698987996"
+      }
+    ]
   },
   {
     "name": "Scion of the Deep",
@@ -12602,7 +12677,12 @@
     "colors": "G",
     "type": "Creature — Squirrel Scout",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "BLC",
+        "url": "https://cards.scryfall.io/large/front/c/3/c343b965-af2b-45c3-babb-9242736cf1e5.jpg?1721428298"
+      }
+    ]
   },
   {
     "name": "Scute Swarm",
@@ -14880,7 +14960,12 @@
     "colors": "WG",
     "type": "Creature — Wurm",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLU",
+        "url": "https://cards.scryfall.io/large/front/3/1/314e1434-61a8-4587-812e-720a92493fb3.jpg?1706239684"
+      }
+    ]
   },
   {
     "name": "Sunscourge Champion (Token)",
@@ -14931,7 +15016,12 @@
     "colors": "W",
     "type": "Creature — Cat Ranger",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLB",
+        "url": "https://cards.scryfall.io/large/front/4/3/43e38761-70e0-4f6e-a4c2-7c9a17557d25.jpg?1674135300"
+      }
+    ]
   },
   {
     "name": "Tah-Crop Skirmisher (Token)",
@@ -15292,7 +15382,12 @@
     "colors": "BR",
     "type": "Legendary Creature — Time Lord Rogue",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "WHO",
+        "url": "https://cards.scryfall.io/large/front/7/f/7f734ca0-91bc-4496-9bd7-2d09415e850f.jpg?1696636744"
+      }
+    ]
   },
   {
     "name": "The Ring",
@@ -15567,7 +15662,12 @@
     "colors": "R",
     "type": "Creature — Dragon Warrior",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLB",
+        "url": "https://cards.scryfall.io/large/front/2/7/279c2ec3-abfc-4054-bdd9-3c8fa7d8b426.jpg?1674136801"
+      }
+    ]
   },
   {
     "name": "Tibalt, Cosmic Impostor Emblem",
@@ -16642,7 +16742,12 @@
     "colors": "R",
     "type": "Creature — Giant Warrior",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CM2",
+        "url": "https://cards.scryfall.io/large/front/4/9/49b311c5-90f5-4d26-86ce-b9f645c137e4.jpg?1562273850"
+      }
+    ]
   },
   {
     "name": "Warren Warleader (Token)",
@@ -16968,7 +17073,12 @@
     "colors": "U",
     "type": "Creature — Human Wizard",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLB",
+        "url": "https://cards.scryfall.io/large/front/9/5/952e4e6b-fe74-4f3c-95d1-8e043f72072c.jpg?1674135888"
+      }
+    ]
   },
   {
     "name": "Wolf",
@@ -17389,7 +17499,12 @@
     "colors": "W",
     "type": "Creature — Human Soldier",
     "popularity": 0,
-    "artwork": []
+    "artwork": [
+      {
+        "set": "CLB",
+        "url": "https://cards.scryfall.io/large/front/f/0/f00a57fc-b4a6-48fa-a20c-864c10099e4b.jpg?1674135352"
+      }
+    ]
   },
   {
     "name": "Zariel, Archduke of Avernus Emblem",

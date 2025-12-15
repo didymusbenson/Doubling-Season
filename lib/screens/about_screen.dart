@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../utils/artwork_manager.dart';
 
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
@@ -10,11 +11,14 @@ class AboutScreen extends StatefulWidget {
 
 class _AboutScreenState extends State<AboutScreen> {
   String _version = '';
+  int _cacheSize = 0;
+  bool _isLoadingCache = true;
 
   @override
   void initState() {
     super.initState();
     _loadVersion();
+    _loadCacheSize();
   }
 
   Future<void> _loadVersion() async {
@@ -22,6 +26,53 @@ class _AboutScreenState extends State<AboutScreen> {
     setState(() {
       _version = 'Version ${packageInfo.version} (${packageInfo.buildNumber})';
     });
+  }
+
+  Future<void> _loadCacheSize() async {
+    final size = await ArtworkManager.getTotalCacheSize();
+    if (mounted) {
+      setState(() {
+        _cacheSize = size;
+        _isLoadingCache = false;
+      });
+    }
+  }
+
+  Future<void> _clearArtworkCache() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete all cached artwork?'),
+        content: const Text(
+          'This will remove all downloaded token artwork, including for existing tokens.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final success = await ArtworkManager.clearAllArtwork();
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Artwork cache cleared')),
+        );
+        // Reload cache size
+        await _loadCacheSize();
+      }
+    }
   }
 
   @override
@@ -54,7 +105,7 @@ class _AboutScreenState extends State<AboutScreen> {
             const SizedBox(height: 24),
 
             Text(
-              'Doubling Season',
+              'Tripling Season',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -87,10 +138,10 @@ class _AboutScreenState extends State<AboutScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Doubling Season is a token tracker for Magic: The Gathering. '
+                      'Tripling Season is a token tracker for Magic: The Gathering. '
                       'This project is a labor of love for the Magic community and is '
                       'committed to being 100% free and ad free forever. Your support '
-                      'helps keep Doubling Season free.',
+                      'helps keep Tripling Season free.',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],
@@ -164,12 +215,60 @@ class _AboutScreenState extends State<AboutScreen> {
                       'Card images © Wizards of the Coast LLC '
                       'Images provided by Scryfall. Scryfall is not produced by or endorsed '
                       'by Wizards of the Coast.\n\n'
-                      'Doubling Season is unofficial Fan Content permitted under the Fan '
+                      'Tripling Season is unofficial Fan Content permitted under the Fan '
                       'Content Policy. Not approved/endorsed by Wizards. Portions of the '
                       'materials used are property of Wizards of the Coast. © Wizards of '
                       'the Coast LLC.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Storage Management
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Storage',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Artwork Cache'),
+                        _isLoadingCache
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Text(
+                                ArtworkManager.formatCacheSize(_cacheSize),
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Colors.grey,
+                                ),
+                              ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _cacheSize > 0 ? _clearArtworkCache : null,
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Clear Artwork Cache'),
                       ),
                     ),
                   ],
@@ -185,7 +284,7 @@ class _AboutScreenState extends State<AboutScreen> {
               child: OutlinedButton.icon(
                 onPressed: () => showLicensePage(
                   context: context,
-                  applicationName: 'Doubling Season',
+                  applicationName: 'Tripling Season',
                   applicationVersion: _version,
                   applicationIcon: ClipRRect(
                     borderRadius: BorderRadius.circular(12),

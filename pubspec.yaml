@@ -1,7 +1,7 @@
 name: doubling_season
 description: A Flutter app for tracking Magic The Gathering tokens during gameplay.
 publish_to: 'none'
-version: 1.4.0+9
+version: 1.8.0+16
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -21,6 +21,7 @@ dependencies:
   crypto: ^3.0.6
   image_picker: ^1.0.7
   image_cropper: ^11.0.0
+  uuid: ^4.0.0
 
 dev_dependencies:
   flutter_test:

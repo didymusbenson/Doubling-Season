@@ -1,21 +1,25 @@
-## FLUTTER IN APP PURCHASE HANDLING.
-Add in-app purchases for "tip jar" in order for users to support the developer and unlock app icons.
-Flutter provides three main patterns for handling platform differences:
-1. **Use existing packages** (preferred): Packages like `in_app_purchase`, `share_plus`, `url_launcher`
-   abstract platform differences
-2. **Platform checks in Dart**: Use `Platform.isIOS` / `Platform.isAndroid` for minor variations
-3. **Platform channels**: Write custom native code when needed
+## Code Quality: Hardcoded Timing Delays
 
-## Global Counter Tools
+**Status:** Technical debt - document for future review
 
-### -1/-1 Everything
-Similar to "+1/+1 Everything", adds a -1/-1 counter to all tokens with power/toughness. Useful for effects like Night of Souls' Betrayal, Black Sun's Zenith, etc.
+Throughout the codebase, there are several hardcoded timing delays (magic numbers) that could benefit from documentation or centralization:
 
-Implementation would mirror the +1/+1 tool:
-- Same position in action menu
-- Same snapshot-based iteration
-- Same P/T pop animation
-- Red color theme (debuff/weakening)
+### Current Delays
+- `token_search_screen.dart:507`: `UIConstants.sheetDismissDelay` (300ms) - Wait for sheet animation before operations
+- `token_card.dart:575`: `elapsed > 100` milliseconds - Animation timing check for P/T pop effect
+- Various sheet dismissal delays to avoid state conflicts
+
+### Recommendations
+1. **Document timing rationale**: Add comments explaining why specific durations were chosen
+2. **Consider platform variations**: Some delays may need adjustment for slower devices
+3. **Centralize constants**: Move magic numbers to `lib/utils/constants.dart` with descriptive names
+4. **Review necessity**: Some delays may be workarounds for underlying issues that could be fixed differently
+
+**Priority:** Low - Current delays work correctly, but maintenance and clarity would improve
+
+**Decision:** Document for now, revisit if timing issues emerge on different devices/platforms
+
+---
 
 ## Gradient Backgrounds in Fadeout Mode
 
@@ -48,9 +52,11 @@ In Fadeout mode:
 
 **Decision:** Tabled for now. Focus on core features first, revisit after user feedback on gradients.
 
+---
+
 ## Symbol String Replacement
 
-**Status:** Nice-to-have enhancement for visual polish
+**Status:** IMPORTANT: full requirements detailed in ./wildcardReplacement.md
 
 Replace bracketed variables in abilities text with proper Magic symbols in the **card view** only.
 
@@ -87,9 +93,11 @@ The exact symbol mappings will be determined later, but common variables include
 
 **Priority:** Low - Visual enhancement that improves readability but not critical to functionality.
 
+---
+
 ## Uncentering Full View Artwork
 
-**Status:** Nice-to-have UI enhancement
+**Status:** Nice-to-have UI enhancement TODO: Refactor and replace idea with a "Custom Crop Override" instead.
 
 Currently, Full View artwork mode centers the artwork vertically on the token card (equal cropping from top/bottom). This can cut off important elements of the artwork.
 
@@ -104,7 +112,9 @@ Currently, Full View artwork mode centers the artwork vertically on the token ca
 
 **Priority:** Low - Minor visual preference, current centered alignment is functional
 
-## Sort By Options
+---
+
+## Better Sort Filters
 
 **Status:** Feature idea - not yet implemented
 
@@ -132,27 +142,31 @@ Allow users to customize how token search results are sorted in TokenSearchScree
 
 **Priority:** Medium - Nice QoL improvement, current popularity sort works but isn't ideal for all use cases
 
+---
+
 ## Condensed Condensed View
 
 Even more condensed than current condensed view, only has Tapped/Untapped Power/Toughness no names or anything else. Tap to expand into a larger detailed card (instead of a detail sheet).
 
+---
+
 ## Commander Widgets
 
-**Status:** Moved to dedicated documentation
+**Status:** Full requirements documented in ./cardWidgets.md
 
-See `docs/activeDevelopment/commanderWidgets.md` for complete details on:
+**NOTE: This version of the feature idea is out of date. Use it for idea reference, but not as requirements**
+
+See `docs/activeDevelopment/cardWidgets.md` for complete details on:
 - Krenko Mode (first implementation)
 - Future Commander Mode evolution (Chatterfang, Rhys, Brudiclad, etc.)
 - System design, migration path, and testing priorities
 
-## Combat
-A way to represent tokens in combat? Not sure how we would handle this. Maybe have a combat button that we can assign tokens to a temporary sheet and resolve attacks/blocks etc. Then have it adjust amounts/tapped amounts based on the outcome of combat.
-
-Combat would also calculate total damage (when possible) or total damage + wildcards based on the tokens that have wildcard p/t.
-
+---
 
 ## Snackbar Notifications (REMOVED)
 **Status:** All snackbar notifications have been removed due to UI/UX issues and intermittent framework bugs.
+
+**NOTE:** This is not necessarily a complete list of all removed snackbars. We may consider others.
 
 **Future Snackbar Needs:**
 - **Artwork download failure**: When background artwork download fails, show error snackbar to inform user (currently fails silently and resets to no artwork)
@@ -185,14 +199,19 @@ If user feedback indicates that confirmation/validation messages are needed, con
 - Status indicators within the UI context (e.g., deck list updates to show newly saved deck)
 - Dialog-based confirmations for critical operations (already in place for destructive actions)
 
-## Individual token setting (inside expanded view) to default to entering tapped
-- on expanded view include a toggle for "new tokens enter tapped"
+--- 
 
-## New tokens enter tapped on detail view
+## New Token Options
+- Toggle on expanded to default new tokens to entering tapped 
+- Notes field to keep private information that doesn't show up on card.
+
+### New tokens enter tapped on detail view
 - Add a toggle to the token detail view that automatically increases the tapped count when the token amount increases
 - When enabled, any increase to the token amount (via add action or manual input) will automatically increment the tapped count by the same amount
 - This ensures newly added tokens are tracked as tapped without manual adjustment
 - Useful for tokens that typically enter the battlefield tapped
+
+---
 
 ## Import token list from deck source (moxfield, arkidect)
 - user pastes a link to their deck list and it automatically populates the tokens they need to use

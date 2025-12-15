@@ -267,14 +267,27 @@ class TokenProvider extends ChangeNotifier {
       // Add to box FIRST, then set properties that call save()
       await _itemsBox.add(newItem);
 
-      // Copy power/toughness counters (these setters call save())
-      newItem.plusOneCounters = original.plusOneCounters;
-      newItem.minusOneCounters = original.minusOneCounters;
+      // Copying counters was removed in version 1.8, uncomment to re-implement
+      // newItem.plusOneCounters = original.plusOneCounters;
+      // newItem.minusOneCounters = original.minusOneCounters;
 
-      // Copy custom counters
-      for (final counter in original.counters) {
-        newItem.counters.add(counter);
-      }
+      // Counter copying disabled in version 1.8
+      // Rationale: Copy button creates fresh stacks for independent tracking.
+      // Users should use "Split Stack" feature to preserve counters.
+      //
+      // Previous implementation had a bug where custom counters were shallow-copied,
+      // causing counter modifications on one token to affect all copies.
+      // The fix below creates proper deep copies, but counter copying itself
+      // was disabled as the better UX choice.
+      //
+      // To re-enable counter copying (with proper deep copy):
+      // for (final counter in original.counters) {
+      //   newItem.counters.add(TokenCounter(
+      //     name: counter.name,
+      //     amount: counter.amount,
+      //   ));
+      // }
+
       await newItem.save();
 
       _errorMessage = null;

@@ -1,996 +1,966 @@
-# Commander Widgets (Card Widgets for Commanders)
+# Next Feature: Utility Cards
 
 ## Overview
-**Commander Widgets** (also called "Card Widgets") are special cards that appear in the token list alongside regular tokens. They provide specialized tracking and controls for popular token-generating commanders.
+Utility cards are game-tracking tools (like life counters, poison counters, monarch status, etc.) that live alongside token cards in the main game board.
 
-Unlike the initial "Krenko Mode" concept (which used a fixed banner), widgets are **fully integrated into the token list** - they can be added, removed, reordered, and swiped away just like tokens.
+## Utility Types
 
----
+There are two fundamental utility types:
 
-## Krenko Widget (First Implementation)
+### 1. Tracker Utility
+A numeric counter with stepper buttons. Trackers emphasize the VALUE as the primary display element.
 
-### Overview
-The Krenko widget is a special card for players using **Krenko, Mob Boss** in Commander. It provides quick goblin token generation based on Krenko's power and the number of goblins controlled.
+**Layout Structure:**
+Trackers use a single-row layout that mirrors token name vs tapped/untapped structure:
+- **Left Side (Expanded)**: Column containing Name, Description (optional), and Buttons
+- **Right Side (shrink-wrap)**: VALUE display (centered, prominent)
 
-**Magic Context:** Krenko, Mob Boss has the ability "Tap: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control."
+**Components:**
+- **Name**: Read-only title (e.g., "Life Total", "Poison Counters", "Experience")
+  - Max 75% width (naturally constrained by Expanded layout)
+  - Truncates with ellipsis if too long
+  - Same styling as token names
+- **Description**: Optional explanation text (e.g., "Tap +/- to adjust life total")
+  - Lives in same 75% column as Name (cannot overlap with Value)
+  - **Editable**: Users can add/edit descriptions for any tracker (via ExpandedUtilityScreen)
+  - By default, predefined utilities (Life Total, Poison Counters) have no description
+  - Players know what these are, no need for explanatory text
+  - Custom trackers can have descriptions if user wants
+- **Value**: Large numeric display (tap to manually edit)
+  - Right-aligned, takes remaining space (typically ~25%)
+  - **BIG NUMBER emphasis**: Uses displayMedium font with bold weight
+  - Semi-transparent background (same as token tapped/untapped)
+  - NO border (unlike buttons)
+  - Vertically centered to take full card height
+  - Padding: 12px horizontal, 8px vertical
+- **Buttons**: Decrement (-), Increment (+)
+  - Left-aligned in the 75% column below Name/Description
+  - Spaced using token button spacing calculation (LayoutBuilder with clamp)
+  - Tap: Change by utility's tapIncrement (default: 1)
+  - Long-press: Change by utility's longPressIncrement (default: 5)
 
-### Adding the Krenko Widget
+**Examples:**
+- Life Total (starting value: 40 or 20)
+- Poison Counters (starts at 0, lose at 10)
+- Radiation Counters (starts at 0)
+- Experience Counters (starts at 0, can only increase)
+- Energy Counters (starts at 0)
+- Commander Damage per opponent (starts at 0, lose at 21)
+- Storm Count (starts at 0)
 
-**User Flow:**
-1. Player opens FAB menu → Widgets
-2. Widget selection sheet shows available widgets
-3. Player taps "Krenko, Mob Boss"
-4. Krenko widget card appears at **top of token list**
-5. Widget can be dragged to reorder or swiped away to remove
+**State Persistence:**
+- Current value
+- Name (fixed by utility type)
+- Description (fixed by utility type)
+- Artwork URL (optional)
+- Color identity (fixed by utility type)
 
-### Krenko Widget Card
+### 2. Toggle Utility
+A binary state indicator that switches between two views.
 
-**Location:** IN the token list (not fixed above it)
+**Behavior:**
+- Tap anywhere on card to toggle between ON/OFF states
+- Visual change indicates current state (e.g., different icon, text, or background treatment)
 
-**Layout:** Card design similar to TokenCard, but with custom Krenko controls
+**Examples:**
+- Monarch (ON: "You are the Monarch", OFF: "Not the Monarch")
+- City's Blessing (ON: "You have the City's Blessing", OFF: "No City's Blessing")
+- Day/Night (ON: "It is Day", OFF: "It is Night")
+- Initiative (ON: "You have the Initiative", OFF: "No Initiative")
+- The Ring (ON: "You are the Ring-bearer", OFF: "Not the Ring-bearer")
 
-**Contains:**
-- **Title:** "Krenko, Mob Boss" with Krenko icon
-  - Distinguished with red color theme
-  - Shows this is a widget card, not a token
+**State Persistence:**
+- Current state (boolean: true/false)
+- Name (fixed by utility type)
+- ON description (fixed by utility type)
+- OFF description (fixed by utility type)
+- Artwork URL (optional)
+- Color identity (fixed by utility type)
 
-- **"Krenko's Power"** - Stepper with inline input (range: 1-99)
-  - Starts at 3 (Krenko's base power)
-  - User can +/- with stepper or tap to enter manually
-  - Persisted in widget state (Hive)
+## Core Requirements
 
-- **"Nontoken Goblins"** - Stepper with inline input (range: 0-99)
-  - Represents non-token goblins on battlefield (Krenko himself, other creatures)
-  - User can +/- with stepper or tap to enter manually
-  - Persisted in widget state (Hive)
+### Visual Consistency
+Utility cards MUST match token card styling exactly:
 
-- **"Waaagh!" Button** - Primary action button
-  - Opens confirmation dialog with two goblin creation options
-  - Style: Red color theme
+**Structure (from ContentScreen):**
+- **Container Wrapper**: GradientBoxBorder with 3px border width
+- **Inner Border Radius**: Adjusted to fit inside border (`UIConstants.borderRadius - borderWidth`)
+- **ClipRRect**: Clips content to inner border radius
+- **Dismissible**: Swipe-to-delete with red background and delete icon
+- **Stack Layout**: Background layer → Artwork layer → Content layer
 
-**Visual Design:**
-- Card background: Same as TokenCard (cardColor)
-- Red accent/border to distinguish from tokens
-- Similar height to token cards (compact but functional)
-- Can be reordered by dragging
-- Can be dismissed by swiping left
+**Card Appearance:**
+- **Size**:
+- Same width constraints as `TokenCard`
+- Height: Naturally shorter for utilities without action buttons (toggles)
+- Optional: 2-per-row layout for compact utilities (if drag-and-drop compatible)
+- **Border**: Same border radius and 3px gradient border
+- **Background**: `Theme.of(context).cardColor`
+- **Padding**: `UIConstants.cardPadding`
+- **Shadows**: Only in light mode (no shadows in dark mode)
+  - Primary shadow: `Colors.black.withValues(alpha: UIConstants.shadowOpacity)`, blur 8px
+  - Light shadow: `Colors.black.withValues(alpha: UIConstants.lightShadowOpacity)`, blur 3px
 
-### Waaagh! Confirmation Dialog
+**Gradient Backgrounds:**
+- Show gradient when no artwork present
+- Use `ColorUtils.gradientForColors(colorIdentity)`
+- Same gradient as border color
+- Full card coverage with border radius
 
-**Triggered by:** Tapping "Waaagh!" button in Krenko widget card
+**Text Overlays:**
+- Semi-transparent backgrounds: `cardColor.withValues(alpha: 0.85)`
+- Applied to name, description, buttons when over artwork/gradient
+- Border radius: 4-6px depending on element
 
-**Dialog Title:** "Create Goblin Tokens"
+**Reordering:**
+- Drag proxy animation: Scale 1.0 → 1.03 during drag
+- Elevation 8 with shadow opacity 0.3 when dragging
+- Uses `order` field (double) for fractional positioning
 
-**Two Options (buttons):**
+### Utility Content Fields
+Utility cards have text fields that map to token card equivalents:
+- **NAME**: Utility title (maps to token's `name` field)
+    - Displayed in title position with same typography
+    - Background: `cardColor.withValues(alpha: 0.85)` for readability
+    - Read-only (set by utility type, cannot be edited by user)
+- **DESCRIPTION**: Utility explanation/rules text (maps to token's `abilities` field)
+    - **Tracker utilities**: Optional text field (editable by user in ExpandedUtilityScreen)
+      - By default empty for predefined trackers (Life Total, Poison Counters)
+      - Users can add custom descriptions if desired
+      - **Compact Card**: 3-line max with ellipsis overflow
+      - **Expanded View**: Editable TextField with 3-line height
+    - **Toggle utilities**: Current state text (e.g., "You are the Monarch" or "Not the Monarch")
+      - Read-only (set by utility type via onDescription/offDescription)
+      - **Compact Card**: 3-line max with ellipsis overflow
+      - **Expanded View**: Full multi-line text without truncation, read-only
+    - Background: `cardColor.withValues(alpha: 0.85)` for readability
 
-1. **"Krenko's Power" Button**
-   - Label: "Create [X] Goblins" (where X = Krenko's Power × Global Multiplier)
-   - Action: Create X 1/1 Red Goblin tokens
-   - Example: If power = 5, multiplier = 2, creates 10 goblins
+### Utility Color Identity and Artwork
 
-2. **"For Each Goblin You Control" Button**
-   - Label: "Create [Y] Goblins" (where Y = (Total Token Goblins + Nontoken Goblins) × Global Multiplier)
-   - Action: Count all goblin tokens, add nontoken count, multiply, create that many 1/1 Red Goblin tokens
-   - Example: If you have 8 token goblins + 2 nontoken = 10, multiplier = 1, creates 10 goblins
-   - Shows breakdown: "(8 token + 2 nontoken = 10 goblins)"
+**Color Identity:**
+- **Editable**: Users can manually set color identity for any utility (same as tokens)
+- **Color Selection**: Via ExpandedUtilityScreen using ColorSelectionButton (W/U/B/R/G)
+- **Border Gradient**: Uses `ColorUtils.gradientForColors()` like token cards
+- **Background Gradient**: Utilities without artwork show gradient background based on color identity
+- **Default Colors** (predefined utilities):
+    - Life Total: Colorless (empty string)
+    - Poison Counters: Black/Green (BG)
+    - The Monarch: Red (R)
+    - Day/Night: White/Green (WG)
 
-**Cancel:** Standard dialog close button (X) or tap outside
+**Artwork Behavior (from TokenCard):**
+- **Selection**: Via `ExpandedUtilityScreen` using `ArtworkManager` (same as tokens)
+- **Caching**: Uses `ArtworkManager.getCachedArtworkFile()` and `ArtworkManager.downloadArtwork()`
+- **Cropping**: Same crop percentages as tokens (8.8% left/right, 14.5% top, 36.8% bottom)
+- **Display Styles**:
+  - Full View: Artwork fills card width, scales to fill width, crops height, center vertically
+  - Fadeout: Artwork on right 50%, gradient fade from transparent to opaque (stops: [0.0, 0.50])
+- **Global Setting**: Respects `SettingsProvider.artworkDisplayStyle` (reactive via Selector)
+- **Animation**:
+  - If artwork loads >100ms after card creation: Fade in over 500ms with `AnimatedOpacity`
+  - If artwork loads <100ms (cached): No animation, instant display
+- **Cleanup**: Auto-removes invalid `artworkUrl` when file is missing (after ConnectionState.done)
+- **Gradient Placeholder**: Shows color gradient while artwork is loading, then hides when loaded
+- **Persistence**: `artworkUrl` saved in Hive with utility data
 
-**Dialog Style:**
-- Standard AlertDialog with red accent
-- Show calculated amounts in button labels (dynamic)
-- Buttons stack vertically for clarity
+### Action Button Styling
+Utility cards have action buttons styled identically to token cards:
 
-### Token Creation Logic
+**Button Style (from TokenCard._buildActionButton):**
+- Border width: `UIConstants.actionButtonBorderWidth`
+- Border radius: `UIConstants.actionButtonBorderRadius`
+- Padding: `UIConstants.actionButtonPadding` (all sides)
+- Icon size: `UIConstants.iconSize`
+- Background color: `cardColor.withValues(alpha: 0.85)` (solid over artwork/gradient)
+- Border color: `Theme.of(context).colorScheme.primary`
+- Disabled state: Border color with opacity `UIConstants.disabledOpacity`
 
-#### Standard Goblin Token Definition
-**Name:** "Goblin"
-**Power/Toughness:** "1/1"
-**Colors:** "R" (Red)
-**Type:** "Creature - Goblin"
-**Abilities:** "" (empty)
-
-#### Token Creation Behavior
-
-**If matching token already exists:**
-- Search for existing token with:
-  - name = "Goblin"
-  - pt = "1/1"
-  - colors = "R"
-  - type contains "Goblin"
-  - abilities = "" (empty)
-- If found: Add to that token's amount (don't create new card)
-- If multiple matches: Add to first match (shouldn't happen with standard goblin)
-
-**If no matching token exists:**
-- Create new token card with standard goblin definition
-- Set amount to calculated value
-- Insert into token list
-
-**Summoning Sickness:**
-- Apply if global summoning sickness setting is enabled
-- Set `summoningSick = amount` on creation
-
-#### Calculation Details
-
-**Option 1: Krenko's Power**
-```dart
-final krenkosPower = settingsProvider.krenkoPower; // e.g., 5
-final multiplier = settingsProvider.tokenMultiplier; // e.g., 2
-final goblinsToCreate = krenkosPower * multiplier; // = 10
-```
-
-**Option 2: For Each Goblin You Control**
-```dart
-// Step 1: Count all tokens with "Goblin" in type
-int tokenGoblinCount = 0;
-for (final item in tokenProvider.items) {
-  if (item.type.toLowerCase().contains('goblin')) {
-    tokenGoblinCount += item.amount; // Sum all goblin token amounts
-  }
-}
-
-// Step 2: Add nontoken goblins
-final nontokenGoblins = settingsProvider.nontokenGoblins; // e.g., 2
-final totalGoblins = tokenGoblinCount + nontokenGoblins; // e.g., 10
-
-// Step 3: Apply multiplier
-final multiplier = settingsProvider.tokenMultiplier; // e.g., 1
-final goblinsToCreate = totalGoblins * multiplier; // = 10
-```
-
-**Important:** Type matching is case-insensitive and substring-based:
-- "Creature - Goblin" 
-- "Creature - Goblin Warrior" 
-- "Artifact Creature - Goblin" 
-- "Creature - Elf" 
-
-### Theme Override
-
-#### Red Color Theme
-When Krenko Mode is enabled, override blue theme colors with red:
-
-**Components to recolor:**
-- **FloatingActionButton** (multiplier, new token, menu)
-  - Current: Blue
-  - Krenko Mode: Red (use same red as Board Wipe icon)
-
-- **TokenCard borders/accents** (optional - TBD)
-  - May keep existing color identity system
-  - Or add subtle red accent when Krenko Mode active
-
-- **Krenko Banner**
-  - Red accent/border
-  - "Waaagh!" button: Red background
-
-**Color Reference:**
-- Board Wipe icon uses: `Colors.red` or similar
-- Need to identify exact color value in FloatingActionMenu
-- Ensure red works in both light and dark modes
-
-**Implementation:**
-- Check `settingsProvider.krenkoModeEnabled` in widget builds
-- Conditional color selection: `krenkoModeEnabled ? Colors.red : Colors.blue`
-- Apply to FABs, primary buttons, accents
-
-### Implementation Notes
-
-#### Settings Provider
-Add to `lib/providers/settings_provider.dart`:
-```dart
-bool get krenkoModeEnabled => _prefs.getBool('krenkoModeEnabled') ?? false;
-Future<void> setKrenkoModeEnabled(bool value) async {
-  await _prefs.setBool('krenkoModeEnabled', value);
-  notifyListeners();
-}
-
-int get krenkoPower => _prefs.getInt('krenkoPower') ?? 3;
-Future<void> setKrenkoPower(int value) async {
-  await _prefs.setInt('krenkoPower', value.clamp(1, 99));
-  notifyListeners();
-}
-
-int get nontokenGoblins => _prefs.getInt('nontokenGoblins') ?? 0;
-Future<void> setNontokenGoblins(int value) async {
-  await _prefs.setInt('nontokenGoblins', value.clamp(0, 99));
-  notifyListeners();
-}
-```
-
-#### New Widgets Needed
-1. **`KrenkoBanner`** (`lib/widgets/krenko_banner.dart`)
-   - Horizontal layout with steppers and button
-   - Conditionally rendered in ContentScreen when mode enabled
-   - Fixed position at top of token list
-
-2. **`KrenkoDialog`** (`lib/widgets/krenko_dialog.dart`)
-   - AlertDialog with three option buttons
-   - Calculates goblin counts dynamically
-   - Shows calculated amounts in button labels
-
-3. **`InlineStepperField`** (reusable widget)
-   - Combines stepper buttons with tap-to-edit number
-   - Similar to multiplier input pattern
-   - Range validation
-
-#### Token Provider
-Add method to `lib/providers/token_provider.dart`:
-```dart
-Future<void> createOrAddGoblins(int amount, bool applyMultiplier) async {
-  final finalAmount = applyMultiplier
-      ? amount * settingsProvider.tokenMultiplier
-      : amount;
-
-  // Search for existing standard goblin token
-  final existingGoblin = items.firstWhereOrNull((item) =>
-    item.name == 'Goblin' &&
-    item.pt == '1/1' &&
-    item.colors == 'R' &&
-    item.type.toLowerCase().contains('goblin') &&
-    item.abilities.isEmpty
+**Button Layout (from TokenCard._buildActionButtons, lines 320-338):**
+- Centered row with responsive spacing
+- **Calculation**:
+  ```dart
+  const buttonInternalWidth = UIConstants.actionButtonInternalWidth; // Icon + padding
+  final totalButtonWidth = buttonCount * buttonInternalWidth;
+  final availableSpacingWidth = constraints.maxWidth - totalButtonWidth;
+  final spacing = (availableSpacingWidth / (buttonCount - 1)).clamp(
+    UIConstants.minButtonSpacing,
+    UIConstants.maxButtonSpacing,
   );
+  ```
+- Last button gets 0 trailing spacing
 
-  if (existingGoblin != null) {
-    // Add to existing
-    existingGoblin.amount += finalAmount;
-    await existingGoblin.save();
-  } else {
-    // Create new
-    final newGoblin = Item(
-      name: 'Goblin',
-      pt: '1/1',
-      colors: 'R',
-      type: 'Creature - Goblin',
-      abilities: '',
-      amount: finalAmount,
-      // ... other fields
+**Utility-Specific Buttons:**
+- **Tracker utilities**: 2 buttons in left-aligned row (with token spacing calculation)
+  - Decrement button (-): Icons.remove, tap = -1, long-press = -5 (configurable)
+  - Increment button (+): Icons.add, tap = +1, long-press = +5 (configurable)
+  - Value display: Separate element on right side (NOT in button row), tappable to edit
+- **Toggle utilities**: No action buttons (entire card is tappable to toggle state)
+
+### What Utilities DON'T Have (vs Tokens)
+
+**Fields:**
+- No editable name/description (read-only, set by utility type)
+- No power/toughness
+- No abilities text
+- No type line
+- No color selection (hard-coded by utility type)
+- No +1/+1 or -1/-1 counters
+- No custom counter management
+- No tapped/untapped state
+- No summoning sickness
+- No "amount" field (utilities are singular items)
+
+**Actions:**
+- No add/remove amount buttons
+- No tap/untap buttons
+- No copy button
+- No split stack button
+- No "clear summoning sickness" button
+- No counter pills displayed
+
+**Behavior:**
+- No opacity change based on amount (utilities don't have amount=0 state)
+- No special handling for emblems or Scute Swarm
+
+### Tap Behavior
+
+**Tracker Utilities:**
+- **Tap card background**: Opens `ExpandedUtilityScreen` (for artwork selection/delete)
+- **Tap decrement button**: Decrease value by tap increment
+- **Long-press decrement button**: Decrease value by long-press increment
+- **Tap value display**: Opens numeric keyboard for manual editing
+- **Tap increment button**: Increase value by tap increment
+- **Long-press increment button**: Increase value by long-press increment
+
+**Toggle Utilities:**
+- **Tap anywhere on card**: Toggle state (ON ↔ OFF) with cross-fade animation
+  - Cross-fade between artwork states if both `onArtworkUrl` and `offArtworkUrl` set
+  - Cross-fade text opacity when description changes
+  - Note: Cross-fade for background images may be challenging (document if not feasible)
+- **Long-press on card**: Opens `ExpandedUtilityScreen` (for artwork selection/delete)
+- Rationale: Toggle should be instant (tap), expanded view is secondary (long-press)
+
+### Expanded View
+- **Universal Component**: All utilities use the same `ExpandedUtilityScreen` component (not utility-specific)
+- **Navigation**:
+  - Tracker utilities: Tap card background
+  - Toggle utilities: Long-press card
+- **Name Display**: Utility name shown as read-only text (not editable)
+- **Description**:
+    - **Tracker utilities**: Editable TextField with 3-line height
+      - Label: "Description (Optional)"
+      - Hint text: "Add optional description..."
+      - Auto-saves on change
+      - Users can add/edit/remove descriptions as desired
+    - **Toggle utilities**: Read-only display showing both ON and OFF state descriptions
+      - Multi-line text without truncation
+      - Scrollable if needed
+- **Color Selection**: Editable for all utilities via ColorSelectionButton (W/U/B/R/G)
+    - Same UI as ExpandedTokenScreen
+    - Auto-saves on change
+    - Updates gradient background when utility has no artwork
+- **Artwork Selection**: Uses exact same artwork selection logic as tokens
+    - Scryfall API integration via `ArtworkManager`
+    - Same artwork picker UI from `ExpandedTokenScreen`
+    - Same cropping/caching behavior
+    - Artwork displayed on utility card using same styling as tokens (Full View or Fadeout)
+- **No Counter Management**: Utilities don't have +1/+1 counters or custom counters
+- **No Utility-Specific Controls**: Base `ExpandedUtilityScreen` has no special function controls
+    - If future utilities need custom controls, extend the base class (e.g., `ExpandedLifeCounterScreen extends ExpandedUtilityScreen`)
+    - Similar inheritance pattern to `BaseUtilityCard`
+- **Delete Button**: Utilities can be deleted from the board
+- **Rationale**: Universal expanded view provides artwork selection, description editing (trackers), and delete without cluttering the compact card
+
+### Utility Event System
+Utilities can listen to token-related events for automatic trigger tracking:
+
+**Event Architecture:**
+```dart
+// Event object pattern for future-proof extensibility
+class CreatureEnteredEvent {
+  final int amount;           // Required: number of creatures that entered
+  final Item? token;          // Optional: the token that was created/modified
+  final String? source;       // Optional: 'addTokens', 'insertItem', 'copyToken', etc.
+  // Future fields can be added here without breaking existing utilities
+
+  CreatureEnteredEvent({
+    required this.amount,
+    this.token,
+    this.source,
+  });
+}
+
+// TokenProvider (or future BoardProvider) maintains callback registry
+class TokenProvider {
+  final List<void Function(CreatureEnteredEvent)> _onCreatureEnteredCallbacks = [];
+
+  void registerCreatureEnteredCallback(void Function(CreatureEnteredEvent) callback) {
+    _onCreatureEnteredCallbacks.add(callback);
+  }
+
+  void unregisterCreatureEnteredCallback(void Function(CreatureEnteredEvent) callback) {
+    _onCreatureEnteredCallbacks.remove(callback);
+  }
+
+  void _notifyCreatureEntered(CreatureEnteredEvent event) {
+    for (var callback in _onCreatureEnteredCallbacks.toList()) {
+      try {
+        callback(event);
+      } catch (e) {
+        debugPrint('Utility callback failed: $e');
+        _onCreatureEnteredCallbacks.remove(callback); // Auto-cleanup dead callbacks
+      }
+    }
+  }
+}
+```
+
+**Utility Implementation:**
+```dart
+class CatharsCrusadeUtility {
+  int pendingTriggers = 0;
+
+  void init(BoardProvider provider) {
+    provider.registerCreatureEnteredCallback(_onCreatureEntered);
+  }
+
+  void _onCreatureEntered(CreatureEnteredEvent event) {
+    // Today: Only use amount
+    pendingTriggers += event.amount;
+    notifyListeners();
+
+    // Future: Can filter by token properties
+    // if (event.token?.colors.contains('G') ?? true) {
+    //   pendingTriggers += event.amount;
+    // }
+  }
+
+  @override
+  void dispose() {
+    provider.unregisterCreatureEnteredCallback(_onCreatureEntered);
+    super.dispose();
+  }
+}
+```
+
+**Event Triggers:**
+- `addTokens()`: Fires when tokens added to existing stack
+- `insertItem()`: Fires when new token stack created
+- `copyToken()`: Fires when token stack copied
+- Does NOT fire for: tap/untap, deck loading, counter changes, board wipe
+
+**Future Event Types:**
+- `CreatureDiedEvent`: For death triggers (e.g., Blood Artist)
+- `CreatureAttackedEvent`: For attack triggers
+- `SpellCastEvent`: For spell-based triggers
+- `ArtifactEnteredEvent`, `EnchantmentEnteredEvent`, etc.
+
+**Benefits:**
+- ✅ Non-intrusive: Doesn't block token creation flow
+- ✅ User control: Utilities accumulate triggers, user resolves when ready
+- ✅ Future-proof: Adding optional fields to events doesn't break existing utilities
+- ✅ Type-safe: Compiler catches callback signature mismatches
+- ✅ Self-cleaning: Dead callbacks auto-removed on error
+
+### List Integration
+Utility cards are part of the same reorderable list as token cards:
+- **Data Model**: Utilities and tokens share a common interface or union type
+- **Ordering**: Utilities can be dragged/reordered among tokens
+- **Persistence**: Utility position and state saved in same Hive box as tokens
+- **Creation**: Utilities added via FloatingActionMenu (same entry point as tokens)
+
+## Implementation Plan
+
+### 1. Data Model
+Create a unified model for board items (tokens + utilities):
+```dart
+// Option A: Union type
+abstract class BoardItem extends HiveObject {
+  String get displayType; // "token" or "utility"
+  double order; // For drag-and-drop
+}
+
+class Item extends BoardItem { /* existing token model */ }
+class Utility extends BoardItem { /* new utility model */ }
+
+// Option B: Single model with type field
+class BoardItem extends HiveObject {
+  String itemType; // "token" or "utility"
+  // ... token-specific fields (nullable for utilities)
+  // ... utility-specific fields (nullable for tokens)
+}
+```
+
+### 2. Utility Card Components
+
+#### Base Utility Card
+```dart
+/// Base class for all utility cards - enforces visual consistency
+abstract class BaseUtilityCard extends StatefulWidget {
+  final dynamic utility;
+
+  const BaseUtilityCard({required this.utility, super.key});
+
+  @override
+  State<BaseUtilityCard> createState() => _BaseUtilityCardState();
+}
+
+class _BaseUtilityCardState extends State<BaseUtilityCard> {
+  @override
+  Widget build(BuildContext context) {
+    // Enforces TokenCard structure:
+    // - Stack with background + gradient/artwork layer + content
+    // - Same padding, borders, shadows
+    // - Name + Description layout (maps to token's name + abilities)
+    // - Action buttons using _buildActionButton() pattern (trackers only)
+    // - Hard-coded color border gradient
+    // - GestureDetector opens ExpandedUtilityScreen (for artwork/delete)
+  }
+
+  Widget _buildActionButton(...) {
+    // Identical implementation to TokenCard._buildActionButton()
+  }
+}
+```
+
+#### Tracker Utility Card
+```dart
+class TrackerUtilityCard extends BaseUtilityCard {
+  final TrackerUtility tracker;
+
+  const TrackerWidgetCard({required this.tracker, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // Layout: Single row mirroring token name vs tapped/untapped
+    // Left: Expanded column (Name, Description, Buttons)
+    // Right: Value display (shrink-wrap, centered)
+    return GestureDetector(
+      onTap: () => _openExpandedView(),
+      child: Stack([
+        _buildGradientBackground(tracker.colorIdentity),
+        _buildArtworkLayer(tracker.artworkUrl),
+        Row([
+          // Left side: Name, Description, Buttons (75% naturally via Expanded)
+          Expanded(
+            child: Column([
+              _buildTextWithBackground(
+                child: Text(tracker.name, overflow: TextOverflow.ellipsis),
+              ),
+              if (tracker.description.isNotEmpty)
+                _buildTextWithBackground(
+                  child: Text(tracker.description, maxLines: 3),
+                ),
+              _buildActionButtons([  // Left-aligned, token spacing
+                _buildActionButton(
+                  icon: Icons.remove,
+                  onTap: () => _decrement(tracker.tapIncrement),
+                  onLongPress: () => _decrement(tracker.longPressIncrement),
+                ),
+                _buildActionButton(
+                  icon: Icons.add,
+                  onTap: () => _increment(tracker.tapIncrement),
+                  onLongPress: () => _increment(tracker.longPressIncrement),
+                ),
+              ]),
+            ]),
+          ),
+          // Right side: Value display (25% naturally via shrink-wrap)
+          _buildTextWithBackground(
+            child: Text(
+              '${tracker.currentValue}',
+              style: titleLarge,
+              textAlign: TextAlign.center,
+            ),
+          ), // Tappable to edit via GestureDetector wrapper
+        ]),
+      ]),
     );
-    await insertItem(newGoblin);
   }
 }
 ```
 
-### Questions to Answer (TODO)
-
-- [ ] Should Krenko Banner be collapsible/expandable?
-- [ ] Should there be a "reset" button for power/nontoken counts?
-- [ ] Do we want a history/counter of how many times Krenko has activated?
-- [ ] Should the standard goblin token have artwork auto-assigned?
-- [ ] Exact red color value to use (match Board Wipe icon)?
-- [ ] Should TokenCard borders get red accent in Krenko Mode, or just FABs?
-- [ ] Should we show a summary after creation? ("Created 10 goblins!")
-- [ ] Edge case: What if multiplier is set to 1024 and user has 50 goblins? (50k tokens)
-
-### Testing Checklist
-
-- [ ] Toggle Krenko Mode on/off in settings
-- [ ] Krenko Banner appears at top of token list when enabled
-- [ ] Krenko Banner hidden when mode disabled
-- [ ] Stepper +/- buttons work for both fields
-- [ ] Tap-to-edit manual input works for both fields
-- [ ] Range validation (1-99 for power, 0-99 for nontoken)
-- [ ] "Waaagh!" button opens dialog
-- [ ] Dialog shows correct calculated amounts (dynamic)
-- [ ] "Krenko's Power" creates correct number of goblins
-- [ ] "For Each Goblin" counts all token types containing "goblin"
-- [ ] "For Each Goblin" includes nontoken count
-- [ ] Both options apply global multiplier
-- [ ] Existing goblin token gets amount added (not new card)
-- [ ] New goblin token created if none exists
-- [ ] Summoning sickness applied if enabled
-- [ ] FABs change to red when Krenko Mode enabled
-- [ ] Colors work in both light and dark mode
-- [ ] Values persist across app restarts (SharedPreferences)
-
-**Priority:** Medium-High - Popular commander deck archetype, high user value
-
----
-
-## Commander Mode (Future Evolution)
-
-### Concept
-Replace the single-purpose "Krenko Mode" with a flexible "Commander Mode" system that provides specialized tools for multiple popular token-generating commanders. This allows adding commander-specific features without cluttering the UI for users who don't need them.
-
-### Core UI Structure
-**Top Banner** (similar to Krenko Mode banner, but adaptive):
-- **Commander Selection Field**: Tap to open commander picker
-  - Shows "Select Commander..." when none chosen
-  - Shows commander name when selected
-  - Opens modal with predefined commander list
-- **Commander-Specific Controls**: Dynamic content based on selected commander
-  - Krenko: Power stepper + Nontoken Goblins + "Waaagh!" button
-  - Chatterfang: (Controls TBD)
-  - Rhys: (Controls TBD)
-  - Each commander gets custom UI tailored to their mechanics
-
-### Settings Integration
-**Location:** Settings screen
-- **Toggle:** "Commander Mode" (on/off)
-- **Commander Selection:** Dropdown or modal picker showing available commanders
-- **Storage:**
-  - `commanderModeEnabled` (bool)
-  - `selectedCommander` (string, e.g., "krenko", "chatterfang", "rhys")
-  - Commander-specific state (e.g., `krenkoPower`, `chatterfangSquirrels`, etc.)
-
-### MVP Commanders
-
-#### 1. Krenko, Mob Boss
-**Ability:** "Tap: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control."
-
-**Controls:**
-- **Krenko's Power** stepper (1-99, default 3)
-- **Nontoken Goblins** stepper (0-99, default 0)
-- **"Waaagh!" Button**: Creates 1/1 red Goblin tokens
-  - Option A: Based on Krenko's power � multiplier
-  - Option B: Based on total goblins controlled � multiplier
-  - Adds to existing goblin token or creates new
-
-**Color Theme:** Red (matches goblin tribal theme)
-
-**Implementation:** Already documented above - migrate to commander system
-
----
-
-#### 2. Chatterfang, Squirrel General
-**Ability:** "If one or more tokens would be created under your control, those tokens plus that many 1/1 green Squirrel creature tokens are created instead."
-
-**Controls:**
-- **Token Being Created** selector (dropdown or text field)
-  - User selects/inputs token name and amount
-  - Example: "3 Treasure" or "5 Food"
-- **"Create with Chatterfang" Button**
-  - Creates the original tokens (e.g., 3 Treasure)
-  - ALSO creates equal number of 1/1 green Squirrel tokens (3 Squirrels)
-  - Applies global multiplier to both types
-  - Adds to existing squirrel token or creates new
-
-**Alternative Simpler Approach:**
-- **Token Amount** stepper (how many tokens being created)
-- **"Add Squirrels" Button**
-  - Just creates squirrel tokens equal to amount � multiplier
-  - User handles creating other tokens manually
-  - Simpler implementation, covers 80% of use cases
-
-**Squirrel Token Definition:**
-- Name: "Squirrel"
-- P/T: "1/1"
-- Colors: "G" (Green)
-- Type: "Creature - Squirrel"
-- Abilities: ""
-
-**Color Theme:** Green (matches squirrel tribal theme)
-
-**Questions to Answer:**
-- [ ] Do we need to track what tokens triggered Chatterfang? (probably not)
-- [ ] Should there be a "quick add squirrels" that counts recent tokens? (nice to have)
-- [ ] Do we need second ability tracking? ("Each opponent loses 1 life per dying creature token")
-
----
-
-#### 3. Rhys the Redeemed
-**Abilities:**
-- **Ability 1:** "{2}{G/W}, Tap: Create a 1/1 green and white Elf Warrior creature token."
-- **Ability 2:** "{4}{G/W}{G/W}, Tap: For each creature token you control, create a token that's a copy of that creature."
-
-**Controls:**
-- **Ability 1 Button**: "Create Elf Warrior"
-  - Creates 1 Elf Warrior � global multiplier
-  - Simple token creation
-
-- **Ability 2 Button**: "Double All Tokens" (this is the complex one)
-  - For EACH token type on board:
-    - Count total amount (including tapped/untapped/summoning sick)
-    - Create NEW token card with same properties (name, P/T, abilities, colors, type, counters, artwork)
-    - Set amount to original amount � global multiplier
-    - Result: Doubles your token count (or more with multiplier)
-  - Example: If you have 5 Elves, 3 Goblins, creates 5 new Elves + 3 new Goblins
-  - **With multiplier:** If multiplier is 2, creates 10 Elves + 6 Goblins (quadruples!)
-
-**Elf Warrior Token Definition:**
-- Name: "Elf Warrior"
-- P/T: "1/1"
-- Colors: "GW" (Green/White)
-- Type: "Creature - Elf Warrior"
-- Abilities: ""
-
-**Color Theme:** Green/White (matches Selesnya tokens theme)
-
-**Implementation Complexity:** HIGH
-- Ability 2 requires deep-copying all token properties
-- Must handle counters, artwork, abilities, everything
-- Need to clarify: Do copied tokens enter tapped? (probably untapped)
-- Multiplier interaction creates explosive growth (intentional, but need UI warning?)
-
-**Questions to Answer:**
-- [ ] Do copied tokens enter tapped or untapped? (Magic rule: untapped)
-- [ ] Do copied tokens have summoning sickness? (Probably yes if global setting enabled)
-- [ ] Should there be a confirmation dialog for "Double All Tokens"? (YES - it's powerful/destructive)
-- [ ] Do we copy counters too? (Magic rule: yes, they're copies)
-- [ ] Do we copy artwork URLs? (Yes, easier implementation)
-- [ ] Performance: What if user has 20 different token types? (Should be fine, but test)
-
----
-
-### System Design
-
-**Commander Registry** (code organization):
+#### Toggle Utility Card
 ```dart
-enum Commander {
-  krenko('krenko', 'Krenko, Mob Boss'),
-  chatterfang('chatterfang', 'Chatterfang, Squirrel General'),
-  rhys('rhys', 'Rhys the Redeemed');
+class ToggleUtilityCard extends BaseUtilityCard {
+  final ToggleUtility toggle;
 
-  final String id;
-  final String displayName;
-  const Commander(this.id, this.displayName);
-}
-```
+  const ToggleWidgetCard({required this.toggle, super.key});
 
-**Dynamic Banner Widget:**
-```dart
-Widget buildCommanderBanner(Commander commander) {
-  switch (commander) {
-    case Commander.krenko:
-      return KrenkoBanner();
-    case Commander.chatterfang:
-      return ChatterfangBanner();
-    case Commander.rhys:
-      return RhysBanner();
+  @override
+  Widget build(BuildContext context) {
+    // Uses BaseWidgetCard structure
+    // NO action buttons - entire card is tappable
+    return GestureDetector(
+      onTap: () => _toggleState(),
+      onLongPress: () => _openExpandedView(), // Long-press for expanded view
+      child: Stack([
+        _buildGradientBackground(toggle.colorIdentity),
+        _buildArtworkLayer(toggle.isActive ? toggle.onArtworkUrl : toggle.offArtworkUrl),
+        Column([
+          _buildNameSection(toggle.name),
+          _buildDescriptionSection(
+            toggle.isActive ? toggle.onDescription : toggle.offDescription
+          ),
+          // Optional: Visual indicator of state (icon or badge)
+          _buildStateIndicator(toggle.isActive),
+        ]),
+      ]),
+    );
   }
 }
+
+/// Single expanded view component for ALL utility cards
+class ExpandedUtilityScreen extends StatelessWidget {
+  final dynamic utility;
+
+  // Universal utility detail screen - works for all utility types:
+  // - NAME displayed as read-only text (not TextField)
+  // - Full DESCRIPTION displayed without truncation (scrollable)
+  // - Artwork selection UI (identical to ExpandedTokenScreen)
+  // - No ColorSelectionButton (color identity is hard-coded per utility type)
+  // - No counter management (no +1/+1, no custom counters)
+  // - Delete button present
+  // - No stack splitting
+  // - No utility-specific controls in base implementation
+  //
+  // NOTE: If future utilities need custom controls in expanded view,
+  // create specialized screens (e.g., ExpandedLifeCounterScreen extends ExpandedUtilityScreen)
+  // and override buildCustomControls() method. For now, base class has no special functions.
+}
 ```
 
-**Color Theme System:**
-```dart
-Color getCommanderThemeColor(Commander? commander) {
-  if (commander == null) return Colors.blue; // Default
-  switch (commander) {
-    case Commander.krenko: return Colors.red;
-    case Commander.chatterfang: return Colors.green;
-    case Commander.rhys: return Colors.lightGreen; // Green/White blend
+### 3. ContentScreen Updates
+- **List View**: Change from `List<Item>` to `List<BoardItem>`
+- **Builder**: Conditional rendering based on item type:
+  ```dart
+  itemBuilder: (context, index) {
+    final item = items[index];
+    return item is Item
+      ? TokenCard(item: item)
+      : UtilityCard(utility: item as Utility);
   }
-}
-```
+  ```
+- **Reordering**: Existing drag-and-drop logic works with unified `order` field
 
-### Migration Path
+### 4. Provider Updates
+- **TokenProvider** � **BoardProvider**: Rename and expand
+- Methods: `insertBoardItem()`, `updateBoardItem()`, `deleteBoardItem()`
+- Box: Change from `Box<Item>` to `Box<BoardItem>` (requires migration)
 
-**Phase 1:** Implement Commander Mode framework
-- Add commander selection UI
-- Create base banner widget system
-- Implement theme color switching
+### 5. Widget Selection Screen
+Opens when user taps "Widgets" in FloatingActionMenu:
 
-**Phase 2:** Migrate Krenko Mode
-- Move Krenko banner to commander system
-- Update settings to use new storage keys
-- Maintain backward compatibility (auto-select Krenko if old setting enabled)
+**Layout (follows TokenSearchScreen pattern):**
+- Full-screen Scaffold with AppBar (title: "Select Widget", close button)
+- Search bar at top (debounced search like TokenSearchScreen)
+- Type filter chips below search: [All] [Tracker] [Toggle]
+- Scrollable list of matching widgets below filters
+- Each row shows: Widget name, type tag, brief description
+- Tapping a predefined widget creates instance immediately
 
-**Phase 3:** Add Chatterfang
-- Implement squirrel token creation
-- Add Chatterfang banner widget
+**Custom Widget Creation:**
+- "Create Custom Tracker" button at top of list (sticky)
+- "Create Custom Toggle" button at top of list (sticky)
+- Opens `NewTrackerSheet` or `NewToggleSheet` (full-screen Scaffold like NewTokenSheet)
+  - **Tracker form**: Name (TextField), Description (TextField), Default Value (stepper), Color Identity (ColorSelectionButton)
+  - **Toggle form**: Name (TextField), ON Description (TextField), OFF Description (TextField), Color Identity (ColorSelectionButton)
+  - "Create" button in AppBar actions (same pattern as NewTokenSheet)
+- Creates and inserts custom widget instance
 
-**Phase 4:** Add Rhys
-- Implement Elf Warrior creation
-- Implement "Double All Tokens" (most complex)
+**Widget Storage:**
+- Instances stored in separate Hive boxes: `Box<TrackerWidget>`, `Box<ToggleWidget>`
+- Custom widgets: `isCustom = true`
+- Predefined widgets: `isCustom = false`
+- ContentScreen merges `items`, `trackers`, `toggles` by `order` field
 
-### Future Expansion
-Other popular token commanders to consider:
-- **Brudiclad, Telchor Engineer**: Convert tokens to copies
-- **Trostani, Selesnya's Voice**: Populate mechanic
-- **Ghired, Conclave Exile**: Populate on attack
-- **Adrix and Nev, Twincasters**: Double token creation
-- **Mondrak, Glory Dominus**: Triple token creation
-- **Jetmir, Nexus of Revels**: Rewards for token count
-- **Hazezon, Shaper of Sand**: Desert token tracking
+## Widget Catalog
 
-Each can be added without affecting existing commanders - modular system.
+### Tracker Widgets (To Implement)
 
-### Benefits
-- **Scalable**: Easy to add new commanders without UI clutter
-- **Targeted**: Users only see tools for their chosen commander
-- **Flexible**: Each commander gets custom controls for their mechanics
-- **Theme Integration**: Each commander can have unique color scheme
-- **User Choice**: Players pick their commander, app adapts to their deck
+**Life & Damage:**
+- **Life Total**: Track life total (default: 40, color: colorless)
+- **Commander Damage**: Track damage from specific commander (default: 0, color: R)
 
-### Testing Priorities
-- [ ] Commander selection persists across app restarts
-- [ ] Theme colors update when commander changes
-- [ ] Disabling Commander Mode hides banner and restores default theme
-- [ ] Each commander's token creation works correctly
-- [ ] Multiplier applies correctly for each commander
-- [ ] Rhys "Double All Tokens" handles complex board states
-- [ ] Performance with 10+ different token types (Rhys doubling)
+**Counters:**
+- **Poison Counters**: Track poison (default: 0, color: BG)
+- **Radiation Counters**: Track radiation (default: 0, color: colorless)
+- **Energy Counters**: Track energy (default: 0, color: U)
+- **Experience Counters**: Track experience (default: 0, color: colorless)
 
----
+**Game State:**
+- **Storm Count**: Track storm count (default: 0, color: UR)
+- **Mana Pool**: Track floating mana (default: 0, color: colorless)
 
-## Implementation Approach (UPDATED for Card Widget Design)
+**Custom Tracker:**
+- User-defined tracker with custom name, description, default value, min/max, increments, color
 
-### Widget as Card in List
+### Toggle Utilities (To Implement)
 
-The Krenko widget is implemented as a **card that appears in the token list**, not as a fixed banner.
+**Status Indicators:**
+- **Monarch**: "You are the Monarch" / "Not the Monarch" (color: R)
+- **City's Blessing**: "You have the City's Blessing" / "No City's Blessing" (color: W)
+- **Initiative**: "You have the Initiative" / "No Initiative" (color: colorless)
+- **The Ring**: "You are the Ring-bearer" / "Not the Ring-bearer" (color: colorless)
+- **Day/Night**: "It is Day" / "It is Night" (color: WG)
 
-**Key Changes from Original Design:**
-- ❌ NO Settings toggle for "Krenko Mode"
-- ❌ NO fixed banner above token list
-- ❌ NO theme color override
-- ✅ Widget added via FAB menu → Widgets
-- ✅ Widget appears as card in token list
-- ✅ Widget can be reordered by dragging
-- ✅ Widget can be removed by swiping
+**Custom Toggle:**
+- User-defined toggle with custom name, ON/OFF descriptions, color
 
-### Widget Data Model
+### Special Utilities (Future - Advanced Features)
+These utilities are marked as `UtilityType.special` and have complex, commander-specific functionality beyond basic trackers/toggles. They may listen to game events or provide unique button actions.
 
-**CardWidget Model:**
+**Trigger Trackers (based on Tracker utility):**
+- **Cathars' Crusade**: Tracks ETB triggers, button applies +X/+X to all tokens
+- **Impact Tremors**: Tracks damage dealt (1 per creature entered)
+- **Purphoros**: Tracks damage (2 per creature entered)
+
+**Replacement Effect Toggles (based on Toggle utility):**
+- **Doubling Season**: When ON, auto-doubles token creation
+- **Parallel Lives**: When ON, auto-doubles token creation
+- **Anointed Procession**: When ON, auto-doubles token creation
+
+**Button-Action Utilities (special type, custom card implementations):**
+- **Krenko, Mob Boss**: Button creates X goblins where X = goblins you control
+  - Color: R
+  - Button: "Tap Krenko" → counts goblin tokens → creates that many 1/1 goblins
+- **Rhys the Redeemed**: Button doubles all token stacks
+  - Color: GW
+  - Button: "Activate Rhys" → for each token type, creates matching stack with same amount
+  - Example: 3 Goblins + 5 Elves → creates 3 more Goblins + 5 more Elves
+- **Brudiclad, Telchor Engineer**: Button converts all tokens to selected type
+  - Color: UR
+  - Button: "Activate Brudiclad" → opens token picker → all tokens become copies of chosen type
+  - Preserves tapped/untapped state
+- **Chatterfang**: Auto-creates matching Squirrel tokens when creature tokens enter
+  - Color: BG
+  - Listens to CreatureEnteredEvent → creates matching 1/1 green Squirrel tokens
+- **Blood Artist**: Tracks life gain/loss triggers on creature death
+  - Color: B
+  - Listens to CreatureDiedEvent → increments trigger counter
+
+## Implementation Decisions (Finalized)
+
+### Utility Selection Screen
+Following existing TokenSearchScreen pattern for consistency:
+- **Screen Type**: Full-screen Scaffold (not bottom sheet)
+- **AppBar**: Title "Select Utility" with close button
+- **Search Bar**: Debounced search at top (300ms delay like TokenSearchScreen)
+- **Filter Chips**: Type filters below search - [All] [Tracker] [Toggle]
+- **Utility List**: Scrollable list of matching predefined utilities
+- **Custom Creation Buttons**: "Create Custom Tracker" and "Create Custom Toggle" at top of list (sticky)
+- **Selection Behavior**: Tap predefined utility → creates instance immediately and closes screen
+
+### Custom Utility Creation Forms
+Following existing NewTokenSheet pattern for consistency:
+- **NewTrackerSheet** (full-screen Scaffold):
+  - Name (TextField)
+  - Description (TextField)
+  - Default Value (stepper widget, starts at 0)
+  - Color Identity (ColorSelectionButton - same as tokens)
+  - "Create" button in AppBar actions
+- **NewToggleSheet** (full-screen Scaffold):
+  - Name (TextField)
+  - ON Description (TextField)
+  - OFF Description (TextField)
+  - Color Identity (ColorSelectionButton - same as tokens)
+  - "Create" button in AppBar actions
+
+### FAB Menu Integration
+- **Location**: Line ~123 in FloatingActionMenu (between "New Token" and "Untap All")
+- **Action Level**: Same level as "New Token" (not nested submenu)
+- **Implementation**: Uncomment existing lines 124-135 in floating_action_menu.dart
+- **Icon**: `Icons.apps`
+- **Color**: `Colors.deepPurple`
+
+### Initial Predefined Utility Catalog (Phase 1)
+Start with 4 essential utilities to validate implementation:
+1. **Life Total** (Tracker, default: 40, colorless)
+2. **Poison Counters** (Tracker, default: 0, BG)
+3. **Monarch** (Toggle, R)
+4. **Day/Night** (Toggle, WG)
+
+Additional utilities can be added incrementally after Phase 1 validation.
+
+### Board Wipe Behavior
+- **"Delete All"**: Use `item is Item` type check to filter - deletes only tokens, preserves utilities
+- **"Set to 0"**: Only operates on `Item` objects (utilities have no `amount` field)
+- **Future "Reset Utilities"**: Not implemented in Phase 1, can add if users request it
+
+## Migration Strategy
+### Phase 1: Foundation (Current)
+- Create `BoardItem` abstract class
+- Implement `UtilityCard` component
+- Add utility creation flow
+
+### Phase 2: Data Migration
+- Migrate Hive box from `Box<Item>` to `Box<BoardItem>`
+- Handle existing user data (all items become tokens)
+- Update provider layer
+
+### Phase 3: First Utility
+- Implement simplest utility (e.g., Life Counter)
+- Test integration with token list
+- Validate reordering and persistence
+
+## Design Decisions (Resolved)
+1. ✅ **Color Identity**: Each utility type has hard-coded color identity (cannot be changed by user)
+2. ✅ **Expanded View**: Utilities DO have `ExpandedUtilityScreen` for description + artwork selection
+3. ✅ **Content Fields**: Utilities have NAME and DESCRIPTION (map to token's name/abilities, read-only)
+4. ✅ **Base Class**: All utilities inherit from `BaseUtilityCard` for visual consistency
+5. ✅ **Artwork Support**: Utilities can have custom artwork selected via Scryfall (same logic as tokens)
+
+## Data Model
+
+### Utility Base Class
 ```dart
-@HiveType(typeId: X) // Next available type ID
-class CardWidget extends HiveObject {
-  @HiveField(0) String widgetType; // 'krenko'
-  @HiveField(1) Map<String, dynamic> state; // {'power': 3, 'nontokenGoblins': 0}
-  @HiveField(2) DateTime createdAt;
-  @HiveField(3) double order; // For list positioning
+@HiveType(typeId: 4)
+abstract class Utility extends BoardItem {
+  @HiveField(0) String utilityId; // Unique ID for this utility instance
+  @HiveField(1) String utilityType; // "tracker" or "toggle"
+  @HiveField(2) String name; // Display name (read-only, set by utility definition)
+  @HiveField(3) String description; // Explanation text (read-only)
+  @HiveField(4) String colorIdentity; // Color(s) for border gradient (read-only)
+  @HiveField(5) String? artworkUrl; // Optional custom artwork
+  @HiveField(6) double order; // Sort order (inherited from BoardItem)
+  @HiveField(7) DateTime createdAt;
 }
 ```
 
-### New Components
-
-1. **KrenkoWidgetCard** (`lib/widgets/krenko_widget_card.dart`)
-   - Renders as card in token list
-   - Shows Krenko title, power/goblin steppers, "Waaagh!" button
-   - Red color theme for visual distinction
-   - Persists state in widget.state Map
-
-2. **KrenkoDialog** (`lib/widgets/krenko_dialog.dart`)
-   - Two options: Krenko's Power or For Each Goblin
-   - Calls TokenProvider.createOrAddGoblins()
-
-3. **Widget Selection Sheet** (update existing in ContentScreen)
-   - Shows "Krenko, Mob Boss" with checkmark if active
-   - Tapping adds/removes widget from list
-
-### Display Logic
-
-**ContentScreen list builder:**
-- Combine widgets and tokens
-- Sort by order field
-- Render KrenkoWidgetCard for widgets, TokenCard for tokens
-- Both support drag-to-reorder and swipe-to-delete
-
----
-
-# ARCHIVED: Previous Exploration - NOT WORKING
-
-## 📦 Latest Build Artifacts (v1.3.0+8)
-
-**iOS (.ipa):**
-`build/ios/ipa/Doubling Season.ipa` (21.9MB)
-
-**Android (.aab):**
-`build/app/outputs/bundle/release/app-release.aab` (44.2MB)
-
-**Built:** 2025-11-20
-**Status:** Ready to deploy
-
----
-
-# Next Feature: Widgets System & Menu Consolidation
-
-**Status:** 🔍 **REFINEMENT PHASE** - Do NOT implement yet. Planning and design discussion required.
-
-## Overview
-
-Two major interconnected features to plan and refine before implementation:
-
-### 1. Floating Action Menu Consolidation
-### 2. Widgets System
-
----
-
-## Part 1: Floating Action Menu Consolidation
-
-### Problem
-The floating action menu (FloatingActionMenu) is getting crowded. We need to add a "Widgets" button, and the current structure doesn't scale well.
-
-### Current Menu Structure
-1. New Token
-2. +1/+1 Everything
-3. Untap Everything
-4. Clear Summoning Sickness
-5. Save Deck
-6. Load Deck
-7. Board Wipe
-
-### Proposed New Menu Structure
-1. **New Token**
-2. **Widgets** (NEW - opens widget selection dialog)
-3. **Board Update** (NEW - opens submenu with bulk operations)
-   - Untap All
-   - Clear Summoning Sickness
-   - +1/+1 Everything
-   - -1/-1 Everything (NEW feature)
-   - Board Wipe
-4. **Save Deck**
-5. **Load Deck**
-
-### Rationale
-- Groups related bulk operations into a logical submenu
-- Reduces top-level menu items from 7 to 5
-- Makes room for Widgets button without further crowding
-- "Board Update" clearly indicates batch operations on all tokens
-
-### -1/-1 Everything Feature (NEW)
-**Context:** From `FeedbackIdeas.md` lines 11-18
-
-Mirrors the existing +1/+1 Everything feature:
-- Adds a -1/-1 counter to all tokens with power/toughness
-- Useful for: Night of Souls' Betrayal, Black Sun's Zenith, etc.
-- Same snapshot-based iteration pattern
-- Same P/T pop animation
-- Red color theme (debuff/weakening)
-
-### Alternative Proposals
-
-**Alternative 1: Further consolidation**
-```
-1. New Token
-2. Widgets
-3. Board Actions (submenu: Untap, Clear SS, +1/+1, -1/-1, Wipe)
-4. Decks (submenu: Save, Load)
-```
-Reduces to 4 top-level items. Groups deck operations together.
-
-**Alternative 2: Icon-only menu**
-Use icons without text labels, add tooltips. Allows more items in less space. May hurt discoverability.
-
-**Alternative 3: Contextual visibility**
-Only show certain actions when relevant (e.g., hide Board Update when board is empty). Dynamic but potentially confusing.
-
-**Questions to Answer:**
-- [ ] Should "Board Update" have a confirmation dialog before opening submenu?
-- [ ] Icon for "Board Update" menu item? (Currently thinking: refresh/update icon)
-- [ ] Should submenu items have icons or text labels?
-- [ ] Do we need a "Close" button in the Board Update submenu?
-- [ ] Should we add analytics to track which bulk operations are most used?
-
----
-
-## Part 2: Widgets System
-
-### Concept
-
-**Widgets** (also called "Card Widgets" or "Commander Widgets") are special cards that appear in the token list alongside regular tokens. They are NOT tokens themselves, but provide specialized controls and tracking for specific commanders or game mechanics.
-
-### Core Widget Design (CONFIRMED)
-
-**Widget Placement:**
-- Widgets appear **IN the token list**, mixed with tokens
-- When added, widgets insert at the **top of the list** (but can be reordered)
-- Users can drag widgets to reorder them like any other card
-- Swiping a widget away dismisses it (removes from list)
-- Multiple widgets can be active simultaneously
-
-**Widget Selection Menu:**
-- Accessed via FAB menu → "Widgets" button
-- Shows list of available widget types (Krenko, Chatterfang, Rhys, etc.)
-- Active widgets shown with **checkmark or highlight**
-- Tapping a widget adds it to the token list (if not already present)
-- Tapping an active widget removes it from the list
-
-**Use Case Example:**
-1. Player has Krenko, Mob Boss on their battlefield
-2. Player opens FAB menu → Widgets
-3. Player taps "Krenko, Mob Boss" widget
-4. Krenko widget card appears at top of token list
-5. Player uses widget to track Krenko's power and create goblins
-6. When done, player swipes widget away or unchecks it in menu
-
-### Examples of Widgets
-- **Krenko Widget**: Tracks Krenko's power and nontoken goblin count, creates goblin tokens on demand
-- **Chatterfang Widget**: Auto-creates squirrels when other tokens are created
-- **Rhys Widget**: Doubles all tokens or creates Elf Warriors
-- **Doubling Season Widget**: Automatically doubles token multiplier when active
-- **Cathars' Crusade Widget**: Reminder to add +1/+1 counters when tokens enter
-
-### Widget Characteristics
-
-**Similarities to Tokens:**
-- Use TokenCard visual design (same styling as tokens)
-- Appear in the same scrollable list as tokens
-- Can be reordered via drag-and-drop
-- Can be dismissed via swipe gesture
-- Persist across sessions (Hive storage)
-- Have order field for positioning
-
-**Differences from Tokens:**
-- Different action buttons (widget-specific controls, NOT tap/untap/add/remove)
-- No amount, tapped/untapped counts, or summoning sickness
-- No P/T or counters (unless widget-specific)
-- Custom UI per widget type
-- Distinguished visually (different icon, color scheme, or border)
-
-### Key Design Questions
-
-#### 1. Widget Data Model
-
-**Proposed Base Model:**
+### Tracker Utility
 ```dart
-@HiveType(typeId: X)
-class CardWidget extends HiveObject {
-  @HiveField(0) String widgetType; // 'krenko', 'chatterfang', 'doublingseason'
-  @HiveField(1) Map<String, dynamic> state; // Widget-specific state (power, counters, etc.)
-  @HiveField(2) DateTime createdAt;
-  @HiveField(3) double order; // For reordering in token list
+@HiveType(typeId: 6)  // CORRECTED: 4 and 5 are already used by ArtworkVariant and TokenArtworkPreference
+class TrackerUtility extends HiveObject {
+  @HiveField(0) String utilityId; // Unique ID (UUID)
+  @HiveField(1) String name; // Display name (user can edit for custom trackers)
+  @HiveField(2) String description; // Explanation text (user can edit for custom trackers)
+  @HiveField(3) String colorIdentity; // Color(s) for border gradient
+  @HiveField(4) String? artworkUrl; // Optional custom artwork
+  @HiveField(5) double order; // Sort order for reordering
+  @HiveField(6) DateTime createdAt;
+  @HiveField(7) int currentValue; // Current numeric value
+  @HiveField(8) int defaultValue; // Starting value (user-settable, for reset functionality)
+  @HiveField(9) int tapIncrement; // Amount to change on tap (default: 1)
+  @HiveField(10) int longPressIncrement; // Amount to change on long-press (default: 5)
+  @HiveField(11) bool isCustom; // True if user-created, false if predefined
+
+  // Value constraints:
+  // - Minimum: Always 0 (clamped on decrement)
+  // - Maximum: Arbitrarily high (TBD based on device testing for display width)
+  // - Overflow handling: Truncate to "XXXXX..." if value too wide
+  // - CARDINAL RULE: NO TEXT OVERFLOWS
 }
 ```
 
-**Storage Strategy (CONFIRMED):**
-- [ ] **Same Hive box as tokens?** OR separate `widgets` box?
-  - **Recommendation:** Separate box to avoid type confusion, but both use `order` field for unified list display
-- [x] Widgets do NOT have a "disabled" state - they are either in the list or not
-- [x] Swiping widget deletes it from the list (can be re-added via menu)
-- [ ] Widget state persists even when widget is removed (so re-adding restores previous values)?
-
-**Questions:**
-- [ ] How do we handle widget-specific state? (Generic Map? Subclasses? JSON serialization?)
-- [ ] Should we merge tokens and widgets into one unified list view, or keep separate boxes?
-- [ ] How do we distinguish widgets visually in the list?
-
-#### 2. Unified List Display
-
-**Challenge:** How do we display widgets and tokens in one unified list?
-
-**Options:**
-- **Option A:** Merge into single list, sorted by `order` field
-  - Widgets and tokens both implement a common interface for rendering
-  - List builder checks type and renders appropriate card
-  - Pro: Simple, unified drag-and-drop
-  - Con: More complex rendering logic
-
-- **Option B:** Two separate lists, visually unified
-  - Widgets box and tokens box separate
-  - UI combines them for display
-  - Pro: Clean data separation
-  - Con: Complex drag-and-drop between types
-
-**Recommendation:** Start with Option A (single merged list), use type checking in item builder
-
-#### 3. Widget UI Rendering
-
-**Challenge:** Each widget has different controls and layout
-
-**Option A: Hardcoded widget cards**
+### Toggle Utility
 ```dart
-Widget buildWidgetCard(CardWidget widget) {
-  switch (widget.widgetType) {
-    case 'krenko':
-      return KrenkoWidgetCard(widget: widget);
-    case 'chatterfang':
-      return ChatterfangWidgetCard(widget: widget);
-    // ...
-  }
+@HiveType(typeId: 7)  // CORRECTED: 6 is TrackerUtility
+class ToggleUtility extends HiveObject {
+  @HiveField(0) String utilityId; // Unique ID (UUID)
+  @HiveField(1) String name; // Display name (user can edit for custom toggles)
+  @HiveField(2) String colorIdentity; // Color(s) for border gradient
+  @HiveField(3) String? artworkUrl; // Optional custom artwork (used for both states if no per-state artwork)
+  @HiveField(4) double order; // Sort order for reordering
+  @HiveField(5) DateTime createdAt;
+  @HiveField(6) bool isActive; // Current state (true = ON, false = OFF)
+  @HiveField(7) String onDescription; // Text to show when active
+  @HiveField(8) String offDescription; // Text to show when inactive
+  @HiveField(9) String? onArtworkUrl; // Optional: Different artwork for ON state
+  @HiveField(10) String? offArtworkUrl; // Optional: Different artwork for OFF state
+  @HiveField(11) bool isCustom; // True if user-created, false if predefined
+
+  // Visual behavior:
+  // - Reserve space for longest description (onDescription vs offDescription) to prevent height changes
+  // - Cross-fade animation when toggling states (artwork and text)
+  // - Note: Cross-fade for background images may be challenging based on past implementation attempts
 }
 ```
 
-**Option B: Generic widget card with configuration**
+### Utility Definition (Not Persisted)
 ```dart
-class WidgetCard extends StatelessWidget {
-  final CardWidget widget;
-  final WidgetConfig config; // Defines layout, buttons, fields
+class UtilityDefinition {
+  final String id; // Unique identifier (e.g., "life_total", "monarch")
+  final UtilityType type; // tracker, toggle, or special
+  final String name;
+  final String description; // Or onDescription for toggles
+  final String? offDescription; // For toggles only
+  final String colorIdentity;
+  final int? defaultValue; // For trackers
+  final int? minValue; // For trackers
+  final int? maxValue; // For trackers
+  final int tapIncrement; // For trackers (default: 1)
+  final int longPressIncrement; // For trackers (default: 5)
 
-  // Config loaded from registry
+  // Factory method to create utility instance from definition
+  TrackerUtility toTrackerUtility() { ... }
+  ToggleUtility toToggleUtility() { ... }
 }
+
+enum UtilityType { tracker, toggle, special }
 ```
 
-**Recommendation:** Start with Option A (hardcoded), extract common patterns later
+## Technical Implementation Details (From Codebase Research)
 
-#### 4. Token Creation with Special Rules
+### Hive Architecture
+**No Abstract Base Class:**
+- Hive doesn't support abstract class adapters
+- Each concrete class needs its own TypeAdapter
+- TrackerWidget and ToggleWidget are independent HiveObjects
+- No shared Widget base class with Hive persistence
 
-Some widgets create tokens with special rules. **Can we standardize these rule types?**
-
-**Common Rule Types:**
-1. **Multiplier Modifier**: "Double all token creation" (Doubling Season, Parallel Lives)
-2. **Replacement Effect**: "When you create X, also create Y" (Chatterfang, Academy Manufactor)
-3. **Power-based Creation**: "Create N tokens where N = [calculation]" (Krenko)
-4. **Copy Effect**: "Create copies of existing tokens" (Rhys, Brudiclad)
-5. **Conditional Creation**: "If condition, create token" (varies)
-
-**Standardization Approach:**
-
-**Option A: Rule Engine Pattern**
+**Type ID Corrections:**
 ```dart
-abstract class TokenCreationRule {
-  int modifyAmount(int baseAmount);
-  List<TokenTemplate> additionalTokens(TokenTemplate original);
-  bool shouldApply(TokenCreationContext context);
-}
-
-class DoublingRule extends TokenCreationRule {
-  int modifyAmount(int baseAmount) => baseAmount * 2;
-}
-
-class ChatterfangRule extends TokenCreationRule {
-  List<TokenTemplate> additionalTokens(TokenTemplate original) {
-    return [SquirrelTemplate(amount: original.amount)];
-  }
-}
+// Current assignments:
+// 0 = Item
+// 1 = TokenCounter
+// 2 = Deck
+// 3 = TokenTemplate
+// 4 = ArtworkVariant (ALREADY USED)
+// 5 = TokenArtworkPreference (ALREADY USED)
+// 6 = TrackerUtility (NEW)
+// 7 = ToggleUtility (NEW)
 ```
 
-**Option B: Widget Behavior Interface**
+**Box Strategy:**
+- Keep existing `Box<Item>('items')` as-is (no migration)
+- Add new `Box<TrackerUtility>('trackerUtilities')`
+- Add new `Box<ToggleUtility>('toggleUtilities')`
+- ContentScreen merges lists by `order` field
+
+### Provider Pattern
+Following existing patterns:
+- `TokenProvider` wraps `Box<Item>`
+- `DeckProvider` wraps `LazyBox<Deck>`
+- Create `TrackerProvider` wraps `Box<TrackerUtility>`
+- Create `ToggleProvider` wraps `Box<ToggleUtility>`
+- Each provider has: `insert()`, `update()`, `delete()`, `ValueListenable<Box<T>>`
+
+### ContentScreen Integration
 ```dart
-abstract class WidgetBehavior {
-  Future<void> onTokenCreated(Item token, TokenProvider provider);
-  Future<void> onTokenTapped(Item token, TokenProvider provider);
-  Future<void> customAction(String actionId, Map<String, dynamic> params);
+// Merge three boxes into single sorted list
+final items = tokenProvider.items;
+final trackers = trackerProvider.trackers;
+final toggles = toggleProvider.toggles;
+
+final boardItems = [...items, ...trackers, ...toggles]
+  ..sort((a, b) => a.order.compareTo(b.order));
+
+// Conditional rendering in itemBuilder
+itemBuilder: (context, index) {
+  final item = boardItems[index];
+  if (item is Item) return TokenCard(item: item);
+  if (item is TrackerUtility) return TrackerUtilityCard(tracker: item);
+  if (item is ToggleUtility) return ToggleUtilityCard(toggle: item);
 }
 ```
 
-**Option C: Event-based System**
+### Tap Handling (from TokenCard pattern)
+Child GestureDetectors automatically consume taps before parent:
 ```dart
-// Widgets register for events
-enum TokenEvent { created, tapped, destroyed, modified }
-
-class Widget {
-  void onEvent(TokenEvent event, Item token) {
-    // Widget-specific behavior
-  }
-}
+GestureDetector(  // Parent: Opens expanded view
+  onTap: () => _openExpandedView(),
+  child: Column([
+    ...
+    Row([  // Child GestureDetectors consume taps
+      GestureDetector(onTap: _decrement, child: DecrementButton()),
+      GestureDetector(onTap: _editValue, child: ValueDisplay()),
+      GestureDetector(onTap: _increment, child: IncrementButton()),
+    ]),
+  ]),
+)
 ```
 
-**Recommendation:** Keep it simple for now - widgets create tokens directly via methods in TokenProvider. Event-based system can be added later if needed.
-
-#### 5. Widget Selection Menu UI
-
-**Requirements (CONFIRMED):**
-- Shows list of all available widget types
-- Indicates which widgets are currently active (checkmark or highlight)
-- Tapping inactive widget adds it to token list
-- Tapping active widget removes it from token list (or shows confirmation?)
-- Visual design similar to other action sheets
-
-**Implementation approach:**
-- Widget registry maps widget types to display info (name, description, icon, color)
-- Menu queries active widgets from Hive box
-- Toggle logic: check if widget exists → add or remove
-
-#### 6. Widget State Persistence
-
-Widgets need to persist state (e.g., Krenko's power, nontoken goblin count).
-
-**Option A: Generic Map in CardWidget model**
+### Value Editing Pattern (from ExpandedTokenScreen)
+Inline TextField toggle:
 ```dart
-Map<String, dynamic> state = {
-  'power': 3,
-  'nontokenGoblins': 2,
-};
+// Tap value → show TextField inline
+// constraints: BoxConstraints(minWidth: 40, maxWidth: 80)
+// keyboardType: TextInputType.number
+// autofocus: true
+// onSubmitted + onTapOutside both save
 ```
-Pro: Flexible, easy to implement. Con: No type safety, prone to errors.
 
-**Option B: Subclass per widget type**
-```dart
-class KrenkoWidget extends CardWidget {
-  @HiveField(10) int power;
-  @HiveField(11) int nontokenGoblins;
-}
-```
-Pro: Type-safe, clear structure. Con: Requires Hive adapter per widget type, more boilerplate.
+### Deck Persistence Pattern
+Following TokenTemplate approach with bug fix:
+- Template stores configuration, resets game state to defaults
+- **BUG FIX**: `template.toItem(amount: 0, createTapped: false)` should initialize to 0, not 1
+  - Location: `lib/widgets/load_deck_sheet.dart:165`
+  - Current code: `final item = template.toItem(amount: 1, createTapped: false);`
+  - Correct code: `final item = template.toItem(amount: 0, createTapped: false);`
+  - Rationale: User manually adds tokens during gameplay, deck should only define token types
+- Utilities: Template stores utility config, resets to `defaultValue` and `isActive: false`
 
-**Option C: JSON serialization with typed classes**
-```dart
-class WidgetState {
-  Map<String, dynamic> toJson();
-  static WidgetState fromJson(Map<String, dynamic> json, String type);
-}
+## Design Decisions (Resolved)
+1. ✅ **Hive Type IDs**: TrackerUtility (6), ToggleUtility (7)
+2. ✅ **Utility Types**: Tracker (numeric counter) and Toggle (binary state)
+3. ✅ **Default Values**: Life Total = 40, all other trackers = 0 unless specified
+4. ✅ **Experience Counter**: Normal tracker controls (decrement allowed, even though rare in practice)
+5. ✅ **Utility Selection UI**: Full-screen with search bar + type filters (All, Tracker, Toggle), scrollable list
+6. ✅ **Custom Utilities**: Users can create custom trackers and toggles
+7. ✅ **Gradient Background**: Artless utilities get color gradient backgrounds (consistency with tokens)
+8. ✅ **Toggle Animation**: Cross-fade when toggling states (artwork and text)
+9. ✅ **Toggle Height**: Reserve space for longest description to prevent height changes
+10. ✅ **Tracker Bounds**: Minimum 0, no maximum (truncate with "XXXXX..." if overflow, NO TEXT OVERFLOWS)
+11. ✅ **Deck Persistence**: Utilities save to templates, always reset to defaults on load
+12. ✅ **Deck Bug Fix**: Tokens should initialize to amount=0 (not 1) when loading deck
+13. ✅ **Board Wipe Behavior**:
+    - "Delete All": Deletes tokens only, keeps utilities
+    - "Set to 0": Sets token amounts to 0, doesn't affect utilities
+14. ✅ **Event System**: Defer to Advanced Utilities phase (not needed for basic tracker/toggle)
+15. ✅ **Custom Utility Forms**: Follow NewTokenSheet pattern - full-screen Scaffold with TextFields and ColorSelectionButton
+16. ✅ **FAB Menu Integration**: Uncomment existing lines 124-135 in floating_action_menu.dart (same level as New Token)
+17. ✅ **Initial Utility Catalog**: Start with 4 utilities (Life Total, Poison, Monarch, Day/Night) to validate implementation
 
-class KrenkoState extends WidgetState {
-  int power;
-  int nontokenGoblins;
-}
-```
-Pro: Flexible + type-safe, good balance. Con: More complex serialization, but manageable.
+## Success Criteria
 
-**Recommendation:** Start with Option A (Map) for MVP, migrate to Option C if needed for type safety.
+### Foundation
+- [ ] Utility card visually indistinguishable from token card (except content)
+- [ ] Action buttons styled identically to token buttons
+- [ ] Utilities can be reordered freely among tokens
+- [ ] Utility NAME and DESCRIPTION are read-only (cannot be edited)
+- [ ] Utility state persists across app restarts
+- [ ] Artless utilities display color gradient backgrounds matching their color identity
+- [ ] Custom artwork displays on utility card with Full View/Fadeout styles (same as tokens)
 
-### Implementation Priorities
+### Tracker Utility
+- [ ] Displays name, description, and current value
+- [ ] Decrement button (-): Tap = -1, Long-press = -5
+- [ ] Increment button (+): Tap = +1, Long-press = +5
+- [ ] Tap value to manually edit (numeric keyboard)
+- [ ] Respects min/max limits (if set)
+- [ ] Life Total tracker works (starting at 40 or 20)
+- [ ] Poison Counter tracker works (starting at 0)
 
-**Phase 1: Foundation**
-- [ ] Finalize Widget data model
-- [ ] Create Widget Hive box and storage
-- [ ] Implement widget selection dialog ("Add Widget" button)
-- [ ] Create base WidgetCard UI component
+### Toggle Utility
+- [ ] Displays name and current state description
+- [ ] Tap anywhere on card to toggle state
+- [ ] Description updates to show current state (ON/OFF text)
+- [ ] Visual feedback indicates state change
+- [ ] Monarch toggle works ("You are the Monarch" / "Not the Monarch")
+- [ ] Day/Night toggle works ("It is Day" / "It is Night")
 
-**Phase 2: First Widget (Krenko)**
-- [ ] Implement Krenko widget following refined design
-- [ ] Test token creation with special rules
-- [ ] Validate persistence and state management
-- [ ] Learn from implementation challenges
+### Expanded View
+- [ ] Tapping utility opens `ExpandedUtilityScreen`
+- [ ] Expanded view shows full description without truncation
+- [ ] Artwork selection works identically to tokens (Scryfall API)
+- [ ] Delete button present and functional
+- [ ] No field editing (name/description are read-only)
 
-**Phase 3: Standardization**
-- [ ] Extract common patterns from Krenko implementation
-- [ ] Create reusable widget components/behaviors
-- [ ] Document widget creation guide
+### Integration
+- [ ] FloatingActionMenu "Utilities" button opens utility selection
+- [ ] Utility selection screen shows categorized list (Trackers, Toggles)
+- [ ] Creating utility inserts it into board with correct order
+- [ ] Utilities save to deck templates
+- [ ] Loading deck restores utility configuration, resets to defaults (defaultValue, isActive: false)
+- [ ] Loading deck initializes tokens to amount=0 (BUG FIX: currently initializes to 1)
 
-**Phase 4: Expansion**
-- [ ] Add Chatterfang widget
-- [ ] Add Doubling Season widget
-- [ ] Add Rhys widget
-- [ ] Iterate on standardization
+### Board Wipe Behavior
+- [ ] "Delete All": Deletes tokens only, keeps utilities
+- [ ] "Set to 0": Sets token amounts to 0, doesn't affect utilities
+- [ ] Optional: "Reset/Remove Utilities" action for clearing utilities separately
 
-### Questions That MUST Be Answered Before Implementation
-
-#### Architecture:
-- [ ] Where do widgets appear in the UI? (mixed with tokens, dedicated section, collapsible banner?)
-- [ ] Separate Hive box or same box as tokens?
-- [ ] How do we version widget types for future expansion?
-- [ ] Can users have multiple widgets active simultaneously?
-
-#### Data Model:
-- [ ] Base Widget class structure?
-- [ ] How to handle widget-specific state? (Map, subclasses, JSON?)
-- [ ] Do widgets have order/position like tokens?
-- [ ] Can widgets be disabled without deleting?
-
-#### Behavior System:
-- [ ] How do widgets hook into token creation? (events, callbacks, rules engine?)
-- [ ] How do we prevent widget conflicts? (e.g., two doubling effects)
-- [ ] Should widgets have priority/ordering for rule application?
-- [ ] How do widgets access TokenProvider and SettingsProvider?
-
-#### UI/UX:
-- [ ] What actions are common across all widgets? (delete, disable, configure?)
-- [ ] How do users discover available widgets?
-- [ ] Should widgets have help/info tooltips explaining what they do?
-- [ ] Do widgets need configuration screens or inline controls?
-
-#### Token Creation Standardization:
-- [ ] What rule types do we need to support? (multiplier, replacement, conditional, copy?)
-- [ ] How do rules combine? (Doubling Season + Parallel Lives = x4?)
-- [ ] Should widgets modify the global multiplier or apply separately?
-- [ ] How do we show users what rules are active?
-
-#### Performance:
-- [ ] How many widgets can be active at once before performance issues?
-- [ ] Do widget rules run on every token creation (performance impact)?
-- [ ] Should we batch widget rule application for bulk operations?
-- [ ] Memory footprint of widget state storage?
-
-### Success Criteria
-
-Before implementing, we should be able to answer:
-1. **What is a widget?** (clear, concise definition)
-2. **How do widgets work?** (behavior system, rule application)
-3. **Where do widgets live?** (UI placement, data storage)
-4. **What can widgets do?** (capabilities, limitations)
-5. **How do users interact with widgets?** (creation, configuration, deletion)
-6. **How do widgets stay performant?** (optimization strategy)
-
-### Reference Materials
-
-**Existing Documentation:**
-- `commanderWidgets.md` - Krenko Mode detailed design (good foundation)
-- `FeedbackIdeas.md` - User feedback on replacement effects and doublers
-- `PremiumVersionIdeas.md` - Token modifier cards concept
-
-**Related Code:**
-- `lib/widgets/token_card.dart` - Visual design to mirror
-- `lib/models/item.dart` - Data model pattern to follow
-- `lib/providers/token_provider.dart` - Provider pattern for widget management
-
----
-
-## Timeline
-
-**Now → Refinement Complete:** Design discussion, answer key questions, document decisions
-**After Refinement:** Implementation can begin with clear architectural foundation
-**No deadline:** This is a major feature that must be done right
-
----
-
-## Notes for Implementation
-
-- Start with Krenko widget as proof-of-concept (already well-designed in commanderWidgets.md)
-- Extract patterns and create framework AFTER seeing what works
-- Don't over-engineer - build one widget well, then generalize
-- Performance matters - test with 10+ widgets and 100+ tokens on screen
-- User testing after first widget to validate approach before expanding
-
----
-
-**⚠️ CRITICAL: Do NOT begin implementation until these design questions are answered and documented.**
+### Optional Requirements
+- [ ] 2-per-row layout for compact utilities (if compatible with drag-and-drop)
+- [ ] Cross-fade animation for toggle state changes (artwork and text)
+  - Note: May be challenging based on past background image fade issues
+  - Document if cross-fade isn't feasible

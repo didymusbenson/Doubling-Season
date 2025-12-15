@@ -8,8 +8,11 @@ import 'database/database_maintenance.dart';
 import 'providers/token_provider.dart';
 import 'providers/deck_provider.dart';
 import 'providers/settings_provider.dart';
+import 'providers/tracker_provider.dart'; // NEW - Widget Cards Feature
+import 'providers/toggle_provider.dart'; // NEW - Widget Cards Feature
 import 'screens/content_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/error_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,8 +59,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late TokenProvider tokenProvider;
   late DeckProvider deckProvider;
   late SettingsProvider settingsProvider;
+  late TrackerProvider trackerProvider; // NEW - Widget Cards Feature
+  late ToggleProvider toggleProvider; // NEW - Widget Cards Feature
   bool _isInitialized = false;
   bool _providersReady = false;
+  bool _hasError = false;
 
   @override
   void initState() {
@@ -86,11 +92,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         _initTokenProvider(),
         _initDeckProvider(),
         _initSettingsProvider(),
+        _initTrackerProvider(), // NEW - Widget Cards Feature
+        _initToggleProvider(), // NEW - Widget Cards Feature
       ]);
 
       tokenProvider = results[0] as TokenProvider;
       deckProvider = results[1] as DeckProvider;
       settingsProvider = results[2] as SettingsProvider;
+      trackerProvider = results[3] as TrackerProvider; // NEW - Widget Cards Feature
+      toggleProvider = results[4] as ToggleProvider; // NEW - Widget Cards Feature
 
       stopwatch.stop();
       debugPrint('═══ App Initialization Complete: ${stopwatch.elapsedMilliseconds}ms ═══');
@@ -110,7 +120,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         print(stackTrace);
         print('════════════════════════════════════════════');
       }
-      rethrow;
+
+      // Show error screen to user instead of crashing
+      setState(() {
+        _hasError = true;
+      });
     }
   }
 
@@ -138,6 +152,24 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     await provider.init();
     stopwatch.stop();
     debugPrint('SettingsProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
+    return provider;
+  }
+
+  Future<TrackerProvider> _initTrackerProvider() async {
+    final stopwatch = Stopwatch()..start();
+    final provider = TrackerProvider();
+    await provider.init();
+    stopwatch.stop();
+    debugPrint('TrackerProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
+    return provider;
+  }
+
+  Future<ToggleProvider> _initToggleProvider() async {
+    final stopwatch = Stopwatch()..start();
+    final provider = ToggleProvider();
+    await provider.init();
+    stopwatch.stop();
+    debugPrint('ToggleProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
     return provider;
   }
 
@@ -169,6 +201,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (_isInitialized) {
       tokenProvider.dispose();
       deckProvider.dispose();
+      settingsProvider.dispose();
+      trackerProvider.dispose(); // NEW - Widget Cards Feature
+      toggleProvider.dispose(); // NEW - Widget Cards Feature
     }
     super.dispose();
   }
@@ -207,11 +242,39 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    // Show error screen if initialization failed
+    if (_hasError) {
+      return MaterialApp(
+        title: 'Tripling Season',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+          useMaterial3: true,
+        ),
+        darkTheme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.blue,
+            brightness: Brightness.dark,
+          ).copyWith(
+            surface: const Color(0xFF181818),
+            surfaceContainerHighest: const Color(0xFF37373C),
+          ),
+          cardTheme: const CardThemeData(
+            color: Color(0xFF37373C),
+          ),
+          scaffoldBackgroundColor: const Color(0xFF181818),
+          useMaterial3: true,
+        ),
+        themeMode: ThemeMode.system,
+        debugShowCheckedModeBanner: false,
+        home: const ErrorScreen(),
+      );
+    }
+
     // CRITICAL: MultiProvider must wrap MaterialApp so providers are available
     // to ALL routes, including those pushed via Navigator.push()
     if (!_isInitialized) {
       return MaterialApp(
-        title: 'Doubling Season',
+        title: 'Tripling Season',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
           useMaterial3: true,
@@ -244,11 +307,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ChangeNotifierProvider.value(value: tokenProvider),
         ChangeNotifierProvider.value(value: deckProvider),
         ChangeNotifierProvider.value(value: settingsProvider),
+        ChangeNotifierProvider.value(value: trackerProvider), // NEW - Widget Cards Feature
+        ChangeNotifierProvider.value(value: toggleProvider), // NEW - Widget Cards Feature
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settings, child) {
           return MaterialApp(
-            title: 'Doubling Season',
+            title: 'Doubling Procession',
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
               useMaterial3: true,

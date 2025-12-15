@@ -8,7 +8,6 @@ import '../providers/settings_provider.dart';
 import '../widgets/color_selection_button.dart';
 import '../widgets/split_stack_sheet.dart';
 import '../widgets/artwork_selection_sheet.dart';
-import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
 import '../utils/artwork_preference_manager.dart';
 import '../database/token_database.dart';
@@ -43,6 +42,8 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
 
   // Artwork-related state
   TokenDefinition? _tokenDefinition;
+  bool _artworkCleanupAttempted = false;
+  bool _databaseLoadError = false;
 
   @override
   void initState() {
@@ -126,7 +127,12 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
         });
       }
     } catch (e) {
-      print('Error loading token definition: $e');
+      debugPrint('Error loading token definition: $e');
+      if (mounted) {
+        setState(() {
+          _databaseLoadError = true;
+        });
+      }
     }
   }
 
@@ -158,6 +164,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
           currentArtworkSet: widget.item.artworkSet,
           tokenName: widget.item.name,
           tokenIdentity: '${widget.item.name}|${widget.item.pt}|${widget.item.colors}|${widget.item.type}|${widget.item.abilities}',
+          databaseLoadError: _databaseLoadError,
         ),
       ),
     );
@@ -493,7 +500,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                     if (!widget.item.isEmblem) ...[
                       // Untapped
                       _buildCountRow(
-                        icon: Icons.screenshot,
+                        icon: Icons.mobile_friendly,
                         label: 'Untapped',
                         value: widget.item.amount - widget.item.tapped,
                         showButtons: false,
@@ -1228,6 +1235,24 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                       ),
                     );
                   }
+
+                  // If artwork file is missing, clear the invalid reference
+                  if (snapshot.connectionState == ConnectionState.done &&
+                      snapshot.data == null &&
+                      !_artworkCleanupAttempted) {
+                    _artworkCleanupAttempted = true;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        widget.item.artworkUrl = null;
+                        widget.item.artworkSet = null;
+                        widget.item.artworkOptions = null;
+                        widget.item.save();
+                        // Trigger rebuild to show "select" text
+                        setState(() {});
+                      }
+                    });
+                  }
+
                   return const SizedBox(height: 60);
                 },
               )

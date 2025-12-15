@@ -18,6 +18,7 @@ class ArtworkSelectionSheet extends StatefulWidget {
   final String? currentArtworkSet;
   final String tokenName;
   final String tokenIdentity; // Composite ID for preference lookup (NEW - Custom Artwork Feature)
+  final bool databaseLoadError; // Whether token database failed to load
 
   const ArtworkSelectionSheet({
     super.key,
@@ -28,6 +29,7 @@ class ArtworkSelectionSheet extends StatefulWidget {
     this.currentArtworkSet,
     required this.tokenName,
     required this.tokenIdentity,
+    this.databaseLoadError = false,
   });
 
   @override
@@ -62,10 +64,6 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
       _isDownloading = true;
     });
 
-    int successCount = 0;
-    int failCount = 0;
-    bool hadNetworkError = false;
-
     // Download each artwork sequentially
     for (final variant in widget.artworkVariants) {
       try {
@@ -73,26 +71,14 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
         final cachedFile = await ArtworkManager.getCachedArtworkFile(variant.url);
         if (cachedFile == null) {
           // Download if not cached
-          final result = await ArtworkManager.downloadArtwork(variant.url);
-          if (result != null) {
-            successCount++;
-          } else {
-            failCount++;
-          }
+          await ArtworkManager.downloadArtwork(variant.url);
           // Rebuild after each download to show progress
           if (mounted) {
             setState(() {});
           }
-        } else {
-          successCount++;
         }
       } catch (e) {
         debugPrint('Failed to download artwork from ${variant.set}: $e');
-        failCount++;
-        if (e.toString().contains('SocketException') ||
-            e.toString().contains('Failed host lookup')) {
-          hadNetworkError = true;
-        }
         // Continue with next artwork even if one fails
       }
     }
@@ -101,27 +87,6 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
       setState(() {
         _isDownloading = false;
       });
-
-      // Show result feedback
-      if (failCount > 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              hadNetworkError
-                  ? 'Downloaded $successCount/${successCount + failCount} images. Please check your internet connection.'
-                  : 'Downloaded $successCount/${successCount + failCount} images. Some downloads failed.',
-            ),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      } else if (successCount > 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Successfully downloaded all artwork ($successCount images)'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
     }
   }
 
@@ -191,6 +156,35 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
+                    // Database load error message
+                    if (widget.databaseLoadError)
+                      Container(
+                        margin: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.errorContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: Theme.of(context).colorScheme.error,
+                              size: 40,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Text(
+                                'Token database failed to load. Artwork options may not be available.',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onErrorContainer,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     // Currently selected artwork (only show if there's artwork selected)
                     if (widget.currentArtworkUrl != null && widget.onRemoveArtwork != null)
                       Container(
@@ -207,6 +201,25 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                                     final file = snapshot.data!;
                                     // Add unique key for custom artwork to force reload on replacement
                                     final isCustomArtwork = widget.currentArtworkUrl!.startsWith('file://');
+
+                                    // Safety check: verify file exists before accessing modification time
+                                    if (!file.existsSync()) {
+                                      debugPrint('⚠️  Currently selected artwork file missing: ${file.path}');
+                                      return Container(
+                                        width: 80,
+                                        height: 112,
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey[300],
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Icon(
+                                          Icons.image,
+                                          size: 40,
+                                          color: Colors.grey[600],
+                                        ),
+                                      );
+                                    }
+
                                     return ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
                                       child: Image.file(
@@ -561,6 +574,28 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
   final _artworkPrefManager = ArtworkPreferenceManager();
   final _imagePicker = ImagePicker();
 
+  /// Validates that custom artwork file exists, cleans up stale reference if not
+  /// Returns the file if valid, null if stale/missing
+  Future<File?> _validateCustomArtwork(String? customPath) async {
+    if (customPath == null) return null;
+
+    final file = File(customPath.replaceFirst('file://', ''));
+
+    if (!await file.exists()) {
+      // Stale reference detected - file doesn't exist
+      debugPrint('⚠️  Custom artwork stale reference detected: $customPath');
+      debugPrint('   Token: ${widget.tokenIdentity}');
+      debugPrint('   Cleaning up preference...');
+
+      // Silently remove stale reference from storage
+      await _artworkPrefManager.setCustomArtwork(widget.tokenIdentity, null);
+
+      return null;
+    }
+
+    return file;
+  }
+
   Future<void> _handleTap() async {
     final hasCustom = _artworkPrefManager.hasCustomArtwork(widget.tokenIdentity);
 
@@ -637,18 +672,49 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
 
               // Custom artwork preview
               if (customPath != null)
-                Builder(
-                  builder: (context) {
-                    final file = File(customPath.replaceFirst('file://', ''));
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.file(
-                        file,
-                        key: ValueKey(file.path + file.lastModifiedSync().toString()),
+                FutureBuilder<File?>(
+                  future: _validateCustomArtwork(customPath),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData && snapshot.data != null) {
+                      final file = snapshot.data!;
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          file,
+                          key: ValueKey(file.path + file.lastModifiedSync().toString()),
+                          height: 200,
+                          fit: BoxFit.cover,
+                        ),
+                      );
+                    } else if (snapshot.connectionState == ConnectionState.waiting) {
+                      // Loading state
+                      return const SizedBox(
                         height: 200,
-                        fit: BoxFit.cover,
-                      ),
-                    );
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    } else {
+                      // File missing - stale reference was cleaned up
+                      return Container(
+                        height: 200,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.image_not_supported, size: 48, color: Colors.grey[600]),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Custom artwork not available',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
                   },
                 ),
               const SizedBox(height: 24),
@@ -755,25 +821,84 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
 
   Future<void> _pickAndSaveImage() async {
     try {
+      // Show brief loading indicator to acknowledge button press
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Opening gallery...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Brief delay to ensure loading dialog renders
+      await Future.delayed(const Duration(milliseconds: 150));
+
       // Step 1: Pick image from gallery
       final XFile? image = await _imagePicker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 85,
       );
 
+      // Dismiss "opening gallery" dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
       if (image == null) return;
+
+      // Show loading overlay while cropper initializes (prevents perceived hang)
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Preparing image...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Delay to ensure loading dialog renders before cropper launches
+      await Future.delayed(const Duration(milliseconds: 200));
 
       // Get theme colors to match app styling
       final theme = Theme.of(context);
-      final primaryColor = theme.colorScheme.primary;
       final isDark = theme.brightness == Brightness.dark;
+
+      // AESTHETIC DECISION: Use Material 3 light mode primary blue for toolbar in both modes
+      // Dark mode's auto-generated lighter blue was too light; this darker blue provides
+      // better visual consistency and matches the button colors users see in light mode
+      final toolbarColor = const Color(0xFF0061a4);
 
       // Theme-aware colors
       final backgroundColor = isDark ? const Color(0xFF181818) : Colors.white;
       final toolbarWidgetColor = Colors.white;
       final statusBarColor = Color.alphaBlend(
         Colors.black.withValues(alpha: 0.2),
-        primaryColor,
+        toolbarColor,
       ); // Slightly darker than toolbar
       final cropFrameColor = isDark ? Colors.white : Colors.black;
       final cropGridColor = isDark
@@ -788,11 +913,11 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Crop Token Artwork',
-            toolbarColor: primaryColor,
+            toolbarColor: toolbarColor,
             toolbarWidgetColor: toolbarWidgetColor,
             statusBarColor: statusBarColor,
             backgroundColor: backgroundColor,
-            activeControlsWidgetColor: primaryColor,
+            activeControlsWidgetColor: toolbarColor,
             dimmedLayerColor: dimmedLayerColor,
             cropFrameColor: cropFrameColor,
             cropGridColor: cropGridColor,
@@ -815,6 +940,11 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
           ),
         ],
       );
+
+      // Dismiss loading overlay now that cropper has finished
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
 
       // User cancelled cropping
       if (croppedFile == null) return;
@@ -847,14 +977,22 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
       final filePath = '${customArtDir.path}/$fileName';
 
       // Copy cropped image to app directory
-      await File(croppedFile.path).copy(filePath);
+      final newFile = await File(croppedFile.path).copy(filePath);
 
-      // Save preference with file:// protocol
+      // Verify file was written successfully before saving preference (atomic save)
+      if (!await newFile.exists()) {
+        throw Exception('File copy verification failed');
+      }
+
+      // Save preference with file:// protocol (only after confirming file exists)
       final fileUrl = 'file://$filePath';
       await _artworkPrefManager.setCustomArtwork(widget.tokenIdentity, fileUrl);
 
+      debugPrint('✅ Custom artwork uploaded successfully');
+      debugPrint('   Token: ${widget.tokenIdentity}');
+      debugPrint('   Path: $filePath');
+
       // Clear any cached version of the new file path (defensive)
-      final newFile = File(filePath);
       final newFileImage = FileImage(newFile);
       newFileImage.evict();
 
@@ -863,8 +1001,20 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
         widget.onUploadComplete(fileUrl);
       }
     } catch (e) {
-      // Silent failure - no user feedback needed
-      debugPrint('Failed to upload custom artwork: $e');
+      // Dismiss any loading overlays that might be showing
+      if (mounted) {
+        // Try to pop up to 2 loading dialogs (gallery + cropper) if error occurred
+        try {
+          Navigator.of(context).pop(); // First dialog
+        } catch (_) {}
+        try {
+          Navigator.of(context).pop(); // Second dialog (if exists)
+        } catch (_) {}
+      }
+
+      // Log failure for debugging
+      debugPrint('❌ Failed to upload custom artwork: $e');
+      debugPrint('   Token: ${widget.tokenIdentity}');
     }
   }
 
@@ -873,9 +1023,21 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
     final hasCustom = _artworkPrefManager.hasCustomArtwork(widget.tokenIdentity);
     final customPath = _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
 
-    // Check if custom file actually exists
+    // Check if custom file actually exists (synchronous check for initial render)
     final customFile = customPath != null ? File(customPath.replaceFirst('file://', '')) : null;
     final customFileExists = customFile?.existsSync() ?? false;
+
+    // If we have a stale reference, schedule cleanup for next frame
+    if (hasCustom && customPath != null && !customFileExists) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        debugPrint('⚠️  Stale custom artwork reference detected in build: $customPath');
+        debugPrint('   Token: ${widget.tokenIdentity}');
+        debugPrint('   Scheduling cleanup...');
+        await _artworkPrefManager.setCustomArtwork(widget.tokenIdentity, null);
+        if (mounted) setState(() {});
+      });
+    }
+
     final showCustomThumbnail = hasCustom && customPath != null && customFileExists;
 
     return InkWell(
@@ -901,7 +1063,9 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
                             borderRadius: BorderRadius.circular(8),
                             child: Image.file(
                               customFile!,
-                              key: ValueKey(customFile!.path + customFile!.lastModifiedSync().toString()),
+                              // Safe to call lastModifiedSync here because showCustomThumbnail
+                              // guarantees file exists (via existsSync check above)
+                              key: ValueKey(customFile.path + customFile.lastModifiedSync().toString()),
                               fit: BoxFit.contain,
                             ),
                           ),

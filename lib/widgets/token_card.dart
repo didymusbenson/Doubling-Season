@@ -105,6 +105,16 @@ class TokenCard extends StatefulWidget {
 class _TokenCardState extends State<TokenCard> {
   final DateTime _createdAt = DateTime.now();
   bool _artworkAnimated = false;
+  bool _artworkCleanupAttempted = false;
+
+  @override
+  void didUpdateWidget(TokenCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reset cleanup flag if artwork URL changed (e.g., user removed then re-added artwork)
+    if (oldWidget.item.artworkUrl != widget.item.artworkUrl) {
+      _artworkCleanupAttempted = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -130,10 +140,11 @@ class _TokenCardState extends State<TokenCard> {
           return Stack(
             children: [
               // Base card background layer (ensures left side is solid in fadeout mode)
+              // Uses borderRadius - borderWidth to fit inside the gradient border
               Container(
                 decoration: BoxDecoration(
                   color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+                  borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
                 ),
               ),
 
@@ -210,7 +221,7 @@ class _TokenCardState extends State<TokenCard> {
                           ),
                           const SizedBox(width: UIConstants.mediumSpacing),
                         ],
-                        const Icon(Icons.screenshot, size: UIConstants.iconSize),
+                        const Icon(Icons.mobile_friendly, size: UIConstants.iconSize),
                         const SizedBox(width: UIConstants.verticalSpacing),
                         Text(
                           '${widget.item.amount - widget.item.tapped}',
@@ -379,7 +390,7 @@ class _TokenCardState extends State<TokenCard> {
               // Untap button
               _buildActionButton(
                 context,
-                icon: Icons.screenshot,
+                icon: Icons.mobile_friendly,
                 onTap: () => tokenProvider.untapTokens(widget.item, 1),
                 onLongPress: () => tokenProvider.untapTokens(widget.item, widget.item.tapped),
                 color: primaryColor,
@@ -521,7 +532,7 @@ class _TokenCardState extends State<TokenCard> {
       child: Container(
         decoration: BoxDecoration(
           gradient: gradient,
-          borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+          borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
         ),
       ),
     );
@@ -539,7 +550,7 @@ class _TokenCardState extends State<TokenCard> {
             return Container(
               decoration: BoxDecoration(
                 gradient: gradient,
-                borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+                borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
               ),
             );
           }
@@ -589,7 +600,7 @@ class _TokenCardState extends State<TokenCard> {
               duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
               curve: Curves.easeIn,
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(UIConstants.smallBorderRadius),
+                borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
                 child: CroppedArtworkWidget(
                   imageFile: snapshot.data!,
                   cropLeft: crop['left']!,
@@ -601,7 +612,27 @@ class _TokenCardState extends State<TokenCard> {
               ),
             );
           }
-          // Show empty background while loading
+
+          // If artwork file is missing, clear the invalid reference
+          // BUT: Only do this if widget has been stable for >2 seconds to avoid cleanup during drag/scroll
+          if (snapshot.connectionState == ConnectionState.done &&
+              snapshot.data == null &&
+              !_artworkCleanupAttempted) {
+            final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
+            if (elapsed > 2000) {
+              _artworkCleanupAttempted = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  widget.item.artworkUrl = null;
+                  widget.item.artworkSet = null;
+                  widget.item.artworkOptions = null;
+                  widget.item.save();
+                }
+              });
+            }
+          }
+
+          // Show empty background while loading or if file missing
           return const SizedBox.shrink();
         },
       ),
@@ -668,7 +699,27 @@ class _TokenCardState extends State<TokenCard> {
               ),
             );
           }
-          // Show empty background while loading
+
+          // If artwork file is missing, clear the invalid reference
+          // BUT: Only do this if widget has been stable for >2 seconds to avoid cleanup during drag/scroll
+          if (snapshot.connectionState == ConnectionState.done &&
+              snapshot.data == null &&
+              !_artworkCleanupAttempted) {
+            final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
+            if (elapsed > 2000) {
+              _artworkCleanupAttempted = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  widget.item.artworkUrl = null;
+                  widget.item.artworkSet = null;
+                  widget.item.artworkOptions = null;
+                  widget.item.save();
+                }
+              });
+            }
+          }
+
+          // Show empty background while loading or if file missing
           return const SizedBox.shrink();
         },
       ),
