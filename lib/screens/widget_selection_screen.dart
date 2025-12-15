@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/widget_definition.dart';
@@ -9,6 +10,7 @@ import '../providers/toggle_provider.dart';
 import '../widgets/new_tracker_sheet.dart';
 import '../widgets/new_toggle_sheet.dart';
 import '../utils/constants.dart';
+import '../utils/artwork_manager.dart';
 
 class WidgetSelectionScreen extends StatefulWidget {
   const WidgetSelectionScreen({super.key});
@@ -286,6 +288,48 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
       }
 
       await trackerProvider.insertTracker(tracker);
+
+      // Download artwork in background (non-blocking, fire-and-forget)
+      if (tracker.artworkUrl != null && !tracker.artworkUrl!.startsWith('file://')) {
+        final artworkUrl = tracker.artworkUrl!;
+        ArtworkManager.downloadArtwork(artworkUrl).then((file) {
+          if (file == null) {
+            debugPrint('Artwork download failed for ${tracker.name}, resetting URL');
+            // Find the tracker again (it might have been deleted/modified)
+            final currentTracker = trackerProvider.trackers.firstWhere(
+              (t) => t.artworkUrl == artworkUrl,
+              orElse: () => tracker,
+            );
+            if (currentTracker.artworkUrl == artworkUrl) {
+              currentTracker.artworkUrl = null;
+              currentTracker.artworkSet = null;
+              currentTracker.save();
+            }
+          } else {
+            debugPrint('Artwork downloaded and cached for ${tracker.name}');
+            // Trigger rebuild so TrackerWidgetCard displays the cached artwork
+            final currentTracker = trackerProvider.trackers.firstWhere(
+              (t) => t.artworkUrl == artworkUrl,
+              orElse: () => tracker,
+            );
+            if (currentTracker.artworkUrl == artworkUrl) {
+              currentTracker.save(); // Triggers Hive save and notifies listeners
+            }
+          }
+        }).catchError((error) {
+          debugPrint('Error during background artwork download: $error');
+          // Silent fail - reset artworkUrl on error
+          final currentTracker = trackerProvider.trackers.firstWhere(
+            (t) => t.artworkUrl == artworkUrl,
+            orElse: () => tracker,
+          );
+          if (currentTracker.artworkUrl == artworkUrl) {
+            currentTracker.artworkUrl = null;
+            currentTracker.artworkSet = null;
+            currentTracker.save();
+          }
+        });
+      }
     } else if (definition.type == WidgetType.toggle) {
       final toggle = definition.toToggleWidget(order: newOrder);
 
@@ -297,6 +341,48 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
       }
 
       await toggleProvider.insertToggle(toggle);
+
+      // Download artwork in background (non-blocking, fire-and-forget)
+      if (toggle.artworkUrl != null && !toggle.artworkUrl!.startsWith('file://')) {
+        final artworkUrl = toggle.artworkUrl!;
+        ArtworkManager.downloadArtwork(artworkUrl).then((file) {
+          if (file == null) {
+            debugPrint('Artwork download failed for ${toggle.name}, resetting URL');
+            // Find the toggle again (it might have been deleted/modified)
+            final currentToggle = toggleProvider.toggles.firstWhere(
+              (t) => t.artworkUrl == artworkUrl,
+              orElse: () => toggle,
+            );
+            if (currentToggle.artworkUrl == artworkUrl) {
+              currentToggle.artworkUrl = null;
+              currentToggle.artworkSet = null;
+              currentToggle.save();
+            }
+          } else {
+            debugPrint('Artwork downloaded and cached for ${toggle.name}');
+            // Trigger rebuild so ToggleWidgetCard displays the cached artwork
+            final currentToggle = toggleProvider.toggles.firstWhere(
+              (t) => t.artworkUrl == artworkUrl,
+              orElse: () => toggle,
+            );
+            if (currentToggle.artworkUrl == artworkUrl) {
+              currentToggle.save(); // Triggers Hive save and notifies listeners
+            }
+          }
+        }).catchError((error) {
+          debugPrint('Error during background artwork download: $error');
+          // Silent fail - reset artworkUrl on error
+          final currentToggle = toggleProvider.toggles.firstWhere(
+            (t) => t.artworkUrl == artworkUrl,
+            orElse: () => toggle,
+          );
+          if (currentToggle.artworkUrl == artworkUrl) {
+            currentToggle.artworkUrl = null;
+            currentToggle.artworkSet = null;
+            currentToggle.save();
+          }
+        });
+      }
     }
 
     if (mounted) {

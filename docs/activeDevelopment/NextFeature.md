@@ -149,128 +149,79 @@ Action trackers use the existing `TrackerWidget` model with optional action fiel
 
 # LATEST COMPLETED WORK
 
-## Action Tracker Implementation (Krenko Utilities)
+We just added artwork for all of the toggles and trackers defined so far. 
 
-✅ **Implemented Action Tracker Pattern (DRY Solution)**
+We solved a number of issues with them not rendering displaying and updating the same way tokens do. 
 
-Instead of creating a separate utility type for Krenko, we extended the existing TrackerWidget infrastructure with optional action button support. This follows DRY principles and makes it easy to add more action trackers in the future.
+We are currently troubleshooting issues with half-card view and graidents. The last messages before we hit spending cap were as follows:
 
-### Changes Made:
+```
+> They do not fade appropriately on half card view.
 
-**Data Model Extension** (`lib/models/tracker_widget.dart`):
-- ✅ Added `@HiveField(12) bool hasAction`
-- ✅ Added `@HiveField(13) String? actionButtonText`
-- ✅ Added `@HiveField(14) String? actionType`
-- ✅ Regenerated Hive adapters
+⏺ Let me check the exact fadeout gradient implementation in TokenCard to see if there's a difference:
 
-**Card Rendering** (`lib/widgets/tracker_widget_card.dart`):
-- ✅ Updated `_buildActionButtons()` to conditionally render third button when `hasAction == true`
-- ✅ Added `_buildTextActionButton()` for text-based action buttons (inline with +/- buttons)
-- ✅ Added `_performAction()` switch statement routing to specific actions
-- ✅ Implemented `_performKrenkoMobBossAction()` - creates goblins based on total goblins controlled
-- ✅ Implemented `_performKrenkoTinStreetAction()` - creates goblins based on Krenko's power
-- ✅ Implemented `_createGoblins()` helper with smart token merging
+⏺ Read(lib/widgets/token_card.dart)
+⎿  Read 25 lines
 
-**Widget Definitions** (`lib/database/widget_database.dart`):
-- ✅ Added "Krenko, Mob Boss" tracker (tracks nontoken goblins, action creates based on total)
-- ✅ Added "Krenko, Tin Street Kingpin" tracker (tracks power, action creates based on power)
-- ✅ Both use `hasAction: true`, `actionButtonText: 'Make Goblins'`, different `actionType`
+⏺ The gradient code looks identical to TokenCard. Let me check if there's a structural difference in how the layers are stacked. Let me compare the
+full Stack structure:
 
-**Widget Definition Model** (`lib/models/widget_definition.dart`):
-- ✅ Added action tracker fields to WidgetDefinition class
-- ✅ Updated `toTrackerWidget()` to pass action fields through
+⏺ Search(pattern: "Stack\(", path: "lib/widgets/token_card.dart", output_mode: "content")
+⎿  Found 36 lines (ctrl+o to expand)
 
-### Benefits:
-- No new Hive types needed
-- No new providers needed
-- No new card widgets needed
-- Consistent styling with all other trackers
-- Easy to add more action trackers (just add new case to switch statement)
+⏺ Search(pattern: "Stack\(", path: "lib/widgets/tracker_widget_card.dart", output_mode: "content")
+⎿  Found 31 lines (ctrl+o to expand)
 
-### Testing:
-- ✅ Build succeeds with no errors
-- ✅ Both Krenko utilities available in utility selection
-- ✅ Action buttons render inline with +/- buttons
-- ✅ Goblin creation works with multiplier support
-- ✅ Smart token merging prevents duplicate goblin cards
+⏺ The gradient implementation looks identical to TokenCard. Can you describe what's specifically wrong with the fade? Is it:
 
----
+1. Not fading at all (artwork just appears solid)?
+2. Fading too abruptly (not smooth enough)?
+3. Fading in the wrong area (should cover more or less of the artwork)?
+4. Fading in the wrong direction (should fade opposite way)?
 
-## Widget Artwork System Implementation (DRY with Tokens)
+The current gradient setup is:
+- Fades from transparent (left edge of artwork) to opaque (middle of artwork)
+- This covers the left 50% of the artwork widget, which is the center 25% of the card
+- The right 50% of the artwork (right 25% of card) remains fully opaque
 
-✅ **Implemented Artwork Support for Utilities - Matching Token Pattern Exactly**
+If tokens are fading differently, I need to know what specifically looks wrong so I can identify the difference.
 
-Widgets (TrackerWidget and ToggleWidget) now have the exact same artwork system as tokens, using shared infrastructure with no code duplication.
+> There is zero fade whatsoever.
 
-### Changes Made:
 
-**Data Model Updates:**
-- ✅ **TrackerWidget** (`lib/models/tracker_widget.dart`):
-  - Added `@HiveField(15) String? artworkSet` - Set code for artwork (e.g., "M13")
-  - Added `@HiveField(16) List<ArtworkVariant>? artworkOptions` - Available artwork variants
-  - Imported shared `ArtworkVariant` model from `token_definition.dart`
+⏺ Now to answer your question:
 
-- ✅ **ToggleWidget** (`lib/models/toggle_widget.dart`):
-  - Added `@HiveField(12) String? artworkSet` - Set code for artwork
-  - Added `@HiveField(13) List<ArtworkVariant>? artworkOptions` - Available artwork variants
-  - Imported shared `ArtworkVariant` model from `token_definition.dart`
+YES, tokens force the artwork container to be exactly 50% of the card width in fadeout/half view mode.
 
-**WidgetDefinition Updates** (`lib/models/widget_definition.dart`):
-- ✅ Added `List<ArtworkVariant> artwork` field (defaults to empty list)
-- ✅ Updated `toTrackerWidget()` to pass `artworkOptions: artwork.isNotEmpty ? List.from(artwork) : null`
-- ✅ Updated `toToggleWidget()` to pass `artworkOptions: artwork.isNotEmpty ? List.from(artwork) : null`
+Looking at TokenCard's fadeout implementation:
 
-**Widget Selection Screen** (`lib/screens/widget_selection_screen.dart:257-273`):
-- ✅ Added automatic first-artwork application (matching token pattern exactly):
-  ```dart
-  if (definition.artwork.isNotEmpty) {
-    final firstArtwork = definition.artwork[0];
-    widget.artworkUrl = firstArtwork.url;
-    widget.artworkSet = firstArtwork.set;
-  }
-  ```
+Widget _buildFadeoutArtwork(BuildContext context, BoxConstraints constraints) {
+final cardWidth = constraints.maxWidth;
+final artworkWidth = cardWidth * 0.50;  // 50% of card width
 
-**Database Setup** (`lib/database/widget_database.dart`):
-- ✅ Added TODO placeholders for artwork URLs:
-  - Krenko, Mob Boss (needs Scryfall URLs)
-  - Krenko, Tin Street Kingpin (needs Scryfall URLs)
-  - The Monarch (needs Scryfall URLs)
+    return Positioned(
+      right: 0,
+      top: 0,
+      bottom: 0,
+      width: artworkWidth,  // ← CONSTRAINS container to 50% width
+      child: ...
+        CroppedArtworkWidget(
+          ...
+          fillWidth: false,  // ← Image scales to fill HEIGHT (not width)
+        ),
+      ),
+    );
+}
 
-**Code Generation:**
-- ✅ Regenerated Hive adapters for new fields (`build_runner build`)
+The Positioned widget with width: artworkWidth forces the container to be exactly 50% of card width, positioned on the right side. Then fillWidth:
+false tells CroppedArtworkWidget to scale the image to fill the container's HEIGHT, which causes it to potentially overflow leftward (where the
+gradient fade masks it).
 
-### How It Works (Same as Tokens):
+My utility implementation does the same thing - so the 50% width constraint is identical between tokens and utilities.
 
-1. **Define artwork options** in `widget_database.dart`:
-   ```dart
-   artwork: [
-     ArtworkVariant(set: 'M13', url: 'https://cards.scryfall.io/art_crop/...'),
-     ArtworkVariant(set: 'DD2', url: 'https://cards.scryfall.io/art_crop/...'),
-   ]
-   ```
+> You are mistaken. [Image #1]
+```
 
-2. **First artwork auto-applies** when user creates widget from predefined list
+When I sent the message "You are mistaken" I included the image "noitdoesnt.png" which you can find here in the /activeDevelopment directory.
 
-3. **User can change artwork** later via widget details screen (uses same artwork selection UI as tokens)
-
-4. **Artwork persists** in Hive alongside widget data
-
-5. **Error handling** matches token pattern (safe fallbacks, no crashes on missing URLs)
-
-### DRY Benefits:
-- ✅ **Shared model:** Both systems use `ArtworkVariant` (no duplicate classes)
-- ✅ **Shared manager:** Both use `ArtworkManager` for download/caching (no duplicate download logic)
-- ✅ **Shared UI:** Both use same artwork selection screens (no duplicate UI code)
-- ✅ **Shared cropping:** Both use `CroppedArtworkWidget` (no duplicate cropping logic)
-- ✅ **Consistent behavior:** First-artwork auto-application works identically
-
-### Testing:
-- ✅ Code compiles with no errors (14 info-level warnings, 0 errors)
-- ✅ Hive adapters generated successfully
-- ✅ Models can accept and persist artwork data
-- ✅ Widget selection screen applies first artwork automatically
-- ✅ Ready for Scryfall URLs to be added to predefined widgets
-
-### Next Step:
-Add actual Scryfall artwork URLs to the TODO placeholders in `lib/database/widget_database.dart`. The infrastructure is 100% ready and will work immediately once URLs are provided.
-
+Once we sort out the artwork rendering, we should be ready to move onto the next special utility: Cathar's Crusade.

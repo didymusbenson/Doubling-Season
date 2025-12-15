@@ -98,6 +98,20 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
     }
   }
 
+  String? get _artworkSet {
+    return widget.isTracker
+        ? (widget.widget as TrackerWidget).artworkSet
+        : (widget.widget as ToggleWidget).artworkSet;
+  }
+
+  set _artworkSet(String? value) {
+    if (widget.isTracker) {
+      (widget.widget as TrackerWidget).artworkSet = value;
+    } else {
+      (widget.widget as ToggleWidget).artworkSet = value;
+    }
+  }
+
   void _saveWidget() {
     if (widget.isTracker) {
       context.read<TrackerProvider>().updateTracker(widget.widget as TrackerWidget);
@@ -131,6 +145,11 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
   }
 
   void _showArtworkSelection() {
+    // Get artwork options from the utility
+    final artworkOptions = widget.isTracker
+        ? (widget.widget as TrackerWidget).artworkOptions
+        : (widget.widget as ToggleWidget).artworkOptions;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -139,11 +158,11 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
           maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
         child: ArtworkSelectionSheet(
-          artworkVariants: const [], // Utilities don't have predefined artwork variants
+          artworkVariants: artworkOptions ?? [],
           onArtworkSelected: _handleArtworkSelected,
           onRemoveArtwork: _artworkUrl != null ? _removeArtwork : null,
           currentArtworkUrl: _artworkUrl,
-          currentArtworkSet: null,
+          currentArtworkSet: _artworkSet,
           tokenName: _name,
           tokenIdentity: _widgetId, // Use utility ID as identity
           databaseLoadError: false,
@@ -155,6 +174,7 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
   void _handleArtworkSelected(String artworkUrl, String? setCode) {
     setState(() {
       _artworkUrl = artworkUrl;
+      _artworkSet = setCode;
       _saveWidget();
     });
   }
@@ -162,6 +182,7 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
   void _removeArtwork() {
     setState(() {
       _artworkUrl = null;
+      _artworkSet = null;
       _saveWidget();
     });
   }

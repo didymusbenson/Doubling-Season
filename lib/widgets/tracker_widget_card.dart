@@ -27,8 +27,6 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
   final DateTime _createdAt = DateTime.now();
   bool _artworkAnimated = false;
   bool _artworkCleanupAttempted = false;
-  Future<File?>? _cachedArtworkFuture;
-  String? _cachedArtworkUrl;
 
   @override
   void didUpdateWidget(TrackerWidgetCard oldWidget) {
@@ -37,15 +35,6 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
     if (oldWidget.tracker.artworkUrl != widget.tracker.artworkUrl) {
       _artworkCleanupAttempted = false;
     }
-  }
-
-  Future<File?> _getArtworkFuture(String artworkUrl) {
-    // Cache the future only if URL hasn't changed
-    if (_cachedArtworkUrl != artworkUrl || _cachedArtworkFuture == null) {
-      _cachedArtworkUrl = artworkUrl;
-      _cachedArtworkFuture = ArtworkManager.getCachedArtworkFile(artworkUrl);
-    }
-    return _cachedArtworkFuture!;
   }
 
   @override
@@ -579,7 +568,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
   Widget _buildConditionalGradient(BuildContext context) {
     return Positioned.fill(
       child: FutureBuilder<File?>(
-        future: _getArtworkFuture(widget.tracker.artworkUrl!),
+        future: ArtworkManager.getCachedArtworkFile(widget.tracker.artworkUrl!),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.done && snapshot.data == null) {
             final gradient = ColorUtils.gradientForColors(widget.tracker.colorIdentity, isEmblem: false);
@@ -597,80 +586,146 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
   }
 
   Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints, String artworkDisplayStyle) {
-    return Positioned.fill(
-      child: FutureBuilder<File?>(
-        future: _getArtworkFuture(widget.tracker.artworkUrl!),
-        builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SizedBox.shrink();
-        }
+    final crop = ArtworkManager.getCropPercentages(widget.tracker.artworkUrl);
 
-        if (snapshot.connectionState == ConnectionState.done) {
-          if (snapshot.data == null) {
-            // Cleanup: Remove invalid artwork URL (with 2-second delay to prevent interference with drag/upload operations)
-            if (!_artworkCleanupAttempted) {
-              _artworkCleanupAttempted = true;
-              Future.delayed(const Duration(seconds: 2), () {
-                if (mounted) {
-                  widget.tracker.artworkUrl = null;
-                  widget.tracker.save();
-                }
-              });
+    if (artworkDisplayStyle == 'fadeout') {
+      // Fadeout mode - right 50% only
+      final cardWidth = constraints.maxWidth;
+      final artworkWidth = cardWidth * 0.50;
+
+      return Positioned(
+        right: 0,
+        top: 0,
+        bottom: 0,
+        width: artworkWidth,
+        child: FutureBuilder<File?>(
+          future: ArtworkManager.getCachedArtworkFile(widget.tracker.artworkUrl!),
+          builder: (context, snapshot) {
+            if (snapshot.hasData && snapshot.data != null) {
+              final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
+              final shouldAnimate = elapsed > 100 && !_artworkAnimated;
+
+              if (shouldAnimate) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    setState(() {
+                      _artworkAnimated = true;
+                    });
+                  }
+                });
+              }
+
+              return AnimatedOpacity(
+                opacity: 1.0,
+                duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
+                curve: Curves.easeIn,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topRight: Radius.circular(UIConstants.smallBorderRadius),
+                    bottomRight: Radius.circular(UIConstants.smallBorderRadius),
+                  ),
+                  child: ShaderMask(
+                    shaderCallback: (Rect bounds) {
+                      return const LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [Colors.transparent, Colors.white],
+                        stops: [0.0, 0.50],
+                      ).createShader(bounds);
+                    },
+                    blendMode: BlendMode.dstIn,
+                    child: CroppedArtworkWidget(
+                      imageFile: snapshot.data!,
+                      cropLeft: crop['left']!,
+                      cropRight: crop['right']!,
+                      cropTop: crop['top']!,
+                      cropBottom: crop['bottom']!,
+                      fillWidth: false,
+                    ),
+                  ),
+                ),
+              );
             }
+
+            // Cleanup logic
+            if (snapshot.connectionState == ConnectionState.done &&
+                snapshot.data == null &&
+                !_artworkCleanupAttempted) {
+              final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
+              if (elapsed > 2000) {
+                _artworkCleanupAttempted = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    widget.tracker.artworkUrl = null;
+                    widget.tracker.save();
+                  }
+                });
+              }
+            }
+
             return const SizedBox.shrink();
-          }
+          },
+        ),
+      );
+    } else {
+      // Full view mode - fills entire card
+      return Positioned.fill(
+        child: FutureBuilder<File?>(
+          future: ArtworkManager.getCachedArtworkFile(widget.tracker.artworkUrl!),
+          builder: (context, snapshot) {
+            if (snapshot.hasData && snapshot.data != null) {
+              final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
+              final shouldAnimate = elapsed > 100 && !_artworkAnimated;
 
-          // Determine if artwork loaded quickly (cached) or slowly (network)
-          final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-          final shouldAnimate = elapsed > 100 && !_artworkAnimated;
+              if (shouldAnimate) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    setState(() {
+                      _artworkAnimated = true;
+                    });
+                  }
+                });
+              }
 
-          if (shouldAnimate) {
-            _artworkAnimated = true;
-          }
+              return AnimatedOpacity(
+                opacity: 1.0,
+                duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
+                curve: Curves.easeIn,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
+                  child: CroppedArtworkWidget(
+                    imageFile: snapshot.data!,
+                    cropLeft: crop['left']!,
+                    cropRight: crop['right']!,
+                    cropTop: crop['top']!,
+                    cropBottom: crop['bottom']!,
+                    fillWidth: true,
+                  ),
+                ),
+              );
+            }
 
-          final artworkWidget = CroppedArtworkWidget(
-            imageFile: snapshot.data!,
-            cropLeft: 0.088,
-            cropRight: 0.088,
-            cropTop: 0.145,
-            cropBottom: 0.368,
-            fillWidth: artworkDisplayStyle == 'fullView',
-          );
+            // Cleanup logic
+            if (snapshot.connectionState == ConnectionState.done &&
+                snapshot.data == null &&
+                !_artworkCleanupAttempted) {
+              final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
+              if (elapsed > 2000) {
+                _artworkCleanupAttempted = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    widget.tracker.artworkUrl = null;
+                    widget.tracker.save();
+                  }
+                });
+              }
+            }
 
-          if (artworkDisplayStyle == 'fadeout') {
-            return ShaderMask(
-              shaderCallback: (Rect bounds) {
-                return const LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [Colors.transparent, Colors.white],
-                  stops: [0.0, 0.50],
-                ).createShader(bounds);
-              },
-              blendMode: BlendMode.dstIn,
-              child: shouldAnimate
-                  ? AnimatedOpacity(
-                      opacity: 1.0,
-                      duration: const Duration(milliseconds: 500),
-                      child: artworkWidget,
-                    )
-                  : artworkWidget,
-            );
-          } else {
-            return shouldAnimate
-                ? AnimatedOpacity(
-                    opacity: 1.0,
-                    duration: const Duration(milliseconds: 500),
-                    child: artworkWidget,
-                  )
-                : artworkWidget;
-          }
-        }
-
-        return const SizedBox.shrink();
-        },
-      ),
-    );
+            return const SizedBox.shrink();
+          },
+        ),
+      );
+    }
   }
 
   Widget _buildTextWithBackground({
