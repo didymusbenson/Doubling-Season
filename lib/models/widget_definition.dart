@@ -1,6 +1,7 @@
 import 'package:uuid/uuid.dart';
 import 'tracker_widget.dart';
 import 'toggle_widget.dart';
+import 'token_definition.dart'; // For ArtworkVariant
 
 enum WidgetType { tracker, toggle }
 
@@ -18,6 +19,8 @@ class WidgetDefinition {
   final bool hasAction; // True if this tracker has an action button
   final String? actionButtonText; // Text for action button
   final String? actionType; // Type of action (e.g., "krenko_goblins")
+  // Artwork fields (same as tokens)
+  final List<ArtworkVariant> artwork; // Available artwork options
 
   WidgetDefinition({
     required this.id,
@@ -32,6 +35,7 @@ class WidgetDefinition {
     this.hasAction = false,
     this.actionButtonText,
     this.actionType,
+    this.artwork = const [], // Default to empty list
   });
 
   /// Check if widget matches search query
@@ -62,6 +66,7 @@ class WidgetDefinition {
       hasAction: hasAction, // Action tracker fields
       actionButtonText: actionButtonText,
       actionType: actionType,
+      artworkOptions: artwork.isNotEmpty ? List.from(artwork) : null,
     );
   }
 
@@ -80,6 +85,7 @@ class WidgetDefinition {
       onDescription: description, // description field is ON description
       offDescription: offDescription!,
       isCustom: false, // Predefined widget
+      artworkOptions: artwork.isNotEmpty ? List.from(artwork) : null,
     );
   }
 }

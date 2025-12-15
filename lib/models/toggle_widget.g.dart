@@ -29,13 +29,15 @@ class ToggleWidgetAdapter extends TypeAdapter<ToggleWidget> {
       onArtworkUrl: fields[9] as String?,
       offArtworkUrl: fields[10] as String?,
       isCustom: fields[11] as bool,
+      artworkSet: fields[12] as String?,
+      artworkOptions: (fields[13] as List?)?.cast<ArtworkVariant>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, ToggleWidget obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.widgetId)
       ..writeByte(1)
@@ -59,7 +61,11 @@ class ToggleWidgetAdapter extends TypeAdapter<ToggleWidget> {
       ..writeByte(10)
       ..write(obj.offArtworkUrl)
       ..writeByte(11)
-      ..write(obj.isCustom);
+      ..write(obj.isCustom)
+      ..writeByte(12)
+      ..write(obj.artworkSet)
+      ..writeByte(13)
+      ..write(obj.artworkOptions);
   }
 
   @override

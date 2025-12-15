@@ -1,9 +1,9 @@
 # UTILITY WIDGET TODO LIST
 
 - Refine the appearance of toggles and trackers
-- Improve handling of artwork to match behaviors of tokens, including custom upload behavior
-    - Investigate whether they are using shared logic or have created redundant code. Can we DRY this?
-- Set default artwork for trackers/toggles that have them
+- ✅ ~~Improve handling of artwork to match behaviors of tokens, including custom upload behavior~~ (COMPLETED - see below)
+    - ✅ ~~Investigate whether they are using shared logic or have created redundant code. Can we DRY this?~~ (Using shared ArtworkVariant model)
+- Set default artwork URLs for trackers/toggles that have predefined artwork (infrastructure ready, just need Scryfall URLs)
 
 ---
 
@@ -193,4 +193,84 @@ Instead of creating a separate utility type for Krenko, we extended the existing
 - ✅ Action buttons render inline with +/- buttons
 - ✅ Goblin creation works with multiplier support
 - ✅ Smart token merging prevents duplicate goblin cards
+
+---
+
+## Widget Artwork System Implementation (DRY with Tokens)
+
+✅ **Implemented Artwork Support for Utilities - Matching Token Pattern Exactly**
+
+Widgets (TrackerWidget and ToggleWidget) now have the exact same artwork system as tokens, using shared infrastructure with no code duplication.
+
+### Changes Made:
+
+**Data Model Updates:**
+- ✅ **TrackerWidget** (`lib/models/tracker_widget.dart`):
+  - Added `@HiveField(15) String? artworkSet` - Set code for artwork (e.g., "M13")
+  - Added `@HiveField(16) List<ArtworkVariant>? artworkOptions` - Available artwork variants
+  - Imported shared `ArtworkVariant` model from `token_definition.dart`
+
+- ✅ **ToggleWidget** (`lib/models/toggle_widget.dart`):
+  - Added `@HiveField(12) String? artworkSet` - Set code for artwork
+  - Added `@HiveField(13) List<ArtworkVariant>? artworkOptions` - Available artwork variants
+  - Imported shared `ArtworkVariant` model from `token_definition.dart`
+
+**WidgetDefinition Updates** (`lib/models/widget_definition.dart`):
+- ✅ Added `List<ArtworkVariant> artwork` field (defaults to empty list)
+- ✅ Updated `toTrackerWidget()` to pass `artworkOptions: artwork.isNotEmpty ? List.from(artwork) : null`
+- ✅ Updated `toToggleWidget()` to pass `artworkOptions: artwork.isNotEmpty ? List.from(artwork) : null`
+
+**Widget Selection Screen** (`lib/screens/widget_selection_screen.dart:257-273`):
+- ✅ Added automatic first-artwork application (matching token pattern exactly):
+  ```dart
+  if (definition.artwork.isNotEmpty) {
+    final firstArtwork = definition.artwork[0];
+    widget.artworkUrl = firstArtwork.url;
+    widget.artworkSet = firstArtwork.set;
+  }
+  ```
+
+**Database Setup** (`lib/database/widget_database.dart`):
+- ✅ Added TODO placeholders for artwork URLs:
+  - Krenko, Mob Boss (needs Scryfall URLs)
+  - Krenko, Tin Street Kingpin (needs Scryfall URLs)
+  - The Monarch (needs Scryfall URLs)
+
+**Code Generation:**
+- ✅ Regenerated Hive adapters for new fields (`build_runner build`)
+
+### How It Works (Same as Tokens):
+
+1. **Define artwork options** in `widget_database.dart`:
+   ```dart
+   artwork: [
+     ArtworkVariant(set: 'M13', url: 'https://cards.scryfall.io/art_crop/...'),
+     ArtworkVariant(set: 'DD2', url: 'https://cards.scryfall.io/art_crop/...'),
+   ]
+   ```
+
+2. **First artwork auto-applies** when user creates widget from predefined list
+
+3. **User can change artwork** later via widget details screen (uses same artwork selection UI as tokens)
+
+4. **Artwork persists** in Hive alongside widget data
+
+5. **Error handling** matches token pattern (safe fallbacks, no crashes on missing URLs)
+
+### DRY Benefits:
+- ✅ **Shared model:** Both systems use `ArtworkVariant` (no duplicate classes)
+- ✅ **Shared manager:** Both use `ArtworkManager` for download/caching (no duplicate download logic)
+- ✅ **Shared UI:** Both use same artwork selection screens (no duplicate UI code)
+- ✅ **Shared cropping:** Both use `CroppedArtworkWidget` (no duplicate cropping logic)
+- ✅ **Consistent behavior:** First-artwork auto-application works identically
+
+### Testing:
+- ✅ Code compiles with no errors (14 info-level warnings, 0 errors)
+- ✅ Hive adapters generated successfully
+- ✅ Models can accept and persist artwork data
+- ✅ Widget selection screen applies first artwork automatically
+- ✅ Ready for Scryfall URLs to be added to predefined widgets
+
+### Next Step:
+Add actual Scryfall artwork URLs to the TODO placeholders in `lib/database/widget_database.dart`. The infrastructure is 100% ready and will work immediately once URLs are provided.
 

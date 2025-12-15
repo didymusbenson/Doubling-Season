@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/widget_definition.dart';
+// Note: ArtworkVariant import will be needed when actual artwork URLs are added
 
 class WidgetDatabase extends ChangeNotifier {
   List<WidgetDefinition> _widgets = [];
@@ -113,6 +114,11 @@ class WidgetDatabase extends ChangeNotifier {
         description: 'You are the Monarch. Draw an extra card at end of turn.',
         offDescription: 'You are not the Monarch.',
         colorIdentity: 'WBR', // White/Black/Red
+        artwork: [
+          // TODO: Add real Scryfall artwork URLs for Monarch-related cards
+          // Example format:
+          // ArtworkVariant(set: 'CN2', url: 'https://cards.scryfall.io/art_crop/...'),
+        ],
       ),
       WidgetDefinition(
         id: 'day_night',
@@ -150,6 +156,11 @@ class WidgetDatabase extends ChangeNotifier {
         hasAction: true,
         actionButtonText: 'Make Goblins',
         actionType: 'krenko_mob_boss',
+        artwork: [
+          // TODO: Add real Scryfall artwork URLs for Krenko, Mob Boss
+          // Example format:
+          // ArtworkVariant(set: 'M13', url: 'https://cards.scryfall.io/art_crop/...'),
+        ],
       ),
       WidgetDefinition(
         id: 'krenko_tin_street',
@@ -161,6 +172,11 @@ class WidgetDatabase extends ChangeNotifier {
         hasAction: true,
         actionButtonText: 'Make Goblins',
         actionType: 'krenko_tin_street',
+        artwork: [
+          // TODO: Add real Scryfall artwork URLs for Krenko, Tin Street Kingpin
+          // Example format:
+          // ArtworkVariant(set: 'GRN', url: 'https://cards.scryfall.io/art_crop/...'),
+        ],
       ),
     ];
 

@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 import '../utils/constants.dart';
+import 'token_definition.dart'; // For ArtworkVariant
 
 part 'toggle_widget.g.dart';
 
@@ -41,6 +42,12 @@ class ToggleWidget extends HiveObject {
   @HiveField(11)
   bool isCustom; // True if user-created, false if predefined
 
+  @HiveField(12)
+  String? artworkSet; // Set code for artwork (e.g., "M20")
+
+  @HiveField(13)
+  List<ArtworkVariant>? artworkOptions; // Available artwork variants
+
   ToggleWidget({
     required this.widgetId,
     required this.name,
@@ -54,6 +61,8 @@ class ToggleWidget extends HiveObject {
     this.onArtworkUrl,
     this.offArtworkUrl,
     this.isCustom = false,
+    this.artworkSet,
+    this.artworkOptions,
   });
 
   /// Toggle the state (ON ↔ OFF)

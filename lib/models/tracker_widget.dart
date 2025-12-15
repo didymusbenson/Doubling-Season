@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 import '../utils/constants.dart';
+import 'token_definition.dart'; // For ArtworkVariant
 
 part 'tracker_widget.g.dart';
 
@@ -51,6 +52,12 @@ class TrackerWidget extends HiveObject {
   @HiveField(14)
   String? actionType; // Type of action to perform (e.g., "krenko_goblins")
 
+  @HiveField(15)
+  String? artworkSet; // Set code for artwork (e.g., "M20")
+
+  @HiveField(16)
+  List<ArtworkVariant>? artworkOptions; // Available artwork variants
+
   TrackerWidget({
     required this.widgetId,
     required this.name,
@@ -67,6 +74,8 @@ class TrackerWidget extends HiveObject {
     this.hasAction = false,
     this.actionButtonText,
     this.actionType,
+    this.artworkSet,
+    this.artworkOptions,
   });
 
   /// Increment the current value by the specified amount

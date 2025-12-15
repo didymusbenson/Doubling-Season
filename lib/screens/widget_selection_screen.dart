@@ -253,9 +253,25 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
 
     if (definition.type == WidgetType.tracker) {
       final tracker = definition.toTrackerWidget(order: newOrder);
+
+      // Apply first artwork if available (matching token pattern)
+      if (definition.artwork.isNotEmpty) {
+        final firstArtwork = definition.artwork[0];
+        tracker.artworkUrl = firstArtwork.url;
+        tracker.artworkSet = firstArtwork.set;
+      }
+
       await trackerProvider.insertTracker(tracker);
     } else if (definition.type == WidgetType.toggle) {
       final toggle = definition.toToggleWidget(order: newOrder);
+
+      // Apply first artwork if available (matching token pattern)
+      if (definition.artwork.isNotEmpty) {
+        final firstArtwork = definition.artwork[0];
+        toggle.artworkUrl = firstArtwork.url;
+        toggle.artworkSet = firstArtwork.set;
+      }
+
       await toggleProvider.insertToggle(toggle);
     }
 
