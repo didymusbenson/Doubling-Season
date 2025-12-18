@@ -19,7 +19,7 @@ class TokenTemplate extends HiveObject {
   @HiveField(3)
   String colors;
 
-  @HiveField(4)
+  @HiveField(4, defaultValue: 0.0)
   double order;
 
   @HiveField(5, defaultValue: '')
@@ -31,13 +31,13 @@ class TokenTemplate extends HiveObject {
     save();
   }
 
-  @HiveField(6)
+  @HiveField(6, defaultValue: null)
   String? artworkUrl;
 
-  @HiveField(7)
+  @HiveField(7, defaultValue: null)
   String? artworkSet;
 
-  @HiveField(8)
+  @HiveField(8, defaultValue: null)
   List<ArtworkVariant>? artworkOptions;
 
   TokenTemplate({

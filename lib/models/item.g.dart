@@ -22,7 +22,7 @@ class ItemAdapter extends TypeAdapter<Item> {
       abilities: fields[0] as String,
       counters: (fields[9] as List?)?.cast<TokenCounter>(),
       createdAt: fields[10] as DateTime?,
-      order: fields[11] as double,
+      order: fields[11] == null ? 0.0 : fields[11] as double,
       artworkUrl: fields[13] as String?,
       artworkSet: fields[14] as String?,
       artworkOptions: (fields[15] as List?)?.cast<ArtworkVariant>(),

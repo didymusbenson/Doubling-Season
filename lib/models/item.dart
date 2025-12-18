@@ -101,7 +101,7 @@ class Item extends HiveObject {
   @HiveField(10)
   DateTime createdAt;
 
-  @HiveField(11)
+  @HiveField(11, defaultValue: 0.0)
   double order;
 
   @HiveField(12, defaultValue: '')
@@ -113,13 +113,13 @@ class Item extends HiveObject {
     save();
   }
 
-  @HiveField(13)
+  @HiveField(13, defaultValue: null)
   String? artworkUrl;
 
-  @HiveField(14)
+  @HiveField(14, defaultValue: null)
   String? artworkSet;
 
-  @HiveField(15)
+  @HiveField(15, defaultValue: null)
   List<ArtworkVariant>? artworkOptions;
 
   // Constructor

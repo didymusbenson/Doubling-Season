@@ -804,13 +804,59 @@ class HiveTypeIds {
   static const int tokenCounter = 1;
   static const int deck = 2;
   static const int tokenTemplate = 3;
+  static const int artworkVariant = 4;
+  static const int artworkPreference = 5;
+  static const int trackerWidget = 6;
+  static const int toggleWidget = 7;
 }
 ```
 
 When adding new Hive models:
-1. Assign next available type ID (4, 5, 6, ...)
+1. Assign next available type ID (use next sequential number)
 2. Add to HiveTypeIds class
 3. Register in `lib/database/hive_setup.dart`
+
+### Hive Schema Migration
+**CRITICAL**: When adding new fields to existing Hive models, ALWAYS specify `defaultValue` to ensure backward compatibility.
+
+**Why this matters:**
+- Users upgrading from older versions have persisted data with fewer fields
+- Without `defaultValue`, Hive cannot deserialize old data → data loss
+- This affects ALL Hive models: Item, TokenTemplate, Deck, TrackerWidget, ToggleWidget, etc.
+
+**Rule:** Every time you add a new `@HiveField` to an existing model, you MUST specify a `defaultValue` parameter.
+
+**Examples:**
+```dart
+// Adding a new nullable field
+@HiveField(13, defaultValue: null)
+String? artworkUrl;
+
+// Adding a new non-nullable field with default
+@HiveField(11, defaultValue: 0.0)
+double order;
+
+// Adding a new boolean field
+@HiveField(12, defaultValue: false)
+bool hasAction;
+
+// Adding a new string field
+@HiveField(5, defaultValue: '')
+String? _type;
+
+// Adding a new list field (nullable)
+@HiveField(15, defaultValue: null)
+List<ArtworkVariant>? artworkOptions;
+```
+
+**After adding defaultValue:**
+1. Run `flutter pub run build_runner build --delete-conflicting-outputs`
+2. Test with both fresh install AND upgrade from previous version
+3. Verify existing user data loads correctly
+
+**Historical context:**
+- v1.7 → v1.8 migration lost user decks because new fields (order, artworkUrl, artworkSet, artworkOptions) were added to TokenTemplate without defaultValue
+- Fixed in v1.8.1 by adding defaultValue to all new fields
 
 ### Item Validation Logic
 The `Item` model includes automatic validation in setters:
