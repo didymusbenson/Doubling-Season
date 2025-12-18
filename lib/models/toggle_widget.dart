@@ -42,10 +42,10 @@ class ToggleWidget extends HiveObject {
   @HiveField(11)
   bool isCustom; // True if user-created, false if predefined
 
-  @HiveField(12)
+  @HiveField(12, defaultValue: null)
   String? artworkSet; // Set code for artwork (e.g., "M20")
 
-  @HiveField(13)
+  @HiveField(13, defaultValue: null)
   List<ArtworkVariant>? artworkOptions; // Available artwork variants
 
   ToggleWidget({

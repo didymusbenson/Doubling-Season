@@ -43,19 +43,19 @@ class TrackerWidget extends HiveObject {
   bool isCustom; // True if user-created, false if predefined
 
   // Action Tracker fields (optional)
-  @HiveField(12)
+  @HiveField(12, defaultValue: false)
   bool hasAction; // True if this tracker has an action button
 
-  @HiveField(13)
+  @HiveField(13, defaultValue: null)
   String? actionButtonText; // Text for action button (e.g., "WAAAGH!")
 
-  @HiveField(14)
+  @HiveField(14, defaultValue: null)
   String? actionType; // Type of action to perform (e.g., "krenko_goblins")
 
-  @HiveField(15)
+  @HiveField(15, defaultValue: null)
   String? artworkSet; // Set code for artwork (e.g., "M20")
 
-  @HiveField(16)
+  @HiveField(16, defaultValue: null)
   List<ArtworkVariant>? artworkOptions; // Available artwork variants
 
   TrackerWidget({
