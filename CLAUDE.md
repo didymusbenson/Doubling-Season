@@ -775,6 +775,16 @@ Examples where this pattern applies:
 
 This ensures consistency across all board items and prevents reimplementing solutions that already exist.
 
+**ARTWORK IMPLEMENTATION:**
+When adding artwork support to new card types, follow the complete pattern documented in `docs/activeDevelopment/NextFeature.md` under "Artwork Implementation Pattern (MEMORIZE THIS)". This pattern ensures:
+- Correct scaling in both fullView and fadeout modes
+- Proper 50% width constraint in fadeout mode
+- Gradient fade on left edge (fadeout mode)
+- No stretching/distortion (maintains aspect ratio)
+- Semi-transparent text overlays for readability
+
+**Reference Implementation:** `lib/widgets/token_card.dart` (lines 565-727 for artwork methods)
+
 ### UI Conventions
 - Use `Navigator.of(context).push()` for full-screen navigation
 - Use `showDialog()` for alerts and confirmations

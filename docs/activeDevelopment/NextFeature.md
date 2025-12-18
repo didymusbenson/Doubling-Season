@@ -1,9 +1,10 @@
 # UTILITY WIDGET TODO LIST
 
-- Refine the appearance of toggles and trackers
-- ✅ ~~Improve handling of artwork to match behaviors of tokens, including custom upload behavior~~ (COMPLETED - see below)
-    - ✅ ~~Investigate whether they are using shared logic or have created redundant code. Can we DRY this?~~ (Using shared ArtworkVariant model)
-- Set default artwork URLs for trackers/toggles that have predefined artwork (infrastructure ready, just need Scryfall URLs)
+✅ ALL CURRENT UTILITIES COMPLETE - Ready for Cathar's Crusade
+
+- ✅ ~~Refine the appearance of toggles and trackers~~ (COMPLETED)
+- ✅ ~~Improve handling of artwork to match behaviors of tokens~~ (COMPLETED)
+- ✅ ~~Set default artwork URLs for trackers/toggles~~ (COMPLETED - all 13 utilities have Scryfall artwork)
 
 ---
 
@@ -30,7 +31,7 @@ This checklist documents ALL steps required when adding a new utility type (like
 
 ### 4. Provider (`lib/providers/your_provider.dart`)
 - [ ] Create provider class extending `ChangeNotifier`
-- [ ] Implement `init()` method to open box and migrate orders
+- [ ] Implement `init()` method with try-catch and debug logging
 - [ ] Add `listenable` getter exposing `ValueListenable<Box<YourUtility>>`
 - [ ] Implement CRUD methods: `insertUtility()`, `updateUtility()`, `deleteUtility()`
 - [ ] Implement `updateOrder()` for drag-and-drop support
@@ -46,10 +47,17 @@ This checklist documents ALL steps required when adding a new utility type (like
 
 ### 6. Widget Card (`lib/widgets/your_utility_card.dart`)
 - [ ] Create card widget extending `StatefulWidget`
-- [ ] Follow TokenCard patterns for styling (borders, shadows, padding)
+- [ ] **CRITICAL: Use TokenCard as reference implementation**
 - [ ] Use `Selector<SettingsProvider, String>` for artwork display style
-- [ ] Implement `CroppedArtworkWidget` for artwork layer
-- [ ] Add semi-transparent backgrounds for text overlays (0.85 alpha)
+- [ ] Implement artwork layers following EXACT pattern from TokenCard:
+  - Base card background layer
+  - Gradient background layer (conditional)
+  - Artwork layer using `_buildArtworkLayer(context, constraints, artworkDisplayStyle)`
+  - Content layer with semi-transparent backgrounds (0.85 alpha)
+- [ ] Implement `_buildArtworkLayer()` that delegates to `_buildFullViewArtwork()` and `_buildFadeoutArtwork()`
+- [ ] In fadeout mode: Use `Positioned(width: cardWidth * 0.50)` for 50% width constraint
+- [ ] Wrap `CroppedArtworkWidget` with `ShaderMask` for gradient fade
+- [ ] Pass `fillWidth: false` to `CroppedArtworkWidget` for fadeout mode
 - [ ] Implement tap handler to open `ExpandedWidgetScreen`
 - [ ] Save changes to Hive on user interactions
 
@@ -60,7 +68,7 @@ This checklist documents ALL steps required when adding a new utility type (like
 
 ### 8. Widget Database (`lib/database/widget_database.dart`)
 - [ ] Add predefined utility definition to `loadWidgets()` list
-- [ ] Include all required fields: id, type, name, description, colorIdentity, defaultValue
+- [ ] Include Scryfall artwork URLs (at least one ArtworkVariant)
 
 ### 9. ContentScreen Integration (`lib/screens/content_screen.dart`)
 - [ ] Import utility model and provider
@@ -92,6 +100,8 @@ This checklist documents ALL steps required when adding a new utility type (like
 - [ ] Utility appears in utility selection screen
 - [ ] Utility can be created and added to board
 - [ ] Utility displays with correct styling and colors
+- [ ] **Artwork displays correctly in BOTH fullView and fadeout modes**
+- [ ] **Artwork fills container properly without stretching**
 - [ ] Utility can be reordered with other board items
 - [ ] Utility responds to user interactions correctly
 - [ ] Utility state persists across app restarts
@@ -100,6 +110,260 @@ This checklist documents ALL steps required when adding a new utility type (like
 - [ ] Artwork selection works
 
 **CRITICAL:** If your utility doesn't appear or work correctly, review each step above. Missing ANY step will break functionality.
+
+---
+
+## Artwork Implementation Pattern (MEMORIZE THIS)
+
+When creating new card types (tokens, utilities, or any future board items), artwork must be implemented following this exact pattern to ensure consistent behavior across fullView and fadeout modes.
+
+### Required Setup
+
+**1. Card State Variables:**
+```dart
+final DateTime _createdAt = DateTime.now();
+bool _artworkAnimated = false;
+bool _artworkCleanupAttempted = false;
+```
+
+**2. Widget Structure (use LayoutBuilder + Stack):**
+```dart
+return Selector<SettingsProvider, String>(
+  selector: (context, settings) => settings.artworkDisplayStyle,
+  builder: (context, artworkDisplayStyle, child) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Stack(
+          children: [
+            // Layer 1: Base card background
+            Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
+              ),
+            ),
+            
+            // Layer 2: Gradient background (shows when no artwork or while loading)
+            if (artworkUrl == null || artworkUrl.isEmpty)
+              _buildGradientLayer(context)
+            else
+              _buildConditionalGradient(context),
+            
+            // Layer 3: Artwork layer
+            if (artworkUrl != null)
+              _buildArtworkLayer(context, constraints, artworkDisplayStyle),
+            
+            // Layer 4: Content with semi-transparent backgrounds
+            Container(
+              color: Colors.transparent,
+              padding: const EdgeInsets.all(UIConstants.cardPadding),
+              child: // ... your content
+            ),
+          ],
+        );
+      },
+    );
+  },
+);
+```
+
+**3. Artwork Layer Builder:**
+```dart
+Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints, String artworkStyle) {
+  if (artworkStyle == 'fadeout') {
+    return _buildFadeoutArtwork(context, constraints);
+  } else {
+    return _buildFullViewArtwork(context, constraints);
+  }
+}
+```
+
+**4. Full View Implementation:**
+```dart
+Widget _buildFullViewArtwork(BuildContext context, BoxConstraints constraints) {
+  final crop = ArtworkManager.getCropPercentages(artworkUrl);
+  
+  return Positioned.fill(
+    child: FutureBuilder<File?>(
+      future: ArtworkManager.getCachedArtworkFile(artworkUrl!),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data != null) {
+          // Animation logic
+          final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
+          final shouldAnimate = elapsed > 100 && !_artworkAnimated;
+          
+          if (shouldAnimate) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() => _artworkAnimated = true);
+            });
+          }
+          
+          return AnimatedOpacity(
+            opacity: 1.0,
+            duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
+            curve: Curves.easeIn,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
+              child: CroppedArtworkWidget(
+                imageFile: snapshot.data!,
+                cropLeft: crop['left']!,
+                cropRight: crop['right']!,
+                cropTop: crop['top']!,
+                cropBottom: crop['bottom']!,
+                fillWidth: true,  // ← FULL VIEW: fill width
+              ),
+            ),
+          );
+        }
+        
+        // Cleanup logic for missing files
+        if (snapshot.connectionState == ConnectionState.done &&
+            snapshot.data == null &&
+            !_artworkCleanupAttempted) {
+          final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
+          if (elapsed > 2000) {
+            _artworkCleanupAttempted = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                artworkUrl = null;
+                save();
+              }
+            });
+          }
+        }
+        
+        return const SizedBox.shrink();
+      },
+    ),
+  );
+}
+```
+
+**5. Fadeout Implementation (CRITICAL - must constrain width to 50%):**
+```dart
+Widget _buildFadeoutArtwork(BuildContext context, BoxConstraints constraints) {
+  final crop = ArtworkManager.getCropPercentages(artworkUrl);
+  final cardWidth = constraints.maxWidth;
+  final artworkWidth = cardWidth * 0.50;  // ← CRITICAL: 50% width
+  
+  return Positioned(
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: artworkWidth,  // ← CRITICAL: constrains container to 50% width
+    child: FutureBuilder<File?>(
+      future: ArtworkManager.getCachedArtworkFile(artworkUrl!),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data != null) {
+          // Same animation logic as full view
+          final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
+          final shouldAnimate = elapsed > 100 && !_artworkAnimated;
+          
+          if (shouldAnimate) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() => _artworkAnimated = true);
+            });
+          }
+          
+          return AnimatedOpacity(
+            opacity: 1.0,
+            duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
+            curve: Curves.easeIn,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(UIConstants.smallBorderRadius),
+                bottomRight: Radius.circular(UIConstants.smallBorderRadius),
+              ),
+              child: ShaderMask(  // ← CRITICAL: gradient fade
+                shaderCallback: (bounds) {
+                  return const LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [Colors.transparent, Colors.white],
+                    stops: [0.0, 0.50],  // ← Fade covers left 50% of artwork container
+                  ).createShader(bounds);
+                },
+                blendMode: BlendMode.dstIn,
+                child: CroppedArtworkWidget(
+                  imageFile: snapshot.data!,
+                  cropLeft: crop['left']!,
+                  cropRight: crop['right']!,
+                  cropTop: crop['top']!,
+                  cropBottom: crop['bottom']!,
+                  fillWidth: false,  // ← CRITICAL: scale to fill HEIGHT, not width
+                ),
+              ),
+            ),
+          );
+        }
+        
+        // Same cleanup logic as full view
+        return const SizedBox.shrink();
+      },
+    ),
+  );
+}
+```
+
+### CroppedArtworkWidget Scaling Logic
+
+The `CroppedArtworkWidget` (`lib/widgets/cropped_artwork_widget.dart`) handles aspect ratio scaling:
+
+**Full View Mode (`fillWidth: true`):**
+- Scales image to fill container WIDTH
+- May overflow vertically (gets clipped)
+- Centers vertically
+
+**Fadeout Mode (`fillWidth: false`):**
+- Scales image to fill container HEIGHT
+- If resulting width < container width → rescales to fill width (maintains aspect ratio)
+- If resulting width >= container width → uses height-based scale, overflows left (gradient masks it)
+- This ensures the 50% container is always filled without stretching
+
+### Text Overlays
+
+All text and buttons must have semi-transparent backgrounds for readability over artwork:
+
+```dart
+Widget _buildTextWithBackground({
+  required BuildContext context,
+  required Widget child,
+  EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+}) {
+  return Container(
+    padding: padding,
+    decoration: BoxDecoration(
+      color: Theme.of(context).cardColor.withValues(alpha: 0.85),  // ← 85% opacity
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: child,
+  );
+}
+```
+
+### Common Mistakes to Avoid
+
+1. **Missing width constraint in fadeout mode** → Artwork fills entire card width
+2. **Using `fillWidth: true` in fadeout mode** → Artwork doesn't fill container height
+3. **Forgetting ShaderMask in fadeout mode** → No gradient fade
+4. **Wrong gradient stops** → Fade appears in wrong area
+5. **Missing LayoutBuilder** → Can't get card width for 50% calculation
+6. **Stretching instead of scaling** → `CroppedArtworkWidget` now handles this, but old implementations had this bug
+
+### Testing Checklist
+
+When implementing artwork for a new card type, verify:
+- [ ] Full view: Artwork fills entire card width
+- [ ] Full view: Artwork maintains aspect ratio (no stretching)
+- [ ] Fadeout: Artwork container is exactly 50% of card width
+- [ ] Fadeout: Artwork fills the 50% container without stretching
+- [ ] Fadeout: Gradient fade is visible on left edge of artwork
+- [ ] Fadeout: Right edge of artwork is fully opaque
+- [ ] Both modes: Text and buttons have semi-transparent backgrounds
+- [ ] Both modes: Artwork animates on first load (if downloaded)
+- [ ] Both modes: Missing artwork files clean up after 2 seconds
+
+**Reference Implementation:** `lib/widgets/token_card.dart` (lines 565-727)
 
 ---
 
@@ -146,82 +410,8 @@ Action trackers use the existing `TrackerWidget` model with optional action fiel
 
 **Summoning Sickness:** Applied when global setting enabled.
 
+---
 
-# LATEST COMPLETED WORK
+# NEXT UP: Cathar's Crusade
 
-We just added artwork for all of the toggles and trackers defined so far. 
-
-We solved a number of issues with them not rendering displaying and updating the same way tokens do. 
-
-We are currently troubleshooting issues with half-card view and graidents. The last messages before we hit spending cap were as follows:
-
-```
-> They do not fade appropriately on half card view.
-
-⏺ Let me check the exact fadeout gradient implementation in TokenCard to see if there's a difference:
-
-⏺ Read(lib/widgets/token_card.dart)
-⎿  Read 25 lines
-
-⏺ The gradient code looks identical to TokenCard. Let me check if there's a structural difference in how the layers are stacked. Let me compare the
-full Stack structure:
-
-⏺ Search(pattern: "Stack\(", path: "lib/widgets/token_card.dart", output_mode: "content")
-⎿  Found 36 lines (ctrl+o to expand)
-
-⏺ Search(pattern: "Stack\(", path: "lib/widgets/tracker_widget_card.dart", output_mode: "content")
-⎿  Found 31 lines (ctrl+o to expand)
-
-⏺ The gradient implementation looks identical to TokenCard. Can you describe what's specifically wrong with the fade? Is it:
-
-1. Not fading at all (artwork just appears solid)?
-2. Fading too abruptly (not smooth enough)?
-3. Fading in the wrong area (should cover more or less of the artwork)?
-4. Fading in the wrong direction (should fade opposite way)?
-
-The current gradient setup is:
-- Fades from transparent (left edge of artwork) to opaque (middle of artwork)
-- This covers the left 50% of the artwork widget, which is the center 25% of the card
-- The right 50% of the artwork (right 25% of card) remains fully opaque
-
-If tokens are fading differently, I need to know what specifically looks wrong so I can identify the difference.
-
-> There is zero fade whatsoever.
-
-
-⏺ Now to answer your question:
-
-YES, tokens force the artwork container to be exactly 50% of the card width in fadeout/half view mode.
-
-Looking at TokenCard's fadeout implementation:
-
-Widget _buildFadeoutArtwork(BuildContext context, BoxConstraints constraints) {
-final cardWidth = constraints.maxWidth;
-final artworkWidth = cardWidth * 0.50;  // 50% of card width
-
-    return Positioned(
-      right: 0,
-      top: 0,
-      bottom: 0,
-      width: artworkWidth,  // ← CONSTRAINS container to 50% width
-      child: ...
-        CroppedArtworkWidget(
-          ...
-          fillWidth: false,  // ← Image scales to fill HEIGHT (not width)
-        ),
-      ),
-    );
-}
-
-The Positioned widget with width: artworkWidth forces the container to be exactly 50% of card width, positioned on the right side. Then fillWidth:
-false tells CroppedArtworkWidget to scale the image to fill the container's HEIGHT, which causes it to potentially overflow leftward (where the
-gradient fade masks it).
-
-My utility implementation does the same thing - so the 50% width constraint is identical between tokens and utilities.
-
-> You are mistaken. [Image #1]
-```
-
-When I sent the message "You are mistaken" I included the image "noitdoesnt.png" which you can find here in the /activeDevelopment directory.
-
-Once we sort out the artwork rendering, we should be ready to move onto the next special utility: Cathar's Crusade.
+Now that all artwork and Krenko utilities are complete, the next special utility to implement is **Cathar's Crusade**.
