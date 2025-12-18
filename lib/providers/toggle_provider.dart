@@ -16,23 +16,50 @@ class ToggleProvider extends ChangeNotifier {
   ValueListenable<Box<ToggleWidget>> get listenable => _togglesBox.listenable();
 
   Future<void> init() async {
-    _togglesBox = await Hive.openBox<ToggleWidget>(DatabaseConstants.toggleWidgetsBox);
-    _ensureOrdersAssigned(); // Silent migration for order field
-    _initialized = true;
-    notifyListeners();
+    try {
+      debugPrint('ToggleProvider.init: Opening toggles box...');
+      _togglesBox = await Hive.openBox<ToggleWidget>(DatabaseConstants.toggleWidgetsBox);
+      debugPrint('ToggleProvider.init: Box opened, has ${_togglesBox.length} toggles');
+
+      debugPrint('ToggleProvider.init: Running migration...');
+      _ensureOrdersAssigned(); // Silent migration for order field
+      debugPrint('ToggleProvider.init: Migration complete');
+
+      _initialized = true;
+      notifyListeners();
+    } catch (e, stackTrace) {
+      debugPrint('ToggleProvider.init: ERROR during initialization');
+      debugPrint('Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      _errorMessage = 'Failed to load toggle utilities: $e';
+      rethrow;
+    }
   }
 
   void _ensureOrdersAssigned() {
-    final toggles = _togglesBox.values.toList();
-    bool needsReorder = toggles.any((toggle) => toggle.order == 0);
+    try {
+      debugPrint('ToggleProvider._ensureOrdersAssigned: Reading toggles...');
+      final toggles = _togglesBox.values.toList();
+      debugPrint('ToggleProvider._ensureOrdersAssigned: Got ${toggles.length} toggles');
 
-    if (needsReorder) {
-      // Assign sequential orders based on current position
-      for (int i = 0; i < toggles.length; i++) {
-        toggles[i].order = i.toDouble();
-        toggles[i].save();
+      bool needsReorder = toggles.any((toggle) => toggle.order == 0);
+
+      if (needsReorder) {
+        debugPrint('ToggleProvider._ensureOrdersAssigned: Migrating ${toggles.length} toggles');
+        // Assign sequential orders based on current position
+        for (int i = 0; i < toggles.length; i++) {
+          toggles[i].order = i.toDouble();
+          toggles[i].save();
+        }
+        debugPrint('ToggleProvider: Migrated ${toggles.length} toggles to use order field');
+      } else {
+        debugPrint('ToggleProvider._ensureOrdersAssigned: All toggles already have order');
       }
-      debugPrint('ToggleProvider: Migrated ${toggles.length} toggles to use order field');
+    } catch (e, stackTrace) {
+      debugPrint('ToggleProvider._ensureOrdersAssigned: ERROR during migration');
+      debugPrint('Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      rethrow;
     }
   }
 

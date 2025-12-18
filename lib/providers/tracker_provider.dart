@@ -16,23 +16,50 @@ class TrackerProvider extends ChangeNotifier {
   ValueListenable<Box<TrackerWidget>> get listenable => _trackersBox.listenable();
 
   Future<void> init() async {
-    _trackersBox = await Hive.openBox<TrackerWidget>(DatabaseConstants.trackerWidgetsBox);
-    _ensureOrdersAssigned(); // Silent migration for order field
-    _initialized = true;
-    notifyListeners();
+    try {
+      debugPrint('TrackerProvider.init: Opening trackers box...');
+      _trackersBox = await Hive.openBox<TrackerWidget>(DatabaseConstants.trackerWidgetsBox);
+      debugPrint('TrackerProvider.init: Box opened, has ${_trackersBox.length} trackers');
+
+      debugPrint('TrackerProvider.init: Running migration...');
+      _ensureOrdersAssigned(); // Silent migration for order field
+      debugPrint('TrackerProvider.init: Migration complete');
+
+      _initialized = true;
+      notifyListeners();
+    } catch (e, stackTrace) {
+      debugPrint('TrackerProvider.init: ERROR during initialization');
+      debugPrint('Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      _errorMessage = 'Failed to load tracker utilities: $e';
+      rethrow;
+    }
   }
 
   void _ensureOrdersAssigned() {
-    final trackers = _trackersBox.values.toList();
-    bool needsReorder = trackers.any((tracker) => tracker.order == 0);
+    try {
+      debugPrint('TrackerProvider._ensureOrdersAssigned: Reading trackers...');
+      final trackers = _trackersBox.values.toList();
+      debugPrint('TrackerProvider._ensureOrdersAssigned: Got ${trackers.length} trackers');
 
-    if (needsReorder) {
-      // Assign sequential orders based on current position
-      for (int i = 0; i < trackers.length; i++) {
-        trackers[i].order = i.toDouble();
-        trackers[i].save();
+      bool needsReorder = trackers.any((tracker) => tracker.order == 0);
+
+      if (needsReorder) {
+        debugPrint('TrackerProvider._ensureOrdersAssigned: Migrating ${trackers.length} trackers');
+        // Assign sequential orders based on current position
+        for (int i = 0; i < trackers.length; i++) {
+          trackers[i].order = i.toDouble();
+          trackers[i].save();
+        }
+        debugPrint('TrackerProvider: Migrated ${trackers.length} trackers to use order field');
+      } else {
+        debugPrint('TrackerProvider._ensureOrdersAssigned: All trackers already have order');
       }
-      debugPrint('TrackerProvider: Migrated ${trackers.length} trackers to use order field');
+    } catch (e, stackTrace) {
+      debugPrint('TrackerProvider._ensureOrdersAssigned: ERROR during migration');
+      debugPrint('Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      rethrow;
     }
   }
 

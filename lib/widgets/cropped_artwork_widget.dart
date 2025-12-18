@@ -149,11 +149,21 @@ class _CroppedArtworkPainter extends CustomPainter {
       final dstTop = (size.height - scaledHeight) / 2;
       dstRect = Rect.fromLTWH(0, dstTop, size.width, scaledHeight);
     } else {
-      // FADEOUT: Fill height, crop width, align right
+      // FADEOUT: Fill height, ensure minimum width fills container
       final scaleToFillHeight = size.height / croppedHeight;
       final scaledWidth = croppedWidth * scaleToFillHeight;
-      final dstLeft = size.width - scaledWidth; // Align to right edge
-      dstRect = Rect.fromLTWH(dstLeft, 0, scaledWidth, size.height);
+
+      if (scaledWidth < size.width) {
+        // Image is too narrow - rescale to fill width, may overflow vertically
+        final scaleToFillWidth = size.width / croppedWidth;
+        final rescaledHeight = croppedHeight * scaleToFillWidth;
+        final dstTop = (size.height - rescaledHeight) / 2; // Center vertically
+        dstRect = Rect.fromLTWH(0, dstTop, size.width, rescaledHeight);
+      } else {
+        // Image is wide enough - use height-based scaling, overflow left
+        final dstLeft = size.width - scaledWidth; // Will be negative if overflow
+        dstRect = Rect.fromLTWH(dstLeft, 0, scaledWidth, size.height);
+      }
     }
 
     // Clip to canvas bounds to hide overflow

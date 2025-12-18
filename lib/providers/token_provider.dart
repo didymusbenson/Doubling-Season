@@ -16,23 +16,50 @@ class TokenProvider extends ChangeNotifier {
   ValueListenable<Box<Item>> get listenable => _itemsBox.listenable();
 
   Future<void> init() async {
-    _itemsBox = await Hive.openBox<Item>(DatabaseConstants.itemsBox);
-    _ensureOrdersAssigned(); // Silent migration for order field
-    _initialized = true;
-    notifyListeners();
+    try {
+      debugPrint('TokenProvider.init: Opening items box...');
+      _itemsBox = await Hive.openBox<Item>(DatabaseConstants.itemsBox);
+      debugPrint('TokenProvider.init: Box opened, has ${_itemsBox.length} items');
+
+      debugPrint('TokenProvider.init: Running migration...');
+      _ensureOrdersAssigned(); // Silent migration for order field
+      debugPrint('TokenProvider.init: Migration complete');
+
+      _initialized = true;
+      notifyListeners();
+    } catch (e, stackTrace) {
+      debugPrint('TokenProvider.init: ERROR during initialization');
+      debugPrint('Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      _errorMessage = 'Failed to load tokens: $e';
+      rethrow; // Let main.dart error handler catch this
+    }
   }
 
   void _ensureOrdersAssigned() {
-    final items = _itemsBox.values.toList();
-    bool needsReorder = items.any((item) => item.order == 0);
+    try {
+      debugPrint('TokenProvider._ensureOrdersAssigned: Reading items...');
+      final items = _itemsBox.values.toList();
+      debugPrint('TokenProvider._ensureOrdersAssigned: Got ${items.length} items');
 
-    if (needsReorder) {
-      // Assign sequential orders based on current position
-      for (int i = 0; i < items.length; i++) {
-        items[i].order = i.toDouble();
-        items[i].save();
+      bool needsReorder = items.any((item) => item.order == 0);
+
+      if (needsReorder) {
+        debugPrint('TokenProvider._ensureOrdersAssigned: Migrating ${items.length} items with missing order');
+        // Assign sequential orders based on current position
+        for (int i = 0; i < items.length; i++) {
+          items[i].order = i.toDouble();
+          items[i].save();
+        }
+        debugPrint('TokenProvider: Migrated ${items.length} tokens to use order field');
+      } else {
+        debugPrint('TokenProvider._ensureOrdersAssigned: All items already have order assigned');
       }
-      debugPrint('TokenProvider: Migrated ${items.length} tokens to use order field');
+    } catch (e, stackTrace) {
+      debugPrint('TokenProvider._ensureOrdersAssigned: ERROR during migration');
+      debugPrint('Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      rethrow;
     }
   }
 
