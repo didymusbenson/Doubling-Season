@@ -897,6 +897,505 @@ After implementing mixin:
 
 ## Next Up: Cathar's Crusade
 
-The next special utility to implement is **Cathar's Crusade**.
+**Status:** Requirements defined - ready for implementation after artwork mixin refactor.
 
-**Status:** Planning phase - design and implementation details to be determined.
+### Overview
+
+**Cathar's Crusade** is an action tracker utility that automatically counts creature token ETBs (enters-the-battlefield triggers) and allows the player to resolve all pending triggers at once by adding +1/+1 counters to all creatures.
+
+**Card reference:** "Whenever a creature you control enters, put a +1/+1 counter on each creature you control."
+
+**Key insight:** The app cannot model "simultaneous" ETBs perfectly, so instead we give the player control over batching triggers. Player creates tokens → Cathar's counter auto-increments → player presses action button when ready to resolve → all creatures get counters → counter resets to 0.
+
+### Utility Type
+
+**Action Tracker** - Uses existing `TrackerWidget` model with action button enabled:
+- `hasAction: true`
+- `actionButtonText: "Add Counters"`
+- `actionType: "cathars_crusade"`
+- `defaultValue: 0`
+
+### Behavior Specifications
+
+#### 1. Tracking Creature ETBs
+
+**Auto-increment when:**
+- Token with P/T is created via `TokenProvider.insertItem()` → increment by `amount`
+- Token with P/T is copied via `TokenProvider.copyToken()` → increment by `amount` of new token
+- Check: `item.hasPowerToughness` (same check used for summoning sickness logic)
+
+**Manual adjustment:**
+- Player can use +/- stepper buttons to adjust counter value
+- Allows tracking physical creatures played from hand
+- Allows corrections before resolving triggers
+
+**Does NOT increment when:**
+- Token is split via `SplitStackSheet` (split = death + creation, not true ETB)
+- Token is deleted (death trigger, not ETB)
+- Token without P/T is created (not a creature)
+
+**Does NOT decrement when:**
+- Token is deleted (ETB trigger already happened, can't undo it)
+
+#### 2. Action Button Behavior
+
+**Button text:** "Add Counters"
+
+**Button displays:** Current pending trigger count (e.g., "Add Counters (3)")
+
+**Confirmation dialog:**
+```
+"Pressing confirm will add {x} +1/+1 counters to all creatures."
+
+[Confirm] [Cancel]
+```
+
+**On confirm:**
+1. Iterate through all tokens on board
+2. For each token with `hasPowerToughness`:
+   - Add `x` +1/+1 counters (where `x` = current tracker value)
+   - Use existing `item.plusOneCounters += x` logic
+   - Save each item to Hive
+3. Reset Cathar's tracker value to 0
+4. Save tracker to Hive
+5. Close dialog
+
+**Counter stacking:**
+- If token already has +2/+2 counters, and Cathar's resolves 3 triggers, token gets +3/+3 more (total +5/+5)
+- Uses existing auto-canceling logic with -1/-1 counters
+
+#### 3. Default Starting Value
+
+**Default value: 0**
+
+**Rationale:** Prevents accidental triggers when utility is first added to board. Player hasn't played any creatures yet.
+
+### Event Bus Architecture
+
+**CRITICAL INFRASTRUCTURE:** Cathar's Crusade requires cross-provider communication - `TrackerWidget` needs to listen to `TokenProvider` events. This requires implementing an event bus pattern.
+
+#### Event Bus Design
+
+**Create:** `lib/utils/game_events.dart`
+
+```dart
+/// Singleton event bus for game-wide trigger events.
+///
+/// Allows utilities to listen to token lifecycle events without creating
+/// circular dependencies between providers.
+///
+/// Mirrors Magic's rules engine: actions generate events → permanents with
+/// triggered abilities listen for matching events.
+class GameEvents {
+  static final GameEvents instance = GameEvents._();
+  GameEvents._();
+
+  // ===== Creature Entered Battlefield =====
+
+  final _creatureEnteredListeners = <void Function(Item item, int count)>[];
+
+  /// Register a listener for creature ETB events.
+  ///
+  /// Callback receives:
+  /// - [item]: The token that entered (for future filtering by type/color)
+  /// - [count]: Number of tokens that entered (item.amount)
+  void onCreatureEntered(void Function(Item item, int count) callback) {
+    _creatureEnteredListeners.add(callback);
+  }
+
+  /// Notify all listeners that creature(s) entered the battlefield.
+  ///
+  /// Called by TokenProvider when tokens with P/T are created/copied.
+  void notifyCreatureEntered(Item item, int count) {
+    for (var listener in _creatureEnteredListeners) {
+      listener(item, count);
+    }
+  }
+
+  // ===== Future Event Types (Extensibility) =====
+
+  // Death triggers (for future utilities)
+  final _creatureDiedListeners = <void Function(Item item, int count)>[];
+
+  void onCreatureDied(void Function(Item item, int count) callback) {
+    _creatureDiedListeners.add(callback);
+  }
+
+  void notifyCreatureDied(Item item, int count) {
+    for (var listener in _creatureDiedListeners) {
+      listener(item, count);
+    }
+  }
+
+  // Tap/untap triggers (for future utilities)
+  final _creatureTappedListeners = <void Function(Item item, int count)>[];
+  final _creatureUntappedListeners = <void Function(Item item, int count)>[];
+
+  void onCreatureTapped(void Function(Item item, int count) callback) {
+    _creatureTappedListeners.add(callback);
+  }
+
+  void notifyCreatureTapped(Item item, int count) {
+    for (var listener in _creatureTappedListeners) {
+      listener(item, count);
+    }
+  }
+
+  void onCreatureUntapped(void Function(Item item, int count) callback) {
+    _creatureUntappedListeners.add(callback);
+  }
+
+  void notifyCreatureUntapped(Item item, int count) {
+    for (var listener in _creatureUntappedListeners) {
+      listener(item, count);
+    }
+  }
+}
+```
+
+#### Event Bus Integration Points
+
+**1. TokenProvider - Fire Events**
+
+```dart
+// In TokenProvider.insertItem()
+Future<void> insertItem(Item item) async {
+  await box.add(item);
+
+  // Fire ETB event for creatures
+  if (item.hasPowerToughness) {
+    GameEvents.instance.notifyCreatureEntered(item, item.amount);
+  }
+}
+
+// In TokenProvider.copyToken()
+Future<void> copyToken(Item original) async {
+  final newItem = Item(
+    // ... copy fields
+  );
+  await box.add(newItem);
+
+  // Fire ETB event for creatures
+  if (newItem.hasPowerToughness) {
+    GameEvents.instance.notifyCreatureEntered(newItem, newItem.amount);
+  }
+}
+
+// In TokenProvider.deleteItem()
+Future<void> deleteItem(Item item) async {
+  // Fire death event before deleting (for future utilities)
+  if (item.hasPowerToughness) {
+    GameEvents.instance.notifyCreatureDied(item, item.amount);
+  }
+
+  await item.delete();
+}
+```
+
+**2. TrackerProvider - Listen to Events**
+
+```dart
+// In TrackerProvider.init()
+void init() {
+  // ... existing init code
+
+  // Register listener for Cathar's Crusade utilities
+  GameEvents.instance.onCreatureEntered((item, count) {
+    _onCreatureEntered(item, count);
+  });
+}
+
+void _onCreatureEntered(Item item, int count) {
+  // Find all Cathar's Crusade utilities on board
+  final catharsUtilities = box.values.where((tracker) =>
+    tracker.actionType == 'cathars_crusade'
+  );
+
+  // Increment each Cathar's counter
+  for (var cathar in catharsUtilities) {
+    cathar.trackedValue += count;
+    cathar.save();
+  }
+
+  // Notify UI to rebuild
+  notifyListeners();
+}
+```
+
+#### Performance Impact
+
+**Estimated overhead:** < 0.1ms per event (imperceptible to users)
+
+**Reasoning:**
+- Event firing = iterating a list of 1-3 callbacks
+- Each callback increments a counter and saves to Hive (1-5ms)
+- Total overhead 2-3 orders of magnitude faster than UI rendering (16-33ms per frame)
+
+**Scalability:** Event bus can support 10+ listening utilities without noticeable performance impact.
+
+### Widget Database Definition
+
+```dart
+// In lib/database/widget_database.dart
+WidgetDefinition(
+  name: "Cathar's Crusade",
+  type: WidgetType.tracker,
+  colorIdentity: 'W',  // White enchantment
+  artworkVariants: [
+    ArtworkVariant(
+      artworkUrl: 'https://cards.scryfall.io/art_crop/front/8/a/8a2c9f16-d61f-4e7d-975e-9b7b697f8f6d.jpg?1592710893',
+      setCode: 'cm2',
+      isFallback: true,
+    ),
+  ],
+  defaultValue: 0,  // Starts at 0 (no creatures entered yet)
+  hasAction: true,
+  actionButtonText: 'Add Counters',
+  actionType: 'cathars_crusade',
+),
+```
+
+### Implementation in TrackerWidgetCard
+
+**Action handler in `tracker_widget_card.dart`:**
+
+```dart
+void _handleAction(BuildContext context, TrackerWidget tracker) {
+  final settingsProvider = context.read<SettingsProvider>();
+  final tokenProvider = context.read<TokenProvider>();
+
+  switch (tracker.actionType) {
+    case 'krenko_mob_boss':
+      // ... existing Krenko logic
+      break;
+
+    case 'krenko_tin_street_kingpin':
+      // ... existing Krenko Kingpin logic
+      break;
+
+    case 'cathars_crusade':
+      _handleCatharsCrusade(context, tracker, tokenProvider);
+      break;
+
+    default:
+      break;
+  }
+}
+
+void _handleCatharsCrusade(
+  BuildContext context,
+  TrackerWidget tracker,
+  TokenProvider tokenProvider,
+) {
+  final triggerCount = tracker.trackedValue;
+
+  if (triggerCount <= 0) {
+    // No triggers to resolve
+    return;
+  }
+
+  // Show confirmation dialog
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text("Cathar's Crusade"),
+      content: Text(
+        'Pressing confirm will add $triggerCount +1/+1 counter${triggerCount == 1 ? '' : 's'} '
+        'to all creatures.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+            _resolveCatharsTriggers(tracker, tokenProvider, triggerCount);
+          },
+          child: const Text('Confirm'),
+        ),
+      ],
+    ),
+  );
+}
+
+void _resolveCatharsTriggers(
+  TrackerWidget tracker,
+  TokenProvider tokenProvider,
+  int triggerCount,
+) {
+  // Get all tokens on board
+  final allTokens = tokenProvider.box.values.toList();
+
+  // Add counters to all creatures (tokens with P/T)
+  for (var token in allTokens) {
+    if (token.hasPowerToughness) {
+      token.plusOneCounters += triggerCount;
+      token.save();
+    }
+  }
+
+  // Reset Cathar's counter to 0
+  tracker.trackedValue = 0;
+  tracker.save();
+}
+```
+
+### Testing Requirements
+
+#### Event Bus Testing
+- [ ] Event fires when token with P/T is created
+- [ ] Event fires when token with P/T is copied
+- [ ] Event does NOT fire when token without P/T is created
+- [ ] Event does NOT fire when stack is split
+- [ ] Multiple utilities can listen to same event
+- [ ] No memory leaks (listeners properly registered/unregistered)
+- [ ] No performance degradation with multiple listeners
+
+#### Cathar's Crusade Testing
+- [ ] Utility appears in widget selection screen
+- [ ] Utility can be added to board
+- [ ] Default value is 0
+- [ ] Counter auto-increments when creature token created
+- [ ] Counter increments by correct amount (matches token amount)
+- [ ] Counter does NOT increment for non-creature tokens
+- [ ] Counter does NOT increment when stack is split
+- [ ] Counter does NOT decrement when token is deleted
+- [ ] Manual +/- buttons work correctly
+- [ ] Action button shows current count: "Add Counters (3)"
+- [ ] Confirmation dialog displays correct message
+- [ ] Confirm adds counters to all creatures on board
+- [ ] Counters stack with existing counters correctly
+- [ ] Cathar's counter resets to 0 after resolving
+- [ ] Multiple Cathar's utilities can coexist (both track independently)
+- [ ] Artwork displays correctly in both view modes
+- [ ] State persists across app restarts
+- [ ] Utility can be deleted
+- [ ] Utility can be reordered
+
+#### Edge Cases
+- [ ] Empty board → Cathar's resolves with no creatures → no crash
+- [ ] Create 2 squirrels simultaneously → both get same counter boost
+- [ ] Physical creature added manually → stepper works
+- [ ] Cathar's at 0 → action button does nothing (or shows "No triggers")
+- [ ] Very large counter values (100+) → no overflow or performance issues
+
+### Future Extensions
+
+The Event Bus architecture enables future utilities:
+
+**Death triggers:**
+- "Whenever a creature dies, do X"
+- Blood Artist, Zulaport Cutthroat effects
+
+**Tap triggers:**
+- "Whenever a creature taps, do X"
+- Inspired mechanic tracking
+
+**Counter triggers:**
+- "Whenever a +1/+1 counter is placed, do X"
+- Proliferate tracking, Hardened Scales effects
+
+**Token doubling:**
+- Intercept creation events to apply Doubling Season, Parallel Lives, etc.
+- Modify token count before insertion
+
+---
+
+## Open Questions for Cathar's Crusade Implementation
+
+**Status:** Awaiting user clarification before implementation
+
+These behavioral details need to be defined to prevent guesswork during Cathar's Crusade development:
+
+### 1. Event Bus Lifecycle Management
+**Question:** Listeners register in `TrackerProvider.init()` but the spec doesn't show them unregistering. Is this intentional (safe since we filter by `actionType`)? Or should listeners unregister when Cathar's utilities are deleted from the board?
+
+**Current spec:** Listeners registered once at provider init, never removed.
+
+**Concern:** Memory leak if utilities are created/deleted frequently? Or is filtering by `actionType` sufficient?
+
+---
+
+### 2. Board Wipe Behavior
+**Question:** When user does "board wipe" (FloatingActionMenu → Board Wipe), what should happen to Cathar's counter?
+
+**Option A:** Counter remains at current value (triggers already happened, can't undo them)
+**Option B:** Reset to 0 (fresh board state, no creatures = no triggers)
+**Option C:** Something else?
+
+**Related:** Should death events fire for all creatures during board wipe?
+
+---
+
+### 3. Deck Save/Load Behavior
+**Question:** When saving/loading deck templates with Cathar's Crusade utility:
+
+**On Save:**
+- Save counter at current value?
+- Or always save as 0?
+
+**On Load:**
+- Start at saved value?
+- Or always reset to 0?
+
+**Best guess:** Always reset to 0 on both operations (deck templates represent starting board state, not mid-game state)
+
+---
+
+### 4. Multiple Cathar's Utilities Interaction
+**Question:** Spec says multiple Cathar's utilities "track independently" (both increment on same ETB).
+
+**Clarification needed:** When resolving triggers:
+- **Option A (Independent):** Each utility's "Add Counters" button adds counters based only on its own counter value
+  - Example: 2 Cathar's both at 3 triggers → each button independently adds +3/+3 to all creatures
+- **Option B (Magic Rules):** Multiple Cathar's in play means each ETB generates multiple triggers
+  - Example: 1 creature enters with 2 Cathar's → each Cathar's counter goes +2 (one for the creature, one for the other Cathar's trigger)
+  - This mirrors actual Magic rules but is complex
+
+**Best guess:** Option A (Independent) - simpler, gives player full control
+
+---
+
+### 5. NewTokenSheet Creation Path
+**Question:** When creating a token via "Create Custom Token" bottom sheet (NewTokenSheet), should this fire ETB events?
+
+**Best guess:** Yes (it calls `TokenProvider.insertItem()` which should fire events)
+
+**Edge case:** User creates token with P/T via NewTokenSheet → Cathar's counter increments → confirm
+
+---
+
+### 6. Scute Swarm Doubling Button
+**Question:** When using Scute Swarm's special doubling button (doubles stack size), should this fire ETB events for the new tokens?
+
+**Best guess:** Yes - it's functionally creating new tokens (increases amount field)
+
+**Implementation note:** Currently Scute Swarm doubles by modifying `item.amount` directly. Would need to extract the delta and fire events:
+```dart
+final oldAmount = scuteSwarm.amount;
+scuteSwarm.amount *= 2;
+final newAmount = scuteSwarm.amount;
+final delta = newAmount - oldAmount;
+GameEvents.instance.notifyCreatureEntered(scuteSwarm, delta);
+```
+
+---
+
+### 7. Stack Splitting Clarification
+**Question:** Spec says "Token is split via SplitStackSheet → Does NOT increment (split = death + creation, not true ETB)"
+
+**Clarification needed:** Should splitting fire:
+- Death event for the original stack (reduced amount)?
+- ETB event for the new stack?
+- Neither event (current spec)?
+
+**Best guess:** Neither (current spec is correct) - splitting represents distributing existing tokens, not creating new ones
+
+---
+
+**Next Steps:**
+1. Answer questions above
+2. Update Cathar's Crusade spec with clarifications
+3. Proceed with implementation after Artwork Refactor is complete
