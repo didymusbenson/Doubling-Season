@@ -1,12 +1,4 @@
-# UTILITY WIDGET TODO LIST
-
-✅ ALL CURRENT UTILITIES COMPLETE - Ready for Cathar's Crusade
-
-- ✅ ~~Refine the appearance of toggles and trackers~~ (COMPLETED)
-- ✅ ~~Improve handling of artwork to match behaviors of tokens~~ (COMPLETED)
-- ✅ ~~Set default artwork URLs for trackers/toggles~~ (COMPLETED - all 13 utilities have Scryfall artwork)
-
----
+# Next Feature Development
 
 ## Process for Adding New Utility Types (CRITICAL CHECKLIST)
 
@@ -48,7 +40,7 @@ This checklist documents ALL steps required when adding a new utility type (like
 ### 6. Widget Card (`lib/widgets/your_utility_card.dart`)
 - [ ] Create card widget extending `StatefulWidget`
 - [ ] **CRITICAL: Use TokenCard as reference implementation**
-- [ ] Use `Selector<SettingsProvider, String>` for artwork display style
+- [ ] Use `Selector<SettingsProvider, String>` to watch `artworkDisplayStyle` (utilities only need this setting, NOT `summoningSicknessEnabled`)
 - [ ] Implement artwork layers following EXACT pattern from TokenCard:
   - Base card background layer
   - Gradient background layer (conditional)
@@ -167,141 +159,149 @@ return Selector<SettingsProvider, String>(
 );
 ```
 
-**3. Artwork Layer Builder:**
-```dart
-Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints, String artworkStyle) {
-  if (artworkStyle == 'fadeout') {
-    return _buildFadeoutArtwork(context, constraints);
-  } else {
-    return _buildFullViewArtwork(context, constraints);
-  }
-}
-```
+**3. Artwork Layer Builder (Inline Implementation):**
 
-**4. Full View Implementation:**
+**IMPORTANT:** The implementation uses a single method with inline if/else blocks, NOT separate helper methods. This pattern matches the actual implementations in TrackerWidgetCard and ToggleWidgetCard.
+
 ```dart
-Widget _buildFullViewArtwork(BuildContext context, BoxConstraints constraints) {
+Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints, String artworkDisplayStyle) {
   final crop = ArtworkManager.getCropPercentages(artworkUrl);
-  
-  return Positioned.fill(
-    child: FutureBuilder<File?>(
-      future: ArtworkManager.getCachedArtworkFile(artworkUrl!),
-      builder: (context, snapshot) {
-        if (snapshot.hasData && snapshot.data != null) {
-          // Animation logic
-          final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-          final shouldAnimate = elapsed > 100 && !_artworkAnimated;
-          
-          if (shouldAnimate) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) setState(() => _artworkAnimated = true);
-            });
-          }
-          
-          return AnimatedOpacity(
-            opacity: 1.0,
-            duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
-            curve: Curves.easeIn,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
-              child: CroppedArtworkWidget(
-                imageFile: snapshot.data!,
-                cropLeft: crop['left']!,
-                cropRight: crop['right']!,
-                cropTop: crop['top']!,
-                cropBottom: crop['bottom']!,
-                fillWidth: true,  // ← FULL VIEW: fill width
+  final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
+
+  // Cleanup logic for missing files (runs in both modes)
+  if (elapsed > 2000 && !_artworkCleanupAttempted) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _artworkCleanupAttempted = true;
+        });
+      }
+    });
+  }
+
+  // Animation trigger (runs in both modes)
+  if (elapsed > 100 && !_artworkAnimated) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _artworkAnimated = true;
+        });
+      }
+    });
+  }
+
+  // FADEOUT MODE
+  if (artworkDisplayStyle == 'fadeout') {
+    final cardWidth = constraints.maxWidth;
+    final artworkWidth = cardWidth * 0.50;  // ← CRITICAL: 50% width constraint
+
+    return Positioned(
+      right: 0,
+      top: 0,
+      bottom: 0,
+      width: artworkWidth,  // ← CRITICAL: constrains container to 50% width
+      child: FutureBuilder<File?>(
+        future: ArtworkManager.getCachedArtworkFile(artworkUrl!),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data != null) {
+            return AnimatedOpacity(
+              opacity: _artworkAnimated ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeIn,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(UIConstants.smallBorderRadius),
+                  bottomRight: Radius.circular(UIConstants.smallBorderRadius),
+                ),
+                child: ShaderMask(  // ← CRITICAL: gradient fade on left edge
+                  shaderCallback: (bounds) {
+                    return const LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [Colors.transparent, Colors.white],
+                      stops: [0.0, 0.50],  // Fade covers left 50% of artwork container
+                    ).createShader(bounds);
+                  },
+                  blendMode: BlendMode.dstIn,
+                  child: CroppedArtworkWidget(
+                    imageFile: snapshot.data!,
+                    cropLeft: crop['left']!,
+                    cropRight: crop['right']!,
+                    cropTop: crop['top']!,
+                    cropBottom: crop['bottom']!,
+                    fillWidth: false,  // ← CRITICAL: scale to fill HEIGHT, not width
+                  ),
+                ),
               ),
-            ),
-          );
-        }
-        
-        // Cleanup logic for missing files
-        if (snapshot.connectionState == ConnectionState.done &&
-            snapshot.data == null &&
-            !_artworkCleanupAttempted) {
-          final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-          if (elapsed > 2000) {
+            );
+          }
+
+          // Cleanup for missing artwork
+          if (snapshot.connectionState == ConnectionState.done &&
+              snapshot.data == null &&
+              !_artworkCleanupAttempted &&
+              elapsed > 2000) {
             _artworkCleanupAttempted = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
+                // Clear artwork URL from model and save
                 artworkUrl = null;
                 save();
               }
             });
           }
-        }
-        
-        return const SizedBox.shrink();
-      },
-    ),
-  );
-}
-```
 
-**5. Fadeout Implementation (CRITICAL - must constrain width to 50%):**
-```dart
-Widget _buildFadeoutArtwork(BuildContext context, BoxConstraints constraints) {
-  final crop = ArtworkManager.getCropPercentages(artworkUrl);
-  final cardWidth = constraints.maxWidth;
-  final artworkWidth = cardWidth * 0.50;  // ← CRITICAL: 50% width
-  
-  return Positioned(
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: artworkWidth,  // ← CRITICAL: constrains container to 50% width
-    child: FutureBuilder<File?>(
-      future: ArtworkManager.getCachedArtworkFile(artworkUrl!),
-      builder: (context, snapshot) {
-        if (snapshot.hasData && snapshot.data != null) {
-          // Same animation logic as full view
-          final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-          final shouldAnimate = elapsed > 100 && !_artworkAnimated;
-          
-          if (shouldAnimate) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) setState(() => _artworkAnimated = true);
-            });
-          }
-          
-          return AnimatedOpacity(
-            opacity: 1.0,
-            duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
-            curve: Curves.easeIn,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(UIConstants.smallBorderRadius),
-                bottomRight: Radius.circular(UIConstants.smallBorderRadius),
-              ),
-              child: ShaderMask(  // ← CRITICAL: gradient fade
-                shaderCallback: (bounds) {
-                  return const LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [Colors.transparent, Colors.white],
-                    stops: [0.0, 0.50],  // ← Fade covers left 50% of artwork container
-                  ).createShader(bounds);
-                },
-                blendMode: BlendMode.dstIn,
+          return const SizedBox.shrink();
+        },
+      ),
+    );
+  }
+
+  // FULL VIEW MODE
+  else {
+    return Positioned.fill(
+      child: FutureBuilder<File?>(
+        future: ArtworkManager.getCachedArtworkFile(artworkUrl!),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data != null) {
+            return AnimatedOpacity(
+              opacity: _artworkAnimated ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeIn,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
                 child: CroppedArtworkWidget(
                   imageFile: snapshot.data!,
                   cropLeft: crop['left']!,
                   cropRight: crop['right']!,
                   cropTop: crop['top']!,
                   cropBottom: crop['bottom']!,
-                  fillWidth: false,  // ← CRITICAL: scale to fill HEIGHT, not width
+                  fillWidth: true,  // ← FULL VIEW: fill width, crop height
                 ),
               ),
-            ),
-          );
-        }
-        
-        // Same cleanup logic as full view
-        return const SizedBox.shrink();
-      },
-    ),
-  );
+            );
+          }
+
+          // Cleanup for missing artwork
+          if (snapshot.connectionState == ConnectionState.done &&
+              snapshot.data == null &&
+              !_artworkCleanupAttempted &&
+              elapsed > 2000) {
+            _artworkCleanupAttempted = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                // Clear artwork URL from model and save
+                artworkUrl = null;
+                save();
+              }
+            });
+          }
+
+          return const SizedBox.shrink();
+        },
+      ),
+    );
+  }
 }
 ```
 
@@ -412,190 +412,491 @@ Action trackers use the existing `TrackerWidget` model with optional action fiel
 
 ---
 
-# CRITICAL BUG: Mass Custom Artwork Loading Crash
+## Code Refactoring Required: Artwork Layer Duplication
 
-## User Report (Android 16, Pixel 9)
+**Status:** MUST FIX before adding more card types
 
-- Built deck with 34 custom tokens, each with uploaded artwork
-- App crashes on reload/restart
-- Won't recover until cache is cleared
-- Clearing cache removes artwork URLs → no crash (but loses all custom artwork)
+**Research completed:** See `docs/activeDevelopment/ArtworkImplementationResearch.md` for detailed analysis.
 
-## Root Cause Analysis
+**Problem:** The artwork layer implementation is duplicated across 3 card types (~450 total lines of nearly identical code):
+- `lib/widgets/token_card.dart` (lines 565-727) - 163 lines
+- `lib/widgets/tracker_widget_card.dart` (lines 588-729) - 142 lines
+- `lib/widgets/toggle_widget_card.dart` (lines 196-340) - 145 lines
 
-### The Loading Chain (App Startup)
+**Duplicated logic:**
+- Animation threshold check (`elapsed > 100`)
+- Cleanup logic (`elapsed > 2000`)
+- FutureBuilder structure with AnimatedOpacity
+- ShaderMask for fadeout gradient
+- CroppedArtworkWidget integration
+- Two mode implementations (full view vs fadeout)
 
-1. **ContentScreen builds** → ListenableBuilder triggers on Hive box
-2. **ReorderableListView.builder** creates 34+ TokenCards simultaneously
-3. **Each TokenCard** builds its artwork layer:
-   - Calls `ArtworkManager.getCachedArtworkFile(artworkUrl)`
-   - For `file://` URLs (custom artwork), this **immediately returns File** (local file check is synchronous)
-4. **FutureBuilder completes instantly** for all 34 cards (file exists)
-5. **34 CroppedArtworkWidget instances created** nearly simultaneously
-6. **Each CroppedArtworkWidget.initState()** calls `_loadImageIfNeeded()`:
-   - `await file.readAsBytes()` - 34 concurrent file reads
-   - `await ui.instantiateImageCodec(bytes)` - **34 concurrent image codec instantiations**
-   - `await codec.getNextFrame()` - 34 concurrent frame extractions
+**Critical Bugs Found:**
+1. ❌ **TrackerWidget cleanup incomplete** - Only clears `artworkUrl`, should also clear `artworkSet` and `artworkOptions`
+2. ❌ **ToggleWidget cleanup incomplete** - Same issue as TrackerWidget
 
-### Critical Bottlenecks
+**Why this matters:**
+- Bug fixes must be applied to 3 places (maintenance nightmare)
+- **Cleanup bugs exist in 2/3 implementations** (TrackerWidget, ToggleWidget)
+- Adding new card types (like Cathar's Crusade) would create 4th duplication
+- Inconsistencies can creep in between implementations
+- ~300 lines could be eliminated
 
-**Primary Issue: Image Codec Overload**
-- `ui.instantiateImageCodec()` is CPU/memory intensive
-- 34 concurrent calls overwhelm the system (especially Android)
-- Each image is full-resolution (cropped to 4:3 aspect ratio, 85% quality)
-- Android's image decoder has limited capacity for concurrent operations
+**Estimated effort:** 3-5 hours (includes bug fixes)
+**Risk:** Medium (must test all card types thoroughly after refactor)
 
-**Secondary Issues:**
-- **Memory pressure**: 34 full-res images in memory simultaneously
-- **File I/O bottleneck**: 34 concurrent file reads on mobile storage
-- **No throttling**: All loads fire at once when list builds
+### Proposed Solution: Artwork Display Mixin
 
-### Why Scryfall Artwork Doesn't Crash
+**Design:** Follow TokenCard pattern (gold standard) with separate helper methods for better code organization.
 
-- Scryfall URLs require **network download** before codec instantiation
-- Downloads happen asynchronously over time (network latency provides natural throttling)
-- Not all 34 images arrive simultaneously
-- Custom artwork is **instant local file access** → all 34 hit codec simultaneously
+**Create:** `lib/widgets/mixins/artwork_display_mixin.dart`
 
-### Why Original Drag-Drop Bug Was Related
+```dart
+import 'dart:io';
+import 'package:flutter/material.dart';
+import '../../utils/artwork_manager.dart';
+import '../../utils/constants.dart';
+import '../cropped_artwork_widget.dart';
 
-Original bug: "Dragging token causes multiple cards to rebuild, if artwork doesn't lazy load fast enough → crash"
+/// Mixin providing shared artwork display logic for all card types.
+///
+/// This follows the TokenCard pattern (gold standard) with separate methods
+/// for full view and fadeout modes.
+///
+/// Card types that display artwork (TokenCard, TrackerWidgetCard, ToggleWidgetCard)
+/// should use this mixin to avoid duplicating the artwork layer implementation.
+///
+/// Required state variables in the widget class:
+/// ```dart
+/// final DateTime _createdAt = DateTime.now();
+/// bool _artworkAnimated = false;
+/// bool _artworkCleanupAttempted = false;
+/// ```
+///
+/// Required getters/setters to implement:
+/// ```dart
+/// DateTime get createdAt => _createdAt;
+/// bool get artworkAnimated => _artworkAnimated;
+/// set artworkAnimated(bool value) => _artworkAnimated = value;
+/// bool get artworkCleanupAttempted => _artworkCleanupAttempted;
+/// set artworkCleanupAttempted(bool value) => _artworkCleanupAttempted = value;
+/// String? get artworkUrl;  // For TokenCard: widget.item.artworkUrl
+///                          // For TrackerWidget: widget.tracker.artworkUrl
+///                          // For ToggleWidget: widget.toggle.currentArtworkUrl
+///                          //   NOTE: currentArtworkUrl is scaffolded for state-specific
+///                          //   artwork but not implemented - always returns artworkUrl
+/// void clearArtwork();     // Clear artworkUrl, artworkSet, artworkOptions, save()
+/// ```
+mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
+  // Subclasses must provide these
+  DateTime get createdAt;
+  bool get artworkAnimated;
+  set artworkAnimated(bool value);
+  bool get artworkCleanupAttempted;
+  set artworkCleanupAttempted(bool value);
+  String? get artworkUrl;
+  void clearArtwork();
 
-- Same root cause: **simultaneous artwork rebuilds**
-- Drag-drop triggered ~5-10 rebuilds simultaneously
-- Custom artwork (instant local access) hit codec all at once
-- Fixed by adding 2-second stability delay before cleanup (reduced rebuilds)
-- But didn't address the **startup scenario** with 34+ saved custom artworks
+  /// Main artwork layer builder - delegates to specific mode methods.
+  ///
+  /// This is the entry point called from the card's build() method.
+  Widget buildArtworkLayer({
+    required BuildContext context,
+    required BoxConstraints constraints,
+    required String artworkDisplayStyle,
+  }) {
+    if (artworkDisplayStyle == 'fadeout') {
+      return buildFadeoutArtwork(context, constraints);
+    } else {
+      return buildFullViewArtwork(context, constraints);
+    }
+  }
 
-## Critical Code Discovery: CroppedArtworkWidget Bypasses Flutter's Image Cache
+  /// Build full-width artwork background layer (fills entire card).
+  Widget buildFullViewArtwork(BuildContext context, BoxConstraints constraints) {
+    final crop = ArtworkManager.getCropPercentages(artworkUrl);
 
-**Key Finding:** CroppedArtworkWidget (cropped_artwork_widget.dart:82-87) directly calls `ui.instantiateImageCodec()`, completely bypassing Flutter's image caching system.
+    return Positioned.fill(
+      child: FutureBuilder<File?>(
+        future: ArtworkManager.getCachedArtworkFile(artworkUrl!),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data != null) {
+            // Determine if artwork should animate
+            // If it appears > 100ms after card creation = downloaded (animate)
+            // If it appears < 100ms after card creation = cached (no animation)
+            final elapsed = DateTime.now().difference(createdAt).inMilliseconds;
+            final shouldAnimate = elapsed > 100 && !artworkAnimated;
 
-### Standard Flutter Image Loading (NOT used here):
+            if (shouldAnimate) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    artworkAnimated = true;
+                  });
+                }
+              });
+            }
+
+            return AnimatedOpacity(
+              opacity: 1.0,
+              duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
+              curve: Curves.easeIn,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
+                child: CroppedArtworkWidget(
+                  imageFile: snapshot.data!,
+                  cropLeft: crop['left']!,
+                  cropRight: crop['right']!,
+                  cropTop: crop['top']!,
+                  cropBottom: crop['bottom']!,
+                  fillWidth: true,
+                ),
+              ),
+            );
+          }
+
+          // If artwork file is missing, clear the invalid reference
+          // BUT: Only do this if widget has been stable for >2 seconds to avoid cleanup during drag/scroll
+          if (snapshot.connectionState == ConnectionState.done &&
+              snapshot.data == null &&
+              !artworkCleanupAttempted) {
+            final elapsed = DateTime.now().difference(createdAt).inMilliseconds;
+            if (elapsed > 2000) {
+              artworkCleanupAttempted = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  clearArtwork();
+                }
+              });
+            }
+          }
+
+          // Show empty background while loading or if file missing
+          return const SizedBox.shrink();
+        },
+      ),
+    );
+  }
+
+  /// Build fadeout artwork layer (right-side 50% with gradient fade).
+  Widget buildFadeoutArtwork(BuildContext context, BoxConstraints constraints) {
+    final crop = ArtworkManager.getCropPercentages(artworkUrl);
+    final cardWidth = constraints.maxWidth;
+    final artworkWidth = cardWidth * 0.50;
+
+    return Positioned(
+      right: 0,
+      top: 0,
+      bottom: 0,
+      width: artworkWidth,
+      child: FutureBuilder<File?>(
+        future: ArtworkManager.getCachedArtworkFile(artworkUrl!),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data != null) {
+            // Same animation logic as full view
+            final elapsed = DateTime.now().difference(createdAt).inMilliseconds;
+            final shouldAnimate = elapsed > 100 && !artworkAnimated;
+
+            if (shouldAnimate) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    artworkAnimated = true;
+                  });
+                }
+              });
+            }
+
+            return AnimatedOpacity(
+              opacity: 1.0,
+              duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
+              curve: Curves.easeIn,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(UIConstants.smallBorderRadius),
+                  bottomRight: Radius.circular(UIConstants.smallBorderRadius),
+                ),
+                child: ShaderMask(
+                  shaderCallback: (bounds) {
+                    return const LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [Colors.transparent, Colors.white],
+                      stops: [0.0, 0.50],
+                    ).createShader(bounds);
+                  },
+                  blendMode: BlendMode.dstIn,
+                  child: CroppedArtworkWidget(
+                    imageFile: snapshot.data!,
+                    cropLeft: crop['left']!,
+                    cropRight: crop['right']!,
+                    cropTop: crop['top']!,
+                    cropBottom: crop['bottom']!,
+                    fillWidth: false,
+                  ),
+                ),
+              ),
+            );
+          }
+
+          // If artwork file is missing, clear the invalid reference
+          // BUT: Only do this if widget has been stable for >2 seconds to avoid cleanup during drag/scroll
+          if (snapshot.connectionState == ConnectionState.done &&
+              snapshot.data == null &&
+              !artworkCleanupAttempted) {
+            final elapsed = DateTime.now().difference(createdAt).inMilliseconds;
+            if (elapsed > 2000) {
+              artworkCleanupAttempted = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  clearArtwork();
+                }
+              });
+            }
+          }
+
+          // Show empty background while loading or if file missing
+          return const SizedBox.shrink();
+        },
+      ),
+    );
+  }
+}
 ```
-Image.file()
-  → FileImage (ImageProvider)
-  → PaintingBinding.instance.imageCache
-    → Throttled loading
-    → Memory limits enforced
-    → Automatic eviction
-    → Shared cache across widgets
+
+### Usage Pattern
+
+**Before (in each card class):**
+```dart
+class _TokenCardState extends State<TokenCard> {
+  final DateTime _createdAt = DateTime.now();
+  bool _artworkAnimated = false;
+  bool _artworkCleanupAttempted = false;
+
+  Widget _buildArtworkLayer(...) {
+    // 150+ lines of duplicated code
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // ...
+        if (artworkUrl != null)
+          _buildArtworkLayer(context, constraints, artworkDisplayStyle),
+        // ...
+      ],
+    );
+  }
+}
 ```
 
-### CroppedArtworkWidget Path (CURRENTLY used):
+**After (in each card class):**
+
+**TokenCard:**
+```dart
+class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
+  final DateTime _createdAt = DateTime.now();
+  bool _artworkAnimated = false;
+  bool _artworkCleanupAttempted = false;
+
+  @override
+  void didUpdateWidget(TokenCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reset cleanup flag if artwork URL changed
+    if (oldWidget.item.artworkUrl != widget.item.artworkUrl) {
+      _artworkCleanupAttempted = false;
+    }
+  }
+
+  // Implement required getters
+  @override
+  DateTime get createdAt => _createdAt;
+
+  @override
+  String? get artworkUrl => widget.item.artworkUrl;
+
+  @override
+  void clearArtwork() {
+    widget.item.artworkUrl = null;
+    widget.item.artworkSet = null;      // ← CRITICAL: Clear all artwork fields
+    widget.item.artworkOptions = null;  // ← CRITICAL: Clear all artwork fields
+    widget.item.save();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // ...
+        if (artworkUrl != null)
+          buildArtworkLayer(  // ← Use mixin method
+            context: context,
+            constraints: constraints,
+            artworkDisplayStyle: artworkDisplayStyle,
+          ),
+        // ...
+      ],
+    );
+  }
+}
 ```
-CroppedArtworkWidget
-  → Direct file.readAsBytes()
-  → Direct ui.instantiateImageCodec(bytes)
-    → NO throttling
-    → NO memory management
-    → NO cache sharing
-    → Each widget holds its own ui.Image in memory
+
+**TrackerWidgetCard (with bug fix):**
+```dart
+class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDisplayMixin {
+  final DateTime _createdAt = DateTime.now();
+  bool _artworkAnimated = false;
+  bool _artworkCleanupAttempted = false;
+
+  @override
+  void didUpdateWidget(TrackerWidgetCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tracker.artworkUrl != widget.tracker.artworkUrl) {
+      _artworkCleanupAttempted = false;
+    }
+  }
+
+  @override
+  DateTime get createdAt => _createdAt;
+
+  @override
+  String? get artworkUrl => widget.tracker.artworkUrl;
+
+  @override
+  void clearArtwork() {
+    widget.tracker.artworkUrl = null;
+    widget.tracker.artworkSet = null;      // ← FIX: Was missing!
+    widget.tracker.artworkOptions = null;  // ← FIX: Was missing!
+    widget.tracker.save();
+  }
+}
 ```
 
-**Implication:** 34 widgets = 34 independent codec instantiations + 34 separate ui.Image objects in memory, all simultaneously.
+**ToggleWidgetCard (with bug fix):**
+```dart
+class _ToggleWidgetCardState extends State<ToggleWidgetCard> with ArtworkDisplayMixin {
+  final DateTime _createdAt = DateTime.now();
+  bool _artworkAnimated = false;
+  bool _artworkCleanupAttempted = false;
 
-## Image Size Comparison (Critical Difference)
+  @override
+  void didUpdateWidget(ToggleWidgetCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.toggle.artworkUrl != widget.toggle.artworkUrl) {
+      _artworkCleanupAttempted = false;
+    }
+  }
 
-### Scryfall "Large" Images:
-- Resolution: 672×936 pixels (Scryfall's `/large/` endpoint)
-- Format: Pre-optimized JPEG for web
-- Typical file size: 100-300KB per image
-- **34 images ≈ 10MB total file size**
-- Decoded to ui.Image: ~2.4MB per image (672×936×4 bytes RGBA)
-- **34 decoded ≈ 82MB in memory**
+  @override
+  DateTime get createdAt => _createdAt;
 
-### Custom Uploaded Images:
-- Source: Modern phone cameras (12MP+, typically 4000×3000 pixels)
-- Processing: Cropped to 4:3 aspect via ImageCropper, `imageQuality: 85`
-- ImageCropper **does NOT resize** - only crops region of interest
-- Typical file size: **1-3MB per image** (depends on image content)
-- **34 images ≈ 68-100MB total file size**
-- Decoded to ui.Image: Varies by camera, but could be **~46MB per image** (4000×3000×4 bytes RGBA)
-- **34 decoded ≈ 1.5GB in memory**
+  @override
+  String? get artworkUrl => widget.toggle.currentArtworkUrl;
+  // NOTE: currentArtworkUrl is scaffolded for state-specific artwork (on/off)
+  // but not implemented on frontend. Always returns general artworkUrl.
+  // See ArtworkImplementationResearch.md section 4 for details.
 
-**Memory explosion:** Custom artwork could require **18x more memory** than Scryfall images when decoded.
+  @override
+  void clearArtwork() {
+    widget.toggle.artworkUrl = null;
+    widget.toggle.artworkSet = null;      // ← FIX: Was missing!
+    widget.toggle.artworkOptions = null;  // ← FIX: Was missing!
+    widget.toggle.save();
+    // FUTURE: When state-specific artwork is implemented, also clear:
+    // widget.toggle.onArtworkUrl = null;
+    // widget.toggle.offArtworkUrl = null;
+  }
+}
+```
 
-## Why User Hasn't Reported Scryfall Crashes
+### Implementation Checklist
 
-1. **They might not have 34+ cached Scryfall tokens** - Database tokens may not all have artwork selected, or user primarily uses custom tokens
-2. **Scryfall images are smaller** - Even if they have 34 cached, it's 82MB vs 1.5GB
-3. **Android memory limits** - Pixel 9 might handle 82MB but not 1.5GB of simultaneous image decoding
+**Phase 0: Add Artwork Magic Numbers to UIConstants (15 minutes)**
+- [ ] Add to `lib/utils/constants.dart` → `UIConstants`:
+  - `artworkAnimationThreshold = 100` (milliseconds - cached vs downloaded distinction)
+  - `artworkCleanupDelay = 2000` (milliseconds - prevents cleanup during drag/scroll)
+  - `artworkFadeInDuration = Duration(milliseconds: 500)` (animation duration)
+  - `artworkFadeoutWidthPercent = 0.50` (50% width for fadeout mode)
+  - `artworkFadeoutGradientStops = [0.0, 0.50]` (gradient fade on left edge)
+  - `textBackgroundOpacity = 0.85` (semi-transparent backgrounds for readability)
+- [ ] These values are empirically determined and deliberate - do not change
 
-## Proposed Solutions (To Discuss)
+**Phase 1: Fix Cleanup Bugs (5 minutes, DO THIS FIRST)**
+- [ ] Fix `tracker_widget_card.dart` lines 659-660 - Add artworkSet and artworkOptions to cleanup
+- [ ] Fix `tracker_widget_card.dart` lines 717-718 - Add artworkSet and artworkOptions to cleanup
+- [ ] Fix `toggle_widget_card.dart` lines 270-271 - Add artworkSet and artworkOptions to cleanup
+- [ ] Fix `toggle_widget_card.dart` lines 328-329 - Add artworkSet and artworkOptions to cleanup
+- [ ] Test artwork cleanup on all three card types (user tests on physical devices/simulators)
 
-### Option 1: Resize Custom Artwork on Upload (SIMPLEST FIX)
-**Add image resizing during custom artwork upload process.**
+**Phase 2: Extract TextWithBackground Helper (30 minutes)**
+- [ ] Create `lib/widgets/common/background_text.dart`
+- [ ] Extract shared `_buildTextWithBackground()` logic from all three cards
+- [ ] Use `UIConstants.textBackgroundOpacity` instead of hardcoded 0.85
+- [ ] Update TokenCard to use shared widget
+- [ ] Update TrackerWidgetCard to use shared widget
+- [ ] Update ToggleWidgetCard to use shared widget
+- [ ] Verify text readability over artwork in both display modes
 
-**Implementation:**
-- After ImageCropper returns cropped file (artwork_selection_sheet.dart:950+)
-- Use Flutter's `image` package to decode, resize to max 672×936 (matching Scryfall), re-encode
-- Replace large file with resized version before saving to app directory
+**Phase 3: Create Artwork Display Mixin (2-3 hours)**
+- [ ] Create `lib/widgets/mixins/` directory
+- [ ] Create `lib/widgets/mixins/artwork_display_mixin.dart`
+- [ ] Implement mixin with `buildArtworkLayer()`, `buildFullViewArtwork()`, and `buildFadeoutArtwork()` methods
+- [ ] Use UIConstants for all magic numbers (animation thresholds, durations, percentages)
+- [ ] Copy gold standard logic from TokenCard
+- [ ] Add comprehensive documentation
+- [ ] Note: All future card types will need artwork support - mixin is the standard
 
-**Benefits:**
-- Fixes the root cause (image size, not concurrency)
-- No changes to loading logic needed
-- Custom artwork becomes same size as Scryfall artwork
-- One-time cost during upload, not every app launch
-- Reduces storage requirements for users
+**Phase 4: PILOT - Apply Mixin to TokenCard (1 hour)**
+- [ ] Update `TokenCard` to use mixin:
+  - [ ] Add `with ArtworkDisplayMixin` to state class
+  - [ ] Implement required interface (createdAt, artworkUrl, artworkAnimated, etc.)
+  - [ ] Implement `clearArtwork()` method
+  - [ ] Replace `_buildArtworkLayer()` call with mixin's `buildArtworkLayer()`
+  - [ ] Remove old `_buildArtworkLayer()`, `_buildFullViewArtwork()`, `_buildFadeoutArtwork()` methods
+- [ ] **STOP AND TEST PILOT:**
+  - [ ] Test TokenCard in full view mode (user tests on physical devices/simulators)
+  - [ ] Test TokenCard in fadeout mode
+  - [ ] Verify artwork animations (fade-in after 100ms for downloaded artwork)
+  - [ ] Verify cleanup logic (missing artwork cleared after 2 seconds)
+  - [ ] Verify text backgrounds maintain readability
+  - [ ] Test with Scryfall artwork
+  - [ ] Test with custom uploaded artwork
+  - [ ] Verify no visual regressions compared to old implementation
+- [ ] **REVIEW PILOT RESULTS** - If issues found, fix mixin before proceeding
 
-**Drawbacks:**
-- Quality loss (but 672×936 is plenty for mobile display)
-- Adds processing time during upload (~1-2 seconds)
-- Existing custom artwork in user's app won't be fixed (needs migration or re-upload)
+**Phase 5: Apply Mixin to Utility Cards (1 hour)**
+- [ ] Update `TrackerWidgetCard` to use mixin (same steps as TokenCard)
+- [ ] Update `ToggleWidgetCard` to use mixin (same steps as TokenCard, uses `currentArtworkUrl`)
+- [ ] **FINAL TESTING:**
+  - [ ] Test all three card types in both display modes
+  - [ ] Verify artwork animations work correctly across all card types
+  - [ ] Verify cleanup logic works across all card types
+  - [ ] Verify text backgrounds maintain readability over artwork
+  - [ ] Verify no visual regressions
+- [ ] Update NextFeature.md artwork pattern section to reference mixin usage
+- [ ] Document lessons learned from pilot (if any)
 
-**Confidence this solves the problem:** 85% - addresses the 18x memory difference
+### Testing Checklist
+
+After implementing mixin:
+- [ ] TokenCard: Full view mode displays correctly
+- [ ] TokenCard: Fadeout mode displays correctly
+- [ ] TrackerWidget: Full view mode displays correctly
+- [ ] TrackerWidget: Fadeout mode displays correctly
+- [ ] ToggleWidget: Full view mode displays correctly
+- [ ] ToggleWidget: Fadeout mode displays correctly
+- [ ] Artwork animations trigger at 100ms
+- [ ] Missing artwork cleans up after 2000ms
+- [ ] No performance degradation
+- [ ] Switching display modes works instantly
+
+**Lines saved:** ~300 lines of duplicated code eliminated
 
 ---
 
-### Option 2: Throttled Image Loading Queue
-- Limit concurrent `ui.instantiateImageCodec()` calls (e.g., max 3 at a time)
-- Queue remaining loads, process as each completes
-- **Pro**: Simple, works for all artwork types, future-proof
-- **Con**: Artwork appears gradually, doesn't reduce memory usage (just spreads it over time)
+## Next Up: Cathar's Crusade
 
-**Confidence this solves the problem:** 90% - prevents simultaneous overload
+The next special utility to implement is **Cathar's Crusade**.
 
----
-
-### Option 3: Resize on Upload + Throttle Loading (BELT AND SUSPENDERS)
-- Combine Option 1 and Option 2
-- Resize custom artwork to match Scryfall sizes
-- Add throttling queue for all artwork loading
-- **Pro**: Maximum robustness, handles edge cases (100+ tokens)
-- **Con**: Most work, may be overkill
-
-**Confidence this solves the problem:** 99% - addresses both size and concurrency
-
----
-
-### Option 4: Switch to Flutter's Image.file() Widget
-- Replace CroppedArtworkWidget with standard Image.file() + ClipRect for cropping
-- Leverage Flutter's built-in image cache system
-- **Pro**: Gets automatic throttling and memory management
-- **Con**: May not support custom cropping as flexibly, major refactor
-
-**Confidence this solves the problem:** 70% - Unknown if Flutter's cache handles 34 large images gracefully
-
----
-
-### Option 5: Lazy Loading with Visibility Detection
-- Only load artwork for visible cards (viewport-based)
-- Load off-screen artwork on-demand as user scrolls
-- **Pro**: Minimal memory usage, only loads what's visible
-- **Con**: Complex to implement, may cause visible pop-in during scroll
-
-**Confidence this solves the problem:** 95% - but complex implementation
-
-## Questions to Resolve
-
-1. **Which solution fits the app's UX best?** Gradual appearance vs instant appearance?
-2. **What's acceptable startup time?** How long can users wait for artwork?
-3. **Memory constraints?** How many full-res images can we safely hold in memory?
-4. **Edge cases?** What if user has 100+ custom artworks? (future-proofing)
-
----
-
-# NEXT UP: Cathar's Crusade (ON HOLD - Bug takes priority)
-
-Once the custom artwork loading bug is resolved, the next special utility to implement is **Cathar's Crusade**.
+**Status:** Planning phase - design and implementation details to be determined.
