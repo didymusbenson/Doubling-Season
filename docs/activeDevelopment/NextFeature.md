@@ -103,267 +103,9 @@ This checklist documents ALL steps required when adding a new utility type (like
 
 **CRITICAL:** If your utility doesn't appear or work correctly, review each step above. Missing ANY step will break functionality.
 
----
+## Artwork Implementation
 
-## Artwork Implementation Pattern (MEMORIZE THIS)
-
-When creating new card types (tokens, utilities, or any future board items), artwork must be implemented following this exact pattern to ensure consistent behavior across fullView and fadeout modes.
-
-### Required Setup
-
-**1. Card State Variables:**
-```dart
-final DateTime _createdAt = DateTime.now();
-bool _artworkAnimated = false;
-bool _artworkCleanupAttempted = false;
-```
-
-**2. Widget Structure (use LayoutBuilder + Stack):**
-```dart
-return Selector<SettingsProvider, String>(
-  selector: (context, settings) => settings.artworkDisplayStyle,
-  builder: (context, artworkDisplayStyle, child) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Stack(
-          children: [
-            // Layer 1: Base card background
-            Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
-              ),
-            ),
-            
-            // Layer 2: Gradient background (shows when no artwork or while loading)
-            if (artworkUrl == null || artworkUrl.isEmpty)
-              _buildGradientLayer(context)
-            else
-              _buildConditionalGradient(context),
-            
-            // Layer 3: Artwork layer
-            if (artworkUrl != null)
-              _buildArtworkLayer(context, constraints, artworkDisplayStyle),
-            
-            // Layer 4: Content with semi-transparent backgrounds
-            Container(
-              color: Colors.transparent,
-              padding: const EdgeInsets.all(UIConstants.cardPadding),
-              child: // ... your content
-            ),
-          ],
-        );
-      },
-    );
-  },
-);
-```
-
-**3. Artwork Layer Builder (Inline Implementation):**
-
-**IMPORTANT:** The implementation uses a single method with inline if/else blocks, NOT separate helper methods. This pattern matches the actual implementations in TrackerWidgetCard and ToggleWidgetCard.
-
-```dart
-Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints, String artworkDisplayStyle) {
-  final crop = ArtworkManager.getCropPercentages(artworkUrl);
-  final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-
-  // Cleanup logic for missing files (runs in both modes)
-  if (elapsed > 2000 && !_artworkCleanupAttempted) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        setState(() {
-          _artworkCleanupAttempted = true;
-        });
-      }
-    });
-  }
-
-  // Animation trigger (runs in both modes)
-  if (elapsed > 100 && !_artworkAnimated) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        setState(() {
-          _artworkAnimated = true;
-        });
-      }
-    });
-  }
-
-  // FADEOUT MODE
-  if (artworkDisplayStyle == 'fadeout') {
-    final cardWidth = constraints.maxWidth;
-    final artworkWidth = cardWidth * 0.50;  // ← CRITICAL: 50% width constraint
-
-    return Positioned(
-      right: 0,
-      top: 0,
-      bottom: 0,
-      width: artworkWidth,  // ← CRITICAL: constrains container to 50% width
-      child: FutureBuilder<File?>(
-        future: ArtworkManager.getCachedArtworkFile(artworkUrl!),
-        builder: (context, snapshot) {
-          if (snapshot.hasData && snapshot.data != null) {
-            return AnimatedOpacity(
-              opacity: _artworkAnimated ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.easeIn,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(UIConstants.smallBorderRadius),
-                  bottomRight: Radius.circular(UIConstants.smallBorderRadius),
-                ),
-                child: ShaderMask(  // ← CRITICAL: gradient fade on left edge
-                  shaderCallback: (bounds) {
-                    return const LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [Colors.transparent, Colors.white],
-                      stops: [0.0, 0.50],  // Fade covers left 50% of artwork container
-                    ).createShader(bounds);
-                  },
-                  blendMode: BlendMode.dstIn,
-                  child: CroppedArtworkWidget(
-                    imageFile: snapshot.data!,
-                    cropLeft: crop['left']!,
-                    cropRight: crop['right']!,
-                    cropTop: crop['top']!,
-                    cropBottom: crop['bottom']!,
-                    fillWidth: false,  // ← CRITICAL: scale to fill HEIGHT, not width
-                  ),
-                ),
-              ),
-            );
-          }
-
-          // Cleanup for missing artwork
-          if (snapshot.connectionState == ConnectionState.done &&
-              snapshot.data == null &&
-              !_artworkCleanupAttempted &&
-              elapsed > 2000) {
-            _artworkCleanupAttempted = true;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                // Clear artwork URL from model and save
-                artworkUrl = null;
-                save();
-              }
-            });
-          }
-
-          return const SizedBox.shrink();
-        },
-      ),
-    );
-  }
-
-  // FULL VIEW MODE
-  else {
-    return Positioned.fill(
-      child: FutureBuilder<File?>(
-        future: ArtworkManager.getCachedArtworkFile(artworkUrl!),
-        builder: (context, snapshot) {
-          if (snapshot.hasData && snapshot.data != null) {
-            return AnimatedOpacity(
-              opacity: _artworkAnimated ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.easeIn,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
-                child: CroppedArtworkWidget(
-                  imageFile: snapshot.data!,
-                  cropLeft: crop['left']!,
-                  cropRight: crop['right']!,
-                  cropTop: crop['top']!,
-                  cropBottom: crop['bottom']!,
-                  fillWidth: true,  // ← FULL VIEW: fill width, crop height
-                ),
-              ),
-            );
-          }
-
-          // Cleanup for missing artwork
-          if (snapshot.connectionState == ConnectionState.done &&
-              snapshot.data == null &&
-              !_artworkCleanupAttempted &&
-              elapsed > 2000) {
-            _artworkCleanupAttempted = true;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                // Clear artwork URL from model and save
-                artworkUrl = null;
-                save();
-              }
-            });
-          }
-
-          return const SizedBox.shrink();
-        },
-      ),
-    );
-  }
-}
-```
-
-### CroppedArtworkWidget Scaling Logic
-
-The `CroppedArtworkWidget` (`lib/widgets/cropped_artwork_widget.dart`) handles aspect ratio scaling:
-
-**Full View Mode (`fillWidth: true`):**
-- Scales image to fill container WIDTH
-- May overflow vertically (gets clipped)
-- Centers vertically
-
-**Fadeout Mode (`fillWidth: false`):**
-- Scales image to fill container HEIGHT
-- If resulting width < container width → rescales to fill width (maintains aspect ratio)
-- If resulting width >= container width → uses height-based scale, overflows left (gradient masks it)
-- This ensures the 50% container is always filled without stretching
-
-### Text Overlays
-
-All text and buttons must have semi-transparent backgrounds for readability over artwork:
-
-```dart
-Widget _buildTextWithBackground({
-  required BuildContext context,
-  required Widget child,
-  EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-}) {
-  return Container(
-    padding: padding,
-    decoration: BoxDecoration(
-      color: Theme.of(context).cardColor.withValues(alpha: 0.85),  // ← 85% opacity
-      borderRadius: BorderRadius.circular(6),
-    ),
-    child: child,
-  );
-}
-```
-
-### Common Mistakes to Avoid
-
-1. **Missing width constraint in fadeout mode** → Artwork fills entire card width
-2. **Using `fillWidth: true` in fadeout mode** → Artwork doesn't fill container height
-3. **Forgetting ShaderMask in fadeout mode** → No gradient fade
-4. **Wrong gradient stops** → Fade appears in wrong area
-5. **Missing LayoutBuilder** → Can't get card width for 50% calculation
-6. **Stretching instead of scaling** → `CroppedArtworkWidget` now handles this, but old implementations had this bug
-
-### Testing Checklist
-
-When implementing artwork for a new card type, verify:
-- [ ] Full view: Artwork fills entire card width
-- [ ] Full view: Artwork maintains aspect ratio (no stretching)
-- [ ] Fadeout: Artwork container is exactly 50% of card width
-- [ ] Fadeout: Artwork fills the 50% container without stretching
-- [ ] Fadeout: Gradient fade is visible on left edge of artwork
-- [ ] Fadeout: Right edge of artwork is fully opaque
-- [ ] Both modes: Text and buttons have semi-transparent backgrounds
-- [ ] Both modes: Artwork animates on first load (if downloaded)
-- [ ] Both modes: Missing artwork files clean up after 2 seconds
-
-**Reference Implementation:** `lib/widgets/token_card.dart` (lines 565-727)
+All card types use the `ArtworkDisplayMixin` for consistent artwork display. See `lib/widgets/mixins/artwork_display_mixin.dart` and reference implementations in `TokenCard`, `TrackerWidgetCard`, and `ToggleWidgetCard`.
 
 ---
 
@@ -412,505 +154,9 @@ Action trackers use the existing `TrackerWidget` model with optional action fiel
 
 ---
 
-## Code Refactoring Required: Artwork Layer Duplication
-
-**Status:** ✅ COMPLETED (December 2025)
-
-**Completion Summary:**
-- **Phase 0-5 completed:** All artwork code refactored using ArtworkDisplayMixin
-- **Bugs fixed:** TrackerWidget and ToggleWidget cleanup now properly clears artworkSet and artworkOptions
-- **Code eliminated:** ~450 lines of duplicated artwork logic removed
-- **New shared components:**
-  - `lib/widgets/mixins/artwork_display_mixin.dart` - Shared artwork display logic
-  - `lib/widgets/common/background_text.dart` - Shared text overlay component
-- **Bonus improvements:**
-  - Added UIConstants for all artwork magic numbers (animation thresholds, durations, etc.)
-  - Fixed artwork flicker in ExpandedWidgetScreen by caching Future objects
-  - Applied same Future caching pattern to ExpandedTokenScreen for consistency
-- **Zero user impact:** No Hive schema changes, purely internal UI state improvements
-
-**Research completed:** See `docs/activeDevelopment/ArtworkImplementationResearch.md` for detailed analysis.
-
-**Problem:** The artwork layer implementation is duplicated across 3 card types (~450 total lines of nearly identical code):
-- `lib/widgets/token_card.dart` (lines 565-727) - 163 lines
-- `lib/widgets/tracker_widget_card.dart` (lines 588-729) - 142 lines
-- `lib/widgets/toggle_widget_card.dart` (lines 196-340) - 145 lines
-
-**Duplicated logic:**
-- Animation threshold check (`elapsed > 100`)
-- Cleanup logic (`elapsed > 2000`)
-- FutureBuilder structure with AnimatedOpacity
-- ShaderMask for fadeout gradient
-- CroppedArtworkWidget integration
-- Two mode implementations (full view vs fadeout)
-
-**Critical Bugs Found:**
-1. ❌ **TrackerWidget cleanup incomplete** - Only clears `artworkUrl`, should also clear `artworkSet` and `artworkOptions`
-2. ❌ **ToggleWidget cleanup incomplete** - Same issue as TrackerWidget
-
-**Why this matters:**
-- Bug fixes must be applied to 3 places (maintenance nightmare)
-- **Cleanup bugs exist in 2/3 implementations** (TrackerWidget, ToggleWidget)
-- Adding new card types (like Cathar's Crusade) would create 4th duplication
-- Inconsistencies can creep in between implementations
-- ~300 lines could be eliminated
-
-**Estimated effort:** 3-5 hours (includes bug fixes)
-**Risk:** Medium (must test all card types thoroughly after refactor)
-
-### Proposed Solution: Artwork Display Mixin
-
-**Design:** Follow TokenCard pattern (gold standard) with separate helper methods for better code organization.
-
-**Create:** `lib/widgets/mixins/artwork_display_mixin.dart`
-
-```dart
-import 'dart:io';
-import 'package:flutter/material.dart';
-import '../../utils/artwork_manager.dart';
-import '../../utils/constants.dart';
-import '../cropped_artwork_widget.dart';
-
-/// Mixin providing shared artwork display logic for all card types.
-///
-/// This follows the TokenCard pattern (gold standard) with separate methods
-/// for full view and fadeout modes.
-///
-/// Card types that display artwork (TokenCard, TrackerWidgetCard, ToggleWidgetCard)
-/// should use this mixin to avoid duplicating the artwork layer implementation.
-///
-/// Required state variables in the widget class:
-/// ```dart
-/// final DateTime _createdAt = DateTime.now();
-/// bool _artworkAnimated = false;
-/// bool _artworkCleanupAttempted = false;
-/// ```
-///
-/// Required getters/setters to implement:
-/// ```dart
-/// DateTime get createdAt => _createdAt;
-/// bool get artworkAnimated => _artworkAnimated;
-/// set artworkAnimated(bool value) => _artworkAnimated = value;
-/// bool get artworkCleanupAttempted => _artworkCleanupAttempted;
-/// set artworkCleanupAttempted(bool value) => _artworkCleanupAttempted = value;
-/// String? get artworkUrl;  // For TokenCard: widget.item.artworkUrl
-///                          // For TrackerWidget: widget.tracker.artworkUrl
-///                          // For ToggleWidget: widget.toggle.currentArtworkUrl
-///                          //   NOTE: currentArtworkUrl is scaffolded for state-specific
-///                          //   artwork but not implemented - always returns artworkUrl
-/// void clearArtwork();     // Clear artworkUrl, artworkSet, artworkOptions, save()
-/// ```
-mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
-  // Subclasses must provide these
-  DateTime get createdAt;
-  bool get artworkAnimated;
-  set artworkAnimated(bool value);
-  bool get artworkCleanupAttempted;
-  set artworkCleanupAttempted(bool value);
-  String? get artworkUrl;
-  void clearArtwork();
-
-  /// Main artwork layer builder - delegates to specific mode methods.
-  ///
-  /// This is the entry point called from the card's build() method.
-  Widget buildArtworkLayer({
-    required BuildContext context,
-    required BoxConstraints constraints,
-    required String artworkDisplayStyle,
-  }) {
-    if (artworkDisplayStyle == 'fadeout') {
-      return buildFadeoutArtwork(context, constraints);
-    } else {
-      return buildFullViewArtwork(context, constraints);
-    }
-  }
-
-  /// Build full-width artwork background layer (fills entire card).
-  Widget buildFullViewArtwork(BuildContext context, BoxConstraints constraints) {
-    final crop = ArtworkManager.getCropPercentages(artworkUrl);
-
-    return Positioned.fill(
-      child: FutureBuilder<File?>(
-        future: ArtworkManager.getCachedArtworkFile(artworkUrl!),
-        builder: (context, snapshot) {
-          if (snapshot.hasData && snapshot.data != null) {
-            // Determine if artwork should animate
-            // If it appears > 100ms after card creation = downloaded (animate)
-            // If it appears < 100ms after card creation = cached (no animation)
-            final elapsed = DateTime.now().difference(createdAt).inMilliseconds;
-            final shouldAnimate = elapsed > 100 && !artworkAnimated;
-
-            if (shouldAnimate) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  setState(() {
-                    artworkAnimated = true;
-                  });
-                }
-              });
-            }
-
-            return AnimatedOpacity(
-              opacity: 1.0,
-              duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
-              curve: Curves.easeIn,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
-                child: CroppedArtworkWidget(
-                  imageFile: snapshot.data!,
-                  cropLeft: crop['left']!,
-                  cropRight: crop['right']!,
-                  cropTop: crop['top']!,
-                  cropBottom: crop['bottom']!,
-                  fillWidth: true,
-                ),
-              ),
-            );
-          }
-
-          // If artwork file is missing, clear the invalid reference
-          // BUT: Only do this if widget has been stable for >2 seconds to avoid cleanup during drag/scroll
-          if (snapshot.connectionState == ConnectionState.done &&
-              snapshot.data == null &&
-              !artworkCleanupAttempted) {
-            final elapsed = DateTime.now().difference(createdAt).inMilliseconds;
-            if (elapsed > 2000) {
-              artworkCleanupAttempted = true;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  clearArtwork();
-                }
-              });
-            }
-          }
-
-          // Show empty background while loading or if file missing
-          return const SizedBox.shrink();
-        },
-      ),
-    );
-  }
-
-  /// Build fadeout artwork layer (right-side 50% with gradient fade).
-  Widget buildFadeoutArtwork(BuildContext context, BoxConstraints constraints) {
-    final crop = ArtworkManager.getCropPercentages(artworkUrl);
-    final cardWidth = constraints.maxWidth;
-    final artworkWidth = cardWidth * 0.50;
-
-    return Positioned(
-      right: 0,
-      top: 0,
-      bottom: 0,
-      width: artworkWidth,
-      child: FutureBuilder<File?>(
-        future: ArtworkManager.getCachedArtworkFile(artworkUrl!),
-        builder: (context, snapshot) {
-          if (snapshot.hasData && snapshot.data != null) {
-            // Same animation logic as full view
-            final elapsed = DateTime.now().difference(createdAt).inMilliseconds;
-            final shouldAnimate = elapsed > 100 && !artworkAnimated;
-
-            if (shouldAnimate) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  setState(() {
-                    artworkAnimated = true;
-                  });
-                }
-              });
-            }
-
-            return AnimatedOpacity(
-              opacity: 1.0,
-              duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
-              curve: Curves.easeIn,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(UIConstants.smallBorderRadius),
-                  bottomRight: Radius.circular(UIConstants.smallBorderRadius),
-                ),
-                child: ShaderMask(
-                  shaderCallback: (bounds) {
-                    return const LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [Colors.transparent, Colors.white],
-                      stops: [0.0, 0.50],
-                    ).createShader(bounds);
-                  },
-                  blendMode: BlendMode.dstIn,
-                  child: CroppedArtworkWidget(
-                    imageFile: snapshot.data!,
-                    cropLeft: crop['left']!,
-                    cropRight: crop['right']!,
-                    cropTop: crop['top']!,
-                    cropBottom: crop['bottom']!,
-                    fillWidth: false,
-                  ),
-                ),
-              ),
-            );
-          }
-
-          // If artwork file is missing, clear the invalid reference
-          // BUT: Only do this if widget has been stable for >2 seconds to avoid cleanup during drag/scroll
-          if (snapshot.connectionState == ConnectionState.done &&
-              snapshot.data == null &&
-              !artworkCleanupAttempted) {
-            final elapsed = DateTime.now().difference(createdAt).inMilliseconds;
-            if (elapsed > 2000) {
-              artworkCleanupAttempted = true;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  clearArtwork();
-                }
-              });
-            }
-          }
-
-          // Show empty background while loading or if file missing
-          return const SizedBox.shrink();
-        },
-      ),
-    );
-  }
-}
-```
-
-### Usage Pattern
-
-**Before (in each card class):**
-```dart
-class _TokenCardState extends State<TokenCard> {
-  final DateTime _createdAt = DateTime.now();
-  bool _artworkAnimated = false;
-  bool _artworkCleanupAttempted = false;
-
-  Widget _buildArtworkLayer(...) {
-    // 150+ lines of duplicated code
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // ...
-        if (artworkUrl != null)
-          _buildArtworkLayer(context, constraints, artworkDisplayStyle),
-        // ...
-      ],
-    );
-  }
-}
-```
-
-**After (in each card class):**
-
-**TokenCard:**
-```dart
-class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
-  final DateTime _createdAt = DateTime.now();
-  bool _artworkAnimated = false;
-  bool _artworkCleanupAttempted = false;
-
-  @override
-  void didUpdateWidget(TokenCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Reset cleanup flag if artwork URL changed
-    if (oldWidget.item.artworkUrl != widget.item.artworkUrl) {
-      _artworkCleanupAttempted = false;
-    }
-  }
-
-  // Implement required getters
-  @override
-  DateTime get createdAt => _createdAt;
-
-  @override
-  String? get artworkUrl => widget.item.artworkUrl;
-
-  @override
-  void clearArtwork() {
-    widget.item.artworkUrl = null;
-    widget.item.artworkSet = null;      // ← CRITICAL: Clear all artwork fields
-    widget.item.artworkOptions = null;  // ← CRITICAL: Clear all artwork fields
-    widget.item.save();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // ...
-        if (artworkUrl != null)
-          buildArtworkLayer(  // ← Use mixin method
-            context: context,
-            constraints: constraints,
-            artworkDisplayStyle: artworkDisplayStyle,
-          ),
-        // ...
-      ],
-    );
-  }
-}
-```
-
-**TrackerWidgetCard (with bug fix):**
-```dart
-class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDisplayMixin {
-  final DateTime _createdAt = DateTime.now();
-  bool _artworkAnimated = false;
-  bool _artworkCleanupAttempted = false;
-
-  @override
-  void didUpdateWidget(TrackerWidgetCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.tracker.artworkUrl != widget.tracker.artworkUrl) {
-      _artworkCleanupAttempted = false;
-    }
-  }
-
-  @override
-  DateTime get createdAt => _createdAt;
-
-  @override
-  String? get artworkUrl => widget.tracker.artworkUrl;
-
-  @override
-  void clearArtwork() {
-    widget.tracker.artworkUrl = null;
-    widget.tracker.artworkSet = null;      // ← FIX: Was missing!
-    widget.tracker.artworkOptions = null;  // ← FIX: Was missing!
-    widget.tracker.save();
-  }
-}
-```
-
-**ToggleWidgetCard (with bug fix):**
-```dart
-class _ToggleWidgetCardState extends State<ToggleWidgetCard> with ArtworkDisplayMixin {
-  final DateTime _createdAt = DateTime.now();
-  bool _artworkAnimated = false;
-  bool _artworkCleanupAttempted = false;
-
-  @override
-  void didUpdateWidget(ToggleWidgetCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.toggle.artworkUrl != widget.toggle.artworkUrl) {
-      _artworkCleanupAttempted = false;
-    }
-  }
-
-  @override
-  DateTime get createdAt => _createdAt;
-
-  @override
-  String? get artworkUrl => widget.toggle.currentArtworkUrl;
-  // NOTE: currentArtworkUrl is scaffolded for state-specific artwork (on/off)
-  // but not implemented on frontend. Always returns general artworkUrl.
-  // See ArtworkImplementationResearch.md section 4 for details.
-
-  @override
-  void clearArtwork() {
-    widget.toggle.artworkUrl = null;
-    widget.toggle.artworkSet = null;      // ← FIX: Was missing!
-    widget.toggle.artworkOptions = null;  // ← FIX: Was missing!
-    widget.toggle.save();
-    // FUTURE: When state-specific artwork is implemented, also clear:
-    // widget.toggle.onArtworkUrl = null;
-    // widget.toggle.offArtworkUrl = null;
-  }
-}
-```
-
-### Implementation Checklist
-
-**Phase 0: Add Artwork Magic Numbers to UIConstants (15 minutes)**
-- [ ] Add to `lib/utils/constants.dart` → `UIConstants`:
-  - `artworkAnimationThreshold = 100` (milliseconds - cached vs downloaded distinction)
-  - `artworkCleanupDelay = 2000` (milliseconds - prevents cleanup during drag/scroll)
-  - `artworkFadeInDuration = Duration(milliseconds: 500)` (animation duration)
-  - `artworkFadeoutWidthPercent = 0.50` (50% width for fadeout mode)
-  - `artworkFadeoutGradientStops = [0.0, 0.50]` (gradient fade on left edge)
-  - `textBackgroundOpacity = 0.85` (semi-transparent backgrounds for readability)
-- [ ] These values are empirically determined and deliberate - do not change
-
-**Phase 1: Fix Cleanup Bugs (5 minutes, DO THIS FIRST)**
-- [ ] Fix `tracker_widget_card.dart` lines 659-660 - Add artworkSet and artworkOptions to cleanup
-- [ ] Fix `tracker_widget_card.dart` lines 717-718 - Add artworkSet and artworkOptions to cleanup
-- [ ] Fix `toggle_widget_card.dart` lines 270-271 - Add artworkSet and artworkOptions to cleanup
-- [ ] Fix `toggle_widget_card.dart` lines 328-329 - Add artworkSet and artworkOptions to cleanup
-- [ ] Test artwork cleanup on all three card types (user tests on physical devices/simulators)
-
-**Phase 2: Extract TextWithBackground Helper (30 minutes)**
-- [ ] Create `lib/widgets/common/background_text.dart`
-- [ ] Extract shared `_buildTextWithBackground()` logic from all three cards
-- [ ] Use `UIConstants.textBackgroundOpacity` instead of hardcoded 0.85
-- [ ] Update TokenCard to use shared widget
-- [ ] Update TrackerWidgetCard to use shared widget
-- [ ] Update ToggleWidgetCard to use shared widget
-- [ ] Verify text readability over artwork in both display modes
-
-**Phase 3: Create Artwork Display Mixin (2-3 hours)**
-- [ ] Create `lib/widgets/mixins/` directory
-- [ ] Create `lib/widgets/mixins/artwork_display_mixin.dart`
-- [ ] Implement mixin with `buildArtworkLayer()`, `buildFullViewArtwork()`, and `buildFadeoutArtwork()` methods
-- [ ] Use UIConstants for all magic numbers (animation thresholds, durations, percentages)
-- [ ] Copy gold standard logic from TokenCard
-- [ ] Add comprehensive documentation
-- [ ] Note: All future card types will need artwork support - mixin is the standard
-
-**Phase 4: PILOT - Apply Mixin to TokenCard (1 hour)**
-- [ ] Update `TokenCard` to use mixin:
-  - [ ] Add `with ArtworkDisplayMixin` to state class
-  - [ ] Implement required interface (createdAt, artworkUrl, artworkAnimated, etc.)
-  - [ ] Implement `clearArtwork()` method
-  - [ ] Replace `_buildArtworkLayer()` call with mixin's `buildArtworkLayer()`
-  - [ ] Remove old `_buildArtworkLayer()`, `_buildFullViewArtwork()`, `_buildFadeoutArtwork()` methods
-- [ ] **STOP AND TEST PILOT:**
-  - [ ] Test TokenCard in full view mode (user tests on physical devices/simulators)
-  - [ ] Test TokenCard in fadeout mode
-  - [ ] Verify artwork animations (fade-in after 100ms for downloaded artwork)
-  - [ ] Verify cleanup logic (missing artwork cleared after 2 seconds)
-  - [ ] Verify text backgrounds maintain readability
-  - [ ] Test with Scryfall artwork
-  - [ ] Test with custom uploaded artwork
-  - [ ] Verify no visual regressions compared to old implementation
-- [ ] **REVIEW PILOT RESULTS** - If issues found, fix mixin before proceeding
-
-**Phase 5: Apply Mixin to Utility Cards (1 hour)**
-- [ ] Update `TrackerWidgetCard` to use mixin (same steps as TokenCard)
-- [ ] Update `ToggleWidgetCard` to use mixin (same steps as TokenCard, uses `currentArtworkUrl`)
-- [ ] **FINAL TESTING:**
-  - [ ] Test all three card types in both display modes
-  - [ ] Verify artwork animations work correctly across all card types
-  - [ ] Verify cleanup logic works across all card types
-  - [ ] Verify text backgrounds maintain readability over artwork
-  - [ ] Verify no visual regressions
-- [ ] Update NextFeature.md artwork pattern section to reference mixin usage
-- [ ] Document lessons learned from pilot (if any)
-
-### Testing Checklist
-
-After implementing mixin:
-- [ ] TokenCard: Full view mode displays correctly
-- [ ] TokenCard: Fadeout mode displays correctly
-- [ ] TrackerWidget: Full view mode displays correctly
-- [ ] TrackerWidget: Fadeout mode displays correctly
-- [ ] ToggleWidget: Full view mode displays correctly
-- [ ] ToggleWidget: Fadeout mode displays correctly
-- [ ] Artwork animations trigger at 100ms
-- [ ] Missing artwork cleans up after 2000ms
-- [ ] No performance degradation
-- [ ] Switching display modes works instantly
-
-**Lines saved:** ~300 lines of duplicated code eliminated
-
----
-
 ## Next Up: Cathar's Crusade
 
-**Status:** Requirements defined - ready for implementation after artwork mixin refactor.
+**Status:** Requirements defined - ready for implementation.
 
 ### Overview
 
@@ -1025,42 +271,21 @@ class GameEvents {
     }
   }
 
-  // ===== Future Event Types (Extensibility) =====
+  // ===== Board Wipe Event =====
 
-  // Death triggers (for future utilities)
-  final _creatureDiedListeners = <void Function(Item item, int count)>[];
+  final _boardWipedListeners = <void Function()>[];
 
-  void onCreatureDied(void Function(Item item, int count) callback) {
-    _creatureDiedListeners.add(callback);
+  /// Register a listener for board wipe events.
+  void onBoardWiped(void Function() callback) {
+    _boardWipedListeners.add(callback);
   }
 
-  void notifyCreatureDied(Item item, int count) {
-    for (var listener in _creatureDiedListeners) {
-      listener(item, count);
-    }
-  }
-
-  // Tap/untap triggers (for future utilities)
-  final _creatureTappedListeners = <void Function(Item item, int count)>[];
-  final _creatureUntappedListeners = <void Function(Item item, int count)>[];
-
-  void onCreatureTapped(void Function(Item item, int count) callback) {
-    _creatureTappedListeners.add(callback);
-  }
-
-  void notifyCreatureTapped(Item item, int count) {
-    for (var listener in _creatureTappedListeners) {
-      listener(item, count);
-    }
-  }
-
-  void onCreatureUntapped(void Function(Item item, int count) callback) {
-    _creatureUntappedListeners.add(callback);
-  }
-
-  void notifyCreatureUntapped(Item item, int count) {
-    for (var listener in _creatureUntappedListeners) {
-      listener(item, count);
+  /// Notify all listeners that board was wiped.
+  ///
+  /// Called by TokenProvider when user triggers board wipe action.
+  void notifyBoardWiped() {
+    for (var listener in _boardWipedListeners) {
+      listener();
     }
   }
 }
@@ -1096,11 +321,7 @@ Future<void> copyToken(Item original) async {
 
 // In TokenProvider.deleteItem()
 Future<void> deleteItem(Item item) async {
-  // Fire death event before deleting (for future utilities)
-  if (item.hasPowerToughness) {
-    GameEvents.instance.notifyCreatureDied(item, item.amount);
-  }
-
+  // No events fired (death triggers not implemented yet)
   await item.delete();
 }
 ```
@@ -1112,9 +333,14 @@ Future<void> deleteItem(Item item) async {
 void init() {
   // ... existing init code
 
-  // Register listener for Cathar's Crusade utilities
+  // Register listener for creature ETBs (Cathar's Crusade)
   GameEvents.instance.onCreatureEntered((item, count) {
     _onCreatureEntered(item, count);
+  });
+
+  // Register listener for board wipes (Cathar's Crusade reset)
+  GameEvents.instance.onBoardWiped(() {
+    _onBoardWiped();
   });
 }
 
@@ -1126,7 +352,23 @@ void _onCreatureEntered(Item item, int count) {
 
   // Increment each Cathar's counter
   for (var cathar in catharsUtilities) {
-    cathar.trackedValue += count;
+    cathar.currentValue += count;
+    cathar.save();
+  }
+
+  // Notify UI to rebuild
+  notifyListeners();
+}
+
+void _onBoardWiped() {
+  // Find all Cathar's Crusade utilities on board
+  final catharsUtilities = box.values.where((tracker) =>
+    tracker.actionType == 'cathars_crusade'
+  );
+
+  // Reset each Cathar's counter to 0
+  for (var cathar in catharsUtilities) {
+    cathar.currentValue = 0;
     cathar.save();
   }
 
@@ -1258,12 +500,12 @@ void _resolveCatharsTriggers(
 ### Testing Requirements
 
 #### Event Bus Testing
-- [ ] Event fires when token with P/T is created
-- [ ] Event fires when token with P/T is copied
-- [ ] Event does NOT fire when token without P/T is created
-- [ ] Event does NOT fire when stack is split
+- [ ] Creature ETB event fires when token with P/T is created
+- [ ] Creature ETB event fires when token with P/T is copied
+- [ ] Creature ETB event does NOT fire when token without P/T is created
+- [ ] Creature ETB event does NOT fire when stack is split
+- [ ] Board wipe event fires when user triggers board wipe
 - [ ] Multiple utilities can listen to same event
-- [ ] No memory leaks (listeners properly registered/unregistered)
 - [ ] No performance degradation with multiple listeners
 
 #### Cathar's Crusade Testing
@@ -1281,6 +523,7 @@ void _resolveCatharsTriggers(
 - [ ] Confirm adds counters to all creatures on board
 - [ ] Counters stack with existing counters correctly
 - [ ] Cathar's counter resets to 0 after resolving
+- [ ] Board wipe resets Cathar's counter to 0
 - [ ] Multiple Cathar's utilities can coexist (both track independently)
 - [ ] Artwork displays correctly in both view modes
 - [ ] State persists across app restarts
@@ -1296,119 +539,151 @@ void _resolveCatharsTriggers(
 
 ### Future Extensions
 
-The Event Bus architecture enables future utilities:
+The Event Bus architecture can be extended for future utilities. Add these event types when needed:
 
-**Death triggers:**
+**Death triggers** (not implemented yet):
 - "Whenever a creature dies, do X"
-- Blood Artist, Zulaport Cutthroat effects
+- Example utilities: Blood Artist counter, Zulaport Cutthroat tracker
+- Events: `onCreatureDied()`, `notifyCreatureDied()`
 
-**Tap triggers:**
+**Tap triggers** (not implemented yet):
 - "Whenever a creature taps, do X"
-- Inspired mechanic tracking
+- Example utilities: Inspired mechanic tracker
+- Events: `onCreatureTapped()`, `notifyCreatureTapped()`
 
-**Counter triggers:**
+**Counter triggers** (not implemented yet):
 - "Whenever a +1/+1 counter is placed, do X"
-- Proliferate tracking, Hardened Scales effects
+- Example utilities: Proliferate tracker, Hardened Scales multiplier
+- Events: `onCounterAdded()`, `notifyCounterAdded()`
 
-**Token doubling:**
+**Token doubling** (not implemented yet):
 - Intercept creation events to apply Doubling Season, Parallel Lives, etc.
 - Modify token count before insertion
+- Requires event filtering/interception pattern
 
 ---
 
-## Open Questions for Cathar's Crusade Implementation
+## Behavioral Specifications - Resolved
 
-**Status:** Awaiting user clarification before implementation
-
-These behavioral details need to be defined to prevent guesswork during Cathar's Crusade development:
+All design decisions have been finalized. Implementation can proceed autonomously.
 
 ### 1. Event Bus Lifecycle Management
-**Question:** Listeners register in `TrackerProvider.init()` but the spec doesn't show them unregistering. Is this intentional (safe since we filter by `actionType`)? Or should listeners unregister when Cathar's utilities are deleted from the board?
+**Decision:** Listeners register once in `TrackerProvider.init()` and remain registered for the lifetime of the provider. Filter by `actionType` at runtime.
 
-**Current spec:** Listeners registered once at provider init, never removed.
+**Rationale:**
+- Negligible performance overhead (~1-5 microseconds per event when no utilities present)
+- Simpler implementation with no lifecycle management complexity
+- Less error-prone than dynamic registration/unregistration
+- Event bus stays "always listening" like Magic's rules engine
 
-**Concern:** Memory leak if utilities are created/deleted frequently? Or is filtering by `actionType` sufficient?
+**Implementation:** The `_onCreatureEntered()` callback filters `box.values.where((tracker) => tracker.actionType == 'cathars_crusade')`. If no Cathar's utilities exist, the loop doesn't execute.
 
 ---
 
 ### 2. Board Wipe Behavior
-**Question:** When user does "board wipe" (FloatingActionMenu → Board Wipe), what should happen to Cathar's counter?
+**Decision:** When user triggers board wipe, reset all Cathar's Crusade counters to 0 (fresh board state).
 
-**Option A:** Counter remains at current value (triggers already happened, can't undo them)
-**Option B:** Reset to 0 (fresh board state, no creatures = no triggers)
-**Option C:** Something else?
+**Rationale:** Board wipe clears all creatures, so pending Cathar's triggers should reset.
 
-**Related:** Should death events fire for all creatures during board wipe?
+**Implementation:**
+```dart
+// In TokenProvider.boardWipeDelete()
+Future<void> boardWipeDelete() async {
+  // Fire board wipe event to reset Cathar's counters
+  GameEvents.instance.notifyBoardWiped();
+
+  // Delete all items
+  await box.clear();
+}
+
+// In TrackerProvider.init() - Register board wipe listener
+GameEvents.instance.onBoardWiped(() {
+  final catharsUtilities = box.values.where((tracker) =>
+    tracker.actionType == 'cathars_crusade'
+  );
+
+  // Reset all Cathar's counters to 0
+  for (var cathar in catharsUtilities) {
+    cathar.currentValue = 0;
+    cathar.save();
+  }
+
+  notifyListeners();
+});
+```
+
+**Note:** Death events are planned for future utilities (Blood Artist, etc.) but not implemented in this iteration since Cathar's doesn't use them.
 
 ---
 
 ### 3. Deck Save/Load Behavior
-**Question:** When saving/loading deck templates with Cathar's Crusade utility:
+**Decision:** Follow existing template pattern:
+- **On Save:** `TrackerWidgetTemplate.fromWidget()` saves `defaultValue: 0` (not current value)
+- **On Load:** `TrackerWidgetTemplate.toWidget()` sets `currentValue: defaultValue` (always starts at 0)
 
-**On Save:**
-- Save counter at current value?
-- Or always save as 0?
+**Rationale:** Deck templates represent starting board state, not mid-game state. Matches existing behavior for TrackerWidget (see `tracker_widget_template.dart:100`) and ToggleWidget (resets to `isActive: false`).
 
-**On Load:**
-- Start at saved value?
-- Or always reset to 0?
-
-**Best guess:** Always reset to 0 on both operations (deck templates represent starting board state, not mid-game state)
+**Implementation:** No special handling needed - existing template system already does this.
 
 ---
 
 ### 4. Multiple Cathar's Utilities Interaction
-**Question:** Spec says multiple Cathar's utilities "track independently" (both increment on same ETB).
+**Decision:** Independent tracking and resolution.
 
-**Clarification needed:** When resolving triggers:
-- **Option A (Independent):** Each utility's "Add Counters" button adds counters based only on its own counter value
-  - Example: 2 Cathar's both at 3 triggers → each button independently adds +3/+3 to all creatures
-- **Option B (Magic Rules):** Multiple Cathar's in play means each ETB generates multiple triggers
-  - Example: 1 creature enters with 2 Cathar's → each Cathar's counter goes +2 (one for the creature, one for the other Cathar's trigger)
-  - This mirrors actual Magic rules but is complex
+**Behavior:**
+- Each Cathar's utility increments its own counter on creature ETB
+- Each "Add Counters" button resolves based only on that utility's counter value
+- Example: 2 Cathar's both at 3 triggers → User can press button on first utility to add +3/+3 to all creatures, leaving second utility at 3 triggers
 
-**Best guess:** Option A (Independent) - simpler, gives player full control
+**Rationale:** Gives player full control over trigger batching. Users unlikely to have multiple Cathar's, but allowing it provides flexibility.
 
 ---
 
 ### 5. NewTokenSheet Creation Path
-**Question:** When creating a token via "Create Custom Token" bottom sheet (NewTokenSheet), should this fire ETB events?
+**Decision:** Yes, fire ETB events.
 
-**Best guess:** Yes (it calls `TokenProvider.insertItem()` which should fire events)
-
-**Edge case:** User creates token with P/T via NewTokenSheet → Cathar's counter increments → confirm
+**Rationale:** Custom token creation calls `TokenProvider.insertItem()` which should fire events like any other token creation.
 
 ---
 
 ### 6. Scute Swarm Doubling Button
-**Question:** When using Scute Swarm's special doubling button (doubles stack size), should this fire ETB events for the new tokens?
+**Decision:** Yes, fire ETB events for the amount added.
 
-**Best guess:** Yes - it's functionally creating new tokens (increases amount field)
+**Implementation:** The Scute Swarm button calls `TokenProvider.addTokens(item, amount, summoningSick)` which increases the stack size. Fire events from `addTokens()`:
 
-**Implementation note:** Currently Scute Swarm doubles by modifying `item.amount` directly. Would need to extract the delta and fire events:
 ```dart
-final oldAmount = scuteSwarm.amount;
-scuteSwarm.amount *= 2;
-final newAmount = scuteSwarm.amount;
-final delta = newAmount - oldAmount;
-GameEvents.instance.notifyCreatureEntered(scuteSwarm, delta);
+// In TokenProvider.addTokens() (lib/providers/token_provider.dart:152)
+Future<void> addTokens(Item item, int amount, bool summoningSicknessEnabled) async {
+  try {
+    final oldAmount = item.amount;
+    item.amount += amount;
+
+    // Apply summoning sickness if enabled AND token is a creature without Haste
+    if (summoningSicknessEnabled && item.hasPowerToughness && !item.hasHaste) {
+      item.summoningSick += amount;
+    }
+
+    await item.save();
+
+    // Fire ETB event for added creatures
+    if (item.hasPowerToughness) {
+      GameEvents.instance.notifyCreatureEntered(item, amount);
+    }
+
+    _errorMessage = null;
+    notifyListeners();
+    debugPrint('TokenProvider: Added $amount tokens to "${item.name}" (${oldAmount} → ${item.amount})');
+  } on HiveError catch (e) {
+    // ... error handling
+  }
+}
 ```
 
 ---
 
-### 7. Stack Splitting Clarification
-**Question:** Spec says "Token is split via SplitStackSheet → Does NOT increment (split = death + creation, not true ETB)"
+### 7. Stack Splitting
+**Decision:** Do NOT fire any events (neither death nor ETB).
 
-**Clarification needed:** Should splitting fire:
-- Death event for the original stack (reduced amount)?
-- ETB event for the new stack?
-- Neither event (current spec)?
+**Rationale:** Splitting represents distributing existing tokens across two stacks, not creating new tokens or destroying old ones.
 
-**Best guess:** Neither (current spec is correct) - splitting represents distributing existing tokens, not creating new ones
-
----
-
-**Next Steps:**
-1. Answer questions above
-2. Update Cathar's Crusade spec with clarifications
-3. Proceed with implementation after Artwork Refactor is complete
+**Implementation:** `SplitStackSheet` does NOT call any GameEvents methods.
