@@ -44,6 +44,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
   TokenDefinition? _tokenDefinition;
   bool _artworkCleanupAttempted = false;
   bool _databaseLoadError = false;
+  Future<File?>? _cachedArtworkFuture; // Cached Future to prevent FutureBuilder rebuilds
 
   @override
   void initState() {
@@ -68,6 +69,11 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
     _blackSelected = widget.item.colors.contains('B');
     _redSelected = widget.item.colors.contains('R');
     _greenSelected = widget.item.colors.contains('G');
+
+    // Cache the artwork Future
+    if (widget.item.artworkUrl != null) {
+      _cachedArtworkFuture = ArtworkManager.getCachedArtworkFile(widget.item.artworkUrl!);
+    }
 
     // Load token definition to get artwork variants
     _loadTokenDefinition();
@@ -191,6 +197,8 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
       setState(() {
         widget.item.artworkUrl = url;
         widget.item.artworkSet = setCode;
+        // Update cached future
+        _cachedArtworkFuture = ArtworkManager.getCachedArtworkFile(url);
       });
 
       widget.item.save();
@@ -237,6 +245,8 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
       setState(() {
         widget.item.artworkUrl = null;
         widget.item.artworkSet = null;
+        // Clear cached future
+        _cachedArtworkFuture = null;
       });
 
       widget.item.save();
@@ -1214,11 +1224,9 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
             ),
             const SizedBox(height: 8),
             // Display artwork thumbnail or "select" text
-            if (widget.item.artworkUrl != null)
+            if (_cachedArtworkFuture != null)
               FutureBuilder<File?>(
-                future: ArtworkManager.getCachedArtworkFile(
-                  widget.item.artworkUrl!,
-                ),
+                future: _cachedArtworkFuture,
                 builder: (context, snapshot) {
                   if (snapshot.hasData && snapshot.data != null) {
                     final file = snapshot.data!;
@@ -1248,7 +1256,10 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                         widget.item.artworkOptions = null;
                         widget.item.save();
                         // Trigger rebuild to show "select" text
-                        setState(() {});
+                        setState(() {
+                          // Clear cached future
+                          _cachedArtworkFuture = null;
+                        });
                       }
                     });
                   }

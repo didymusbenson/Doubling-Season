@@ -27,6 +27,9 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
   bool _artworkCleanupAttempted = false;
   late TextEditingController _descriptionController;
 
+  // Cached artwork Future to prevent FutureBuilder rebuilds
+  Future<File?>? _cachedArtworkFuture;
+
   // Color selection state (same as ExpandedTokenScreen)
   late bool _whiteSelected;
   late bool _blueSelected;
@@ -37,6 +40,11 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
   @override
   void initState() {
     super.initState();
+    // Cache the artwork Future
+    if (_artworkUrl != null) {
+      _cachedArtworkFuture = ArtworkManager.getCachedArtworkFile(_artworkUrl!);
+    }
+
     // Initialize description controller for trackers
     if (widget.isTracker) {
       _descriptionController = TextEditingController(
@@ -96,6 +104,8 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
     } else {
       (widget.widget as ToggleWidget).artworkUrl = value;
     }
+    // Update cached future
+    _cachedArtworkFuture = value != null ? ArtworkManager.getCachedArtworkFile(value) : null;
   }
 
   String? get _artworkSet {
@@ -409,9 +419,9 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
             ),
             const SizedBox(height: 8),
             // Display artwork thumbnail or "select" text
-            if (_artworkUrl != null)
+            if (_cachedArtworkFuture != null)
               FutureBuilder<File?>(
-                future: ArtworkManager.getCachedArtworkFile(_artworkUrl!),
+                future: _cachedArtworkFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const SizedBox(
@@ -437,10 +447,14 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
                       return _buildSelectArtworkPrompt(context);
                     }
 
+                    final file = snapshot.data!;
+                    // Add unique key for custom artwork to force reload on replacement
+                    final isCustomArtwork = _artworkUrl!.startsWith('file://');
                     return ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Image.file(
-                        snapshot.data!,
+                        file,
+                        key: isCustomArtwork ? ValueKey(file.path + file.lastModifiedSync().toString()) : null,
                         height: 100,
                         width: double.infinity,
                         fit: BoxFit.cover,

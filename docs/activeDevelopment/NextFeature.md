@@ -414,7 +414,20 @@ Action trackers use the existing `TrackerWidget` model with optional action fiel
 
 ## Code Refactoring Required: Artwork Layer Duplication
 
-**Status:** MUST FIX before adding more card types
+**Status:** ✅ COMPLETED (December 2025)
+
+**Completion Summary:**
+- **Phase 0-5 completed:** All artwork code refactored using ArtworkDisplayMixin
+- **Bugs fixed:** TrackerWidget and ToggleWidget cleanup now properly clears artworkSet and artworkOptions
+- **Code eliminated:** ~450 lines of duplicated artwork logic removed
+- **New shared components:**
+  - `lib/widgets/mixins/artwork_display_mixin.dart` - Shared artwork display logic
+  - `lib/widgets/common/background_text.dart` - Shared text overlay component
+- **Bonus improvements:**
+  - Added UIConstants for all artwork magic numbers (animation thresholds, durations, etc.)
+  - Fixed artwork flicker in ExpandedWidgetScreen by caching Future objects
+  - Applied same Future caching pattern to ExpandedTokenScreen for consistency
+- **Zero user impact:** No Hive schema changes, purely internal UI state improvements
 
 **Research completed:** See `docs/activeDevelopment/ArtworkImplementationResearch.md` for detailed analysis.
 

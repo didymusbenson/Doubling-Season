@@ -9,9 +9,11 @@ import '../screens/expanded_token_screen.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
 import '../utils/color_utils.dart';
+import 'common/background_text.dart';
 import 'counter_pill.dart';
 import 'split_stack_sheet.dart';
 import 'cropped_artwork_widget.dart';
+import 'mixins/artwork_display_mixin.dart';
 
 /// Animated widget that pops when P/T changes (from counter addition)
 class _AnimatedPowerToughness extends StatefulWidget {
@@ -102,10 +104,37 @@ class TokenCard extends StatefulWidget {
   State<TokenCard> createState() => _TokenCardState();
 }
 
-class _TokenCardState extends State<TokenCard> {
+class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
   final DateTime _createdAt = DateTime.now();
   bool _artworkAnimated = false;
   bool _artworkCleanupAttempted = false;
+
+  // Implement ArtworkDisplayMixin interface
+  @override
+  DateTime get createdAt => _createdAt;
+
+  @override
+  bool get artworkAnimated => _artworkAnimated;
+
+  @override
+  set artworkAnimated(bool value) => _artworkAnimated = value;
+
+  @override
+  bool get artworkCleanupAttempted => _artworkCleanupAttempted;
+
+  @override
+  set artworkCleanupAttempted(bool value) => _artworkCleanupAttempted = value;
+
+  @override
+  String? get artworkUrl => widget.item.artworkUrl;
+
+  @override
+  void clearArtwork() {
+    widget.item.artworkUrl = null;
+    widget.item.artworkSet = null;
+    widget.item.artworkOptions = null;
+    widget.item.save();
+  }
 
   @override
   void didUpdateWidget(TokenCard oldWidget) {
@@ -158,7 +187,11 @@ class _TokenCardState extends State<TokenCard> {
 
               // Artwork layer (appears on top of gradient when file is available)
               if (widget.item.artworkUrl != null)
-                _buildArtworkLayer(context, constraints, artworkDisplayStyle),
+                buildArtworkLayer(
+                  context: context,
+                  constraints: constraints,
+                  artworkDisplayStyle: artworkDisplayStyle,
+                ),
 
               // Content layer (all existing UI elements)
               Container(
@@ -176,8 +209,7 @@ class _TokenCardState extends State<TokenCard> {
                   Expanded(
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: _buildTextWithBackground(
-                        context: context,
+                      child: BackgroundText(
                         child: Text(
                           widget.item.name,
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -192,8 +224,7 @@ class _TokenCardState extends State<TokenCard> {
                 if (widget.item.isEmblem)
                   // Emblems need to center, so use Expanded
                   Expanded(
-                    child: _buildTextWithBackground(
-                      context: context,
+                    child: BackgroundText(
                       child: Text(
                         widget.item.name,
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -206,8 +237,7 @@ class _TokenCardState extends State<TokenCard> {
                 if (!widget.item.isEmblem) const SizedBox(width: UIConstants.mediumSpacing),
                 if (!widget.item.isEmblem)
                   // Unified background for entire tapped/untapped section
-                  _buildTextWithBackground(
-                    context: context,
+                  BackgroundText(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -355,8 +385,7 @@ class _TokenCardState extends State<TokenCard> {
             if (widget.item.isEmblem)
               Padding(
                 padding: EdgeInsets.only(right: spacing),
-                child: _buildTextWithBackground(
-                  context: context,
+                child: BackgroundText(
                   padding: const EdgeInsets.all(UIConstants.actionButtonPadding), // Match button padding
                   child: Text(
                     '${widget.item.amount}',
@@ -561,193 +590,6 @@ class _TokenCardState extends State<TokenCard> {
     );
   }
 
-  /// Build artwork background layer - switches between full view and fadeout
-  Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints, String artworkStyle) {
-    if (artworkStyle == 'fadeout') {
-      return _buildFadeoutArtwork(context, constraints);
-    } else {
-      return _buildFullViewArtwork(context, constraints);
-    }
-  }
-
-  /// Build full-width artwork background layer
-  Widget _buildFullViewArtwork(BuildContext context, BoxConstraints constraints) {
-    final crop = ArtworkManager.getCropPercentages(widget.item.artworkUrl);
-
-    return Positioned.fill(
-      child: FutureBuilder<File?>(
-        future: ArtworkManager.getCachedArtworkFile(widget.item.artworkUrl!),
-        builder: (context, snapshot) {
-          if (snapshot.hasData && snapshot.data != null) {
-            // Determine if artwork should animate
-            // If it appears > 100ms after card creation = downloaded (animate)
-            // If it appears < 100ms after card creation = cached (no animation)
-            final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-            final shouldAnimate = elapsed > 100 && !_artworkAnimated;
-
-            if (shouldAnimate) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  setState(() {
-                    _artworkAnimated = true;
-                  });
-                }
-              });
-            }
-
-            return AnimatedOpacity(
-              opacity: 1.0,
-              duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
-              curve: Curves.easeIn,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
-                child: CroppedArtworkWidget(
-                  imageFile: snapshot.data!,
-                  cropLeft: crop['left']!,
-                  cropRight: crop['right']!,
-                  cropTop: crop['top']!,
-                  cropBottom: crop['bottom']!,
-                  fillWidth: true,
-                ),
-              ),
-            );
-          }
-
-          // If artwork file is missing, clear the invalid reference
-          // BUT: Only do this if widget has been stable for >2 seconds to avoid cleanup during drag/scroll
-          if (snapshot.connectionState == ConnectionState.done &&
-              snapshot.data == null &&
-              !_artworkCleanupAttempted) {
-            final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-            if (elapsed > 2000) {
-              _artworkCleanupAttempted = true;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  widget.item.artworkUrl = null;
-                  widget.item.artworkSet = null;
-                  widget.item.artworkOptions = null;
-                  widget.item.save();
-                }
-              });
-            }
-          }
-
-          // Show empty background while loading or if file missing
-          return const SizedBox.shrink();
-        },
-      ),
-    );
-  }
-
-  /// Build fadeout artwork layer (right-side with gradient)
-  Widget _buildFadeoutArtwork(BuildContext context, BoxConstraints constraints) {
-    final crop = ArtworkManager.getCropPercentages(widget.item.artworkUrl);
-    final cardWidth = constraints.maxWidth;
-    final artworkWidth = cardWidth * 0.50;
-
-    return Positioned(
-      right: 0,
-      top: 0,
-      bottom: 0,
-      width: artworkWidth,
-      child: FutureBuilder<File?>(
-        future: ArtworkManager.getCachedArtworkFile(widget.item.artworkUrl!),
-        builder: (context, snapshot) {
-          if (snapshot.hasData && snapshot.data != null) {
-            // Same animation logic as full view
-            final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-            final shouldAnimate = elapsed > 100 && !_artworkAnimated;
-
-            if (shouldAnimate) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  setState(() {
-                    _artworkAnimated = true;
-                  });
-                }
-              });
-            }
-
-            return AnimatedOpacity(
-              opacity: 1.0,
-              duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
-              curve: Curves.easeIn,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(UIConstants.smallBorderRadius),
-                  bottomRight: Radius.circular(UIConstants.smallBorderRadius),
-                ),
-                child: ShaderMask(
-                  shaderCallback: (bounds) {
-                    return const LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [Colors.transparent, Colors.white],
-                      stops: [0.0, 0.50],
-                    ).createShader(bounds);
-                  },
-                  blendMode: BlendMode.dstIn,
-                  child: CroppedArtworkWidget(
-                    imageFile: snapshot.data!,
-                    cropLeft: crop['left']!,
-                    cropRight: crop['right']!,
-                    cropTop: crop['top']!,
-                    cropBottom: crop['bottom']!,
-                    fillWidth: false,
-                  ),
-                ),
-              ),
-            );
-          }
-
-          // If artwork file is missing, clear the invalid reference
-          // BUT: Only do this if widget has been stable for >2 seconds to avoid cleanup during drag/scroll
-          if (snapshot.connectionState == ConnectionState.done &&
-              snapshot.data == null &&
-              !_artworkCleanupAttempted) {
-            final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-            if (elapsed > 2000) {
-              _artworkCleanupAttempted = true;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  widget.item.artworkUrl = null;
-                  widget.item.artworkSet = null;
-                  widget.item.artworkOptions = null;
-                  widget.item.save();
-                }
-              });
-            }
-          }
-
-          // Show empty background while loading or if file missing
-          return const SizedBox.shrink();
-        },
-      ),
-    );
-  }
-
-  /// Wrap text with solid background for readability over artwork or gradient
-  Widget _buildTextWithBackground({
-    required BuildContext context,
-    required Widget child,
-    EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-  }) {
-    // Text backgrounds are needed for readability over:
-    // 1. Artwork (artworkUrl != null)
-    // 2. Gradient backgrounds (artworkUrl == null/empty)
-    // Since we always have one or the other now, always add backgrounds
-    // (No longer conditional - gradient backgrounds added for artless tokens)
-
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor.withValues(alpha: 0.85), // Semi-transparent card color
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: child,
-    );
-  }
-
   /// Build inline layout (Row) for type, abilities, and P/T
   Widget _buildInlineTypeAbilitiesAndPT(BuildContext context, Item item) {
     return IntrinsicHeight(
@@ -762,8 +604,7 @@ class _TokenCardState extends State<TokenCard> {
               children: [
                 // Type (if present)
                 if (widget.item.type.isNotEmpty && !item.isEmblem)
-                  _buildTextWithBackground(
-                    context: context,
+                  BackgroundText(
                     child: Text(
                       widget.item.type,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -781,8 +622,7 @@ class _TokenCardState extends State<TokenCard> {
 
                 // Abilities (if present)
                 if (widget.item.abilities.isNotEmpty)
-                  _buildTextWithBackground(
-                    context: context,
+                  BackgroundText(
                     child: Text(
                       widget.item.abilities,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -822,8 +662,7 @@ class _TokenCardState extends State<TokenCard> {
         if (widget.item.type.isNotEmpty && !item.isEmblem)
           Align(
             alignment: Alignment.centerLeft,
-            child: _buildTextWithBackground(
-              context: context,
+            child: BackgroundText(
               child: Text(
                 widget.item.type,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -844,8 +683,7 @@ class _TokenCardState extends State<TokenCard> {
         if (widget.item.abilities.isNotEmpty)
           Align(
             alignment: Alignment.centerLeft,
-            child: _buildTextWithBackground(
-              context: context,
+            child: BackgroundText(
               child: Text(
                 item.abilities,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(

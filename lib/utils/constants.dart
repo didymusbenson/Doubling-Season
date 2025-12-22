@@ -82,6 +82,13 @@ class UIConstants {
   static const Duration animationDuration = Duration(milliseconds: 300);
   static const Duration sheetDismissDelay = Duration(milliseconds: 100);
 
+  // Artwork display constants
+  static const int artworkAnimationThreshold = 100; // ms - cached vs downloaded distinction
+  static const int artworkCleanupDelay = 2000; // ms - prevents cleanup during drag/scroll
+  static const Duration artworkFadeInDuration = Duration(milliseconds: 500); // animation duration
+  static const double artworkFadeoutWidthPercent = 0.50; // 50% width for fadeout mode
+  static const double textBackgroundOpacity = 0.85; // semi-transparent backgrounds for readability
+
   // MTG color strings
   static const String colorWhite = 'W';
   static const String colorBlue = 'U';

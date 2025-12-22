@@ -12,7 +12,9 @@ import '../screens/expanded_widget_screen.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
 import '../utils/color_utils.dart';
+import 'common/background_text.dart';
 import 'cropped_artwork_widget.dart';
+import 'mixins/artwork_display_mixin.dart';
 
 class TrackerWidgetCard extends StatefulWidget {
   final TrackerWidget tracker;
@@ -23,10 +25,37 @@ class TrackerWidgetCard extends StatefulWidget {
   State<TrackerWidgetCard> createState() => _TrackerWidgetCardState();
 }
 
-class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
+class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDisplayMixin {
   final DateTime _createdAt = DateTime.now();
   bool _artworkAnimated = false;
   bool _artworkCleanupAttempted = false;
+
+  // Implement ArtworkDisplayMixin interface
+  @override
+  DateTime get createdAt => _createdAt;
+
+  @override
+  bool get artworkAnimated => _artworkAnimated;
+
+  @override
+  set artworkAnimated(bool value) => _artworkAnimated = value;
+
+  @override
+  bool get artworkCleanupAttempted => _artworkCleanupAttempted;
+
+  @override
+  set artworkCleanupAttempted(bool value) => _artworkCleanupAttempted = value;
+
+  @override
+  String? get artworkUrl => widget.tracker.artworkUrl;
+
+  @override
+  void clearArtwork() {
+    widget.tracker.artworkUrl = null;
+    widget.tracker.artworkSet = null;
+    widget.tracker.artworkOptions = null;
+    widget.tracker.save();
+  }
 
   @override
   void didUpdateWidget(TrackerWidgetCard oldWidget) {
@@ -73,7 +102,11 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
 
                   // Artwork layer
                   if (widget.tracker.artworkUrl != null)
-                    _buildArtworkLayer(context, constraints, artworkDisplayStyle),
+                    buildArtworkLayer(
+                      context: context,
+                      constraints: constraints,
+                      artworkDisplayStyle: artworkDisplayStyle,
+                    ),
 
                   // Content layer
                   Container(
@@ -89,8 +122,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               // Name
-                              _buildTextWithBackground(
-                                context: context,
+                              BackgroundText(
                                 child: Text(
                                   widget.tracker.name,
                                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -104,8 +136,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
                               // Description (if present)
                               if (widget.tracker.description.isNotEmpty) ...[
                                 const SizedBox(height: UIConstants.mediumSpacing),
-                                _buildTextWithBackground(
-                                  context: context,
+                                BackgroundText(
                                   child: Text(
                                     widget.tracker.description,
                                     style: Theme.of(context).textTheme.bodyMedium,
@@ -211,8 +242,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
     // Big number display - takes full vertical space
     return GestureDetector(
       onTap: () => _showValueEditDialog(context),
-      child: _buildTextWithBackground(
-        context: context,
+      child: BackgroundText(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Text(
           '${widget.tracker.currentValue}',
@@ -582,164 +612,6 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> {
           return const SizedBox.shrink();
         },
       ),
-    );
-  }
-
-  Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints, String artworkDisplayStyle) {
-    final crop = ArtworkManager.getCropPercentages(widget.tracker.artworkUrl);
-
-    if (artworkDisplayStyle == 'fadeout') {
-      // Fadeout mode - right 50% only
-      final cardWidth = constraints.maxWidth;
-      final artworkWidth = cardWidth * 0.50;
-
-      return Positioned(
-        right: 0,
-        top: 0,
-        bottom: 0,
-        width: artworkWidth,
-        child: FutureBuilder<File?>(
-          future: ArtworkManager.getCachedArtworkFile(widget.tracker.artworkUrl!),
-          builder: (context, snapshot) {
-            if (snapshot.hasData && snapshot.data != null) {
-              final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-              final shouldAnimate = elapsed > 100 && !_artworkAnimated;
-
-              if (shouldAnimate) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    setState(() {
-                      _artworkAnimated = true;
-                    });
-                  }
-                });
-              }
-
-              return AnimatedOpacity(
-                opacity: 1.0,
-                duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
-                curve: Curves.easeIn,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(UIConstants.smallBorderRadius),
-                    bottomRight: Radius.circular(UIConstants.smallBorderRadius),
-                  ),
-                  child: ShaderMask(
-                    shaderCallback: (Rect bounds) {
-                      return const LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [Colors.transparent, Colors.white],
-                        stops: [0.0, 0.50],
-                      ).createShader(bounds);
-                    },
-                    blendMode: BlendMode.dstIn,
-                    child: CroppedArtworkWidget(
-                      imageFile: snapshot.data!,
-                      cropLeft: crop['left']!,
-                      cropRight: crop['right']!,
-                      cropTop: crop['top']!,
-                      cropBottom: crop['bottom']!,
-                      fillWidth: false,
-                    ),
-                  ),
-                ),
-              );
-            }
-
-            // Cleanup logic
-            if (snapshot.connectionState == ConnectionState.done &&
-                snapshot.data == null &&
-                !_artworkCleanupAttempted) {
-              final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-              if (elapsed > 2000) {
-                _artworkCleanupAttempted = true;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    widget.tracker.artworkUrl = null;
-                    widget.tracker.save();
-                  }
-                });
-              }
-            }
-
-            return const SizedBox.shrink();
-          },
-        ),
-      );
-    } else {
-      // Full view mode - fills entire card
-      return Positioned.fill(
-        child: FutureBuilder<File?>(
-          future: ArtworkManager.getCachedArtworkFile(widget.tracker.artworkUrl!),
-          builder: (context, snapshot) {
-            if (snapshot.hasData && snapshot.data != null) {
-              final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-              final shouldAnimate = elapsed > 100 && !_artworkAnimated;
-
-              if (shouldAnimate) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    setState(() {
-                      _artworkAnimated = true;
-                    });
-                  }
-                });
-              }
-
-              return AnimatedOpacity(
-                opacity: 1.0,
-                duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
-                curve: Curves.easeIn,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
-                  child: CroppedArtworkWidget(
-                    imageFile: snapshot.data!,
-                    cropLeft: crop['left']!,
-                    cropRight: crop['right']!,
-                    cropTop: crop['top']!,
-                    cropBottom: crop['bottom']!,
-                    fillWidth: true,
-                  ),
-                ),
-              );
-            }
-
-            // Cleanup logic
-            if (snapshot.connectionState == ConnectionState.done &&
-                snapshot.data == null &&
-                !_artworkCleanupAttempted) {
-              final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-              if (elapsed > 2000) {
-                _artworkCleanupAttempted = true;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    widget.tracker.artworkUrl = null;
-                    widget.tracker.save();
-                  }
-                });
-              }
-            }
-
-            return const SizedBox.shrink();
-          },
-        ),
-      );
-    }
-  }
-
-  Widget _buildTextWithBackground({
-    required BuildContext context,
-    required Widget child,
-    EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-  }) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: child,
     );
   }
 }
