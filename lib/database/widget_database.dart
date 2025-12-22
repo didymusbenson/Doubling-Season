@@ -247,7 +247,26 @@ class WidgetDatabase extends ChangeNotifier {
           .toList();
     }
 
+    // Sort by type: Special first, then Tracker, then Toggle
+    filtered.sort((a, b) {
+      final aPriority = _getTypeSortPriority(a.type);
+      final bPriority = _getTypeSortPriority(b.type);
+      return aPriority.compareTo(bPriority);
+    });
+
     _filteredWidgets = filtered;
+  }
+
+  /// Returns sort priority for widget types (lower = higher priority)
+  int _getTypeSortPriority(WidgetType type) {
+    switch (type) {
+      case WidgetType.special:
+        return 0; // Highest priority
+      case WidgetType.tracker:
+        return 1;
+      case WidgetType.toggle:
+        return 2;
+    }
   }
 
   void clearFilters() {

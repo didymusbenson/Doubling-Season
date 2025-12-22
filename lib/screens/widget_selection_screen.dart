@@ -129,11 +129,11 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
           children: [
             _buildFilterChip('All', null),
             const SizedBox(width: 8),
+            _buildFilterChip('Special', WidgetType.special),
+            const SizedBox(width: 8),
             _buildFilterChip('Tracker', WidgetType.tracker),
             const SizedBox(width: 8),
             _buildFilterChip('Toggle', WidgetType.toggle),
-            const SizedBox(width: 8),
-            _buildFilterChip('Special', WidgetType.special),
           ],
         ),
       ),

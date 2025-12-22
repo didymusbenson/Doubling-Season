@@ -91,7 +91,7 @@ class _ContentScreenState extends State<ContentScreen> {
                     const SizedBox(width: UIConstants.smallPadding),
                     FloatingActionMenu(
                       onNewToken: _showTokenSearch,
-                      onWidgets: settings.experimentalFeaturesEnabled ? _showWidgetSelection : null,
+                      onWidgets: _showWidgetSelection,
                       onAddCountersToAll: _handleAddCountersToAll,
                       onMinusOneToAll: _handleMinusOneToAll,
                       onUntapAll: _showUntapAllDialog,
