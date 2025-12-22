@@ -337,9 +337,7 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
 
     if (!widget.item.isEmblem) {
       buttonCount += 2; // Untap and Tap
-      if (summoningSicknessEnabled) {
-        buttonCount += 1; // Clear SS (always shown when enabled)
-      }
+      buttonCount += 1; // +1/+1 Counter
       buttonCount += 1; // Copy
       buttonCount += 1; // Split
     }
@@ -436,20 +434,39 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
                 spacing: spacing,
               ),
 
-              // Clear Summoning Sickness button (always shown when enabled, disabled if nothing to clear)
-              if (summoningSicknessEnabled)
-                _buildActionButton(
-                  context,
-                  icon: Icons.adjust,
-                  onTap: widget.item.summoningSick > 0 ? () {
-                    widget.item.summoningSick = 0;
-                    tokenProvider.updateItem(widget.item);
-                  } : null,
-                  onLongPress: null,
-                  color: primaryColor,
-                  spacing: spacing,
-                  disabled: widget.item.summoningSick == 0,
-                ),
+              // HIDDEN: Clear Summoning Sickness button - Deliberately hidden from users but preserved for future use
+              // if (summoningSicknessEnabled)
+              //   _buildActionButton(
+              //     context,
+              //     icon: Icons.adjust,
+              //     onTap: widget.item.summoningSick > 0 ? () {
+              //       widget.item.summoningSick = 0;
+              //       tokenProvider.updateItem(widget.item);
+              //     } : null,
+              //     onLongPress: null,
+              //     color: primaryColor,
+              //     spacing: spacing,
+              //     disabled: widget.item.summoningSick == 0,
+              //   ),
+
+              // +1/+1 Counter button
+              _buildActionButton(
+                context,
+                icon: Icons.trending_up,
+                onTap: () {
+                  final counterMultiplier = context.read<SettingsProvider>().counterMultiplier;
+                  widget.item.plusOneCounters = widget.item.plusOneCounters + counterMultiplier;
+                  tokenProvider.updateItem(widget.item);
+                },
+                onLongPress: () {
+                  final counterMultiplier = context.read<SettingsProvider>().counterMultiplier;
+                  widget.item.plusOneCounters = widget.item.plusOneCounters + (counterMultiplier * 10);
+                  tokenProvider.updateItem(widget.item);
+                },
+                color: primaryColor,
+                spacing: spacing,
+              ),
+
               // Copy button
               _buildActionButton(
                 context,

@@ -112,6 +112,7 @@ class DatabaseConstants {
 /// SharedPreferences keys
 class PreferenceKeys {
   static const String tokenMultiplier = 'tokenMultiplier';
+  static const String counterMultiplier = 'counterMultiplier'; // For future work involving counter multipliers (not yet implemented)
   static const String summoningSicknessEnabled = 'summoningSicknessEnabled';
   static const String favoriteTokens = 'favoriteTokens';
   static const String recentTokens = 'recentTokens';

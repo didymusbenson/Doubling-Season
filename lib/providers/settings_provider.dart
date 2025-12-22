@@ -23,6 +23,16 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Counter multiplier for future work involving counter multipliers (not yet implemented)
+  int get counterMultiplier =>
+      _prefs.getInt(PreferenceKeys.counterMultiplier) ?? 1;
+
+  Future<void> setCounterMultiplier(int value) async {
+    final clamped = value.clamp(1, GameConstants.maxMultiplier);
+    await _prefs.setInt(PreferenceKeys.counterMultiplier, clamped);
+    notifyListeners();
+  }
+
   bool get summoningSicknessEnabled =>
       _prefs.getBool(PreferenceKeys.summoningSicknessEnabled) ?? true;
 
