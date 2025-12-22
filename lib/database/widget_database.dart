@@ -210,6 +210,21 @@ class WidgetDatabase extends ChangeNotifier {
           ArtworkVariant(set: 'WAR', url: 'https://cards.scryfall.io/large/front/3/7/37ed04d3-cfa1-4778-aea6-b4c2c29e6e0a.jpg?1559959382'),
         ],
       ),
+      WidgetDefinition(
+        id: 'cathars_crusade',
+        type: WidgetType.special,
+        name: "Cathar's Crusade",
+        description: 'Creature ETB triggers',
+        colorIdentity: 'W', // White enchantment
+        defaultValue: 0, // Starts at 0 (no creatures entered yet)
+        hasAction: true,
+        actionButtonText: 'Add Counters',
+        actionType: 'cathars_crusade',
+        artwork: [
+          ArtworkVariant(set: 'INR', url: 'https://cards.scryfall.io/large/front/5/2/5296e353-2efc-4d72-a877-7957eff630b9.jpg?1736467489'),
+          ArtworkVariant(set: 'SLD', url: 'https://cards.scryfall.io/large/front/3/e/3ebdc35c-019d-41d9-aff7-b317246aefb1.jpg?1744789847'),
+        ],
+      ),
     ];
 
     _isLoaded = true;

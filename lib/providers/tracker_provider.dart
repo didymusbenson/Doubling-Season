@@ -2,7 +2,9 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/tracker_widget.dart';
+import '../models/item.dart';
 import '../utils/constants.dart';
+import '../utils/game_events.dart';
 
 class TrackerProvider extends ChangeNotifier {
   late Box<TrackerWidget> _trackersBox;
@@ -24,6 +26,18 @@ class TrackerProvider extends ChangeNotifier {
       debugPrint('TrackerProvider.init: Running migration...');
       _ensureOrdersAssigned(); // Silent migration for order field
       debugPrint('TrackerProvider.init: Migration complete');
+
+      debugPrint('TrackerProvider.init: Registering event listeners...');
+      // Register listener for creature ETBs (Cathar's Crusade)
+      GameEvents.instance.onCreatureEntered((item, count) {
+        _onCreatureEntered(item, count);
+      });
+
+      // Register listener for board wipes (Cathar's Crusade reset)
+      GameEvents.instance.onBoardWiped(() {
+        _onBoardWiped();
+      });
+      debugPrint('TrackerProvider.init: Event listeners registered');
 
       _initialized = true;
       notifyListeners();
@@ -159,5 +173,45 @@ class TrackerProvider extends ChangeNotifier {
     tracker.order = newOrder;
     await tracker.save();
     notifyListeners();
+  }
+
+  // ===== Event Listeners =====
+
+  void _onCreatureEntered(Item item, int count) {
+    // Find all Cathar's Crusade utilities on board
+    final catharsUtilities = _trackersBox.values.where((tracker) =>
+      tracker.actionType == 'cathars_crusade'
+    );
+
+    // Increment each Cathar's counter
+    for (var cathar in catharsUtilities) {
+      cathar.currentValue += count;
+      cathar.save();
+    }
+
+    // Notify UI to rebuild
+    if (catharsUtilities.isNotEmpty) {
+      notifyListeners();
+      debugPrint('TrackerProvider: Incremented ${catharsUtilities.length} Cathar\'s Crusade tracker(s) by $count');
+    }
+  }
+
+  void _onBoardWiped() {
+    // Find all Cathar's Crusade utilities on board
+    final catharsUtilities = _trackersBox.values.where((tracker) =>
+      tracker.actionType == 'cathars_crusade'
+    );
+
+    // Reset each Cathar's counter to 0
+    for (var cathar in catharsUtilities) {
+      cathar.currentValue = 0;
+      cathar.save();
+    }
+
+    // Notify UI to rebuild
+    if (catharsUtilities.isNotEmpty) {
+      notifyListeners();
+      debugPrint('TrackerProvider: Reset ${catharsUtilities.length} Cathar\'s Crusade tracker(s) to 0');
+    }
   }
 }

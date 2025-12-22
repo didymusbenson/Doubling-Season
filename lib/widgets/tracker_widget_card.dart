@@ -12,6 +12,7 @@ import '../screens/expanded_widget_screen.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
 import '../utils/color_utils.dart';
+import '../utils/game_events.dart';
 import 'common/background_text.dart';
 import 'cropped_artwork_widget.dart';
 import 'mixins/artwork_display_mixin.dart';
@@ -382,6 +383,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
       case 'krenko_tin_street':
         _performKrenkoTinStreetAction(context);
         break;
+      case 'cathars_crusade':
+        _performCatharsCrusadeAction(context);
+        break;
       // Future action types can be added here
       default:
         break;
@@ -548,6 +552,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
       // Add to existing token without counters
       existingGoblinWithoutCounters.amount += amount;
       existingGoblinWithoutCounters.save();
+
+      // Fire ETB event for Cathar's Crusade and other listeners
+      GameEvents.instance.notifyCreatureEntered(existingGoblinWithoutCounters, amount);
     } else {
       // Calculate max order across ALL board items (tokens + trackers + toggles)
       final allOrders = <double>[];
@@ -580,6 +587,55 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
         newGoblin.summoningSick = amount;
       }
     }
+  }
+
+  Future<void> _performCatharsCrusadeAction(BuildContext context) async {
+    final tokenProvider = context.read<TokenProvider>();
+    final triggerCount = widget.tracker.currentValue;
+
+    if (triggerCount <= 0) {
+      // No triggers to resolve
+      return;
+    }
+
+    // Show confirmation dialog
+    final shouldResolve = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Cathar's Crusade"),
+        content: Text(
+          'Pressing confirm will add $triggerCount +1/+1 counter${triggerCount == 1 ? '' : 's'} '
+          'to all creatures.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldResolve != true) return;
+
+    // Get all tokens on board
+    final allTokens = tokenProvider.items;
+
+    // Add counters to all creatures (tokens with P/T)
+    for (var token in allTokens) {
+      if (token.hasPowerToughness) {
+        token.plusOneCounters += triggerCount;
+        await token.save();
+      }
+    }
+
+    // Reset Cathar's counter to 0
+    widget.tracker.currentValue = 0;
+    await widget.tracker.save();
   }
 
   Widget _buildGradientLayer(BuildContext context) {

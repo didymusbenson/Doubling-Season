@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/item.dart';
 import '../utils/constants.dart';
+import '../utils/game_events.dart';
 
 class TokenProvider extends ChangeNotifier {
   late Box<Item> _itemsBox;
@@ -84,6 +85,12 @@ class TokenProvider extends ChangeNotifier {
       }
 
       await _itemsBox.add(item);
+
+      // Fire ETB event for creatures
+      if (item.hasPowerToughness) {
+        GameEvents.instance.notifyCreatureEntered(item, item.amount);
+      }
+
       _errorMessage = null; // Clear any previous errors
       notifyListeners();
       debugPrint('TokenProvider: Successfully created token "${item.name}" with amount ${item.amount}');
@@ -158,6 +165,12 @@ class TokenProvider extends ChangeNotifier {
         item.summoningSick += amount;
       }
       await item.save();
+
+      // Fire ETB event for added creatures
+      if (item.hasPowerToughness) {
+        GameEvents.instance.notifyCreatureEntered(item, amount);
+      }
+
       _errorMessage = null;
       notifyListeners();
       debugPrint('TokenProvider: Added $amount tokens to "${item.name}" (${oldAmount} → ${item.amount})');
@@ -322,6 +335,11 @@ class TokenProvider extends ChangeNotifier {
 
       await newItem.save();
 
+      // Fire ETB event for copied creature
+      if (newItem.hasPowerToughness) {
+        GameEvents.instance.notifyCreatureEntered(newItem, newItem.amount);
+      }
+
       _errorMessage = null;
       notifyListeners();
       debugPrint('TokenProvider: Successfully copied token "${original.name}" (amount: ${original.amount}, counters: ${original.counters.length})');
@@ -473,6 +491,9 @@ class TokenProvider extends ChangeNotifier {
 
   Future<void> boardWipeDelete() async {
     try {
+      // Fire board wipe event to reset Cathar's counters
+      GameEvents.instance.notifyBoardWiped();
+
       final itemCount = _itemsBox.length;
       await _itemsBox.clear();
       _errorMessage = null;
