@@ -274,15 +274,20 @@ class TokenProvider extends ChangeNotifier {
         newOrder = (original.order + nextOrder) / 2.0;
       }
 
+      // Create single new token that is summoning sick if appropriate
+      final shouldBeSummoningSick = summoningSicknessEnabled &&
+                                    original.hasPowerToughness &&
+                                    !original.hasHaste;
+
       final newItem = Item(
         name: original.name,
         pt: original.pt,
         abilities: original.abilities,
         colors: original.colors,
         type: original.type,
-        amount: original.amount,
-        tapped: original.tapped,
-        summoningSick: original.summoningSick, // Full copy - inherit summoning sickness state
+        amount: 1, // Always create just 1 token
+        tapped: 0, // New token is untapped
+        summoningSick: shouldBeSummoningSick ? 1 : 0, // Summoning sick if creature without haste
         order: newOrder,
         artworkUrl: original.artworkUrl,
         artworkSet: original.artworkSet,
