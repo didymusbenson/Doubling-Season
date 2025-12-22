@@ -17,6 +17,8 @@ class HiveTypeIds {
   static const int artworkPreference = 5; // NEW - Custom Artwork Feature
   static const int trackerWidget = 6; // NEW - Widget Cards Feature
   static const int toggleWidget = 7; // NEW - Widget Cards Feature
+  static const int trackerWidgetTemplate = 8; // NEW - Deck templates for utilities
+  static const int toggleWidgetTemplate = 9; // NEW - Deck templates for utilities
 }
 
 /// UI constants

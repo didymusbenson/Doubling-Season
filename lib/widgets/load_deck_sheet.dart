@@ -2,8 +2,22 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/deck.dart';
+import '../models/token_template.dart';
+import '../models/tracker_widget_template.dart';
+import '../models/toggle_widget_template.dart';
 import '../providers/deck_provider.dart';
 import '../providers/token_provider.dart';
+import '../providers/tracker_provider.dart';
+import '../providers/toggle_provider.dart';
+
+// Helper class for preserving exact order when loading decks
+class _TemplateForLoad {
+  final dynamic template; // TokenTemplate, TrackerWidgetTemplate, or ToggleWidgetTemplate
+  final double order;
+  final String type; // 'token', 'tracker', 'toggle'
+
+  _TemplateForLoad(this.template, this.order, this.type);
+}
 
 class LoadDeckSheet extends StatelessWidget {
   const LoadDeckSheet({super.key});
@@ -63,6 +77,11 @@ class LoadDeckSheet extends StatelessWidget {
             itemCount: decks.length,
             itemBuilder: (context, index) {
               final deck = decks[index];
+              final utilityCount = (deck.trackerWidgets?.length ?? 0) + (deck.toggleWidgets?.length ?? 0);
+              final subtitle = utilityCount > 0
+                  ? '${deck.templates.length} tokens, $utilityCount utilities'
+                  : '${deck.templates.length} tokens';
+
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 child: ListTile(
@@ -73,7 +92,7 @@ class LoadDeckSheet extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  subtitle: Text('${deck.templates.length} tokens'),
+                  subtitle: Text(subtitle),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -100,11 +119,15 @@ class LoadDeckSheet extends StatelessWidget {
   void _loadDeck(BuildContext context, Deck deck) async {
     // Capture references from outer context BEFORE showing dialog
     final tokenProvider = context.read<TokenProvider>();
+    final trackerProvider = context.read<TrackerProvider>();
+    final toggleProvider = context.read<ToggleProvider>();
     final currentTokens = tokenProvider.items;
+    final currentTrackers = trackerProvider.trackers;
+    final currentToggles = toggleProvider.toggles;
 
-    if (currentTokens.isEmpty) {
+    if (currentTokens.isEmpty && currentTrackers.isEmpty && currentToggles.isEmpty) {
       // Board is empty - load directly without confirmation
-      await _loadDeckTokens(tokenProvider, deck, startOrder: 0.0);
+      await _loadDeckItems(tokenProvider, trackerProvider, toggleProvider, deck, startOrder: 0.0);
 
       if (context.mounted) {
         Navigator.pop(context); // Close load deck sheet
@@ -112,7 +135,7 @@ class LoadDeckSheet extends StatelessWidget {
       return;
     }
 
-    // Board has tokens - show confirmation dialog
+    // Board has items - show confirmation dialog
     final result = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -125,11 +148,11 @@ class LoadDeckSheet extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, 'clear'),
-            child: const Text('Clear tokens and load'),
+            child: const Text('Clear board and load'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, 'add'),
-            child: const Text('Add deck tokens to board'),
+            child: const Text('Add deck to board'),
           ),
         ],
       ),
@@ -138,14 +161,25 @@ class LoadDeckSheet extends StatelessWidget {
     if (result == null || result == 'cancel') return;
 
     if (result == 'clear') {
+      // Clear all tokens and utilities
       await tokenProvider.boardWipeDelete();
-      await _loadDeckTokens(tokenProvider, deck, startOrder: 0.0);
+      await trackerProvider.deleteAll();
+      await toggleProvider.deleteAll();
+      await _loadDeckItems(tokenProvider, trackerProvider, toggleProvider, deck, startOrder: 0.0);
     } else if (result == 'add') {
-      // Find max order and append deck tokens after it
-      final maxOrder = currentTokens.isEmpty
+      // Find max order and append deck items after it
+      final maxTokenOrder = currentTokens.isEmpty
           ? 0.0
           : currentTokens.map((i) => i.order).reduce(max);
-      await _loadDeckTokens(tokenProvider, deck, startOrder: maxOrder.floor() + 1.0);
+      final maxTrackerOrder = currentTrackers.isEmpty
+          ? 0.0
+          : currentTrackers.map((w) => w.order).reduce(max);
+      final maxToggleOrder = currentToggles.isEmpty
+          ? 0.0
+          : currentToggles.map((w) => w.order).reduce(max);
+      final maxOrder = [maxTokenOrder, maxTrackerOrder, maxToggleOrder].reduce(max);
+
+      await _loadDeckItems(tokenProvider, trackerProvider, toggleProvider, deck, startOrder: maxOrder.floor() + 1.0);
     }
 
     if (context.mounted) {
@@ -153,21 +187,60 @@ class LoadDeckSheet extends StatelessWidget {
     }
   }
 
-  Future<void> _loadDeckTokens(TokenProvider tokenProvider, Deck deck, {required double startOrder}) async {
-    // Sort templates by order
-    final sortedTemplates = deck.templates.toList()
-      ..sort((a, b) => a.order.compareTo(b.order));
+  Future<void> _loadDeckItems(
+    TokenProvider tokenProvider,
+    TrackerProvider trackerProvider,
+    ToggleProvider toggleProvider,
+    Deck deck, {
+    required double startOrder,
+  }) async {
+    // Collect all templates with their orders to preserve exact sequence
+    final allTemplates = <_TemplateForLoad>[];
 
-    // Create items preserving relative order
-    for (int i = 0; i < sortedTemplates.length; i++) {
-      final template = sortedTemplates[i];
-      final item = template.toItem(
-        amount: 0, // Initialize with 0 tokens (user adds as needed)
-        createTapped: false,
-      );
-      // Override order to position correctly (clear: 0,1,2... or add: maxOrder+1, maxOrder+2...)
-      item.order = startOrder + i.toDouble();
-      await tokenProvider.insertItemWithExplicitOrder(item);
+    // Add token templates
+    for (final template in deck.templates) {
+      allTemplates.add(_TemplateForLoad(template, template.order, 'token'));
+    }
+
+    // Add tracker templates if present
+    if (deck.trackerWidgets != null) {
+      for (final template in deck.trackerWidgets!) {
+        allTemplates.add(_TemplateForLoad(template, template.order, 'tracker'));
+      }
+    }
+
+    // Add toggle templates if present
+    if (deck.toggleWidgets != null) {
+      for (final template in deck.toggleWidgets!) {
+        allTemplates.add(_TemplateForLoad(template, template.order, 'toggle'));
+      }
+    }
+
+    // Sort by order to restore exact board sequence
+    allTemplates.sort((a, b) => a.order.compareTo(b.order));
+
+    // Load items in order
+    for (int i = 0; i < allTemplates.length; i++) {
+      final templateItem = allTemplates[i];
+      final newOrder = startOrder + i.toDouble();
+
+      if (templateItem.type == 'token') {
+        final template = templateItem.template as TokenTemplate;
+        final item = template.toItem(
+          amount: 0, // Initialize with 0 tokens (user adds as needed)
+          createTapped: false,
+        );
+        item.order = newOrder;
+        await tokenProvider.insertItemWithExplicitOrder(item);
+      } else if (templateItem.type == 'tracker') {
+        final template = templateItem.template as TrackerWidgetTemplate;
+        final widget = template.toWidget(customOrder: newOrder);
+        await trackerProvider.insertTrackerWithExplicitOrder(widget);
+      } else if (templateItem.type == 'toggle') {
+        final template = templateItem.template as ToggleWidgetTemplate;
+        final widget = template.toWidget(customOrder: newOrder);
+        await toggleProvider.insertToggleWithExplicitOrder(widget);
+      }
     }
   }
 

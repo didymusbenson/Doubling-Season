@@ -7,6 +7,8 @@ import '../models/token_template.dart';
 import '../models/deck.dart';
 import '../models/tracker_widget.dart'; // NEW - Widget Cards Feature
 import '../models/toggle_widget.dart'; // NEW - Widget Cards Feature
+import '../models/tracker_widget_template.dart'; // NEW - Deck templates for utilities
+import '../models/toggle_widget_template.dart'; // NEW - Deck templates for utilities
 import '../providers/token_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/deck_provider.dart';
@@ -35,6 +37,15 @@ class _BoardItem {
   bool get isToken => item is Item;
   bool get isTracker => item is TrackerWidget;
   bool get isToggle => item is ToggleWidget;
+}
+
+// Helper class for preserving exact order when saving decks
+class _BoardItemForSave {
+  final dynamic item; // Item, TrackerWidget, or ToggleWidget
+  final double order;
+  final String type; // 'token', 'tracker', 'toggle'
+
+  _BoardItemForSave(this.item, this.order, this.type);
 }
 
 class ContentScreen extends StatefulWidget {
@@ -766,6 +777,8 @@ class _ContentScreenState extends State<ContentScreen> {
 
   Future<void> _showSaveDeckDialog() async {
     final tokenProvider = context.read<TokenProvider>();
+    final trackerProvider = context.read<TrackerProvider>();
+    final toggleProvider = context.read<ToggleProvider>();
     final deckProvider = context.read<DeckProvider>();
     final controller = TextEditingController();
 
@@ -799,20 +812,68 @@ class _ContentScreenState extends State<ContentScreen> {
 
               // Save deck after dialog is fully dismissed
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                // Sort by order and compact to sequential integers for clean deck storage
-                final sortedItems = tokenProvider.items
-                    ..sort((a, b) => a.order.compareTo(b.order));
+                // Collect all board items with their orders to preserve exact positions
+                final allBoardItems = <_BoardItemForSave>[];
 
-                final templates = sortedItems.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final item = entry.value;
-                  final template = TokenTemplate.fromItem(item);
-                  // Override order with compacted sequential values
-                  template.order = index.toDouble();
-                  return template;
-                }).toList();
+                // Add all tokens
+                for (final item in tokenProvider.items) {
+                  allBoardItems.add(_BoardItemForSave(item, item.order, 'token'));
+                }
 
-                final deck = Deck(name: deckName, templates: templates);
+                // Add all trackers
+                for (final tracker in trackerProvider.trackers) {
+                  allBoardItems.add(_BoardItemForSave(tracker, tracker.order, 'tracker'));
+                }
+
+                // Add all toggles
+                for (final toggle in toggleProvider.toggles) {
+                  allBoardItems.add(_BoardItemForSave(toggle, toggle.order, 'toggle'));
+                }
+
+                // Sort by order to get exact board sequence
+                allBoardItems.sort((a, b) => a.order.compareTo(b.order));
+
+                // Process items in order, deduplicating tokens while preserving utilities
+                final Map<String, bool> seenTokens = {}; // Track seen token identities
+                final List<TokenTemplate> templates = [];
+                final List<TrackerWidgetTemplate> trackerTemplates = [];
+                final List<ToggleWidgetTemplate> toggleTemplates = [];
+
+                int normalizedIndex = 0;
+                for (final boardItem in allBoardItems) {
+                  if (boardItem.type == 'token') {
+                    final item = boardItem.item as Item;
+                    final key = '${item.name}|${item.pt}|${item.colors}|${item.abilities}';
+                    if (!seenTokens.containsKey(key)) {
+                      // First occurrence - save this token
+                      seenTokens[key] = true;
+                      final template = TokenTemplate.fromItem(item);
+                      template.order = normalizedIndex.toDouble();
+                      templates.add(template);
+                      normalizedIndex++;
+                    }
+                    // Skip duplicate tokens
+                  } else if (boardItem.type == 'tracker') {
+                    final tracker = boardItem.item as TrackerWidget;
+                    final template = TrackerWidgetTemplate.fromWidget(tracker);
+                    template.order = normalizedIndex.toDouble();
+                    trackerTemplates.add(template);
+                    normalizedIndex++;
+                  } else if (boardItem.type == 'toggle') {
+                    final toggle = boardItem.item as ToggleWidget;
+                    final template = ToggleWidgetTemplate.fromWidget(toggle);
+                    template.order = normalizedIndex.toDouble();
+                    toggleTemplates.add(template);
+                    normalizedIndex++;
+                  }
+                }
+
+                final deck = Deck(
+                  name: deckName,
+                  templates: templates,
+                  trackerWidgets: trackerTemplates.isEmpty ? null : trackerTemplates,
+                  toggleWidgets: toggleTemplates.isEmpty ? null : toggleTemplates,
+                );
                 deckProvider.saveDeck(deck);
               });
             },

@@ -19,17 +19,23 @@ class DeckAdapter extends TypeAdapter<Deck> {
     return Deck(
       name: fields[0] as String,
       templates: (fields[1] as List?)?.cast<TokenTemplate>(),
+      trackerWidgets: (fields[2] as List?)?.cast<TrackerWidgetTemplate>(),
+      toggleWidgets: (fields[3] as List?)?.cast<ToggleWidgetTemplate>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, Deck obj) {
     writer
-      ..writeByte(2)
+      ..writeByte(4)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
-      ..write(obj.templates);
+      ..write(obj.templates)
+      ..writeByte(2)
+      ..write(obj.trackerWidgets)
+      ..writeByte(3)
+      ..write(obj.toggleWidgets);
   }
 
   @override

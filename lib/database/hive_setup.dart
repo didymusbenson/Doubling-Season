@@ -7,6 +7,8 @@ import '../models/token_definition.dart';
 import '../models/token_artwork_preference.dart';
 import '../models/tracker_widget.dart'; // NEW - Widget Cards Feature
 import '../models/toggle_widget.dart'; // NEW - Widget Cards Feature
+import '../models/tracker_widget_template.dart'; // NEW - Deck templates for utilities
+import '../models/toggle_widget_template.dart'; // NEW - Deck templates for utilities
 
 Future<void> initHive() async {
   await Hive.initFlutter();
@@ -20,6 +22,8 @@ Future<void> initHive() async {
   Hive.registerAdapter(TokenArtworkPreferenceAdapter()); // NEW - Custom Artwork Feature
   Hive.registerAdapter(TrackerWidgetAdapter()); // NEW - Widget Cards Feature
   Hive.registerAdapter(ToggleWidgetAdapter()); // NEW - Widget Cards Feature
+  Hive.registerAdapter(TrackerWidgetTemplateAdapter()); // NEW - Deck templates for utilities
+  Hive.registerAdapter(ToggleWidgetTemplateAdapter()); // NEW - Deck templates for utilities
 
   // Open boxes in parallel for optimal startup performance
   await Future.wait([
