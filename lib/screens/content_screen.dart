@@ -114,6 +114,29 @@ class _ContentScreenState extends State<ContentScreen> {
     return AppBar(
       title: const Text('Tripling Season'),
       centerTitle: true,
+      leading: Consumer<SettingsProvider>(
+        builder: (context, settings, child) {
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Status button (experimental features only)
+              if (settings.experimentalFeaturesEnabled)
+                IconButton(
+                  onPressed: () => _showStatusPlaceholder(),
+                  icon: const Icon(Icons.list_alt),
+                  tooltip: 'Status',
+                ),
+              // Clear summoning sickness button
+              IconButton(
+                onPressed: () => _handleClearSickness(),
+                icon: const Icon(Icons.adjust),
+                tooltip: 'Clear Summoning Sickness',
+              ),
+            ],
+          );
+        },
+      ),
+      leadingWidth: 112, // Accommodate both buttons (56px each)
       actions: [
         // Settings (long press on summoning sickness icon)
         IconButton(
@@ -903,6 +926,22 @@ class _ContentScreenState extends State<ContentScreen> {
       MaterialPageRoute(
         builder: (context) => const AboutScreen(),
         fullscreenDialog: true,
+      ),
+    );
+  }
+
+  void _showStatusPlaceholder() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Status'),
+        content: const Text('Not yet implemented'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+        ],
       ),
     );
   }
