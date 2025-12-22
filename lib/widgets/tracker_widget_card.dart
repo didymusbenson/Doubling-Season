@@ -113,52 +113,59 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
                   Container(
                     color: Colors.transparent,
                     padding: const EdgeInsets.all(UIConstants.cardPadding),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Left side: Name, Description, Buttons (takes remaining space)
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Name
-                              BackgroundText(
-                                child: Text(
-                                  widget.tracker.name,
-                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
+                        // Top row: Name/Description and Value
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Left side: Name, Description (takes remaining space)
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Name
+                                  BackgroundText(
+                                    child: Text(
+                                      widget.tracker.name,
+                                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
                                   ),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
+
+                                  // Description (if present)
+                                  if (widget.tracker.description.isNotEmpty) ...[
+                                    const SizedBox(height: UIConstants.mediumSpacing),
+                                    BackgroundText(
+                                      child: Text(
+                                        widget.tracker.description,
+                                        style: Theme.of(context).textTheme.bodyMedium,
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 3,
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
+                            ),
 
-                              // Description (if present)
-                              if (widget.tracker.description.isNotEmpty) ...[
-                                const SizedBox(height: UIConstants.mediumSpacing),
-                                BackgroundText(
-                                  child: Text(
-                                    widget.tracker.description,
-                                    style: Theme.of(context).textTheme.bodyMedium,
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 3,
-                                  ),
-                                ),
-                              ],
+                            const SizedBox(width: UIConstants.mediumSpacing),
 
-                              const SizedBox(height: UIConstants.mediumSpacing),
-
-                              // Button Row (left-aligned)
-                              _buildActionButtons(context),
-                            ],
-                          ),
+                            // Right side: Value display (shrink-wraps)
+                            _buildValueDisplay(context),
+                          ],
                         ),
 
-                        const SizedBox(width: UIConstants.mediumSpacing),
+                        const SizedBox(height: UIConstants.mediumSpacing),
 
-                        // Right side: Value display (shrink-wraps)
-                        _buildValueDisplay(context),
+                        // Bottom row: Action buttons (full width)
+                        _buildActionButtons(context),
                       ],
                     ),
                   ),
@@ -175,7 +182,10 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     final trackerProvider = context.read<TrackerProvider>();
     final primaryColor = Theme.of(context).colorScheme.primary;
 
-    final int buttonCount = widget.tracker.hasAction ? 3 : 2; // +/- buttons, plus optional action button
+    // Calculate button count: +/- buttons, plus optional action button(s)
+    final int buttonCount = widget.tracker.actionType == 'cathars_crusade'
+        ? 4  // -, +, Quick +1, Resolve All
+        : (widget.tracker.hasAction ? 3 : 2); // -, +, [optional Action]
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -224,8 +234,26 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
               spacing: widget.tracker.hasAction ? spacing : 0, // Spacing if action button follows
             ),
 
-            // Action button (conditional)
-            if (widget.tracker.hasAction)
+            // Action buttons (conditional)
+            if (widget.tracker.hasAction && widget.tracker.actionType == 'cathars_crusade') ...[
+              // Quick +1 button for Cathar's Crusade (icon + text)
+              _buildIconTextActionButton(
+                context,
+                icon: Icons.trending_up,
+                text: 'x1',
+                onTap: () => _performQuickPlusOne(context),
+                color: primaryColor,
+                spacing: spacing,
+              ),
+              // Resolve All button
+              _buildTextActionButton(
+                context,
+                text: widget.tracker.actionButtonText ?? 'Action',
+                onTap: () => _performAction(context),
+                color: primaryColor,
+                spacing: 0, // Last button gets no spacing
+              ),
+            ] else if (widget.tracker.hasAction)
               _buildTextActionButton(
                 context,
                 text: widget.tracker.actionButtonText ?? 'Action',
@@ -365,6 +393,56 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
               color: color,
               fontWeight: FontWeight.bold,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIconTextActionButton(
+    BuildContext context, {
+    required IconData icon,
+    required String text,
+    required VoidCallback? onTap,
+    required Color color,
+    required double spacing,
+  }) {
+    final buttonBackgroundColor = Theme.of(context).cardColor.withValues(alpha: 0.85);
+
+    return Padding(
+      padding: EdgeInsets.only(right: spacing),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: UIConstants.actionButtonPadding + 2,
+            vertical: UIConstants.actionButtonPadding,
+          ),
+          decoration: BoxDecoration(
+            color: buttonBackgroundColor,
+            borderRadius: BorderRadius.circular(UIConstants.actionButtonBorderRadius),
+            border: Border.all(
+              color: color,
+              width: UIConstants.actionButtonBorderWidth,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: color,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                text,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -636,6 +714,23 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     // Reset Cathar's counter to 0
     widget.tracker.currentValue = 0;
     await widget.tracker.save();
+  }
+
+  Future<void> _performQuickPlusOne(BuildContext context) async {
+    final tokenProvider = context.read<TokenProvider>();
+
+    // Get all tokens on board
+    final allTokens = tokenProvider.items;
+
+    // Add +1/+1 counter to all creatures
+    for (var token in allTokens) {
+      if (token.hasPowerToughness) {
+        token.plusOneCounters += 1;
+        await token.save();
+      }
+    }
+
+    // Note: We DON'T reset the Cathar's counter - keep accumulating triggers
   }
 
   Widget _buildGradientLayer(BuildContext context) {

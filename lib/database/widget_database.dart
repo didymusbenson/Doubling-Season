@@ -218,7 +218,7 @@ class WidgetDatabase extends ChangeNotifier {
         colorIdentity: 'W', // White enchantment
         defaultValue: 0, // Starts at 0 (no creatures entered yet)
         hasAction: true,
-        actionButtonText: 'Add Counters',
+        actionButtonText: 'Resolve All',
         actionType: 'cathars_crusade',
         artwork: [
           ArtworkVariant(set: 'INR', url: 'https://cards.scryfall.io/large/front/5/2/5296e353-2efc-4d72-a877-7957eff630b9.jpg?1736467489'),
