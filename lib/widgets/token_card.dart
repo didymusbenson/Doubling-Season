@@ -12,7 +12,8 @@ import '../utils/color_utils.dart';
 import 'common/background_text.dart';
 import 'counter_pill.dart';
 import 'split_stack_sheet.dart';
-import 'cropped_artwork_widget.dart';
+// Unused import was causing build warnings
+// import 'cropped_artwork_widget.dart';
 import 'mixins/artwork_display_mixin.dart';
 
 /// Animated widget that pops when P/T changes (from counter addition)
@@ -329,7 +330,8 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
 
   Widget _buildActionButtons(BuildContext context, SettingsProvider settings) {
     final tokenProvider = context.read<TokenProvider>();
-    final summoningSicknessEnabled = settings.summoningSicknessEnabled;
+    // Unused variable was causing build warnings
+    // final summoningSicknessEnabled = settings.summoningSicknessEnabled;
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     // Count how many buttons will be displayed

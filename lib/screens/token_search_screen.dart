@@ -38,6 +38,7 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
   bool _isCreating = false; // Prevent multi-tap
   bool _isEditingQuantity = false;
   final TextEditingController _quantityController = TextEditingController();
+  final FocusNode _quantityFocusNode = FocusNode();
 
   // Search debouncing - prevents excessive filtering while user is typing
   Timer? _searchDebounceTimer;
@@ -56,6 +57,7 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
     _searchController.dispose();
     _searchFocusNode.dispose();
     _quantityController.dispose();
+    _quantityFocusNode.dispose();
     _tokenDatabase.dispose(); // Fix memory leak
     super.dispose();
   }
@@ -675,9 +677,9 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                       child: _isEditingQuantity
                           ? TextField(
                               controller: _quantityController,
+                              focusNode: _quantityFocusNode,
                               keyboardType: TextInputType.number,
                               textAlign: TextAlign.center,
-                              autofocus: true,
                               style: const TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold,
@@ -714,6 +716,12 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                                 setModalState(() {
                                   _quantityController.text = '$_tokenQuantity';
                                   _isEditingQuantity = true;
+                                });
+                                // Request focus after state change (Android compatibility)
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  if (mounted) {
+                                    _quantityFocusNode.requestFocus();
+                                  }
                                 });
                               },
                               child: Container(

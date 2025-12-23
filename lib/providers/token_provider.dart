@@ -173,7 +173,7 @@ class TokenProvider extends ChangeNotifier {
 
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TokenProvider: Added $amount tokens to "${item.name}" (${oldAmount} → ${item.amount})');
+      debugPrint('TokenProvider: Added $amount tokens to "${item.name}" ($oldAmount → $item.amount)');
     } on HiveError catch (e) {
       _errorMessage = 'Database error while adding tokens: Changes could not be saved. Your token count may not have increased.';
       debugPrint('TokenProvider.addTokens: HiveError adding $amount to "${item.name}". Error: ${e.message}');
@@ -207,7 +207,7 @@ class TokenProvider extends ChangeNotifier {
       await item.save();
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TokenProvider: Removed $toRemove tokens from "${item.name}" (${oldAmount} → ${item.amount})');
+      debugPrint('TokenProvider: Removed $toRemove tokens from "${item.name}" ($oldAmount → $item.amount)');
     } on HiveError catch (e) {
       _errorMessage = 'Database error while removing tokens: Changes could not be saved. Your token count may not have decreased.';
       debugPrint('TokenProvider.removeTokens: HiveError removing $amount from "${item.name}". Error: ${e.message}');
@@ -231,7 +231,7 @@ class TokenProvider extends ChangeNotifier {
       await item.save();
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TokenProvider: Tapped $toTap tokens of "${item.name}" (tapped: ${oldTapped} → ${item.tapped})');
+      debugPrint('TokenProvider: Tapped $toTap tokens of "${item.name}" (tapped: $oldTapped → $item.tapped)');
     } on HiveError catch (e) {
       _errorMessage = 'Database error while tapping tokens: Changes could not be saved. Tap state may not have changed.';
       debugPrint('TokenProvider.tapTokens: HiveError tapping $amount of "${item.name}". Error: ${e.message}');
@@ -254,7 +254,7 @@ class TokenProvider extends ChangeNotifier {
       await item.save();
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TokenProvider: Untapped $toUntap tokens of "${item.name}" (tapped: ${oldTapped} → ${item.tapped})');
+      debugPrint('TokenProvider: Untapped $toUntap tokens of "${item.name}" (tapped: $oldTapped → $item.tapped)');
     } on HiveError catch (e) {
       _errorMessage = 'Database error while untapping tokens: Changes could not be saved. Tap state may not have changed.';
       debugPrint('TokenProvider.untapTokens: HiveError untapping $amount of "${item.name}". Error: ${e.message}');

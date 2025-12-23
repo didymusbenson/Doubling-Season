@@ -249,20 +249,29 @@ class _NewTrackerSheetState extends State<NewTrackerSheet> {
 
   void _showValueDialog() {
     final controller = TextEditingController(text: '$_defaultValue');
+    final focusNode = FocusNode();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Set Default Value'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Value',
-            border: OutlineInputBorder(),
+      builder: (dialogContext) {
+        // Request focus after dialog is built (Android compatibility)
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (dialogContext.mounted) {
+            focusNode.requestFocus();
+          }
+        });
+        return AlertDialog(
+          title: const Text('Set Default Value'),
+          content: TextField(
+            controller: controller,
+            focusNode: focusNode,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Value',
+              border: OutlineInputBorder(),
+            ),
+            onTapOutside: (_) => FocusScope.of(dialogContext).unfocus(),
           ),
-        ),
-        actions: [
+          actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Cancel'),
@@ -278,7 +287,11 @@ class _NewTrackerSheetState extends State<NewTrackerSheet> {
             child: const Text('Set'),
           ),
         ],
-      ),
-    );
+        );
+      },
+    ).then((_) {
+      controller.dispose();
+      focusNode.dispose();
+    });
   }
 }

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/tracker_widget.dart';
@@ -14,7 +13,8 @@ import '../utils/artwork_manager.dart';
 import '../utils/color_utils.dart';
 import '../utils/game_events.dart';
 import 'common/background_text.dart';
-import 'cropped_artwork_widget.dart';
+// Unused import was causing build warnings
+// import 'cropped_artwork_widget.dart';
 import 'mixins/artwork_display_mixin.dart';
 
 class TrackerWidgetCard extends StatefulWidget {
@@ -287,43 +287,58 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
   void _showValueEditDialog(BuildContext context) {
     final trackerProvider = context.read<TrackerProvider>();
     final controller = TextEditingController(text: '${widget.tracker.currentValue}');
+    final focusNode = FocusNode();
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Set ${widget.tracker.name}'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Value',
-            border: OutlineInputBorder(),
-          ),
-          onSubmitted: (value) {
-            final newValue = int.tryParse(value) ?? widget.tracker.currentValue;
-            widget.tracker.currentValue = newValue.clamp(0, double.maxFinite.toInt());
-            trackerProvider.updateTracker(widget.tracker);
-            Navigator.of(context).pop();
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final newValue = int.tryParse(controller.text) ?? widget.tracker.currentValue;
+      builder: (dialogContext) {
+        // Request focus after dialog is built (Android compatibility)
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (dialogContext.mounted) {
+            focusNode.requestFocus();
+          }
+        });
+        return AlertDialog(
+          title: Text('Set ${widget.tracker.name}'),
+          content: TextField(
+            controller: controller,
+            focusNode: focusNode,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Value',
+              border: OutlineInputBorder(),
+            ),
+            onTapOutside: (_) => FocusScope.of(dialogContext).unfocus(),
+            onSubmitted: (value) {
+              final newValue = int.tryParse(value) ?? widget.tracker.currentValue;
               widget.tracker.currentValue = newValue.clamp(0, double.maxFinite.toInt());
               trackerProvider.updateTracker(widget.tracker);
-              Navigator.of(context).pop();
+              FocusScope.of(dialogContext).unfocus();
+              Navigator.of(dialogContext).pop();
             },
-            child: const Text('Set'),
           ),
-        ],
-      ),
-    );
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                final newValue = int.tryParse(controller.text) ?? widget.tracker.currentValue;
+                widget.tracker.currentValue = newValue.clamp(0, double.maxFinite.toInt());
+                trackerProvider.updateTracker(widget.tracker);
+                FocusScope.of(dialogContext).unfocus();
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Set'),
+            ),
+          ],
+        );
+      },
+    ).then((_) {
+      controller.dispose();
+      focusNode.dispose();
+    });
   }
 
   Widget _buildActionButton(

@@ -32,7 +32,7 @@ class CounterDatabase extends ChangeNotifier {
 
   List<String> _filteredCounters = predefinedCounters;
   String _searchQuery = '';
-  Set<String> _favoriteCounters = {};
+  final Set<String> _favoriteCounters = {};
   List<String> _recentCounters = [];
 
   bool _showFavoritesOnly = false;

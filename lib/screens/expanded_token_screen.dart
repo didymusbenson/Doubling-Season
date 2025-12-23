@@ -32,6 +32,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
   // Numeric field editing state
   String? _editingNumericField; // null, 'amount', 'tapped', 'summoningSick', or 'counter_<name>'
   final TextEditingController _numericController = TextEditingController();
+  final FocusNode _numericFocusNode = FocusNode();
 
   // CRITICAL: SwiftUI ExpandedTokenView uses ColorSelectionButton for colors
   late bool _whiteSelected;
@@ -263,6 +264,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
       node.dispose();
     }
     _numericController.dispose();
+    _numericFocusNode.dispose();
     super.dispose();
   }
 
@@ -656,9 +658,9 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                     constraints: const BoxConstraints(minWidth: 40, maxWidth: 80),
                                     child: TextField(
                                       controller: _numericController,
+                                      focusNode: _numericFocusNode,
                                       keyboardType: TextInputType.number,
                                       textAlign: TextAlign.center,
-                                      autofocus: true,
                                       style: const TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
@@ -689,6 +691,12 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                       setState(() {
                                         _editingNumericField = 'counter_plusOne';
                                         _numericController.text = currentItem.plusOneCounters.toString();
+                                      });
+                                      // Request focus after state change (Android compatibility)
+                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                        if (mounted) {
+                                          _numericFocusNode.requestFocus();
+                                        }
                                       });
                                     },
                                     child: Container(
@@ -761,9 +769,9 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                     constraints: const BoxConstraints(minWidth: 40, maxWidth: 80),
                                     child: TextField(
                                       controller: _numericController,
+                                      focusNode: _numericFocusNode,
                                       keyboardType: TextInputType.number,
                                       textAlign: TextAlign.center,
-                                      autofocus: true,
                                       style: const TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
@@ -794,6 +802,12 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                       setState(() {
                                         _editingNumericField = 'counter_minusOne';
                                         _numericController.text = currentItem.minusOneCounters.toString();
+                                      });
+                                      // Request focus after state change (Android compatibility)
+                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                        if (mounted) {
+                                          _numericFocusNode.requestFocus();
+                                        }
                                       });
                                     },
                                     child: Container(
@@ -893,9 +907,9 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                       constraints: const BoxConstraints(minWidth: 40, maxWidth: 80),
                                       child: TextField(
                                         controller: _numericController,
+                                        focusNode: _numericFocusNode,
                                         keyboardType: TextInputType.number,
                                         textAlign: TextAlign.center,
-                                        autofocus: true,
                                         style: const TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
@@ -924,6 +938,12 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                         setState(() {
                                           _editingNumericField = counterId;
                                           _numericController.text = counter.amount.toString();
+                                        });
+                                        // Request focus after state change (Android compatibility)
+                                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                                          if (mounted) {
+                                            _numericFocusNode.requestFocus();
+                                          }
                                         });
                                       },
                                       child: Container(
@@ -1127,9 +1147,9 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
             constraints: const BoxConstraints(minWidth: 40, maxWidth: 80),
             child: TextField(
               controller: _numericController,
+              focusNode: _numericFocusNode,
               keyboardType: TextInputType.number,
               textAlign: TextAlign.center,
-              autofocus: true,
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -1151,6 +1171,12 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                     setState(() {
                       _editingNumericField = fieldId;
                       _numericController.text = value.toString();
+                    });
+                    // Request focus after state change (Android compatibility)
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        _numericFocusNode.requestFocus();
+                      }
                     });
                   }
                 : null,

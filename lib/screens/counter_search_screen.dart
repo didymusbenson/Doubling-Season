@@ -141,27 +141,37 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
                 const SizedBox(width: 16),
                 GestureDetector(
                   onTap: () {
+                    final focusNode = FocusNode();
                     showDialog(
                       context: context,
-                      builder: (dialogContext) => AlertDialog(
-                        title: const Text('Set Quantity'),
-                        content: TextField(
-                          controller: controller,
-                          keyboardType: TextInputType.number,
-                          autofocus: true,
-                          decoration: const InputDecoration(
-                            hintText: 'Enter quantity',
-                            border: OutlineInputBorder(),
+                      builder: (dialogContext) {
+                        // Request focus after dialog is built (Android compatibility)
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (dialogContext.mounted) {
+                            focusNode.requestFocus();
+                          }
+                        });
+                        return AlertDialog(
+                          title: const Text('Set Quantity'),
+                          content: TextField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              hintText: 'Enter quantity',
+                              border: OutlineInputBorder(),
+                            ),
+                            onTapOutside: (_) => FocusScope.of(dialogContext).unfocus(),
+                            onSubmitted: (text) {
+                              final value = int.tryParse(text);
+                              if (value != null && value >= 1) {
+                                setDialogState(() => quantity = value.clamp(1, kMaxCounterValue));
+                                FocusScope.of(dialogContext).unfocus();
+                                Navigator.pop(dialogContext);
+                              }
+                            },
                           ),
-                          onSubmitted: (text) {
-                            final value = int.tryParse(text);
-                            if (value != null && value >= 1) {
-                              setDialogState(() => quantity = value.clamp(1, kMaxCounterValue));
-                              Navigator.pop(dialogContext);
-                            }
-                          },
-                        ),
-                        actions: [
+                          actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(dialogContext),
                             child: const Text('Cancel'),
@@ -177,8 +187,9 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
                             child: const Text('Set'),
                           ),
                         ],
-                      ),
-                    );
+                        );
+                      },
+                    ).then((_) => focusNode.dispose());
                   },
                   child: Text(
                     '$quantity',

@@ -9,7 +9,8 @@ import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
 import '../utils/color_utils.dart';
 import 'common/background_text.dart';
-import 'cropped_artwork_widget.dart';
+// Unused import was causing build warnings
+// import 'cropped_artwork_widget.dart';
 import 'mixins/artwork_display_mixin.dart';
 
 class ToggleWidgetCard extends StatefulWidget {
