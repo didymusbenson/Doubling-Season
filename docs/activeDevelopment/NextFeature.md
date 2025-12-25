@@ -174,11 +174,11 @@ A new view accessible from the app bar that provides statistical insights about 
 
 **Implementation Checklist:**
 
-- [ ] Create `status_sheet.dart` widget in `lib/widgets/`
-- [ ] Add status calculation logic (single-pass iteration)
-- [ ] Handle variable power deduplication by `basePT|name`
-- [ ] Create card-based layout with grey "untracked" labels
-- [ ] Wire up status button in AppBar to open sheet
+- [x] Create `status_sheet.dart` widget in `lib/widgets/`
+- [x] Add status calculation logic (single-pass iteration)
+- [x] Handle variable power deduplication by `basePT|name`
+- [x] Create card-based layout with grey "untracked" labels
+- [x] Wire up status button in AppBar to open sheet
 - [ ] Test with large boards (~30 stacks)
 - [ ] Test variable power display with counters
 - [ ] Test overlapping types (Artifact Creature)

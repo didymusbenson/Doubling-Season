@@ -22,6 +22,7 @@ import '../widgets/toggle_widget_card.dart'; // NEW - Widget Cards Feature
 import '../widgets/multiplier_view.dart';
 import '../widgets/load_deck_sheet.dart';
 import '../widgets/floating_action_menu.dart';
+import '../widgets/status_sheet.dart';
 import 'token_search_screen.dart';
 import 'widget_selection_screen.dart'; // NEW - Widget Cards Feature
 import 'about_screen.dart';
@@ -931,18 +932,12 @@ class _ContentScreenState extends State<ContentScreen> {
   }
 
   void _showStatusPlaceholder() {
-    showDialog(
+    final tokenProvider = context.read<TokenProvider>();
+    showModalBottomSheet(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Status'),
-        content: const Text('Not yet implemented'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatusSheet(items: tokenProvider.items),
     );
   }
 }
