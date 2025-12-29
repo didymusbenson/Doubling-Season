@@ -402,14 +402,26 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
               context,
               icon: Icons.add,
               onTap: () {
-                final multiplier = context.read<SettingsProvider>().tokenMultiplier;
                 final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
-                tokenProvider.addTokens(widget.item, multiplier, summoningSick);
+                if (widget.item.isEmblem) {
+                  // Emblems always add 1 (no multiplier)
+                  tokenProvider.addTokens(widget.item, 1, summoningSick);
+                } else {
+                  // Tokens use multiplier
+                  final multiplier = context.read<SettingsProvider>().tokenMultiplier;
+                  tokenProvider.addTokens(widget.item, multiplier, summoningSick);
+                }
               },
               onLongPress: () {
-                final multiplier = context.read<SettingsProvider>().tokenMultiplier;
                 final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
-                tokenProvider.addTokens(widget.item, multiplier * 10, summoningSick);
+                if (widget.item.isEmblem) {
+                  // Emblems add 10 on long press (no multiplier)
+                  tokenProvider.addTokens(widget.item, 10, summoningSick);
+                } else {
+                  // Tokens use 10x multiplier
+                  final multiplier = context.read<SettingsProvider>().tokenMultiplier;
+                  tokenProvider.addTokens(widget.item, multiplier * 10, summoningSick);
+                }
               },
               color: primaryColor,
               spacing: spacing,

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/tracker_widget.dart';
@@ -31,6 +32,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
   bool _artworkAnimated = false;
   bool _artworkCleanupAttempted = false;
 
+  // Cached artwork Future to prevent FutureBuilder rebuilds (matching ExpandedTokenScreen pattern)
+  Future<File?>? _cachedArtworkFuture;
+
   // Implement ArtworkDisplayMixin interface
   @override
   DateTime get createdAt => _createdAt;
@@ -59,11 +63,25 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Cache the artwork Future on initialization
+    if (widget.tracker.artworkUrl != null) {
+      _cachedArtworkFuture = ArtworkManager.getCachedArtworkFile(widget.tracker.artworkUrl!);
+    }
+  }
+
+  @override
   void didUpdateWidget(TrackerWidgetCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Reset cleanup flag if artwork URL changed
     if (oldWidget.tracker.artworkUrl != widget.tracker.artworkUrl) {
       _artworkCleanupAttempted = false;
+
+      // Update cached future when artwork changes
+      _cachedArtworkFuture = widget.tracker.artworkUrl != null
+          ? ArtworkManager.getCachedArtworkFile(widget.tracker.artworkUrl!)
+          : null;
     }
   }
 
@@ -679,6 +697,50 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
           !newGoblin.hasHaste) {
         newGoblin.summoningSick = amount;
       }
+
+      // Download artwork in background (non-blocking, fire-and-forget)
+      // Matches TokenSearchScreen pattern (lines 913-935)
+      if (newGoblin.artworkUrl != null) {
+        final artworkUrl = newGoblin.artworkUrl!;
+        ArtworkManager.downloadArtwork(artworkUrl).then((file) {
+          if (file == null) {
+            // Download failed - reset artworkUrl so it doesn't try to load
+            debugPrint('Artwork download failed for Goblin, resetting URL');
+            // Find the item again (it might have been deleted/modified)
+            final currentItem = tokenProvider.items.firstWhereOrNull(
+              (item) => item.artworkUrl == artworkUrl
+            );
+            if (currentItem != null) {
+              currentItem.artworkUrl = null;
+              currentItem.artworkSet = null;
+              currentItem.save();
+            }
+          } else {
+            debugPrint('Artwork downloaded and cached for Goblin');
+            // Trigger rebuild so TokenCard displays the cached artwork
+            final currentItem = tokenProvider.items.firstWhereOrNull(
+              (item) => item.artworkUrl == artworkUrl
+            );
+            if (currentItem != null) {
+              currentItem.save(); // Triggers Hive save and notifies listeners
+            }
+          }
+        }).catchError((error) {
+          debugPrint('Error during background artwork download: $error');
+          // Silent fail - reset artworkUrl on error
+          final currentItem = tokenProvider.items.firstWhereOrNull(
+            (item) => item.artworkUrl == artworkUrl
+          );
+          if (currentItem != null) {
+            currentItem.artworkUrl = null;
+            currentItem.artworkSet = null;
+            currentItem.save();
+          }
+        });
+      }
+
+      // Fire ETB event for Cathar's Crusade and other listeners
+      GameEvents.instance.notifyCreatureEntered(newGoblin, amount);
     }
   }
 
@@ -764,7 +826,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
   Widget _buildConditionalGradient(BuildContext context) {
     return Positioned.fill(
       child: FutureBuilder<File?>(
-        future: ArtworkManager.getCachedArtworkFile(widget.tracker.artworkUrl!),
+        future: _cachedArtworkFuture, // Use cached Future (prevents flicker on rebuild)
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.done && snapshot.data == null) {
             final gradient = ColorUtils.gradientForColors(widget.tracker.colorIdentity, isEmblem: false);

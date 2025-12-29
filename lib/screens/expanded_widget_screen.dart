@@ -8,6 +8,7 @@ import '../providers/toggle_provider.dart';
 import '../widgets/artwork_selection_sheet.dart';
 import '../widgets/color_selection_button.dart';
 import '../utils/artwork_manager.dart';
+import '../database/widget_database.dart';
 
 class ExpandedWidgetScreen extends StatefulWidget {
   final dynamic widget; // TrackerWidget or ToggleWidget
@@ -29,6 +30,9 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
 
   // Cached artwork Future to prevent FutureBuilder rebuilds
   Future<File?>? _cachedArtworkFuture;
+
+  // Widget database for loading artwork options
+  final _widgetDatabase = WidgetDatabase();
 
   // Color selection state (same as ExpandedTokenScreen)
   late bool _whiteSelected;
@@ -61,6 +65,9 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
     _blackSelected = colorIdentity.contains('B');
     _redSelected = colorIdentity.contains('R');
     _greenSelected = colorIdentity.contains('G');
+
+    // Load widget definition to populate artwork options if needed (matching token pattern)
+    _loadWidgetDefinition();
   }
 
   @override
@@ -154,8 +161,56 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
     }
   }
 
+  /// Load widget definition to populate artwork options if needed
+  /// Matches ExpandedTokenScreen pattern (lines 83-136)
+  Future<void> _loadWidgetDefinition() async {
+    try {
+      // PRIORITY 1: Use artworkOptions from widget if available (persisted from creation)
+      final currentOptions = widget.isTracker
+          ? (widget.widget as TrackerWidget).artworkOptions
+          : (widget.widget as ToggleWidget).artworkOptions;
+
+      if (currentOptions != null && currentOptions.isNotEmpty) {
+        // Artwork options already loaded, no need to fetch from database
+        return;
+      }
+
+      // PRIORITY 2: Load from widget database (synchronous - no async load needed)
+      // Note: Unlike TokenDatabase which loads from JSON, WidgetDatabase is hardcoded
+      // so loadWidgets() completes synchronously in the constructor
+
+      // Find matching widget definition by name
+      final matchingDefinition = _widgetDatabase.filteredWidgets.cast<dynamic>().firstWhere(
+        (def) => def.name == _name,
+        orElse: () => null,
+      );
+
+      // If no matching definition found, this is likely a custom widget (no artwork available)
+      if (matchingDefinition == null) {
+        debugPrint('No widget definition found for: $_name (likely custom widget)');
+        return;
+      }
+
+      // Store artwork options on widget for future use
+      if (matchingDefinition.artwork.isNotEmpty) {
+        if (widget.isTracker) {
+          final tracker = widget.widget as TrackerWidget;
+          tracker.artworkOptions = List.from(matchingDefinition.artwork);
+          tracker.save();
+        } else {
+          final toggle = widget.widget as ToggleWidget;
+          toggle.artworkOptions = List.from(matchingDefinition.artwork);
+          toggle.save();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading widget definition: $e');
+      // Silent failure - utility will work without artwork options
+    }
+  }
+
   void _showArtworkSelection() {
-    // Get artwork options from the utility
+    // Get artwork options from the utility (already loaded in initState)
     final artworkOptions = widget.isTracker
         ? (widget.widget as TrackerWidget).artworkOptions
         : (widget.widget as ToggleWidget).artworkOptions;
