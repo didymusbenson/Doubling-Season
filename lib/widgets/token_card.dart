@@ -344,7 +344,7 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
       buttonCount += 1; // Split
     }
 
-    if (widget.item.name.toLowerCase().contains('scute swarm')) {
+    if (widget.item.name.toLowerCase().contains(GameConstants.scuteSwarmName)) {
       buttonCount += 1; // Scute Swarm
     }
 
@@ -517,7 +517,7 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
             ],
 
             // Scute Swarm special button (last button gets 0 spacing)
-            if (widget.item.name.toLowerCase().contains('scute swarm'))
+            if (widget.item.name.toLowerCase().contains(GameConstants.scuteSwarmName))
               _buildActionButton(
                 context,
                 icon: Icons.bug_report,

@@ -13,6 +13,9 @@ class TokenProvider extends ChangeNotifier {
   bool _initialized = false;
   String? _errorMessage;
 
+  // Cache for Scute Swarm definition (loaded once per session)
+  TokenDefinition? _scuteSwarmCache;
+
   bool get initialized => _initialized;
   String? get errorMessage => _errorMessage;
 
@@ -479,7 +482,7 @@ class TokenProvider extends ChangeNotifier {
       final allItems = items;
       int totalScuteCount = 0;
       for (final item in allItems) {
-        if (item.name.toLowerCase().contains('scute swarm') && item.amount > 0) {
+        if (item.name.toLowerCase().contains(GameConstants.scuteSwarmName) && item.amount > 0) {
           totalScuteCount += item.amount;
         }
       }
@@ -494,7 +497,7 @@ class TokenProvider extends ChangeNotifier {
       // Step 3: Find target stack (first Scute Swarm with no counters)
       Item? targetStack;
       for (final item in allItems) {
-        if (item.name.toLowerCase().contains('scute swarm') &&
+        if (item.name.toLowerCase().contains(GameConstants.scuteSwarmName) &&
             item.plusOneCounters == 0 &&
             item.minusOneCounters == 0 &&
             item.counters.isEmpty) {
@@ -527,15 +530,18 @@ class TokenProvider extends ChangeNotifier {
         // Step 4: Create new stack from database definition
         debugPrint('TokenProvider.createScuteSwarmTokens: Creating new stack with $finalAmount tokens');
 
-        // Load token database and find Scute Swarm
-        final jsonString = await rootBundle.loadString(AssetPaths.tokenDatabase);
-        final List<dynamic> jsonList = jsonDecode(jsonString);
-        final scuteSwarmJson = jsonList.firstWhere(
-          (json) => (json['name'] as String).toLowerCase().contains('scute swarm'),
-          orElse: () => throw Exception('Scute Swarm not found in token database'),
-        );
+        // Load token database and find Scute Swarm (cached for performance)
+        if (_scuteSwarmCache == null) {
+          final jsonString = await rootBundle.loadString(AssetPaths.tokenDatabase);
+          final List<dynamic> jsonList = jsonDecode(jsonString);
+          final scuteSwarmJson = jsonList.firstWhere(
+            (json) => (json['name'] as String).toLowerCase().contains(GameConstants.scuteSwarmName),
+            orElse: () => throw Exception('Scute Swarm not found in token database'),
+          );
+          _scuteSwarmCache = TokenDefinition.fromJson(scuteSwarmJson as Map<String, dynamic>);
+        }
 
-        final scuteSwarmDefinition = TokenDefinition.fromJson(scuteSwarmJson as Map<String, dynamic>);
+        final scuteSwarmDefinition = _scuteSwarmCache!;
 
         // Calculate order (position after source token, like copyToken does)
         final allItemsSorted = _itemsBox.values.toList()

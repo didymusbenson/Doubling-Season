@@ -5,6 +5,9 @@ class GameConstants {
   static const int defaultTokenAmount = 1;
   static const int defaultTapped = 0;
   static const int defaultSummoningSick = 0;
+
+  // Special token names
+  static const String scuteSwarmName = 'scute swarm';
 }
 
 /// Hive type IDs (must be unique and never change)
