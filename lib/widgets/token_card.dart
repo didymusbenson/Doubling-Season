@@ -751,12 +751,12 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
     return widget.item.isPowerToughnessModified
         ? _AnimatedPowerToughness(
             powerToughness: widget.item.formattedPowerToughness,
-            style: textStyle,
+            style: textStyle?.copyWith(color: Colors.white),
             padding: const EdgeInsets.symmetric(
               horizontal: UIConstants.mediumSpacing,
               vertical: UIConstants.verticalSpacing,
             ),
-            backgroundColor: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.85),
+            backgroundColor: Colors.orange.withValues(alpha: 0.85),
           )
         : _AnimatedPowerToughness(
             powerToughness: widget.item.formattedPowerToughness,
