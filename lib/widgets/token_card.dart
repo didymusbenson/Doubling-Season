@@ -524,9 +524,9 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
                 onTap: () {
                   final multiplier = context.read<SettingsProvider>().tokenMultiplier;
                   final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
-                  tokenProvider.addTokens(widget.item, widget.item.amount * multiplier, summoningSick);
+                  tokenProvider.createScuteSwarmTokens(widget.item, multiplier, summoningSick);
                 },
-                onLongPress: null,
+                onLongPress: null, // No long-press behavior for Scute Swarm
                 color: primaryColor,
                 spacing: 0, // Last button gets no trailing space
               ),

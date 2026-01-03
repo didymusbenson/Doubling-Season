@@ -215,6 +215,74 @@ CroppedArtworkWidget
    - Test with user's exact scenario
    - Consider migration path for existing custom artwork
 
+
+# Active Development Issues
+
+## Swipe Dismiss Red Background Inconsistency
+
+**Status:** In Progress
+**Date:** December 28, 2025
+
+### Issue Description
+
+Corners flash non-red on utility cards (TrackerWidget, ToggleWidget) when attempting to dismiss them with a swipe gesture. TokenCard shows red correctly during swipe.
+
+### Expected Behavior
+
+When swiping to dismiss any card type, the AnimatedContainer in ContentScreen (line 247) should show a red background that animates in over 100ms:
+```dart
+color: isDismissing ? Colors.red : Colors.transparent,
+```
+
+This red background should be visible through all card layers, providing consistent visual feedback across all card types (tokens, trackers, toggles).
+
+### Current Behavior
+
+- **TokenCard:** Red background shows through correctly during swipe 
+- **TrackerWidgetCard:** Corners remain non-red during swipe 
+- **ToggleWidgetCard:** Corners remain non-red during swipe 
+
+### Investigation So Far
+
+**Attempted fixes:**
+1. Added `Opacity` wrapper to TrackerWidgetCard and ToggleWidgetCard (matching TokenCard structure)
+2. Changed base layer from `Theme.of(context).cardColor` to `Colors.transparent` on utilities
+
+**Current mystery:**
+TokenCard has an opaque `cardColor` base layer (line 176) yet still shows red during swipe. Utilities with the same opaque base layer do NOT show red. Changed utilities to transparent base, but need to verify this matches TokenCard behavior.
+
+**Widget hierarchy during swipe:**
+```
+ContentScreen._buildBoardItemCard()
+    ValueListenableBuilder
+        AnimatedContainer (red background, 100ms animation)
+            Container (gradient border)
+                ClipRRect
+                    Dismissible
+                        TokenCard/TrackerWidgetCard/ToggleWidgetCard
+                            Stack
+                                Base layer (cardColor or transparent?)
+                                Gradient layer
+                                Artwork layer
+                                Content layer
+```
+
+### Next Steps
+
+1. Determine why TokenCard's opaque `cardColor` base allows red to show through
+2. Verify if utilities now match TokenCard behavior with transparent base
+3. Test in debug build to confirm red shows through on swipe for all card types
+4. If transparent base causes issues (fadeout mode, etc.), find alternative solution
+
+### Related Files
+
+- `lib/screens/content_screen.dart` (lines 239-280) - AnimatedContainer with red background
+- `lib/widgets/token_card.dart` (line 176) - Base layer configuration
+- `lib/widgets/tracker_widget_card.dart` (line 110) - Base layer (recently changed to transparent)
+- `lib/widgets/toggle_widget_card.dart` (line 92) - Base layer (recently changed to transparent)
+
+
+
 ---
 
 ## Questions to Resolve

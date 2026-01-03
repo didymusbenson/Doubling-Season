@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/item.dart';
+import '../models/token_definition.dart';
 import '../utils/constants.dart';
 import '../utils/game_events.dart';
 
@@ -457,6 +460,135 @@ class TokenProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       _errorMessage = 'Unexpected error while adding -1/-1 counters. Some tokens may not have been updated.';
       debugPrint('TokenProvider.addMinusOneToAll: Unexpected error during bulk counter operation. Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Scute Swarm special ability: creates new tokens based on total Scute Swarm count
+  ///
+  /// This method:
+  /// 1. Counts all Scute Swarm tokens on the board (amount > 0)
+  /// 2. Calculates finalAmount = count * multiplier
+  /// 3. Finds first Scute Swarm stack without counters to add tokens to
+  /// 4. If no such stack exists, creates a new stack from database definition
+  Future<void> createScuteSwarmTokens(Item sourceToken, int multiplier, bool summoningSicknessEnabled) async {
+    try {
+      // Step 1: Count all Scute Swarm tokens (case-insensitive substring match, amount > 0)
+      final allItems = items;
+      int totalScuteCount = 0;
+      for (final item in allItems) {
+        if (item.name.toLowerCase().contains('scute swarm') && item.amount > 0) {
+          totalScuteCount += item.amount;
+        }
+      }
+
+      // Step 2: Calculate final amount to create
+      final finalAmount = totalScuteCount * multiplier;
+      if (finalAmount <= 0) {
+        debugPrint('TokenProvider.createScuteSwarmTokens: No tokens to create (count: $totalScuteCount, multiplier: $multiplier)');
+        return;
+      }
+
+      // Step 3: Find target stack (first Scute Swarm with no counters)
+      Item? targetStack;
+      for (final item in allItems) {
+        if (item.name.toLowerCase().contains('scute swarm') &&
+            item.plusOneCounters == 0 &&
+            item.minusOneCounters == 0 &&
+            item.counters.isEmpty) {
+          targetStack = item;
+          break;
+        }
+      }
+
+      if (targetStack != null) {
+        // Add to existing stack
+        debugPrint('TokenProvider.createScuteSwarmTokens: Adding $finalAmount tokens to existing stack');
+        targetStack.amount += finalAmount;
+
+        // Add summoning sickness to new tokens only
+        if (summoningSicknessEnabled && targetStack.hasPowerToughness && !targetStack.hasHaste) {
+          targetStack.summoningSick += finalAmount;
+        }
+
+        await targetStack.save();
+
+        // Fire ETB event for created creatures
+        if (targetStack.hasPowerToughness) {
+          GameEvents.instance.notifyCreatureEntered(targetStack, finalAmount);
+        }
+
+        _errorMessage = null;
+        notifyListeners();
+        debugPrint('TokenProvider.createScuteSwarmTokens: Successfully added $finalAmount Scute Swarms to existing stack');
+      } else {
+        // Step 4: Create new stack from database definition
+        debugPrint('TokenProvider.createScuteSwarmTokens: Creating new stack with $finalAmount tokens');
+
+        // Load token database and find Scute Swarm
+        final jsonString = await rootBundle.loadString(AssetPaths.tokenDatabase);
+        final List<dynamic> jsonList = jsonDecode(jsonString);
+        final scuteSwarmJson = jsonList.firstWhere(
+          (json) => (json['name'] as String).toLowerCase().contains('scute swarm'),
+          orElse: () => throw Exception('Scute Swarm not found in token database'),
+        );
+
+        final scuteSwarmDefinition = TokenDefinition.fromJson(scuteSwarmJson as Map<String, dynamic>);
+
+        // Calculate order (position after source token, like copyToken does)
+        final allItemsSorted = _itemsBox.values.toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
+        final sourceIndex = allItemsSorted.indexWhere((i) => i.key == sourceToken.key);
+
+        double newOrder;
+        if (sourceIndex == allItemsSorted.length - 1) {
+          // Source is last item - add 1.0
+          newOrder = sourceToken.order + 1.0;
+        } else {
+          // Insert between source and next item (fractional)
+          final nextOrder = allItemsSorted[sourceIndex + 1].order;
+          newOrder = (sourceToken.order + nextOrder) / 2.0;
+        }
+
+        // Create new item with database values and source artwork
+        final shouldBeSummoningSick = summoningSicknessEnabled &&
+                                      scuteSwarmDefinition.pt.isNotEmpty &&
+                                      !scuteSwarmDefinition.abilities.toLowerCase().contains('haste');
+
+        final newItem = Item(
+          name: scuteSwarmDefinition.name,
+          pt: scuteSwarmDefinition.pt,
+          abilities: scuteSwarmDefinition.abilities,
+          colors: scuteSwarmDefinition.colors,
+          type: scuteSwarmDefinition.type,
+          amount: finalAmount,
+          tapped: 0, // Enters untapped
+          summoningSick: shouldBeSummoningSick ? finalAmount : 0,
+          order: newOrder,
+          artworkUrl: sourceToken.artworkUrl,
+          artworkSet: sourceToken.artworkSet,
+          artworkOptions: sourceToken.artworkOptions != null
+              ? List.from(sourceToken.artworkOptions!)
+              : scuteSwarmDefinition.artwork.isNotEmpty
+                  ? List.from(scuteSwarmDefinition.artwork)
+                  : null,
+        );
+
+        // insertItem handles ETB events automatically
+        await insertItem(newItem);
+
+        debugPrint('TokenProvider.createScuteSwarmTokens: Successfully created new stack with $finalAmount Scute Swarms');
+      }
+    } on HiveError catch (e) {
+      _errorMessage = 'Database error while creating Scute Swarm tokens: Changes could not be saved.';
+      debugPrint('TokenProvider.createScuteSwarmTokens: HiveError. Error: ${e.message}');
+      notifyListeners();
+      rethrow;
+    } catch (e, stackTrace) {
+      _errorMessage = 'Unexpected error while creating Scute Swarm tokens: ${e.toString()}';
+      debugPrint('TokenProvider.createScuteSwarmTokens: Unexpected error. Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
