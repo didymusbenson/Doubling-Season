@@ -83,14 +83,16 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> with ArtworkDisplay
               ),
             );
           },
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return Stack(
+          child: Opacity(
+            opacity: 1.0, // Full opacity (matching TokenCard pattern for consistent swipe behavior)
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Stack(
                 children: [
-                  // Base card background layer
+                  // Base card background layer (transparent to allow red swipe indicator through)
                   Container(
                     decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
+                      color: Colors.transparent,
                       borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
                     ),
                   ),
@@ -160,6 +162,7 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> with ArtworkDisplay
               );
             },
           ),
+          ), // Opacity
         );
       },
     );
