@@ -16,6 +16,9 @@ class TokenProvider extends ChangeNotifier {
   // Cache for Scute Swarm definition (loaded once per session)
   TokenDefinition? _scuteSwarmCache;
 
+  // Cache for basic Goblin definition (loaded once per session)
+  TokenDefinition? _basicGoblinCache;
+
   bool get initialized => _initialized;
   String? get errorMessage => _errorMessage;
 
@@ -476,7 +479,10 @@ class TokenProvider extends ChangeNotifier {
   /// 2. Calculates finalAmount = count * multiplier
   /// 3. Finds first Scute Swarm stack without counters to add tokens to
   /// 4. If no such stack exists, creates a new stack from database definition
-  Future<void> createScuteSwarmTokens(Item sourceToken, int multiplier, bool summoningSicknessEnabled) async {
+  /// Creates Scute Swarm tokens
+  ///
+  /// [insertionOrder] - The order value for new token if creating new stack (calculated by caller from all board items)
+  Future<void> createScuteSwarmTokens(Item sourceToken, int multiplier, bool summoningSicknessEnabled, double insertionOrder) async {
     try {
       // Step 1: Count all Scute Swarm tokens (case-insensitive substring match, amount > 0)
       final allItems = items;
@@ -543,20 +549,7 @@ class TokenProvider extends ChangeNotifier {
 
         final scuteSwarmDefinition = _scuteSwarmCache!;
 
-        // Calculate order (position after source token, like copyToken does)
-        final allItemsSorted = _itemsBox.values.toList()
-          ..sort((a, b) => a.order.compareTo(b.order));
-        final sourceIndex = allItemsSorted.indexWhere((i) => i.key == sourceToken.key);
-
-        double newOrder;
-        if (sourceIndex == allItemsSorted.length - 1) {
-          // Source is last item - add 1.0
-          newOrder = sourceToken.order + 1.0;
-        } else {
-          // Insert between source and next item (fractional)
-          final nextOrder = allItemsSorted[sourceIndex + 1].order;
-          newOrder = (sourceToken.order + nextOrder) / 2.0;
-        }
+        debugPrint('TokenProvider.createScuteSwarmTokens: Using insertion order $insertionOrder');
 
         // Create new item with database values and source artwork
         final shouldBeSummoningSick = summoningSicknessEnabled &&
@@ -572,7 +565,7 @@ class TokenProvider extends ChangeNotifier {
           amount: finalAmount,
           tapped: 0, // Enters untapped
           summoningSick: shouldBeSummoningSick ? finalAmount : 0,
-          order: newOrder,
+          order: insertionOrder,
           artworkUrl: sourceToken.artworkUrl,
           artworkSet: sourceToken.artworkSet,
           artworkOptions: sourceToken.artworkOptions != null
@@ -595,6 +588,117 @@ class TokenProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       _errorMessage = 'Unexpected error while creating Scute Swarm tokens: ${e.toString()}';
       debugPrint('TokenProvider.createScuteSwarmTokens: Unexpected error. Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Creates Krenko goblin tokens with all available artwork options from database
+  ///
+  /// This method:
+  /// 1. Loads the basic 1/1 red Goblin from token database (cached for performance)
+  /// 2. Checks for existing Goblin stack without counters
+  /// 3. Either adds to existing stack or creates new stack at specified order
+  /// 4. Downloads default artwork in background (non-blocking)
+  /// 5. Fires ETB events for Cathar's Crusade and other listeners
+  ///
+  /// [insertionOrder] - The order value for the new token (should be calculated from all board items)
+  Future<void> createKrenkoGoblins(int amount, bool summoningSicknessEnabled, double insertionOrder) async {
+    try {
+      if (amount <= 0) {
+        debugPrint('TokenProvider.createKrenkoGoblins: No tokens to create (amount: $amount)');
+        return;
+      }
+
+      // Step 1: Load basic Goblin from database (cached for performance)
+      if (_basicGoblinCache == null) {
+        final jsonString = await rootBundle.loadString(AssetPaths.tokenDatabase);
+        final List<dynamic> jsonList = jsonDecode(jsonString);
+        final goblinJson = jsonList.firstWhere(
+          (json) => (json['name'] as String) == 'Goblin' &&
+                    (json['pt'] as String) == '1/1' &&
+                    (json['colors'] as String) == 'R' &&
+                    (json['abilities'] as String).isEmpty,
+          orElse: () => throw Exception('Basic 1/1 red Goblin not found in token database'),
+        );
+        _basicGoblinCache = TokenDefinition.fromJson(goblinJson as Map<String, dynamic>);
+      }
+      final goblinDefinition = _basicGoblinCache!;
+
+      // Step 2: Check if matching goblin token WITHOUT counters already exists
+      final existingGoblinWithoutCounters = items.firstWhere(
+        (item) {
+          // Check if it matches goblin criteria
+          final isMatchingGoblin = item.name == 'Goblin' &&
+              item.pt == '1/1' &&
+              item.colors == 'R' &&
+              item.type.toLowerCase().contains('goblin') &&
+              item.abilities.isEmpty;
+
+          // Check if it has NO counters (any type)
+          final hasNoCounters = item.plusOneCounters == 0 &&
+              item.minusOneCounters == 0 &&
+              item.counters.isEmpty;
+
+          return isMatchingGoblin && hasNoCounters;
+        },
+        orElse: () => Item(name: '', pt: '', abilities: '', colors: '', type: ''), // Sentinel value
+      );
+
+      if (existingGoblinWithoutCounters.name.isNotEmpty) {
+        // Add to existing token without counters
+        debugPrint('TokenProvider.createKrenkoGoblins: Adding $amount goblins to existing stack');
+        existingGoblinWithoutCounters.amount += amount;
+
+        // Add summoning sickness to new tokens only
+        if (summoningSicknessEnabled && !existingGoblinWithoutCounters.hasHaste) {
+          existingGoblinWithoutCounters.summoningSick += amount;
+        }
+
+        await existingGoblinWithoutCounters.save();
+
+        // Fire ETB event for Cathar's Crusade and other listeners
+        GameEvents.instance.notifyCreatureEntered(existingGoblinWithoutCounters, amount);
+
+        _errorMessage = null;
+        notifyListeners();
+        debugPrint('TokenProvider.createKrenkoGoblins: Successfully added $amount Goblins to existing stack');
+      } else {
+        // Step 3: Create new stack from database definition
+        debugPrint('TokenProvider.createKrenkoGoblins: Creating new stack with $amount goblins at order $insertionOrder');
+
+        // Create new item with database values and default artwork
+        final shouldBeSummoningSick = summoningSicknessEnabled && !goblinDefinition.abilities.toLowerCase().contains('haste');
+
+        final newGoblin = Item(
+          name: goblinDefinition.name,
+          pt: goblinDefinition.pt,
+          abilities: goblinDefinition.abilities,
+          colors: goblinDefinition.colors,
+          type: goblinDefinition.type,
+          amount: amount,
+          tapped: 0,
+          summoningSick: shouldBeSummoningSick ? amount : 0,
+          order: insertionOrder,
+          artworkUrl: goblinDefinition.artwork.isNotEmpty ? goblinDefinition.artwork.first.url : null,
+          artworkSet: goblinDefinition.artwork.isNotEmpty ? goblinDefinition.artwork.first.set : null,
+          artworkOptions: goblinDefinition.artwork.isNotEmpty ? List.from(goblinDefinition.artwork) : null,
+        );
+
+        // insertItem handles ETB events and notifyListeners automatically
+        await insertItem(newGoblin);
+
+        debugPrint('TokenProvider.createKrenkoGoblins: Successfully created new stack with $amount Goblins (${goblinDefinition.artwork.length} artwork options available)');
+      }
+    } on HiveError catch (e) {
+      _errorMessage = 'Database error while creating Goblin tokens: Changes could not be saved.';
+      debugPrint('TokenProvider.createKrenkoGoblins: HiveError. Error: ${e.message}');
+      notifyListeners();
+      rethrow;
+    } catch (e, stackTrace) {
+      _errorMessage = 'Unexpected error while creating Goblin tokens: ${e.toString()}';
+      debugPrint('TokenProvider.createKrenkoGoblins: Unexpected error. Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;

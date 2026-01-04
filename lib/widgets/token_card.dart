@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/item.dart';
 import '../providers/settings_provider.dart';
+import '../providers/toggle_provider.dart';
+import '../providers/tracker_provider.dart';
 import '../providers/token_provider.dart';
 import '../screens/expanded_token_screen.dart';
 import '../utils/constants.dart';
@@ -524,7 +526,39 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
                 onTap: () {
                   final multiplier = context.read<SettingsProvider>().tokenMultiplier;
                   final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
-                  tokenProvider.createScuteSwarmTokens(widget.item, multiplier, summoningSick);
+                  final trackerProvider = context.read<TrackerProvider>();
+                  final toggleProvider = context.read<ToggleProvider>();
+
+                  // Calculate order to place new token right after source token
+                  // Collect all board items and sort by order
+                  final allItems = <({double order, dynamic item})>[];
+                  for (var item in tokenProvider.items) {
+                    allItems.add((order: item.order, item: item));
+                  }
+                  for (var tracker in trackerProvider.trackers) {
+                    allItems.add((order: tracker.order, item: tracker));
+                  }
+                  for (var toggle in toggleProvider.toggles) {
+                    allItems.add((order: toggle.order, item: toggle));
+                  }
+                  allItems.sort((a, b) => a.order.compareTo(b.order));
+
+                  // Find source token and calculate insertion order
+                  final sourceIndex = allItems.indexWhere((item) =>
+                    item.item is Item && (item.item as Item).key == widget.item.key
+                  );
+
+                  double insertionOrder;
+                  if (sourceIndex == -1 || sourceIndex == allItems.length - 1) {
+                    // Source not found or is last item - add after source
+                    insertionOrder = widget.item.order + 1.0;
+                  } else {
+                    // Insert between source and next item (fractional)
+                    final nextOrder = allItems[sourceIndex + 1].order;
+                    insertionOrder = (widget.item.order + nextOrder) / 2.0;
+                  }
+
+                  tokenProvider.createScuteSwarmTokens(widget.item, multiplier, summoningSick, insertionOrder);
                 },
                 onLongPress: null, // No long-press behavior for Scute Swarm
                 color: primaryColor,

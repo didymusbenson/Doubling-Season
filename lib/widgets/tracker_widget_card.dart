@@ -1,18 +1,15 @@
 import 'dart:io';
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/tracker_widget.dart';
-import '../models/token_definition.dart';
 import '../providers/settings_provider.dart';
-import '../providers/tracker_provider.dart';
 import '../providers/toggle_provider.dart';
+import '../providers/tracker_provider.dart';
 import '../providers/token_provider.dart';
 import '../screens/expanded_widget_screen.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
 import '../utils/color_utils.dart';
-import '../utils/game_events.dart';
 import 'common/background_text.dart';
 // Unused import was causing build warnings
 // import 'cropped_artwork_widget.dart';
@@ -566,11 +563,22 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
 
     if (shouldCreate == null) return;
 
-    // Create goblin tokens
-    await _createGoblins(context, shouldCreate);
+    // Calculate max order across ALL board items (tokens + trackers + toggles)
+    final trackerProvider = context.read<TrackerProvider>();
+    final toggleProvider = context.read<ToggleProvider>();
+    final allOrders = <double>[];
+    allOrders.addAll(tokenProvider.items.map((item) => item.order));
+    allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
+    allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
+    final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
+    final newOrder = maxOrder.floor() + 1.0;
+
+    // Create goblin tokens using TokenProvider
+    await tokenProvider.createKrenkoGoblins(shouldCreate, settingsProvider.summoningSicknessEnabled, newOrder);
   }
 
   Future<void> _performKrenkoTinStreetAction(BuildContext context) async {
+    final tokenProvider = context.read<TokenProvider>();
     final settingsProvider = context.read<SettingsProvider>();
     final multiplier = settingsProvider.tokenMultiplier;
 
@@ -619,132 +627,18 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
 
     if (shouldCreate == null) return;
 
-    // Create goblin tokens
-    await _createGoblins(context, shouldCreate);
-  }
-
-  Future<void> _createGoblins(BuildContext context, int amount) async {
-    final tokenProvider = context.read<TokenProvider>();
+    // Calculate max order across ALL board items (tokens + trackers + toggles)
     final trackerProvider = context.read<TrackerProvider>();
     final toggleProvider = context.read<ToggleProvider>();
-    final settingsProvider = context.read<SettingsProvider>();
+    final allOrders = <double>[];
+    allOrders.addAll(tokenProvider.items.map((item) => item.order));
+    allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
+    allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
+    final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
+    final newOrder = maxOrder.floor() + 1.0;
 
-    // Standard goblin token definition with default artwork
-    final goblinDefinition = TokenDefinition(
-      name: 'Goblin',
-      abilities: '',
-      pt: '1/1',
-      colors: 'R',
-      type: 'Creature — Goblin',
-      popularity: 0,
-      artwork: [
-        ArtworkVariant(
-          set: 'TDM',
-          url: 'https://cards.scryfall.io/large/front/e/2/e265ca24-96c0-4654-a8f3-bbffe288970a.jpg?1742506636',
-        ),
-      ],
-    );
-
-    // Check if matching goblin token WITHOUT counters already exists
-    final existingGoblinWithoutCounters = tokenProvider.items.where((item) {
-      // Check if it matches goblin criteria
-      final isMatchingGoblin = item.name == 'Goblin' &&
-          item.pt == '1/1' &&
-          item.colors == 'R' &&
-          item.type.toLowerCase().contains('goblin') &&
-          item.abilities.isEmpty;
-
-      // Check if it has NO counters (any type)
-      final hasNoCounters = item.plusOneCounters == 0 &&
-          item.minusOneCounters == 0 &&
-          item.counters.isEmpty;
-
-      return isMatchingGoblin && hasNoCounters;
-    }).firstOrNull;
-
-    if (existingGoblinWithoutCounters != null) {
-      // Add to existing token without counters
-      existingGoblinWithoutCounters.amount += amount;
-      existingGoblinWithoutCounters.save();
-
-      // Fire ETB event for Cathar's Crusade and other listeners
-      GameEvents.instance.notifyCreatureEntered(existingGoblinWithoutCounters, amount);
-    } else {
-      // Calculate max order across ALL board items (tokens + trackers + toggles)
-      final allOrders = <double>[];
-      allOrders.addAll(tokenProvider.items.map((item) => item.order));
-      allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
-      allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
-
-      final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
-      final newOrder = maxOrder.floor() + 1.0;
-
-      // Create new token with explicit order and default artwork
-      final newGoblin = goblinDefinition.toItem(
-        amount: amount,
-        createTapped: false,
-      );
-      newGoblin.order = newOrder; // Set order before inserting
-
-      // Set default artwork if available
-      if (goblinDefinition.artwork.isNotEmpty) {
-        newGoblin.artworkUrl = goblinDefinition.artwork.first.url;
-        newGoblin.artworkSet = goblinDefinition.artwork.first.set;
-      }
-
-      await tokenProvider.insertItem(newGoblin);
-
-      // Apply summoning sickness if enabled
-      if (settingsProvider.summoningSicknessEnabled &&
-          newGoblin.hasPowerToughness &&
-          !newGoblin.hasHaste) {
-        newGoblin.summoningSick = amount;
-      }
-
-      // Download artwork in background (non-blocking, fire-and-forget)
-      // Matches TokenSearchScreen pattern (lines 913-935)
-      if (newGoblin.artworkUrl != null) {
-        final artworkUrl = newGoblin.artworkUrl!;
-        ArtworkManager.downloadArtwork(artworkUrl).then((file) {
-          if (file == null) {
-            // Download failed - reset artworkUrl so it doesn't try to load
-            debugPrint('Artwork download failed for Goblin, resetting URL');
-            // Find the item again (it might have been deleted/modified)
-            final currentItem = tokenProvider.items.firstWhereOrNull(
-              (item) => item.artworkUrl == artworkUrl
-            );
-            if (currentItem != null) {
-              currentItem.artworkUrl = null;
-              currentItem.artworkSet = null;
-              currentItem.save();
-            }
-          } else {
-            debugPrint('Artwork downloaded and cached for Goblin');
-            // Trigger rebuild so TokenCard displays the cached artwork
-            final currentItem = tokenProvider.items.firstWhereOrNull(
-              (item) => item.artworkUrl == artworkUrl
-            );
-            if (currentItem != null) {
-              currentItem.save(); // Triggers Hive save and notifies listeners
-            }
-          }
-        }).catchError((error) {
-          debugPrint('Error during background artwork download: $error');
-          // Silent fail - reset artworkUrl on error
-          final currentItem = tokenProvider.items.firstWhereOrNull(
-            (item) => item.artworkUrl == artworkUrl
-          );
-          if (currentItem != null) {
-            currentItem.artworkUrl = null;
-            currentItem.artworkSet = null;
-            currentItem.save();
-          }
-        });
-      }
-
-      // Fire ETB event for Cathar's Crusade and other listeners
-      GameEvents.instance.notifyCreatureEntered(newGoblin, amount);
-    }
+    // Create goblin tokens using TokenProvider
+    await tokenProvider.createKrenkoGoblins(shouldCreate, settingsProvider.summoningSicknessEnabled, newOrder);
   }
 
   Future<void> _performCatharsCrusadeAction(BuildContext context) async {
