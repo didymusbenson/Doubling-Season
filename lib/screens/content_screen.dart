@@ -127,11 +127,11 @@ class _ContentScreenState extends State<ContentScreen> {
                   icon: const Icon(Icons.list_alt),
                   tooltip: 'Status',
                 ),
-              // Clear summoning sickness button
+              // Next Turn button
               IconButton(
-                onPressed: () => _handleClearSickness(),
-                icon: const Icon(Icons.adjust),
-                tooltip: 'Clear Summoning Sickness',
+                onPressed: () => _showNextTurnDialog(),
+                icon: const Icon(Icons.av_timer),
+                tooltip: 'Next Turn',
               ),
             ],
           );
@@ -622,6 +622,32 @@ class _ContentScreenState extends State<ContentScreen> {
   void _showUntapAllDialog() {
     final tokenProvider = context.read<TokenProvider>();
     tokenProvider.untapAll();
+  }
+
+  void _showNextTurnDialog() {
+    final tokenProvider = context.read<TokenProvider>();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Next Turn'),
+        content: const Text('Untap all tokens and clear summoning sickness?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await tokenProvider.untapAll();
+              await tokenProvider.clearSummoningSickness();
+            },
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showExperimentalFeaturesConfirmation(BuildContext context, SettingsProvider settings) {
