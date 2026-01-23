@@ -227,7 +227,7 @@
     "artwork": [
       {
         "set": "TLA",
-        "url": "https://cards.scryfall.io/large/front/f/8/f842c52a-04b6-4625-ba58-45b043ada340.jpg?1762594645"
+        "url": "https://cards.scryfall.io/large/front/f/8/f842c52a-04b6-4625-ba58-45b043ada340.jpg?1764117659"
       }
     ]
   },
@@ -832,7 +832,7 @@
     "artwork": [
       {
         "set": "TLA",
-        "url": "https://cards.scryfall.io/large/front/0/b/0b1b8ff0-0b1e-4a55-a937-fde7ec15c41a.jpg?1762595496"
+        "url": "https://cards.scryfall.io/large/front/0/b/0b1b8ff0-0b1e-4a55-a937-fde7ec15c41a.jpg?1764117718"
       },
       {
         "set": "LTR",
@@ -1036,7 +1036,7 @@
     "artwork": [
       {
         "set": "TLA",
-        "url": "https://cards.scryfall.io/large/front/1/d/1dbbdb0f-57a4-4b85-ba5c-1383f0efb3af.jpg?1762595401"
+        "url": "https://cards.scryfall.io/large/front/1/d/1dbbdb0f-57a4-4b85-ba5c-1383f0efb3af.jpg?1764117712"
       },
       {
         "set": "KTK",
@@ -2697,7 +2697,7 @@
     "artwork": [
       {
         "set": "TLA",
-        "url": "https://cards.scryfall.io/large/front/9/8/98bdb578-e81e-40f9-9c06-b2867158baef.jpg?1762595562"
+        "url": "https://cards.scryfall.io/large/front/9/8/98bdb578-e81e-40f9-9c06-b2867158baef.jpg?1764117743"
       },
       {
         "set": "EOC",
@@ -2985,7 +2985,7 @@
     "artwork": [
       {
         "set": "BRC",
-        "url": "https://cards.scryfall.io/large/front/3/5/35dd4d3f-ac03-4bf0-bae2-ad44f61578a8.jpg?1675456410"
+        "url": "https://cards.scryfall.io/large/front/3/5/35dd4d3f-ac03-4bf0-bae2-ad44f61578a8.jpg?1757430349"
       },
       {
         "set": "CLB",
@@ -3052,8 +3052,12 @@
     "popularity": 0,
     "artwork": [
       {
+        "set": "ECC",
+        "url": "https://cards.scryfall.io/large/front/6/1/61328aec-ba26-4142-a774-96924303786d.jpg?1767794310"
+      },
+      {
         "set": "TLA",
-        "url": "https://cards.scryfall.io/large/front/2/b/2b3d7795-3fc3-4b78-bdf4-0a79981f1eee.jpg?1762595417"
+        "url": "https://cards.scryfall.io/large/front/2/b/2b3d7795-3fc3-4b78-bdf4-0a79981f1eee.jpg?1764117639"
       },
       {
         "set": "SPM",
@@ -3077,7 +3081,7 @@
       },
       {
         "set": "DSK",
-        "url": "https://cards.scryfall.io/large/front/b/1/b19112b9-1583-445d-bc48-5ca3325fab48.jpg?1734465477"
+        "url": "https://cards.scryfall.io/large/front/b/1/b19112b9-1583-445d-bc48-5ca3325fab48.jpg?1767739316"
       },
       {
         "set": "BLC",
@@ -4062,7 +4066,7 @@
     "artwork": [
       {
         "set": "TLA",
-        "url": "https://cards.scryfall.io/large/front/c/d/cddc0746-6d3e-441f-866f-28587bf54801.jpg?1762594883"
+        "url": "https://cards.scryfall.io/large/front/c/d/cddc0746-6d3e-441f-866f-28587bf54801.jpg?1764117693"
       }
     ]
   },
@@ -4741,6 +4745,10 @@
     "popularity": 1,
     "artwork": [
       {
+        "set": "ECC",
+        "url": "https://cards.scryfall.io/large/front/e/e/ee285548-04c8-4562-bf66-a0bb53acfe76.jpg?1767954860"
+      },
+      {
         "set": "BLC",
         "url": "https://cards.scryfall.io/large/front/6/c/6c6c62a5-dd1d-4d37-a2da-6e4e6b5bec40.jpg?1721426949"
       },
@@ -4838,6 +4846,10 @@
     "type": "Creature — Elemental",
     "popularity": 2,
     "artwork": [
+      {
+        "set": "ECC",
+        "url": "https://cards.scryfall.io/large/front/7/e/7ec88cb2-7a77-45ae-b2c8-f8d09452d619.jpg?1767955123"
+      },
       {
         "set": "2XM",
         "url": "https://cards.scryfall.io/large/front/8/6/8676704a-419e-4a00-a052-bca2ad34ecae.jpg?1601138189"
@@ -4968,8 +4980,12 @@
     "pt": "5/5",
     "colors": "RG",
     "type": "Creature — Elemental",
-    "popularity": 1,
+    "popularity": 2,
     "artwork": [
+      {
+        "set": "ECC",
+        "url": "https://cards.scryfall.io/large/front/1/a/1ab6cab4-a3a5-4b48-832a-1d486e8094a5.jpg?1767955096"
+      },
       {
         "set": "EOC",
         "url": "https://cards.scryfall.io/large/front/5/e/5e3552f9-1c22-46f7-b606-c8a59950bf75.jpg?1752946424"
@@ -5339,6 +5355,20 @@
     ]
   },
   {
+    "name": "Elf",
+    "abilities": "",
+    "pt": "2/2",
+    "colors": "BG",
+    "type": "Creature — Elf",
+    "popularity": 4,
+    "artwork": [
+      {
+        "set": "ECL",
+        "url": "https://cards.scryfall.io/large/front/3/9/39b36f22-21f9-44fe-8a49-bdc859503342.jpg?1767955588"
+      }
+    ]
+  },
+  {
     "name": "Elf Druid",
     "abilities": "{T}: Add {G}.",
     "pt": "1/1",
@@ -5383,6 +5413,10 @@
     "popularity": 29,
     "artwork": [
       {
+        "set": "ECC",
+        "url": "https://cards.scryfall.io/large/front/2/9/29e9326a-a435-44c7-939a-8da6ed3c4510.jpg?1767954990"
+      },
+      {
         "set": "FDN",
         "url": "https://cards.scryfall.io/large/front/3/1/315c45f4-7bc9-45d5-bbf5-2533cf80af60.jpg?1732803364"
       },
@@ -5392,7 +5426,7 @@
       },
       {
         "set": "LTC",
-        "url": "https://cards.scryfall.io/large/front/0/2/023f668a-a8e6-4fcb-98d1-30adf343f050.jpg?1686264599"
+        "url": "https://cards.scryfall.io/large/front/0/2/023f668a-a8e6-4fcb-98d1-30adf343f050.jpg?1768157666"
       },
       {
         "set": "KHM",
@@ -5464,8 +5498,12 @@
     "pt": "3/3",
     "colors": "G",
     "type": "Creature — Elk",
-    "popularity": 1,
+    "popularity": 2,
     "artwork": [
+      {
+        "set": "ECL",
+        "url": "https://cards.scryfall.io/large/front/c/f/cf36b5f2-e699-41c0-ae89-23cd9c414b54.jpg?1767955474"
+      },
       {
         "set": "OTJ",
         "url": "https://cards.scryfall.io/large/front/1/6/1632f3fa-4615-46ee-9768-22bbd9d142d6.jpg?1712316649"
@@ -5622,6 +5660,20 @@
       {
         "set": "WOE",
         "url": "https://cards.scryfall.io/large/front/0/f/0f9a993f-1f2b-4b17-b415-e975b7873e18.jpg?1692880732"
+      }
+    ]
+  },
+  {
+    "name": "Faerie",
+    "abilities": "Flying",
+    "pt": "1/1",
+    "colors": "BU",
+    "type": "Creature — Faerie",
+    "popularity": 3,
+    "artwork": [
+      {
+        "set": "ECL",
+        "url": "https://cards.scryfall.io/large/front/0/1/01524db2-c96f-4902-8394-bc7a7128e573.jpg?1767956498"
       }
     ]
   },
@@ -5878,7 +5930,7 @@
     "artwork": [
       {
         "set": "TLA",
-        "url": "https://cards.scryfall.io/large/front/d/0/d0e54f01-1301-481f-ace0-87966b5135f0.jpg?1762595738"
+        "url": "https://cards.scryfall.io/large/front/d/0/d0e54f01-1301-481f-ace0-87966b5135f0.jpg?1764117767"
       },
       {
         "set": "SPM",
@@ -6332,7 +6384,7 @@
     "artwork": [
       {
         "set": "DSK",
-        "url": "https://cards.scryfall.io/large/front/4/7/475c7449-2c95-4873-94de-68a5e06cdfb8.jpg?1725996984"
+        "url": "https://cards.scryfall.io/large/front/4/7/475c7449-2c95-4873-94de-68a5e06cdfb8.jpg?1754930946"
       }
     ]
   },
@@ -6472,7 +6524,7 @@
     "pt": "1/1",
     "colors": "R",
     "type": "Creature — Goblin",
-    "popularity": 57,
+    "popularity": 58,
     "artwork": [
       {
         "set": "TDM",
@@ -6556,7 +6608,7 @@
       },
       {
         "set": "GK1",
-        "url": "https://cards.scryfall.io/large/back/1/d/1d34ff67-24e1-4cf5-b032-8be6b83e0819.jpg?1632381617"
+        "url": "https://cards.scryfall.io/large/back/1/d/1d34ff67-24e1-4cf5-b032-8be6b83e0819.jpg?1752557396"
       },
       {
         "set": "GK1",
@@ -6656,7 +6708,7 @@
       },
       {
         "set": "UGL",
-        "url": "https://cards.scryfall.io/large/front/f/b/fbd728ed-d5dc-44b3-9159-6c86cab3be0c.jpg?1691108799"
+        "url": "https://cards.scryfall.io/large/front/f/b/fbd728ed-d5dc-44b3-9159-6c86cab3be0c.jpg?1761614931"
       }
     ]
   },
@@ -6703,6 +6755,20 @@
       {
         "set": "C16",
         "url": "https://cards.scryfall.io/large/front/9/9/99a6ebce-f391-4642-857a-4dc1466895f3.jpg?1562926018"
+      }
+    ]
+  },
+  {
+    "name": "Goblin",
+    "abilities": "",
+    "pt": "1/1",
+    "colors": "BR",
+    "type": "Creature — Goblin",
+    "popularity": 3,
+    "artwork": [
+      {
+        "set": "ECL",
+        "url": "https://cards.scryfall.io/large/front/6/1/6139a45d-ebc7-4bca-8c13-73c85ea5fe0d.jpg?1768367480"
       }
     ]
   },
@@ -7540,7 +7606,7 @@
     "artwork": [
       {
         "set": "DSK",
-        "url": "https://cards.scryfall.io/large/front/3/6/36bb6907-e7d7-4f99-966a-ab09ca130fb8.jpg?1725996983"
+        "url": "https://cards.scryfall.io/large/front/3/6/36bb6907-e7d7-4f99-966a-ab09ca130fb8.jpg?1754931076"
       }
     ]
   },
@@ -7904,7 +7970,7 @@
     "artwork": [
       {
         "set": "EOE",
-        "url": "https://cards.scryfall.io/large/front/6/3/631c2c16-132d-4607-ab7e-207a6af188e5.jpg?1752946465"
+        "url": "https://cards.scryfall.io/large/front/6/3/631c2c16-132d-4607-ab7e-207a6af188e5.jpg?1757686920"
       },
       {
         "set": "FIC",
@@ -8918,6 +8984,20 @@
     ]
   },
   {
+    "name": "Kithkin",
+    "abilities": "",
+    "pt": "1/1",
+    "colors": "GW",
+    "type": "Creature — Kithkin",
+    "popularity": 8,
+    "artwork": [
+      {
+        "set": "ECL",
+        "url": "https://cards.scryfall.io/large/front/2/e/2ed11e1b-2289-48d2-8d96-ee7e590ecfd4.jpg?1767955680"
+      }
+    ]
+  },
+  {
     "name": "Kithkin Soldier",
     "abilities": "",
     "pt": "1/1",
@@ -9629,7 +9709,7 @@
     "artwork": [
       {
         "set": "TLE",
-        "url": "https://cards.scryfall.io/large/front/d/c/dcff76fb-e23d-4333-a770-b1d616f98486.jpg?1762594498"
+        "url": "https://cards.scryfall.io/large/front/d/c/dcff76fb-e23d-4333-a770-b1d616f98486.jpg?1764117779"
       },
       {
         "set": "M3C",
@@ -9695,7 +9775,7 @@
     "artwork": [
       {
         "set": "NEO",
-        "url": "https://cards.scryfall.io/large/front/0/2/0281825d-9d38-4b56-b522-a8d3cf8c77c9.jpg?1674338575"
+        "url": "https://cards.scryfall.io/large/front/0/2/0281825d-9d38-4b56-b522-a8d3cf8c77c9.jpg?1762360143"
       }
     ]
   },
@@ -9754,6 +9834,20 @@
       {
         "set": "XLN",
         "url": "https://cards.scryfall.io/large/front/9/0/90317f5e-d121-4c00-86cc-5bbee953f600.jpg?1562539786"
+      }
+    ]
+  },
+  {
+    "name": "Merfolk",
+    "abilities": "",
+    "pt": "1/1",
+    "colors": "UW",
+    "type": "Creature — Merfolk",
+    "popularity": 3,
+    "artwork": [
+      {
+        "set": "ECL",
+        "url": "https://cards.scryfall.io/large/front/4/c/4c5ad4e1-b489-4023-88ab-1200c5f26ffc.jpg?1767955704"
       }
     ]
   },
@@ -9887,7 +9981,7 @@
     "artwork": [
       {
         "set": "TLA",
-        "url": "https://cards.scryfall.io/large/front/e/4/e49c80ac-5c90-4fd2-ad40-cc77af160f64.jpg?1762595324"
+        "url": "https://cards.scryfall.io/large/front/e/4/e49c80ac-5c90-4fd2-ad40-cc77af160f64.jpg?1764117699"
       },
       {
         "set": "DMU",
@@ -10069,7 +10163,7 @@
     "artwork": [
       {
         "set": "EOE",
-        "url": "https://cards.scryfall.io/large/front/a/1/a16f931a-9fa3-45b1-8d54-04b6b5bf7b71.jpg?1752946495"
+        "url": "https://cards.scryfall.io/large/front/a/1/a16f931a-9fa3-45b1-8d54-04b6b5bf7b71.jpg?1756281096"
       }
     ]
   },
@@ -10084,6 +10178,20 @@
       {
         "set": "WHO",
         "url": "https://cards.scryfall.io/large/front/6/f/6fa61fa5-f0ca-4933-ac57-9db95f891889.jpg?1696625301"
+      }
+    ]
+  },
+  {
+    "name": "Mutavault (Token)",
+    "abilities": "{T}: Add {C}. {1}: This token becomes a 2/2 creature with all creature types until end of turn. It's still a land.",
+    "pt": "",
+    "colors": "",
+    "type": "Land",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "ECL",
+        "url": "https://cards.scryfall.io/large/front/3/d/3d2f5d31-a1c6-465f-b518-b40acdfab8aa.jpg?1767955820"
       }
     ]
   },
@@ -10464,6 +10572,20 @@
     ]
   },
   {
+    "name": "Oko, Shadowmoor Scion Emblem",
+    "abilities": "Creatures you control of the chosen type get +3/+3 and have vigilance and hexproof.",
+    "pt": "",
+    "colors": "",
+    "type": "Emblem",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "ECL",
+        "url": "https://cards.scryfall.io/large/front/0/d/0d9d6611-bc46-4fc1-8e39-460f56236ceb.jpg?1767955914"
+      }
+    ]
+  },
+  {
     "name": "Ooze",
     "abilities": "",
     "pt": "*/*",
@@ -10759,7 +10881,7 @@
       },
       {
         "set": "UGL",
-        "url": "https://cards.scryfall.io/large/front/b/c/bc944579-b6d8-40f7-8c46-146513960d61.jpg?1691108805"
+        "url": "https://cards.scryfall.io/large/front/b/c/bc944579-b6d8-40f7-8c46-146513960d61.jpg?1761614913"
       }
     ]
   },
@@ -11490,6 +11612,10 @@
     "popularity": 10,
     "artwork": [
       {
+        "set": "ECC",
+        "url": "https://cards.scryfall.io/large/front/3/d/3db07715-d315-4361-8af5-ce68d20e6c08.jpg?1767955008"
+      },
+      {
         "set": "TDC",
         "url": "https://cards.scryfall.io/large/front/8/7/8709f51f-a1a5-46dc-bd72-c511797e1b3c.jpg?1742583199"
       },
@@ -12026,6 +12152,10 @@
     "popularity": 5,
     "artwork": [
       {
+        "set": "ECC",
+        "url": "https://cards.scryfall.io/large/front/8/f/8f4188d4-a371-49be-ad33-ad87801ba99d.jpg?1767955030"
+      },
+      {
         "set": "MKC",
         "url": "https://cards.scryfall.io/large/front/e/e/eec70281-7bdf-46b8-903e-a8a46b7d47bf.jpg?1706129624"
       },
@@ -12073,7 +12203,7 @@
     "artwork": [
       {
         "set": "EOE",
-        "url": "https://cards.scryfall.io/large/front/c/4/c46f9a07-005c-44b7-8057-b2f00b274dd6.jpg?1752946498"
+        "url": "https://cards.scryfall.io/large/front/c/4/c46f9a07-005c-44b7-8057-b2f00b274dd6.jpg?1756281130"
       }
     ]
   },
@@ -12358,8 +12488,12 @@
     "pt": "1/1",
     "colors": "G",
     "type": "Creature — Saproling",
-    "popularity": 85,
+    "popularity": 86,
     "artwork": [
+      {
+        "set": "ECC",
+        "url": "https://cards.scryfall.io/large/front/3/4/34032448-fe31-44c7-845c-37fea0b8e762.jpg?1767955055"
+      },
       {
         "set": "BLC",
         "url": "https://cards.scryfall.io/large/front/5/9/590abe94-9c71-4429-b1b5-8b5de877de03.jpg?1721427861"
@@ -12601,6 +12735,20 @@
     ]
   },
   {
+    "name": "Scarecrow",
+    "abilities": "",
+    "pt": "2/2",
+    "colors": "",
+    "type": "Artifact Creature — Scarecrow",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "ECC",
+        "url": "https://cards.scryfall.io/large/front/9/a/9ae02771-2917-4d6e-9608-1a592389439a.jpg?1767955222"
+      }
+    ]
+  },
+  {
     "name": "Scion of Calamity",
     "abilities": "Myriad, Whenever this creature deals combat damage to a player, destroy target artifact or enchantment that player controls.",
     "pt": "5/5",
@@ -12826,8 +12974,12 @@
     "pt": "1/1",
     "colors": "",
     "type": "Creature — Shapeshifter",
-    "popularity": 1,
+    "popularity": 6,
     "artwork": [
+      {
+        "set": "ECL",
+        "url": "https://cards.scryfall.io/large/front/c/2/c2963ce1-f9d8-437a-9489-e0913a8b8d26.jpg?1767660071"
+      },
       {
         "set": "M3C",
         "url": "https://cards.scryfall.io/large/front/1/f/1f83e08c-b3c6-4a8f-8764-dc225141c1c2.jpg?1717193534"
@@ -12938,7 +13090,7 @@
     "artwork": [
       {
         "set": "EOC",
-        "url": "https://cards.scryfall.io/large/front/3/0/30f46500-172a-40ce-9f8e-3738e764e3fa.jpg?1752946399"
+        "url": "https://cards.scryfall.io/large/front/3/0/30f46500-172a-40ce-9f8e-3738e764e3fa.jpg?1758385022"
       },
       {
         "set": "DSC",
@@ -13028,7 +13180,7 @@
     "artwork": [
       {
         "set": "UGL",
-        "url": "https://cards.scryfall.io/large/front/2/8/281d2c14-2343-44c9-a589-7f4da37978a2.jpg?1691108811"
+        "url": "https://cards.scryfall.io/large/front/2/8/281d2c14-2343-44c9-a589-7f4da37978a2.jpg?1761614954"
       }
     ]
   },
@@ -13408,6 +13560,10 @@
     "popularity": 1,
     "artwork": [
       {
+        "set": "ECC",
+        "url": "https://cards.scryfall.io/large/front/9/a/9a9380a8-8f38-47cd-8648-20626c06b9b3.jpg?1767955081"
+      },
+      {
         "set": "AKH",
         "url": "https://cards.scryfall.io/large/front/6/a/6aaa8539-8d21-4da1-8410-d4354078390f.jpg?1562844799"
       }
@@ -13625,7 +13781,7 @@
       },
       {
         "set": "UGL",
-        "url": "https://cards.scryfall.io/large/front/b/1/b159b57d-bc52-4cef-ac7a-e364e40c3d03.jpg?1691108818"
+        "url": "https://cards.scryfall.io/large/front/b/1/b159b57d-bc52-4cef-ac7a-e364e40c3d03.jpg?1761614919"
       }
     ]
   },
@@ -13795,7 +13951,7 @@
     "artwork": [
       {
         "set": "TLA",
-        "url": "https://cards.scryfall.io/large/front/2/d/2de43b03-9ac5-4292-ab29-2dc6210ef3d9.jpg?1762595385"
+        "url": "https://cards.scryfall.io/large/front/2/d/2de43b03-9ac5-4292-ab29-2dc6210ef3d9.jpg?1764117705"
       }
     ]
   },
@@ -13809,7 +13965,7 @@
     "artwork": [
       {
         "set": "TLE",
-        "url": "https://cards.scryfall.io/large/front/8/3/83313791-7d33-42bf-8ee7-05f17f88940a.jpg?1762594533"
+        "url": "https://cards.scryfall.io/large/front/8/3/83313791-7d33-42bf-8ee7-05f17f88940a.jpg?1764117785"
       }
     ]
   },
@@ -14669,7 +14825,7 @@
     "artwork": [
       {
         "set": "TLA",
-        "url": "https://cards.scryfall.io/large/front/f/5/f59eba51-458a-40e0-b754-999f91d5d839.jpg?1762597054"
+        "url": "https://cards.scryfall.io/large/front/f/5/f59eba51-458a-40e0-b754-999f91d5d839.jpg?1764117653"
       }
     ]
   },
@@ -14821,7 +14977,7 @@
       },
       {
         "set": "UGL",
-        "url": "https://cards.scryfall.io/large/front/a/b/abf24a09-0a54-4e1d-a515-ed5ae99294be.jpg?1691108760"
+        "url": "https://cards.scryfall.io/large/front/a/b/abf24a09-0a54-4e1d-a515-ed5ae99294be.jpg?1761614949"
       }
     ]
   },
@@ -15301,7 +15457,7 @@
     "artwork": [
       {
         "set": "NEO",
-        "url": "https://cards.scryfall.io/large/front/b/d/bdb4fa32-18dd-4530-a529-5477e45413dd.jpg?1674338598"
+        "url": "https://cards.scryfall.io/large/front/b/d/bdb4fa32-18dd-4530-a529-5477e45413dd.jpg?1764377678"
       }
     ]
   },
@@ -15767,11 +15923,15 @@
     "pt": "",
     "colors": "",
     "type": "Artifact — Treasure",
-    "popularity": 316,
+    "popularity": 322,
     "artwork": [
       {
+        "set": "ECL",
+        "url": "https://cards.scryfall.io/large/front/a/c/ac4384b7-853c-417d-b3b4-f54cd0b5d361.jpg?1767955781"
+      },
+      {
         "set": "TLA",
-        "url": "https://cards.scryfall.io/large/front/e/e/ee9ffe19-fea7-4dcc-a673-26be06d2f1be.jpg?1762595854"
+        "url": "https://cards.scryfall.io/large/front/e/e/ee9ffe19-fea7-4dcc-a673-26be06d2f1be.jpg?1764117773"
       },
       {
         "set": "SPM",
@@ -15988,6 +16148,20 @@
       {
         "set": "MID",
         "url": "https://cards.scryfall.io/large/front/9/4/94e4345b-61b1-4026-a01c-c9f2036c5c8a.jpg?1708345264"
+      }
+    ]
+  },
+  {
+    "name": "Treefolk",
+    "abilities": "Reach",
+    "pt": "3/4",
+    "colors": "G",
+    "type": "Creature — Treefolk",
+    "popularity": 2,
+    "artwork": [
+      {
+        "set": "ECL",
+        "url": "https://cards.scryfall.io/large/front/8/2/82e01706-ab45-4e52-9ee1-7070567234fd.jpg?1767955530"
       }
     ]
   },
@@ -16907,7 +17081,7 @@
     "artwork": [
       {
         "set": "GK1",
-        "url": "https://cards.scryfall.io/large/front/1/d/1d34ff67-24e1-4cf5-b032-8be6b83e0819.jpg?1632381617"
+        "url": "https://cards.scryfall.io/large/front/1/d/1d34ff67-24e1-4cf5-b032-8be6b83e0819.jpg?1752557396"
       }
     ]
   },
@@ -17280,8 +17454,12 @@
     "pt": "1/1",
     "colors": "BG",
     "type": "Creature — Worm",
-    "popularity": 3,
+    "popularity": 4,
     "artwork": [
+      {
+        "set": "ECL",
+        "url": "https://cards.scryfall.io/large/front/b/3/b3c0ff23-6c20-4637-99d6-6cbca26d75ba.jpg?1767955743"
+      },
       {
         "set": "C18",
         "url": "https://cards.scryfall.io/large/front/7/4/74b0276f-004e-458a-b941-e217216141f6.jpg?1592710098"
@@ -17557,6 +17735,10 @@
     "popularity": 102,
     "artwork": [
       {
+        "set": "ECC",
+        "url": "https://cards.scryfall.io/large/front/1/7/17f001ab-514b-49e7-a657-b2872ad7a1de.jpg?1767954964"
+      },
+      {
         "set": "FIC",
         "url": "https://cards.scryfall.io/large/front/4/c/4cecd5c6-d6c8-4cd5-97a3-cddaf051af15.jpg?1749245686"
       },
@@ -17794,7 +17976,7 @@
       },
       {
         "set": "UGL",
-        "url": "https://cards.scryfall.io/large/front/8/e/8e7b5995-ee8b-40d1-b157-8df96c02cc5b.jpg?1691108824"
+        "url": "https://cards.scryfall.io/large/front/8/e/8e7b5995-ee8b-40d1-b157-8df96c02cc5b.jpg?1761614925"
       }
     ]
   },

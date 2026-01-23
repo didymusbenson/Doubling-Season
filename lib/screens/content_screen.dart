@@ -458,6 +458,44 @@ class _ContentScreenState extends State<ContentScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
+                    Icons.av_timer,
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(width: UIConstants.largeSpacing),
+                  Flexible(
+                    child: Text(
+                      'Start next turn - untap all tokens and clear summoning sickness',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: UIConstants.standardPadding),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.trending_up,
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(width: UIConstants.largeSpacing),
+                  Flexible(
+                    child: Text(
+                      'Add a +1/+1 counter to your token',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: UIConstants.standardPadding),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
                     Icons.help_outline,
                     color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                   ),
