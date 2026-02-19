@@ -876,6 +876,39 @@ When modifying `process_tokens_with_popularity.py`:
 - Output path is hardcoded: `"assets/token_database.json"`
 - Run from repository root: `python3 docs/housekeeping/process_tokens_with_popularity.py`
 
+## Docs Workflow (Context Preservation)
+
+The `docs/activeDevelopment/` directory is organized to preserve context between sessions. This is critical for resuming work after breaks or across conversations.
+
+### Directory Structure
+
+| Directory | Purpose |
+|-----------|---------|
+| `todo_features/` | Planned features not yet started. Feature specs, design docs, ideas. |
+| `in_progress_features/` | Features currently being implemented. Moved here from `todo_features/` (or created fresh) when work begins. |
+| `bug_bashing/` | Active bug investigations and fixes. Created when a user reports an issue or a bug is discovered. |
+
+### Workflow Rules
+
+**Starting a feature:**
+1. If a doc exists in `todo_features/` (or elsewhere in `docs/`), **move it** to `in_progress_features/`
+2. If no doc exists, **create one** in `in_progress_features/` describing the feature and implementation plan
+3. Update the doc as work progresses (decisions made, files changed, open questions)
+
+**Bug reports:**
+1. When the user reports a bug or wants to investigate an issue, **create a new file** in `bug_bashing/`
+2. Document: the reported symptoms, investigation findings, root cause analysis, and fix plan
+3. Update the doc as work progresses so context is preserved if the session ends mid-fix
+
+**Completing work:**
+- Feature/bug docs can be cleaned up or archived after the work is committed and verified
+- The docs serve as a living record of what was done and why, useful for future reference
+
+**Why this matters:**
+- Sessions can end at any time (user quits, context limit, etc.)
+- These docs let Claude pick up exactly where things left off in a new session
+- They capture decisions and reasoning that would otherwise be lost
+
 ## Future Feature Context
 
 **Implemented Features (v1.3.0):**
@@ -956,17 +989,21 @@ assets/
 
 docs/
 ├── activeDevelopment/                  # Current planning and feedback
+│   ├── bug_bashing/                    # Active bug investigations and fixes (see Docs Workflow below)
+│   ├── in_progress_features/           # Features currently being implemented (see Docs Workflow below)
+│   ├── todo_features/                  # Planned features not yet started
 │   ├── FeedbackIdeas.md                # User feature requests + beta tester survey analysis
-│   ├── NextFeature.md                  # Current development focus (performance optimization)
-│   ├── PremiumVersionIdeas.md          # Planned paid features (token doublers, Chatterfang, etc.)
-│   └── commanderWidgets.md             # Commander Mode system design (Krenko, etc.)
-└── housekeeping/                       # Maintenance scripts and guides
-    ├── process_tokens_with_popularity.py   # Token database generator
-    ├── MarketingMaterial.md            # Survey analysis, marketing copy, feature highlights
-    ├── data_processing_scripts.md      # Documentation for data scripts
-    ├── xml_token_processing_scripts.md # XML processing guide
-    ├── AndroidToolchainSetup.md        # Android dev environment setup
-    └── FlutterDevEnvSetup.md           # Flutter dev environment setup
+│   ├── NextFeature.md                  # Current development focus
+│   ├── NextVersionChecklist.md         # Checklist for next release
+│   └── ...                             # Other planning docs
+├── housekeeping/                       # Maintenance scripts and guides
+│   ├── process_tokens_with_popularity.py   # Token database generator
+│   ├── MarketingMaterial.md            # Survey analysis, marketing copy, feature highlights
+│   ├── AndroidToolchainSetup.md        # Android dev environment setup
+│   ├── FlutterDevEnvSetup.md           # Flutter dev environment setup
+│   └── ...                             # Other maintenance docs
+├── screenshots/                        # App screenshots for reference
+└── storefront/                         # App Store / Play Store assets
 
 android/                                # Android platform files
 ios/                                    # iOS platform files (no native Swift code)
