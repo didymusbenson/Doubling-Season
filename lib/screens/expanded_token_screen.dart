@@ -202,7 +202,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
         _cachedArtworkFuture = ArtworkManager.getCachedArtworkFile(url);
       });
 
-      widget.item.save();
+      // Single save via updateItem (calls save() + notifyListeners())
       context.read<TokenProvider>().updateItem(widget.item);
 
       // Save artwork preference (Custom Artwork Feature)
@@ -250,7 +250,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
         _cachedArtworkFuture = null;
       });
 
-      widget.item.save();
+      // Single save via updateItem (calls save() + notifyListeners())
       context.read<TokenProvider>().updateItem(widget.item);
     }
   }
@@ -1277,10 +1277,8 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                     _artworkCleanupAttempted = true;
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (mounted) {
-                        widget.item.artworkUrl = null;
-                        widget.item.artworkSet = null;
-                        widget.item.artworkOptions = null;
-                        widget.item.save();
+                        // Batch clear all artwork fields in a single Hive write
+                        widget.item.updateArtwork(url: null, set: null, options: null);
                         // Trigger rebuild to show "select" text
                         setState(() {
                           // Clear cached future

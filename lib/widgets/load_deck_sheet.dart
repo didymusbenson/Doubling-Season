@@ -34,27 +34,9 @@ class LoadDeckSheet extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: FutureBuilder<List<Deck>>(
-        future: deckProvider.decks,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 60, color: Colors.red),
-                  const SizedBox(height: 20),
-                  Text('Error: ${snapshot.error}'),
-                ],
-              ),
-            );
-          }
-
-          final decks = snapshot.data ?? [];
+      body: Builder(
+        builder: (context) {
+          final decks = deckProvider.decks;
 
           if (decks.isEmpty) {
             return const Center(

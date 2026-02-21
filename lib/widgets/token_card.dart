@@ -133,10 +133,8 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
 
   @override
   void clearArtwork() {
-    widget.item.artworkUrl = null;
-    widget.item.artworkSet = null;
-    widget.item.artworkOptions = null;
-    widget.item.save();
+    // Batch clear all artwork fields in a single Hive write
+    widget.item.updateArtwork(url: null, set: null, options: null);
   }
 
   @override

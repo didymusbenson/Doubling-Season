@@ -4,27 +4,19 @@ import '../models/deck.dart';
 import '../utils/constants.dart';
 
 class DeckProvider extends ChangeNotifier {
-  late LazyBox<Deck> _decksBox; // Use LazyBox for memory optimization
+  late Box<Deck> _decksBox;
   bool _initialized = false;
 
   bool get initialized => _initialized;
 
   Future<void> init() async {
-    _decksBox = await Hive.openLazyBox<Deck>(DatabaseConstants.decksBox);
+    _decksBox = Hive.box<Deck>(DatabaseConstants.decksBox);
     _initialized = true;
     notifyListeners();
   }
 
-  Future<List<Deck>> get decks async {
-    final keys = _decksBox.keys.toList();
-    final deckList = <Deck>[];
-
-    for (final key in keys) {
-      final deck = await _decksBox.get(key);
-      if (deck != null) deckList.add(deck);
-    }
-
-    return deckList;
+  List<Deck> get decks {
+    return _decksBox.values.toList();
   }
 
   Future<void> saveDeck(Deck deck) async {

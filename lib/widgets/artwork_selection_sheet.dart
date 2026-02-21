@@ -949,6 +949,12 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
       // User cancelled cropping
       if (croppedFile == null) return;
 
+      // Resize cropped image to cap resolution at 768px on longest edge.
+      // Reduces file size from potentially 2-8MB to ~100-200KB without
+      // visible quality loss on any phone screen. Falls back to original
+      // if resize fails.
+      await ArtworkManager.resizeImageFile(File(croppedFile.path));
+
       // Delete old custom artwork file if it exists AND clear image cache
       final oldCustomPath = _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
       if (oldCustomPath != null) {

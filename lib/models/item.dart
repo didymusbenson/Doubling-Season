@@ -251,6 +251,16 @@ class Item extends HiveObject {
     return true;
   }
 
+  /// Batch-update artwork fields in a single Hive write.
+  /// Use this instead of setting artworkUrl/artworkSet/artworkOptions individually
+  /// followed by save(), to avoid multiple writes.
+  void updateArtwork({String? url, String? set, List<ArtworkVariant>? options}) {
+    artworkUrl = url;
+    artworkSet = set;
+    artworkOptions = options;
+    save();
+  }
+
   Item createDuplicate() {
     final newItem = Item(
       name: name,

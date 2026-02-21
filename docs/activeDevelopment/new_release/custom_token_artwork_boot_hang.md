@@ -279,3 +279,120 @@ This is one cohesive system: backup, resilient boot, graceful degradation, and u
 - ~~**Hive migration**~~ — **REJECTED.** Hive was chosen on purpose for this lightweight app. The fixes in this release make Hive safe enough. Migration would add app size, complexity, and potentially server infrastructure for no meaningful gain.
 - ~~**Boot diagnostics**~~ — **REJECTED.** Resilient boot with backup/restore makes this redundant. Platform-level ANR/crash reporting (Play Console, App Store Connect) provides passive diagnostics without any code on our end.
 - ~~**Data export/import**~~ — **DEFERRED.** Unrelated to this bug. Planning doc created at `docs/activeDevelopment/todo_features/data_export_import.md`.
+
+---
+
+## Implementation Summary
+
+**Status:** Implemented (pending acceptance testing)
+**Date:** Feb 19, 2026
+
+### Work Completed Checklist
+
+- [x] **PRIMARY FIX: Decks LazyBox → regular Box**
+  - `lib/database/hive_setup.dart` — decks opened via `_openBoxResilient<Deck>()` (regular Box)
+  - `lib/providers/deck_provider.dart` — `LazyBox<Deck>` → `Box<Deck>`, async getter → sync getter, uses `Hive.box()` (already-opened box)
+  - `lib/widgets/load_deck_sheet.dart` — `FutureBuilder` replaced with synchronous `Builder` + direct `deckProvider.decks` access
+  - Zero remaining `LazyBox` references in `lib/`
+
+- [x] **Resilient boot with automatic backup/restore**
+  - `lib/database/hive_setup.dart` — full rewrite:
+    - `HiveInitResult` return type carrying `wipedBoxes` list
+    - Each box opened individually via `_openBoxResilient<T>()` with 3-tier fallback: open → restore from backup → wipe to empty
+    - `_backupAllBoxes()` runs fire-and-forget after successful boot (copies .hive files to `hive_backups/` subdirectory)
+    - `_restoreBoxFromBackup()` copies backup file over corrupt file and retries
+    - `_deleteBoxFiles()` removes both .hive and .lock files before fresh open
+    - Outer safety try/catch — `initHive()` NEVER throws
+  - `lib/main.dart` — removed old try/catch/rethrow around initHive, captures `HiveInitResult`, passes `wipedBoxes` to `MyApp`
+  - Post-boot dialog via `_showDataLossDialogIfNeeded()`: shows once, only for wiped boxes, human-readable names (items→"tokens", decks→"decks", trackerWidgets/toggleWidgets→"utilities", artworkPreferences→"artwork preferences")
+  - `GlobalKey<NavigatorState>` on MaterialApp for dialog context access
+
+- [x] **Cap custom artwork resolution at 768px**
+  - `lib/utils/artwork_manager.dart` — `resizeImageFile()` static method:
+    - Caps longest edge at 768px, maintains aspect ratio
+    - Uses `dart:ui` (`instantiateImageCodec` + `toByteData`) — no new dependencies
+    - Graceful fallback: returns original file on any error
+    - Outputs PNG (dart:ui limitation — JPEG not available via `toByteData`)
+  - `lib/widgets/artwork_selection_sheet.dart` — resize call inserted after crop, before copy to app storage
+
+- [x] **Eliminate double-save on artwork selection**
+  - `lib/screens/expanded_token_screen.dart` — removed `widget.item.save()` at two locations (lines ~202, ~250) where `updateItem()` immediately follows (which itself calls `save()`)
+  - Each artwork update path now results in exactly one `save()` call
+
+- [x] **Batch artwork field updates into single write**
+  - `lib/models/item.dart` — added `updateArtwork({String? url, String? set, List<ArtworkVariant>? options})` batch method (sets all three fields then one `save()`)
+  - `lib/screens/expanded_token_screen.dart` — artwork cleanup path converted to `updateArtwork()`
+  - `lib/widgets/token_card.dart` — `clearArtwork()` converted to `updateArtwork()`
+
+### Quality Review Results
+
+- Flutter analyze: **0 errors, 0 warnings** (10 pre-existing infos)
+- No cross-workstream file conflicts
+- All 20 acceptance criteria verified PASS
+
+### Known Limitations / Notes
+
+- Backup directory lives inside Hive data dir (`hive_backups/` subdirectory) — if the entire app data directory is externally wiped, backups go too. Acceptable tradeoff.
+- Image resize outputs PNG (not JPEG) due to `dart:ui` API limitations. Still achieves significant size reduction from full-res camera images.
+- TrackerWidget/ToggleWidget artwork fields still use individual sets (not batched). Out of scope for this bugfix — these models don't have the same save-frequency risk profile.
+
+---
+
+## Acceptance Testing: Regression Cases
+
+The following cases should be manually validated before shipping this fix.
+
+### Critical Path: Boot Resilience
+
+| # | Test Case | Steps | Expected Result |
+|---|-----------|-------|-----------------|
+| 1 | **Normal boot with existing data** | Have tokens + decks saved. Cold launch the app. | App boots normally. All tokens and decks present. No dialog shown. |
+| 2 | **Normal boot — fresh install** | Install from scratch. Launch app. | App boots to empty board. No errors. No dialog. |
+| 3 | **Boot after force-kill** | Create tokens, save a deck. Force-kill the app. Relaunch. | App boots normally. Data intact. |
+| 4 | **Backup creation** | Boot app with some data. Check device file system for `hive_backups/` directory. | Directory exists with .hive files for all 5 boxes. |
+
+### Critical Path: Deck Operations (LazyBox → Box migration)
+
+| # | Test Case | Steps | Expected Result |
+|---|-----------|-------|-----------------|
+| 5 | **Load existing decks** | User who had saved decks before this update launches app. | All previously saved decks appear in Load Deck sheet. |
+| 6 | **Save new deck** | Create tokens on board. Save as deck via floating menu. | Deck saved. Appears in Load Deck list immediately (no loading spinner). |
+| 7 | **Load deck to empty board** | Clear board. Load a saved deck. | Deck loads instantly. No async delay, no spinner. |
+| 8 | **Load deck to populated board** | Have tokens on board. Load deck → "Add to board". | Confirmation dialog appears. Deck items appended after existing items. |
+| 9 | **Delete deck** | Open Load Deck sheet. Delete a deck. | Deck removed immediately from list. |
+
+### Artwork: Resolution Cap
+
+| # | Test Case | Steps | Expected Result |
+|---|-----------|-------|-----------------|
+| 10 | **Upload high-res custom artwork** | Create custom token. Select artwork from photo library (use a 4000+ px image). | Artwork displays correctly. File in app storage should be ≤768px on longest edge. |
+| 11 | **Upload small artwork** | Select a small image (e.g., 400x300px) as custom artwork. | Image used as-is without resize. No quality degradation. |
+| 12 | **Artwork crop + resize pipeline** | Select image, crop it, confirm. | Cropped image is resized before storage. Artwork displays correctly on token card. |
+| 13 | **Artwork survives app restart** | Add custom artwork to a token. Close and reopen app. | Token still shows artwork after restart. |
+
+### Artwork: Save Behavior
+
+| # | Test Case | Steps | Expected Result |
+|---|-----------|-------|-----------------|
+| 14 | **Select artwork from Scryfall** | Open token details. Select Scryfall artwork variant. | Artwork applies. No double-flash or visual glitch (single save). |
+| 15 | **Remove artwork** | Open token details. Clear artwork selection. | Artwork removed. Token card shows default appearance. |
+| 16 | **Clear artwork from token card** | If artwork fails to load, verify auto-cleanup behavior. | Artwork fields cleared in one operation. No partial state. |
+
+### Post-Boot Dialog (only testable via simulated corruption)
+
+| # | Test Case | Steps | Expected Result |
+|---|-----------|-------|-----------------|
+| 17 | **Normal boot — no dialog** | Regular app launch with healthy data. | No "Data Reset" dialog appears. |
+| 18 | **Dialog after wipe** (requires file manipulation) | Corrupt a .hive file AND its backup (or delete backup). Launch app. | "Data Reset" dialog appears once, naming the affected data type. App is functional. |
+| 19 | **Dialog appears only once** | After seeing the dialog, close it. Navigate around the app. Force-close and reopen. | Dialog does NOT appear on second boot (data is now healthy). |
+
+### General Regression
+
+| # | Test Case | Steps | Expected Result |
+|---|-----------|-------|-----------------|
+| 20 | **Create token from database** | Search for "Angel", select, set quantity. | Token created on board. Correct count with multiplier. |
+| 21 | **Create custom token** | Use "Create Custom Token" button. Fill in name/P/T/abilities. | Custom token appears on board. |
+| 22 | **Token operations** | Tap/untap, add/remove, copy, +1/+1 counters, split stack. | All operations work as before. |
+| 23 | **Utilities** | Create tracker and toggle utilities. Interact with them. | Utilities function normally. |
+| 24 | **Save deck with utilities** | Create board with tokens + utilities. Save as deck. Load it back. | All items restored with correct order. |
+| 25 | **Summoning sickness** | Enable summoning sickness. Create creature token. | Summoning sickness indicator appears. Cleared correctly. |
