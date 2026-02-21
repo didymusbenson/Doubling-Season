@@ -19,6 +19,11 @@ class TokenProvider extends ChangeNotifier {
   // Cache for basic Goblin definition (loaded once per session)
   TokenDefinition? _basicGoblinCache;
 
+  // Cache for Academy Manufactor token definitions (loaded once per session)
+  TokenDefinition? _clueCache;
+  TokenDefinition? _foodCache;
+  TokenDefinition? _treasureCache;
+
   bool get initialized => _initialized;
   String? get errorMessage => _errorMessage;
 
@@ -699,6 +704,136 @@ class TokenProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       _errorMessage = 'Unexpected error while creating Goblin tokens: ${e.toString()}';
       debugPrint('TokenProvider.createKrenkoGoblins: Unexpected error. Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Creates Academy Manufactor tokens (Clue, Food, Treasure) with stacking behavior
+  ///
+  /// This method:
+  /// 1. Loads Clue, Food, Treasure definitions from token database (cached for performance)
+  /// 2. For each type: checks for existing matching stack without counters
+  /// 3. Either adds to existing stack or creates new stack at specified order
+  /// 4. Does NOT fire ETB events (these are artifacts without P/T)
+  ///
+  /// [amountPerType] - Number of tokens to create for each type
+  /// [summoningSicknessEnabled] - Whether summoning sickness is enabled (not applied to these artifacts)
+  /// [insertionOrder] - The order value for new tokens (should be calculated from all board items)
+  Future<void> createAcademyManufactorTokens(int amountPerType, bool summoningSicknessEnabled, double insertionOrder) async {
+    try {
+      if (amountPerType <= 0) {
+        debugPrint('TokenProvider.createAcademyManufactorTokens: No tokens to create (amount: $amountPerType)');
+        return;
+      }
+
+      // Step 1: Load token definitions from database (cached for performance)
+      if (_clueCache == null || _foodCache == null || _treasureCache == null) {
+        final jsonString = await rootBundle.loadString(AssetPaths.tokenDatabase);
+        final List<dynamic> jsonList = jsonDecode(jsonString);
+
+        if (_clueCache == null) {
+          final clueJson = jsonList.firstWhere(
+            (json) => (json['name'] as String) == 'Clue',
+            orElse: () => throw Exception('Clue not found in token database'),
+          );
+          _clueCache = TokenDefinition.fromJson(clueJson as Map<String, dynamic>);
+        }
+
+        if (_foodCache == null) {
+          final foodJson = jsonList.firstWhere(
+            (json) => (json['name'] as String) == 'Food',
+            orElse: () => throw Exception('Food not found in token database'),
+          );
+          _foodCache = TokenDefinition.fromJson(foodJson as Map<String, dynamic>);
+        }
+
+        if (_treasureCache == null) {
+          final treasureJson = jsonList.firstWhere(
+            (json) => (json['name'] as String) == 'Treasure',
+            orElse: () => throw Exception('Treasure not found in token database'),
+          );
+          _treasureCache = TokenDefinition.fromJson(treasureJson as Map<String, dynamic>);
+        }
+      }
+
+      // Step 2: Create each token type
+      final tokenTypes = [
+        ('Clue', _clueCache!),
+        ('Food', _foodCache!),
+        ('Treasure', _treasureCache!),
+      ];
+
+      double currentOrder = insertionOrder;
+
+      for (final (typeName, definition) in tokenTypes) {
+        // Check for existing matching stack without counters
+        final existingStack = items.firstWhere(
+          (item) {
+            final isMatching = item.name == definition.name &&
+                item.pt == definition.pt &&
+                item.colors == definition.colors &&
+                item.abilities == definition.abilities;
+
+            final hasNoCounters = item.plusOneCounters == 0 &&
+                item.minusOneCounters == 0 &&
+                item.counters.isEmpty;
+
+            return isMatching && hasNoCounters;
+          },
+          orElse: () => Item(name: '', pt: '', abilities: '', colors: '', type: ''), // Sentinel value
+        );
+
+        if (existingStack.name.isNotEmpty) {
+          // Add to existing stack
+          debugPrint('TokenProvider.createAcademyManufactorTokens: Adding $amountPerType $typeName to existing stack');
+          existingStack.amount += amountPerType;
+
+          // No summoning sickness for artifacts without P/T
+          await existingStack.save();
+
+          _errorMessage = null;
+          notifyListeners();
+          debugPrint('TokenProvider.createAcademyManufactorTokens: Successfully added $amountPerType $typeName to existing stack');
+        } else {
+          // Create new stack from database definition
+          debugPrint('TokenProvider.createAcademyManufactorTokens: Creating new $typeName stack with $amountPerType at order $currentOrder');
+
+          final newToken = Item(
+            name: definition.name,
+            pt: definition.pt,
+            abilities: definition.abilities,
+            colors: definition.colors,
+            type: definition.type,
+            amount: amountPerType,
+            tapped: 0,
+            summoningSick: 0, // Artifacts without P/T - no summoning sickness
+            order: currentOrder,
+            artworkUrl: definition.artwork.isNotEmpty ? definition.artwork.first.url : null,
+            artworkSet: definition.artwork.isNotEmpty ? definition.artwork.first.set : null,
+            artworkOptions: definition.artwork.isNotEmpty ? List.from(definition.artwork) : null,
+          );
+
+          // Use insertItemWithExplicitOrder to avoid overriding order
+          // and skip ETB events (these are artifacts, no P/T)
+          await _itemsBox.add(newToken);
+          _errorMessage = null;
+          notifyListeners();
+
+          currentOrder += 1.0;
+
+          debugPrint('TokenProvider.createAcademyManufactorTokens: Successfully created new stack with $amountPerType $typeName');
+        }
+      }
+    } on HiveError catch (e) {
+      _errorMessage = 'Database error while creating Academy Manufactor tokens: Changes could not be saved.';
+      debugPrint('TokenProvider.createAcademyManufactorTokens: HiveError. Error: ${e.message}');
+      notifyListeners();
+      rethrow;
+    } catch (e, stackTrace) {
+      _errorMessage = 'Unexpected error while creating Academy Manufactor tokens: ${e.toString()}';
+      debugPrint('TokenProvider.createAcademyManufactorTokens: Unexpected error. Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;

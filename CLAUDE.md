@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## User Communication Style
+
+- "fuck it we ball" = yes / confirmed / proceed
+
 ## Maintaining This Document
 
 **CRITICAL**: Claude must proactively maintain this file as a living document.
@@ -47,6 +51,9 @@ The app targets iOS, Android, Web, macOS, and Windows platforms using Flutter's 
 
 **Data model:**
 - `TrackerWidget` class (typeId: 6) - stores in `Box<TrackerWidget>('trackerWidgets')`
+  - Supports optional action button via `hasAction`, `actionButtonText`, `actionType` fields
+  - `actionType` string dispatches to the correct behavior (e.g., `'krenko_mob_boss'`, `'cathars_crusade'`, `'academy_manufactor'`)
+  - Commander-specific utilities (Krenko, Cathars' Crusade, Academy Manufactor) all use this model — no separate model per card
 - `ToggleWidget` class (typeId: 7) - stores in `Box<ToggleWidget>('toggleWidgets')`
 - DO NOT change typeIds or box names - breaks existing user data
 
@@ -346,8 +353,6 @@ The `docs/activeDevelopment/` directory preserves context between sessions so wo
 
 **Planned Features:**
 - See `docs/activeDevelopment/FeedbackIdeas.md` for user-requested features (-1/-1 Everything, combat tracking, condensed view, enhanced artwork)
-- See `docs/activeDevelopment/PremiumVersionIdeas.md` for planned paid features (Doubling Season toggle, Academy Manufactor, Chatterfang, Krenko, Brudiclad)
-- See `docs/activeDevelopment/commanderWidgets.md` for Commander Mode system design
 - See `docs/activeDevelopment/NextFeature.md` for current development focus
 
 ## Project Structure

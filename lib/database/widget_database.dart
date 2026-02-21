@@ -225,6 +225,21 @@ class WidgetDatabase extends ChangeNotifier {
           ArtworkVariant(set: 'SLD', url: 'https://cards.scryfall.io/large/front/3/e/3ebdc35c-019d-41d9-aff7-b317246aefb1.jpg?1744789847'),
         ],
       ),
+      WidgetDefinition(
+        id: 'academy_manufactor',
+        type: WidgetType.special,
+        name: 'Academy Manufactor',
+        description: 'Clue/Food/Treasure replacement',
+        colorIdentity: '', // Colorless
+        defaultValue: 1, // Start with 1 copy
+        hasAction: true,
+        actionButtonText: 'Make Tokens',
+        actionType: 'academy_manufactor',
+        artwork: [
+          ArtworkVariant(set: 'SLD', url: 'https://cards.scryfall.io/large/front/5/f/5f0d37b6-c092-439b-ba8e-e297ad35f155.jpg?1758777214'),
+          ArtworkVariant(set: 'MH2', url: 'https://cards.scryfall.io/large/front/b/6/b67c27f1-12d1-4c48-9e22-31c43a9ecbbc.jpg?1681082373'),
+        ],
+      ),
     ];
 
     _isLoaded = true;

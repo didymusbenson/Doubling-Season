@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' show pow;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/tracker_widget.dart';
@@ -99,7 +100,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
             );
           },
           child: Opacity(
-            opacity: 1.0, // Full opacity (matching TokenCard pattern for consistent swipe behavior)
+            opacity: (widget.tracker.actionType == 'academy_manufactor' && widget.tracker.currentValue <= 0) ? 0.4 : 1.0,
             child: LayoutBuilder(
               builder: (context, constraints) {
                 return Stack(
@@ -497,7 +498,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
       case 'cathars_crusade':
         _performCatharsCrusadeAction(context);
         break;
-      // Future action types can be added here
+      case 'academy_manufactor':
+        _performAcademyManufactorAction(context);
+        break;
       default:
         break;
     }
@@ -705,6 +708,75 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     }
 
     // Note: We DON'T reset the Cathar's counter - keep accumulating triggers
+  }
+
+  Future<void> _performAcademyManufactorAction(BuildContext context) async {
+    final tokenProvider = context.read<TokenProvider>();
+    final settingsProvider = context.read<SettingsProvider>();
+    final multiplier = settingsProvider.tokenMultiplier;
+
+    // Number of Academy Manufactor copies
+    final manufactorCount = widget.tracker.currentValue;
+
+    // At 0 copies, action is disabled
+    if (manufactorCount <= 0) return;
+
+    // Calculate tokens per type: multiplier * 3^(N-1)
+    final perType = multiplier * pow(3, manufactorCount - 1).toInt();
+
+    // Show confirmation dialog with breakdown
+    final shouldCreate = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Academy Manufactor'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Creating $perType Food, Treasure, and Clue tokens',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Academy Manufactors \u2014 $manufactorCount',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            Text(
+              'Token Multiplier \u2014 $multiplier',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldCreate != true) return;
+
+    // Calculate max order across ALL board items (tokens + trackers + toggles)
+    final trackerProvider = context.read<TrackerProvider>();
+    final toggleProvider = context.read<ToggleProvider>();
+    final allOrders = <double>[];
+    allOrders.addAll(tokenProvider.items.map((item) => item.order));
+    allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
+    allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
+    final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
+    final newOrder = maxOrder.floor() + 1.0;
+
+    // Create tokens using TokenProvider
+    await tokenProvider.createAcademyManufactorTokens(perType, settingsProvider.summoningSicknessEnabled, newOrder);
   }
 
   Widget _buildGradientLayer(BuildContext context) {
