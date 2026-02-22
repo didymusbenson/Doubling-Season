@@ -4,26 +4,77 @@
 **Priority:** Medium
 **Complexity:** Medium
 **Related:** FeedbackIdeas.md (Chatterfang Mode), PremiumVersionIdeas.md (Token Modifiers)
+**Last Updated:** February 2026
 
 ## Problem Statement
 
-Token creation logic is currently duplicated across multiple files, leading to bugs and inconsistency:
+Token creation logic is duplicated across multiple files, leading to bugs and inconsistency:
 
-**Current Duplication Locations:**
-1. `token_search_screen.dart` (lines 860-948) - Full implementation with artwork callbacks
-2. `tracker_widget_card.dart` (lines 605-727) - Krenko goblin creation (bug fixed Dec 2025)
-3. `deck_provider.dart` - Deck loading creates tokens from templates
-4. `token_provider.dart` - Copy token functionality
-5. `new_token_sheet.dart` - Custom token creation
+**Current Duplication Locations (verified Feb 2026):**
+1. `token_search_screen.dart` (lines ~834-948) - Full implementation with artwork preferences, background download, summoning sickness, ETB events
+2. `new_token_sheet.dart` (lines ~225-285) - Custom token creation with artwork prefs but NO background download
+3. `token_provider.dart:copyToken()` (lines ~287-373) - Uses `_itemsBox.add()` directly (bypasses insertItem), copies artwork from source
+4. `token_provider.dart:createScuteSwarmTokens()` (lines ~491-601) - Checks for existing stack, artwork from source/DB
+5. `token_provider.dart:createKrenkoGoblins()` (lines ~613-730) - Checks for existing goblin stack, DB lookup + download
+6. `token_provider.dart:createAcademyManufactorTokens()` (lines ~743-878) - Creates 3 artifact types, uses `_itemsBox.add()` directly (intentional: no ETB for artifacts)
+7. `load_deck_sheet.dart` (lines ~209-225) - Loads from templates via `insertItemWithExplicitOrder()`, no ETB (templates start at amount=0)
+8. `tracker_widget_card.dart` - UI calling layer for Krenko (lines ~509-581), Krenko Tin Street (~583-645), Academy Manufactor (~713-780). Computes order, delegates to provider methods.
 
 **Problems:**
 - **Inconsistent behavior:** Different flows handle artwork, summoning sickness, ETB events differently
 - **Bug risk:** Krenko goblins didn't show artwork until fixed (missing `.save()` callback after download)
-- **Maintenance burden:** Changes to token creation logic require updates in 5+ places
+- **Maintenance burden:** Changes to token creation logic require updates in 8+ places
 - **No extensibility:** Future features (Chatterfang, Doubling Season modifiers) would require changing all locations
 
 **Example Bug (Dec 2025):**
 Krenko goblin creation set `artworkUrl` but didn't trigger UI rebuild after download. Normal token creation had the callback logic. This wouldn't have happened with centralized creation.
+
+---
+
+## Current State of Relevant Infrastructure (Feb 2026)
+
+### Already Solved — Do NOT re-implement
+
+**Provider dependency injection:** All providers available via `context.read<>()` pattern. No circular dependency issues. Provider methods that need cross-provider access receive values as parameters from the calling UI layer (e.g., `insertionOrder` computed by the caller across all three item types).
+
+**GameEvents singleton:** `GameEvents.instance.notifyCreatureEntered(item, amount)` already wired up. Called by `insertItem()` automatically for creatures (line 104-106 of token_provider.dart). Specialized methods that use `_itemsBox.add()` directly skip this intentionally when appropriate (e.g., Academy Manufactor artifacts).
+
+**Session-scoped definition caches:** TokenProvider already caches frequently-used TokenDefinitions loaded from the JSON database:
+- `_scuteSwarmCache` — Scute Swarm definition
+- `_basicGoblinCache` — 1/1 red Goblin definition
+- `_clueCache` — Clue artifact definition
+- `_foodCache` — Food artifact definition
+- `_treasureCache` — Treasure artifact definition
+
+These are loaded on-demand via `rootBundle.loadString()` and reused for the session.
+
+**ArtworkPreferenceManager:** Works via `getPreferredArtwork(tokenIdentity)`. Used in `token_search_screen.dart` and `new_token_sheet.dart`.
+
+**`TokenDefinition.toItem()` signature** (token_definition.dart:74-86):
+```dart
+Item toItem({required int amount, required bool createTapped}) {
+  return Item(
+    name: name, pt: pt, abilities: abilities, colors: colors, type: type,
+    amount: amount,
+    tapped: createTapped ? amount : 0,
+    summoningSick: 0, // Caller must apply sickness AFTER insert
+    artworkOptions: artwork.isNotEmpty ? List.from(artwork) : null,
+  );
+}
+```
+Does NOT set `artworkUrl`, `artworkSet`, or `order` — all are caller's responsibility.
+
+### Consistency Table (Feb 2026)
+
+| Location | Handles Order | Handles Artwork | Handles Sickness | Handles ETB | Uses insertItem |
+|----------|:---:|:---:|:---:|:---:|:---:|
+| token_search_screen | Yes (explicit) | Yes (pref + download) | Yes (after insert) | Yes (via insertItem) | Yes |
+| new_token_sheet | Yes (explicit) | Yes (pref only, no download) | Yes (after insert) | Yes (via insertItem) | Yes |
+| copyToken | Yes (fractional) | Yes (copied from source) | Yes (computed) | No (uses _itemsBox.add) | No |
+| createScuteSwarmTokens | Yes (param) | Yes (source/DB) | Yes (new stack only) | Yes (insertItem or direct) | Mixed |
+| createKrenkoGoblins | Yes (param) | Yes (DB + download) | Yes | Yes (insertItem) | Yes |
+| createAcademyManufactorTokens | Yes (param) | Yes (DB + download) | No (artifacts) | No (intentional) | No |
+| load_deck_sheet | Yes (sequential) | Yes (from template) | No (amount=0) | No (amount=0) | Yes (explicit order) |
 
 ---
 
@@ -34,108 +85,90 @@ Krenko goblin creation set `artworkUrl` but didn't trigger UI rebuild after down
 Add a single, authoritative token creation method to `TokenProvider`:
 
 ```dart
-/// Creates and inserts a new token with all standard handling
+/// Creates and inserts a new token with all standard handling.
 ///
-/// Handles:
-/// - Order calculation across all board items
-/// - Artwork assignment (preferred or default)
-/// - Artwork options persistence
-/// - Background artwork download with callbacks
-/// - Summoning sickness application
-/// - ETB event firing (for Cathar's Crusade, etc.)
-/// - Provider notification
+/// Handles: order calculation, artwork assignment + background download,
+/// summoning sickness, ETB event firing, provider notification.
 ///
-/// Returns the created Item for further customization if needed
+/// Returns the created Item for further customization if needed.
 Future<Item> createToken({
   required TokenDefinition definition,
   required int amount,
+  required double insertionOrder,
+  required bool summoningSicknessEnabled,
   bool createTapped = false,
-  bool applySummoningSickness = true,
-  String? preferredArtworkUrl, // Optional: override default artwork selection
 }) async {
-  // 1. Calculate order
-  final newOrder = _calculateNextOrder();
-
-  // 2. Create item from definition
+  // 1. Create item from definition
   final newItem = definition.toItem(
     amount: amount,
     createTapped: createTapped,
   );
-  newItem.order = newOrder;
+  newItem.order = insertionOrder;
 
-  // 3. Assign artwork (check preferences, fallback to first)
-  _assignArtwork(newItem, definition, preferredArtworkUrl);
+  // 2. Assign artwork (check preferences via ArtworkPreferenceManager, fallback to first)
+  _assignArtwork(newItem, definition);
 
-  // 4. Insert into Hive (makes it visible immediately)
+  // 3. Insert into Hive (fires ETB automatically for creatures)
   await insertItem(newItem);
 
-  // 5. Apply summoning sickness if enabled
-  if (applySummoningSickness) {
-    _applySummoningSickness(newItem, amount);
+  // 4. Apply summoning sickness if enabled (MUST be after insert — setter calls .save())
+  if (summoningSicknessEnabled &&
+      newItem.hasPowerToughness &&
+      !newItem.hasHaste) {
+    newItem.summoningSick = amount;
   }
 
-  // 6. Download artwork in background (with rebuild callback)
+  // 5. Download artwork in background (with rebuild callback)
   _downloadArtworkInBackground(newItem);
-
-  // 7. Fire ETB event for listeners (Cathar's Crusade, etc.)
-  GameEvents.instance.notifyCreatureEntered(newItem, amount);
 
   return newItem;
 }
+```
 
-/// Internal: Calculate next order across tokens, trackers, toggles
-double _calculateNextOrder() {
-  final allOrders = <double>[];
-  allOrders.addAll(items.map((item) => item.order));
-  // Access other providers via context or injection (TBD)
-  allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
-  allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
+**Design decisions:**
+- `insertionOrder` is an explicit parameter (not computed internally) because order calculation requires cross-provider access that the caller already has via `context.read<>()`
+- `summoningSicknessEnabled` is explicit to avoid needing SettingsProvider access inside TokenProvider
+- No `preferredArtworkUrl` parameter — `_assignArtwork()` calls `ArtworkPreferenceManager` internally
+- `insertItem()` already fires ETB via GameEvents, so no separate ETB call needed
 
-  final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
-  return maxOrder.floor() + 1.0;
-}
+**Helper methods to extract:**
 
+```dart
 /// Internal: Assign artwork URL and set from definition or preferences
-void _assignArtwork(Item item, TokenDefinition definition, String? preferredUrl) {
-  // Check user preference via ArtworkPreferenceManager
-  // Fallback to first artwork in definition
-  // Handle file:// vs Scryfall URLs
-  // Store artworkUrl, artworkSet, artworkOptions on item
+void _assignArtwork(Item item, TokenDefinition definition) {
+  final artworkPrefManager = ArtworkPreferenceManager();
+  final tokenIdentity = definition.id; // 'name|pt|colors|type|abilities'
+  final preferredArtwork = artworkPrefManager.getPreferredArtwork(tokenIdentity);
+
+  if (preferredArtwork != null) {
+    item.artworkUrl = preferredArtwork.artworkUrl;
+    item.artworkSet = preferredArtwork.setCode;
+  } else if (definition.artwork.isNotEmpty) {
+    item.artworkUrl = definition.artwork.first;
+  }
 }
 
-/// Internal: Apply summoning sickness if conditions met
-void _applySummoningSickness(Item item, int amount) {
-  // Access SettingsProvider (via context or injection)
-  // Check: enabled && hasPowerToughness && !hasHaste
-  // Set item.summoningSick = amount
-}
-
-/// Internal: Download artwork with rebuild callback (matching TokenSearchScreen pattern)
+/// Internal: Download artwork with rebuild callback
 void _downloadArtworkInBackground(Item item) {
   if (item.artworkUrl == null || item.artworkUrl!.startsWith('file://')) {
-    return; // Skip custom artwork
+    return; // No artwork or custom local artwork — skip
   }
 
   final artworkUrl = item.artworkUrl!;
   ArtworkManager.downloadArtwork(artworkUrl).then((file) {
+    // Re-lookup item in case it was deleted during download
+    final currentItem = items.firstWhereOrNull((i) => i.artworkUrl == artworkUrl);
+    if (currentItem == null) return;
+
     if (file == null) {
-      // Download failed - reset artworkUrl
-      final currentItem = items.firstWhereOrNull((i) => i.artworkUrl == artworkUrl);
-      if (currentItem != null) {
-        currentItem.artworkUrl = null;
-        currentItem.artworkSet = null;
-        currentItem.save(); // Triggers rebuild
-      }
+      currentItem.artworkUrl = null;
+      currentItem.artworkSet = null;
+      currentItem.save();
     } else {
-      // Download succeeded - trigger rebuild
-      final currentItem = items.firstWhereOrNull((i) => i.artworkUrl == artworkUrl);
-      if (currentItem != null) {
-        currentItem.save(); // Triggers Hive save and notifies listeners
-      }
+      currentItem.save(); // Triggers Hive notification → UI rebuild
     }
   }).catchError((error) {
     debugPrint('Error during background artwork download: $error');
-    // Reset on error
     final currentItem = items.firstWhereOrNull((i) => i.artworkUrl == artworkUrl);
     if (currentItem != null) {
       currentItem.artworkUrl = null;
@@ -147,18 +180,17 @@ void _downloadArtworkInBackground(Item item) {
 ```
 
 **Migration Plan:**
-1. Implement `createToken()` in TokenProvider
-2. Refactor TokenSearchScreen to use new method
-3. Refactor Krenko actions to use new method
-4. Refactor deck loading to use new method
-5. Refactor copy token to use new method
-6. Refactor custom token creation to use new method
+1. Implement `createToken()` + helpers in TokenProvider
+2. Refactor `token_search_screen.dart` to use new method (highest-traffic path)
+3. Refactor `new_token_sheet.dart` to use new method
+4. Assess specialized methods (Krenko, Scute, Academy) — these have complex "merge into existing stack" logic that `createToken()` may not cover. Options:
+   a. Have specialized methods call `createToken()` for the "new stack" path internally
+   b. Keep specialized methods but extract shared helpers (`_assignArtwork`, `_downloadArtworkInBackground`) so logic is DRY without forcing a single entry point
+5. Refactor `copyToken()` to use `insertItem()` instead of `_itemsBox.add()` (align ETB behavior)
+6. Refactor `load_deck_sheet.dart` if applicable (may not benefit — templates have different needs)
 
-**Benefits:**
-- Single source of truth for token creation
-- All bugs fixed once
-- Consistent behavior everywhere
-- Easier to extend for future features
+**Open question for implementation:**
+The specialized creation methods (Krenko, Scute Swarm, Academy Manufactor) all have "check for existing stack and add to it" logic before deciding to create a new token. A single `createToken()` method can't easily handle this. **Recommended approach:** Extract the shared helpers and let specialized methods use them, rather than forcing everything through one entry point.
 
 ---
 
@@ -176,18 +208,12 @@ void _downloadArtworkInBackground(Item item) {
 Future<List<Item>> createTokens({
   required List<TokenCreationRequest> requests,
   bool applySummoningSickness = true,
-}) async {
-  // requests = [
-  //   TokenCreationRequest(definition: goblinDef, amount: 5),
-  //   TokenCreationRequest(definition: squirrelDef, amount: 5),
-  // ]
-}
+}) async { ... }
 
 class TokenCreationRequest {
   final TokenDefinition definition;
   final int amount;
   final bool createTapped;
-  // ... other overrides
 }
 ```
 
@@ -206,12 +232,10 @@ await tokenProvider.createTokenBatch(batch);
 ```dart
 Future<List<Item>> createTokensFromDefinitions({
   required List<TokenDefinition> definitions,
-  required List<int> amounts, // Must match definitions length
+  required List<int> amounts,
   bool createTapped = false,
   bool applySummoningSickness = true,
-}) async {
-  // Simpler but less flexible
-}
+}) async { ... }
 ```
 
 **Performance Considerations:**
@@ -234,6 +258,8 @@ Future<List<Item>> createTokensFromDefinitions({
 **Background:**
 Cards like Chatterfang, Doubling Season, Parallel Lives, Academy Manufactor, Mondrak modify token creation. These should be handled in the centralized creation logic.
 
+**Note (Feb 2026):** Academy Manufactor is currently implemented as a specialized TrackerWidget action (`actionType: 'academy_manufactor'`) with its own creation method in TokenProvider. If the modifier system is built, Academy Manufactor should be migrated to use it — but the current implementation works and ships.
+
 **Modifier Examples:**
 - **Chatterfang, Squirrel General:** "If one or more tokens would be created, create that many 1/1 black Squirrel tokens in addition to those tokens"
 - **Doubling Season:** "If an effect would create one or more tokens, it creates twice that many instead"
@@ -245,8 +271,6 @@ Cards like Chatterfang, Doubling Season, Parallel Lives, Academy Manufactor, Mon
 ### Modifier Registration System
 ```dart
 abstract class TokenModifier {
-  /// Modifies the token creation request before execution
-  /// Returns list of tokens to create (may add additional tokens)
   List<TokenCreationRequest> apply(TokenCreationRequest original);
 }
 
@@ -254,7 +278,7 @@ class ChatterfangModifier extends TokenModifier {
   @override
   List<TokenCreationRequest> apply(TokenCreationRequest original) {
     return [
-      original, // Original tokens
+      original,
       TokenCreationRequest(
         definition: squirrelDefinition,
         amount: original.amount,
@@ -267,75 +291,8 @@ class ChatterfangModifier extends TokenModifier {
 class DoublingSeasonModifier extends TokenModifier {
   @override
   List<TokenCreationRequest> apply(TokenCreationRequest original) {
-    return [
-      original.copyWith(amount: original.amount * 2),
-    ];
+    return [original.copyWith(amount: original.amount * 2)];
   }
-}
-
-class AcademyManufactorModifier extends TokenModifier {
-  @override
-  List<TokenCreationRequest> apply(TokenCreationRequest original) {
-    // Only applies to Clue, Food, Treasure
-    if (!_isArtifactToken(original.definition)) {
-      return [original];
-    }
-
-    return [
-      TokenCreationRequest(definition: clueDef, amount: original.amount),
-      TokenCreationRequest(definition: foodDef, amount: original.amount),
-      TokenCreationRequest(definition: treasureDef, amount: original.amount),
-    ];
-  }
-}
-```
-
-### Modified Creation Method
-```dart
-Future<List<Item>> createToken({
-  required TokenDefinition definition,
-  required int amount,
-  // ... other params
-}) async {
-  // 1. Create initial request
-  var request = TokenCreationRequest(
-    definition: definition,
-    amount: amount,
-    createTapped: createTapped,
-  );
-
-  // 2. Apply active modifiers (from toggle widgets or global state)
-  List<TokenCreationRequest> requests = [request];
-  for (final modifier in _activeModifiers) {
-    requests = requests.expand((req) => modifier.apply(req)).toList();
-  }
-
-  // 3. Create all tokens from modified requests
-  final createdTokens = <Item>[];
-  for (final req in requests) {
-    final token = await _createTokenInternal(req);
-    createdTokens.add(token);
-  }
-
-  return createdTokens;
-}
-
-List<TokenModifier> get _activeModifiers {
-  // Check toggle widgets for active modifiers
-  // Example: If Chatterfang toggle is ON, include ChatterfangModifier
-  final modifiers = <TokenModifier>[];
-
-  // Access ToggleProvider (via context or injection)
-  for (final toggle in toggleProvider.toggles) {
-    if (toggle.isActive) {
-      final modifier = _modifierForToggle(toggle);
-      if (modifier != null) {
-        modifiers.add(modifier);
-      }
-    }
-  }
-
-  return modifiers;
 }
 ```
 
@@ -344,18 +301,6 @@ List<TokenModifier> get _activeModifiers {
 // In ToggleWidget model - add modifier type field
 @HiveField(14, defaultValue: null)
 String? modifierType; // 'chatterfang', 'doubling_season', 'academy_manufactor'
-
-// In WidgetDefinition
-WidgetDefinition(
-  id: 'chatterfang',
-  type: WidgetType.toggle,
-  name: 'Chatterfang Mode',
-  description: 'Create matching Squirrel tokens',
-  offDescription: 'Chatterfang inactive',
-  colorIdentity: 'BG',
-  modifierType: 'chatterfang', // NEW - links toggle to modifier
-  artwork: [...],
-)
 ```
 
 **Multiplier vs Modifier Distinction:**
@@ -364,12 +309,10 @@ WidgetDefinition(
 - Both can be active simultaneously: "Create 1 Goblin with 2x multiplier and Chatterfang ON" → Creates 2 Goblins + 2 Squirrels
 
 **Open Questions:**
-1. Should modifiers apply to modifiers? (Chatterfang creates Squirrels → Does Doubling Season double the Squirrels?)
-   - MTG ruling: YES (modifiers stack and can create infinite loops in some cases)
-2. How to handle modifier ordering? (Doubling Season → Chatterfang vs Chatterfang → Doubling Season may differ)
-   - MTG ruling: Player chooses order for modifiers they control
-3. Should we show a preview before creating modified tokens? ("This will create 4 Goblins + 4 Squirrels. Continue?")
-4. How to prevent infinite modifier loops? (Some MTG card combos can create unbounded tokens)
+1. Should modifiers apply to modifiers? (MTG ruling: YES — modifiers stack)
+2. How to handle modifier ordering? (MTG ruling: Player chooses order)
+3. Should we show a preview before creating modified tokens?
+4. How to prevent infinite modifier loops?
 5. Should modifiers be premium features or free?
 
 ---
@@ -377,19 +320,16 @@ WidgetDefinition(
 ## Implementation Checklist
 
 ### Phase 1: Centralized Creation
-- [ ] Design `createToken()` API in TokenProvider
-- [ ] Implement order calculation helper
-- [ ] Implement artwork assignment helper
-- [ ] Implement summoning sickness helper
-- [ ] Implement background download helper
-- [ ] Add unit tests for createToken()
-- [ ] Refactor TokenSearchScreen to use createToken()
-- [ ] Refactor Krenko actions to use createToken()
-- [ ] Refactor deck loading to use createToken()
-- [ ] Refactor copy token to use createToken()
-- [ ] Refactor custom token creation to use createToken()
-- [ ] Remove duplicated code from all old locations
-- [ ] Test all token creation flows
+- [ ] Cache `items` getter with sorted list invalidation (add `_invalidateCache()` calls to insertItem, deleteItem, updateItem, etc.)
+- [ ] Implement `_assignArtwork()` helper in TokenProvider
+- [ ] Implement `_downloadArtworkInBackground()` helper in TokenProvider
+- [ ] Implement `createToken()` using helpers + existing `insertItem()`
+- [ ] Refactor `token_search_screen.dart` to use `createToken()`
+- [ ] Refactor `new_token_sheet.dart` to use `createToken()`
+- [ ] Refactor `copyToken()` to use `insertItem()` instead of `_itemsBox.add()`
+- [ ] Update Krenko/Scute/Academy specialized methods to use `_assignArtwork()` and `_downloadArtworkInBackground()` helpers
+- [ ] Remove duplicated artwork/sickness logic from old locations
+- [ ] Test all token creation flows (search, custom, copy, Krenko, Scute, Academy, deck load)
 
 ### Phase 2: Batch Creation (Investigation)
 - [ ] Research Hive batch insert performance
@@ -400,22 +340,18 @@ WidgetDefinition(
 - [ ] Design error handling strategy
 - [ ] Implement batch creation method
 - [ ] Refactor deck loading to use batch creation
-- [ ] Add progress callbacks if needed
 - [ ] Test with large batches (1000+ tokens)
 
 ### Phase 3: Token Modifiers (Future)
 - [ ] Design TokenModifier abstract class
 - [ ] Implement ChatterfangModifier
 - [ ] Implement DoublingSeasonModifier
-- [ ] Implement AcademyManufactorModifier
+- [ ] Migrate AcademyManufactorModifier from current TrackerWidget action
 - [ ] Add `modifierType` field to ToggleWidget (Hive migration)
-- [ ] Update WidgetDefinition to include modifierType
-- [ ] Implement modifier registration system
-- [ ] Update createToken() to apply modifiers
+- [ ] Update `createToken()` to apply modifiers
 - [ ] Handle modifier stacking rules
 - [ ] Add modifier preview dialog
 - [ ] Test modifier combinations
-- [ ] Add to PremiumVersionIdeas.md if premium feature
 
 ---
 
@@ -423,54 +359,20 @@ WidgetDefinition(
 
 **Required Providers:**
 - TokenProvider (owns creation logic)
-- SettingsProvider (summoning sickness, multiplier)
-- TrackerProvider (order calculation)
-- ToggleProvider (order calculation, future modifiers)
-- ArtworkPreferenceManager (preferred artwork)
+- SettingsProvider (summoning sickness — passed as parameter, not injected)
+- TrackerProvider (order calculation — caller computes via context.read)
+- ToggleProvider (order calculation — caller computes via context.read)
+- ArtworkPreferenceManager (preferred artwork — called internally by helper)
 
-**Design Decision Needed:**
-How should TokenProvider access other providers? Options:
-1. Pass providers as constructor params (dependency injection)
-2. Access via context (requires BuildContext in createToken)
-3. Use global provider instance (via Provider.of without context)
-4. Event bus / pub-sub pattern
-
-**Recommendation:** Investigate dependency injection pattern used elsewhere in codebase.
-
----
-
-## Testing Strategy
-
-**Unit Tests:**
-- createToken() with various TokenDefinitions
-- Order calculation with empty board
-- Order calculation with mixed items (tokens + trackers + toggles)
-- Artwork assignment with preferences
-- Artwork assignment without preferences
-- Summoning sickness application conditions
-- Error handling for failed artwork downloads
-
-**Integration Tests:**
-- Create token via TokenSearchScreen → Verify UI updates
-- Create token via Krenko → Verify artwork loads
-- Load deck with 10 tokens → Verify batch performance
-- Apply Chatterfang modifier → Verify squirrels created
-- Stack modifiers (Chatterfang + Doubling Season) → Verify correct count
-
-**Performance Tests:**
-- Create 1000 tokens individually → Measure time
-- Create 1000 tokens in batch → Measure time
-- Compare batch vs individual performance
-- Memory usage during batch creation
-- UI responsiveness during large batch
+**Provider access pattern (solved):** Callers use `context.read<>()` to gather cross-provider values (like insertion order), then pass them as parameters to TokenProvider methods. This avoids circular dependencies and keeps TokenProvider independent.
 
 ---
 
 ## References
 
-- **Current Implementation:** `lib/screens/token_search_screen.dart:860-948` (gold standard)
-- **Bug Example:** `lib/widgets/tracker_widget_card.dart:605-727` (Krenko, fixed Dec 2025)
+- **Current gold standard:** `lib/screens/token_search_screen.dart:834-948`
+- **Bug example:** `lib/widgets/tracker_widget_card.dart` (Krenko artwork fix, Dec 2025)
+- **Specialized methods:** `lib/providers/token_provider.dart` (createScuteSwarmTokens, createKrenkoGoblins, createAcademyManufactorTokens)
+- **Definition model:** `lib/models/token_definition.dart:74-86` (toItem signature)
 - **Related Docs:** `docs/activeDevelopment/FeedbackIdeas.md` (Chatterfang request)
-- **Related Docs:** `docs/activeDevelopment/PremiumVersionIdeas.md` (Token modifier features)
-- **MTG Rules:** Comprehensive Rules 701.6 (Token creation)
-- **MTG Rules:** Comprehensive Rules 614 (Replacement effects - modifiers)
+- **MTG Rules:** Comprehensive Rules 701.6 (Token creation), 614 (Replacement effects)
