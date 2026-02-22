@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/item.dart';
 import '../models/token_definition.dart';
+import '../utils/artwork_manager.dart';
 import '../utils/constants.dart';
 import '../utils/game_events.dart';
 
@@ -694,6 +695,24 @@ class TokenProvider extends ChangeNotifier {
         // insertItem handles ETB events and notifyListeners automatically
         await insertItem(newGoblin);
 
+        // Download artwork in background (fire-and-forget)
+        if (newGoblin.artworkUrl != null && !newGoblin.artworkUrl!.startsWith('file://')) {
+          final artworkUrl = newGoblin.artworkUrl!;
+          ArtworkManager.downloadArtwork(artworkUrl).then((file) {
+            if (file == null) {
+              debugPrint('TokenProvider.createKrenkoGoblins: Artwork download failed, resetting URL');
+              newGoblin.updateArtwork(url: null, set: null, options: newGoblin.artworkOptions);
+            } else {
+              debugPrint('TokenProvider.createKrenkoGoblins: Artwork downloaded');
+              newGoblin.artworkUrl = 'file://${file.path}';
+              newGoblin.save();
+              notifyListeners();
+            }
+          }).catchError((error) {
+            debugPrint('TokenProvider.createKrenkoGoblins: Artwork download error: $error');
+          });
+        }
+
         debugPrint('TokenProvider.createKrenkoGoblins: Successfully created new stack with $amount Goblins (${goblinDefinition.artwork.length} artwork options available)');
       }
     } on HiveError catch (e) {
@@ -815,11 +834,29 @@ class TokenProvider extends ChangeNotifier {
             artworkOptions: definition.artwork.isNotEmpty ? List.from(definition.artwork) : null,
           );
 
-          // Use insertItemWithExplicitOrder to avoid overriding order
+          // Use _itemsBox.add directly to avoid overriding order
           // and skip ETB events (these are artifacts, no P/T)
           await _itemsBox.add(newToken);
           _errorMessage = null;
           notifyListeners();
+
+          // Download artwork in background (fire-and-forget)
+          if (newToken.artworkUrl != null && !newToken.artworkUrl!.startsWith('file://')) {
+            final artworkUrl = newToken.artworkUrl!;
+            ArtworkManager.downloadArtwork(artworkUrl).then((file) {
+              if (file == null) {
+                debugPrint('TokenProvider.createAcademyManufactorTokens: Artwork download failed for $typeName, resetting URL');
+                newToken.updateArtwork(url: null, set: null, options: newToken.artworkOptions);
+              } else {
+                debugPrint('TokenProvider.createAcademyManufactorTokens: Artwork downloaded for $typeName');
+                newToken.artworkUrl = 'file://${file.path}';
+                newToken.save();
+                notifyListeners();
+              }
+            }).catchError((error) {
+              debugPrint('TokenProvider.createAcademyManufactorTokens: Artwork download error for $typeName: $error');
+            });
+          }
 
           currentOrder += 1.0;
 
