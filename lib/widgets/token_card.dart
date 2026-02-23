@@ -248,7 +248,9 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
                           const SizedBox(width: UIConstants.verticalSpacing),
                           Text(
                             '${widget.item.summoningSick}',
-                            style: Theme.of(context).textTheme.titleLarge,
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           const SizedBox(width: UIConstants.mediumSpacing),
                         ],
@@ -256,14 +258,18 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
                         const SizedBox(width: UIConstants.verticalSpacing),
                         Text(
                           '${widget.item.amount - widget.item.tapped}',
-                          style: Theme.of(context).textTheme.titleLarge,
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         const SizedBox(width: UIConstants.mediumSpacing),
                         const Icon(Icons.screen_rotation, size: UIConstants.iconSize),
                         const SizedBox(width: UIConstants.verticalSpacing),
                         Text(
                           '${widget.item.tapped}',
-                          style: Theme.of(context).textTheme.titleLarge,
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
