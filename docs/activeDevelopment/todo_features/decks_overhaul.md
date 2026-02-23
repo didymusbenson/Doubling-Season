@@ -206,6 +206,39 @@ Refactor `TokenSearchScreen` and `WidgetSelectionScreen` into pure selectors tha
 
 ---
 
+## Debug Logging
+
+Follow the existing `debugPrint('ComponentName: message')` pattern used throughout the codebase (see `hive_setup.dart`, `TrackerProvider`, `DatabaseMaintenance` for examples). Include error + stack trace on all catch blocks.
+
+**Migration (DeckProvider or hive_setup):**
+- Log when migrated decks are detected (null `colorIdentity` / default `order`)
+- Log each deck's auto-detected color identity during migration
+- Log count of decks migrated and any that failed
+
+**Save flow:**
+- Log deck creation with name and template count
+- Log dedup results (how many board items collapsed into how many templates)
+- Log color auto-detection result
+
+**Load flow:**
+- Log which deck is being loaded and which mode (clear & load vs. add to board)
+- Log template count being loaded
+
+**Export / Import:**
+- Log export: deck name, template count, schema version written
+- Log import: file picked, schema version found, validation pass/fail
+- Log import failure reason (malformed JSON, unknown schema version, etc.)
+- Log auto-rename if import triggered duplicate name resolution
+
+**Sharing:**
+- Log share invocation with deck name
+
+**Deck editing:**
+- Log bulk delete (count of items removed)
+- Log reorder compaction when triggered
+
+---
+
 ## Code Removal
 
 - **Delete:** `lib/widgets/load_deck_sheet.dart` — new Decks screen replaces it entirely
