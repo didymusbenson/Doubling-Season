@@ -1,0 +1,699 @@
+import 'dart:convert' show utf8;
+import 'dart:io' show File, Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:gradient_borders/gradient_borders.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:file_picker/file_picker.dart';
+import '../models/deck.dart';
+import '../models/item.dart';
+import '../models/token_template.dart';
+import '../models/tracker_widget.dart';
+import '../models/toggle_widget.dart';
+import '../models/tracker_widget_template.dart';
+import '../models/toggle_widget_template.dart';
+import '../providers/deck_provider.dart';
+import '../providers/token_provider.dart';
+import '../providers/tracker_provider.dart';
+import '../providers/toggle_provider.dart';
+import '../utils/constants.dart';
+import '../utils/color_utils.dart';
+import '../widgets/deck_save_sheet.dart';
+import 'deck_detail_screen.dart';
+
+// FUTURE: Support importing from a list of card names.
+// Cards can be reverse-looked-up in token_database.json to find
+// which tokens they create. This enables importing decklists from
+// external sources (Moxfield, Archidekt, etc.) and auto-populating
+// the required token templates. See decks_overhaul.md for details.
+
+class DecksListScreen extends StatefulWidget {
+  const DecksListScreen({super.key});
+
+  @override
+  State<DecksListScreen> createState() => _DecksListScreenState();
+}
+
+class _DecksListScreenState extends State<DecksListScreen> {
+  bool _editMode = false;
+  final Set<int> _selectedIndices = {};
+
+  bool get _isMobilePlatform {
+    if (kIsWeb) return false;
+    return Platform.isIOS || Platform.isAndroid;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final deckProvider = context.read<DeckProvider>();
+
+    return Scaffold(
+      appBar: AppBar(
+        leadingWidth: 96,
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.arrow_back),
+              tooltip: 'Back',
+            ),
+            IconButton(
+              onPressed: () => _showSaveSheet(context),
+              icon: const Icon(Icons.save),
+              tooltip: 'Save current board as deck',
+            ),
+          ],
+        ),
+        title: const Text('Decks'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(_editMode ? Icons.done : Icons.edit),
+            onPressed: () {
+              setState(() {
+                _editMode = !_editMode;
+                if (!_editMode) _selectedIndices.clear();
+              });
+            },
+            tooltip: _editMode ? 'Done' : 'Edit',
+          ),
+          if (_isMobilePlatform)
+            IconButton(
+              icon: const Icon(Icons.file_download),
+              onPressed: () => _importDeck(context),
+              tooltip: 'Import',
+            ),
+        ],
+      ),
+      body: ValueListenableBuilder(
+        valueListenable: deckProvider.listenable,
+        builder: (context, box, _) {
+          final deckList = deckProvider.decks;
+
+          if (deckList.isEmpty) {
+            return _buildEmptyState();
+          }
+
+          return _buildDeckList(deckList);
+        },
+      ),
+      bottomNavigationBar: _editMode && _selectedIndices.isNotEmpty
+          ? SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: ElevatedButton.icon(
+                  onPressed: () => _bulkDelete(context),
+                  icon: const Icon(Icons.delete),
+                  label: Text('Delete ${_selectedIndices.length} deck${_selectedIndices.length == 1 ? '' : 's'}'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            )
+          : null,
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.folder_open, size: 60, color: Colors.grey.shade400),
+          const SizedBox(height: 20),
+          Text(
+            'No saved decks',
+            style: TextStyle(fontSize: 18, color: Colors.grey.shade500),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tap "Save" to save your current board as a deck',
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeckList(List<Deck> deckList) {
+    return ReorderableListView.builder(
+      itemCount: deckList.length,
+      padding: const EdgeInsets.only(
+        top: UIConstants.listTopPadding,
+        left: UIConstants.smallPadding,
+        right: UIConstants.smallPadding,
+        bottom: UIConstants.listBottomPadding,
+      ),
+      onReorder: (oldIndex, newIndex) {
+        context.read<DeckProvider>().reorderDecks(oldIndex, newIndex);
+      },
+      itemBuilder: (context, index) {
+        final deck = deckList[index];
+        return _buildDeckCard(deck, index);
+      },
+    );
+  }
+
+  /// Builds a deck card with the gradient border as the outermost element.
+  /// This matches the content_screen.dart pattern where the border Container
+  /// is the keyed widget returned to ReorderableListView, ensuring the gradient
+  /// border wraps the entire drag proxy during reorder.
+  Widget _buildDeckCard(Deck deck, int index) {
+    const borderWidth = 3.0;
+    final innerBorderRadius = UIConstants.borderRadius - borderWidth;
+    final colorIdentity = deck.colorIdentity ?? '';
+
+    return Container(
+      key: ValueKey('deck_${deck.key}'),
+      margin: const EdgeInsets.symmetric(vertical: UIConstants.verticalSpacing),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(UIConstants.borderRadius),
+        border: GradientBoxBorder(
+          gradient: ColorUtils.gradientForColors(colorIdentity),
+          width: borderWidth,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(innerBorderRadius),
+        child: Material(
+          color: Theme.of(context).cardColor,
+          child: InkWell(
+            onTap: _editMode ? null : () => _showDeckOptions(context, deck),
+            borderRadius: BorderRadius.circular(innerBorderRadius),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          deck.name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _buildSubtitle(deck),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_editMode)
+                    Checkbox(
+                      value: _selectedIndices.contains(index),
+                      onChanged: (value) {
+                        setState(() {
+                          if (value == true) {
+                            _selectedIndices.add(index);
+                          } else {
+                            _selectedIndices.remove(index);
+                          }
+                        });
+                      },
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _buildSubtitle(Deck deck) {
+    final utilityCount = (deck.trackerWidgets?.length ?? 0) + (deck.toggleWidgets?.length ?? 0);
+
+    if (deck.templates.isEmpty && utilityCount == 0) {
+      return 'Empty deck';
+    }
+
+    final parts = <String>[];
+    if (deck.templates.isNotEmpty) {
+      final names = deck.templates.map((t) => t.name).toSet().toList();
+      if (names.length <= 3) {
+        parts.add(names.join(', '));
+      } else {
+        parts.add('${names.take(3).join(', ')}, and ${names.length - 3} others');
+      }
+    }
+    if (utilityCount > 0) {
+      parts.add('$utilityCount ${utilityCount == 1 ? 'utility' : 'utilities'}');
+    }
+    return parts.join(' + ');
+  }
+
+  void _showDeckOptions(BuildContext context, Deck deck) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(sheetContext).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+          child: SafeArea(
+            minimum: const EdgeInsets.only(bottom: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    const Icon(Icons.style, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        deck.name,
+                        style: Theme.of(sheetContext).textTheme.headlineSmall,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(sheetContext),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                _buildOptionTile(
+                  context: sheetContext,
+                  icon: Icons.play_arrow,
+                  label: 'Clear board and load',
+                  color: Colors.green,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _loadDeckClearBoard(context, deck);
+                  },
+                ),
+                const SizedBox(height: 4),
+                _buildOptionTile(
+                  context: sheetContext,
+                  icon: Icons.add,
+                  label: 'Add to current board',
+                  color: Colors.blue,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _loadDeckAddToBoard(context, deck);
+                  },
+                ),
+                const SizedBox(height: 4),
+                _buildOptionTile(
+                  context: sheetContext,
+                  icon: Icons.edit,
+                  label: 'Edit deck',
+                  color: Colors.orange,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => DeckDetailScreen(deck: deck),
+                        fullscreenDialog: true,
+                      ),
+                    );
+                  },
+                ),
+                if (_isMobilePlatform) ...[
+                  const SizedBox(height: 4),
+                  _buildOptionTile(
+                    context: sheetContext,
+                    icon: Icons.share,
+                    label: 'Share',
+                    color: Colors.teal,
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _shareDeck(context, deck);
+                    },
+                  ),
+                ],
+                const SizedBox(height: 4),
+                _buildOptionTile(
+                  context: sheetContext,
+                  icon: Icons.copy,
+                  label: 'Duplicate',
+                  color: Colors.purple,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    context.read<DeckProvider>().duplicateDeck(deck);
+                  },
+                ),
+                const SizedBox(height: 4),
+                _buildOptionTile(
+                  context: sheetContext,
+                  icon: Icons.delete,
+                  label: 'Delete',
+                  color: Colors.red,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _confirmDelete(context, deck);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Matches the FAB menu's _buildActionTile visual pattern
+  Widget _buildOptionTile({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Theme.of(context).cardColor,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: Theme.of(context).textTheme.bodySmall?.color,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _loadDeckClearBoard(BuildContext context, Deck deck) async {
+    final deckProvider = context.read<DeckProvider>();
+    final tokenProvider = context.read<TokenProvider>();
+    final trackerProvider = context.read<TrackerProvider>();
+    final toggleProvider = context.read<ToggleProvider>();
+
+    await deckProvider.loadDeckClearBoard(deck, tokenProvider, trackerProvider, toggleProvider);
+
+    if (context.mounted) {
+      Navigator.pop(context); // Pop back to board
+    }
+  }
+
+  Future<void> _loadDeckAddToBoard(BuildContext context, Deck deck) async {
+    final deckProvider = context.read<DeckProvider>();
+    final tokenProvider = context.read<TokenProvider>();
+    final trackerProvider = context.read<TrackerProvider>();
+    final toggleProvider = context.read<ToggleProvider>();
+
+    await deckProvider.loadDeckAddToBoard(deck, tokenProvider, trackerProvider, toggleProvider);
+
+    if (context.mounted) {
+      Navigator.pop(context); // Pop back to board
+    }
+  }
+
+  Future<void> _shareDeck(BuildContext context, Deck deck) async {
+    try {
+      final deckProvider = context.read<DeckProvider>();
+      final json = await deckProvider.exportDeckToJson(deck);
+
+      // Sanitize filename
+      final safeName = deck.name.replaceAll(RegExp(r'[^\w\s-]'), '').trim();
+      final fileName = '$safeName.json';
+
+      debugPrint('DeckProvider: Sharing deck "${deck.name}"');
+
+      await Share.shareXFiles(
+        [XFile.fromData(
+          utf8.encode(json),
+          name: fileName,
+          mimeType: 'application/json',
+        )],
+        subject: deck.name,
+      );
+    } catch (e) {
+      debugPrint('DeckProvider: Share failed - $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to share deck: $e')),
+        );
+      }
+    }
+  }
+
+  void _confirmDelete(BuildContext context, Deck deck) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Deck'),
+        content: Text('Delete "${deck.name}"?\n\nThis cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              context.read<DeckProvider>().deleteDeck(deck);
+              Navigator.pop(dialogContext);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _bulkDelete(BuildContext context) {
+    final deckProvider = context.read<DeckProvider>();
+    final deckList = deckProvider.decks;
+    final count = _selectedIndices.length;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Decks'),
+        content: Text('Delete $count deck${count == 1 ? '' : 's'}?\n\nThis cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              // Collect decks to delete (by index, sorted descending to avoid index shifting)
+              final sorted = _selectedIndices.toList()..sort((a, b) => b.compareTo(a));
+              for (final idx in sorted) {
+                if (idx < deckList.length) {
+                  deckProvider.deleteDeck(deckList[idx]);
+                }
+              }
+              debugPrint('DeckProvider: Bulk deleted $count decks');
+              _selectedIndices.clear();
+              Navigator.pop(dialogContext);
+              setState(() {
+                _editMode = false;
+              });
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSaveSheet(BuildContext context) {
+    final tokenProvider = context.read<TokenProvider>();
+    final trackerProvider = context.read<TrackerProvider>();
+    final toggleProvider = context.read<ToggleProvider>();
+    final deckProvider = context.read<DeckProvider>();
+
+    // Auto-detect colors from the board
+    final boardColors = <String>{};
+    for (final item in tokenProvider.items) {
+      for (int i = 0; i < item.colors.length; i++) {
+        if ('WUBRG'.contains(item.colors[i])) {
+          boardColors.add(item.colors[i]);
+        }
+      }
+    }
+    for (final tracker in trackerProvider.trackers) {
+      for (int i = 0; i < tracker.colorIdentity.length; i++) {
+        if ('WUBRG'.contains(tracker.colorIdentity[i])) {
+          boardColors.add(tracker.colorIdentity[i]);
+        }
+      }
+    }
+    for (final toggle in toggleProvider.toggles) {
+      for (int i = 0; i < toggle.colorIdentity.length; i++) {
+        if ('WUBRG'.contains(toggle.colorIdentity[i])) {
+          boardColors.add(toggle.colorIdentity[i]);
+        }
+      }
+    }
+
+    // Build WUBRG-ordered string
+    final suggestedColors = StringBuffer();
+    for (final c in ['W', 'U', 'B', 'R', 'G']) {
+      if (boardColors.contains(c)) suggestedColors.write(c);
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => DeckSaveSheet(suggestedColors: suggestedColors.toString()),
+    ).then((result) {
+      if (result == null || result is! DeckSaveResult) return;
+
+      // Collect all board items with their orders
+      final allBoardItems = <_BoardItemForSave>[];
+
+      for (final item in tokenProvider.items) {
+        allBoardItems.add(_BoardItemForSave(item, item.order, 'token'));
+      }
+      for (final tracker in trackerProvider.trackers) {
+        allBoardItems.add(_BoardItemForSave(tracker, tracker.order, 'tracker'));
+      }
+      for (final toggle in toggleProvider.toggles) {
+        allBoardItems.add(_BoardItemForSave(toggle, toggle.order, 'toggle'));
+      }
+
+      allBoardItems.sort((a, b) => a.order.compareTo(b.order));
+
+      // Dedup tokens on name|pt|colors|type|abilities|artworkUrl
+      final Map<String, bool> seenTokens = {};
+      final List<TokenTemplate> templates = [];
+      final List<TrackerWidgetTemplate> trackerTemplates = [];
+      final List<ToggleWidgetTemplate> toggleTemplates = [];
+
+      int normalizedIndex = 0;
+      for (final boardItem in allBoardItems) {
+        if (boardItem.type == 'token') {
+          final item = boardItem.item as Item;
+          final key = '${item.name}|${item.pt}|${item.colors}|${item.type}|${item.abilities}|${item.artworkUrl}';
+          if (!seenTokens.containsKey(key)) {
+            seenTokens[key] = true;
+            final template = TokenTemplate.fromItem(item);
+            template.order = normalizedIndex.toDouble();
+            templates.add(template);
+            normalizedIndex++;
+          }
+        } else if (boardItem.type == 'tracker') {
+          final tracker = boardItem.item as TrackerWidget;
+          final template = TrackerWidgetTemplate.fromWidget(tracker);
+          template.order = normalizedIndex.toDouble();
+          trackerTemplates.add(template);
+          normalizedIndex++;
+        } else if (boardItem.type == 'toggle') {
+          final toggle = boardItem.item as ToggleWidget;
+          final template = ToggleWidgetTemplate.fromWidget(toggle);
+          template.order = normalizedIndex.toDouble();
+          toggleTemplates.add(template);
+          normalizedIndex++;
+        }
+      }
+
+      final dedupCount = tokenProvider.items.length - templates.length;
+      debugPrint('DeckProvider: Save dedup - ${tokenProvider.items.length} board tokens collapsed into ${templates.length} templates ($dedupCount duplicates removed)');
+      debugPrint('DeckProvider: Save color auto-detection result: ${suggestedColors.toString()}, user selected: ${result.colorIdentity}');
+
+      final deck = Deck(
+        name: result.name,
+        templates: templates,
+        trackerWidgets: trackerTemplates.isEmpty ? null : trackerTemplates,
+        toggleWidgets: toggleTemplates.isEmpty ? null : toggleTemplates,
+        colorIdentity: result.colorIdentity,
+      );
+      deckProvider.saveDeck(deck);
+    });
+  }
+
+  Future<void> _importDeck(BuildContext context) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json', 'tsdeck'],
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+      String? jsonString;
+
+      if (file.bytes != null) {
+        jsonString = utf8.decode(file.bytes!);
+      } else if (file.path != null) {
+        final fileObj = File(file.path!);
+        jsonString = await fileObj.readAsString();
+      }
+
+      if (jsonString == null) {
+        throw Exception('Could not read file');
+      }
+
+      debugPrint('DeckProvider: Import - file picked: ${file.name}');
+
+      if (context.mounted) {
+        await context.read<DeckProvider>().importDeckFromJson(jsonString);
+      }
+    } catch (e) {
+      debugPrint('DeckProvider: Import failed - $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to import deck: $e')),
+        );
+      }
+    }
+  }
+}
+
+/// Helper class for preserving exact order when saving decks
+class _BoardItemForSave {
+  final dynamic item;
+  final double order;
+  final String type;
+
+  _BoardItemForSave(this.item, this.order, this.type);
+}
+

@@ -17,7 +17,12 @@ import '../utils/artwork_preference_manager.dart';
 enum SearchTab { all, recent, favorites }
 
 class TokenSearchScreen extends StatefulWidget {
-  const TokenSearchScreen({super.key});
+  /// When true, tapping a token pops with the TokenDefinition instead of
+  /// showing the quantity picker and creating an Item on the board.
+  /// Used by DeckDetailScreen to add tokens to a deck.
+  final bool selectorMode;
+
+  const TokenSearchScreen({super.key, this.selectorMode = false});
 
   @override
   State<TokenSearchScreen> createState() => _TokenSearchScreenState();
@@ -506,17 +511,32 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
         padding: const EdgeInsets.all(16),
         child: ElevatedButton.icon(
           onPressed: () {
-            Navigator.pop(context); // Close search screen
-            // Small delay for smooth transition
-            Future.delayed(UIConstants.sheetDismissDelay, () {
-              if (!mounted) return;
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const NewTokenSheet(),
-                  fullscreenDialog: true,
-                ),
-              );
-            });
+            if (widget.selectorMode) {
+              // In selector mode, navigate to NewTokenSheet and await result
+              // then pop back with a custom TokenDefinition
+              Navigator.pop(context); // Close search screen
+              Future.delayed(UIConstants.sheetDismissDelay, () {
+                if (!mounted) return;
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const NewTokenSheet(),
+                    fullscreenDialog: true,
+                  ),
+                );
+              });
+            } else {
+              Navigator.pop(context); // Close search screen
+              // Small delay for smooth transition
+              Future.delayed(UIConstants.sheetDismissDelay, () {
+                if (!mounted) return;
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const NewTokenSheet(),
+                    fullscreenDialog: true,
+                  ),
+                );
+              });
+            }
           },
           icon: const Icon(Icons.add_circle),
           label: const Text('Create Custom Token'),
@@ -531,6 +551,14 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
   }
 
   void _selectToken(token_models.TokenDefinition token) {
+    // Selector mode: pop with the definition immediately, no quantity picker
+    if (widget.selectorMode) {
+      final settingsProvider = context.read<SettingsProvider>();
+      _tokenDatabase.addToRecent(token, settingsProvider);
+      Navigator.pop(context, token);
+      return;
+    }
+
     setState(() {
       _tokenQuantity = 1;
       _createTapped = false;

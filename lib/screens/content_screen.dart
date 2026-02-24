@@ -3,15 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gradient_borders/gradient_borders.dart';
 import '../models/item.dart';
-import '../models/token_template.dart';
-import '../models/deck.dart';
 import '../models/tracker_widget.dart'; // NEW - Widget Cards Feature
 import '../models/toggle_widget.dart'; // NEW - Widget Cards Feature
-import '../models/tracker_widget_template.dart'; // NEW - Deck templates for utilities
-import '../models/toggle_widget_template.dart'; // NEW - Deck templates for utilities
 import '../providers/token_provider.dart';
 import '../providers/settings_provider.dart';
-import '../providers/deck_provider.dart';
 import '../providers/tracker_provider.dart'; // NEW - Widget Cards Feature
 import '../providers/toggle_provider.dart'; // NEW - Widget Cards Feature
 import '../utils/constants.dart';
@@ -20,11 +15,11 @@ import '../widgets/token_card.dart';
 import '../widgets/tracker_widget_card.dart'; // NEW - Widget Cards Feature
 import '../widgets/toggle_widget_card.dart'; // NEW - Widget Cards Feature
 import '../widgets/multiplier_view.dart';
-import '../widgets/load_deck_sheet.dart';
 import '../widgets/floating_action_menu.dart';
 import '../widgets/status_sheet.dart';
 import 'token_search_screen.dart';
 import 'widget_selection_screen.dart'; // NEW - Widget Cards Feature
+import 'decks_list_screen.dart';
 import 'about_screen.dart';
 
 // Helper class to wrap board items (tokens and widgets) for unified list display
@@ -38,15 +33,6 @@ class _BoardItem {
   bool get isToken => item is Item;
   bool get isTracker => item is TrackerWidget;
   bool get isToggle => item is ToggleWidget;
-}
-
-// Helper class for preserving exact order when saving decks
-class _BoardItemForSave {
-  final dynamic item; // Item, TrackerWidget, or ToggleWidget
-  final double order;
-  final String type; // 'token', 'tracker', 'toggle'
-
-  _BoardItemForSave(this.item, this.order, this.type);
 }
 
 class ContentScreen extends StatefulWidget {
@@ -97,8 +83,7 @@ class _ContentScreenState extends State<ContentScreen> {
                       onMinusOneToAll: _handleMinusOneToAll,
                       onUntapAll: _showUntapAllDialog,
                       onClearSickness: _handleClearSickness,
-                      onSaveDeck: _showSaveDeckDialog,
-                      onLoadDeck: _showLoadDeckSheet,
+                      onDecks: _showDecksScreen,
                       onBoardWipe: _showBoardWipeDialog,
                     ),
                   ],
@@ -172,9 +157,10 @@ class _ContentScreenState extends State<ContentScreen> {
         // Merge all board items
         final boardItems = <_BoardItem>[];
 
-        // Add tokens
+        // Add tokens — use Hive box key (always unique) instead of createdAt
+        // (DateTime.now() can produce duplicates during batch operations)
         for (final item in tokenProvider.items) {
-          boardItems.add(_BoardItem(item, item.order, 'token_${item.createdAt}'));
+          boardItems.add(_BoardItem(item, item.order, 'token_${item.key}'));
         }
 
         // Add trackers
@@ -863,124 +849,10 @@ class _ContentScreenState extends State<ContentScreen> {
     );
   }
 
-  Future<void> _showSaveDeckDialog() async {
-    final tokenProvider = context.read<TokenProvider>();
-    final trackerProvider = context.read<TrackerProvider>();
-    final toggleProvider = context.read<ToggleProvider>();
-    final deckProvider = context.read<DeckProvider>();
-    final controller = TextEditingController();
-
-    await showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Save Deck'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'Enter deck name',
-            border: OutlineInputBorder(),
-          ),
-          textCapitalization: TextCapitalization.words,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (controller.text.isEmpty) {
-                return;
-              }
-
-              final deckName = controller.text;
-
-              // Close dialog immediately
-              Navigator.pop(dialogContext);
-
-              // Save deck after dialog is fully dismissed
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                // Collect all board items with their orders to preserve exact positions
-                final allBoardItems = <_BoardItemForSave>[];
-
-                // Add all tokens
-                for (final item in tokenProvider.items) {
-                  allBoardItems.add(_BoardItemForSave(item, item.order, 'token'));
-                }
-
-                // Add all trackers
-                for (final tracker in trackerProvider.trackers) {
-                  allBoardItems.add(_BoardItemForSave(tracker, tracker.order, 'tracker'));
-                }
-
-                // Add all toggles
-                for (final toggle in toggleProvider.toggles) {
-                  allBoardItems.add(_BoardItemForSave(toggle, toggle.order, 'toggle'));
-                }
-
-                // Sort by order to get exact board sequence
-                allBoardItems.sort((a, b) => a.order.compareTo(b.order));
-
-                // Process items in order, deduplicating tokens while preserving utilities
-                final Map<String, bool> seenTokens = {}; // Track seen token identities
-                final List<TokenTemplate> templates = [];
-                final List<TrackerWidgetTemplate> trackerTemplates = [];
-                final List<ToggleWidgetTemplate> toggleTemplates = [];
-
-                int normalizedIndex = 0;
-                for (final boardItem in allBoardItems) {
-                  if (boardItem.type == 'token') {
-                    final item = boardItem.item as Item;
-                    final key = '${item.name}|${item.pt}|${item.colors}|${item.abilities}';
-                    if (!seenTokens.containsKey(key)) {
-                      // First occurrence - save this token
-                      seenTokens[key] = true;
-                      final template = TokenTemplate.fromItem(item);
-                      template.order = normalizedIndex.toDouble();
-                      templates.add(template);
-                      normalizedIndex++;
-                    }
-                    // Skip duplicate tokens
-                  } else if (boardItem.type == 'tracker') {
-                    final tracker = boardItem.item as TrackerWidget;
-                    final template = TrackerWidgetTemplate.fromWidget(tracker);
-                    template.order = normalizedIndex.toDouble();
-                    trackerTemplates.add(template);
-                    normalizedIndex++;
-                  } else if (boardItem.type == 'toggle') {
-                    final toggle = boardItem.item as ToggleWidget;
-                    final template = ToggleWidgetTemplate.fromWidget(toggle);
-                    template.order = normalizedIndex.toDouble();
-                    toggleTemplates.add(template);
-                    normalizedIndex++;
-                  }
-                }
-
-                final deck = Deck(
-                  name: deckName,
-                  templates: templates,
-                  trackerWidgets: trackerTemplates.isEmpty ? null : trackerTemplates,
-                  toggleWidgets: toggleTemplates.isEmpty ? null : toggleTemplates,
-                );
-                deckProvider.saveDeck(deck);
-              });
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    ).then((_) {
-      // Dispose controller after all frames have been processed to avoid accessing disposed controller during teardown
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        controller.dispose();
-      });
-    });
-  }
-
-  void _showLoadDeckSheet() {
+  void _showDecksScreen() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => const LoadDeckSheet(),
+        builder: (context) => const DecksListScreen(),
         fullscreenDialog: true,
       ),
     );

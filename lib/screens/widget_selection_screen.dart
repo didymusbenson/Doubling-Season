@@ -12,7 +12,11 @@ import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
 
 class WidgetSelectionScreen extends StatefulWidget {
-  const WidgetSelectionScreen({super.key});
+  /// When true, tapping a widget pops with the WidgetDefinition instead of
+  /// creating it on the board. Used by DeckDetailScreen to add utilities to a deck.
+  final bool selectorMode;
+
+  const WidgetSelectionScreen({super.key, this.selectorMode = false});
 
   @override
   State<WidgetSelectionScreen> createState() => _WidgetSelectionScreenState();
@@ -263,6 +267,12 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
   }
 
   void _createWidget(WidgetDefinition definition) async {
+    // Selector mode: pop with the definition immediately
+    if (widget.selectorMode) {
+      Navigator.pop(context, definition);
+      return;
+    }
+
     // Calculate max order across ALL board items (tokens + trackers + toggles)
     final tokenProvider = context.read<TokenProvider>();
     final trackerProvider = context.read<TrackerProvider>();

@@ -20,10 +20,26 @@ class Deck extends HiveObject {
   @HiveField(3, defaultValue: null)
   List<ToggleWidgetTemplate>? toggleWidgets;
 
+  @HiveField(4, defaultValue: null)
+  String? colorIdentity;
+
+  @HiveField(5, defaultValue: 0.0)
+  double order;
+
+  @HiveField(6, defaultValue: null)
+  DateTime? createdAt;
+
+  @HiveField(7, defaultValue: null)
+  DateTime? lastModifiedAt;
+
   Deck({
     required this.name,
     List<TokenTemplate>? templates,
     this.trackerWidgets,
     this.toggleWidgets,
+    this.colorIdentity,
+    this.order = 0.0,
+    this.createdAt,
+    this.lastModifiedAt,
   }) : templates = templates ?? [];
 }
