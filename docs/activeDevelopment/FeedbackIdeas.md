@@ -268,6 +268,12 @@ The Decks Overhaul already future-proofs the import file picker to accept both `
 - Android: Add intent filter in `AndroidManifest.xml` for the file type
 - The allowed extensions filter in the import screen already accepts `tsdeck` — no import changes needed
 
+## Tap-to-Edit Deck Templates
+
+Descoped from decks phase 2. Currently, users can add/remove tokens and utilities from a deck but can't edit a template in-place. If they need to change a token's name, P/T, abilities, colors, or artwork after adding it, they remove it and re-add.
+
+A future improvement would let users tap a token/utility row in `DeckDetailScreen` to open an expanded edit view for that template's fields (like `ExpandedTokenScreen` but without live game state — no amounts, tapped, counters, sickness). Changes would auto-save back to the template. This would also be the natural place for per-template artwork selection.
+
 ## Future Non-Token Type Handling (Counters, States, Bounties, Dungeons)
 **TODO: Flesh out requirements**
 
@@ -284,6 +290,10 @@ These are game state markers, not creature/artifact tokens. Need to determine:
 - Are they useful enough to include at all, or should they remain excluded?
 
 **IMPORTANT:** Currently filtered out in `HOUSEKEEPING/process_tokens_with_popularity.py` in the `clean_token_data()` function. If we decide to support these types in the future, we'll need to remove that filtering logic and regenerate the token database.
+
+## Quantity Picker Relocation
+
+Code quality improvement discovered during decks overhaul. The quantity picker currently lives inside `TokenSearchScreen`. Ideally the search screen would always pop with a `TokenDefinition`, and the board caller (`ContentScreen`) would show the quantity picker after receiving the selection, then apply multiplier and create the `Item`. User sees identical flow, but search becomes a pure selector. Already partially done — `selectorMode` skips the picker for deck editing. The board flow still uses the old integrated approach and works fine as-is.
 
 ## Code Quality / Lint Issues (Low Priority)
 
