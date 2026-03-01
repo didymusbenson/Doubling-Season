@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../models/deck.dart';
+import '../models/token_definition.dart';
 import '../models/token_template.dart';
 import '../models/tracker_widget_template.dart';
 import '../models/toggle_widget_template.dart';
@@ -189,6 +190,7 @@ class DeckProvider extends ChangeNotifier {
       order: maxOrder.floor() + 1.0,
       createdAt: DateTime.now(),
       lastModifiedAt: DateTime.now(),
+      customArtworkUrl: original.customArtworkUrl,
     );
 
     await _decksBox.add(newDeck);
@@ -246,12 +248,43 @@ class DeckProvider extends ChangeNotifier {
     return orderedColors.toString();
   }
 
+  /// Resolve the artwork URL for a deck: custom art first, else first template with artwork
+  static String? resolveArtworkUrl(Deck deck) {
+    if (deck.customArtworkUrl != null && deck.customArtworkUrl!.isNotEmpty) {
+      return deck.customArtworkUrl;
+    }
+
+    // Collect all templates sorted by order, find first with artworkUrl
+    final allTemplates = <({double order, String? artworkUrl})>[];
+    for (final t in deck.templates) {
+      allTemplates.add((order: t.order, artworkUrl: t.artworkUrl));
+    }
+    if (deck.trackerWidgets != null) {
+      for (final t in deck.trackerWidgets!) {
+        allTemplates.add((order: t.order, artworkUrl: t.artworkUrl));
+      }
+    }
+    if (deck.toggleWidgets != null) {
+      for (final t in deck.toggleWidgets!) {
+        allTemplates.add((order: t.order, artworkUrl: t.artworkUrl));
+      }
+    }
+    allTemplates.sort((a, b) => a.order.compareTo(b.order));
+
+    for (final t in allTemplates) {
+      if (t.artworkUrl != null && t.artworkUrl!.isNotEmpty) {
+        return t.artworkUrl;
+      }
+    }
+    return null;
+  }
+
   /// Export a deck to pretty-printed JSON with metadata
   Future<String> exportDeckToJson(Deck deck) async {
     final packageInfo = await PackageInfo.fromPlatform();
 
     final Map<String, dynamic> exportData = {
-      'schemaVersion': 1,
+      'schemaVersion': 2,
       'appVersion': packageInfo.version,
       'exportDate': DateTime.now().toIso8601String(),
       'deck': {
@@ -266,6 +299,7 @@ class DeckProvider extends ChangeNotifier {
           'order': t.order,
           'artworkUrl': t.artworkUrl,
           'artworkSet': t.artworkSet,
+          'artworkOptions': t.artworkOptions?.map((a) => a.toJson()).toList(),
         }).toList(),
         'trackerWidgets': deck.trackerWidgets?.map((t) => {
           'name': t.name,
@@ -281,6 +315,7 @@ class DeckProvider extends ChangeNotifier {
           'order': t.order,
           'artworkUrl': t.artworkUrl,
           'artworkSet': t.artworkSet,
+          'artworkOptions': t.artworkOptions?.map((a) => a.toJson()).toList(),
         }).toList(),
         'toggleWidgets': deck.toggleWidgets?.map((t) => {
           'name': t.name,
@@ -291,6 +326,7 @@ class DeckProvider extends ChangeNotifier {
           'order': t.order,
           'artworkUrl': t.artworkUrl,
           'artworkSet': t.artworkSet,
+          'artworkOptions': t.artworkOptions?.map((a) => a.toJson()).toList(),
           'onArtworkUrl': t.onArtworkUrl,
           'offArtworkUrl': t.offArtworkUrl,
         }).toList(),
@@ -298,7 +334,7 @@ class DeckProvider extends ChangeNotifier {
     };
 
     final jsonString = const JsonEncoder.withIndent('  ').convert(exportData);
-    debugPrint('DeckProvider: Exported deck "${deck.name}" (${deck.templates.length} tokens, schema v1)');
+    debugPrint('DeckProvider: Exported deck "${deck.name}" (${deck.templates.length} tokens, schema v2)');
     return jsonString;
   }
 
@@ -312,7 +348,7 @@ class DeckProvider extends ChangeNotifier {
       if (schemaVersion == null) {
         throw FormatException('Missing schemaVersion in imported file');
       }
-      if (schemaVersion > 1) {
+      if (schemaVersion > 2) {
         throw FormatException('Unsupported schema version $schemaVersion. Please update the app.');
       }
       debugPrint('DeckProvider: Import - schema version $schemaVersion');
@@ -326,6 +362,10 @@ class DeckProvider extends ChangeNotifier {
       final templatesJson = deckData['templates'] as List<dynamic>? ?? [];
       final templates = templatesJson.map((t) {
         final map = t as Map<String, dynamic>;
+        final artworkOptionsJson = map['artworkOptions'] as List<dynamic>?;
+        final artworkOptions = artworkOptionsJson
+            ?.map((a) => ArtworkVariant.fromJson(a as Map<String, dynamic>))
+            .toList();
         return TokenTemplate(
           name: map['name'] as String? ?? '',
           pt: map['pt'] as String? ?? '',
@@ -335,6 +375,7 @@ class DeckProvider extends ChangeNotifier {
           order: (map['order'] as num?)?.toDouble() ?? 0.0,
           artworkUrl: map['artworkUrl'] as String?,
           artworkSet: map['artworkSet'] as String?,
+          artworkOptions: artworkOptions,
         );
       }).toList();
 
@@ -344,6 +385,10 @@ class DeckProvider extends ChangeNotifier {
       if (trackersJson != null && trackersJson.isNotEmpty) {
         trackerTemplates = trackersJson.map((t) {
           final map = t as Map<String, dynamic>;
+          final artworkOptionsJson = map['artworkOptions'] as List<dynamic>?;
+          final artworkOptions = artworkOptionsJson
+              ?.map((a) => ArtworkVariant.fromJson(a as Map<String, dynamic>))
+              .toList();
           return TrackerWidgetTemplate(
             name: map['name'] as String? ?? '',
             description: map['description'] as String? ?? '',
@@ -358,6 +403,7 @@ class DeckProvider extends ChangeNotifier {
             order: (map['order'] as num?)?.toDouble() ?? 0.0,
             artworkUrl: map['artworkUrl'] as String?,
             artworkSet: map['artworkSet'] as String?,
+            artworkOptions: artworkOptions,
           );
         }).toList();
       }
@@ -368,6 +414,10 @@ class DeckProvider extends ChangeNotifier {
       if (togglesJson != null && togglesJson.isNotEmpty) {
         toggleTemplates = togglesJson.map((t) {
           final map = t as Map<String, dynamic>;
+          final artworkOptionsJson = map['artworkOptions'] as List<dynamic>?;
+          final artworkOptions = artworkOptionsJson
+              ?.map((a) => ArtworkVariant.fromJson(a as Map<String, dynamic>))
+              .toList();
           return ToggleWidgetTemplate(
             name: map['name'] as String? ?? '',
             colorIdentity: map['colorIdentity'] as String? ?? '',
@@ -377,6 +427,7 @@ class DeckProvider extends ChangeNotifier {
             order: (map['order'] as num?)?.toDouble() ?? 0.0,
             artworkUrl: map['artworkUrl'] as String?,
             artworkSet: map['artworkSet'] as String?,
+            artworkOptions: artworkOptions,
             onArtworkUrl: map['onArtworkUrl'] as String?,
             offArtworkUrl: map['offArtworkUrl'] as String?,
           );

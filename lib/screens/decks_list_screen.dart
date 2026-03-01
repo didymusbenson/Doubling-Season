@@ -20,6 +20,8 @@ import '../providers/tracker_provider.dart';
 import '../providers/toggle_provider.dart';
 import '../utils/constants.dart';
 import '../utils/color_utils.dart';
+import '../utils/artwork_manager.dart';
+import '../widgets/cropped_artwork_widget.dart';
 import '../widgets/deck_save_sheet.dart';
 import 'deck_detail_screen.dart';
 
@@ -189,6 +191,7 @@ class _DecksListScreenState extends State<DecksListScreen> {
     const borderWidth = 3.0;
     final innerBorderRadius = UIConstants.borderRadius - borderWidth;
     final colorIdentity = deck.colorIdentity ?? '';
+    final artworkUrl = DeckProvider.resolveArtworkUrl(deck);
 
     return Padding(
       key: ValueKey('deck_${deck.key}'),
@@ -204,59 +207,117 @@ class _DecksListScreenState extends State<DecksListScreen> {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(innerBorderRadius),
           child: Material(
-          color: Theme.of(context).cardColor,
-          child: InkWell(
-            onTap: _editMode ? null : () => _showDeckOptions(context, deck),
-            borderRadius: BorderRadius.circular(innerBorderRadius),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            color: Colors.transparent,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final artworkWidth = constraints.maxWidth * 0.5;
+                return Stack(
+                  children: [
+                    // Base background
+                    Positioned.fill(
+                      child: Container(color: Theme.of(context).cardColor),
+                    ),
+
+                    // Artwork layer (fadeout style, right 50%)
+                    if (artworkUrl != null && artworkUrl.isNotEmpty && !kIsWeb)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: artworkWidth,
+                        child: FutureBuilder<File?>(
+                          future: ArtworkManager.getCachedArtworkFile(artworkUrl),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData && snapshot.data != null) {
+                              final crop = ArtworkManager.getCropPercentages(artworkUrl);
+                              return ClipRRect(
+                                borderRadius: BorderRadius.only(
+                                  topRight: Radius.circular(innerBorderRadius),
+                                  bottomRight: Radius.circular(innerBorderRadius),
+                                ),
+                                child: ShaderMask(
+                                  shaderCallback: (bounds) {
+                                    return const LinearGradient(
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                      colors: [Colors.transparent, Colors.white],
+                                      stops: [0.0, 0.50],
+                                    ).createShader(bounds);
+                                  },
+                                  blendMode: BlendMode.dstIn,
+                                  child: CroppedArtworkWidget(
+                                    imageFile: snapshot.data!,
+                                    cropLeft: crop['left']!,
+                                    cropRight: crop['right']!,
+                                    cropTop: crop['top']!,
+                                    cropBottom: crop['bottom']!,
+                                    fillWidth: false,
+                                  ),
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+                      ),
+
+                    // Content layer (InkWell + text)
+                    InkWell(
+                  onTap: _editMode ? null : () => _showDeckOptions(context, deck),
+                  borderRadius: BorderRadius.circular(innerBorderRadius),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
                       children: [
-                        Text(
-                          deck.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                deck.name,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _buildSubtitle(deck),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _buildSubtitle(deck),
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
+                        if (_editMode)
+                          Checkbox(
+                            value: _selectedIndices.contains(index),
+                            onChanged: (value) {
+                              setState(() {
+                                if (value == true) {
+                                  _selectedIndices.add(index);
+                                } else {
+                                  _selectedIndices.remove(index);
+                                }
+                              });
+                            },
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
                       ],
                     ),
                   ),
-                  if (_editMode)
-                    Checkbox(
-                      value: _selectedIndices.contains(index),
-                      onChanged: (value) {
-                        setState(() {
-                          if (value == true) {
-                            _selectedIndices.add(index);
-                          } else {
-                            _selectedIndices.remove(index);
-                          }
-                        });
-                      },
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        ),
-      ),
-    );
+                ),
+              ],
+                ); // Stack
+              }, // LayoutBuilder builder
+            ), // LayoutBuilder
+          ), // Material
+        ), // ClipRRect
+      ), // Container (border)
+    ); // Padding
   }
 
   String _buildSubtitle(Deck deck) {

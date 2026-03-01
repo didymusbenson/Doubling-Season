@@ -19,6 +19,8 @@ class ArtworkVariant {
       url: json['url'] as String? ?? '',
     );
   }
+
+  Map<String, dynamic> toJson() => {'set': set, 'url': url};
 }
 
 class TokenDefinition {

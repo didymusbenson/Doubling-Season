@@ -1,11 +1,12 @@
 import 'dart:convert' show utf8;
-import 'dart:io' show Platform;
+import 'dart:io' show File, Platform;
 import 'dart:ui' show lerpDouble;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gradient_borders/gradient_borders.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:file_picker/file_picker.dart';
 import '../models/deck.dart';
 import '../models/token_template.dart';
 import '../models/token_definition.dart' as token_models;
@@ -15,7 +16,9 @@ import '../models/widget_definition.dart';
 import '../providers/deck_provider.dart';
 import '../utils/constants.dart';
 import '../utils/color_utils.dart';
+import '../utils/artwork_manager.dart';
 import '../widgets/color_selection_button.dart';
+import '../widgets/cropped_artwork_widget.dart';
 import 'token_search_screen.dart';
 import 'widget_selection_screen.dart';
 
@@ -144,21 +147,30 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Editable name
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Deck Name',
-              border: OutlineInputBorder(),
-            ),
-            textCapitalization: TextCapitalization.words,
-            onChanged: (value) {
-              if (value.trim().isNotEmpty) {
-                widget.deck.name = value.trim();
-                _updateLastModified();
-                setState(() {}); // Update app bar title
-              }
-            },
+          // Editable name + Deck Box thumbnail
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Deck Name',
+                    border: OutlineInputBorder(),
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                  onChanged: (value) {
+                    if (value.trim().isNotEmpty) {
+                      widget.deck.name = value.trim();
+                      _updateLastModified();
+                      setState(() {}); // Update app bar title
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              _buildDeckBoxThumbnail(),
+            ],
           ),
           const SizedBox(height: 12),
 
@@ -179,6 +191,127 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
             ],
           ),
           const Divider(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeckBoxThumbnail() {
+    final artworkUrl = DeckProvider.resolveArtworkUrl(widget.deck);
+
+    return GestureDetector(
+      onTap: () => _pickDeckBoxImage(),
+      onLongPress: widget.deck.customArtworkUrl != null ? () => _clearCustomArtwork() : null,
+      child: Column(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Colors.grey.shade400,
+                width: 1.5,
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6.5),
+              child: _buildThumbnailContent(artworkUrl),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Deck Box',
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThumbnailContent(String? artworkUrl) {
+    if (artworkUrl == null || artworkUrl.isEmpty || kIsWeb) {
+      return Center(
+        child: Icon(Icons.photo_camera, size: 24, color: Colors.grey.shade400),
+      );
+    }
+
+    // Check if it's a local file path (custom artwork)
+    if (artworkUrl.startsWith('file://')) {
+      final file = File(artworkUrl.replaceFirst('file://', ''));
+      if (file.existsSync()) {
+        return Image.file(file, fit: BoxFit.cover, width: 60, height: 60);
+      }
+      return Center(
+        child: Icon(Icons.photo_camera, size: 24, color: Colors.grey.shade400),
+      );
+    }
+
+    // Scryfall URL - use cached artwork
+    return FutureBuilder<File?>(
+      future: ArtworkManager.getCachedArtworkFile(artworkUrl),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data != null) {
+          final crop = ArtworkManager.getCropPercentages(artworkUrl);
+          return CroppedArtworkWidget(
+            imageFile: snapshot.data!,
+            cropLeft: crop['left']!,
+            cropRight: crop['right']!,
+            cropTop: crop['top']!,
+            cropBottom: crop['bottom']!,
+            fillWidth: true,
+          );
+        }
+        return Center(
+          child: Icon(Icons.photo_camera, size: 24, color: Colors.grey.shade400),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickDeckBoxImage() async {
+    if (kIsWeb) return;
+
+    try {
+      final result = await FilePicker.platform.pickFiles(type: FileType.image);
+      if (result == null || result.files.isEmpty) return;
+
+      final filePath = result.files.first.path;
+      if (filePath == null) return;
+
+      // Resize and copy to app-managed location
+      final resized = await ArtworkManager.resizeImageFile(File(filePath));
+      setState(() {
+        widget.deck.customArtworkUrl = 'file://${resized.path}';
+        _updateLastModified();
+      });
+    } catch (e) {
+      debugPrint('DeckDetailScreen: Failed to pick deck box image - $e');
+    }
+  }
+
+  void _clearCustomArtwork() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear Custom Art'),
+        content: const Text('Remove custom deck box art? The thumbnail will revert to the first token\'s artwork.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              setState(() {
+                widget.deck.customArtworkUrl = null;
+                _updateLastModified();
+              });
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Clear'),
+          ),
         ],
       ),
     );

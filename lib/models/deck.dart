@@ -32,6 +32,9 @@ class Deck extends HiveObject {
   @HiveField(7, defaultValue: null)
   DateTime? lastModifiedAt;
 
+  @HiveField(8, defaultValue: null)
+  String? customArtworkUrl;
+
   Deck({
     required this.name,
     List<TokenTemplate>? templates,
@@ -41,5 +44,6 @@ class Deck extends HiveObject {
     this.order = 0.0,
     this.createdAt,
     this.lastModifiedAt,
+    this.customArtworkUrl,
   }) : templates = templates ?? [];
 }

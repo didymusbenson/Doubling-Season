@@ -25,13 +25,14 @@ class DeckAdapter extends TypeAdapter<Deck> {
       order: fields[5] == null ? 0.0 : fields[5] as double,
       createdAt: fields[6] as DateTime?,
       lastModifiedAt: fields[7] as DateTime?,
+      customArtworkUrl: fields[8] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Deck obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
@@ -47,7 +48,9 @@ class DeckAdapter extends TypeAdapter<Deck> {
       ..writeByte(6)
       ..write(obj.createdAt)
       ..writeByte(7)
-      ..write(obj.lastModifiedAt);
+      ..write(obj.lastModifiedAt)
+      ..writeByte(8)
+      ..write(obj.customArtworkUrl);
   }
 
   @override
