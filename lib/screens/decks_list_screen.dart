@@ -21,6 +21,7 @@ import '../providers/toggle_provider.dart';
 import '../utils/constants.dart';
 import '../utils/color_utils.dart';
 import '../utils/artwork_manager.dart';
+import '../widgets/common/background_text.dart';
 import '../widgets/cropped_artwork_widget.dart';
 import '../widgets/deck_save_sheet.dart';
 import 'deck_detail_screen.dart';
@@ -273,22 +274,26 @@ class _DecksListScreenState extends State<DecksListScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                deck.name,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                              BackgroundText(
+                                child: Text(
+                                  deck.name,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 4),
-                              Text(
-                                _buildSubtitle(deck),
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade600,
+                              BackgroundText(
+                                child: Text(
+                                  _buildSubtitle(deck),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Theme.of(context).textTheme.bodySmall?.color,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),

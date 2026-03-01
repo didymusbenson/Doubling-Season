@@ -18,6 +18,7 @@ import '../utils/constants.dart';
 import '../utils/color_utils.dart';
 import '../utils/artwork_manager.dart';
 import '../widgets/color_selection_button.dart';
+import '../widgets/common/background_text.dart';
 import '../widgets/cropped_artwork_widget.dart';
 import 'token_search_screen.dart';
 import 'widget_selection_screen.dart';
@@ -45,6 +46,64 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.deck.name);
+    _precacheAllDeckArtwork();
+  }
+
+  /// Pre-cache artwork for all templates in the deck on open.
+  /// Also auto-assigns artworkUrl from artworkOptions for templates that were
+  /// saved before artwork assignment was implemented (old decks / migrations).
+  void _precacheAllDeckArtwork() {
+    if (kIsWeb) return;
+    bool needsSave = false;
+
+    for (final t in widget.deck.templates) {
+      if (_autoAssignArtwork(t.artworkUrl, t.artworkOptions, (url, set) {
+        t.artworkUrl = url;
+        t.artworkSet = set;
+      })) {
+        needsSave = true;
+      }
+      _precacheArtwork(t.artworkUrl);
+    }
+
+    if (widget.deck.trackerWidgets != null) {
+      for (final t in widget.deck.trackerWidgets!) {
+        if (_autoAssignArtwork(t.artworkUrl, t.artworkOptions, (url, set) {
+          t.artworkUrl = url;
+          t.artworkSet = set;
+        })) {
+          needsSave = true;
+        }
+        _precacheArtwork(t.artworkUrl);
+      }
+    }
+
+    if (widget.deck.toggleWidgets != null) {
+      for (final t in widget.deck.toggleWidgets!) {
+        if (_autoAssignArtwork(t.artworkUrl, t.artworkOptions, (url, set) {
+          t.artworkUrl = url;
+          t.artworkSet = set;
+        })) {
+          needsSave = true;
+        }
+        _precacheArtwork(t.artworkUrl);
+      }
+    }
+
+    if (needsSave) {
+      _updateLastModified();
+      debugPrint('DeckDetailScreen: Auto-assigned artwork for templates missing artworkUrl');
+    }
+  }
+
+  /// If artworkUrl is null but artworkOptions has entries, auto-assign the first one.
+  /// Returns true if assignment was made.
+  bool _autoAssignArtwork(String? artworkUrl, List<token_models.ArtworkVariant>? options, void Function(String url, String set) assign) {
+    if (artworkUrl == null && options != null && options.isNotEmpty) {
+      assign(options[0].url, options[0].set);
+      return true;
+    }
+    return false;
   }
 
   @override
@@ -279,10 +338,17 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
       final filePath = result.files.first.path;
       if (filePath == null) return;
 
-      // Resize and copy to app-managed location
+      // Resize the picked file (overwrites temp file in place)
       final resized = await ArtworkManager.resizeImageFile(File(filePath));
+
+      // Copy to persistent app-managed location so it survives temp cleanup
+      final cacheDir = await ArtworkManager.getArtworkCacheDirectory();
+      final deckKey = widget.deck.key ?? 'unknown';
+      final persistentFile = File('${cacheDir.path}/deck_box_$deckKey.png');
+      await resized.copy(persistentFile.path);
+
       setState(() {
-        widget.deck.customArtworkUrl = 'file://${resized.path}';
+        widget.deck.customArtworkUrl = 'file://${persistentFile.path}';
         _updateLastModified();
       });
     } catch (e) {
@@ -377,46 +443,20 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
       itemBuilder: (context, index) {
         final item = items[index];
 
+        // Use stable key based on type + identity hash to avoid Dismissible conflicts after removal
+        final stableKey = '${item.type}_${identityHashCode(item.template)}';
+
         if (_editMode) {
           return Container(
-            key: ValueKey('deckitem_edit_$index'),
+            key: ValueKey('edit_$stableKey'),
             child: _buildItemCardWithCheckbox(item, index),
           );
         }
 
-        return Dismissible(
-          key: ValueKey('deckitem_dismiss_$index'),
-          direction: DismissDirection.endToStart,
-          background: Container(
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 16),
-            color: Colors.red,
-            child: const Icon(Icons.delete, color: Colors.white),
-          ),
-          confirmDismiss: (direction) async {
-            return await showDialog<bool>(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                title: const Text('Remove item?'),
-                content: Text('Remove "${_getItemName(item)}" from this deck?'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('Cancel'),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    style: TextButton.styleFrom(foregroundColor: Colors.red),
-                    child: const Text('Remove'),
-                  ),
-                ],
-              ),
-            ) ?? false;
-          },
-          onDismissed: (_) {
-            _removeItem(item);
-          },
-          child: _buildItemCard(item),
+        // Border wraps outside, Dismissible inside ClipRRect so red slides within the card
+        return _buildDismissibleCard(
+          key: ValueKey('dismiss_$stableKey'),
+          item: item,
         );
       },
     );
@@ -424,7 +464,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
 
   /// Wraps card content in the correct border structure matching content_screen.dart:
   /// Padding (margin) → Container (gradient border) → ClipRRect → Material (card color)
-  Widget _buildBorderedCard({required String colorIdentity, required Widget child}) {
+  Widget _buildBorderedCard({required String colorIdentity, required Widget child, bool transparentBackground = false}) {
     const borderWidth = 3.0;
     final innerBorderRadius = UIConstants.borderRadius - borderWidth;
 
@@ -441,7 +481,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(innerBorderRadius),
           child: Material(
-            color: Theme.of(context).cardColor,
+            color: transparentBackground ? Colors.transparent : Theme.of(context).cardColor,
             child: child,
           ),
         ),
@@ -449,17 +489,78 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     );
   }
 
-  Widget _buildItemCard(_DeckItem item) {
-    return _buildBorderedCard(
-      colorIdentity: _getItemColorIdentity(item),
-      child: _buildItemContent(item),
+  /// Builds a deck item card with the Dismissible INSIDE the ClipRRect,
+  /// so the red swipe background is contained within the gradient border.
+  /// Matches the content_screen.dart pattern.
+  Widget _buildDismissibleCard({required Key key, required _DeckItem item}) {
+    const borderWidth = 3.0;
+    final innerBorderRadius = UIConstants.borderRadius - borderWidth;
+    final colorIdentity = _getItemColorIdentity(item);
+
+    return Padding(
+      key: key,
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(UIConstants.borderRadius),
+          border: GradientBoxBorder(
+            gradient: ColorUtils.gradientForColors(colorIdentity),
+            width: borderWidth,
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(innerBorderRadius),
+          child: Dismissible(
+            key: ValueKey('inner_dismiss_${identityHashCode(item.template)}'),
+            direction: DismissDirection.endToStart,
+            background: Material(
+              color: Colors.red,
+              borderRadius: BorderRadius.circular(innerBorderRadius),
+              child: Container(
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 16),
+                child: const Icon(Icons.delete, color: Colors.white),
+              ),
+            ),
+            confirmDismiss: (direction) async {
+              return await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Remove item?'),
+                  content: Text('Remove "${_getItemName(item)}" from this deck?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                      child: const Text('Remove'),
+                    ),
+                  ],
+                ),
+              ) ?? false;
+            },
+            onDismissed: (_) {
+              _removeItem(item);
+            },
+            child: Material(
+              color: Colors.transparent,
+              child: _buildItemContent(item),
+            ),
+          ),
+        ),
+      ),
     );
   }
+
 
   /// Edit-mode card with checkbox on the right, matching DecksListScreen pattern.
   Widget _buildItemCardWithCheckbox(_DeckItem item, int index) {
     return _buildBorderedCard(
       colorIdentity: _getItemColorIdentity(item),
+      transparentBackground: true,
       child: _buildItemContent(item, checkboxIndex: index),
     );
   }
@@ -470,71 +571,136 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     return (item.template as ToggleWidgetTemplate).colorIdentity;
   }
 
+  /// Builds a deck item with full-width artwork background and BackgroundText,
+  /// matching the TokenCard visual pattern. Used for all item types.
+  Widget _buildItemWithArtwork({
+    required String? artworkUrl,
+    required String name,
+    required String subtitle,
+    String? trailing,
+    IconData? leadingIcon,
+    int? checkboxIndex,
+  }) {
+    const innerBorderRadius = UIConstants.borderRadius - 3.0;
+
+    return Stack(
+      children: [
+        // Base background
+        Positioned.fill(
+          child: Container(color: Theme.of(context).cardColor),
+        ),
+
+        // Full-width artwork layer
+        if (artworkUrl != null && artworkUrl.isNotEmpty && !kIsWeb)
+          Positioned.fill(
+            child: FutureBuilder<File?>(
+              future: ArtworkManager.getCachedArtworkFile(artworkUrl),
+              builder: (context, snapshot) {
+                if (snapshot.hasData && snapshot.data != null) {
+                  final crop = ArtworkManager.getCropPercentages(artworkUrl);
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(innerBorderRadius),
+                    child: CroppedArtworkWidget(
+                      imageFile: snapshot.data!,
+                      cropLeft: crop['left']!,
+                      cropRight: crop['right']!,
+                      cropTop: crop['top']!,
+                      cropBottom: crop['bottom']!,
+                      fillWidth: true,
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+
+        // Content layer with BackgroundText
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              if (leadingIcon != null) ...[
+                BackgroundText(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(leadingIcon, size: 20),
+                ),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    BackgroundText(
+                      child: Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      BackgroundText(
+                        child: Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (trailing != null)
+                BackgroundText(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Text(
+                    trailing,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              if (checkboxIndex != null)
+                _buildCheckbox(checkboxIndex),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildItemContent(_DeckItem item, {int? checkboxIndex}) {
     if (item.type == 'token') {
       final template = item.template as TokenTemplate;
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    template.name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  if (template.abilities.isNotEmpty)
-                    Text(
-                      template.abilities,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
-            ),
-            if (template.pt.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  template.pt,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            if (checkboxIndex != null)
-              _buildCheckbox(checkboxIndex),
-          ],
-        ),
+      return _buildItemWithArtwork(
+        artworkUrl: template.artworkUrl,
+        name: template.name,
+        subtitle: template.abilities,
+        trailing: template.pt.isNotEmpty ? template.pt : null,
+        checkboxIndex: checkboxIndex,
       );
     } else if (item.type == 'tracker') {
       final template = item.template as TrackerWidgetTemplate;
-      return ListTile(
-        leading: const Icon(Icons.show_chart, size: 20),
-        title: Text(template.name),
-        subtitle: Text(template.description, maxLines: 1, overflow: TextOverflow.ellipsis),
-        trailing: checkboxIndex != null ? _buildCheckbox(checkboxIndex) : null,
-        dense: true,
+      return _buildItemWithArtwork(
+        artworkUrl: template.artworkUrl,
+        name: template.name,
+        subtitle: template.description,
+        leadingIcon: Icons.show_chart,
+        checkboxIndex: checkboxIndex,
       );
     } else {
       final template = item.template as ToggleWidgetTemplate;
-      return ListTile(
-        leading: const Icon(Icons.toggle_on, size: 20),
-        title: Text(template.name),
-        subtitle: Text(template.onDescription, maxLines: 1, overflow: TextOverflow.ellipsis),
-        trailing: checkboxIndex != null ? _buildCheckbox(checkboxIndex) : null,
-        dense: true,
+      return _buildItemWithArtwork(
+        artworkUrl: template.artworkUrl,
+        name: template.name,
+        subtitle: template.onDescription,
+        leadingIcon: Icons.toggle_on,
+        checkboxIndex: checkboxIndex,
       );
     }
   }
@@ -745,6 +911,9 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
       widget.deck.templates.add(template);
       _updateLastModified();
     });
+
+    // Pre-cache artwork so it appears immediately in the deck list
+    _precacheArtwork(template.artworkUrl);
   }
 
   Future<void> _addUtility() async {
@@ -793,6 +962,21 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
         widget.deck.toggleWidgets!.add(template);
       }
       _updateLastModified();
+    });
+
+    // Pre-cache artwork so it appears immediately in the deck list
+    if (result.artwork.isNotEmpty) {
+      _precacheArtwork(result.artwork[0].url);
+    }
+  }
+
+  /// Fire-and-forget download of artwork to local cache so it renders in deck cards.
+  void _precacheArtwork(String? url) {
+    if (url == null || url.isEmpty || url.startsWith('file://') || kIsWeb) return;
+    ArtworkManager.downloadArtwork(url).then((_) {
+      if (mounted) setState(() {}); // Rebuild to show newly cached artwork
+    }).catchError((e) {
+      debugPrint('DeckDetailScreen: Artwork precache failed for $url - $e');
     });
   }
 

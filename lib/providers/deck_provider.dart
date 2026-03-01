@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../utils/artwork_manager.dart';
 import '../models/deck.dart';
 import '../models/token_definition.dart';
 import '../models/token_template.dart';
@@ -194,6 +196,25 @@ class DeckProvider extends ChangeNotifier {
     );
 
     await _decksBox.add(newDeck);
+
+    // Copy custom artwork file to a new path keyed to the new deck's Hive key,
+    // so re-picking art on the original doesn't silently change the duplicate's art.
+    if (newDeck.customArtworkUrl != null && newDeck.customArtworkUrl!.startsWith('file://')) {
+      try {
+        final originalPath = newDeck.customArtworkUrl!.replaceFirst('file://', '');
+        final originalFile = File(originalPath);
+        if (await originalFile.exists()) {
+          final cacheDir = await ArtworkManager.getArtworkCacheDirectory();
+          final newFile = File('${cacheDir.path}/deck_box_${newDeck.key}.png');
+          await originalFile.copy(newFile.path);
+          newDeck.customArtworkUrl = 'file://${newFile.path}';
+          newDeck.save();
+        }
+      } catch (e) {
+        debugPrint('DeckProvider: Failed to copy custom artwork for duplicate - $e');
+      }
+    }
+
     notifyListeners();
     debugPrint('DeckProvider: Duplicated deck "${original.name}" as "$newName"');
     return newDeck;
