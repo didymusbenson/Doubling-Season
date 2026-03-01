@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/item.dart';
+import '../models/token_definition.dart' as token_models;
 import '../providers/token_provider.dart';
 import '../providers/tracker_provider.dart';
 import '../providers/toggle_provider.dart';
@@ -9,7 +10,10 @@ import '../utils/artwork_preference_manager.dart';
 import 'color_selection_button.dart';
 
 class NewTokenSheet extends StatefulWidget {
-  const NewTokenSheet({super.key});
+  /// When true, pops with a TokenDefinition instead of creating on the board.
+  final bool selectorMode;
+
+  const NewTokenSheet({super.key, this.selectorMode = false});
 
   @override
   State<NewTokenSheet> createState() => _NewTokenSheetState();
@@ -166,56 +170,59 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
               maxLines: 3,
               textCapitalization: TextCapitalization.sentences,
             ),
-            const SizedBox(height: 24),
+            // Hide quantity/multiplier/tapped in selector mode (deck editing)
+            if (!widget.selectorMode) ...[
+              const SizedBox(height: 24),
 
-            const Text(
-              'Quantity',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
+              const Text(
+                'Quantity',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
 
-            Row(
-              children: [
-                IconButton(
-                  onPressed: _amount > 1 ? () => setState(() => _amount--) : null,
-                  icon: const Icon(Icons.remove_circle),
-                  iconSize: 32,
-                ),
-                Expanded(
-                  child: Text(
-                    '$_amount',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: _amount > 1 ? () => setState(() => _amount--) : null,
+                    icon: const Icon(Icons.remove_circle),
+                    iconSize: 32,
+                  ),
+                  Expanded(
+                    child: Text(
+                      '$_amount',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-                IconButton(
-                  onPressed: () => setState(() => _amount++),
-                  icon: const Icon(Icons.add_circle),
-                  iconSize: 32,
+                  IconButton(
+                    onPressed: () => setState(() => _amount++),
+                    icon: const Icon(Icons.add_circle),
+                    iconSize: 32,
+                  ),
+                ],
+              ),
+
+              if (multiplier > 1) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Current multiplier: x$multiplier - Final amount will be ${_amount * multiplier}',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  textAlign: TextAlign.center,
                 ),
               ],
-            ),
 
-            if (multiplier > 1) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Current multiplier: x$multiplier - Final amount will be ${_amount * multiplier}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-                textAlign: TextAlign.center,
+              const SizedBox(height: 24),
+
+              SwitchListTile(
+                title: const Text('Create Tapped'),
+                subtitle: const Text('Tokens enter the battlefield tapped'),
+                value: _createTapped,
+                onChanged: (value) => setState(() => _createTapped = value),
               ),
             ],
-
-            const SizedBox(height: 24),
-
-            SwitchListTile(
-              title: const Text('Create Tapped'),
-              subtitle: const Text('Tokens enter the battlefield tapped'),
-              value: _createTapped,
-              onChanged: (value) => setState(() => _createTapped = value),
-            ),
           ],
         ),
       ),
@@ -224,6 +231,23 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
 
   Future<void> _createToken() async {
     if (_nameController.text.isEmpty) {
+      return;
+    }
+
+    // Selector mode: build a TokenDefinition and pop it back
+    if (widget.selectorMode) {
+      final definition = token_models.TokenDefinition(
+        name: _nameController.text,
+        pt: _ptController.text,
+        type: _typeController.text.trim(),
+        colors: _getColorString(),
+        abilities: _abilitiesController.text,
+        popularity: 0,
+        artwork: [],
+      );
+      if (mounted) {
+        Navigator.pop(context, definition);
+      }
       return;
     }
 

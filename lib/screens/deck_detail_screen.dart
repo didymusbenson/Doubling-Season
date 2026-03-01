@@ -1,5 +1,6 @@
 import 'dart:convert' show utf8;
 import 'dart:io' show Platform;
+import 'dart:ui' show lerpDouble;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -82,7 +83,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.deck.name),
+        title: Text('Editing ${widget.deck.name}'),
         actions: [
           IconButton(
             icon: Icon(_editMode ? Icons.done : Icons.edit),
@@ -239,31 +240,14 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
       itemCount: items.length,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       onReorder: (oldIndex, newIndex) => _handleReorder(items, oldIndex, newIndex),
+      proxyDecorator: _buildDragProxy,
       itemBuilder: (context, index) {
         final item = items[index];
 
         if (_editMode) {
           return Container(
             key: ValueKey('deckitem_edit_$index'),
-            child: Row(
-              children: [
-                Checkbox(
-                  value: _selectedIndices.contains(index),
-                  onChanged: (value) {
-                    setState(() {
-                      if (value == true) {
-                        _selectedIndices.add(index);
-                      } else {
-                        _selectedIndices.remove(index);
-                      }
-                    });
-                  },
-                ),
-                Expanded(child: _buildItemCard(item)),
-                const Icon(Icons.drag_handle, color: Colors.grey),
-                const SizedBox(width: 8),
-              ],
-            ),
+            child: _buildItemCardWithCheckbox(item, index),
           );
         }
 
@@ -305,113 +289,136 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     );
   }
 
-  Widget _buildItemCard(_DeckItem item) {
-    if (item.type == 'token') {
-      final template = item.template as TokenTemplate;
-      final colorIdentity = template.colors;
+  /// Wraps card content in the correct border structure matching content_screen.dart:
+  /// Padding (margin) → Container (gradient border) → ClipRRect → Material (card color)
+  Widget _buildBorderedCard({required String colorIdentity, required Widget child}) {
+    const borderWidth = 3.0;
+    final innerBorderRadius = UIConstants.borderRadius - borderWidth;
 
-      return Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(UIConstants.borderRadius),
           border: GradientBoxBorder(
             gradient: ColorUtils.gradientForColors(colorIdentity),
-            width: 3.0,
+            width: borderWidth,
           ),
         ),
-        child: Material(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        template.name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (template.abilities.isNotEmpty)
-                        Text(
-                          template.abilities,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                    ],
-                  ),
-                ),
-                if (template.pt.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      template.pt,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-              ],
-            ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(innerBorderRadius),
+          child: Material(
+            color: Theme.of(context).cardColor,
+            child: child,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildItemCard(_DeckItem item) {
+    return _buildBorderedCard(
+      colorIdentity: _getItemColorIdentity(item),
+      child: _buildItemContent(item),
+    );
+  }
+
+  /// Edit-mode card with checkbox on the right, matching DecksListScreen pattern.
+  Widget _buildItemCardWithCheckbox(_DeckItem item, int index) {
+    return _buildBorderedCard(
+      colorIdentity: _getItemColorIdentity(item),
+      child: _buildItemContent(item, checkboxIndex: index),
+    );
+  }
+
+  String _getItemColorIdentity(_DeckItem item) {
+    if (item.type == 'token') return (item.template as TokenTemplate).colors;
+    if (item.type == 'tracker') return (item.template as TrackerWidgetTemplate).colorIdentity;
+    return (item.template as ToggleWidgetTemplate).colorIdentity;
+  }
+
+  Widget _buildItemContent(_DeckItem item, {int? checkboxIndex}) {
+    if (item.type == 'token') {
+      final template = item.template as TokenTemplate;
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    template.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (template.abilities.isNotEmpty)
+                    Text(
+                      template.abilities,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+            if (template.pt.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  template.pt,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            if (checkboxIndex != null)
+              _buildCheckbox(checkboxIndex),
+          ],
         ),
       );
     } else if (item.type == 'tracker') {
       final template = item.template as TrackerWidgetTemplate;
-      return Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(UIConstants.borderRadius),
-          border: GradientBoxBorder(
-            gradient: ColorUtils.gradientForColors(template.colorIdentity),
-            width: 3.0,
-          ),
-        ),
-        child: Material(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
-          child: ListTile(
-            leading: const Icon(Icons.show_chart, size: 20),
-            title: Text(template.name),
-            subtitle: Text(template.description, maxLines: 1, overflow: TextOverflow.ellipsis),
-            dense: true,
-          ),
-        ),
+      return ListTile(
+        leading: const Icon(Icons.show_chart, size: 20),
+        title: Text(template.name),
+        subtitle: Text(template.description, maxLines: 1, overflow: TextOverflow.ellipsis),
+        trailing: checkboxIndex != null ? _buildCheckbox(checkboxIndex) : null,
+        dense: true,
       );
     } else {
       final template = item.template as ToggleWidgetTemplate;
-      return Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(UIConstants.borderRadius),
-          border: GradientBoxBorder(
-            gradient: ColorUtils.gradientForColors(template.colorIdentity),
-            width: 3.0,
-          ),
-        ),
-        child: Material(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
-          child: ListTile(
-            leading: const Icon(Icons.toggle_on, size: 20),
-            title: Text(template.name),
-            subtitle: Text(template.onDescription, maxLines: 1, overflow: TextOverflow.ellipsis),
-            dense: true,
-          ),
-        ),
+      return ListTile(
+        leading: const Icon(Icons.toggle_on, size: 20),
+        title: Text(template.name),
+        subtitle: Text(template.onDescription, maxLines: 1, overflow: TextOverflow.ellipsis),
+        trailing: checkboxIndex != null ? _buildCheckbox(checkboxIndex) : null,
+        dense: true,
       );
     }
+  }
+
+  Widget _buildCheckbox(int index) {
+    return Checkbox(
+      value: _selectedIndices.contains(index),
+      onChanged: (value) {
+        setState(() {
+          if (value == true) {
+            _selectedIndices.add(index);
+          } else {
+            _selectedIndices.remove(index);
+          }
+        });
+      },
+    );
   }
 
   String _getItemName(_DeckItem item) {
@@ -520,6 +527,27 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     }
 
     setState(() {});
+  }
+
+  Widget _buildDragProxy(Widget child, int index, Animation<double> animation) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        final scale = lerpDouble(1.0, UIConstants.dragScaleFactor, animation.value) ?? 1.0;
+        return Transform.scale(
+          scale: scale,
+          child: Material(
+            elevation: UIConstants.dragElevation,
+            shadowColor: Colors.black.withValues(alpha: UIConstants.dragShadowOpacity),
+            borderRadius: BorderRadius.circular(UIConstants.borderRadius),
+            clipBehavior: Clip.antiAlias,
+            type: MaterialType.transparency,
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
   }
 
   Widget _buildAddButtons() {

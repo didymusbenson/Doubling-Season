@@ -399,19 +399,29 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
     }
   }
 
-  void _showNewTrackerSheet() {
-    Navigator.of(context).push(
+  void _showNewTrackerSheet() async {
+    final result = await Navigator.of(context).push<WidgetDefinition>(
       MaterialPageRoute(
-        builder: (context) => const NewTrackerSheet(),
+        builder: (context) => NewTrackerSheet(selectorMode: widget.selectorMode),
       ),
     );
+
+    // In selector mode, forward the result back to the caller (e.g. DeckDetailScreen)
+    if (widget.selectorMode && result != null && mounted) {
+      Navigator.pop(context, result);
+    }
   }
 
-  void _showNewToggleSheet() {
-    Navigator.of(context).push(
+  void _showNewToggleSheet() async {
+    final result = await Navigator.of(context).push<WidgetDefinition>(
       MaterialPageRoute(
-        builder: (context) => const NewToggleSheet(),
+        builder: (context) => NewToggleSheet(selectorMode: widget.selectorMode),
       ),
     );
+
+    // In selector mode, forward the result back to the caller (e.g. DeckDetailScreen)
+    if (widget.selectorMode && result != null && mounted) {
+      Navigator.pop(context, result);
+    }
   }
 }

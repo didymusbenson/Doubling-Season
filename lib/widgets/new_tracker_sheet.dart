@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../models/tracker_widget.dart';
+import '../models/widget_definition.dart';
 import '../providers/token_provider.dart';
 import '../providers/tracker_provider.dart';
 import '../providers/toggle_provider.dart';
 import 'color_selection_button.dart';
 
 class NewTrackerSheet extends StatefulWidget {
-  const NewTrackerSheet({super.key});
+  /// When true, pops with a WidgetDefinition instead of creating on the board.
+  final bool selectorMode;
+
+  const NewTrackerSheet({super.key, this.selectorMode = false});
 
   @override
   State<NewTrackerSheet> createState() => _NewTrackerSheetState();
@@ -47,6 +51,27 @@ class _NewTrackerSheetState extends State<NewTrackerSheet> {
 
   void _createTracker() async {
     if (_nameController.text.trim().isEmpty) {
+      return;
+    }
+
+    // Selector mode: build a WidgetDefinition and pop it back
+    if (widget.selectorMode) {
+      final name = _nameController.text.trim();
+      final definition = WidgetDefinition(
+        id: 'custom_${name.toLowerCase().replaceAll(' ', '_')}',
+        name: name,
+        description: _descriptionController.text.trim().isEmpty
+            ? 'Custom tracker'
+            : _descriptionController.text.trim(),
+        type: WidgetType.tracker,
+        colorIdentity: _getColorString(),
+        defaultValue: _defaultValue,
+        tapIncrement: 1,
+        longPressIncrement: 5,
+      );
+      if (mounted) {
+        Navigator.pop(context, definition);
+      }
       return;
     }
 

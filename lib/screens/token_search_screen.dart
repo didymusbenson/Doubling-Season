@@ -510,20 +510,19 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: ElevatedButton.icon(
-          onPressed: () {
+          onPressed: () async {
             if (widget.selectorMode) {
-              // In selector mode, navigate to NewTokenSheet and await result
-              // then pop back with a custom TokenDefinition
-              Navigator.pop(context); // Close search screen
-              Future.delayed(UIConstants.sheetDismissDelay, () {
-                if (!mounted) return;
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const NewTokenSheet(),
-                    fullscreenDialog: true,
-                  ),
-                );
-              });
+              // In selector mode, navigate to NewTokenSheet with selectorMode,
+              // await the result, and forward it back to the caller
+              final result = await Navigator.of(context).push<token_models.TokenDefinition>(
+                MaterialPageRoute(
+                  builder: (context) => const NewTokenSheet(selectorMode: true),
+                  fullscreenDialog: true,
+                ),
+              );
+              if (result != null && mounted) {
+                Navigator.pop(context, result);
+              }
             } else {
               Navigator.pop(context); // Close search screen
               // Small delay for smooth transition

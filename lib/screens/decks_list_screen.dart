@@ -1,5 +1,6 @@
 import 'dart:convert' show utf8;
 import 'dart:io' show File, Platform;
+import 'dart:ui' show lerpDouble;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -70,18 +71,18 @@ class _DecksListScreenState extends State<DecksListScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(_editMode ? Icons.done : Icons.edit),
+            icon: Icon(_editMode ? Icons.done : Icons.delete_outline),
             onPressed: () {
               setState(() {
                 _editMode = !_editMode;
                 if (!_editMode) _selectedIndices.clear();
               });
             },
-            tooltip: _editMode ? 'Done' : 'Edit',
+            tooltip: _editMode ? 'Done' : 'Delete',
           ),
           if (_isMobilePlatform)
             IconButton(
-              icon: const Icon(Icons.file_download),
+              icon: const Icon(Icons.download),
               onPressed: () => _importDeck(context),
               tooltip: 'Import',
             ),
@@ -151,10 +152,32 @@ class _DecksListScreenState extends State<DecksListScreen> {
       onReorder: (oldIndex, newIndex) {
         context.read<DeckProvider>().reorderDecks(oldIndex, newIndex);
       },
+      proxyDecorator: _buildDragProxy,
       itemBuilder: (context, index) {
         final deck = deckList[index];
         return _buildDeckCard(deck, index);
       },
+    );
+  }
+
+  Widget _buildDragProxy(Widget child, int index, Animation<double> animation) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        final scale = lerpDouble(1.0, UIConstants.dragScaleFactor, animation.value) ?? 1.0;
+        return Transform.scale(
+          scale: scale,
+          child: Material(
+            elevation: UIConstants.dragElevation,
+            shadowColor: Colors.black.withValues(alpha: UIConstants.dragShadowOpacity),
+            borderRadius: BorderRadius.circular(UIConstants.borderRadius),
+            clipBehavior: Clip.antiAlias,
+            type: MaterialType.transparency,
+            child: child,
+          ),
+        );
+      },
+      child: child,
     );
   }
 
@@ -167,19 +190,20 @@ class _DecksListScreenState extends State<DecksListScreen> {
     final innerBorderRadius = UIConstants.borderRadius - borderWidth;
     final colorIdentity = deck.colorIdentity ?? '';
 
-    return Container(
+    return Padding(
       key: ValueKey('deck_${deck.key}'),
-      margin: const EdgeInsets.symmetric(vertical: UIConstants.verticalSpacing),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(UIConstants.borderRadius),
-        border: GradientBoxBorder(
-          gradient: ColorUtils.gradientForColors(colorIdentity),
-          width: borderWidth,
+      padding: const EdgeInsets.symmetric(vertical: UIConstants.verticalSpacing),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(UIConstants.borderRadius),
+          border: GradientBoxBorder(
+            gradient: ColorUtils.gradientForColors(colorIdentity),
+            width: borderWidth,
+          ),
         ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(innerBorderRadius),
-        child: Material(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(innerBorderRadius),
+          child: Material(
           color: Theme.of(context).cardColor,
           child: InkWell(
             onTap: _editMode ? null : () => _showDeckOptions(context, deck),
@@ -229,6 +253,7 @@ class _DecksListScreenState extends State<DecksListScreen> {
               ),
             ),
           ),
+        ),
         ),
       ),
     );
@@ -326,7 +351,6 @@ class _DecksListScreenState extends State<DecksListScreen> {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => DeckDetailScreen(deck: deck),
-                        fullscreenDialog: true,
                       ),
                     );
                   },
