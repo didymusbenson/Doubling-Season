@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../../utils/artwork_manager.dart';
 import '../../utils/constants.dart';
@@ -58,9 +59,60 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
     }
   }
 
+  /// Build the CroppedArtworkWidget with the appropriate source (file or URL).
+  CroppedArtworkWidget _buildCroppedWidget({
+    File? file,
+    required Map<String, double> crop,
+    required bool fillWidth,
+  }) {
+    if (kIsWeb) {
+      // Web: skip file:// URLs (custom artwork not supported on web)
+      final url = artworkUrl;
+      if (url == null || url.startsWith('file://')) {
+        return CroppedArtworkWidget(
+          imageUrl: '', // Will fail gracefully
+          cropLeft: crop['left']!,
+          cropRight: crop['right']!,
+          cropTop: crop['top']!,
+          cropBottom: crop['bottom']!,
+          fillWidth: fillWidth,
+        );
+      }
+      return CroppedArtworkWidget(
+        imageUrl: url,
+        cropLeft: crop['left']!,
+        cropRight: crop['right']!,
+        cropTop: crop['top']!,
+        cropBottom: crop['bottom']!,
+        fillWidth: fillWidth,
+      );
+    }
+    return CroppedArtworkWidget(
+      imageFile: file,
+      cropLeft: crop['left']!,
+      cropRight: crop['right']!,
+      cropTop: crop['top']!,
+      cropBottom: crop['bottom']!,
+      fillWidth: fillWidth,
+    );
+  }
+
   /// Build full-width artwork background layer (fills entire card).
   Widget buildFullViewArtwork(BuildContext context, BoxConstraints constraints) {
     final crop = ArtworkManager.getCropPercentages(artworkUrl);
+
+    // Web: render directly from URL (no local file cache)
+    if (kIsWeb) {
+      // Skip custom artwork (file:// URLs) on web
+      if (artworkUrl!.startsWith('file://')) return const SizedBox.shrink();
+
+      return Positioned.fill(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
+          child: _buildCroppedWidget(crop: crop, fillWidth: true),
+        ),
+      );
+    }
 
     return Positioned.fill(
       child: FutureBuilder<File?>(
@@ -89,14 +141,7 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
               curve: Curves.easeIn,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
-                child: CroppedArtworkWidget(
-                  imageFile: snapshot.data!,
-                  cropLeft: crop['left']!,
-                  cropRight: crop['right']!,
-                  cropTop: crop['top']!,
-                  cropBottom: crop['bottom']!,
-                  fillWidth: true,
-                ),
+                child: _buildCroppedWidget(file: snapshot.data!, crop: crop, fillWidth: true),
               ),
             );
           }
@@ -129,6 +174,37 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
     final crop = ArtworkManager.getCropPercentages(artworkUrl);
     final cardWidth = constraints.maxWidth;
     final artworkWidth = cardWidth * UIConstants.artworkFadeoutWidthPercent;
+
+    // Web: render directly from URL (no local file cache)
+    if (kIsWeb) {
+      // Skip custom artwork (file:// URLs) on web
+      if (artworkUrl!.startsWith('file://')) return const SizedBox.shrink();
+
+      return Positioned(
+        right: 0,
+        top: 0,
+        bottom: 0,
+        width: artworkWidth,
+        child: ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topRight: Radius.circular(UIConstants.smallBorderRadius),
+            bottomRight: Radius.circular(UIConstants.smallBorderRadius),
+          ),
+          child: ShaderMask(
+            shaderCallback: (bounds) {
+              return const LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [Colors.transparent, Colors.white],
+                stops: [0.0, 0.50],
+              ).createShader(bounds);
+            },
+            blendMode: BlendMode.dstIn,
+            child: _buildCroppedWidget(crop: crop, fillWidth: false),
+          ),
+        ),
+      );
+    }
 
     return Positioned(
       right: 0,
@@ -172,14 +248,7 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
                     ).createShader(bounds);
                   },
                   blendMode: BlendMode.dstIn,
-                  child: CroppedArtworkWidget(
-                    imageFile: snapshot.data!,
-                    cropLeft: crop['left']!,
-                    cropRight: crop['right']!,
-                    cropTop: crop['top']!,
-                    cropBottom: crop['bottom']!,
-                    fillWidth: false,
-                  ),
+                  child: _buildCroppedWidget(file: snapshot.data!, crop: crop, fillWidth: false),
                 ),
               ),
             );

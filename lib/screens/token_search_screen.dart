@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:collection/collection.dart';
@@ -935,7 +936,8 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
 
                   // Download artwork in background (non-blocking, fire-and-forget)
                   // Skip if custom artwork (file://) - already local
-                  if (newItem.artworkUrl != null && !newItem.artworkUrl!.startsWith('file://')) {
+                  // Skip on web - artwork loads directly from network URL
+                  if (!kIsWeb && newItem.artworkUrl != null && !newItem.artworkUrl!.startsWith('file://')) {
                     final artworkUrl = newItem.artworkUrl!;
                     ArtworkManager.downloadArtwork(artworkUrl).then((file) {
                       if (file == null) {

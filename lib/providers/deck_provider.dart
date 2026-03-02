@@ -199,7 +199,7 @@ class DeckProvider extends ChangeNotifier {
 
     // Copy custom artwork file to a new path keyed to the new deck's Hive key,
     // so re-picking art on the original doesn't silently change the duplicate's art.
-    if (newDeck.customArtworkUrl != null && newDeck.customArtworkUrl!.startsWith('file://')) {
+    if (newDeck.customArtworkUrl != null && newDeck.customArtworkUrl!.startsWith('file://') && !kIsWeb) {
       try {
         final originalPath = newDeck.customArtworkUrl!.replaceFirst('file://', '');
         final originalFile = File(originalPath);

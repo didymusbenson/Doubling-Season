@@ -289,20 +289,38 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
   }
 
   Widget _buildThumbnailContent(String? artworkUrl) {
-    if (artworkUrl == null || artworkUrl.isEmpty || kIsWeb) {
+    if (artworkUrl == null || artworkUrl.isEmpty) {
       return Center(
         child: Icon(Icons.photo_camera, size: 24, color: Colors.grey.shade400),
       );
     }
 
-    // Check if it's a local file path (custom artwork)
+    // Skip custom artwork (file:// URLs) on web
     if (artworkUrl.startsWith('file://')) {
+      if (kIsWeb) {
+        return Center(
+          child: Icon(Icons.photo_camera, size: 24, color: Colors.grey.shade400),
+        );
+      }
       final file = File(artworkUrl.replaceFirst('file://', ''));
       if (file.existsSync()) {
         return Image.file(file, fit: BoxFit.cover, width: 60, height: 60);
       }
       return Center(
         child: Icon(Icons.photo_camera, size: 24, color: Colors.grey.shade400),
+      );
+    }
+
+    // Web: load directly from network
+    if (kIsWeb) {
+      final crop = ArtworkManager.getCropPercentages(artworkUrl);
+      return CroppedArtworkWidget(
+        imageUrl: artworkUrl,
+        cropLeft: crop['left']!,
+        cropRight: crop['right']!,
+        cropTop: crop['top']!,
+        cropBottom: crop['bottom']!,
+        fillWidth: true,
       );
     }
 

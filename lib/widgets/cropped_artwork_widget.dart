@@ -1,10 +1,19 @@
 import 'dart:io';
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
-/// Widget that displays cropped artwork based on image-relative crop percentages
+/// Widget that displays cropped artwork based on image-relative crop percentages.
+///
+/// Supports two sources:
+/// - [imageFile]: Load from a local File (mobile/desktop)
+/// - [imageUrl]: Load from a network URL (web, or as fallback)
+///
+/// Provide exactly one of [imageFile] or [imageUrl].
 class CroppedArtworkWidget extends StatefulWidget {
-  final File imageFile;
+  final File? imageFile;
+  final String? imageUrl;
   final double cropLeft;
   final double cropRight;
   final double cropTop;
@@ -13,13 +22,15 @@ class CroppedArtworkWidget extends StatefulWidget {
 
   const CroppedArtworkWidget({
     super.key,
-    required this.imageFile,
+    this.imageFile,
+    this.imageUrl,
     required this.cropLeft,
     required this.cropRight,
     required this.cropTop,
     required this.cropBottom,
     this.fillWidth = true,
-  });
+  }) : assert(imageFile != null || imageUrl != null,
+           'Either imageFile or imageUrl must be provided');
 
   @override
   State<CroppedArtworkWidget> createState() => _CroppedArtworkWidgetState();
@@ -27,8 +38,12 @@ class CroppedArtworkWidget extends StatefulWidget {
 
 class _CroppedArtworkWidgetState extends State<CroppedArtworkWidget> {
   ui.Image? _cachedImage;
-  File? _cachedFile;
+  /// Cache key: file path or URL string
+  String? _cachedSource;
   bool _isLoading = false;
+
+  String? get _currentSource =>
+      widget.imageFile?.path ?? widget.imageUrl;
 
   @override
   void initState() {
@@ -39,8 +54,8 @@ class _CroppedArtworkWidgetState extends State<CroppedArtworkWidget> {
   @override
   void didUpdateWidget(CroppedArtworkWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Reload image if the file changed
-    if (oldWidget.imageFile.path != widget.imageFile.path) {
+    final oldSource = oldWidget.imageFile?.path ?? oldWidget.imageUrl;
+    if (oldSource != _currentSource) {
       _loadImageIfNeeded();
     }
   }
@@ -52,25 +67,27 @@ class _CroppedArtworkWidgetState extends State<CroppedArtworkWidget> {
   }
 
   void _loadImageIfNeeded() {
-    // Skip if already loading or if image is already cached for this file
-    if (_isLoading || (_cachedImage != null && _cachedFile?.path == widget.imageFile.path)) {
+    final source = _currentSource;
+    if (_isLoading || (_cachedImage != null && _cachedSource == source)) {
       return;
     }
 
     _isLoading = true;
-    _loadImage(widget.imageFile).then((image) {
+    _loadImage().then((image) {
       if (mounted) {
         setState(() {
-          _cachedImage?.dispose(); // Dispose old image if exists
+          _cachedImage?.dispose();
           _cachedImage = image;
-          _cachedFile = widget.imageFile;
+          _cachedSource = source;
           _isLoading = false;
         });
       } else {
-        // Widget was disposed during loading, clean up the image
         image.dispose();
       }
     }).catchError((error) {
+      if (kDebugMode) {
+        debugPrint('CroppedArtworkWidget: Failed to load image: $error');
+      }
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -79,8 +96,21 @@ class _CroppedArtworkWidgetState extends State<CroppedArtworkWidget> {
     });
   }
 
-  Future<ui.Image> _loadImage(File file) async {
-    final bytes = await file.readAsBytes();
+  Future<ui.Image> _loadImage() async {
+    final Uint8List bytes;
+
+    if (widget.imageFile != null && !kIsWeb) {
+      bytes = await widget.imageFile!.readAsBytes();
+    } else if (widget.imageUrl != null) {
+      final response = await http.get(Uri.parse(widget.imageUrl!));
+      if (response.statusCode != 200) {
+        throw Exception('Failed to load image: HTTP ${response.statusCode}');
+      }
+      bytes = response.bodyBytes;
+    } else {
+      throw StateError('No image source available');
+    }
+
     final codec = await ui.instantiateImageCodec(bytes);
     final frame = await codec.getNextFrame();
     return frame.image;

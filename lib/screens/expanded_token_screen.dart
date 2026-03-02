@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/item.dart';
@@ -185,8 +186,8 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
     if (!isCustomArtwork) {
       // Download and cache Scryfall artwork if not already cached
       file = await ArtworkManager.downloadArtwork(url);
-    } else {
-      // Custom artwork - just verify file exists
+    } else if (!kIsWeb) {
+      // Custom artwork - just verify file exists (not available on web)
       final localPath = url.replaceFirst('file://', '');
       final localFile = File(localPath);
       if (localFile.existsSync()) {
@@ -1250,7 +1251,18 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
             ),
             const SizedBox(height: 8),
             // Display artwork thumbnail or "select" text
-            if (_cachedArtworkFuture != null)
+            if (kIsWeb && widget.item.artworkUrl != null && !widget.item.artworkUrl!.startsWith('file://'))
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  widget.item.artworkUrl!,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: 60,
+                  errorBuilder: (_, __, ___) => const SizedBox(height: 60),
+                ),
+              )
+            else if (!kIsWeb && _cachedArtworkFuture != null)
               FutureBuilder<File?>(
                 future: _cachedArtworkFuture,
                 builder: (context, snapshot) {

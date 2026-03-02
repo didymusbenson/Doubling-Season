@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/tracker_widget.dart';
@@ -474,7 +475,18 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
             ),
             const SizedBox(height: 8),
             // Display artwork thumbnail or "select" text
-            if (_cachedArtworkFuture != null)
+            if (kIsWeb && _artworkUrl != null && !_artworkUrl!.startsWith('file://'))
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  _artworkUrl!,
+                  height: 100,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _buildSelectArtworkPrompt(context),
+                ),
+              )
+            else if (!kIsWeb && _cachedArtworkFuture != null)
               FutureBuilder<File?>(
                 future: _cachedArtworkFuture,
                 builder: (context, snapshot) {

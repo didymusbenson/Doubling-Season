@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -38,6 +39,18 @@ class ArtworkSelectionSheet extends StatefulWidget {
 
 class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
   bool _isDownloading = false;
+
+  static Widget _artworkPlaceholder() {
+    return Container(
+      width: 80,
+      height: 112,
+      decoration: BoxDecoration(
+        color: Colors.grey[300],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(Icons.image, size: 40, color: Colors.grey[600]),
+    );
+  }
 
   Future<void> _downloadAllArtwork() async {
     final confirmed = await showDialog<bool>(
@@ -194,59 +207,49 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                           child: Row(
                             children: [
                               // Thumbnail
-                              FutureBuilder<File?>(
-                                future: ArtworkManager.getCachedArtworkFile(widget.currentArtworkUrl!),
-                                builder: (context, snapshot) {
-                                  if (snapshot.hasData && snapshot.data != null) {
-                                    final file = snapshot.data!;
-                                    // Add unique key for custom artwork to force reload on replacement
-                                    final isCustomArtwork = widget.currentArtworkUrl!.startsWith('file://');
+                              if (kIsWeb && !widget.currentArtworkUrl!.startsWith('file://'))
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    widget.currentArtworkUrl!,
+                                    width: 80,
+                                    height: 112,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => _artworkPlaceholder(),
+                                  ),
+                                )
+                              else if (!kIsWeb)
+                                FutureBuilder<File?>(
+                                  future: ArtworkManager.getCachedArtworkFile(widget.currentArtworkUrl!),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.hasData && snapshot.data != null) {
+                                      final file = snapshot.data!;
+                                      // Add unique key for custom artwork to force reload on replacement
+                                      final isCustomArtwork = widget.currentArtworkUrl!.startsWith('file://');
 
-                                    // Safety check: verify file exists before accessing modification time
-                                    if (!file.existsSync()) {
-                                      debugPrint('⚠️  Currently selected artwork file missing: ${file.path}');
-                                      return Container(
-                                        width: 80,
-                                        height: 112,
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey[300],
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Icon(
-                                          Icons.image,
-                                          size: 40,
-                                          color: Colors.grey[600],
+                                      // Safety check: verify file exists before accessing modification time
+                                      if (!file.existsSync()) {
+                                        debugPrint('Currently selected artwork file missing: ${file.path}');
+                                        return _artworkPlaceholder();
+                                      }
+
+                                      return ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.file(
+                                          file,
+                                          key: isCustomArtwork ? ValueKey(file.path + file.lastModifiedSync().toString()) : null,
+                                          width: 80,
+                                          height: 112,
+                                          fit: BoxFit.cover,
                                         ),
                                       );
+                                    } else {
+                                      return _artworkPlaceholder();
                                     }
-
-                                    return ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.file(
-                                        file,
-                                        key: isCustomArtwork ? ValueKey(file.path + file.lastModifiedSync().toString()) : null,
-                                        width: 80,
-                                        height: 112,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    );
-                                  } else {
-                                    return Container(
-                                      width: 80,
-                                      height: 112,
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[300],
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Icon(
-                                        Icons.image,
-                                        size: 40,
-                                        color: Colors.grey[600],
-                                      ),
-                                    );
-                                  }
-                                },
-                              ),
+                                  },
+                                )
+                              else
+                                _artworkPlaceholder(),
 
                               const SizedBox(width: 16),
 
@@ -304,10 +307,10 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                           mainAxisSpacing: 12,
                           childAspectRatio: 0.65, // Adjust for card proportions
                         ),
-                        itemCount: widget.artworkVariants.length + 1, // +1 for custom tile
+                        itemCount: widget.artworkVariants.length + (kIsWeb ? 0 : 1), // +1 for custom tile (not on web)
                         itemBuilder: (context, index) {
-                          // First tile: Custom artwork upload tile
-                          if (index == 0) {
+                          // First tile: Custom artwork upload tile (mobile/desktop only)
+                          if (!kIsWeb && index == 0) {
                             return _CustomArtworkTile(
                               tokenIdentity: widget.tokenIdentity,
                               isSelected: widget.currentArtworkUrl?.startsWith('file://') ?? false,
@@ -323,7 +326,8 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                           }
 
                           // Remaining tiles: Scryfall artwork options
-                          final variant = widget.artworkVariants[index - 1];
+                          final variantIndex = kIsWeb ? index : index - 1;
+                          final variant = widget.artworkVariants[variantIndex];
                           return _ArtworkOption(
                             variant: variant,
                             onTap: () async {
@@ -380,36 +384,53 @@ class _ArtworkOption extends StatelessWidget {
         children: [
           // Thumbnail
           Expanded(
-            child: FutureBuilder<File?>(
-              future: ArtworkManager.getCachedArtworkFile(variant.url),
-              builder: (context, snapshot) {
-                if (snapshot.hasData && snapshot.data != null) {
-                  // Show cached image
-                  return ClipRRect(
+            child: kIsWeb
+                ? ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      snapshot.data!,
+                    child: Image.network(
+                      variant.url,
                       fit: BoxFit.cover,
                       width: double.infinity,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.broken_image, size: 40, color: Colors.grey[600]),
+                      ),
                     ),
-                  );
-                } else {
-                  // Show download placeholder
-                  return Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.download,
-                      size: 40,
-                      color: Colors.grey[600],
-                    ),
-                  );
-                }
-              },
-            ),
+                  )
+                : FutureBuilder<File?>(
+                    future: ArtworkManager.getCachedArtworkFile(variant.url),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData && snapshot.data != null) {
+                        // Show cached image
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            snapshot.data!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                          ),
+                        );
+                      } else {
+                        // Show download placeholder
+                        return Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.download,
+                            size: 40,
+                            color: Colors.grey[600],
+                          ),
+                        );
+                      }
+                    },
+                  ),
           ),
 
           const SizedBox(height: 8),
@@ -444,65 +465,98 @@ class _ArtworkConfirmationDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Large preview image
-            FutureBuilder<File?>(
-              future: _downloadAndCache(context),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Container(
-                    height: 300,
-                    alignment: Alignment.center,
-                    child: const Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Loading preview...'),
-                      ],
-                    ),
-                  );
-                } else if (snapshot.hasError) {
-                  // Check if it's a network error
-                  final isNetworkError = snapshot.error.toString().contains('SocketException') ||
-                      snapshot.error.toString().contains('Failed host lookup');
-
-                  return Container(
-                    height: 300,
-                    alignment: Alignment.center,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error, size: 48, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text(
-                          isNetworkError
-                              ? 'Failed to load image.\n\nPlease check your internet connection.'
-                              : 'Failed to load image:\n${snapshot.error}',
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  );
-                } else if (snapshot.hasData && snapshot.data != null) {
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      snapshot.data!,
-                      fit: BoxFit.contain,
-                      height: 400,
-                    ),
-                  );
-                } else {
-                  return Container(
+            if (kIsWeb)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  variant.url,
+                  fit: BoxFit.contain,
+                  height: 400,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      height: 300,
+                      alignment: Alignment.center,
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('Loading preview...'),
+                        ],
+                      ),
+                    );
+                  },
+                  errorBuilder: (_, __, ___) => Container(
                     height: 300,
                     alignment: Alignment.center,
                     child: const Text(
-                      'No image available.\n\nPlease check your internet connection.',
+                      'Failed to load image.\n\nPlease check your internet connection.',
                       textAlign: TextAlign.center,
                     ),
-                  );
-                }
-              },
-            ),
+                  ),
+                ),
+              )
+            else
+              FutureBuilder<File?>(
+                future: _downloadAndCache(context),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Container(
+                      height: 300,
+                      alignment: Alignment.center,
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('Loading preview...'),
+                        ],
+                      ),
+                    );
+                  } else if (snapshot.hasError) {
+                    // Check if it's a network error
+                    final isNetworkError = snapshot.error.toString().contains('SocketException') ||
+                        snapshot.error.toString().contains('Failed host lookup');
+
+                    return Container(
+                      height: 300,
+                      alignment: Alignment.center,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error, size: 48, color: Colors.red),
+                          const SizedBox(height: 16),
+                          Text(
+                            isNetworkError
+                                ? 'Failed to load image.\n\nPlease check your internet connection.'
+                                : 'Failed to load image:\n${snapshot.error}',
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    );
+                  } else if (snapshot.hasData && snapshot.data != null) {
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        snapshot.data!,
+                        fit: BoxFit.contain,
+                        height: 400,
+                      ),
+                    );
+                  } else {
+                    return Container(
+                      height: 300,
+                      alignment: Alignment.center,
+                      child: const Text(
+                        'No image available.\n\nPlease check your internet connection.',
+                        textAlign: TextAlign.center,
+                      ),
+                    );
+                  }
+                },
+              ),
 
             const SizedBox(height: 16),
 

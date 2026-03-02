@@ -696,7 +696,8 @@ class TokenProvider extends ChangeNotifier {
         await insertItem(newGoblin);
 
         // Download artwork in background (fire-and-forget)
-        if (newGoblin.artworkUrl != null && !newGoblin.artworkUrl!.startsWith('file://')) {
+        // Skip on web - artwork loads directly from network URL
+        if (!kIsWeb && newGoblin.artworkUrl != null && !newGoblin.artworkUrl!.startsWith('file://')) {
           final artworkUrl = newGoblin.artworkUrl!;
           ArtworkManager.downloadArtwork(artworkUrl).then((file) {
             if (file == null) {
@@ -841,7 +842,8 @@ class TokenProvider extends ChangeNotifier {
           notifyListeners();
 
           // Download artwork in background (fire-and-forget)
-          if (newToken.artworkUrl != null && !newToken.artworkUrl!.startsWith('file://')) {
+          // Skip on web - artwork loads directly from network URL
+          if (!kIsWeb && newToken.artworkUrl != null && !newToken.artworkUrl!.startsWith('file://')) {
             final artworkUrl = newToken.artworkUrl!;
             ArtworkManager.downloadArtwork(artworkUrl).then((file) {
               if (file == null) {

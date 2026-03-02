@@ -79,8 +79,8 @@ class ArtworkPreferenceManager {
     final preference = _box.get(tokenIdentity);
     if (preference == null) return;
 
-    // Delete file if exists
-    if (preference.customArtworkPath != null) {
+    // Delete file if exists (not available on web)
+    if (preference.customArtworkPath != null && !kIsWeb) {
       try {
         final file = File(preference.customArtworkPath!.replaceFirst('file://', ''));
         if (await file.exists()) {

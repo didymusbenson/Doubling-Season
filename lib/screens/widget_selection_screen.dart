@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/widget_definition.dart';
@@ -299,7 +300,8 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
       await trackerProvider.insertTracker(tracker);
 
       // Download artwork in background (non-blocking, fire-and-forget)
-      if (tracker.artworkUrl != null && !tracker.artworkUrl!.startsWith('file://')) {
+      // Skip on web - artwork loads directly from network URL
+      if (!kIsWeb && tracker.artworkUrl != null && !tracker.artworkUrl!.startsWith('file://')) {
         final artworkUrl = tracker.artworkUrl!;
         ArtworkManager.downloadArtwork(artworkUrl).then((file) {
           if (file == null) {
@@ -352,7 +354,8 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
       await toggleProvider.insertToggle(toggle);
 
       // Download artwork in background (non-blocking, fire-and-forget)
-      if (toggle.artworkUrl != null && !toggle.artworkUrl!.startsWith('file://')) {
+      // Skip on web - artwork loads directly from network URL
+      if (!kIsWeb && toggle.artworkUrl != null && !toggle.artworkUrl!.startsWith('file://')) {
         final artworkUrl = toggle.artworkUrl!;
         ArtworkManager.downloadArtwork(artworkUrl).then((file) {
           if (file == null) {

@@ -53,18 +53,27 @@ Future<HiveInitResult> initHive() async {
     Hive.registerAdapter(TrackerWidgetTemplateAdapter()); // NEW - Deck templates for utilities
     Hive.registerAdapter(ToggleWidgetTemplateAdapter()); // NEW - Deck templates for utilities
 
-    // Resolve the Hive data directory for backup/restore operations
-    final hivePath = await _getHivePath();
+    if (kIsWeb) {
+      // Web uses IndexedDB via Hive — no file system, no backup/restore
+      await Hive.openBox<Item>('items');
+      await Hive.openBox<Deck>('decks');
+      await Hive.openBox<TokenArtworkPreference>('artworkPreferences');
+      await Hive.openBox<TrackerWidget>('trackerWidgets');
+      await Hive.openBox<ToggleWidget>('toggleWidgets');
+    } else {
+      // Resolve the Hive data directory for backup/restore operations
+      final hivePath = await _getHivePath();
 
-    // Open each box individually with error handling
-    await _openBoxResilient<Item>('items', hivePath, wipedBoxes);
-    await _openBoxResilient<Deck>('decks', hivePath, wipedBoxes);
-    await _openBoxResilient<TokenArtworkPreference>('artworkPreferences', hivePath, wipedBoxes);
-    await _openBoxResilient<TrackerWidget>('trackerWidgets', hivePath, wipedBoxes);
-    await _openBoxResilient<ToggleWidget>('toggleWidgets', hivePath, wipedBoxes);
+      // Open each box individually with error handling
+      await _openBoxResilient<Item>('items', hivePath, wipedBoxes);
+      await _openBoxResilient<Deck>('decks', hivePath, wipedBoxes);
+      await _openBoxResilient<TokenArtworkPreference>('artworkPreferences', hivePath, wipedBoxes);
+      await _openBoxResilient<TrackerWidget>('trackerWidgets', hivePath, wipedBoxes);
+      await _openBoxResilient<ToggleWidget>('toggleWidgets', hivePath, wipedBoxes);
 
-    // Fire-and-forget: backup all .hive files after successful boot
-    _backupAllBoxes(hivePath);
+      // Fire-and-forget: backup all .hive files after successful boot
+      _backupAllBoxes(hivePath);
+    }
 
   } catch (e, stackTrace) {
     // Final safety net: if anything unexpected fails (e.g., Hive.initFlutter(),
