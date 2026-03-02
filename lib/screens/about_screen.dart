@@ -207,7 +207,7 @@ class _AboutScreenState extends State<AboutScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Token data sourced from the Cockatrice project.',
+                      'Token data sourced from MTGJSON (mtgjson.com), licensed under MIT.',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 16),
