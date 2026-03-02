@@ -27,7 +27,7 @@ An outdated CLAUDE.md leads to repeated mistakes, inconsistent patterns, and mis
 
 ## Project Overview
 
-**Tripling Season** is a cross-platform Flutter app for tracking Magic: The Gathering tokens during gameplay. It manages token stacks with tapped/untapped states, summoning sickness, counters (+1/+1, -1/-1, and custom counters), token artwork display, and provides a searchable database of 883 token types.
+**Tripling Season** is a cross-platform Flutter app for tracking Magic: The Gathering tokens during gameplay. It manages token stacks with tapped/untapped states, summoning sickness, counters (+1/+1, -1/-1, and custom counters), token artwork display, and provides a searchable database of 913 token types.
 
 **Note:** The app's official name is "Tripling Season" (as of December 2025). Display name, bundle identifiers, and package names reflect this branding.
 
@@ -120,9 +120,9 @@ flutter pub run build_runner build --delete-conflicting-outputs
 
 ### Data Generation
 ```bash
-python3 docs/housekeeping/process_tokens_with_popularity.py
+python3 docs/housekeeping/process_tokens_mtgjson.py
 ```
-Fetches token XML from Cockatrice GitHub, deduplicates using key `name|pt|colors|type|abilities`, outputs to `assets/token_database.json`. Use `/regen-tokens` slash command for guided workflow.
+Downloads AllPrintings from MTGJSON (cached at `docs/housekeeping/mtgjson_cache/`), extracts tokens, deduplicates using key `name|pt|colors|type|abilities`, outputs to `assets/token_database.json`. Includes `reverse_related` field with card names that create each token. Use `/regen-tokens` slash command for guided workflow. Cockatrice-based fallback script still available at `process_tokens_with_popularity.py`.
 
 ### TestFlight Deployment
 ```bash
@@ -173,7 +173,7 @@ Manual functional testing only. Do not generate automated test code.
 
 **SharedPreferences** — simple key-value settings, managed by SettingsProvider
 
-**Token Database** — `assets/token_database.json`, loaded async via `TokenDatabase.loadTokens()` using `compute()` isolate
+**Token Database** — `assets/token_database.json` (generated from MTGJSON AllPrintings), loaded async via `TokenDatabase.loadTokens()` using `compute()` isolate
 
 **Auto-save** — Hive models extend `HiveObject`, all setters call `.save()`
 
@@ -321,9 +321,12 @@ When implementing features for any utility type (TrackerWidget, ToggleWidget, fu
 `TokenDefinition.id` composite key `name|pt|colors|type|abilities` must match the Python script's dedup key exactly. If they diverge, token variants will be missing from search.
 
 ### Python Script Maintenance
+- Primary script: `docs/housekeeping/process_tokens_mtgjson.py` (MTGJSON source)
+- Fallback script: `docs/housekeeping/process_tokens_with_popularity.py` (Cockatrice source)
 - Dedup key: `f"{name}|{token['pt']}|{token['colors']}|{type_text}|{abilities}"`
-- Output hardcoded to `assets/token_database.json`
-- Run from repo root: `python3 docs/housekeeping/process_tokens_with_popularity.py`
+- Output: `assets/token_database.json`
+- MTGJSON cache: `docs/housekeeping/mtgjson_cache/AllPrintings.json` (~500MB, gitignored)
+- Run from repo root: `python3 docs/housekeeping/process_tokens_mtgjson.py`
 
 ## Docs Workflow (Context Preservation)
 
@@ -371,7 +374,7 @@ lib/
 ├── widgets/token_card.dart      # Canonical reference for all board item UI
 └── widgets/split_stack_sheet.dart  # Early-dismiss pattern (critical)
 
-assets/token_database.json       # 883 bundled tokens
+assets/token_database.json       # 913 bundled tokens
 docs/activeDevelopment/patterns/ # Reusable implementation patterns
 ```
 
