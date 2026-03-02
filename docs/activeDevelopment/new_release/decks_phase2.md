@@ -1,6 +1,6 @@
 # Feature: Decks Phase 2 — Template Editing & Deck Artwork
 
-**Status:** In progress
+**Status:** Complete
 **Depends on:** Decks overhaul (shipped in `4aa16dc`, polish in `d2c4eb4`)
 
 ## Summary
