@@ -15,6 +15,7 @@ import '../models/toggle_widget.dart';
 import '../models/tracker_widget_template.dart';
 import '../models/toggle_widget_template.dart';
 import '../providers/deck_provider.dart';
+import '../providers/settings_provider.dart';
 import '../providers/token_provider.dart';
 import '../providers/tracker_provider.dart';
 import '../providers/toggle_provider.dart';
@@ -51,24 +52,16 @@ class _DecksListScreenState extends State<DecksListScreen> {
   @override
   Widget build(BuildContext context) {
     final deckProvider = context.read<DeckProvider>();
+    final artworkStyle = context.select<SettingsProvider, String>(
+      (settings) => settings.artworkDisplayStyle,
+    );
 
     return Scaffold(
       appBar: AppBar(
-        leadingWidth: 96,
-        leading: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back),
-              tooltip: 'Back',
-            ),
-            IconButton(
-              onPressed: () => _showSaveSheet(context),
-              icon: const Icon(Icons.save),
-              tooltip: 'Save current board as deck',
-            ),
-          ],
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
         ),
         title: const Text('Decks'),
         centerTitle: true,
@@ -100,7 +93,7 @@ class _DecksListScreenState extends State<DecksListScreen> {
             return _buildEmptyState();
           }
 
-          return _buildDeckList(deckList);
+          return _buildDeckList(deckList, artworkStyle);
         },
       ),
       bottomNavigationBar: _editMode && _selectedIndices.isNotEmpty
@@ -118,7 +111,32 @@ class _DecksListScreenState extends State<DecksListScreen> {
                 ),
               ),
             )
-          : null,
+          : !_editMode
+            ? SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showSaveSheet(context),
+                          icon: const Icon(Icons.save),
+                          label: const Text('Save Board'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _createNewDeck(context),
+                          icon: const Icon(Icons.add),
+                          label: const Text('New Deck'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : null,
     );
   }
 
@@ -135,7 +153,7 @@ class _DecksListScreenState extends State<DecksListScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Tap "Save" to save your current board as a deck',
+            'Use "Save Board" or "New Deck" below to get started',
             style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
           ),
         ],
@@ -143,7 +161,7 @@ class _DecksListScreenState extends State<DecksListScreen> {
     );
   }
 
-  Widget _buildDeckList(List<Deck> deckList) {
+  Widget _buildDeckList(List<Deck> deckList, String artworkStyle) {
     return ReorderableListView.builder(
       itemCount: deckList.length,
       padding: const EdgeInsets.only(
@@ -158,7 +176,7 @@ class _DecksListScreenState extends State<DecksListScreen> {
       proxyDecorator: _buildDragProxy,
       itemBuilder: (context, index) {
         final deck = deckList[index];
-        return _buildDeckCard(deck, index);
+        return _buildDeckCard(deck, index, artworkStyle);
       },
     );
   }
@@ -188,11 +206,12 @@ class _DecksListScreenState extends State<DecksListScreen> {
   /// This matches the content_screen.dart pattern where the border Container
   /// is the keyed widget returned to ReorderableListView, ensuring the gradient
   /// border wraps the entire drag proxy during reorder.
-  Widget _buildDeckCard(Deck deck, int index) {
+  Widget _buildDeckCard(Deck deck, int index, String artworkStyle) {
     const borderWidth = 3.0;
     final innerBorderRadius = UIConstants.borderRadius - borderWidth;
     final colorIdentity = deck.colorIdentity ?? '';
     final artworkUrl = DeckProvider.resolveArtworkUrl(deck);
+    final isFullView = artworkStyle == 'fullView';
 
     return Padding(
       key: ValueKey('deck_${deck.key}'),
@@ -211,7 +230,7 @@ class _DecksListScreenState extends State<DecksListScreen> {
             color: Colors.transparent,
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final artworkWidth = constraints.maxWidth * 0.5;
+                final artworkWidth = constraints.maxWidth * UIConstants.artworkFadeoutWidthPercent;
                 return Stack(
                   children: [
                     // Base background
@@ -219,48 +238,9 @@ class _DecksListScreenState extends State<DecksListScreen> {
                       child: Container(color: Theme.of(context).cardColor),
                     ),
 
-                    // Artwork layer (fadeout style, right 50%)
+                    // Artwork layer
                     if (artworkUrl != null && artworkUrl.isNotEmpty && !kIsWeb)
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        bottom: 0,
-                        width: artworkWidth,
-                        child: FutureBuilder<File?>(
-                          future: ArtworkManager.getCachedArtworkFile(artworkUrl),
-                          builder: (context, snapshot) {
-                            if (snapshot.hasData && snapshot.data != null) {
-                              final crop = ArtworkManager.getCropPercentages(artworkUrl);
-                              return ClipRRect(
-                                borderRadius: BorderRadius.only(
-                                  topRight: Radius.circular(innerBorderRadius),
-                                  bottomRight: Radius.circular(innerBorderRadius),
-                                ),
-                                child: ShaderMask(
-                                  shaderCallback: (bounds) {
-                                    return const LinearGradient(
-                                      begin: Alignment.centerLeft,
-                                      end: Alignment.centerRight,
-                                      colors: [Colors.transparent, Colors.white],
-                                      stops: [0.0, 0.50],
-                                    ).createShader(bounds);
-                                  },
-                                  blendMode: BlendMode.dstIn,
-                                  child: CroppedArtworkWidget(
-                                    imageFile: snapshot.data!,
-                                    cropLeft: crop['left']!,
-                                    cropRight: crop['right']!,
-                                    cropTop: crop['top']!,
-                                    cropBottom: crop['bottom']!,
-                                    fillWidth: false,
-                                  ),
-                                ),
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          },
-                        ),
-                      ),
+                      _buildDeckArtwork(artworkUrl, innerBorderRadius, artworkWidth, isFullView),
 
                     // Content layer (InkWell + text)
                     InkWell(
@@ -323,6 +303,72 @@ class _DecksListScreenState extends State<DecksListScreen> {
         ), // ClipRRect
       ), // Container (border)
     ); // Padding
+  }
+
+  Widget _buildDeckArtwork(String artworkUrl, double innerBorderRadius, double artworkWidth, bool isFullView) {
+    return isFullView
+        ? Positioned.fill(
+            child: FutureBuilder<File?>(
+              future: ArtworkManager.getCachedArtworkFile(artworkUrl),
+              builder: (context, snapshot) {
+                if (snapshot.hasData && snapshot.data != null) {
+                  final crop = ArtworkManager.getCropPercentages(artworkUrl);
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(innerBorderRadius),
+                    child: CroppedArtworkWidget(
+                      imageFile: snapshot.data!,
+                      cropLeft: crop['left']!,
+                      cropRight: crop['right']!,
+                      cropTop: crop['top']!,
+                      cropBottom: crop['bottom']!,
+                      fillWidth: true,
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          )
+        : Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: artworkWidth,
+            child: FutureBuilder<File?>(
+              future: ArtworkManager.getCachedArtworkFile(artworkUrl),
+              builder: (context, snapshot) {
+                if (snapshot.hasData && snapshot.data != null) {
+                  final crop = ArtworkManager.getCropPercentages(artworkUrl);
+                  return ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      topRight: Radius.circular(innerBorderRadius),
+                      bottomRight: Radius.circular(innerBorderRadius),
+                    ),
+                    child: ShaderMask(
+                      shaderCallback: (bounds) {
+                        return const LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [Colors.transparent, Colors.white],
+                          stops: [0.0, 0.50],
+                        ).createShader(bounds);
+                      },
+                      blendMode: BlendMode.dstIn,
+                      child: CroppedArtworkWidget(
+                        imageFile: snapshot.data!,
+                        cropLeft: crop['left']!,
+                        cropRight: crop['right']!,
+                        cropTop: crop['top']!,
+                        cropBottom: crop['bottom']!,
+                        fillWidth: false,
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          );
   }
 
   String _buildSubtitle(Deck deck) {
@@ -736,6 +782,39 @@ class _DecksListScreenState extends State<DecksListScreen> {
         colorIdentity: result.colorIdentity,
       );
       deckProvider.saveDeck(deck);
+    });
+  }
+
+  void _createNewDeck(BuildContext context) {
+    final deckProvider = context.read<DeckProvider>();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => const DeckSaveSheet(
+        title: 'New Deck',
+        buttonLabel: 'Create',
+      ),
+    ).then((result) {
+      if (result == null || result is! DeckSaveResult) return;
+
+      final deck = Deck(
+        name: result.name,
+        templates: [],
+      );
+      deck.colorIdentity = result.colorIdentity;
+      deckProvider.saveDeck(deck);
+
+      // Open the new deck for editing
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => DeckDetailScreen(deck: deck),
+            ),
+          );
+        }
+      });
     });
   }
 

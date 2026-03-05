@@ -15,7 +15,18 @@ class DeckSaveSheet extends StatefulWidget {
   /// Pre-detected colors from the current board state
   final String suggestedColors;
 
-  const DeckSaveSheet({super.key, this.suggestedColors = ''});
+  /// Title shown at the top of the sheet (default: 'Save Deck')
+  final String title;
+
+  /// Label for the primary action button (default: 'Save')
+  final String buttonLabel;
+
+  const DeckSaveSheet({
+    super.key,
+    this.suggestedColors = '',
+    this.title = 'Save Deck',
+    this.buttonLabel = 'Save',
+  });
 
   @override
   State<DeckSaveSheet> createState() => _DeckSaveSheetState();
@@ -66,7 +77,7 @@ class _DeckSaveSheetState extends State<DeckSaveSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Save Deck',
+            widget.title,
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 16),
@@ -125,7 +136,7 @@ class _DeckSaveSheetState extends State<DeckSaveSheet> {
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Save'),
+                  child: Text(widget.buttonLabel),
                 ),
               ),
             ],

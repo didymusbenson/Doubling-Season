@@ -259,8 +259,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     final artworkUrl = DeckProvider.resolveArtworkUrl(widget.deck);
 
     return GestureDetector(
-      onTap: () => _pickDeckBoxImage(),
-      onLongPress: widget.deck.customArtworkUrl != null ? () => _clearCustomArtwork() : null,
+      onTap: () => _showDeckBoxOptions(),
       child: Column(
         children: [
           Container(
@@ -374,30 +373,40 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     }
   }
 
-  void _clearCustomArtwork() {
-    showDialog(
+  void _showDeckBoxOptions() {
+    final hasCustomArt = widget.deck.customArtworkUrl != null;
+
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Clear Custom Art'),
-        content: const Text('Remove custom deck box art? The thumbnail will revert to the first token\'s artwork.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.upload),
+                title: const Text('Upload Image'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _pickDeckBoxImage();
+                },
+              ),
+              if (hasCustomArt)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Colors.red),
+                  title: const Text('Remove Image', style: TextStyle(color: Colors.red)),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    setState(() {
+                      widget.deck.customArtworkUrl = null;
+                      _updateLastModified();
+                    });
+                  },
+                ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              setState(() {
-                widget.deck.customArtworkUrl = null;
-                _updateLastModified();
-              });
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
