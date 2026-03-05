@@ -44,6 +44,28 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
   String? get artworkUrl;
   void clearArtwork();
 
+  /// Try to re-download a missing artwork file. If download fails, clear the reference.
+  void _redownloadOrClear(String url) {
+    // Custom artwork (file://) can't be re-downloaded — clear immediately
+    if (url.startsWith('file://')) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) clearArtwork();
+      });
+      return;
+    }
+
+    ArtworkManager.downloadArtwork(url).then((file) {
+      if (!mounted) return;
+      if (file != null) {
+        // Download succeeded — rebuild to show artwork
+        setState(() {});
+      } else {
+        // Download failed — URL is genuinely broken, clear it
+        clearArtwork();
+      }
+    });
+  }
+
   /// Main artwork layer builder - delegates to specific mode methods.
   ///
   /// This is the entry point called from the card's build() method.
@@ -146,19 +168,14 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
             );
           }
 
-          // If artwork file is missing, clear the invalid reference
-          // BUT: Only do this if widget has been stable for >2 seconds to avoid cleanup during drag/scroll
+          // Artwork file missing — try re-downloading before giving up
           if (snapshot.connectionState == ConnectionState.done &&
               snapshot.data == null &&
               !artworkCleanupAttempted) {
             final elapsed = DateTime.now().difference(createdAt).inMilliseconds;
             if (elapsed > UIConstants.artworkCleanupDelay) {
               artworkCleanupAttempted = true;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  clearArtwork();
-                }
-              });
+              _redownloadOrClear(artworkUrl!);
             }
           }
 
@@ -254,19 +271,14 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
             );
           }
 
-          // If artwork file is missing, clear the invalid reference
-          // BUT: Only do this if widget has been stable for >2 seconds to avoid cleanup during drag/scroll
+          // Artwork file missing — try re-downloading before giving up
           if (snapshot.connectionState == ConnectionState.done &&
               snapshot.data == null &&
               !artworkCleanupAttempted) {
             final elapsed = DateTime.now().difference(createdAt).inMilliseconds;
             if (elapsed > UIConstants.artworkCleanupDelay) {
               artworkCleanupAttempted = true;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  clearArtwork();
-                }
-              });
+              _redownloadOrClear(artworkUrl!);
             }
           }
 

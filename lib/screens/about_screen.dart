@@ -12,13 +12,16 @@ class AboutScreen extends StatefulWidget {
 class _AboutScreenState extends State<AboutScreen> {
   String _version = '';
   int _cacheSize = 0;
+  int _customUploadsSize = 0;
   bool _isLoadingCache = true;
+  bool _isLoadingCustom = true;
 
   @override
   void initState() {
     super.initState();
     _loadVersion();
     _loadCacheSize();
+    _loadCustomUploadsSize();
   }
 
   Future<void> _loadVersion() async {
@@ -71,6 +74,52 @@ class _AboutScreenState extends State<AboutScreen> {
         );
         // Reload cache size
         await _loadCacheSize();
+      }
+    }
+  }
+
+  Future<void> _loadCustomUploadsSize() async {
+    final size = await ArtworkManager.getCustomUploadsSize();
+    if (mounted) {
+      setState(() {
+        _customUploadsSize = size;
+        _isLoadingCustom = false;
+      });
+    }
+  }
+
+  Future<void> _clearCustomUploads() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete all imported artwork?'),
+        content: const Text(
+          'This will remove all custom uploaded token artwork and deck box images.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final success = await ArtworkManager.clearCustomUploads();
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Imported artwork cleared')),
+        );
+        await _loadCustomUploadsSize();
       }
     }
   }
@@ -247,7 +296,7 @@ class _AboutScreenState extends State<AboutScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Artwork Cache'),
+                        const Text('Downloaded Artwork Cache'),
                         _isLoadingCache
                             ? const SizedBox(
                                 width: 16,
@@ -268,7 +317,35 @@ class _AboutScreenState extends State<AboutScreen> {
                       child: OutlinedButton.icon(
                         onPressed: _cacheSize > 0 ? _clearArtworkCache : null,
                         icon: const Icon(Icons.delete_outline),
-                        label: const Text('Clear Artwork Cache'),
+                        label: const Text('Clear Downloaded Artwork'),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Custom Uploads Cache'),
+                        _isLoadingCustom
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Text(
+                                ArtworkManager.formatCacheSize(_customUploadsSize),
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Colors.grey,
+                                ),
+                              ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _customUploadsSize > 0 ? _clearCustomUploads : null,
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Clear Imported Artwork'),
                       ),
                     ),
                   ],

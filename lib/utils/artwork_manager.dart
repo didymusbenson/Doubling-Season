@@ -227,6 +227,90 @@ class ArtworkManager {
     }
   }
 
+  /// Get the custom uploads directory (user-imported artwork for tokens)
+  static Future<Directory> getCustomUploadsDirectory() async {
+    if (kIsWeb) {
+      throw UnsupportedError('File system not available on web platform');
+    }
+    final appDir = await getApplicationDocumentsDirectory();
+    final customDir = Directory('${appDir.path}/custom_artwork');
+    if (!await customDir.exists()) {
+      await customDir.create(recursive: true);
+    }
+    return customDir;
+  }
+
+  /// Get total size of custom uploaded artwork in bytes
+  /// Includes both custom token artwork and deck box images
+  static Future<int> getCustomUploadsSize() async {
+    if (kIsWeb) return 0;
+
+    try {
+      int totalSize = 0;
+
+      // Custom token artwork
+      final customDir = await getCustomUploadsDirectory();
+      if (await customDir.exists()) {
+        await for (var entity in customDir.list()) {
+          if (entity is File) {
+            totalSize += (await entity.stat()).size;
+          }
+        }
+      }
+
+      // Deck box images (stored in artwork cache as deck_box_*.png)
+      final cacheDir = await getArtworkCacheDirectory();
+      if (await cacheDir.exists()) {
+        await for (var entity in cacheDir.list()) {
+          if (entity is File && entity.path.contains('deck_box_')) {
+            totalSize += (await entity.stat()).size;
+          }
+        }
+      }
+
+      return totalSize;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error calculating custom uploads size: $e');
+      }
+      return 0;
+    }
+  }
+
+  /// Clear all custom uploaded artwork (token uploads and deck box images)
+  static Future<bool> clearCustomUploads() async {
+    if (kIsWeb) return true;
+
+    try {
+      // Clear custom token artwork
+      final customDir = await getCustomUploadsDirectory();
+      if (await customDir.exists()) {
+        await for (var entity in customDir.list()) {
+          if (entity is File) {
+            await entity.delete();
+          }
+        }
+      }
+
+      // Clear deck box images from artwork cache
+      final cacheDir = await getArtworkCacheDirectory();
+      if (await cacheDir.exists()) {
+        await for (var entity in cacheDir.list()) {
+          if (entity is File && entity.path.contains('deck_box_')) {
+            await entity.delete();
+          }
+        }
+      }
+
+      return true;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error clearing custom uploads: $e');
+      }
+      return false;
+    }
+  }
+
   /// Format cache size in human-readable format (e.g., "2.5 MB")
   static String formatCacheSize(int bytes) {
     if (bytes < 1024) {
