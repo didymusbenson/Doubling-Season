@@ -452,6 +452,19 @@ class _DecksListScreenState extends State<DecksListScreen> {
                     _loadDeckAddToBoard(context, deck);
                   },
                 ),
+                if (_isMobilePlatform) ...[
+                  const SizedBox(height: 4),
+                  _buildOptionTile(
+                    context: sheetContext,
+                    icon: Icons.share,
+                    label: 'Share',
+                    color: Colors.teal,
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _shareDeck(context, deck);
+                    },
+                  ),
+                ],
                 const SizedBox(height: 4),
                 _buildOptionTile(
                   context: sheetContext,
@@ -467,19 +480,6 @@ class _DecksListScreenState extends State<DecksListScreen> {
                     );
                   },
                 ),
-                if (_isMobilePlatform) ...[
-                  const SizedBox(height: 4),
-                  _buildOptionTile(
-                    context: sheetContext,
-                    icon: Icons.share,
-                    label: 'Share',
-                    color: Colors.teal,
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      _shareDeck(context, deck);
-                    },
-                  ),
-                ],
                 const SizedBox(height: 4),
                 _buildOptionTile(
                   context: sheetContext,

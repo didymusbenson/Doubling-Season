@@ -176,6 +176,12 @@ class _ContentScreenState extends State<ContentScreen> {
         // Sort by order
         boardItems.sort((a, b) => a.order.compareTo(b.order));
 
+        // Prune stale dismiss state notifiers for items no longer on the board
+        final activeKeys = boardItems.map((b) => b.key).toSet();
+        _dismissStates.keys.where((k) => !activeKeys.contains(k)).toList().forEach((k) {
+          _dismissStates.remove(k)?.dispose();
+        });
+
         // Check empty state
         if (boardItems.isEmpty) {
           return _buildEmptyState();
@@ -838,6 +844,7 @@ class _ContentScreenState extends State<ContentScreen> {
           TextButton(
             onPressed: () async {
               await tokenProvider.boardWipeDelete();
+              _clearDismissStates();
               if (dialogContext.mounted) {
                 Navigator.pop(dialogContext);
               }
@@ -847,6 +854,13 @@ class _ContentScreenState extends State<ContentScreen> {
         ],
       ),
     );
+  }
+
+  void _clearDismissStates() {
+    for (final notifier in _dismissStates.values) {
+      notifier.dispose();
+    }
+    _dismissStates.clear();
   }
 
   void _showDecksScreen() {
