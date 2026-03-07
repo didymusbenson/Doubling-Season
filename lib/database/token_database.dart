@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:hive/hive.dart';
 import '../models/token_definition.dart' as token_models;
 import '../providers/settings_provider.dart';
 import '../utils/constants.dart';
 
 class TokenDatabase extends ChangeNotifier {
   List<token_models.TokenDefinition> _allTokens = [];
+  List<token_models.TokenDefinition> _customTokens = [];
   bool _isLoading = true;
   String? _loadError;
   String _searchQuery = '';
@@ -19,6 +21,7 @@ class TokenDatabase extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get loadError => _loadError;
   List<token_models.TokenDefinition> get allTokens => _allTokens;
+  List<token_models.TokenDefinition> get customTokens => _customTokens;
 
   // Filtered tokens based on search, category, and color
   List<token_models.TokenDefinition> get filteredTokens {
@@ -27,8 +30,9 @@ class TokenDatabase extends ChangeNotifier {
       return _cachedFilteredTokens!;
     }
 
-    // Compute and cache
-    final filtered = _allTokens.where((token) {
+    // Compute and cache — include both database and custom tokens
+    final allSources = [..._allTokens, ..._customTokens];
+    final filtered = allSources.where((token) {
       final matchesSearch = token.matches(searchQuery: _searchQuery);
       final matchesCategory =
           _selectedCategory == null || token.category == _selectedCategory;
@@ -133,13 +137,7 @@ class TokenDatabase extends ChangeNotifier {
   List<token_models.TokenDefinition> getRecentTokens(SettingsProvider settingsProvider) {
     final recentIds = settingsProvider.recentTokens;
     return recentIds
-        .map((id) {
-          try {
-            return _allTokens.firstWhere((t) => t.id == id);
-          } catch (e) {
-            return null;
-          }
-        })
+        .map((id) => findTokenById(id))
         .whereType<token_models.TokenDefinition>()
         .toList();
   }
@@ -159,6 +157,84 @@ class TokenDatabase extends ChangeNotifier {
 
   List<token_models.TokenDefinition> getFavoriteTokens(SettingsProvider settingsProvider) {
     final favoriteIds = settingsProvider.favoriteTokens;
-    return _allTokens.where((t) => favoriteIds.contains(t.id)).toList();
+    final results = <token_models.TokenDefinition>[];
+    for (final t in _allTokens) {
+      if (favoriteIds.contains(t.id)) results.add(t);
+    }
+    for (final t in _customTokens) {
+      if (favoriteIds.contains(t.id) && !results.any((r) => r.id == t.id)) {
+        results.add(t);
+      }
+    }
+    return results;
+  }
+
+  // --- Custom Token Management ---
+
+  /// Load custom tokens from the Hive 'customTokens' box.
+  void loadCustomTokens() {
+    try {
+      final box = Hive.box<String>('customTokens');
+      final databaseIds = _allTokens.map((t) => t.id).toSet();
+      _customTokens = box.keys
+          .map((key) {
+            try {
+              final json = jsonDecode(box.get(key)!) as Map<String, dynamic>;
+              return token_models.TokenDefinition.fromJson(json);
+            } catch (e) {
+              debugPrint('Failed to parse custom token "$key": $e');
+              return null;
+            }
+          })
+          .whereType<token_models.TokenDefinition>()
+          .where((t) => !databaseIds.contains(t.id)) // DB version wins on collision
+          .toList();
+      _cachedFilteredTokens = null;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to load custom tokens: $e');
+    }
+  }
+
+  /// Save a custom token. Skips if an identical database token exists.
+  void saveCustomToken(token_models.TokenDefinition token) {
+    // Database version wins — don't save duplicates
+    if (_allTokens.any((t) => t.id == token.id)) return;
+
+    try {
+      final box = Hive.box<String>('customTokens');
+      box.put(token.id, jsonEncode(token.toJson()));
+      // Update in-memory list
+      _customTokens.removeWhere((t) => t.id == token.id);
+      _customTokens.add(token);
+      _cachedFilteredTokens = null;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to save custom token: $e');
+    }
+  }
+
+  /// Delete a custom token by composite ID.
+  void deleteCustomToken(String id) {
+    try {
+      final box = Hive.box<String>('customTokens');
+      box.delete(id);
+      _customTokens.removeWhere((t) => t.id == id);
+      _cachedFilteredTokens = null;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to delete custom token: $e');
+    }
+  }
+
+  /// Find a token by composite ID across both database and custom tokens.
+  token_models.TokenDefinition? findTokenById(String id) {
+    for (final t in _allTokens) {
+      if (t.id == id) return t;
+    }
+    for (final t in _customTokens) {
+      if (t.id == id) return t;
+    }
+    return null;
   }
 }

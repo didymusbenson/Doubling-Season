@@ -60,6 +60,7 @@ Future<HiveInitResult> initHive() async {
       await Hive.openBox<TokenArtworkPreference>('artworkPreferences');
       await Hive.openBox<TrackerWidget>('trackerWidgets');
       await Hive.openBox<ToggleWidget>('toggleWidgets');
+      await Hive.openBox<String>('customTokens');
     } else {
       // Resolve the Hive data directory for backup/restore operations
       final hivePath = await _getHivePath();
@@ -70,6 +71,7 @@ Future<HiveInitResult> initHive() async {
       await _openBoxResilient<TokenArtworkPreference>('artworkPreferences', hivePath, wipedBoxes);
       await _openBoxResilient<TrackerWidget>('trackerWidgets', hivePath, wipedBoxes);
       await _openBoxResilient<ToggleWidget>('toggleWidgets', hivePath, wipedBoxes);
+      await _openBoxResilient<String>('customTokens', hivePath, wipedBoxes);
 
       // Fire-and-forget: backup all .hive files after successful boot
       _backupAllBoxes(hivePath);
@@ -204,7 +206,7 @@ void _backupAllBoxes(String hivePath) {
         await backupDir.create(recursive: true);
       }
 
-      final boxNames = ['items', 'decks', 'artworkPreferences', 'trackerWidgets', 'toggleWidgets'];
+      final boxNames = ['items', 'decks', 'artworkPreferences', 'trackerWidgets', 'toggleWidgets', 'customTokens'];
 
       for (final boxName in boxNames) {
         try {

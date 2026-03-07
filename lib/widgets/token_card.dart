@@ -280,7 +280,9 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
             // Counter pills
             if (widget.item.counters.isNotEmpty ||
                 widget.item.plusOneCounters > 0 ||
-                widget.item.minusOneCounters > 0) ...[
+                widget.item.minusOneCounters > 0 ||
+                widget.item.plusOnePowerCounters > 0 ||
+                widget.item.plusOneToughnessCounters > 0) ...[
               const SizedBox(height: UIConstants.mediumSpacing),
               Wrap(
                 spacing: UIConstants.verticalSpacing,
@@ -298,6 +300,16 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
                     CounterPillView(
                       name: '-1/-1',
                       amount: widget.item.minusOneCounters,
+                    ),
+                  if (widget.item.plusOnePowerCounters > 0)
+                    CounterPillView(
+                      name: '+1/+0',
+                      amount: widget.item.plusOnePowerCounters,
+                    ),
+                  if (widget.item.plusOneToughnessCounters > 0)
+                    CounterPillView(
+                      name: '+0/+1',
+                      amount: widget.item.plusOneToughnessCounters,
                     ),
                 ],
               ),

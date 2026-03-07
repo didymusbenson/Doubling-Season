@@ -19,6 +19,8 @@ import '../providers/settings_provider.dart';
 import '../providers/token_provider.dart';
 import '../providers/tracker_provider.dart';
 import '../providers/toggle_provider.dart';
+import '../database/token_database.dart';
+import '../models/token_definition.dart' as token_models;
 import '../utils/constants.dart';
 import '../utils/color_utils.dart';
 import '../utils/artwork_manager.dart';
@@ -561,12 +563,50 @@ class _DecksListScreenState extends State<DecksListScreen> {
     );
   }
 
+  /// Ensure any custom tokens in a deck exist in the custom token library.
+  /// If a deck contains a token not found in the database or custom library,
+  /// it gets recreated as a custom token so it's searchable/favoritable.
+  void _ensureCustomTokensFromDeck(Deck deck) {
+    final tokenDatabase = TokenDatabase();
+    tokenDatabase.loadCustomTokens();
+
+    for (final template in deck.templates) {
+      final id = '${template.name}|${template.pt}|${template.colors}|${template.type}|${template.abilities}';
+      if (tokenDatabase.findTokenById(id) != null) continue;
+
+      // Build artwork list from template
+      final artwork = <token_models.ArtworkVariant>[];
+      if (template.artworkOptions != null) {
+        artwork.addAll(template.artworkOptions!);
+      } else if (template.artworkUrl != null) {
+        artwork.add(token_models.ArtworkVariant(
+          set: template.artworkSet ?? 'custom',
+          url: template.artworkUrl!,
+        ));
+      }
+
+      final definition = token_models.TokenDefinition(
+        name: template.name,
+        pt: template.pt,
+        type: template.type,
+        colors: template.colors,
+        abilities: template.abilities,
+        popularity: 0,
+        artwork: artwork,
+      );
+      tokenDatabase.saveCustomToken(definition);
+    }
+
+    tokenDatabase.dispose();
+  }
+
   Future<void> _loadDeckClearBoard(BuildContext context, Deck deck) async {
     final deckProvider = context.read<DeckProvider>();
     final tokenProvider = context.read<TokenProvider>();
     final trackerProvider = context.read<TrackerProvider>();
     final toggleProvider = context.read<ToggleProvider>();
 
+    _ensureCustomTokensFromDeck(deck);
     await deckProvider.loadDeckClearBoard(deck, tokenProvider, trackerProvider, toggleProvider);
 
     if (context.mounted) {
@@ -580,6 +620,7 @@ class _DecksListScreenState extends State<DecksListScreen> {
     final trackerProvider = context.read<TrackerProvider>();
     final toggleProvider = context.read<ToggleProvider>();
 
+    _ensureCustomTokensFromDeck(deck);
     await deckProvider.loadDeckAddToBoard(deck, tokenProvider, trackerProvider, toggleProvider);
 
     if (context.mounted) {

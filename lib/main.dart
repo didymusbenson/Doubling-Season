@@ -212,6 +212,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             case 'artworkPreferences':
               lostItems.add('artwork preferences');
               break;
+            case 'customTokens':
+              lostItems.add('custom tokens');
+              break;
           }
         }
 

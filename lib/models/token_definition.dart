@@ -74,6 +74,17 @@ class TokenDefinition {
     );
   }
 
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'abilities': abilities,
+        'pt': pt,
+        'colors': colors,
+        'type': type,
+        'popularity': popularity,
+        'artwork': artwork.map((a) => a.toJson()).toList(),
+        'reverse_related': reverseRelated,
+      };
+
   bool matches({required String searchQuery}) {
     if (searchQuery.isEmpty) return true;
     final query = searchQuery.toLowerCase();

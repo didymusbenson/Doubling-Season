@@ -850,7 +850,227 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                           },
                         ),
 
-                        if (currentItem.netPlusOneCounters != 0) ...[
+                        const SizedBox(height: 8),
+
+                        // +1/+0 Counters (power only, no auto-cancel)
+                        Builder(
+                          builder: (context) {
+                            final isEditingPlusPower = _editingNumericField == 'counter_plusPower';
+                            return Row(
+                              children: [
+                                const Expanded(child: Text('+1/+0 Counters')),
+                                IconButton(
+                                  onPressed: isEditingPlusPower || currentItem.plusOnePowerCounters <= 0
+                                      ? null
+                                      : () {
+                                          if (_editingNumericField != null) {
+                                            _saveNumericEdit();
+                                          }
+                                          setState(() {
+                                            currentItem.plusOnePowerCounters = currentItem.plusOnePowerCounters - 1;
+                                            tokenProvider.updateItem(currentItem);
+                                          });
+                                        },
+                                  icon: Icon(
+                                    Icons.remove_circle,
+                                    color: isEditingPlusPower || currentItem.plusOnePowerCounters <= 0 ? Theme.of(context).disabledColor : Colors.red,
+                                  ),
+                                ),
+                                if (isEditingPlusPower)
+                                  Container(
+                                    constraints: const BoxConstraints(minWidth: 40, maxWidth: 80),
+                                    child: TextField(
+                                      controller: _numericController,
+                                      focusNode: _numericFocusNode,
+                                      keyboardType: TextInputType.number,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      decoration: InputDecoration(
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      ),
+                                      onSubmitted: (_) => _saveNumericEdit((value) {
+                                        setState(() {
+                                          currentItem.plusOnePowerCounters = value.clamp(0, kMaxCounterValue);
+                                          tokenProvider.updateItem(currentItem);
+                                        });
+                                      }),
+                                      onTapOutside: (_) => _saveNumericEdit((value) {
+                                        setState(() {
+                                          currentItem.plusOnePowerCounters = value.clamp(0, kMaxCounterValue);
+                                          tokenProvider.updateItem(currentItem);
+                                        });
+                                      }),
+                                    ),
+                                  )
+                                else
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _editingNumericField = 'counter_plusPower';
+                                        _numericController.text = currentItem.plusOnePowerCounters.toString();
+                                      });
+                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                        if (mounted) {
+                                          _numericFocusNode.requestFocus();
+                                        }
+                                      });
+                                    },
+                                    child: Container(
+                                      constraints: const BoxConstraints(minWidth: 40),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(4),
+                                        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                                      ),
+                                      child: Text(
+                                        '${currentItem.plusOnePowerCounters}',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                IconButton(
+                                  onPressed: isEditingPlusPower || currentItem.plusOnePowerCounters >= kMaxCounterValue
+                                      ? null
+                                      : () {
+                                          if (_editingNumericField != null) {
+                                            _saveNumericEdit();
+                                          }
+                                          setState(() {
+                                            currentItem.plusOnePowerCounters = currentItem.plusOnePowerCounters + 1;
+                                            tokenProvider.updateItem(currentItem);
+                                          });
+                                        },
+                                  icon: Icon(
+                                    Icons.add_circle,
+                                    color: isEditingPlusPower || currentItem.plusOnePowerCounters >= kMaxCounterValue ? Theme.of(context).disabledColor : Colors.green,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        // +0/+1 Counters (toughness only, no auto-cancel)
+                        Builder(
+                          builder: (context) {
+                            final isEditingPlusToughness = _editingNumericField == 'counter_plusToughness';
+                            return Row(
+                              children: [
+                                const Expanded(child: Text('+0/+1 Counters')),
+                                IconButton(
+                                  onPressed: isEditingPlusToughness || currentItem.plusOneToughnessCounters <= 0
+                                      ? null
+                                      : () {
+                                          if (_editingNumericField != null) {
+                                            _saveNumericEdit();
+                                          }
+                                          setState(() {
+                                            currentItem.plusOneToughnessCounters = currentItem.plusOneToughnessCounters - 1;
+                                            tokenProvider.updateItem(currentItem);
+                                          });
+                                        },
+                                  icon: Icon(
+                                    Icons.remove_circle,
+                                    color: isEditingPlusToughness || currentItem.plusOneToughnessCounters <= 0 ? Theme.of(context).disabledColor : Colors.red,
+                                  ),
+                                ),
+                                if (isEditingPlusToughness)
+                                  Container(
+                                    constraints: const BoxConstraints(minWidth: 40, maxWidth: 80),
+                                    child: TextField(
+                                      controller: _numericController,
+                                      focusNode: _numericFocusNode,
+                                      keyboardType: TextInputType.number,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      decoration: InputDecoration(
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      ),
+                                      onSubmitted: (_) => _saveNumericEdit((value) {
+                                        setState(() {
+                                          currentItem.plusOneToughnessCounters = value.clamp(0, kMaxCounterValue);
+                                          tokenProvider.updateItem(currentItem);
+                                        });
+                                      }),
+                                      onTapOutside: (_) => _saveNumericEdit((value) {
+                                        setState(() {
+                                          currentItem.plusOneToughnessCounters = value.clamp(0, kMaxCounterValue);
+                                          tokenProvider.updateItem(currentItem);
+                                        });
+                                      }),
+                                    ),
+                                  )
+                                else
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _editingNumericField = 'counter_plusToughness';
+                                        _numericController.text = currentItem.plusOneToughnessCounters.toString();
+                                      });
+                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                        if (mounted) {
+                                          _numericFocusNode.requestFocus();
+                                        }
+                                      });
+                                    },
+                                    child: Container(
+                                      constraints: const BoxConstraints(minWidth: 40),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(4),
+                                        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                                      ),
+                                      child: Text(
+                                        '${currentItem.plusOneToughnessCounters}',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                IconButton(
+                                  onPressed: isEditingPlusToughness || currentItem.plusOneToughnessCounters >= kMaxCounterValue
+                                      ? null
+                                      : () {
+                                          if (_editingNumericField != null) {
+                                            _saveNumericEdit();
+                                          }
+                                          setState(() {
+                                            currentItem.plusOneToughnessCounters = currentItem.plusOneToughnessCounters + 1;
+                                            tokenProvider.updateItem(currentItem);
+                                          });
+                                        },
+                                  icon: Icon(
+                                    Icons.add_circle,
+                                    color: isEditingPlusToughness || currentItem.plusOneToughnessCounters >= kMaxCounterValue ? Theme.of(context).disabledColor : Colors.green,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+
+                        if (currentItem.isPowerToughnessModified) ...[
                           const SizedBox(height: 8),
                           Container(
                             padding: const EdgeInsets.all(12),

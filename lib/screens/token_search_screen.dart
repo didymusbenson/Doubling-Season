@@ -15,7 +15,7 @@ import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
 import '../utils/artwork_preference_manager.dart';
 
-enum SearchTab { all, recent, favorites }
+enum SearchTab { all, recent, favorites, custom }
 
 class TokenSearchScreen extends StatefulWidget {
   /// When true, tapping a token pops with the TokenDefinition instead of
@@ -53,7 +53,9 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
   @override
   void initState() {
     super.initState();
-    _tokenDatabase.loadTokens();
+    _tokenDatabase.loadTokens().then((_) {
+      _tokenDatabase.loadCustomTokens();
+    });
     _searchController.addListener(_onSearchTextChanged);
   }
 
@@ -213,19 +215,21 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
           ButtonSegment(
             value: SearchTab.all,
             label: Text('All'),
-            icon: Icon(Icons.grid_view),
           ),
           ButtonSegment(
             value: SearchTab.recent,
             label: Text('Recent'),
-            icon: Icon(Icons.history),
           ),
           ButtonSegment(
             value: SearchTab.favorites,
             label: Text('Favorites'),
-            icon: Icon(Icons.star),
+          ),
+          ButtonSegment(
+            value: SearchTab.custom,
+            label: Text('Custom'),
           ),
         ],
+        showSelectedIcon: false,
         selected: {_selectedTab},
         onSelectionChanged: (Set<SearchTab> newSelection) {
           setState(() {
@@ -288,6 +292,11 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
           return _searchController.text.isEmpty ||
               token.matches(searchQuery: _searchController.text);
         }).toList();
+      case SearchTab.custom:
+        return _tokenDatabase.customTokens.where((token) {
+          return _searchController.text.isEmpty ||
+              token.matches(searchQuery: _searchController.text);
+        }).toList();
     }
   }
 
@@ -301,7 +310,9 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
         final token = tokens[index];
         final isFavorite = _tokenDatabase.isFavorite(token, settingsProvider);
 
-        return Card(
+        final isCustomTab = _selectedTab == SearchTab.custom;
+
+        Widget card = Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
             title: Text(
@@ -361,6 +372,48 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
             onTap: () => _selectToken(token),
           ),
         );
+
+        if (isCustomTab) {
+          card = Dismissible(
+            key: ValueKey(token.id),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.delete, color: Colors.white),
+            ),
+            confirmDismiss: (direction) async {
+              return await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Delete Custom Token'),
+                  content: Text('Remove "${token.name}" from your custom library?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              ) ?? false;
+            },
+            onDismissed: (_) {
+              _tokenDatabase.deleteCustomToken(token.id);
+            },
+          child: card,
+          );
+        }
+
+        return card;
       },
     );
   }
@@ -470,6 +523,11 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
             ? "No favorite tokens"
             : "No favorites match '${_searchController.text}'";
         break;
+      case SearchTab.custom:
+        message = _searchController.text.isEmpty
+            ? "No custom tokens yet\nCreate one with the button below"
+            : "No custom tokens match '${_searchController.text}'";
+        break;
     }
 
     return Center(
@@ -477,7 +535,9 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            _selectedTab == SearchTab.favorites ? Icons.star_border : Icons.search,
+            _selectedTab == SearchTab.favorites ? Icons.star_border
+                : _selectedTab == SearchTab.custom ? Icons.build
+                : Icons.search,
             size: 60,
             color: Colors.grey,
           ),
