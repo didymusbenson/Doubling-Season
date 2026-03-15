@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class CounterDatabase extends ChangeNotifier {
   // COMPLETE list from CounterDatabase.swift (lines 74-93) + keyword ability counters + comprehensive MTG counters
   static const List<String> predefinedCounters = [
-    "+1/+1", "-1/-1", "Acorn", "Aegis", "Age", "Aim", "Arrow", "Arrowhead", "Art", "Awakening",
+    "+1/+1", "-1/-1", "+1/+0", "+0/+1", "Acorn", "Aegis", "Age", "Aim", "Arrow", "Arrowhead", "Art", "Awakening",
     "Bait", "Blaze", "Blessing", "Blight", "Blood", "Bloodline", "Bloodstain", "Book", "Bore", "Bounty",
     "Brain", "Bribery", "Brick", "Burden", "Cage", "Carrion", "Charge", "Chip", "Chorus", "Coin",
     "Collection", "Component", "Contested", "Corpse", "Corruption", "CRANK!", "Credit", "Croak", "Crystal", "Cube",

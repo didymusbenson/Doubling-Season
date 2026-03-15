@@ -28,12 +28,7 @@ import '../widgets/common/background_text.dart';
 import '../widgets/cropped_artwork_widget.dart';
 import '../widgets/deck_save_sheet.dart';
 import 'deck_detail_screen.dart';
-
-// FUTURE: Support importing from a list of card names.
-// Cards can be reverse-looked-up in token_database.json to find
-// which tokens they create. This enables importing decklists from
-// external sources (Moxfield, Archidekt, etc.) and auto-populating
-// the required token templates. See decks_overhaul.md for details.
+import 'decklist_import_screen.dart';
 
 class DecksListScreen extends StatefulWidget {
   const DecksListScreen({super.key});
@@ -81,7 +76,7 @@ class _DecksListScreenState extends State<DecksListScreen> {
           if (_isMobilePlatform)
             IconButton(
               icon: const Icon(Icons.download),
-              onPressed: () => _importDeck(context),
+              onPressed: () => _showImportOptions(context),
               tooltip: 'Import',
             ),
         ],
@@ -857,6 +852,51 @@ class _DecksListScreenState extends State<DecksListScreen> {
         }
       });
     });
+  }
+
+  void _showImportOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[400],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildOptionTile(
+              context: sheetContext,
+              icon: Icons.list_alt,
+              label: 'Import from Decklist',
+              color: Colors.blue,
+              onTap: () {
+                Navigator.pop(sheetContext);
+                showDecklistImportSheet(context);
+              },
+            ),
+            const SizedBox(height: 4),
+            _buildOptionTile(
+              context: sheetContext,
+              icon: Icons.file_open,
+              label: 'Import Deck File',
+              color: Colors.green,
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _importDeck(context);
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _importDeck(BuildContext context) async {

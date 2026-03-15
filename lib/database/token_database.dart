@@ -15,6 +15,9 @@ class TokenDatabase extends ChangeNotifier {
   token_models.Category? _selectedCategory;
   Set<String> _selectedColors = {};
 
+  // Reverse lookup: lowercase card name → list of tokens that card creates
+  Map<String, List<token_models.TokenDefinition>> _reverseLookup = {};
+
   // Cache for filtered tokens to avoid recomputation
   List<token_models.TokenDefinition>? _cachedFilteredTokens;
 
@@ -101,6 +104,7 @@ class TokenDatabase extends ChangeNotifier {
 
       // For large files (>100KB), parse in background isolate
       _allTokens = await compute(_parseTokens, jsonString);
+      _buildReverseLookup();
 
       _isLoading = false;
       notifyListeners();
@@ -225,6 +229,22 @@ class TokenDatabase extends ChangeNotifier {
     } catch (e) {
       debugPrint('Failed to delete custom token: $e');
     }
+  }
+
+  /// Build reverse lookup index from all tokens' reverseRelated fields.
+  void _buildReverseLookup() {
+    _reverseLookup = {};
+    for (final token in _allTokens) {
+      for (final cardName in token.reverseRelated) {
+        final key = cardName.toLowerCase();
+        _reverseLookup.putIfAbsent(key, () => []).add(token);
+      }
+    }
+  }
+
+  /// Find all tokens created by a given card name (case-insensitive).
+  List<token_models.TokenDefinition> findTokensByCardName(String cardName) {
+    return _reverseLookup[cardName.toLowerCase()] ?? [];
   }
 
   /// Find a token by composite ID across both database and custom tokens.

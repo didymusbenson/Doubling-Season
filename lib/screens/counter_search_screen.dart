@@ -289,6 +289,39 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
       return;
     }
 
+    // Special handling for +1/+0 and +0/+1 counters (no auto-cancel)
+    if (name == '+1/+0' || name == '+0/+1') {
+      if (applyToAll) {
+        if (name == '+1/+0') {
+          widget.item.plusOnePowerCounters = widget.item.plusOnePowerCounters + amount;
+        } else {
+          widget.item.plusOneToughnessCounters = widget.item.plusOneToughnessCounters + amount;
+        }
+        tokenProvider.updateItem(widget.item);
+      } else {
+        if (widget.item.amount < 2) {
+          return;
+        }
+
+        final newItem = widget.item.createDuplicate();
+        await tokenProvider.insertItem(newItem);
+
+        newItem.applyDuplicateCounters(widget.item);
+        newItem.amount = 1;
+        newItem.tapped = 0;
+        newItem.summoningSick = 0;
+        if (name == '+1/+0') {
+          newItem.plusOnePowerCounters = newItem.plusOnePowerCounters + amount;
+        } else {
+          newItem.plusOneToughnessCounters = newItem.plusOneToughnessCounters + amount;
+        }
+
+        widget.item.amount = widget.item.amount - 1;
+        await tokenProvider.updateItem(widget.item);
+      }
+      return;
+    }
+
     // Regular custom counter handling
     if (applyToAll) {
       // Add counter to entire stack
