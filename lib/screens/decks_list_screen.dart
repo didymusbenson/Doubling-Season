@@ -873,19 +873,19 @@ class _DecksListScreenState extends State<DecksListScreen> {
             const SizedBox(height: 16),
             _buildOptionTile(
               context: sheetContext,
-              icon: Icons.list_alt,
-              label: 'Import from Decklist',
+              icon: Icons.content_paste,
+              label: 'Import from Copied Decklist',
               color: Colors.blue,
               onTap: () {
                 Navigator.pop(sheetContext);
-                showDecklistImportSheet(context);
+                importFromClipboardDecklist(context);
               },
             ),
             const SizedBox(height: 4),
             _buildOptionTile(
               context: sheetContext,
               icon: Icons.file_open,
-              label: 'Import Deck File',
+              label: 'Import Tripling Season Deck File',
               color: Colors.green,
               onTap: () {
                 Navigator.pop(sheetContext);

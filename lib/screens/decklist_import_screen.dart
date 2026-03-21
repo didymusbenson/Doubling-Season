@@ -17,74 +17,30 @@ import '../widgets/common/background_text.dart';
 import '../widgets/cropped_artwork_widget.dart';
 import 'deck_detail_screen.dart';
 
-/// Shows the decklist paste sheet and handles the full import flow.
+/// Reads clipboard, parses decklist, and navigates to confirmation screen.
 /// Call this from the decks list screen.
-Future<void> showDecklistImportSheet(BuildContext context) async {
-  // Load token database up front
+Future<void> importFromClipboardDecklist(BuildContext context) async {
+  // Read clipboard
+  final data = await Clipboard.getData(Clipboard.kTextPlain);
+  final clipboardText = data?.text?.trim() ?? '';
+
+  // Load token database
   final tokenDatabase = TokenDatabase();
   await tokenDatabase.loadTokens();
 
   if (!context.mounted) return;
 
-  final result = await showModalBottomSheet<_ImportResult>(
-    context: context,
-    isScrollControlled: true,
-    builder: (sheetContext) => _DecklistPasteSheet(tokenDatabase: tokenDatabase),
-  );
+  // Parse and match
+  List<_MatchedToken> matches = [];
+  String? deckTitle;
 
-  if (result == null || !context.mounted) return;
-
-  // Navigate to full-screen confirmation
-  Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (_) => _DecklistConfirmScreen(
-        matches: result.matches,
-        deckTitle: result.deckTitle,
-      ),
-    ),
-  );
-}
-
-// --- Paste Sheet (bottom sheet, max 50% height) ---
-
-class _DecklistPasteSheet extends StatefulWidget {
-  final TokenDatabase tokenDatabase;
-
-  const _DecklistPasteSheet({required this.tokenDatabase});
-
-  @override
-  State<_DecklistPasteSheet> createState() => _DecklistPasteSheetState();
-}
-
-class _DecklistPasteSheetState extends State<_DecklistPasteSheet> {
-  final _textController = TextEditingController();
-  bool _processing = false;
-
-  @override
-  void dispose() {
-    _textController.dispose();
-    super.dispose();
-  }
-
-  void _loadFromClipboard() async {
-    final data = await Clipboard.getData(Clipboard.kTextPlain);
-    if (data?.text != null && data!.text!.isNotEmpty) {
-      _textController.text = data.text!;
-      _processDecklist();
-    }
-  }
-
-  void _processDecklist() {
-    final text = _textController.text.trim();
-    if (text.isEmpty) return;
-
-    setState(() => _processing = true);
-
-    final parseResult = DecklistParser.parse(text);
+  if (clipboardText.isNotEmpty) {
+    final parseResult = DecklistParser.parse(clipboardText);
+    deckTitle = parseResult.deckTitle;
     final Map<String, _MatchedToken> matchMap = {};
 
     for (final cardName in parseResult.cardNames) {
-      final tokens = widget.tokenDatabase.findTokensByCardName(cardName);
+      final tokens = tokenDatabase.findTokensByCardName(cardName);
       for (final token in tokens) {
         if (matchMap.containsKey(token.id)) {
           matchMap[token.id]!.sourceCards.add(cardName);
@@ -97,104 +53,49 @@ class _DecklistPasteSheetState extends State<_DecklistPasteSheet> {
       }
     }
 
-    final matches = matchMap.values.toList()
+    matches = matchMap.values.toList()
       ..sort((a, b) => a.token.name.compareTo(b.token.name));
-
-    setState(() => _processing = false);
-
-    if (matches.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No tokens found for this decklist')),
-      );
-      return;
-    }
-
-    Navigator.pop(context, _ImportResult(
-      matches: matches,
-      deckTitle: parseResult.deckTitle,
-    ));
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final maxHeight = MediaQuery.of(context).size.height * 0.5;
-
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: maxHeight),
-      child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[400],
-                borderRadius: BorderRadius.circular(2),
-              ),
+  if (matches.isEmpty) {
+    if (context.mounted) {
+      final shouldRetry = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('No Tokens Detected'),
+          content: const Text(
+            'No tokens were detected in your clipboard content. '
+            'Copy a decklist to your clipboard and try again.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Text(
-                'Import Decklist',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: TextField(
-                  controller: _textController,
-                  maxLines: null,
-                  expands: true,
-                  textAlignVertical: TextAlignVertical.top,
-                  decoration: const InputDecoration(
-                    hintText: 'Paste deck list here...',
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _loadFromClipboard,
-                      icon: const Icon(Icons.content_paste),
-                      label: const Text('Load from Clipboard'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _processing ? null : _processDecklist,
-                      icon: _processing
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.search),
-                      label: const Text('Find Tokens'),
-                    ),
-                  ),
-                ],
-              ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Try Again'),
             ),
           ],
         ),
-      ),
-    );
+      );
+      if (shouldRetry == true && context.mounted) {
+        return importFromClipboardDecklist(context);
+      }
+    }
+    return;
   }
+
+  if (!context.mounted) return;
+
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => _DecklistConfirmScreen(
+        matches: matches,
+        deckTitle: deckTitle,
+      ),
+    ),
+  );
 }
 
 // --- Confirmation Screen (full screen) ---
@@ -443,13 +344,6 @@ class _DecklistConfirmScreenState extends State<_DecklistConfirmScreen> {
 }
 
 // --- Data classes ---
-
-class _ImportResult {
-  final List<_MatchedToken> matches;
-  final String? deckTitle;
-
-  _ImportResult({required this.matches, this.deckTitle});
-}
 
 class _MatchedToken {
   final token_models.TokenDefinition token;
