@@ -1,14 +1,12 @@
-# Bug Investigations
-
-This document tracks unresolved bugs with detailed analysis, proposed solutions, and investigation notes.
+This document records a bug we found in the early releases of Tripling Season. A mitigation has been implemented, this document reflects the historical details so that we can keep troubleshooting if it comes up again. 
 
 ---
 
 ## INVESTIGATION: Mass Custom Artwork Loading Crash
 
-**Status:** Unable to replicate as described. Analysis may be faulty.
+**Status:** Partially mitigated (resize on upload implemented), crash not replicated
 
-**Last Updated:** December 20, 2025
+**Last Updated:** March 22, 2026
 
 ### User Report (Android 16, Pixel 9)
 
@@ -120,72 +118,18 @@ CroppedArtworkWidget
 
 ---
 
-## Proposed Solutions (PENDING VERIFICATION)
+### Mitigation Applied
 
-**NOTE:** Before implementing any solution, we need to successfully replicate the crash to confirm the root cause.
+**Option 1 (Resize on Upload) is implemented** as of v1.8.0:
+- `ArtworkManager.resizeImageFile()` caps custom uploads at 768px max dimension
+- Called in `artwork_selection_sheet.dart` after ImageCropper returns
+- Reduces new uploads from 2-8MB to ~100-200KB
+- Does NOT fix pre-existing oversized artwork already on user devices
 
-### Option 1: Resize Custom Artwork on Upload (SIMPLEST FIX)
-**Add image resizing during custom artwork upload process.**
-
-**Implementation:**
-- After ImageCropper returns cropped file (artwork_selection_sheet.dart:950+)
-- Use Flutter's `image` package to decode, resize to max 672×936 (matching Scryfall), re-encode
-- Replace large file with resized version before saving to app directory
-
-**Benefits:**
-- Fixes the root cause (image size, not concurrency)
-- No changes to loading logic needed
-- Custom artwork becomes same size as Scryfall artwork
-- One-time cost during upload, not every app launch
-- Reduces storage requirements for users
-
-**Drawbacks:**
-- Quality loss (but 672×936 is plenty for mobile display)
-- Adds processing time during upload (~1-2 seconds)
-- Existing custom artwork in user's app won't be fixed (needs migration or re-upload)
-
-**Confidence this solves the problem:** 85% - addresses the 18x memory difference
-
----
-
-### Option 2: Throttled Image Loading Queue
-- Limit concurrent `ui.instantiateImageCodec()` calls (e.g., max 3 at a time)
-- Queue remaining loads, process as each completes
-- **Pro**: Simple, works for all artwork types, future-proof
-- **Con**: Artwork appears gradually, doesn't reduce memory usage (just spreads it over time)
-
-**Confidence this solves the problem:** 90% - prevents simultaneous overload
-
----
-
-### Option 3: Resize on Upload + Throttle Loading (BELT AND SUSPENDERS)
-- Combine Option 1 and Option 2
-- Resize custom artwork to match Scryfall sizes
-- Add throttling queue for all artwork loading
-- **Pro**: Maximum robustness, handles edge cases (100+ tokens)
-- **Con**: Most work, may be overkill
-
-**Confidence this solves the problem:** 99% - addresses both size and concurrency
-
----
-
-### Option 4: Switch to Flutter's Image.file() Widget
-- Replace CroppedArtworkWidget with standard Image.file() + ClipRect for cropping
-- Leverage Flutter's built-in image cache system
-- **Pro**: Gets automatic throttling and memory management
-- **Con**: May not support custom cropping as flexibly, major refactor
-
-**Confidence this solves the problem:** 70% - Unknown if Flutter's cache handles 34 large images gracefully
-
----
-
-### Option 5: Lazy Loading with Visibility Detection
-- Only load artwork for visible cards (viewport-based)
-- Load off-screen artwork on-demand as user scrolls
-- **Pro**: Minimal memory usage, only loads what's visible
-- **Con**: Complex to implement, may cause visible pop-in during scroll
-
-**Confidence this solves the problem:** 95% - but complex implementation
+**Remaining unimplemented options:**
+- Option 2: Throttled loading queue (no concurrency limit on codec calls)
+- Option 4: Switch to Flutter's Image.file() (still bypasses Flutter image cache)
+- Option 5: Lazy/visibility-based loading
 
 ---
 
@@ -210,78 +154,10 @@ CroppedArtworkWidget
    - Time how long startup takes with 34+ images
 
 4. **If crash is confirmed:**
-   - Decide on solution (probably Option 1 or Option 3)
+   - Decide on solution (probably Option 2 throttle queue)
    - Implement fix
    - Test with user's exact scenario
    - Consider migration path for existing custom artwork
-
-
-# Active Development Issues
-
-## Swipe Dismiss Red Background Inconsistency
-
-**Status:** In Progress
-**Date:** December 28, 2025
-
-### Issue Description
-
-Corners flash non-red on utility cards (TrackerWidget, ToggleWidget) when attempting to dismiss them with a swipe gesture. TokenCard shows red correctly during swipe.
-
-### Expected Behavior
-
-When swiping to dismiss any card type, the AnimatedContainer in ContentScreen (line 247) should show a red background that animates in over 100ms:
-```dart
-color: isDismissing ? Colors.red : Colors.transparent,
-```
-
-This red background should be visible through all card layers, providing consistent visual feedback across all card types (tokens, trackers, toggles).
-
-### Current Behavior
-
-- **TokenCard:** Red background shows through correctly during swipe 
-- **TrackerWidgetCard:** Corners remain non-red during swipe 
-- **ToggleWidgetCard:** Corners remain non-red during swipe 
-
-### Investigation So Far
-
-**Attempted fixes:**
-1. Added `Opacity` wrapper to TrackerWidgetCard and ToggleWidgetCard (matching TokenCard structure)
-2. Changed base layer from `Theme.of(context).cardColor` to `Colors.transparent` on utilities
-
-**Current mystery:**
-TokenCard has an opaque `cardColor` base layer (line 176) yet still shows red during swipe. Utilities with the same opaque base layer do NOT show red. Changed utilities to transparent base, but need to verify this matches TokenCard behavior.
-
-**Widget hierarchy during swipe:**
-```
-ContentScreen._buildBoardItemCard()
-    ValueListenableBuilder
-        AnimatedContainer (red background, 100ms animation)
-            Container (gradient border)
-                ClipRRect
-                    Dismissible
-                        TokenCard/TrackerWidgetCard/ToggleWidgetCard
-                            Stack
-                                Base layer (cardColor or transparent?)
-                                Gradient layer
-                                Artwork layer
-                                Content layer
-```
-
-### Next Steps
-
-1. Determine why TokenCard's opaque `cardColor` base allows red to show through
-2. Verify if utilities now match TokenCard behavior with transparent base
-3. Test in debug build to confirm red shows through on swipe for all card types
-4. If transparent base causes issues (fadeout mode, etc.), find alternative solution
-
-### Related Files
-
-- `lib/screens/content_screen.dart` (lines 239-280) - AnimatedContainer with red background
-- `lib/widgets/token_card.dart` (line 176) - Base layer configuration
-- `lib/widgets/tracker_widget_card.dart` (line 110) - Base layer (recently changed to transparent)
-- `lib/widgets/toggle_widget_card.dart` (line 92) - Base layer (recently changed to transparent)
-
-
 
 ---
 
