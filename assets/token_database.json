@@ -4447,7 +4447,7 @@
     "pt": "",
     "colors": "",
     "type": "Token",
-    "popularity": 331,
+    "popularity": 332,
     "artwork": [
       {
         "set": "2XM",
@@ -4753,6 +4753,7 @@
       "Leonardo da Vinci",
       "Life of the Party",
       "Littjara Mirrorlake",
+      "Lucy MacLean, Positively Armed",
       "Magus Lucea Kane",
       "March of Progress",
       "Mardu Siegebreaker",
@@ -21804,7 +21805,7 @@
     ]
   },
   {
-    "name": "Tamiyo, Seasoned Scholar",
+    "name": "Tamiyo, Seasoned Scholar Emblem",
     "abilities": "You have no maximum hand size.",
     "pt": "",
     "colors": "",
@@ -22784,7 +22785,7 @@
     "pt": "",
     "colors": "",
     "type": "Artifact — Treasure",
-    "popularity": 339,
+    "popularity": 340,
     "artwork": [
       {
         "set": "2X2",
@@ -23443,6 +23444,7 @@
       "Teval's Judgment",
       "The Balrog of Moria",
       "The Belligerent",
+      "The Ghoul, Gunslinger",
       "The Gold Saucer",
       "The Golden City of Orazca",
       "The Matrix of Time",
