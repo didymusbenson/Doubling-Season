@@ -21,7 +21,7 @@ class TokenTemplateAdapter extends TypeAdapter<TokenTemplate> {
       pt: fields[1] as String,
       abilities: fields[2] as String,
       colors: fields[3] as String,
-      order: fields[4] as double,
+      order: fields[4] == null ? 0.0 : fields[4] as double,
       artworkUrl: fields[6] as String?,
       artworkSet: fields[7] as String?,
       artworkOptions: (fields[8] as List?)?.cast<ArtworkVariant>(),

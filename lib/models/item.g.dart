@@ -22,7 +22,7 @@ class ItemAdapter extends TypeAdapter<Item> {
       abilities: fields[0] as String,
       counters: (fields[9] as List?)?.cast<TokenCounter>(),
       createdAt: fields[10] as DateTime?,
-      order: fields[11] as double,
+      order: fields[11] == null ? 0.0 : fields[11] as double,
       artworkUrl: fields[13] as String?,
       artworkSet: fields[14] as String?,
       artworkOptions: (fields[15] as List?)?.cast<ArtworkVariant>(),
@@ -33,13 +33,15 @@ class ItemAdapter extends TypeAdapter<Item> {
       .._summoningSick = fields[6] as int
       .._plusOneCounters = fields[7] as int
       .._minusOneCounters = fields[8] as int
-      .._type = fields[12] == null ? '' : fields[12] as String?;
+      .._type = fields[12] == null ? '' : fields[12] as String?
+      .._plusOnePowerCounters = fields[16] == null ? 0 : fields[16] as int
+      .._plusOneToughnessCounters = fields[17] == null ? 0 : fields[17] as int;
   }
 
   @override
   void write(BinaryWriter writer, Item obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(18)
       ..writeByte(0)
       ..write(obj.abilities)
       ..writeByte(1)
@@ -71,7 +73,11 @@ class ItemAdapter extends TypeAdapter<Item> {
       ..writeByte(14)
       ..write(obj.artworkSet)
       ..writeByte(15)
-      ..write(obj.artworkOptions);
+      ..write(obj.artworkOptions)
+      ..writeByte(16)
+      ..write(obj._plusOnePowerCounters)
+      ..writeByte(17)
+      ..write(obj._plusOneToughnessCounters);
   }
 
   @override

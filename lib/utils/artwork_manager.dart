@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:ui' as ui;
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -226,6 +227,90 @@ class ArtworkManager {
     }
   }
 
+  /// Get the custom uploads directory (user-imported artwork for tokens)
+  static Future<Directory> getCustomUploadsDirectory() async {
+    if (kIsWeb) {
+      throw UnsupportedError('File system not available on web platform');
+    }
+    final appDir = await getApplicationDocumentsDirectory();
+    final customDir = Directory('${appDir.path}/custom_artwork');
+    if (!await customDir.exists()) {
+      await customDir.create(recursive: true);
+    }
+    return customDir;
+  }
+
+  /// Get total size of custom uploaded artwork in bytes
+  /// Includes both custom token artwork and deck box images
+  static Future<int> getCustomUploadsSize() async {
+    if (kIsWeb) return 0;
+
+    try {
+      int totalSize = 0;
+
+      // Custom token artwork
+      final customDir = await getCustomUploadsDirectory();
+      if (await customDir.exists()) {
+        await for (var entity in customDir.list()) {
+          if (entity is File) {
+            totalSize += (await entity.stat()).size;
+          }
+        }
+      }
+
+      // Deck box images (stored in artwork cache as deck_box_*.png)
+      final cacheDir = await getArtworkCacheDirectory();
+      if (await cacheDir.exists()) {
+        await for (var entity in cacheDir.list()) {
+          if (entity is File && entity.path.contains('deck_box_')) {
+            totalSize += (await entity.stat()).size;
+          }
+        }
+      }
+
+      return totalSize;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error calculating custom uploads size: $e');
+      }
+      return 0;
+    }
+  }
+
+  /// Clear all custom uploaded artwork (token uploads and deck box images)
+  static Future<bool> clearCustomUploads() async {
+    if (kIsWeb) return true;
+
+    try {
+      // Clear custom token artwork
+      final customDir = await getCustomUploadsDirectory();
+      if (await customDir.exists()) {
+        await for (var entity in customDir.list()) {
+          if (entity is File) {
+            await entity.delete();
+          }
+        }
+      }
+
+      // Clear deck box images from artwork cache
+      final cacheDir = await getArtworkCacheDirectory();
+      if (await cacheDir.exists()) {
+        await for (var entity in cacheDir.list()) {
+          if (entity is File && entity.path.contains('deck_box_')) {
+            await entity.delete();
+          }
+        }
+      }
+
+      return true;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error clearing custom uploads: $e');
+      }
+      return false;
+    }
+  }
+
   /// Format cache size in human-readable format (e.g., "2.5 MB")
   static String formatCacheSize(int bytes) {
     if (bytes < 1024) {
@@ -239,6 +324,89 @@ class ArtworkManager {
     } else {
       final gb = bytes / (1024 * 1024 * 1024);
       return '${gb.toStringAsFixed(1)} GB';
+    }
+  }
+
+  /// Maximum dimension (width or height) for custom artwork images.
+  /// Exceeds Scryfall art_crop quality (~626px) with headroom.
+  /// Reduces per-image from potentially 2-8MB to ~100-200KB.
+  static const int maxCustomArtworkDimension = 768;
+
+  /// Resize an image file so its longest edge is at most [maxDimension] pixels.
+  /// Maintains aspect ratio. If both dimensions are already within the limit,
+  /// returns the original file unchanged. Outputs as JPEG for smaller file size.
+  /// On failure, returns the original file (graceful fallback).
+  static Future<File> resizeImageFile(
+    File imageFile, {
+    int maxDimension = maxCustomArtworkDimension,
+  }) async {
+    try {
+      final bytes = await imageFile.readAsBytes();
+
+      // Decode just enough to get dimensions
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final originalImage = frame.image;
+
+      final int originalWidth = originalImage.width;
+      final int originalHeight = originalImage.height;
+
+      // Skip resize if already within limits
+      if (originalWidth <= maxDimension && originalHeight <= maxDimension) {
+        originalImage.dispose();
+        debugPrint('Image already within size limit: ${originalWidth}x$originalHeight');
+        return imageFile;
+      }
+
+      // Calculate target dimensions maintaining aspect ratio
+      final double scaleFactor;
+      if (originalWidth >= originalHeight) {
+        // Width is the longest edge
+        scaleFactor = maxDimension / originalWidth;
+      } else {
+        // Height is the longest edge
+        scaleFactor = maxDimension / originalHeight;
+      }
+
+      final int targetWidth = (originalWidth * scaleFactor).round();
+      final int targetHeight = (originalHeight * scaleFactor).round();
+
+      originalImage.dispose();
+
+      // Re-decode at target size (efficient — decodes directly to target resolution)
+      final resizedCodec = await ui.instantiateImageCodec(
+        bytes,
+        targetWidth: targetWidth,
+        targetHeight: targetHeight,
+      );
+      final resizedFrame = await resizedCodec.getNextFrame();
+      final resizedImage = resizedFrame.image;
+
+      // Encode as PNG (dart:ui only supports PNG via toByteData)
+      final byteData = await resizedImage.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
+      resizedImage.dispose();
+
+      if (byteData == null) {
+        debugPrint('Failed to encode resized image — using original');
+        return imageFile;
+      }
+
+      // Write resized image back to the same file path
+      final resizedBytes = byteData.buffer.asUint8List();
+      await imageFile.writeAsBytes(resizedBytes);
+
+      debugPrint(
+        'Resized custom artwork: ${originalWidth}x$originalHeight -> ${targetWidth}x$targetHeight '
+        '(${bytes.length} bytes -> ${resizedBytes.length} bytes)',
+      );
+
+      return imageFile;
+    } catch (e) {
+      // Graceful fallback: if resize fails for any reason, use the original
+      debugPrint('Failed to resize image, using original: $e');
+      return imageFile;
     }
   }
 

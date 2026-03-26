@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../models/toggle_widget.dart';
+import '../models/widget_definition.dart';
 import '../providers/token_provider.dart';
 import '../providers/tracker_provider.dart';
 import '../providers/toggle_provider.dart';
 import 'color_selection_button.dart';
 
 class NewToggleSheet extends StatefulWidget {
-  const NewToggleSheet({super.key});
+  /// When true, pops with a WidgetDefinition instead of creating on the board.
+  final bool selectorMode;
+
+  const NewToggleSheet({super.key, this.selectorMode = false});
 
   @override
   State<NewToggleSheet> createState() => _NewToggleSheetState();
@@ -48,6 +52,27 @@ class _NewToggleSheetState extends State<NewToggleSheet> {
 
   void _createToggle() async {
     if (_nameController.text.trim().isEmpty) {
+      return;
+    }
+
+    // Selector mode: build a WidgetDefinition and pop it back
+    if (widget.selectorMode) {
+      final name = _nameController.text.trim();
+      final definition = WidgetDefinition(
+        id: 'custom_${name.toLowerCase().replaceAll(' ', '_')}',
+        name: name,
+        description: _onDescriptionController.text.trim().isEmpty
+            ? 'ON'
+            : _onDescriptionController.text.trim(),
+        type: WidgetType.toggle,
+        colorIdentity: _getColorString(),
+        offDescription: _offDescriptionController.text.trim().isEmpty
+            ? 'OFF'
+            : _offDescriptionController.text.trim(),
+      );
+      if (mounted) {
+        Navigator.pop(context, definition);
+      }
       return;
     }
 

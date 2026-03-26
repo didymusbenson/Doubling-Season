@@ -29,27 +29,16 @@ void main() async {
     overlays: [SystemUiOverlay.top],
   );
 
-  try {
-    // Initialize Hive only - provider init happens in MyApp
-    await initHive();
+  // Initialize Hive with resilient error handling — this NEVER throws
+  final hiveResult = await initHive();
 
-    runApp(const MyApp());
-  } catch (e, stackTrace) {
-    // CRITICAL: Log initialization errors (only in debug mode)
-    if (kDebugMode) {
-      print('════════════════════════════════════════════');
-      print('FATAL ERROR during app initialization:');
-      print('Error: $e');
-      print('Stack trace:');
-      print(stackTrace);
-      print('════════════════════════════════════════════');
-    }
-    rethrow;
-  }
+  runApp(MyApp(wipedBoxes: hiveResult.wipedBoxes));
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final List<String> wipedBoxes;
+
+  const MyApp({super.key, this.wipedBoxes = const []});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -64,6 +53,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   bool _isInitialized = false;
   bool _providersReady = false;
   bool _hasError = false;
+  bool _dataLossDialogShown = false;
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
@@ -110,6 +101,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
       // Run compaction in background AFTER app is ready
       _runBackgroundMaintenance();
+
+      // Show data loss dialog if any boxes were wiped during boot
+      _showDataLossDialogIfNeeded();
     } catch (e, stackTrace) {
       // Log provider initialization errors (only in debug mode)
       if (kDebugMode) {
@@ -186,6 +180,66 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     });
   }
 
+  /// Show a one-time dialog if any Hive boxes were wiped during boot.
+  /// Uses a GlobalKey on the ContentScreen's MaterialApp to access the navigator.
+  void _showDataLossDialogIfNeeded() {
+    if (_dataLossDialogShown || widget.wipedBoxes.isEmpty) return;
+    _dataLossDialogShown = true;
+
+    // Wait for the ContentScreen to be fully built and visible
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Need to wait one more frame to ensure MaterialApp's navigator is ready
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final navContext = _navigatorKey.currentContext;
+        if (navContext == null) return;
+
+        // Build a human-readable description of what was lost
+        final lostItems = <String>[];
+        for (final boxName in widget.wipedBoxes) {
+          switch (boxName) {
+            case 'items':
+              lostItems.add('tokens');
+              break;
+            case 'decks':
+              lostItems.add('decks');
+              break;
+            case 'trackerWidgets':
+            case 'toggleWidgets':
+              if (!lostItems.contains('utilities')) {
+                lostItems.add('utilities');
+              }
+              break;
+            case 'artworkPreferences':
+              lostItems.add('artwork preferences');
+              break;
+            case 'customTokens':
+              lostItems.add('custom tokens');
+              break;
+          }
+        }
+
+        final lostDescription = lostItems.join(', ');
+
+        showDialog(
+          context: navContext,
+          builder: (context) => AlertDialog(
+            title: const Text('Data Reset'),
+            content: Text(
+              'Some of your data couldn\'t be loaded and was reset. '
+              'You may need to re-create any lost $lostDescription.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      });
+    });
+  }
+
   void _skipSplash() {
     if (_providersReady && !_isInitialized) {
       setState(() {
@@ -247,12 +301,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       return MaterialApp(
         title: 'Tripling Season',
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.grey),
           useMaterial3: true,
         ),
         darkTheme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.blue,
+            seedColor: Colors.grey,
             brightness: Brightness.dark,
           ).copyWith(
             surface: const Color(0xFF181818),
@@ -276,12 +330,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       return MaterialApp(
         title: 'Tripling Season',
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.grey),
           useMaterial3: true,
         ),
         darkTheme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.blue,
+            seedColor: Colors.grey,
             brightness: Brightness.dark,
           ).copyWith(
             surface: const Color(0xFF181818), // Darker scaffold background
@@ -313,14 +367,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       child: Consumer<SettingsProvider>(
         builder: (context, settings, child) {
           return MaterialApp(
+            navigatorKey: _navigatorKey,
             title: 'Doubling Procession',
             theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+              colorScheme: ColorScheme.fromSeed(seedColor: Colors.grey),
               useMaterial3: true,
             ),
             darkTheme: ThemeData(
               colorScheme: ColorScheme.fromSeed(
-                seedColor: Colors.blue,
+                seedColor: Colors.grey,
                 brightness: Brightness.dark,
               ).copyWith(
                 surface: const Color(0xFF181818), // Darker scaffold background

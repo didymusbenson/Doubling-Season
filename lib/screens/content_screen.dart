@@ -3,13 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gradient_borders/gradient_borders.dart';
 import '../models/item.dart';
-import '../models/token_template.dart';
-import '../models/deck.dart';
 import '../models/tracker_widget.dart'; // NEW - Widget Cards Feature
 import '../models/toggle_widget.dart'; // NEW - Widget Cards Feature
 import '../providers/token_provider.dart';
 import '../providers/settings_provider.dart';
-import '../providers/deck_provider.dart';
 import '../providers/tracker_provider.dart'; // NEW - Widget Cards Feature
 import '../providers/toggle_provider.dart'; // NEW - Widget Cards Feature
 import '../utils/constants.dart';
@@ -18,10 +15,11 @@ import '../widgets/token_card.dart';
 import '../widgets/tracker_widget_card.dart'; // NEW - Widget Cards Feature
 import '../widgets/toggle_widget_card.dart'; // NEW - Widget Cards Feature
 import '../widgets/multiplier_view.dart';
-import '../widgets/load_deck_sheet.dart';
 import '../widgets/floating_action_menu.dart';
+import '../widgets/status_sheet.dart';
 import 'token_search_screen.dart';
 import 'widget_selection_screen.dart'; // NEW - Widget Cards Feature
+import 'decks_list_screen.dart';
 import 'about_screen.dart';
 
 // Helper class to wrap board items (tokens and widgets) for unified list display
@@ -80,13 +78,12 @@ class _ContentScreenState extends State<ContentScreen> {
                     const SizedBox(width: UIConstants.smallPadding),
                     FloatingActionMenu(
                       onNewToken: _showTokenSearch,
-                      onWidgets: settings.experimentalFeaturesEnabled ? _showWidgetSelection : null,
+                      onWidgets: _showWidgetSelection,
                       onAddCountersToAll: _handleAddCountersToAll,
                       onMinusOneToAll: _handleMinusOneToAll,
                       onUntapAll: _showUntapAllDialog,
                       onClearSickness: _handleClearSickness,
-                      onSaveDeck: _showSaveDeckDialog,
-                      onLoadDeck: _showLoadDeckSheet,
+                      onDecks: _showDecksScreen,
                       onBoardWipe: _showBoardWipeDialog,
                     ),
                   ],
@@ -103,6 +100,29 @@ class _ContentScreenState extends State<ContentScreen> {
     return AppBar(
       title: const Text('Tripling Season'),
       centerTitle: true,
+      leading: Consumer<SettingsProvider>(
+        builder: (context, settings, child) {
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Status button (experimental features only)
+              if (settings.experimentalFeaturesEnabled)
+                IconButton(
+                  onPressed: () => _showStatusPlaceholder(),
+                  icon: const Icon(Icons.list_alt),
+                  tooltip: 'Status',
+                ),
+              // Next Turn button
+              IconButton(
+                onPressed: () => _showNextTurnDialog(),
+                icon: const Icon(Icons.av_timer),
+                tooltip: 'Next Turn',
+              ),
+            ],
+          );
+        },
+      ),
+      leadingWidth: 112, // Accommodate both buttons (56px each)
       actions: [
         // Settings (long press on summoning sickness icon)
         IconButton(
@@ -137,9 +157,10 @@ class _ContentScreenState extends State<ContentScreen> {
         // Merge all board items
         final boardItems = <_BoardItem>[];
 
-        // Add tokens
+        // Add tokens — use Hive box key (always unique) instead of createdAt
+        // (DateTime.now() can produce duplicates during batch operations)
         for (final item in tokenProvider.items) {
-          boardItems.add(_BoardItem(item, item.order, 'token_${item.createdAt}'));
+          boardItems.add(_BoardItem(item, item.order, 'token_${item.key}'));
         }
 
         // Add trackers
@@ -154,6 +175,12 @@ class _ContentScreenState extends State<ContentScreen> {
 
         // Sort by order
         boardItems.sort((a, b) => a.order.compareTo(b.order));
+
+        // Prune stale dismiss state notifiers for items no longer on the board
+        final activeKeys = boardItems.map((b) => b.key).toSet();
+        _dismissStates.keys.where((k) => !activeKeys.contains(k)).toList().forEach((k) {
+          _dismissStates.remove(k)?.dispose();
+        });
 
         // Check empty state
         if (boardItems.isEmpty) {
@@ -423,6 +450,44 @@ class _ContentScreenState extends State<ContentScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
+                    Icons.av_timer,
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(width: UIConstants.largeSpacing),
+                  Flexible(
+                    child: Text(
+                      'Start next turn - untap all tokens and clear summoning sickness',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: UIConstants.standardPadding),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.trending_up,
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(width: UIConstants.largeSpacing),
+                  Flexible(
+                    child: Text(
+                      'Add a +1/+1 counter to your token',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: UIConstants.standardPadding),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
                     Icons.help_outline,
                     color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                   ),
@@ -589,6 +654,32 @@ class _ContentScreenState extends State<ContentScreen> {
     tokenProvider.untapAll();
   }
 
+  void _showNextTurnDialog() {
+    final tokenProvider = context.read<TokenProvider>();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Next Turn'),
+        content: const Text('Untap all tokens and clear summoning sickness?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await tokenProvider.untapAll();
+              await tokenProvider.clearSummoningSickness();
+            },
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showExperimentalFeaturesConfirmation(BuildContext context, SettingsProvider settings) {
     showDialog(
       context: context,
@@ -753,6 +844,7 @@ class _ContentScreenState extends State<ContentScreen> {
           TextButton(
             onPressed: () async {
               await tokenProvider.boardWipeDelete();
+              _clearDismissStates();
               if (dialogContext.mounted) {
                 Navigator.pop(dialogContext);
               }
@@ -764,74 +856,17 @@ class _ContentScreenState extends State<ContentScreen> {
     );
   }
 
-  Future<void> _showSaveDeckDialog() async {
-    final tokenProvider = context.read<TokenProvider>();
-    final deckProvider = context.read<DeckProvider>();
-    final controller = TextEditingController();
-
-    await showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Save Deck'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'Enter deck name',
-            border: OutlineInputBorder(),
-          ),
-          textCapitalization: TextCapitalization.words,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (controller.text.isEmpty) {
-                return;
-              }
-
-              final deckName = controller.text;
-
-              // Close dialog immediately
-              Navigator.pop(dialogContext);
-
-              // Save deck after dialog is fully dismissed
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                // Sort by order and compact to sequential integers for clean deck storage
-                final sortedItems = tokenProvider.items
-                    ..sort((a, b) => a.order.compareTo(b.order));
-
-                final templates = sortedItems.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final item = entry.value;
-                  final template = TokenTemplate.fromItem(item);
-                  // Override order with compacted sequential values
-                  template.order = index.toDouble();
-                  return template;
-                }).toList();
-
-                final deck = Deck(name: deckName, templates: templates);
-                deckProvider.saveDeck(deck);
-              });
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    ).then((_) {
-      // Dispose controller after all frames have been processed to avoid accessing disposed controller during teardown
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        controller.dispose();
-      });
-    });
+  void _clearDismissStates() {
+    for (final notifier in _dismissStates.values) {
+      notifier.dispose();
+    }
+    _dismissStates.clear();
   }
 
-  void _showLoadDeckSheet() {
+  void _showDecksScreen() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => const LoadDeckSheet(),
+        builder: (context) => const DecksListScreen(),
         fullscreenDialog: true,
       ),
     );
@@ -843,6 +878,16 @@ class _ContentScreenState extends State<ContentScreen> {
         builder: (context) => const AboutScreen(),
         fullscreenDialog: true,
       ),
+    );
+  }
+
+  void _showStatusPlaceholder() {
+    final tokenProvider = context.read<TokenProvider>();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatusSheet(items: tokenProvider.items),
     );
   }
 }

@@ -144,6 +144,34 @@ Allow users to customize how token search results are sorted in TokenSearchScree
 
 ---
 
+## Inline Token Editing
+
+**Status:** Future idea — scoped out during Decks Overhaul planning
+
+Currently, editing a token's properties (name, abilities, P/T, colors, artwork) requires opening the full ExpandedTokenScreen. This feature would allow quick edits directly from the board list without navigating away.
+
+**Concept:**
+- Tap-and-hold or dedicated edit icon on a TokenCard to enter inline editing mode
+- Editable fields appear directly in the card (name, abilities, P/T, colors)
+- Artwork selection accessible without leaving the board
+- Changes auto-save (Hive pattern)
+- Tap outside or "Done" to exit inline edit mode
+
+**Benefits:**
+- Faster edits during gameplay (no screen transition)
+- Better flow for quick corrections (typo in name, wrong color identity)
+- Reduces navigation depth for simple changes
+
+**Considerations:**
+- TokenCard is already information-dense — need to design edit mode that doesn't feel cramped
+- Touch target sizes for inline editing on mobile
+- How to handle the transition between view mode and edit mode (animation? overlay?)
+- Does inline editing replace ExpandedTokenScreen, or complement it? (Probably complement — expanded view stays for full detail editing, counter management, etc.)
+
+**Priority:** Low — ExpandedTokenScreen works fine, this is a polish/convenience feature. Revisit after user feedback.
+
+---
+
 ## Condensed Condensed View
 
 Even more condensed than current condensed view, only has Tapped/Untapped Power/Toughness no names or anything else. Tap to expand into a larger detailed card (instead of a detail sheet).
@@ -216,6 +244,36 @@ If user feedback indicates that confirmation/validation messages are needed, con
 ## Import token list from deck source (moxfield, arkidect)
 - user pastes a link to their deck list and it automatically populates the tokens they need to use
 
+---
+
+## Custom `.tsdeck` File Extension + File Handler Registration
+
+**Status:** Future enhancement to the Decks Overhaul export/import feature
+**Prerequisite:** Decks Overhaul (which ships with `.json` export)
+
+The Decks Overhaul already future-proofs the import file picker to accept both `['json', 'tsdeck']` extensions. The actual content is identical JSON either way — the extension is cosmetic.
+
+**What's left to do:**
+1. Change the export to write `.tsdeck` instead of `.json`
+2. Register the app as a file handler for `.tsdeck` on iOS and Android (so tapping a `.tsdeck` file opens the app and triggers import)
+3. Both `.json` and `.tsdeck` imports continue to work (already handled by the allowed extensions list)
+
+**Why `.tsdeck`?**
+- Makes deck files recognizable (users know it's a Tripling Season deck)
+- Enables "tap to open" on mobile (requires platform file handler registration)
+- `.json` is too generic to register as a handler without hijacking all JSON files
+
+**Implementation notes:**
+- iOS: Add `CFBundleDocumentTypes` to `Info.plist` with UTI for `.tsdeck`
+- Android: Add intent filter in `AndroidManifest.xml` for the file type
+- The allowed extensions filter in the import screen already accepts `tsdeck` — no import changes needed
+
+## Tap-to-Edit Deck Templates
+
+Descoped from decks phase 2. Currently, users can add/remove tokens and utilities from a deck but can't edit a template in-place. If they need to change a token's name, P/T, abilities, colors, or artwork after adding it, they remove it and re-add.
+
+A future improvement would let users tap a token/utility row in `DeckDetailScreen` to open an expanded edit view for that template's fields (like `ExpandedTokenScreen` but without live game state — no amounts, tapped, counters, sickness). Changes would auto-save back to the template. This would also be the natural place for per-template artwork selection.
+
 ## Future Non-Token Type Handling (Counters, States, Bounties, Dungeons)
 **TODO: Flesh out requirements**
 
@@ -232,6 +290,10 @@ These are game state markers, not creature/artifact tokens. Need to determine:
 - Are they useful enough to include at all, or should they remain excluded?
 
 **IMPORTANT:** Currently filtered out in `HOUSEKEEPING/process_tokens_with_popularity.py` in the `clean_token_data()` function. If we decide to support these types in the future, we'll need to remove that filtering logic and regenerate the token database.
+
+## Quantity Picker Relocation
+
+Code quality improvement discovered during decks overhaul. The quantity picker currently lives inside `TokenSearchScreen`. Ideally the search screen would always pop with a `TokenDefinition`, and the board caller (`ContentScreen`) would show the quantity picker after receiving the selection, then apply multiplier and create the `Item`. User sees identical flow, but search becomes a pure selector. Already partially done — `selectorMode` skips the picker for deck editing. The board flow still uses the old integrated approach and works fine as-is.
 
 ## Code Quality / Lint Issues (Low Priority)
 

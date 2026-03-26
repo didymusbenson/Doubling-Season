@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/item.dart';
@@ -32,6 +33,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
   // Numeric field editing state
   String? _editingNumericField; // null, 'amount', 'tapped', 'summoningSick', or 'counter_<name>'
   final TextEditingController _numericController = TextEditingController();
+  final FocusNode _numericFocusNode = FocusNode();
 
   // CRITICAL: SwiftUI ExpandedTokenView uses ColorSelectionButton for colors
   late bool _whiteSelected;
@@ -44,6 +46,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
   TokenDefinition? _tokenDefinition;
   bool _artworkCleanupAttempted = false;
   bool _databaseLoadError = false;
+  Future<File?>? _cachedArtworkFuture; // Cached Future to prevent FutureBuilder rebuilds
 
   @override
   void initState() {
@@ -68,6 +71,11 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
     _blackSelected = widget.item.colors.contains('B');
     _redSelected = widget.item.colors.contains('R');
     _greenSelected = widget.item.colors.contains('G');
+
+    // Cache the artwork Future
+    if (widget.item.artworkUrl != null) {
+      _cachedArtworkFuture = ArtworkManager.getCachedArtworkFile(widget.item.artworkUrl!);
+    }
 
     // Load token definition to get artwork variants
     _loadTokenDefinition();
@@ -178,8 +186,8 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
     if (!isCustomArtwork) {
       // Download and cache Scryfall artwork if not already cached
       file = await ArtworkManager.downloadArtwork(url);
-    } else {
-      // Custom artwork - just verify file exists
+    } else if (!kIsWeb) {
+      // Custom artwork - just verify file exists (not available on web)
       final localPath = url.replaceFirst('file://', '');
       final localFile = File(localPath);
       if (localFile.existsSync()) {
@@ -191,9 +199,11 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
       setState(() {
         widget.item.artworkUrl = url;
         widget.item.artworkSet = setCode;
+        // Update cached future
+        _cachedArtworkFuture = ArtworkManager.getCachedArtworkFile(url);
       });
 
-      widget.item.save();
+      // Single save via updateItem (calls save() + notifyListeners())
       context.read<TokenProvider>().updateItem(widget.item);
 
       // Save artwork preference (Custom Artwork Feature)
@@ -237,9 +247,11 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
       setState(() {
         widget.item.artworkUrl = null;
         widget.item.artworkSet = null;
+        // Clear cached future
+        _cachedArtworkFuture = null;
       });
 
-      widget.item.save();
+      // Single save via updateItem (calls save() + notifyListeners())
       context.read<TokenProvider>().updateItem(widget.item);
     }
   }
@@ -253,6 +265,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
       node.dispose();
     }
     _numericController.dispose();
+    _numericFocusNode.dispose();
     super.dispose();
   }
 
@@ -646,9 +659,9 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                     constraints: const BoxConstraints(minWidth: 40, maxWidth: 80),
                                     child: TextField(
                                       controller: _numericController,
+                                      focusNode: _numericFocusNode,
                                       keyboardType: TextInputType.number,
                                       textAlign: TextAlign.center,
-                                      autofocus: true,
                                       style: const TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
@@ -679,6 +692,12 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                       setState(() {
                                         _editingNumericField = 'counter_plusOne';
                                         _numericController.text = currentItem.plusOneCounters.toString();
+                                      });
+                                      // Request focus after state change (Android compatibility)
+                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                        if (mounted) {
+                                          _numericFocusNode.requestFocus();
+                                        }
                                       });
                                     },
                                     child: Container(
@@ -751,9 +770,9 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                     constraints: const BoxConstraints(minWidth: 40, maxWidth: 80),
                                     child: TextField(
                                       controller: _numericController,
+                                      focusNode: _numericFocusNode,
                                       keyboardType: TextInputType.number,
                                       textAlign: TextAlign.center,
-                                      autofocus: true,
                                       style: const TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
@@ -784,6 +803,12 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                       setState(() {
                                         _editingNumericField = 'counter_minusOne';
                                         _numericController.text = currentItem.minusOneCounters.toString();
+                                      });
+                                      // Request focus after state change (Android compatibility)
+                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                        if (mounted) {
+                                          _numericFocusNode.requestFocus();
+                                        }
                                       });
                                     },
                                     child: Container(
@@ -825,7 +850,227 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                           },
                         ),
 
-                        if (currentItem.netPlusOneCounters != 0) ...[
+                        const SizedBox(height: 8),
+
+                        // +1/+0 Counters (power only, no auto-cancel)
+                        Builder(
+                          builder: (context) {
+                            final isEditingPlusPower = _editingNumericField == 'counter_plusPower';
+                            return Row(
+                              children: [
+                                const Expanded(child: Text('+1/+0 Counters')),
+                                IconButton(
+                                  onPressed: isEditingPlusPower || currentItem.plusOnePowerCounters <= 0
+                                      ? null
+                                      : () {
+                                          if (_editingNumericField != null) {
+                                            _saveNumericEdit();
+                                          }
+                                          setState(() {
+                                            currentItem.plusOnePowerCounters = currentItem.plusOnePowerCounters - 1;
+                                            tokenProvider.updateItem(currentItem);
+                                          });
+                                        },
+                                  icon: Icon(
+                                    Icons.remove_circle,
+                                    color: isEditingPlusPower || currentItem.plusOnePowerCounters <= 0 ? Theme.of(context).disabledColor : Colors.red,
+                                  ),
+                                ),
+                                if (isEditingPlusPower)
+                                  Container(
+                                    constraints: const BoxConstraints(minWidth: 40, maxWidth: 80),
+                                    child: TextField(
+                                      controller: _numericController,
+                                      focusNode: _numericFocusNode,
+                                      keyboardType: TextInputType.number,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      decoration: InputDecoration(
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      ),
+                                      onSubmitted: (_) => _saveNumericEdit((value) {
+                                        setState(() {
+                                          currentItem.plusOnePowerCounters = value.clamp(0, kMaxCounterValue);
+                                          tokenProvider.updateItem(currentItem);
+                                        });
+                                      }),
+                                      onTapOutside: (_) => _saveNumericEdit((value) {
+                                        setState(() {
+                                          currentItem.plusOnePowerCounters = value.clamp(0, kMaxCounterValue);
+                                          tokenProvider.updateItem(currentItem);
+                                        });
+                                      }),
+                                    ),
+                                  )
+                                else
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _editingNumericField = 'counter_plusPower';
+                                        _numericController.text = currentItem.plusOnePowerCounters.toString();
+                                      });
+                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                        if (mounted) {
+                                          _numericFocusNode.requestFocus();
+                                        }
+                                      });
+                                    },
+                                    child: Container(
+                                      constraints: const BoxConstraints(minWidth: 40),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(4),
+                                        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                                      ),
+                                      child: Text(
+                                        '${currentItem.plusOnePowerCounters}',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                IconButton(
+                                  onPressed: isEditingPlusPower || currentItem.plusOnePowerCounters >= kMaxCounterValue
+                                      ? null
+                                      : () {
+                                          if (_editingNumericField != null) {
+                                            _saveNumericEdit();
+                                          }
+                                          setState(() {
+                                            currentItem.plusOnePowerCounters = currentItem.plusOnePowerCounters + 1;
+                                            tokenProvider.updateItem(currentItem);
+                                          });
+                                        },
+                                  icon: Icon(
+                                    Icons.add_circle,
+                                    color: isEditingPlusPower || currentItem.plusOnePowerCounters >= kMaxCounterValue ? Theme.of(context).disabledColor : Colors.green,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        // +0/+1 Counters (toughness only, no auto-cancel)
+                        Builder(
+                          builder: (context) {
+                            final isEditingPlusToughness = _editingNumericField == 'counter_plusToughness';
+                            return Row(
+                              children: [
+                                const Expanded(child: Text('+0/+1 Counters')),
+                                IconButton(
+                                  onPressed: isEditingPlusToughness || currentItem.plusOneToughnessCounters <= 0
+                                      ? null
+                                      : () {
+                                          if (_editingNumericField != null) {
+                                            _saveNumericEdit();
+                                          }
+                                          setState(() {
+                                            currentItem.plusOneToughnessCounters = currentItem.plusOneToughnessCounters - 1;
+                                            tokenProvider.updateItem(currentItem);
+                                          });
+                                        },
+                                  icon: Icon(
+                                    Icons.remove_circle,
+                                    color: isEditingPlusToughness || currentItem.plusOneToughnessCounters <= 0 ? Theme.of(context).disabledColor : Colors.red,
+                                  ),
+                                ),
+                                if (isEditingPlusToughness)
+                                  Container(
+                                    constraints: const BoxConstraints(minWidth: 40, maxWidth: 80),
+                                    child: TextField(
+                                      controller: _numericController,
+                                      focusNode: _numericFocusNode,
+                                      keyboardType: TextInputType.number,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      decoration: InputDecoration(
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      ),
+                                      onSubmitted: (_) => _saveNumericEdit((value) {
+                                        setState(() {
+                                          currentItem.plusOneToughnessCounters = value.clamp(0, kMaxCounterValue);
+                                          tokenProvider.updateItem(currentItem);
+                                        });
+                                      }),
+                                      onTapOutside: (_) => _saveNumericEdit((value) {
+                                        setState(() {
+                                          currentItem.plusOneToughnessCounters = value.clamp(0, kMaxCounterValue);
+                                          tokenProvider.updateItem(currentItem);
+                                        });
+                                      }),
+                                    ),
+                                  )
+                                else
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _editingNumericField = 'counter_plusToughness';
+                                        _numericController.text = currentItem.plusOneToughnessCounters.toString();
+                                      });
+                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                        if (mounted) {
+                                          _numericFocusNode.requestFocus();
+                                        }
+                                      });
+                                    },
+                                    child: Container(
+                                      constraints: const BoxConstraints(minWidth: 40),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(4),
+                                        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                                      ),
+                                      child: Text(
+                                        '${currentItem.plusOneToughnessCounters}',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                IconButton(
+                                  onPressed: isEditingPlusToughness || currentItem.plusOneToughnessCounters >= kMaxCounterValue
+                                      ? null
+                                      : () {
+                                          if (_editingNumericField != null) {
+                                            _saveNumericEdit();
+                                          }
+                                          setState(() {
+                                            currentItem.plusOneToughnessCounters = currentItem.plusOneToughnessCounters + 1;
+                                            tokenProvider.updateItem(currentItem);
+                                          });
+                                        },
+                                  icon: Icon(
+                                    Icons.add_circle,
+                                    color: isEditingPlusToughness || currentItem.plusOneToughnessCounters >= kMaxCounterValue ? Theme.of(context).disabledColor : Colors.green,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+
+                        if (currentItem.isPowerToughnessModified) ...[
                           const SizedBox(height: 8),
                           Container(
                             padding: const EdgeInsets.all(12),
@@ -883,9 +1128,9 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                       constraints: const BoxConstraints(minWidth: 40, maxWidth: 80),
                                       child: TextField(
                                         controller: _numericController,
+                                        focusNode: _numericFocusNode,
                                         keyboardType: TextInputType.number,
                                         textAlign: TextAlign.center,
-                                        autofocus: true,
                                         style: const TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
@@ -914,6 +1159,12 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                         setState(() {
                                           _editingNumericField = counterId;
                                           _numericController.text = counter.amount.toString();
+                                        });
+                                        // Request focus after state change (Android compatibility)
+                                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                                          if (mounted) {
+                                            _numericFocusNode.requestFocus();
+                                          }
                                         });
                                       },
                                       child: Container(
@@ -1117,9 +1368,9 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
             constraints: const BoxConstraints(minWidth: 40, maxWidth: 80),
             child: TextField(
               controller: _numericController,
+              focusNode: _numericFocusNode,
               keyboardType: TextInputType.number,
               textAlign: TextAlign.center,
-              autofocus: true,
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -1141,6 +1392,12 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                     setState(() {
                       _editingNumericField = fieldId;
                       _numericController.text = value.toString();
+                    });
+                    // Request focus after state change (Android compatibility)
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        _numericFocusNode.requestFocus();
+                      }
                     });
                   }
                 : null,
@@ -1214,11 +1471,20 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
             ),
             const SizedBox(height: 8),
             // Display artwork thumbnail or "select" text
-            if (widget.item.artworkUrl != null)
-              FutureBuilder<File?>(
-                future: ArtworkManager.getCachedArtworkFile(
+            if (kIsWeb && widget.item.artworkUrl != null && !widget.item.artworkUrl!.startsWith('file://'))
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
                   widget.item.artworkUrl!,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: 60,
+                  errorBuilder: (_, __, ___) => const SizedBox(height: 60),
                 ),
+              )
+            else if (!kIsWeb && _cachedArtworkFuture != null)
+              FutureBuilder<File?>(
+                future: _cachedArtworkFuture,
                 builder: (context, snapshot) {
                   if (snapshot.hasData && snapshot.data != null) {
                     final file = snapshot.data!;
@@ -1243,12 +1509,13 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                     _artworkCleanupAttempted = true;
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (mounted) {
-                        widget.item.artworkUrl = null;
-                        widget.item.artworkSet = null;
-                        widget.item.artworkOptions = null;
-                        widget.item.save();
+                        // Batch clear all artwork fields in a single Hive write
+                        widget.item.updateArtwork(url: null, set: null, options: null);
                         // Trigger rebuild to show "select" text
-                        setState(() {});
+                        setState(() {
+                          // Clear cached future
+                          _cachedArtworkFuture = null;
+                        });
                       }
                     });
                   }

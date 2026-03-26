@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/tracker_widget.dart';
@@ -8,6 +9,7 @@ import '../providers/toggle_provider.dart';
 import '../widgets/artwork_selection_sheet.dart';
 import '../widgets/color_selection_button.dart';
 import '../utils/artwork_manager.dart';
+import '../database/widget_database.dart';
 
 class ExpandedWidgetScreen extends StatefulWidget {
   final dynamic widget; // TrackerWidget or ToggleWidget
@@ -27,6 +29,12 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
   bool _artworkCleanupAttempted = false;
   late TextEditingController _descriptionController;
 
+  // Cached artwork Future to prevent FutureBuilder rebuilds
+  Future<File?>? _cachedArtworkFuture;
+
+  // Widget database for loading artwork options
+  final _widgetDatabase = WidgetDatabase();
+
   // Color selection state (same as ExpandedTokenScreen)
   late bool _whiteSelected;
   late bool _blueSelected;
@@ -37,6 +45,11 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
   @override
   void initState() {
     super.initState();
+    // Cache the artwork Future
+    if (_artworkUrl != null) {
+      _cachedArtworkFuture = ArtworkManager.getCachedArtworkFile(_artworkUrl!);
+    }
+
     // Initialize description controller for trackers
     if (widget.isTracker) {
       _descriptionController = TextEditingController(
@@ -53,6 +66,9 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
     _blackSelected = colorIdentity.contains('B');
     _redSelected = colorIdentity.contains('R');
     _greenSelected = colorIdentity.contains('G');
+
+    // Load widget definition to populate artwork options if needed (matching token pattern)
+    _loadWidgetDefinition();
   }
 
   @override
@@ -96,6 +112,8 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
     } else {
       (widget.widget as ToggleWidget).artworkUrl = value;
     }
+    // Update cached future
+    _cachedArtworkFuture = value != null ? ArtworkManager.getCachedArtworkFile(value) : null;
   }
 
   String? get _artworkSet {
@@ -144,8 +162,56 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
     }
   }
 
+  /// Load widget definition to populate artwork options if needed
+  /// Matches ExpandedTokenScreen pattern (lines 83-136)
+  Future<void> _loadWidgetDefinition() async {
+    try {
+      // PRIORITY 1: Use artworkOptions from widget if available (persisted from creation)
+      final currentOptions = widget.isTracker
+          ? (widget.widget as TrackerWidget).artworkOptions
+          : (widget.widget as ToggleWidget).artworkOptions;
+
+      if (currentOptions != null && currentOptions.isNotEmpty) {
+        // Artwork options already loaded, no need to fetch from database
+        return;
+      }
+
+      // PRIORITY 2: Load from widget database (synchronous - no async load needed)
+      // Note: Unlike TokenDatabase which loads from JSON, WidgetDatabase is hardcoded
+      // so loadWidgets() completes synchronously in the constructor
+
+      // Find matching widget definition by name
+      final matchingDefinition = _widgetDatabase.filteredWidgets.cast<dynamic>().firstWhere(
+        (def) => def.name == _name,
+        orElse: () => null,
+      );
+
+      // If no matching definition found, this is likely a custom widget (no artwork available)
+      if (matchingDefinition == null) {
+        debugPrint('No widget definition found for: $_name (likely custom widget)');
+        return;
+      }
+
+      // Store artwork options on widget for future use
+      if (matchingDefinition.artwork.isNotEmpty) {
+        if (widget.isTracker) {
+          final tracker = widget.widget as TrackerWidget;
+          tracker.artworkOptions = List.from(matchingDefinition.artwork);
+          tracker.save();
+        } else {
+          final toggle = widget.widget as ToggleWidget;
+          toggle.artworkOptions = List.from(matchingDefinition.artwork);
+          toggle.save();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading widget definition: $e');
+      // Silent failure - utility will work without artwork options
+    }
+  }
+
   void _showArtworkSelection() {
-    // Get artwork options from the utility
+    // Get artwork options from the utility (already loaded in initState)
     final artworkOptions = widget.isTracker
         ? (widget.widget as TrackerWidget).artworkOptions
         : (widget.widget as ToggleWidget).artworkOptions;
@@ -409,9 +475,20 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
             ),
             const SizedBox(height: 8),
             // Display artwork thumbnail or "select" text
-            if (_artworkUrl != null)
+            if (kIsWeb && _artworkUrl != null && !_artworkUrl!.startsWith('file://'))
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  _artworkUrl!,
+                  height: 100,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _buildSelectArtworkPrompt(context),
+                ),
+              )
+            else if (!kIsWeb && _cachedArtworkFuture != null)
               FutureBuilder<File?>(
-                future: ArtworkManager.getCachedArtworkFile(_artworkUrl!),
+                future: _cachedArtworkFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const SizedBox(
@@ -437,10 +514,14 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
                       return _buildSelectArtworkPrompt(context);
                     }
 
+                    final file = snapshot.data!;
+                    // Add unique key for custom artwork to force reload on replacement
+                    final isCustomArtwork = _artworkUrl!.startsWith('file://');
                     return ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Image.file(
-                        snapshot.data!,
+                        file,
+                        key: isCustomArtwork ? ValueKey(file.path + file.lastModifiedSync().toString()) : null,
                         height: 100,
                         width: double.infinity,
                         fit: BoxFit.cover,

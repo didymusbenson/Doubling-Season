@@ -19,6 +19,8 @@ class ArtworkVariant {
       url: json['url'] as String? ?? '',
     );
   }
+
+  Map<String, dynamic> toJson() => {'set': set, 'url': url};
 }
 
 class TokenDefinition {
@@ -29,6 +31,7 @@ class TokenDefinition {
   final String type;
   final int popularity;
   final List<ArtworkVariant> artwork;
+  final List<String> reverseRelated;
 
   TokenDefinition({
     required this.name,
@@ -38,6 +41,7 @@ class TokenDefinition {
     required this.type,
     required this.popularity,
     this.artwork = const [],
+    this.reverseRelated = const [],
   });
 
   // CRITICAL: Composite ID must match deduplication logic in process_tokens.py
@@ -51,6 +55,13 @@ class TokenDefinition {
             .toList() ??
         [];
 
+    // Parse optional reverse_related array
+    final reverseRelatedJson = json['reverse_related'] as List<dynamic>?;
+    final reverseRelatedList = reverseRelatedJson
+            ?.map((name) => name as String)
+            .toList() ??
+        [];
+
     return TokenDefinition(
       name: json['name'] as String? ?? '',
       abilities: json['abilities'] as String? ?? '',
@@ -59,8 +70,20 @@ class TokenDefinition {
       type: json['type'] as String? ?? '',
       popularity: json['popularity'] as int? ?? 0,
       artwork: artworkList,
+      reverseRelated: reverseRelatedList,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'abilities': abilities,
+        'pt': pt,
+        'colors': colors,
+        'type': type,
+        'popularity': popularity,
+        'artwork': artwork.map((a) => a.toJson()).toList(),
+        'reverse_related': reverseRelated,
+      };
 
   bool matches({required String searchQuery}) {
     if (searchQuery.isEmpty) return true;

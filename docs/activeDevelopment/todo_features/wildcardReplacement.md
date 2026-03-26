@@ -55,10 +55,9 @@ Based on parsing `assets/token_database.json`, the following wildcards are actua
 
 ### Tap Symbol Rendering
 
-**Widget:** Icon from tap/untap action buttons
-- **Icon Source:** Same icon used in tap/untap action buttons (for visual consistency)
+**Widget:** `Icons.screen_rotation` (matches tap button in `token_card.dart:444`)
 - **Color:** Theme-aware (matches surrounding text color)
-- **Size:** `textHeight * 1.1` (10% larger than text)
+- **Size:** `textHeight * 1.1` (validation step: confirm on device, iterate if needed)
 
 ### Colored Mana Rendering
 
@@ -190,9 +189,8 @@ class TapSymbolWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TODO: Use the exact same icon as tap/untap action buttons
     return Icon(
-      Icons.rotate_right, // Replace with actual tap button icon
+      Icons.screen_rotation, // Matches tap button in token_card.dart:444
       size: textHeight * 1.1, // 10% larger than text
       color: Theme.of(context).textTheme.bodyMedium?.color,
     );
@@ -365,7 +363,7 @@ TextSpan(
 // Base size on text height from TextStyle
 final textHeight = baseStyle.fontSize ?? 14.0;
 final symbolSize = textHeight * 1.1; // 10% larger than text
-// Note: This multiplier may need tweaking based on visual testing
+// Validation step: confirm 1.1x on device, iterate if needed
 ```
 
 **Alignment:**
@@ -382,14 +380,17 @@ final symbolSize = textHeight * 1.1; // 10% larger than text
 
 ### Where Symbols ARE Rendered
 
+Any card that appears in the main board list gets symbol rendering:
+
 1. **TokenCard** (`lib/widgets/token_card.dart`)
    - Abilities text display (main card view)
    - Compact 3-line max with ellipsis overflow
-   - Current location: Line ~250 (abilities Text widget)
 
-2. **Future: Widget Cards** (`lib/widgets/tracker_widget_card.dart`, `lib/widgets/toggle_widget_card.dart`)
-   - Description text on widget cards (maps to token abilities field)
-   - Same rendering logic as TokenCard
+2. **TrackerWidgetCard** (`lib/widgets/tracker_widget_card.dart`)
+   - Description text on tracker utility cards
+
+3. **ToggleWidgetCard** (`lib/widgets/toggle_widget_card.dart`)
+   - Description text on toggle utility cards
 
 ### Where Symbols are NOT Rendered
 
@@ -762,9 +763,8 @@ Support additional wildcards as they appear in future token database updates:
 
 ## Design Decisions (Resolved)
 
-1. **Tap Icon:** ✅ Use the exact same icon as tap/untap action buttons
-   - Ensures visual consistency across the app
-   - Users already recognize this icon
+1. **Tap Icon:** ✅ `Icons.screen_rotation` (from `token_card.dart:444`)
+   - Matches the tap action button users already recognize
 
 2. **Performance:** ✅ Not a concern
    - Typically <10 tokens on screen at once
@@ -782,8 +782,7 @@ Support additional wildcards as they appear in future token database updates:
    - Maintains visual consistency across app
 
 5. **Symbol Sizing:** ✅ `textHeight * 1.1` (10% larger than text)
-   - **Note:** May need tweaking based on visual testing
-   - Start conservative, adjust if symbols feel too small
+   - **Validation step:** Confirm 1.1x looks correct on device, iterate if needed
 
 ## Success Criteria
 

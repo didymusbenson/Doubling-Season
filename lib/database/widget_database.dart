@@ -210,6 +210,36 @@ class WidgetDatabase extends ChangeNotifier {
           ArtworkVariant(set: 'WAR', url: 'https://cards.scryfall.io/large/front/3/7/37ed04d3-cfa1-4778-aea6-b4c2c29e6e0a.jpg?1559959382'),
         ],
       ),
+      WidgetDefinition(
+        id: 'cathars_crusade',
+        type: WidgetType.special,
+        name: "Cathar's Crusade",
+        description: 'Creature ETB triggers',
+        colorIdentity: 'W', // White enchantment
+        defaultValue: 0, // Starts at 0 (no creatures entered yet)
+        hasAction: true,
+        actionButtonText: 'Resolve All',
+        actionType: 'cathars_crusade',
+        artwork: [
+          ArtworkVariant(set: 'INR', url: 'https://cards.scryfall.io/large/front/5/2/5296e353-2efc-4d72-a877-7957eff630b9.jpg?1736467489'),
+          ArtworkVariant(set: 'SLD', url: 'https://cards.scryfall.io/large/front/3/e/3ebdc35c-019d-41d9-aff7-b317246aefb1.jpg?1744789847'),
+        ],
+      ),
+      WidgetDefinition(
+        id: 'academy_manufactor',
+        type: WidgetType.special,
+        name: 'Academy Manufactor',
+        description: 'Clue/Food/Treasure replacement',
+        colorIdentity: '', // Colorless
+        defaultValue: 1, // Start with 1 copy
+        hasAction: true,
+        actionButtonText: 'Make Tokens',
+        actionType: 'academy_manufactor',
+        artwork: [
+          ArtworkVariant(set: 'SLD', url: 'https://cards.scryfall.io/large/front/5/f/5f0d37b6-c092-439b-ba8e-e297ad35f155.jpg?1758777214'),
+          ArtworkVariant(set: 'MH2', url: 'https://cards.scryfall.io/large/front/b/6/b67c27f1-12d1-4c48-9e22-31c43a9ecbbc.jpg?1681082373'),
+        ],
+      ),
     ];
 
     _isLoaded = true;
@@ -232,7 +262,26 @@ class WidgetDatabase extends ChangeNotifier {
           .toList();
     }
 
+    // Sort by type: Special first, then Tracker, then Toggle
+    filtered.sort((a, b) {
+      final aPriority = _getTypeSortPriority(a.type);
+      final bPriority = _getTypeSortPriority(b.type);
+      return aPriority.compareTo(bPriority);
+    });
+
     _filteredWidgets = filtered;
+  }
+
+  /// Returns sort priority for widget types (lower = higher priority)
+  int _getTypeSortPriority(WidgetType type) {
+    switch (type) {
+      case WidgetType.special:
+        return 0; // Highest priority
+      case WidgetType.tracker:
+        return 1;
+      case WidgetType.toggle:
+        return 2;
+    }
   }
 
   void clearFilters() {

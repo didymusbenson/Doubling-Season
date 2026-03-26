@@ -136,3 +136,6 @@ android/build/
 # ======================================
 
 .claude/
+
+# MTGJSON cache (500MB+ decompressed)
+docs/housekeeping/mtgjson_cache/

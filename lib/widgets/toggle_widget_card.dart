@@ -8,7 +8,10 @@ import '../screens/expanded_widget_screen.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
 import '../utils/color_utils.dart';
-import 'cropped_artwork_widget.dart';
+import 'common/background_text.dart';
+// Unused import was causing build warnings
+// import 'cropped_artwork_widget.dart';
+import 'mixins/artwork_display_mixin.dart';
 
 class ToggleWidgetCard extends StatefulWidget {
   final ToggleWidget toggle;
@@ -19,10 +22,40 @@ class ToggleWidgetCard extends StatefulWidget {
   State<ToggleWidgetCard> createState() => _ToggleWidgetCardState();
 }
 
-class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
+class _ToggleWidgetCardState extends State<ToggleWidgetCard> with ArtworkDisplayMixin {
   final DateTime _createdAt = DateTime.now();
   bool _artworkAnimated = false;
   bool _artworkCleanupAttempted = false;
+
+  // Implement ArtworkDisplayMixin interface
+  @override
+  DateTime get createdAt => _createdAt;
+
+  @override
+  bool get artworkAnimated => _artworkAnimated;
+
+  @override
+  set artworkAnimated(bool value) => _artworkAnimated = value;
+
+  @override
+  bool get artworkCleanupAttempted => _artworkCleanupAttempted;
+
+  @override
+  set artworkCleanupAttempted(bool value) => _artworkCleanupAttempted = value;
+
+  @override
+  String? get artworkUrl => widget.toggle.currentArtworkUrl;
+
+  @override
+  void clearArtwork() {
+    widget.toggle.artworkUrl = null;
+    widget.toggle.artworkSet = null;
+    widget.toggle.artworkOptions = null;
+    widget.toggle.save();
+    // FUTURE: When state-specific artwork is implemented, also clear:
+    // widget.toggle.onArtworkUrl = null;
+    // widget.toggle.offArtworkUrl = null;
+  }
 
   @override
   void didUpdateWidget(ToggleWidgetCard oldWidget) {
@@ -50,14 +83,16 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
               ),
             );
           },
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return Stack(
+          child: Opacity(
+            opacity: 1.0, // Full opacity (matching TokenCard pattern for consistent swipe behavior)
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Stack(
                 children: [
-                  // Base card background layer
+                  // Base card background layer (transparent to allow red swipe indicator through)
                   Container(
                     decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
+                      color: Colors.transparent,
                       borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
                     ),
                   ),
@@ -70,7 +105,11 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
 
                   // Artwork layer
                   if (_getCurrentArtworkUrl() != null)
-                    _buildArtworkLayer(context, constraints, artworkDisplayStyle),
+                    buildArtworkLayer(
+                      context: context,
+                      constraints: constraints,
+                      artworkDisplayStyle: artworkDisplayStyle,
+                    ),
 
                   // Content layer
                   Container(
@@ -86,8 +125,7 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               // Name
-                              _buildTextWithBackground(
-                                context: context,
+                              BackgroundText(
                                 child: Text(
                                   widget.toggle.name,
                                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -101,8 +139,7 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
                               const SizedBox(height: UIConstants.mediumSpacing),
 
                               // Current description (ON or OFF)
-                              _buildTextWithBackground(
-                                context: context,
+                              BackgroundText(
                                 child: Text(
                                   widget.toggle.currentDescription,
                                   style: Theme.of(context).textTheme.bodyMedium,
@@ -125,6 +162,7 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
               );
             },
           ),
+          ), // Opacity
         );
       },
     );
@@ -140,8 +178,7 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
         widget.toggle.toggle();
         toggleProvider.updateToggle(widget.toggle);
       },
-      child: _buildTextWithBackground(
-        context: context,
+      child: BackgroundText(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Icon(
           widget.toggle.isActive ? Icons.check_box : Icons.check_box_outline_blank,
@@ -190,167 +227,6 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> {
           return const SizedBox.shrink();
         },
       ),
-    );
-  }
-
-  Widget _buildArtworkLayer(BuildContext context, BoxConstraints constraints, String artworkDisplayStyle) {
-    final artworkUrl = _getCurrentArtworkUrl();
-    if (artworkUrl == null) return const SizedBox.shrink();
-
-    final crop = ArtworkManager.getCropPercentages(artworkUrl);
-
-    if (artworkDisplayStyle == 'fadeout') {
-      // Fadeout mode - right 50% only
-      final cardWidth = constraints.maxWidth;
-      final artworkWidth = cardWidth * 0.50;
-
-      return Positioned(
-        right: 0,
-        top: 0,
-        bottom: 0,
-        width: artworkWidth,
-        child: FutureBuilder<File?>(
-          future: ArtworkManager.getCachedArtworkFile(artworkUrl),
-          builder: (context, snapshot) {
-            if (snapshot.hasData && snapshot.data != null) {
-              final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-              final shouldAnimate = elapsed > 100 && !_artworkAnimated;
-
-              if (shouldAnimate) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    setState(() {
-                      _artworkAnimated = true;
-                    });
-                  }
-                });
-              }
-
-              return AnimatedOpacity(
-                opacity: 1.0,
-                duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
-                curve: Curves.easeIn,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(UIConstants.smallBorderRadius),
-                    bottomRight: Radius.circular(UIConstants.smallBorderRadius),
-                  ),
-                  child: ShaderMask(
-                    shaderCallback: (Rect bounds) {
-                      return const LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [Colors.transparent, Colors.white],
-                        stops: [0.0, 0.50],
-                      ).createShader(bounds);
-                    },
-                    blendMode: BlendMode.dstIn,
-                    child: CroppedArtworkWidget(
-                      imageFile: snapshot.data!,
-                      cropLeft: crop['left']!,
-                      cropRight: crop['right']!,
-                      cropTop: crop['top']!,
-                      cropBottom: crop['bottom']!,
-                      fillWidth: false,
-                    ),
-                  ),
-                ),
-              );
-            }
-
-            // Cleanup logic
-            if (snapshot.connectionState == ConnectionState.done &&
-                snapshot.data == null &&
-                !_artworkCleanupAttempted) {
-              final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-              if (elapsed > 2000) {
-                _artworkCleanupAttempted = true;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    widget.toggle.artworkUrl = null;
-                    widget.toggle.save();
-                  }
-                });
-              }
-            }
-
-            return const SizedBox.shrink();
-          },
-        ),
-      );
-    } else {
-      // Full view mode - fills entire card
-      return Positioned.fill(
-        child: FutureBuilder<File?>(
-          future: ArtworkManager.getCachedArtworkFile(artworkUrl),
-          builder: (context, snapshot) {
-            if (snapshot.hasData && snapshot.data != null) {
-              final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-              final shouldAnimate = elapsed > 100 && !_artworkAnimated;
-
-              if (shouldAnimate) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    setState(() {
-                      _artworkAnimated = true;
-                    });
-                  }
-                });
-              }
-
-              return AnimatedOpacity(
-                opacity: 1.0,
-                duration: shouldAnimate ? const Duration(milliseconds: 500) : Duration.zero,
-                curve: Curves.easeIn,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
-                  child: CroppedArtworkWidget(
-                    imageFile: snapshot.data!,
-                    cropLeft: crop['left']!,
-                    cropRight: crop['right']!,
-                    cropTop: crop['top']!,
-                    cropBottom: crop['bottom']!,
-                    fillWidth: true,
-                  ),
-                ),
-              );
-            }
-
-            // Cleanup logic
-            if (snapshot.connectionState == ConnectionState.done &&
-                snapshot.data == null &&
-                !_artworkCleanupAttempted) {
-              final elapsed = DateTime.now().difference(_createdAt).inMilliseconds;
-              if (elapsed > 2000) {
-                _artworkCleanupAttempted = true;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    widget.toggle.artworkUrl = null;
-                    widget.toggle.save();
-                  }
-                });
-              }
-            }
-
-            return const SizedBox.shrink();
-          },
-        ),
-      );
-    }
-  }
-
-  Widget _buildTextWithBackground({
-    required BuildContext context,
-    required Widget child,
-    EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-  }) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: child,
     );
   }
 }

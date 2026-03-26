@@ -7,8 +7,7 @@ class FloatingActionMenu extends StatelessWidget {
   final VoidCallback onMinusOneToAll;
   final VoidCallback onUntapAll;
   final VoidCallback onClearSickness;
-  final VoidCallback onSaveDeck;
-  final VoidCallback onLoadDeck;
+  final VoidCallback onDecks;
   final VoidCallback onBoardWipe;
 
   const FloatingActionMenu({
@@ -19,8 +18,7 @@ class FloatingActionMenu extends StatelessWidget {
     required this.onMinusOneToAll,
     required this.onUntapAll,
     required this.onClearSickness,
-    required this.onSaveDeck,
-    required this.onLoadDeck,
+    required this.onDecks,
     required this.onBoardWipe,
   });
 
@@ -45,8 +43,7 @@ class FloatingActionMenu extends StatelessWidget {
         onMinusOneToAll: onMinusOneToAll,
         onUntapAll: onUntapAll,
         onClearSickness: onClearSickness,
-        onSaveDeck: onSaveDeck,
-        onLoadDeck: onLoadDeck,
+        onDecks: onDecks,
         onBoardWipe: onBoardWipe,
       ),
     );
@@ -60,8 +57,7 @@ class _ActionBottomSheet extends StatelessWidget {
   final VoidCallback onMinusOneToAll;
   final VoidCallback onUntapAll;
   final VoidCallback onClearSickness;
-  final VoidCallback onSaveDeck;
-  final VoidCallback onLoadDeck;
+  final VoidCallback onDecks;
   final VoidCallback onBoardWipe;
 
   const _ActionBottomSheet({
@@ -71,8 +67,7 @@ class _ActionBottomSheet extends StatelessWidget {
     required this.onMinusOneToAll,
     required this.onUntapAll,
     required this.onClearSickness,
-    required this.onSaveDeck,
-    required this.onLoadDeck,
+    required this.onDecks,
     required this.onBoardWipe,
   });
 
@@ -191,23 +186,12 @@ class _ActionBottomSheet extends StatelessWidget {
             const SizedBox(height: 4),
             _buildActionTile(
               context: context,
-              icon: Icons.save,
-              label: 'Save Deck',
-              color: Colors.purple,
-              onTap: () {
-                Navigator.pop(context);
-                onSaveDeck();
-              },
-            ),
-            const SizedBox(height: 4),
-            _buildActionTile(
-              context: context,
-              icon: Icons.folder_open,
-              label: 'Load Deck',
+              icon: Icons.style,
+              label: 'Decks',
               color: Colors.indigo,
               onTap: () {
                 Navigator.pop(context);
-                onLoadDeck();
+                onDecks();
               },
             ),
           ],

@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/widget_definition.dart';
@@ -13,7 +13,11 @@ import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
 
 class WidgetSelectionScreen extends StatefulWidget {
-  const WidgetSelectionScreen({super.key});
+  /// When true, tapping a widget pops with the WidgetDefinition instead of
+  /// creating it on the board. Used by DeckDetailScreen to add utilities to a deck.
+  final bool selectorMode;
+
+  const WidgetSelectionScreen({super.key, this.selectorMode = false});
 
   @override
   State<WidgetSelectionScreen> createState() => _WidgetSelectionScreenState();
@@ -129,11 +133,11 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
           children: [
             _buildFilterChip('All', null),
             const SizedBox(width: 8),
+            _buildFilterChip('Special', WidgetType.special),
+            const SizedBox(width: 8),
             _buildFilterChip('Tracker', WidgetType.tracker),
             const SizedBox(width: 8),
             _buildFilterChip('Toggle', WidgetType.toggle),
-            const SizedBox(width: 8),
-            _buildFilterChip('Special', WidgetType.special),
           ],
         ),
       ),
@@ -264,6 +268,12 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
   }
 
   void _createWidget(WidgetDefinition definition) async {
+    // Selector mode: pop with the definition immediately
+    if (widget.selectorMode) {
+      Navigator.pop(context, definition);
+      return;
+    }
+
     // Calculate max order across ALL board items (tokens + trackers + toggles)
     final tokenProvider = context.read<TokenProvider>();
     final trackerProvider = context.read<TrackerProvider>();
@@ -290,7 +300,8 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
       await trackerProvider.insertTracker(tracker);
 
       // Download artwork in background (non-blocking, fire-and-forget)
-      if (tracker.artworkUrl != null && !tracker.artworkUrl!.startsWith('file://')) {
+      // Skip on web - artwork loads directly from network URL
+      if (!kIsWeb && tracker.artworkUrl != null && !tracker.artworkUrl!.startsWith('file://')) {
         final artworkUrl = tracker.artworkUrl!;
         ArtworkManager.downloadArtwork(artworkUrl).then((file) {
           if (file == null) {
@@ -343,7 +354,8 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
       await toggleProvider.insertToggle(toggle);
 
       // Download artwork in background (non-blocking, fire-and-forget)
-      if (toggle.artworkUrl != null && !toggle.artworkUrl!.startsWith('file://')) {
+      // Skip on web - artwork loads directly from network URL
+      if (!kIsWeb && toggle.artworkUrl != null && !toggle.artworkUrl!.startsWith('file://')) {
         final artworkUrl = toggle.artworkUrl!;
         ArtworkManager.downloadArtwork(artworkUrl).then((file) {
           if (file == null) {
@@ -390,19 +402,29 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
     }
   }
 
-  void _showNewTrackerSheet() {
-    Navigator.of(context).push(
+  void _showNewTrackerSheet() async {
+    final result = await Navigator.of(context).push<WidgetDefinition>(
       MaterialPageRoute(
-        builder: (context) => const NewTrackerSheet(),
+        builder: (context) => NewTrackerSheet(selectorMode: widget.selectorMode),
       ),
     );
+
+    // In selector mode, forward the result back to the caller (e.g. DeckDetailScreen)
+    if (widget.selectorMode && result != null && mounted) {
+      Navigator.pop(context, result);
+    }
   }
 
-  void _showNewToggleSheet() {
-    Navigator.of(context).push(
+  void _showNewToggleSheet() async {
+    final result = await Navigator.of(context).push<WidgetDefinition>(
       MaterialPageRoute(
-        builder: (context) => const NewToggleSheet(),
+        builder: (context) => NewToggleSheet(selectorMode: widget.selectorMode),
       ),
     );
+
+    // In selector mode, forward the result back to the caller (e.g. DeckDetailScreen)
+    if (widget.selectorMode && result != null && mounted) {
+      Navigator.pop(context, result);
+    }
   }
 }

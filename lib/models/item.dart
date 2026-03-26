@@ -101,7 +101,7 @@ class Item extends HiveObject {
   @HiveField(10)
   DateTime createdAt;
 
-  @HiveField(11)
+  @HiveField(11, defaultValue: 0.0)
   double order;
 
   @HiveField(12, defaultValue: '')
@@ -113,14 +113,33 @@ class Item extends HiveObject {
     save();
   }
 
-  @HiveField(13)
+  @HiveField(13, defaultValue: null)
   String? artworkUrl;
 
-  @HiveField(14)
+  @HiveField(14, defaultValue: null)
   String? artworkSet;
 
-  @HiveField(15)
+  @HiveField(15, defaultValue: null)
   List<ArtworkVariant>? artworkOptions;
+
+  // Independent power/toughness counters (do NOT auto-cancel with +1/+1 or -1/-1)
+  @HiveField(16, defaultValue: 0)
+  int _plusOnePowerCounters = 0;
+
+  int get plusOnePowerCounters => _plusOnePowerCounters;
+  set plusOnePowerCounters(int value) {
+    _plusOnePowerCounters = value < 0 ? 0 : value;
+    save();
+  }
+
+  @HiveField(17, defaultValue: 0)
+  int _plusOneToughnessCounters = 0;
+
+  int get plusOneToughnessCounters => _plusOneToughnessCounters;
+  set plusOneToughnessCounters(int value) {
+    _plusOneToughnessCounters = value < 0 ? 0 : value;
+    save();
+  }
 
   // Constructor
   Item({
@@ -163,7 +182,10 @@ class Item extends HiveObject {
 
   int get netPlusOneCounters => plusOneCounters - minusOneCounters;
 
-  bool get isPowerToughnessModified => netPlusOneCounters != 0;
+  bool get isPowerToughnessModified =>
+      netPlusOneCounters != 0 ||
+      plusOnePowerCounters > 0 ||
+      plusOneToughnessCounters > 0;
 
   bool get canBeModifiedByCounters {
     final parts = pt.split('/');
@@ -174,17 +196,22 @@ class Item extends HiveObject {
 
   String get formattedPowerToughness {
     final net = netPlusOneCounters;
-    if (net == 0) return pt;
+    final powerBonus = net + plusOnePowerCounters;
+    final toughnessBonus = net + plusOneToughnessCounters;
+
+    if (powerBonus == 0 && toughnessBonus == 0) return pt;
 
     if (canBeModifiedByCounters) {
       final parts = pt.split('/');
-      final power = int.parse(parts[0]) + net;
-      final toughness = int.parse(parts[1]) + net;
+      final power = int.parse(parts[0]) + powerBonus;
+      final toughness = int.parse(parts[1]) + toughnessBonus;
       return '$power/$toughness';
     }
 
-    // Non-integer P/T
-    return net > 0 ? '$pt (+$net/+$net)' : '$pt ($net/$net)';
+    // Non-integer P/T — show modifier suffix
+    final powerSign = powerBonus >= 0 ? '+$powerBonus' : '$powerBonus';
+    final toughnessSign = toughnessBonus >= 0 ? '+$toughnessBonus' : '$toughnessBonus';
+    return '$pt ($powerSign/$toughnessSign)';
   }
 
   // CRITICAL: Counter interaction logic (from Item.swift:149-173)
@@ -251,6 +278,16 @@ class Item extends HiveObject {
     return true;
   }
 
+  /// Batch-update artwork fields in a single Hive write.
+  /// Use this instead of setting artworkUrl/artworkSet/artworkOptions individually
+  /// followed by save(), to avoid multiple writes.
+  void updateArtwork({String? url, String? set, List<ArtworkVariant>? options}) {
+    artworkUrl = url;
+    artworkSet = set;
+    artworkOptions = options;
+    save();
+  }
+
   Item createDuplicate() {
     final newItem = Item(
       name: name,
@@ -276,6 +313,8 @@ class Item extends HiveObject {
   void applyDuplicateCounters(Item source) {
     plusOneCounters = source.plusOneCounters;
     minusOneCounters = source.minusOneCounters;
+    plusOnePowerCounters = source.plusOnePowerCounters;
+    plusOneToughnessCounters = source.plusOneToughnessCounters;
     for (final counter in source.counters) {
       counters.add(TokenCounter(name: counter.name, amount: counter.amount));
     }

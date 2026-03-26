@@ -29,7 +29,7 @@ class TrackerWidgetAdapter extends TypeAdapter<TrackerWidget> {
       tapIncrement: fields[9] as int,
       longPressIncrement: fields[10] as int,
       isCustom: fields[11] as bool,
-      hasAction: fields[12] as bool,
+      hasAction: fields[12] == null ? false : fields[12] as bool,
       actionButtonText: fields[13] as String?,
       actionType: fields[14] as String?,
       artworkSet: fields[15] as String?,
