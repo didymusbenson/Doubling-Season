@@ -73,12 +73,6 @@ class _DecksListScreenState extends State<DecksListScreen> {
             },
             tooltip: _editMode ? 'Done' : 'Delete',
           ),
-          if (_isMobilePlatform)
-            IconButton(
-              icon: const Icon(Icons.download),
-              onPressed: () => _showImportOptions(context),
-              tooltip: 'Import',
-            ),
         ],
       ),
       body: ValueListenableBuilder(
@@ -124,9 +118,9 @@ class _DecksListScreenState extends State<DecksListScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () => _createNewDeck(context),
+                          onPressed: () => _showNewImportOptions(context),
                           icon: const Icon(Icons.add),
-                          label: const Text('New Deck'),
+                          label: const Text('New / Import'),
                         ),
                       ),
                     ],
@@ -150,7 +144,7 @@ class _DecksListScreenState extends State<DecksListScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Use "Save Board" or "New Deck" below to get started',
+            'Use "Save Board" or "New / Import" below to get started',
             style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
           ),
         ],
@@ -854,48 +848,82 @@ class _DecksListScreenState extends State<DecksListScreen> {
     });
   }
 
-  void _showImportOptions(BuildContext context) {
+  void _showNewImportOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[400],
-                borderRadius: BorderRadius.circular(2),
-              ),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(sheetContext).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+          child: SafeArea(
+            minimum: const EdgeInsets.only(bottom: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    const Icon(Icons.add_circle_outline, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'New / Import',
+                        style: Theme.of(sheetContext).textTheme.headlineSmall,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(sheetContext),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                _buildOptionTile(
+                  context: sheetContext,
+                  icon: Icons.add,
+                  label: 'New deck from scratch',
+                  color: Colors.indigo,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _createNewDeck(context);
+                  },
+                ),
+                const SizedBox(height: 4),
+                _buildOptionTile(
+                  context: sheetContext,
+                  icon: Icons.content_paste,
+                  label: 'Import from Copied Decklist',
+                  color: Colors.blue,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    importFromClipboardDecklist(context);
+                  },
+                ),
+                if (_isMobilePlatform) ...[
+                  const SizedBox(height: 4),
+                  _buildOptionTile(
+                    context: sheetContext,
+                    icon: Icons.file_open,
+                    label: 'Import Tripling Season Deck File',
+                    color: Colors.green,
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _importDeck(context);
+                    },
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(height: 16),
-            _buildOptionTile(
-              context: sheetContext,
-              icon: Icons.content_paste,
-              label: 'Import from Copied Decklist',
-              color: Colors.blue,
-              onTap: () {
-                Navigator.pop(sheetContext);
-                importFromClipboardDecklist(context);
-              },
-            ),
-            const SizedBox(height: 4),
-            _buildOptionTile(
-              context: sheetContext,
-              icon: Icons.file_open,
-              label: 'Import Tripling Season Deck File',
-              color: Colors.green,
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _importDeck(context);
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
