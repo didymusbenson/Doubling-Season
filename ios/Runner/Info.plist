@@ -24,6 +24,10 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Tripling Season needs access to your photo library to set custom token artwork.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Tripling Season needs access to your camera to take photos for custom token artwork.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
