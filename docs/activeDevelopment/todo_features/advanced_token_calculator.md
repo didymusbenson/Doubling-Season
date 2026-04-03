@@ -55,7 +55,11 @@ Triggers reference the token database (913 tokens) so users can search for and s
 
 A rule can have **multiple outcomes** (e.g., Academy Manufactor: "when creating a Food → also create 1 Treasure + also create 1 Clue").
 
-Outcomes that reference a token use the token database to resolve the exact TokenDefinition, ensuring correct name, P/T, colors, abilities, and type.
+**Quantity scaling:** "Also create" outcomes scale proportionally to the triggering quantity. Creating 3 Food with Academy Manufactor active produces 3 Food + 3 Treasure + 3 Clue (per MTG rules, each token creation triggers independently).
+
+Outcomes that reference a token use the token database to resolve the exact TokenDefinition, ensuring correct name, P/T, colors, abilities, and type. Token definitions are referenced by composite ID (`name|pt|colors|type|abilities`) and re-resolved from the database at runtime.
+
+**Identity case:** When no enabled rules exist (or the rule list is empty), the rules engine returns the input unchanged — quantity in = quantity out. This is equivalent to multiplier = 1.
 
 **Note:** Counter modification does NOT use the rules engine. See [Counter Modifier](#counter-modifier) below for the simpler handler.
 
@@ -85,45 +89,38 @@ This lets users understand the combined effect of all their rules at a glance, e
 
 #### Preset Rules (Well-Known Cards)
 
-Well-known cards have **hardcoded preset rules** that users can enable with a single tap. The user doesn't need to build these from scratch — they just check the card name and its rules activate. Presets are not editable (they represent the card's actual rules text), but users can create custom rules for anything not in the preset list.
+Well-known cards are **hardcoded preset rules** grouped by shared behavior. Cards that do the exact same thing are listed together under one rule with a **quantity** value (e.g., "Token Doublers: 2" means two ×2 effects active = ×4 total). This avoids redundant UI entries for cards with identical rules.
+
+Each rule has a quantity. The quantity determines how many times that rule's effect applies: 2 doublers = ×4, 3 doublers = ×8, etc.
 
 **Token presets:**
 
-| Preset Name | Trigger | Outcomes |
-|-------------|---------|----------|
-| **Doubling Season** | Any token | Multiply tokens ×2, Multiply counters ×2 |
-| **Parallel Lives** | Any token | Multiply tokens ×2 |
-| **Anointed Procession** | Any token | Multiply tokens ×2 |
-| **Mondrak, Glory Dominus** | Any token | Multiply tokens ×2 |
-| **Adrix and Nev, Twincasters** | Any token | Multiply tokens ×2 |
-| **Primal Vigor** | Any token | Multiply tokens ×2, Multiply +1/+1 counters ×2 |
-| **Ojer Taq, Deepest Foundation** | Token with P/T | Multiply tokens ×3 |
-| **Academy Manufactor** | Food | Also create 1 Treasure, Also create 1 Clue |
+| Preset | Cards (grouped by identical effect) | Trigger | Outcome | Quantity = |
+|--------|-------------------------------------|---------|---------|------------|
+| **Token Doublers** | Parallel Lives, Anointed Procession, Mondrak, Adrix and Nev, Elspeth Storm Slayer, Exalted Sunborn | Any token | Multiply ×2 | Number of these cards in play |
+| **Doubling Season** | Doubling Season | Any token | Multiply tokens ×2 + Multiply all counters ×2 | Own entry (has counter effect too) |
+| **Primal Vigor** | Primal Vigor | Any token | Multiply tokens ×2 + Multiply +1/+1 counters ×2 | Own entry (has counter effect too) |
+| **Ojer Taq** | Ojer Taq, Deepest Foundation | Token with P/T | Multiply ×3 | Own entry (unique multiplier) |
+| **Academy Manufactor** | Academy Manufactor | Food | Also create 1 Treasure + 1 Clue | Own entry (unique outcome) |
 
 **Counter presets:**
 
-| Preset Name | Trigger | Outcomes |
-|-------------|---------|----------|
-| **Hardened Scales** | When placing +1/+1 counters | Add 1 additional +1/+1 |
-| **Branching Evolution** | When placing +1/+1 counters | Multiply +1/+1 counters ×2 |
-| **Corpsejack Menace** | When placing +1/+1 counters | Multiply +1/+1 counters ×2 |
-| **Vorinclex, Monstrous Raider** | When placing any counters | Multiply counters ×2 |
+| Preset | Cards (grouped by identical effect) | Scope | Outcome | Quantity = |
+|--------|-------------------------------------|-------|---------|------------|
+| **+1/+1 Doublers** | Branching Evolution, Corpsejack Menace, The Earth Crystal | +1/+1 only | Multiply ×2 | Number of these cards in play |
+| **+1/+1 Extra** | Hardened Scales, Conclave Mentor, High Score, Ozolith the Shattered Spire, Michelangelo | +1/+1 only | +1 additional | Number of these cards in play |
+| **All-Counter Doublers** | Vorinclex, Innkeeper's Talent L3, Loading Zone | All counters | Multiply ×2 | Number of these cards in play |
 
-Users can also create **custom rules** using the same trigger/outcome model for cards not in the preset list or for homebrew effects.
+**Shared presets:** Doubling Season and Primal Vigor have their own entries because they span both token and counter effects. Enabling "Doubling Season" activates token doubling AND all-counter doubling from one control.
+
+**Custom rules:** Users can create custom rules using the same trigger/outcome model for cards not in the preset list or for homebrew effects. Custom rules support arbitrary multiplier values (×2, ×3, ×5, etc.) and arbitrary quantities.
 
 #### Example Custom Rules
-
-**Simple (single outcome):**
 
 | Rule Name | Trigger | Outcomes |
 |-----------|---------|----------|
 | "My Doubler" | Any token | Multiply by 2 |
 | "Creature Tripler" | Token with P/T | Multiply by 3 |
-
-**Multiple outcomes:**
-
-| Rule Name | Trigger | Outcomes |
-|-----------|---------|----------|
 | "Custom Manufactor" | Treasure | 1. Also create 1 Food, 2. Also create 1 Clue |
 
 **Stacking example (list order matters):**
@@ -139,6 +136,8 @@ Wrong ordering — doublers above "also create" means companions miss them:
 2. "Academy Manufactor" — Food → also create Treasure + Clue
 
 Creating 1 Food: Rule 1 doubles Food to 2. Rule 2 matches Food → queue 1 Treasure, 1 Clue (no rules below). **Final: 2 Food, 1 Treasure, 1 Clue.** The user should reorder to get the correct result.
+
+**Preset auto-ordering:** When presets are enabled, "also create" rules auto-position above "multiply" rules by default. This gives the rules-accurate result without requiring users to understand replacement effect layering (MTG rule 616.1). Power users can manually reorder. The preview updates live as rules are reordered so users can see the impact of their ordering.
 
 ### Counter Modifier
 
@@ -179,26 +178,40 @@ For any other counter type:
 
 #### Counter Presets
 
-| Preset Name | Scope | Effect |
-|-------------|-------|--------|
-| **Doubling Season** | All counters | ×2 (also has token doubling — see token presets) |
-| **Vorinclex, Monstrous Raider** | All counters | ×2 |
-| **Innkeeper's Talent** (L3) | All counters | ×2 |
-| **Loading Zone** | All counters | ×2 |
-| **Branching Evolution** | +1/+1 only | ×2 |
-| **Corpsejack Menace** | +1/+1 only | ×2 |
-| **Primal Vigor** | +1/+1 only | ×2 (also has token doubling — see token presets) |
-| **The Earth Crystal** | +1/+1 only | ×2 |
-| **Hardened Scales** | +1/+1 only | +1 extra |
-| **Conclave Mentor** | +1/+1 only | +1 extra |
-| **High Score** | +1/+1 only | +1 extra |
-| **Michelangelo, Weirdness to 11** | +1/+1 only | +1 extra |
+Counter presets follow the same grouping model as token presets — cards with identical effects are grouped with a quantity value.
 
-**Shared presets:** Doubling Season and Primal Vigor appear in both the token presets and counter presets. Enabling "Doubling Season" activates both its token doubling rule AND its all-counter doubling. One checkbox, both effects.
+See token presets section above for the full grouped list. The counter-relevant groups are:
+- **+1/+1 Doublers** (Branching Evolution, Corpsejack Menace, The Earth Crystal) — quantity = number in play
+- **+1/+1 Extra** (Hardened Scales, Conclave Mentor, High Score, Ozolith the Shattered Spire, Michelangelo) — quantity = number in play
+- **All-Counter Doublers** (Vorinclex, Innkeeper's Talent L3, Loading Zone) — quantity = number in play
+- **Doubling Season** — own entry (token doubling + all-counter doubling from one control)
+- **Primal Vigor** — own entry (token doubling + +1/+1 counter doubling from one control)
+
+#### Counter Types and -1/-1 Behavior
+
+- **+1/+1 counters:** Modified by both +1/+1 scope AND all-counter scope
+- **-1/-1 counters:** Modified by all-counter scope ONLY. The +1/+1 scope (doublers and extra) does not apply. In MTG, Doubling Season doubles all counters YOU place, including -1/-1 on your own creatures — this is rules-accurate but potentially surprising.
+- **Custom counters** (charge, loyalty, etc.): Modified by all-counter scope only. Same as -1/-1.
+
+#### Integration Points
+
+The counter modifier must be applied at **ALL counter placement call sites**, not just the ones the user interacts with directly:
+
+| Call Site | Current Behavior | With Counter Modifier |
+|---|---|---|
+| **+1/+1 Everything** (`addPlusOneToAll`) | Hardcoded `addPowerToughnessCounters(1)` | Apply formula: `(1 + extra) × 2^doublers` |
+| **Cathar's Crusade** (GameEvents ETB) | `token.plusOneCounters += triggerCount` | Apply formula to `triggerCount` before adding |
+| **Individual +1/+1 edits** (expanded token screen) | Direct increment | Apply formula to the increment |
+| **Individual custom counter edits** | Direct increment | Apply all-counter formula only |
+| **Manual quantity typing** | Direct set | **Bypass** — no modifier (matches token rules bypass principle) |
+
+**Cathar's Crusade interaction:** Cathar's Crusade INITIATES counter placement (triggered ability). The counter modifier MODIFIES the counters being placed (replacement effect). These are different layers that stack. Example: Cathar's Crusade fires for 3 creatures entering, with Hardened Scales + Doubling Season active → each creature gets `(3 + 1) × 2 = 8` counters.
+
+**ETB count for Cathar's Crusade:** When token rules double token creation (e.g., Doubling Season doubles 1 Soldier to 2), Cathar's Crusade fires based on the FINAL token count after rules evaluation. Doubling Season doubles 1 Soldier to 2 → Cathar's sees 2 creatures entering.
 
 #### UI
 
-The counter modifier settings live alongside the token rules in the same screen (accessed from the FAB multiplier entry point). Since counters are just two pairs of numbers (doublers + extra for each scope), this can be a compact section — no need for a full rule list.
+The counter modifier settings live alongside the token rules in the same screen (accessed from the FAB multiplier entry point). Presented as a collapsible section (collapsed by default, showing a one-line summary like "+1/+1: ×2 + 1 extra"). Since counters are just two pairs of numbers (doublers + extra for each scope), this is a compact section — no need for a full rule list.
 
 The user can either:
 - Enable a **preset card** (e.g., check "Hardened Scales" → +1 extra +1/+1)
@@ -212,10 +225,15 @@ The user can either:
 - **Chain triggering**: No upward re-entry — companion tokens evaluate against remaining rules *below* the one that created them, per 614.16. Loop-safe by construction.
 - **Rule ordering**: Rules are reorderable and evaluated top-down. Order affects outcomes (mirrors 616.1 player-chosen order).
 - **Rule stacking**: Multiplier rules stack multiplicatively. "Also create" rules fire independently. Companion tokens are subject to multiplier rules below them in the list.
-- **Counter modifier**: Separate, simpler handler — not the full rules engine. Two scopes (+1/+1 only vs. all counters), each with a doublers count and an extra count. Formula: `(base + extra) × 2^doublers`.
-- **Preset rules**: Well-known cards are hardcoded presets. Users check the card name to enable — no manual rule building required. Cards with both token and counter effects (Doubling Season, Primal Vigor) activate both from a single checkbox.
-- **UI home**: Lives at the existing multiplier entry point in the FAB menu. Replaces the multiplier UI.
-- **Preview**: Live preview shows calculated result of creating 1 token. Conditional rules show per-type breakdowns in a modal ("1 token = 4 tokens", "1 Food = 4 Food + 1 Treasure + 1 Clue").
+- **Counter modifier**: Separate, simpler handler — not the full rules engine. Two scopes (+1/+1 only vs. all counters), each with a doublers count and an extra count. Formula: `(base + extra) × 2^doublers`. Applies to ALL counter placement call sites (addPlusOneToAll, Cathar's Crusade, individual edits). -1/-1 and custom counters go through all-counter scope only.
+- **Preset grouping**: Cards with identical effects are grouped under one preset with a quantity value (e.g., "Token Doublers: 3" = Parallel Lives + Anointed Procession + Mondrak). Cards with unique multi-effect rules (Doubling Season, Primal Vigor) get their own entries.
+- **Preset auto-ordering**: "Also create" presets auto-position above "multiply" presets when enabled. Gives rules-accurate defaults without requiring users to understand 616.1.
+- **UI home**: Lives at the existing multiplier entry point in the FAB menu. Replaces the multiplier UI. Draggable bottom sheet (not full screen). Rule creator is full-screen dialog.
+- **Preview**: Live preview shows calculated result of creating 1 token. Conditional rules show per-type breakdowns in a modal. Also shown inline in the quantity dialog before "Create."
+- **Quantity scaling**: "Also create" outcomes scale proportionally to the triggering quantity (3 Food → 3 Treasure + 3 Clue).
+- **Identity case**: No enabled rules = quantity in = quantity out (equivalent to multiplier=1).
+- **Companion stacking**: Companion tokens add to existing board stacks when a matching stack exists.
+- **TypeIds**: 10, 11, 12 (8 and 9 are taken by TrackerWidgetTemplate/ToggleWidgetTemplate).
 
 #### MTG Rules Foundation
 
@@ -265,7 +283,12 @@ The current manual multiplier (int 1–1024 in SharedPreferences, applied at cre
 
 To preserve ease-of-use for the common case ("I have 3 doublers"), the rules UI should offer a **quick-add shortcut** — e.g., "+ Add Doubler" creates a pre-filled "any token → ×2" rule in one tap. This keeps the simple case fast without maintaining two parallel systems.
 
-**Migration:** Existing users with a multiplier > 1 will need a one-time migration that converts their multiplier value into equivalent doubler rules (e.g., multiplier=8 → three "any token → ×2" rules). The SharedPreferences key can then be retired.
+**Migration:** Existing users with a multiplier > 1 will need a one-time migration:
+- Power-of-2 values decompose into doubler rules (e.g., multiplier=8 → Token Doublers quantity = 3)
+- Non-power-of-2 values (3, 5, 6, etc.) become a single custom rule with the exact multiplier value (e.g., multiplier=6 → custom rule "any token → ×6")
+- The `counterMultiplier` SharedPreferences key (already in use in `token_card.dart` for the +1/+1 button) must also be migrated to the counter modifier system
+- Migration runs in `RulesProvider.init()`. The old SharedPreferences keys are kept as backup until confirmed successful migration, then cleared on next launch. If the rules box is wiped during resilient boot, migration re-runs from the backup keys.
+- Silent migration with a SnackBar notification: "Your ×N multiplier has been converted to token rules." No blocking dialog. If multiplier was 1 (default), skip the notification.
 
 ### Existing Utility Overlap
 
@@ -277,15 +300,21 @@ To preserve ease-of-use for the common case ("I have 3 doublers"), the rules UI 
 
 ### Data Model Needs
 
-New Hive models required (next available typeId: 8):
+New Hive models required. **TypeIds 8 and 9 are already taken** by `TrackerWidgetTemplate` and `ToggleWidgetTemplate` in `constants.dart`. Next available is **10**.
 
 ```
-TokenRule       (typeId: 8)  — name, enabled, order, conditions, outcomes
-RuleCondition   (typeId: 9)  — conditionType, targetTokenId, targetType, targetColor, negated
-RuleOutcome     (typeId: 10) — outcomeType (multiply|also_create), multiplier, targetTokenId, quantity
+TokenRule       (typeId: 10) — name, enabled, order, trigger, outcomes
+RuleTrigger     (typeId: 11) — triggerType, targetTokenId (composite ID string), targetType, targetColor
+RuleOutcome     (typeId: 12) — outcomeType (multiply|also_create), multiplier, targetTokenId, quantity
 ```
 
-Three new type IDs, one new Hive box (`tokenRules`). All new fields need `defaultValue` per existing schema rules.
+Three new type IDs, one new Hive box (`tokenRules`). `RuleTrigger` and `RuleOutcome` are nested inside `TokenRule` (same pattern as `TokenCounter` inside `Item` and `TokenTemplate` inside `Deck`) — they don't get their own boxes.
+
+All new fields need `defaultValue` per existing schema rules (v1.7→v1.8 deck-loss bug).
+
+**Preset storage:** Preset rules are computed at runtime (always available, never corrupted). Only the enabled/disabled state and quantity per preset is persisted (SharedPreferences or a lightweight Hive field). Custom rules are stored in the `tokenRules` Hive box.
+
+**Resilient boot:** The `tokenRules` box must be added to `hive_setup.dart` using `_openBoxResilient()`, included in the backup list, and handled in web init. If the box corrupts and is wiped, the app functions with zero rules (identity transformation).
 
 ### Architecture: Where the Engine Lives
 
@@ -307,7 +336,7 @@ User selects token + quantity
 ## Notes
 
 ### Token Database Integration
-Rules reference TokenDefinitions from the 913-token database. The rule creator UI needs a token search/picker (similar to TokenSearchScreen) so users can select exact tokens for both conditions and outcomes. This ensures the correct token gets created with proper P/T, colors, abilities, and artwork.
+Rules reference TokenDefinitions from the 913-token database. The rule creator UI needs a token search/picker (reuse `TokenSearchScreen` in selector mode — it already returns a `TokenDefinition` via `Navigator.pop()`). This ensures the correct token gets created with proper P/T, colors, abilities, and artwork.
 
 ### Execution Flow
 
@@ -317,8 +346,37 @@ When the user creates tokens through the normal flow (TokenSearchScreen → quan
 1. Rules engine receives the token creation intent (token + quantity)
 2. Enabled rules are evaluated **top-down in list order**
 3. Each matching **multiply** rule adjusts the quantity of the triggering token
-4. Each matching **also-create** rule queues companion tokens — these companions then continue evaluation from the **next rule down** (not from the top)
+4. Each matching **also-create** rule queues companion tokens (scaled proportionally to triggering quantity) — these companions then continue evaluation from the **next rule down** (not from the top)
 5. After all rules are evaluated: insert the original token and all companion tokens with their final quantities
+6. **Companion stacking:** If a companion token matches an existing stack on the board (same composite ID), add to that stack instead of creating a duplicate
+
+### Implementation Notes
+
+**Scute Swarm and Krenko bypass `insertItem()`.** Both `createScuteSwarmTokens()` and `createGoblinToken()` in `token_provider.dart` manage amounts directly and write to Hive without going through a centralized creation pipeline. Both must be refactored to route their output through `RulesProvider.evaluateRules()` before setting final quantities.
+
+**Quick-add creates companions.** When "+" on a Food card triggers an Academy Manufactor rule, the Food stack increases AND new Treasure/Clue stacks appear (or existing ones increment). Show a brief SnackBar: "Also created: 1 Treasure, 1 Clue" — non-blocking, auto-dismissing. For multiply-only rules (just doublers), the "+" silently adds the modified quantity with no toast.
+
+**Academy Manufactor utility migration.** Existing users have Academy Manufactor as a utility card on their board. On upgrade: auto-enable the Academy Manufactor preset rule, show a migration prompt on the utility card: "Academy Manufactor is now a token rule. Tap to dismiss." The hardcoded `createAcademyManufactorTokens()` utility code in TokenProvider will be removed.
+
+**Rules-active indicator.** The FAB button should show a badge or label indicating rules are active (e.g., "×4" or a dot) so players always know without opening the rules sheet. After board wipe, show a dismissible SnackBar: "X rules still active" as a reminder (permanents providing these effects may be gone).
+
+**Summoning sickness on companion tokens.** Companion tokens created by "also create" rules follow the same summoning sickness logic as any new creature token: applied if the setting is enabled AND the token has P/T AND doesn't have haste. No exceptions for rule-created tokens.
+
+**Artwork for companion tokens.** All tokens created by the rules engine — both the original and companions — must follow the same artwork determination and download path as the main token creation flow (TokenSearchScreen). The Academy Manufactor utility has a known bug where companion token artwork doesn't render correctly on first creation; this is because it bypasses the standard artwork flow. The rules engine must not repeat this mistake. Reference Krenko's `createGoblinToken()` for the correct pattern (it loads the token definition from the database and downloads artwork in the background).
+
+**Long-press quick-add.** Long-press on "+" currently adds 10×multiplier. With the rules engine, it adds 10 through `evaluateRules()` — same as tap, just with a larger base quantity. This is consistent with the rules engine being a full replacement for the multiplier. All quick-add paths (tap and long-press) route through the rules engine.
+
+### UI Architecture
+
+**Rules sheet:** Draggable bottom sheet (not full screen) — users toggle rules mid-game and need the board visible. Pull up to full screen for more space. Matches existing `showModalBottomSheet` pattern.
+
+**Rule creator:** Full-screen dialog (`MaterialPageRoute(fullscreenDialog: true)`) — matches `NewTokenSheet` pattern. Single scrollable page: name → trigger picker → outcomes list → save.
+
+**Rules list:** Unified `ReorderableListView` containing both presets and custom rules. Presets show a badge; custom rules show edit/delete. Both have leading `Switch` for toggle. Matches existing board reorder pattern.
+
+**Preview placement:** Sticky at top of rules sheet ("1 token → 4 tokens"). Also shown inline in the quantity dialog before "Create" is tapped (replaces the current "Final amount will be X" text).
+
+**Counter modifier:** Collapsible `ExpansionTile` inside the rules sheet, below the token rules list. Shows one-line summary when collapsed.
 
 **Example — order matters (per 614.16 + 616.1):**
 
