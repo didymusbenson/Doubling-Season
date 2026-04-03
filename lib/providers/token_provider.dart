@@ -6,6 +6,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/item.dart';
 import '../models/token_definition.dart';
 import '../utils/artwork_manager.dart';
+import '../utils/artwork_preference_manager.dart';
 import '../utils/constants.dart';
 import '../utils/game_events.dart';
 
@@ -677,6 +678,27 @@ class TokenProvider extends ChangeNotifier {
         // Create new item with database values and default artwork
         final shouldBeSummoningSick = summoningSicknessEnabled && !goblinDefinition.abilities.toLowerCase().contains('haste');
 
+        // Resolve preferred artwork (same path as normal token creation)
+        final artworkPrefManager = ArtworkPreferenceManager();
+        final tokenIdentity = goblinDefinition.id;
+        final preferredArtwork = artworkPrefManager.getPreferredArtwork(tokenIdentity);
+
+        String? artworkUrl;
+        String? artworkSet;
+        if (preferredArtwork != null) {
+          artworkUrl = preferredArtwork;
+          if (!preferredArtwork.startsWith('file://') && goblinDefinition.artwork.isNotEmpty) {
+            final matchingArtwork = goblinDefinition.artwork.firstWhere(
+              (art) => art.url == preferredArtwork,
+              orElse: () => goblinDefinition.artwork[0],
+            );
+            artworkSet = matchingArtwork.set;
+          }
+        } else if (goblinDefinition.artwork.isNotEmpty) {
+          artworkUrl = goblinDefinition.artwork.first.url;
+          artworkSet = goblinDefinition.artwork.first.set;
+        }
+
         final newGoblin = Item(
           name: goblinDefinition.name,
           pt: goblinDefinition.pt,
@@ -687,8 +709,8 @@ class TokenProvider extends ChangeNotifier {
           tapped: 0,
           summoningSick: shouldBeSummoningSick ? amount : 0,
           order: insertionOrder,
-          artworkUrl: goblinDefinition.artwork.isNotEmpty ? goblinDefinition.artwork.first.url : null,
-          artworkSet: goblinDefinition.artwork.isNotEmpty ? goblinDefinition.artwork.first.set : null,
+          artworkUrl: artworkUrl,
+          artworkSet: artworkSet,
           artworkOptions: goblinDefinition.artwork.isNotEmpty ? List.from(goblinDefinition.artwork) : null,
         );
 
@@ -705,7 +727,8 @@ class TokenProvider extends ChangeNotifier {
               newGoblin.updateArtwork(url: null, set: null, options: newGoblin.artworkOptions);
             } else {
               debugPrint('TokenProvider.createKrenkoGoblins: Artwork downloaded');
-              newGoblin.artworkUrl = 'file://${file.path}';
+              // Keep original Scryfall URL (don't convert to file://)
+              // so getCropPercentages() applies correct Scryfall crop values
               newGoblin.save();
               notifyListeners();
             }
@@ -820,6 +843,27 @@ class TokenProvider extends ChangeNotifier {
           // Create new stack from database definition
           debugPrint('TokenProvider.createAcademyManufactorTokens: Creating new $typeName stack with $amountPerType at order $currentOrder');
 
+          // Resolve preferred artwork (same path as normal token creation)
+          final artworkPrefManager = ArtworkPreferenceManager();
+          final tokenIdentity = definition.id;
+          final preferredArtwork = artworkPrefManager.getPreferredArtwork(tokenIdentity);
+
+          String? artworkUrl;
+          String? artworkSet;
+          if (preferredArtwork != null) {
+            artworkUrl = preferredArtwork;
+            if (!preferredArtwork.startsWith('file://') && definition.artwork.isNotEmpty) {
+              final matchingArtwork = definition.artwork.firstWhere(
+                (art) => art.url == preferredArtwork,
+                orElse: () => definition.artwork[0],
+              );
+              artworkSet = matchingArtwork.set;
+            }
+          } else if (definition.artwork.isNotEmpty) {
+            artworkUrl = definition.artwork.first.url;
+            artworkSet = definition.artwork.first.set;
+          }
+
           final newToken = Item(
             name: definition.name,
             pt: definition.pt,
@@ -830,8 +874,8 @@ class TokenProvider extends ChangeNotifier {
             tapped: 0,
             summoningSick: 0, // Artifacts without P/T - no summoning sickness
             order: currentOrder,
-            artworkUrl: definition.artwork.isNotEmpty ? definition.artwork.first.url : null,
-            artworkSet: definition.artwork.isNotEmpty ? definition.artwork.first.set : null,
+            artworkUrl: artworkUrl,
+            artworkSet: artworkSet,
             artworkOptions: definition.artwork.isNotEmpty ? List.from(definition.artwork) : null,
           );
 
@@ -851,7 +895,8 @@ class TokenProvider extends ChangeNotifier {
                 newToken.updateArtwork(url: null, set: null, options: newToken.artworkOptions);
               } else {
                 debugPrint('TokenProvider.createAcademyManufactorTokens: Artwork downloaded for $typeName');
-                newToken.artworkUrl = 'file://${file.path}';
+                // Keep original Scryfall URL (don't convert to file://)
+                // so getCropPercentages() applies correct Scryfall crop values
                 newToken.save();
                 notifyListeners();
               }
