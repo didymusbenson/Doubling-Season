@@ -69,17 +69,17 @@ The advanced token calculator lives at the **existing multiplier entry point** i
 
 #### Preview
 
-The rules screen shows a **live preview** that explains the final result of creating a single token with the current enabled rules:
+The rules screen shows a **calculated preview** — a dry-run of `evaluateRules()` that shows what *would* happen, without creating tokens. It recalculates whenever a rule is toggled, reordered, or edited.
 
-**Default preview:** Shows the result for a generic token:
+**Default preview (sticky at top of rules sheet):** Shows the result for a generic token:
 > "1 token → 4 tokens" (if two doublers are active)
 
-**Conditional previews:** When rules are conditional on specific token types, an inline link opens a **preview modal** showing all scenarios:
+**Conditional previews:** When rules are conditional on specific token types, the sticky summary is styled as tappable (visually indicating interactivity). Tapping opens a **preview modal** showing one row per distinct trigger category present in the enabled rules:
 > "Whenever you make **a token**: 1 token = 4 tokens"
 > "Whenever you make **a Food**: 1 Food = 4 Food + 1 Treasure + 1 Clue"
 > "Whenever you make **a Squirrel**: 1 Squirrel = 8 tokens + 1 Squirrel"
 
-This lets users understand the combined effect of all their rules at a glance, especially when multiplicative and additive rules interact. The preview updates live as rules are enabled/disabled/reordered.
+**Quantity dialog preview:** Shown inline in the quantity dialog before "Create" is tapped (replaces the current "Final amount will be X" text). Lists every token that will be created with the actual selected token and quantity — e.g., "3 Food + 3 Treasure + 3 Clue", not a collapsed total.
 
 #### Persistence & Lifecycle
 
@@ -137,7 +137,7 @@ Wrong ordering — doublers above "also create" means companions miss them:
 
 Creating 1 Food: Rule 1 doubles Food to 2. Rule 2 matches Food → queue 1 Treasure, 1 Clue (no rules below). **Final: 2 Food, 1 Treasure, 1 Clue.** The user should reorder to get the correct result.
 
-**Preset auto-ordering:** When presets are enabled, "also create" rules auto-position above "multiply" rules by default. This gives the rules-accurate result without requiring users to understand replacement effect layering (MTG rule 616.1). Power users can manually reorder. The preview updates live as rules are reordered so users can see the impact of their ordering.
+**Rules list structure enforces ordering:** The two-section layout (replacements on top, multipliers on bottom) ensures "also create" rules are always evaluated before multipliers by construction. No auto-ordering logic needed — the UI structure itself gives the rules-accurate result. Users can reorder within the replacements section; the preview updates live as rules are reordered.
 
 ### Counter Modifier
 
@@ -227,9 +227,9 @@ The user can either:
 - **Rule stacking**: Multiplier rules stack multiplicatively. "Also create" rules fire independently. Companion tokens are subject to multiplier rules below them in the list.
 - **Counter modifier**: Separate, simpler handler — not the full rules engine. Two scopes (+1/+1 only vs. all counters), each with a doublers count and an extra count. Formula: `(base + extra) × 2^doublers`. Applies to ALL counter placement call sites (addPlusOneToAll, Cathar's Crusade, individual edits). -1/-1 and custom counters go through all-counter scope only.
 - **Preset grouping**: Cards with identical effects are grouped under one preset with a quantity value (e.g., "Token Doublers: 3" = Parallel Lives + Anointed Procession + Mondrak). Cards with unique multi-effect rules (Doubling Season, Primal Vigor) get their own entries.
-- **Preset auto-ordering**: "Also create" presets auto-position above "multiply" presets when enabled. Gives rules-accurate defaults without requiring users to understand 616.1.
+- **Rules list structure**: Two sections — replacements (top, user-reorderable) and multipliers (bottom, flat non-reorderable list). Structure enforces correct evaluation order by construction. No auto-ordering logic needed.
 - **UI home**: Lives at the existing multiplier entry point in the FAB menu. Replaces the multiplier UI. Draggable bottom sheet (not full screen). Rule creator is full-screen dialog.
-- **Preview**: Live preview shows calculated result of creating 1 token. Conditional rules show per-type breakdowns in a modal. Also shown inline in the quantity dialog before "Create."
+- **Preview**: Calculated preview (dry-run of evaluateRules) shows result of creating 1 token. Sticky summary on rules sheet is tappable — opens modal with per-trigger-category breakdowns. Quantity dialog shows full token list for actual selected token and quantity.
 - **Quantity scaling**: "Also create" outcomes scale proportionally to the triggering quantity (3 Food → 3 Treasure + 3 Clue).
 - **Identity case**: No enabled rules = quantity in = quantity out (equivalent to multiplier=1).
 - **Companion stacking**: Companion tokens add to existing board stacks when a matching stack exists.
@@ -354,11 +354,13 @@ When the user creates tokens through the normal flow (TokenSearchScreen → quan
 
 **Scute Swarm and Krenko bypass `insertItem()`.** Both `createScuteSwarmTokens()` and `createGoblinToken()` in `token_provider.dart` manage amounts directly and write to Hive without going through a centralized creation pipeline. Both must be refactored to route their output through `RulesProvider.evaluateRules()` before setting final quantities.
 
-**Quick-add creates companions.** When "+" on a Food card triggers an Academy Manufactor rule, the Food stack increases AND new Treasure/Clue stacks appear (or existing ones increment). Show a brief SnackBar: "Also created: 1 Treasure, 1 Clue" — non-blocking, auto-dismissing. For multiply-only rules (just doublers), the "+" silently adds the modified quantity with no toast.
+**Quick-add creates companions.** When "+" on a Food card triggers an Academy Manufactor rule, the Food stack increases AND new Treasure/Clue stacks appear (or existing ones increment). Notification appears as a fade-in/out text box (1 second fade, contained to text — NOT a sliding snackbar): "Created X Tokens — why?" Tapping the notification opens a modal summary listing everything created with type breakdown. Large numbers use 1k/1m notation. For multiply-only rules (just doublers), the "+" silently adds the modified quantity with no notification. **This fade-in/out text box style is the app-wide standard for all transient notifications.**
 
-**Academy Manufactor utility migration.** Existing users have Academy Manufactor as a utility card on their board. On upgrade: auto-enable the Academy Manufactor preset rule, show a migration prompt on the utility card: "Academy Manufactor is now a token rule. Tap to dismiss." The hardcoded `createAcademyManufactorTokens()` utility code in TokenProvider will be removed.
+**Academy Manufactor utility migration.** The hardcoded `createAcademyManufactorTokens()` utility code in TokenProvider will be removed and the Academy Manufactor preset rule replaces it. Communication to users is handled by the "What's New in [version]" modal (see `todo_features/new_version_modal.md`) — release notes explain that Academy Manufactor is now available in the advanced token calculator. If an existing user still has an Academy Manufactor utility card on the board, standard Hive resilient boot handles orphaned data gracefully.
 
-**Rules-active indicator.** The FAB button should show a badge or label indicating rules are active (e.g., "×4" or a dot) so players always know without opening the rules sheet. After board wipe, show a dismissible SnackBar: "X rules still active" as a reminder (permanents providing these effects may be gone).
+**Rules-active indicator.** The FAB button shows a simple dot badge when any rule is enabled. No number, no label — just a visual cue that rules are active, driving users to check their rules. Hidden when all rules are disabled or the rule list is empty.
+
+**Board wipe and rules.** The board wipe dialog gains a second option: "Wipe everything, reset rules" which clears the board AND disables all rules. The existing board wipe option remains as-is (clears board, rules stay active). No post-wipe notification needed.
 
 **Summoning sickness on companion tokens.** Companion tokens created by "also create" rules follow the same summoning sickness logic as any new creature token: applied if the setting is enabled AND the token has P/T AND doesn't have haste. No exceptions for rule-created tokens.
 
@@ -370,11 +372,14 @@ When the user creates tokens through the normal flow (TokenSearchScreen → quan
 
 **Rules sheet:** Draggable bottom sheet (not full screen) — users toggle rules mid-game and need the board visible. Pull up to full screen for more space. Matches existing `showModalBottomSheet` pattern.
 
-**Rule creator:** Full-screen dialog (`MaterialPageRoute(fullscreenDialog: true)`) — matches `NewTokenSheet` pattern. Single scrollable page: name → trigger picker → outcomes list → save.
+**Rule creator:** Full-screen dialog (`MaterialPageRoute(fullscreenDialog: true)`) — matches `NewTokenSheet` pattern. Single scrollable page: name → trigger picker → effects list → save.
 
-**Rules list:** Unified `ReorderableListView` containing both presets and custom rules. Presets show a badge; custom rules show edit/delete. Both have leading `Switch` for toggle. Matches existing board reorder pattern.
+- **Trigger picker:** Dropdown selects matcher type (specific token definition, creature/has P/T, token type, color, any token). Area below the dropdown adapts to the selection: token search picker for definitions, color buttons for color, type picker for type (artifact, enchantment, named subtype), nothing extra for creature or any token.
+- **Effect editor:** Each effect has a dropdown for type (multiply / also create), a number input for the value, and (for also-create) a token search picker for the companion token. "+ Effect" button adds another effect to the rule. Swipe-to-delete removes individual effects.
 
-**Preview placement:** Sticky at top of rules sheet ("1 token → 4 tokens"). Also shown inline in the quantity dialog before "Create" is tapped (replaces the current "Final amount will be X" text).
+**Rules list:** Two-section layout in the rules sheet. **Top section: Replacements** — user-reorderable `ReorderableListView` containing "also create" rules (presets and custom). **Bottom section: Multipliers** — flat, non-reorderable list of multiply rules. Both sections: presets show a badge, custom rules show edit/delete, all have leading `Switch` for toggle.
+
+**Preview placement:** Sticky at top of rules sheet, styled as tappable — opens conditional preview modal. Quantity dialog shows full creation list inline.
 
 **Counter modifier:** Collapsible `ExpansionTile` inside the rules sheet, below the token rules list. Shows one-line summary when collapsed.
 
