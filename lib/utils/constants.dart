@@ -8,6 +8,17 @@ class GameConstants {
 
   // Special token names
   static const String scuteSwarmName = 'scute swarm';
+
+  // Maximum token quantity (prevents integer overflow and UI performance issues)
+  static const int maxTokenQuantity = 999999;
+
+  // Academy Manufactor composite IDs (from token_database.json)
+  static const String foodCompositeId =
+      'Food|||Artifact \u2014 Food|{2}, {T}, Sacrifice this token: You gain 3 life.';
+  static const String treasureCompositeId =
+      'Treasure|||Artifact \u2014 Treasure|{T}, Sacrifice this token: Add one mana of any color.';
+  static const String clueCompositeId =
+      'Clue|||Artifact \u2014 Clue|{2}, Sacrifice this token: Draw a card.';
 }
 
 /// Hive type IDs (must be unique and never change)
@@ -22,6 +33,9 @@ class HiveTypeIds {
   static const int toggleWidget = 7; // NEW - Widget Cards Feature
   static const int trackerWidgetTemplate = 8; // NEW - Deck templates for utilities
   static const int toggleWidgetTemplate = 9; // NEW - Deck templates for utilities
+  static const int tokenRule = 10;
+  static const int ruleTrigger = 11;
+  static const int ruleOutcome = 12;
 }
 
 /// UI constants
@@ -110,6 +124,7 @@ class DatabaseConstants {
   static const String templatesBox = 'templates';
   static const String trackerWidgetsBox = 'trackerWidgets'; // NEW - Widget Cards Feature
   static const String toggleWidgetsBox = 'toggleWidgets'; // NEW - Widget Cards Feature
+  static const String tokenRulesBox = 'tokenRules';
 }
 
 /// SharedPreferences keys
@@ -120,6 +135,17 @@ class PreferenceKeys {
   static const String favoriteTokens = 'favoriteTokens';
   static const String recentTokens = 'recentTokens';
   static const String experimentalFeaturesEnabled = 'experimentalFeaturesEnabled';
+
+  // Rules engine presets
+  static const String presetTokenDoublers = 'preset_token_doublers';
+  static const String presetDoublingSeason = 'preset_doubling_season';
+  static const String presetPrimalVigor = 'preset_primal_vigor';
+  static const String presetOjerTaq = 'preset_ojer_taq';
+  static const String presetAcademyManufactor = 'preset_academy_manufactor';
+  static const String presetPlusOneDoublers = 'preset_plus_one_doublers';
+  static const String presetPlusOneExtra = 'preset_plus_one_extra';
+  static const String presetAllCounterDoublers = 'preset_all_counter_doublers';
+  static const String rulesMigrationDone = 'rules_migration_done';
 }
 
 /// Asset paths

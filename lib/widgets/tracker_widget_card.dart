@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math' show pow;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/tracker_widget.dart';
@@ -7,6 +6,7 @@ import '../providers/settings_provider.dart';
 import '../providers/toggle_provider.dart';
 import '../providers/tracker_provider.dart';
 import '../providers/token_provider.dart';
+import '../providers/rules_provider.dart';
 import '../screens/expanded_widget_screen.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
@@ -15,6 +15,8 @@ import 'common/background_text.dart';
 // Unused import was causing build warnings
 // import 'cropped_artwork_widget.dart';
 import 'mixins/artwork_display_mixin.dart';
+import '../services/token_creation_service.dart';
+import '../database/token_database.dart';
 
 class TrackerWidgetCard extends StatefulWidget {
   final TrackerWidget tracker;
@@ -509,7 +511,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
   Future<void> _performKrenkoMobBossAction(BuildContext context) async {
     final tokenProvider = context.read<TokenProvider>();
     final settingsProvider = context.read<SettingsProvider>();
-    final multiplier = settingsProvider.tokenMultiplier;
+    final rulesProvider = context.read<RulesProvider>();
 
     // Count existing goblin tokens
     int tokenGoblinCount = 0;
@@ -520,10 +522,12 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
       }
     }
 
-    // Calculate goblin creation amounts
+    // Calculate goblin creation amounts via rules engine
     final nontokenGoblins = widget.tracker.currentValue;
     final totalGoblins = tokenGoblinCount + nontokenGoblins;
-    final byTotalGoblins = totalGoblins * multiplier;
+    // Evaluate rules on goblin token creation
+    final results = rulesProvider.evaluateRules('Goblin', '1/1', 'R', 'Creature Token \u2014 Goblin', '', totalGoblins);
+    final byTotalGoblins = results.first.quantity;
 
     // Show dialog to choose which calculation to use
     final shouldCreate = await showDialog<int>(
@@ -574,20 +578,35 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
     allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
     final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
-    final newOrder = maxOrder.floor() + 1.0;
+    double nextOrder = maxOrder.floor() + 1.0;
 
-    // Create goblin tokens using TokenProvider
-    await tokenProvider.createKrenkoGoblins(shouldCreate, settingsProvider.summoningSicknessEnabled, newOrder);
+    // Create goblin tokens using TokenProvider (primary result)
+    await tokenProvider.createKrenkoGoblins(shouldCreate, settingsProvider.summoningSicknessEnabled, nextOrder);
+    nextOrder += 1.0;
+
+    // Create companion tokens from rules via shared service
+    if (results.length > 1) {
+      final tokenDatabase = TokenDatabase();
+      await TokenCreationService.createCompanionTokens(
+        results: results,
+        tokenProvider: tokenProvider,
+        summoningSicknessEnabled: settingsProvider.summoningSicknessEnabled,
+        insertionOrder: nextOrder,
+        tokenDatabase: tokenDatabase,
+      );
+      tokenDatabase.dispose();
+    }
   }
 
   Future<void> _performKrenkoTinStreetAction(BuildContext context) async {
     final tokenProvider = context.read<TokenProvider>();
     final settingsProvider = context.read<SettingsProvider>();
-    final multiplier = settingsProvider.tokenMultiplier;
+    final rulesProvider = context.read<RulesProvider>();
 
-    // Calculate goblin creation amount based on Krenko's power
+    // Calculate goblin creation amount based on Krenko's power, via rules engine
     final krenkoPower = widget.tracker.currentValue;
-    final goblinsToCreate = krenkoPower * multiplier;
+    final results = rulesProvider.evaluateRules('Goblin', '1/1', 'R', 'Creature Token \u2014 Goblin', '', krenkoPower);
+    final goblinsToCreate = results.first.quantity;
 
     // Show dialog
     final shouldCreate = await showDialog<int>(
@@ -638,14 +657,29 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
     allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
     final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
-    final newOrder = maxOrder.floor() + 1.0;
+    double nextOrder = maxOrder.floor() + 1.0;
 
-    // Create goblin tokens using TokenProvider
-    await tokenProvider.createKrenkoGoblins(shouldCreate, settingsProvider.summoningSicknessEnabled, newOrder);
+    // Create goblin tokens using TokenProvider (primary result)
+    await tokenProvider.createKrenkoGoblins(shouldCreate, settingsProvider.summoningSicknessEnabled, nextOrder);
+    nextOrder += 1.0;
+
+    // Create companion tokens from rules via shared service
+    if (results.length > 1) {
+      final tokenDatabase = TokenDatabase();
+      await TokenCreationService.createCompanionTokens(
+        results: results,
+        tokenProvider: tokenProvider,
+        summoningSicknessEnabled: settingsProvider.summoningSicknessEnabled,
+        insertionOrder: nextOrder,
+        tokenDatabase: tokenDatabase,
+      );
+      tokenDatabase.dispose();
+    }
   }
 
   Future<void> _performCatharsCrusadeAction(BuildContext context) async {
     final tokenProvider = context.read<TokenProvider>();
+    final rulesProvider = context.read<RulesProvider>();
     final triggerCount = widget.tracker.currentValue;
 
     if (triggerCount <= 0) {
@@ -653,14 +687,18 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
       return;
     }
 
+    // Calculate final counter amount via rules engine
+    final finalCounterAmount = rulesProvider.calculateCounterAmount(triggerCount, isPlusOne: true);
+
     // Show confirmation dialog
     final shouldResolve = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text("Cathar's Crusade"),
         content: Text(
-          'Pressing confirm will add $triggerCount +1/+1 counter${triggerCount == 1 ? '' : 's'} '
-          'to all creatures.',
+          'Pressing confirm will add $finalCounterAmount +1/+1 counter${finalCounterAmount == 1 ? '' : 's'} '
+          'to all creatures.'
+          '${finalCounterAmount != triggerCount ? '\n($triggerCount triggers \u00d7 counter modifiers)' : ''}',
         ),
         actions: [
           TextButton(
@@ -680,10 +718,10 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     // Get all tokens on board
     final allTokens = tokenProvider.items;
 
-    // Add counters to all creatures (tokens with P/T)
+    // Add counters to all creatures (tokens with P/T) — finalCounterAmount already includes counter modifiers
     for (var token in allTokens) {
       if (token.hasPowerToughness) {
-        token.plusOneCounters += triggerCount;
+        token.plusOneCounters += finalCounterAmount;
         await token.save();
       }
     }
@@ -695,6 +733,10 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
 
   Future<void> _performQuickPlusOne(BuildContext context) async {
     final tokenProvider = context.read<TokenProvider>();
+    final rulesProvider = context.read<RulesProvider>();
+
+    // Calculate counter amount via rules engine
+    final amount = rulesProvider.calculateCounterAmount(1, isPlusOne: true);
 
     // Get all tokens on board
     final allTokens = tokenProvider.items;
@@ -702,7 +744,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     // Add +1/+1 counter to all creatures
     for (var token in allTokens) {
       if (token.hasPowerToughness) {
-        token.plusOneCounters += 1;
+        token.plusOneCounters += amount;
         await token.save();
       }
     }
@@ -712,8 +754,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
 
   Future<void> _performAcademyManufactorAction(BuildContext context) async {
     final tokenProvider = context.read<TokenProvider>();
-    final settingsProvider = context.read<SettingsProvider>();
-    final multiplier = settingsProvider.tokenMultiplier;
+    final rulesProvider = context.read<RulesProvider>();
 
     // Number of Academy Manufactor copies
     final manufactorCount = widget.tracker.currentValue;
@@ -721,8 +762,14 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     // At 0 copies, action is disabled
     if (manufactorCount <= 0) return;
 
-    // Calculate tokens per type: multiplier * 3^(N-1)
-    final perType = multiplier * pow(3, manufactorCount - 1).toInt();
+    // Evaluate rules to preview what will be created from a Food token
+    // (Academy Manufactor rule will generate companion Clue + Treasure)
+    // Use the real database type 'Artifact — Food' so token_type trigger matches
+    final foodParts = GameConstants.foodCompositeId.split('|');
+    final results = rulesProvider.evaluateRules(
+      foodParts[0], foodParts[1], foodParts[2], foodParts[3], foodParts[4], 1,
+    );
+    final totalPerType = results.fold<int>(0, (sum, r) => sum + r.quantity);
 
     // Show confirmation dialog with breakdown
     final shouldCreate = await showDialog<bool>(
@@ -734,7 +781,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Creating $perType Food, Treasure, and Clue tokens',
+              'Creating ${results.length > 1 ? "${results.map((r) => "${r.quantity}\u00d7 ${r.name}").join(", ")}" : "$totalPerType tokens"}',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -742,10 +789,6 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
             const SizedBox(height: 12),
             Text(
               'Academy Manufactors \u2014 $manufactorCount',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            Text(
-              'Token Multiplier \u2014 $multiplier',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
@@ -773,10 +816,19 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
     allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
     final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
-    final newOrder = maxOrder.floor() + 1.0;
+    double nextOrder = maxOrder.floor() + 1.0;
 
-    // Create tokens using TokenProvider
-    await tokenProvider.createAcademyManufactorTokens(perType, settingsProvider.summoningSicknessEnabled, newOrder);
+    // Create all tokens from rules results via shared service
+    // Academy Manufactor has no distinct "primary" — all results are peers
+    final tokenDatabase = TokenDatabase();
+    await TokenCreationService.createAllFromResults(
+      results: results,
+      tokenProvider: tokenProvider,
+      summoningSicknessEnabled: false, // Artifact tokens (Food/Treasure/Clue) have no P/T
+      insertionOrder: nextOrder,
+      tokenDatabase: tokenDatabase,
+    );
+    tokenDatabase.dispose();
   }
 
   Widget _buildGradientLayer(BuildContext context) {

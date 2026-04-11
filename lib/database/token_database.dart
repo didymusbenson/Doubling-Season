@@ -130,6 +130,16 @@ class TokenDatabase extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Finds a token definition by its composite ID (name|pt|colors|type|abilities).
+  /// Returns null if not found.
+  token_models.TokenDefinition? findByCompositeId(String? compositeId) {
+    if (compositeId == null) return null;
+    return _allTokens.cast<token_models.TokenDefinition?>().firstWhere(
+      (t) => t!.id == compositeId,
+      orElse: () => null,
+    );
+  }
+
   // Recent and favorites logic - delegates to SettingsProvider for persistence
 
   void addToRecent(token_models.TokenDefinition token, SettingsProvider settingsProvider) {

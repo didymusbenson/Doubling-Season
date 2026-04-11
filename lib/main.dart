@@ -2,14 +2,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'database/hive_setup.dart';
 import 'database/database_maintenance.dart';
+import 'utils/constants.dart';
 import 'providers/token_provider.dart';
 import 'providers/deck_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/tracker_provider.dart'; // NEW - Widget Cards Feature
 import 'providers/toggle_provider.dart'; // NEW - Widget Cards Feature
+import 'providers/rules_provider.dart';
 import 'screens/content_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/error_screen.dart';
@@ -50,6 +53,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late SettingsProvider settingsProvider;
   late TrackerProvider trackerProvider; // NEW - Widget Cards Feature
   late ToggleProvider toggleProvider; // NEW - Widget Cards Feature
+  late RulesProvider rulesProvider;
   bool _isInitialized = false;
   bool _providersReady = false;
   bool _hasError = false;
@@ -85,6 +89,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         _initSettingsProvider(),
         _initTrackerProvider(), // NEW - Widget Cards Feature
         _initToggleProvider(), // NEW - Widget Cards Feature
+        _initRulesProvider(),
       ]);
 
       tokenProvider = results[0] as TokenProvider;
@@ -92,6 +97,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       settingsProvider = results[2] as SettingsProvider;
       trackerProvider = results[3] as TrackerProvider; // NEW - Widget Cards Feature
       toggleProvider = results[4] as ToggleProvider; // NEW - Widget Cards Feature
+      rulesProvider = results[5] as RulesProvider;
 
       stopwatch.stop();
       debugPrint('═══ App Initialization Complete: ${stopwatch.elapsedMilliseconds}ms ═══');
@@ -104,6 +110,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
       // Show data loss dialog if any boxes were wiped during boot
       _showDataLossDialogIfNeeded();
+
+      // Show migration notification if multiplier was converted to rules
+      _showMigrationNotificationIfNeeded();
     } catch (e, stackTrace) {
       // Log provider initialization errors (only in debug mode)
       if (kDebugMode) {
@@ -167,6 +176,20 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     return provider;
   }
 
+  Future<RulesProvider> _initRulesProvider() async {
+    final stopwatch = Stopwatch()..start();
+    // If tokenRules box was wiped, clear migration flag so it re-runs
+    if (widget.wipedBoxes.contains(DatabaseConstants.tokenRulesBox)) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(PreferenceKeys.rulesMigrationDone);
+    }
+    final provider = RulesProvider();
+    await provider.init();
+    stopwatch.stop();
+    debugPrint('RulesProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
+    return provider;
+  }
+
   void _runBackgroundMaintenance() {
     // Run after first frame is rendered
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -212,6 +235,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             case 'artworkPreferences':
               lostItems.add('artwork preferences');
               break;
+            case 'tokenRules':
+              lostItems.add('token rules');
+              break;
             case 'customTokens':
               lostItems.add('custom tokens');
               break;
@@ -240,6 +266,28 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     });
   }
 
+  /// Show a one-time SnackBar if the old multiplier was migrated to token rules.
+  void _showMigrationNotificationIfNeeded() {
+    if (!rulesProvider.needsMigrationNotification) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final navContext = _navigatorKey.currentContext;
+        if (navContext == null) return;
+
+        ScaffoldMessenger.of(navContext).showSnackBar(
+          const SnackBar(
+            content: Text('Your multiplier has been converted to token rules.'),
+            duration: Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+        rulesProvider.clearMigrationNotification();
+      });
+    });
+  }
+
   void _skipSplash() {
     if (_providersReady && !_isInitialized) {
       setState(() {
@@ -258,6 +306,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       settingsProvider.dispose();
       trackerProvider.dispose(); // NEW - Widget Cards Feature
       toggleProvider.dispose(); // NEW - Widget Cards Feature
+      rulesProvider.dispose();
     }
     super.dispose();
   }
@@ -363,6 +412,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ChangeNotifierProvider.value(value: settingsProvider),
         ChangeNotifierProvider.value(value: trackerProvider), // NEW - Widget Cards Feature
         ChangeNotifierProvider.value(value: toggleProvider), // NEW - Widget Cards Feature
+        ChangeNotifierProvider.value(value: rulesProvider),
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settings, child) {

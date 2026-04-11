@@ -11,10 +11,12 @@ import '../providers/token_provider.dart';
 import '../providers/tracker_provider.dart';
 import '../providers/toggle_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/rules_provider.dart';
 import '../database/token_database.dart';
 import '../utils/artwork_manager.dart';
 import '../utils/artwork_preference_manager.dart';
 import 'color_selection_button.dart';
+import '../services/token_creation_service.dart';
 
 class NewTokenSheet extends StatefulWidget {
   /// When true, pops with a TokenDefinition instead of creating on the board.
@@ -65,9 +67,6 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsProvider>();
-    final multiplier = settings.tokenMultiplier;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create Custom Token'),
@@ -217,14 +216,31 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
                 ],
               ),
 
-              if (multiplier > 1) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Current multiplier: x$multiplier - Final amount will be ${_amount * multiplier}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+              Builder(
+                builder: (context) {
+                  final rulesProvider = context.read<RulesProvider>();
+                  if (!rulesProvider.hasActiveRules) return const SizedBox.shrink();
+                  final results = rulesProvider.evaluateRules(
+                    _nameController.text.isEmpty ? 'Token' : _nameController.text,
+                    _ptController.text,
+                    _getColorString(),
+                    _typeController.text.trim(),
+                    _abilitiesController.text,
+                    _amount,
+                  );
+                  final previewText = results.length == 1
+                      ? 'Final amount: ${results.first.quantity}'
+                      : results.map((r) => '${r.quantity} ${r.name}').join(' + ');
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      previewText,
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                },
+              ),
 
               const SizedBox(height: 24),
 
@@ -396,61 +412,40 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
     final trackerProvider = context.read<TrackerProvider>();
     final toggleProvider = context.read<ToggleProvider>();
     final settings = context.read<SettingsProvider>();
-    final multiplier = settings.tokenMultiplier;
-    final finalAmount = _amount * multiplier;
+    final rulesProvider = context.read<RulesProvider>();
 
-    // Calculate max order across ALL board items (tokens + trackers + toggles)
-    final allOrders = <double>[];
-    allOrders.addAll(tokenProvider.items.map((item) => item.order));
-    allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
-    allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
-    final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
-    final newOrder = maxOrder.floor() + 1.0;
+    final tokenName = _nameController.text;
+    final tokenPt = _ptController.text;
+    final tokenType = _typeController.text.trim();
+    final tokenColors = _getColorString();
+    final tokenAbilities = _abilitiesController.text;
 
-    // Create final token immediately (no placeholder)
-    final newItem = Item(
-      name: _nameController.text,
-      pt: _ptController.text,
-      type: _typeController.text.trim(),
-      colors: _getColorString(),
-      abilities: _abilitiesController.text,
-      amount: finalAmount,
-      tapped: _createTapped ? finalAmount : 0,
-      summoningSick: 0, // Will be set below if needed
-      order: newOrder,
+    // Evaluate rules to get all tokens to create
+    final results = rulesProvider.evaluateRules(
+      tokenName, tokenPt, tokenColors, tokenType, tokenAbilities, _amount,
     );
 
-    // Apply artwork: staged upload takes priority, then check preferences
+    // Commit staged artwork for the primary token
+    String? stagedArtworkUrl;
     if (_stagedArtwork != null) {
-      final artworkUrl = await _commitStagedArtwork();
-      if (artworkUrl != null) {
-        newItem.artworkUrl = artworkUrl;
-      }
-    } else {
-      // Load preferred artwork from preferences (Custom Artwork Feature)
-      final artworkPrefManager = ArtworkPreferenceManager();
-      final tokenIdentity = '${newItem.name}|${newItem.pt}|${newItem.colors}|${newItem.type}|${newItem.abilities}';
-      final preferredArtwork = artworkPrefManager.getPreferredArtwork(tokenIdentity);
-      if (preferredArtwork != null) {
-        newItem.artworkUrl = preferredArtwork;
-      }
+      stagedArtworkUrl = await _commitStagedArtwork();
     }
 
-    // Persist to custom token library (after artwork is resolved)
+    // Persist to custom token library
     {
       final customArtwork = <token_models.ArtworkVariant>[];
-      if (newItem.artworkUrl != null) {
+      if (stagedArtworkUrl != null) {
         customArtwork.add(token_models.ArtworkVariant(
           set: 'custom',
-          url: newItem.artworkUrl!,
+          url: stagedArtworkUrl,
         ));
       }
       final definition = token_models.TokenDefinition(
-        name: _nameController.text,
-        pt: _ptController.text,
-        type: _typeController.text.trim(),
-        colors: _getColorString(),
-        abilities: _abilitiesController.text,
+        name: tokenName,
+        pt: tokenPt,
+        type: tokenType,
+        colors: tokenColors,
+        abilities: tokenAbilities,
         popularity: 0,
         artwork: customArtwork,
       );
@@ -460,15 +455,85 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
       tokenDatabase.dispose();
     }
 
-    // Insert token immediately
-    await tokenProvider.insertItem(newItem);
+    // Calculate max order across ALL board items (tokens + trackers + toggles)
+    final allOrders = <double>[];
+    allOrders.addAll(tokenProvider.items.map((item) => item.order));
+    allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
+    allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
+    final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
+    double nextOrder = maxOrder.floor() + 1.0;
 
-    // Apply summoning sickness if enabled AND token is a creature without Haste
-    // (must be after insert because setter calls save())
-    if (settings.summoningSicknessEnabled &&
-        newItem.hasPowerToughness &&
-        !newItem.hasHaste) {
-      newItem.summoningSick = finalAmount;
+    // Create primary token (results.first)
+    final primaryResult = results.first;
+    if (primaryResult.quantity > 0) {
+      String? artworkUrl;
+      if (stagedArtworkUrl != null) {
+        artworkUrl = stagedArtworkUrl;
+      } else {
+        final artworkPrefManager = ArtworkPreferenceManager();
+        final tokenIdentity = '${primaryResult.name}|${primaryResult.pt}|${primaryResult.colors}|${primaryResult.type}|${primaryResult.abilities}';
+        artworkUrl = artworkPrefManager.getPreferredArtwork(tokenIdentity);
+      }
+
+      final newItem = Item(
+        name: primaryResult.name,
+        pt: primaryResult.pt,
+        type: primaryResult.type,
+        colors: primaryResult.colors,
+        abilities: primaryResult.abilities,
+        amount: primaryResult.quantity,
+        tapped: _createTapped ? primaryResult.quantity : 0,
+        summoningSick: 0,
+        order: nextOrder,
+        artworkUrl: artworkUrl,
+      );
+      nextOrder += 1.0;
+
+      await tokenProvider.insertItem(newItem);
+
+      // Apply summoning sickness AFTER insert
+      if (settings.summoningSicknessEnabled &&
+          newItem.hasPowerToughness &&
+          !newItem.hasHaste) {
+        newItem.summoningSick = primaryResult.quantity;
+      }
+    }
+
+    // Create companion tokens via shared service
+    if (results.length > 1) {
+      final tokenDatabase = TokenDatabase();
+      await TokenCreationService.createCompanionTokens(
+        results: results,
+        tokenProvider: tokenProvider,
+        summoningSicknessEnabled: settings.summoningSicknessEnabled,
+        insertionOrder: nextOrder,
+        tokenDatabase: tokenDatabase,
+      );
+      tokenDatabase.dispose();
+    }
+
+    // Check if any results were capped
+    final wasCapped = results.any((r) => r.wasCapped);
+
+    // Show cap alert before closing (context is still valid)
+    if (wasCapped && mounted) {
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Woah there!'),
+          content: const Text(
+            'Looks like your deck is popping off. Congrats! '
+            'For performance reasons, tokens have been capped at 999,999. '
+            'Please win the game this turn.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
     }
 
     // Close dialog - token is on board and usable

@@ -3,17 +3,20 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:collection/collection.dart';
+import '../models/item.dart';
 import '../models/token_definition.dart' as token_models;
 import '../database/token_database.dart';
 import '../providers/token_provider.dart';
 import '../providers/tracker_provider.dart';
 import '../providers/toggle_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/rules_provider.dart';
 import '../widgets/new_token_sheet.dart';
 import '../widgets/color_filter_button.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
 import '../utils/artwork_preference_manager.dart';
+import '../services/token_creation_service.dart';
 
 enum SearchTab { all, recent, favorites, custom }
 
@@ -659,14 +662,20 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
 
 
   void _showQuantityDialog(token_models.TokenDefinition token) {
-    final settings = context.read<SettingsProvider>();
-    final multiplier = settings.tokenMultiplier;
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
+        builder: (context, setModalState) {
+          // Compute preview from rules engine for display
+          final rulesProvider = Provider.of<RulesProvider>(context, listen: false);
+          final previewResults = rulesProvider.evaluateRules(
+            token.name, token.pt, token.colors, token.type, token.abilities, _tokenQuantity,
+          );
+          final totalTokens = previewResults.fold<int>(0, (sum, r) => sum + r.quantity);
+          final hasCompanionTokens = previewResults.length > 1;
+
+          return Padding(
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(context).viewInsets.bottom,
             left: 16,
@@ -837,10 +846,13 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                 ),
               ),
 
-              if (multiplier > 1) ...[
+              // Rules preview (replaces old multiplier text)
+              if (rulesProvider.hasActiveRules) ...[
                 const SizedBox(height: 8),
                 Text(
-                  'Current multiplier: x$multiplier - Final amount will be ${_tokenQuantity * multiplier}',
+                  hasCompanionTokens
+                      ? previewResults.map((r) => '${r.quantity} ${r.name}').join(' + ')
+                      : 'Final amount: $totalTokens',
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                   textAlign: TextAlign.center,
                 ),
@@ -928,7 +940,12 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                   final trackerProvider = context.read<TrackerProvider>();
                   final toggleProvider = context.read<ToggleProvider>();
                   final settingsProvider = context.read<SettingsProvider>();
-                  final finalAmount = _tokenQuantity * multiplier;
+                  final rulesProvider = context.read<RulesProvider>();
+
+                  // Evaluate rules to get all tokens to create
+                  final results = rulesProvider.evaluateRules(
+                    token.name, token.pt, token.colors, token.type, token.abilities, _tokenQuantity,
+                  );
 
                   // Calculate max order across ALL board items (tokens + trackers + toggles)
                   final allOrders = <double>[];
@@ -936,104 +953,141 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                   allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
                   allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
                   final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
-                  final newOrder = maxOrder.floor() + 1.0;
+                  double nextOrder = maxOrder.floor() + 1.0;
 
-                  // Create final token immediately (no placeholder)
-                  final newItem = token.toItem(
-                    amount: finalAmount,
-                    createTapped: _createTapped,
-                  );
+                  // Create primary token (results.first)
+                  final primaryResult = results.first;
+                  if (primaryResult.quantity > 0) {
+                    // Primary token - use the selected token's artwork
+                    String? artworkUrl;
+                    String? artworkSet;
+                    List<token_models.ArtworkVariant>? artworkOptions;
 
-                  // Set explicit order to prevent provider fallback
-                  newItem.order = newOrder;
+                    final artworkPrefManager = ArtworkPreferenceManager();
+                    final tokenIdentity = token.id;
+                    final preferredArtwork = artworkPrefManager.getPreferredArtwork(tokenIdentity);
 
-                  // Load preferred artwork from preferences (Custom Artwork Feature)
-                  final artworkPrefManager = ArtworkPreferenceManager();
-                  final tokenIdentity = token.id; // Composite ID
-                  final preferredArtwork = artworkPrefManager.getPreferredArtwork(tokenIdentity);
-
-                  // Assign artwork URL immediately (synchronous, no download)
-                  // Prefer user's saved preference, fallback to first available artwork
-                  if (preferredArtwork != null) {
-                    newItem.artworkUrl = preferredArtwork;
-                    // Set artworkSet if it's a Scryfall URL (not custom file://)
-                    if (!preferredArtwork.startsWith('file://') && token.artwork.isNotEmpty) {
-                      // Try to find matching artwork variant by URL
-                      final matchingArtwork = token.artwork.firstWhere(
-                        (art) => art.url == preferredArtwork,
-                        orElse: () => token.artwork[0],
-                      );
-                      newItem.artworkSet = matchingArtwork.set;
+                    if (preferredArtwork != null) {
+                      artworkUrl = preferredArtwork;
+                      if (!preferredArtwork.startsWith('file://') && token.artwork.isNotEmpty) {
+                        final matchingArtwork = token.artwork.firstWhere(
+                          (art) => art.url == preferredArtwork,
+                          orElse: () => token.artwork[0],
+                        );
+                        artworkSet = matchingArtwork.set;
+                      }
+                    } else if (token.artwork.isNotEmpty) {
+                      artworkUrl = token.artwork[0].url;
+                      artworkSet = token.artwork[0].set;
                     }
-                  } else if (token.artwork.isNotEmpty) {
-                    // No preference - use first available artwork
-                    final firstArtwork = token.artwork[0];
-                    newItem.artworkUrl = firstArtwork.url;
-                    newItem.artworkSet = firstArtwork.set;
-                  }
+                    artworkOptions = token.artwork.isNotEmpty ? List<token_models.ArtworkVariant>.from(token.artwork) : null;
 
-                  // Insert token immediately - it's now visible and fully functional
-                  await tokenProvider.insertItem(newItem);
+                    final newItem = Item(
+                      name: primaryResult.name,
+                      pt: primaryResult.pt,
+                      abilities: primaryResult.abilities,
+                      colors: primaryResult.colors,
+                      type: primaryResult.type,
+                      amount: primaryResult.quantity,
+                      tapped: _createTapped ? primaryResult.quantity : 0,
+                      summoningSick: 0,
+                      order: nextOrder,
+                      artworkUrl: artworkUrl,
+                      artworkSet: artworkSet,
+                      artworkOptions: artworkOptions,
+                    );
+                    nextOrder += 1.0;
 
-                  // Apply summoning sickness if enabled AND token is a creature without Haste
-                  // (must be after insert because setter calls save())
-                  if (settingsProvider.summoningSicknessEnabled &&
-                      newItem.hasPowerToughness &&
-                      !newItem.hasHaste) {
-                    newItem.summoningSick = finalAmount;
-                  }
+                    await tokenProvider.insertItem(newItem);
 
-                  // Reset creating state before closing dialogs
-                  if (mounted) {
-                    setModalState(() => _isCreating = false);
-                  }
+                    // Apply summoning sickness AFTER insert
+                    if (settingsProvider.summoningSicknessEnabled &&
+                        newItem.hasPowerToughness &&
+                        !newItem.hasHaste) {
+                      newItem.summoningSick = primaryResult.quantity;
+                    }
 
-                  // Close dialogs - token is on board and usable
-                  if (context.mounted) {
-                    Navigator.pop(context); // Close quantity dialog
-                    Navigator.pop(context); // Close search screen
-                  }
-
-                  // Download artwork in background (non-blocking, fire-and-forget)
-                  // Skip if custom artwork (file://) - already local
-                  // Skip on web - artwork loads directly from network URL
-                  if (!kIsWeb && newItem.artworkUrl != null && !newItem.artworkUrl!.startsWith('file://')) {
-                    final artworkUrl = newItem.artworkUrl!;
-                    ArtworkManager.downloadArtwork(artworkUrl).then((file) {
-                      if (file == null) {
-                        // Download failed - reset artworkUrl so it doesn't try to load
-                        debugPrint('Artwork download failed for ${token.name}, resetting URL');
-                        // Find the item again (it might have been deleted/modified)
+                    // Download artwork in background (non-blocking, fire-and-forget)
+                    if (!kIsWeb && newItem.artworkUrl != null && !newItem.artworkUrl!.startsWith('file://')) {
+                      final downloadUrl = newItem.artworkUrl!;
+                      ArtworkManager.downloadArtwork(downloadUrl).then((file) {
+                        if (file == null) {
+                          debugPrint('Artwork download failed for ${primaryResult.name}, resetting URL');
+                          final currentItem = tokenProvider.items.firstWhereOrNull(
+                            (item) => item.artworkUrl == downloadUrl
+                          );
+                          if (currentItem != null) {
+                            currentItem.artworkUrl = null;
+                            currentItem.artworkSet = null;
+                            currentItem.save();
+                          }
+                        } else {
+                          debugPrint('Artwork downloaded and cached for ${primaryResult.name}');
+                          final currentItem = tokenProvider.items.firstWhereOrNull(
+                            (item) => item.artworkUrl == downloadUrl
+                          );
+                          if (currentItem != null) {
+                            currentItem.save();
+                          }
+                        }
+                      }).catchError((error) {
+                        debugPrint('Error during background artwork download: $error');
                         final currentItem = tokenProvider.items.firstWhereOrNull(
-                          (item) => item.artworkUrl == artworkUrl
+                          (item) => item.artworkUrl == downloadUrl
                         );
                         if (currentItem != null) {
                           currentItem.artworkUrl = null;
                           currentItem.artworkSet = null;
                           currentItem.save();
                         }
-                      } else {
-                        debugPrint('Artwork downloaded and cached for ${token.name}');
-                        // Trigger rebuild so TokenCard displays the cached artwork
-                        final currentItem = tokenProvider.items.firstWhereOrNull(
-                          (item) => item.artworkUrl == artworkUrl
-                        );
-                        if (currentItem != null) {
-                          currentItem.save(); // Triggers Hive save and notifies listeners
-                        }
-                      }
-                    }).catchError((error) {
-                      debugPrint('Error during background artwork download: $error');
-                      // Silent fail - reset artworkUrl on error
-                      final currentItem = tokenProvider.items.firstWhereOrNull(
-                        (item) => item.artworkUrl == artworkUrl
-                      );
-                      if (currentItem != null) {
-                        currentItem.artworkUrl = null;
-                        currentItem.artworkSet = null;
-                        currentItem.save();
-                      }
-                    });
+                      });
+                    }
+                  }
+
+                  // Create companion tokens via shared service
+                  if (results.length > 1) {
+                    await TokenCreationService.createCompanionTokens(
+                      results: results,
+                      tokenProvider: tokenProvider,
+                      summoningSicknessEnabled: settingsProvider.summoningSicknessEnabled,
+                      insertionOrder: nextOrder,
+                      tokenDatabase: _tokenDatabase,
+                    );
+                  }
+
+                  // Check if any results were capped
+                  final wasCapped = results.any((r) => r.wasCapped);
+
+                  // Reset creating state before closing dialogs
+                  if (mounted) {
+                    setModalState(() => _isCreating = false);
+                  }
+
+                  // Show cap alert before closing dialogs (context is still valid)
+                  if (wasCapped && context.mounted) {
+                    await showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Woah there!'),
+                        content: const Text(
+                          'Looks like your deck is popping off. Congrats! '
+                          'For performance reasons, tokens have been capped at 999,999. '
+                          'Please win the game this turn.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            child: const Text('OK'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  // Close dialogs - token is on board and usable
+                  if (context.mounted) {
+                    Navigator.pop(context); // Close quantity dialog
+                    Navigator.pop(context); // Close search screen
                   }
                 },
                 style: ElevatedButton.styleFrom(
@@ -1050,7 +1104,8 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
               const SizedBox(height: 20),
             ],
           ),
-        ),
+        );
+        },
       ),
     );
   }

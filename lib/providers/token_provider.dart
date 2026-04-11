@@ -21,11 +21,6 @@ class TokenProvider extends ChangeNotifier {
   // Cache for basic Goblin definition (loaded once per session)
   TokenDefinition? _basicGoblinCache;
 
-  // Cache for Academy Manufactor token definitions (loaded once per session)
-  TokenDefinition? _clueCache;
-  TokenDefinition? _foodCache;
-  TokenDefinition? _treasureCache;
-
   bool get initialized => _initialized;
   String? get errorMessage => _errorMessage;
 
@@ -421,7 +416,7 @@ class TokenProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> addPlusOneToAll() async {
+  Future<void> addPlusOneToAll([int amount = 1]) async {
     try {
       // Snapshot tokens with P/T at operation start (handles concurrent modifications safely)
       final tokensToModify = items.where((item) => item.pt.isNotEmpty).toList();
@@ -429,13 +424,13 @@ class TokenProvider extends ChangeNotifier {
       for (final item in tokensToModify) {
         // Check if token still exists before modifying (handles deletions during operation)
         if (item.isInBox) {
-          item.addPowerToughnessCounters(1);
+          item.addPowerToughnessCounters(amount);
           await item.save(); // Explicitly await save for bulk operations
         }
       }
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TokenProvider: Successfully added +1/+1 to all tokens with P/T (${tokensToModify.length} token stacks affected)');
+      debugPrint('TokenProvider: Successfully added +$amount/+$amount to all tokens with P/T (${tokensToModify.length} token stacks affected)');
     } on HiveError catch (e) {
       _errorMessage = 'Database error while adding +1/+1 counters: Some tokens may not have received counters. Try adding counters individually.';
       debugPrint('TokenProvider.addPlusOneToAll: HiveError during bulk counter operation. Error: ${e.message}');
@@ -450,7 +445,7 @@ class TokenProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> addMinusOneToAll() async {
+  Future<void> addMinusOneToAll([int amount = 1]) async {
     try {
       // Snapshot tokens with P/T at operation start (handles concurrent modifications safely)
       final tokensToModify = items.where((item) => item.pt.isNotEmpty).toList();
@@ -458,13 +453,13 @@ class TokenProvider extends ChangeNotifier {
       for (final item in tokensToModify) {
         // Check if token still exists before modifying (handles deletions during operation)
         if (item.isInBox) {
-          item.addPowerToughnessCounters(-1);
+          item.addPowerToughnessCounters(-amount);
           await item.save(); // Explicitly await save for bulk operations
         }
       }
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TokenProvider: Successfully added -1/-1 to all tokens with P/T (${tokensToModify.length} token stacks affected)');
+      debugPrint('TokenProvider: Successfully added -$amount/-$amount to all tokens with P/T (${tokensToModify.length} token stacks affected)');
     } on HiveError catch (e) {
       _errorMessage = 'Database error while adding -1/-1 counters: Some tokens may not have received counters. Try adding counters individually.';
       debugPrint('TokenProvider.addMinusOneToAll: HiveError during bulk counter operation. Error: ${e.message}');
@@ -489,25 +484,31 @@ class TokenProvider extends ChangeNotifier {
   /// Creates Scute Swarm tokens
   ///
   /// [insertionOrder] - The order value for new token if creating new stack (calculated by caller from all board items)
-  Future<void> createScuteSwarmTokens(Item sourceToken, int multiplier, bool summoningSicknessEnabled, double insertionOrder) async {
+  Future<void> createScuteSwarmTokens(Item sourceToken, int multiplier, bool summoningSicknessEnabled, double insertionOrder, {int? overrideAmount}) async {
     try {
-      // Step 1: Count all Scute Swarm tokens (case-insensitive substring match, amount > 0)
-      final allItems = items;
-      int totalScuteCount = 0;
-      for (final item in allItems) {
-        if (item.name.toLowerCase().contains(GameConstants.scuteSwarmName) && item.amount > 0) {
-          totalScuteCount += item.amount;
+      // Step 1: Calculate final amount to create
+      int finalAmount;
+      if (overrideAmount != null) {
+        // Amount pre-calculated by rules engine
+        finalAmount = overrideAmount;
+      } else {
+        // Legacy path: count all Scute Swarm tokens and multiply
+        final allItems = items;
+        int totalScuteCount = 0;
+        for (final item in allItems) {
+          if (item.name.toLowerCase().contains(GameConstants.scuteSwarmName) && item.amount > 0) {
+            totalScuteCount += item.amount;
+          }
         }
+        finalAmount = totalScuteCount * multiplier;
       }
-
-      // Step 2: Calculate final amount to create
-      final finalAmount = totalScuteCount * multiplier;
       if (finalAmount <= 0) {
-        debugPrint('TokenProvider.createScuteSwarmTokens: No tokens to create (count: $totalScuteCount, multiplier: $multiplier)');
+        debugPrint('TokenProvider.createScuteSwarmTokens: No tokens to create (finalAmount: $finalAmount)');
         return;
       }
 
-      // Step 3: Find target stack (first Scute Swarm with no counters)
+      // Find target stack (first Scute Swarm with no counters)
+      final allItems = items;
       Item? targetStack;
       for (final item in allItems) {
         if (item.name.toLowerCase().contains(GameConstants.scuteSwarmName) &&
@@ -747,177 +748,6 @@ class TokenProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       _errorMessage = 'Unexpected error while creating Goblin tokens: ${e.toString()}';
       debugPrint('TokenProvider.createKrenkoGoblins: Unexpected error. Error: $e');
-      debugPrint('Stack trace: $stackTrace');
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  /// Creates Academy Manufactor tokens (Clue, Food, Treasure) with stacking behavior
-  ///
-  /// This method:
-  /// 1. Loads Clue, Food, Treasure definitions from token database (cached for performance)
-  /// 2. For each type: checks for existing matching stack without counters
-  /// 3. Either adds to existing stack or creates new stack at specified order
-  /// 4. Does NOT fire ETB events (these are artifacts without P/T)
-  ///
-  /// [amountPerType] - Number of tokens to create for each type
-  /// [summoningSicknessEnabled] - Whether summoning sickness is enabled (not applied to these artifacts)
-  /// [insertionOrder] - The order value for new tokens (should be calculated from all board items)
-  Future<void> createAcademyManufactorTokens(int amountPerType, bool summoningSicknessEnabled, double insertionOrder) async {
-    try {
-      if (amountPerType <= 0) {
-        debugPrint('TokenProvider.createAcademyManufactorTokens: No tokens to create (amount: $amountPerType)');
-        return;
-      }
-
-      // Step 1: Load token definitions from database (cached for performance)
-      if (_clueCache == null || _foodCache == null || _treasureCache == null) {
-        final jsonString = await rootBundle.loadString(AssetPaths.tokenDatabase);
-        final List<dynamic> jsonList = jsonDecode(jsonString);
-
-        if (_clueCache == null) {
-          final clueJson = jsonList.firstWhere(
-            (json) => (json['name'] as String) == 'Clue',
-            orElse: () => throw Exception('Clue not found in token database'),
-          );
-          _clueCache = TokenDefinition.fromJson(clueJson as Map<String, dynamic>);
-        }
-
-        if (_foodCache == null) {
-          final foodJson = jsonList.firstWhere(
-            (json) => (json['name'] as String) == 'Food',
-            orElse: () => throw Exception('Food not found in token database'),
-          );
-          _foodCache = TokenDefinition.fromJson(foodJson as Map<String, dynamic>);
-        }
-
-        if (_treasureCache == null) {
-          final treasureJson = jsonList.firstWhere(
-            (json) => (json['name'] as String) == 'Treasure',
-            orElse: () => throw Exception('Treasure not found in token database'),
-          );
-          _treasureCache = TokenDefinition.fromJson(treasureJson as Map<String, dynamic>);
-        }
-      }
-
-      // Step 2: Create each token type
-      final tokenTypes = [
-        ('Clue', _clueCache!),
-        ('Food', _foodCache!),
-        ('Treasure', _treasureCache!),
-      ];
-
-      double currentOrder = insertionOrder;
-
-      for (final (typeName, definition) in tokenTypes) {
-        // Check for existing matching stack without counters
-        final existingStack = items.firstWhere(
-          (item) {
-            final isMatching = item.name == definition.name &&
-                item.pt == definition.pt &&
-                item.colors == definition.colors &&
-                item.abilities == definition.abilities;
-
-            final hasNoCounters = item.plusOneCounters == 0 &&
-                item.minusOneCounters == 0 &&
-                item.counters.isEmpty;
-
-            return isMatching && hasNoCounters;
-          },
-          orElse: () => Item(name: '', pt: '', abilities: '', colors: '', type: ''), // Sentinel value
-        );
-
-        if (existingStack.name.isNotEmpty) {
-          // Add to existing stack
-          debugPrint('TokenProvider.createAcademyManufactorTokens: Adding $amountPerType $typeName to existing stack');
-          existingStack.amount += amountPerType;
-
-          // No summoning sickness for artifacts without P/T
-          await existingStack.save();
-
-          _errorMessage = null;
-          notifyListeners();
-          debugPrint('TokenProvider.createAcademyManufactorTokens: Successfully added $amountPerType $typeName to existing stack');
-        } else {
-          // Create new stack from database definition
-          debugPrint('TokenProvider.createAcademyManufactorTokens: Creating new $typeName stack with $amountPerType at order $currentOrder');
-
-          // Resolve preferred artwork (same path as normal token creation)
-          final artworkPrefManager = ArtworkPreferenceManager();
-          final tokenIdentity = definition.id;
-          final preferredArtwork = artworkPrefManager.getPreferredArtwork(tokenIdentity);
-
-          String? artworkUrl;
-          String? artworkSet;
-          if (preferredArtwork != null) {
-            artworkUrl = preferredArtwork;
-            if (!preferredArtwork.startsWith('file://') && definition.artwork.isNotEmpty) {
-              final matchingArtwork = definition.artwork.firstWhere(
-                (art) => art.url == preferredArtwork,
-                orElse: () => definition.artwork[0],
-              );
-              artworkSet = matchingArtwork.set;
-            }
-          } else if (definition.artwork.isNotEmpty) {
-            artworkUrl = definition.artwork.first.url;
-            artworkSet = definition.artwork.first.set;
-          }
-
-          final newToken = Item(
-            name: definition.name,
-            pt: definition.pt,
-            abilities: definition.abilities,
-            colors: definition.colors,
-            type: definition.type,
-            amount: amountPerType,
-            tapped: 0,
-            summoningSick: 0, // Artifacts without P/T - no summoning sickness
-            order: currentOrder,
-            artworkUrl: artworkUrl,
-            artworkSet: artworkSet,
-            artworkOptions: definition.artwork.isNotEmpty ? List.from(definition.artwork) : null,
-          );
-
-          // Use _itemsBox.add directly to avoid overriding order
-          // and skip ETB events (these are artifacts, no P/T)
-          await _itemsBox.add(newToken);
-          _errorMessage = null;
-          notifyListeners();
-
-          // Download artwork in background (fire-and-forget)
-          // Skip on web - artwork loads directly from network URL
-          if (!kIsWeb && newToken.artworkUrl != null && !newToken.artworkUrl!.startsWith('file://')) {
-            final artworkUrl = newToken.artworkUrl!;
-            ArtworkManager.downloadArtwork(artworkUrl).then((file) {
-              if (file == null) {
-                debugPrint('TokenProvider.createAcademyManufactorTokens: Artwork download failed for $typeName, resetting URL');
-                newToken.updateArtwork(url: null, set: null, options: newToken.artworkOptions);
-              } else {
-                debugPrint('TokenProvider.createAcademyManufactorTokens: Artwork downloaded for $typeName');
-                // Keep original Scryfall URL (don't convert to file://)
-                // so getCropPercentages() applies correct Scryfall crop values
-                newToken.save();
-                notifyListeners();
-              }
-            }).catchError((error) {
-              debugPrint('TokenProvider.createAcademyManufactorTokens: Artwork download error for $typeName: $error');
-            });
-          }
-
-          currentOrder += 1.0;
-
-          debugPrint('TokenProvider.createAcademyManufactorTokens: Successfully created new stack with $amountPerType $typeName');
-        }
-      }
-    } on HiveError catch (e) {
-      _errorMessage = 'Database error while creating Academy Manufactor tokens: Changes could not be saved.';
-      debugPrint('TokenProvider.createAcademyManufactorTokens: HiveError. Error: ${e.message}');
-      notifyListeners();
-      rethrow;
-    } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while creating Academy Manufactor tokens: ${e.toString()}';
-      debugPrint('TokenProvider.createAcademyManufactorTokens: Unexpected error. Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;

@@ -14,6 +14,7 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// @deprecated Used only for migration to rules engine. Do not use for new code.
   int get tokenMultiplier =>
       _prefs.getInt(PreferenceKeys.tokenMultiplier) ?? GameConstants.minMultiplier;
 
@@ -23,7 +24,7 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Counter multiplier for future work involving counter multipliers (not yet implemented)
+  /// @deprecated Used only for migration to rules engine. Do not use for new code.
   int get counterMultiplier =>
       _prefs.getInt(PreferenceKeys.counterMultiplier) ?? 1;
 

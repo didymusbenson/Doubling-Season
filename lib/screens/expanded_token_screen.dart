@@ -6,6 +6,7 @@ import '../models/item.dart';
 import '../models/token_definition.dart';
 import '../providers/token_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/rules_provider.dart';
 import '../widgets/color_selection_button.dart';
 import '../widgets/split_stack_sheet.dart';
 import '../widgets/artwork_selection_sheet.dart';
@@ -724,8 +725,10 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                           if (_editingNumericField != null) {
                                             _saveNumericEdit();
                                           }
+                                          final rulesProvider = context.read<RulesProvider>();
+                                          final amount = rulesProvider.calculateCounterAmount(1, isPlusOne: true);
                                           setState(() {
-                                            currentItem.addPowerToughnessCounters(1);
+                                            currentItem.addPowerToughnessCounters(amount);
                                             tokenProvider.updateItem(currentItem);
                                           });
                                         },
@@ -835,8 +838,10 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                           if (_editingNumericField != null) {
                                             _saveNumericEdit();
                                           }
+                                          final rulesProvider = context.read<RulesProvider>();
+                                          final amount = rulesProvider.calculateCounterAmount(1, isPlusOne: false);
                                           setState(() {
-                                            currentItem.addPowerToughnessCounters(-1);
+                                            currentItem.addPowerToughnessCounters(-amount);
                                             tokenProvider.updateItem(currentItem);
                                           });
                                         },
@@ -945,8 +950,10 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                           if (_editingNumericField != null) {
                                             _saveNumericEdit();
                                           }
+                                          final rulesProvider = context.read<RulesProvider>();
+                                          final amount = rulesProvider.calculateCounterAmount(1, isPlusOne: false);
                                           setState(() {
-                                            currentItem.plusOnePowerCounters = currentItem.plusOnePowerCounters + 1;
+                                            currentItem.plusOnePowerCounters = currentItem.plusOnePowerCounters + amount;
                                             tokenProvider.updateItem(currentItem);
                                           });
                                         },
@@ -1055,8 +1062,10 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                           if (_editingNumericField != null) {
                                             _saveNumericEdit();
                                           }
+                                          final rulesProvider = context.read<RulesProvider>();
+                                          final amount = rulesProvider.calculateCounterAmount(1, isPlusOne: false);
                                           setState(() {
-                                            currentItem.plusOneToughnessCounters = currentItem.plusOneToughnessCounters + 1;
+                                            currentItem.plusOneToughnessCounters = currentItem.plusOneToughnessCounters + amount;
                                             tokenProvider.updateItem(currentItem);
                                           });
                                         },
@@ -1191,7 +1200,9 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                                             if (_editingNumericField != null) {
                                               _saveNumericEdit();
                                             }
-                                            currentItem.addCounter(name: counter.name);
+                                            final rulesProvider = context.read<RulesProvider>();
+                                            final amount = rulesProvider.calculateCounterAmount(1, isPlusOne: false);
+                                            currentItem.addCounter(name: counter.name, amount: amount);
                                             tokenProvider.updateItem(currentItem);
                                             setState(() {}); // Rebuild to update UI
                                           },

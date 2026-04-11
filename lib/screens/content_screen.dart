@@ -9,6 +9,7 @@ import '../providers/token_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/tracker_provider.dart'; // NEW - Widget Cards Feature
 import '../providers/toggle_provider.dart'; // NEW - Widget Cards Feature
+import '../providers/rules_provider.dart';
 import '../utils/constants.dart';
 import '../utils/color_utils.dart';
 import '../widgets/token_card.dart';
@@ -418,7 +419,7 @@ class _ContentScreenState extends State<ContentScreen> {
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
-                      'Adjust multiplier for token doubling effects',
+                      'Configure rules for token doubling effects',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                       ),
@@ -622,12 +623,16 @@ class _ContentScreenState extends State<ContentScreen> {
 
   void _handleAddCountersToAll() {
     final tokenProvider = context.read<TokenProvider>();
-    tokenProvider.addPlusOneToAll();
+    final rulesProvider = context.read<RulesProvider>();
+    final amount = rulesProvider.calculateCounterAmount(1, isPlusOne: true);
+    tokenProvider.addPlusOneToAll(amount);
   }
 
   void _handleMinusOneToAll() {
     final tokenProvider = context.read<TokenProvider>();
-    tokenProvider.addMinusOneToAll();
+    final rulesProvider = context.read<RulesProvider>();
+    final amount = rulesProvider.calculateCounterAmount(1, isPlusOne: false);
+    tokenProvider.addMinusOneToAll(amount);
   }
 
   void _showTokenSearch() {
@@ -821,6 +826,7 @@ class _ContentScreenState extends State<ContentScreen> {
 
   void _showBoardWipeDialog() {
     final tokenProvider = context.read<TokenProvider>();
+    final rulesProvider = context.read<RulesProvider>();
 
     showDialog(
       context: context,
@@ -850,6 +856,17 @@ class _ContentScreenState extends State<ContentScreen> {
               }
             },
             child: const Text('Delete All'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await tokenProvider.boardWipeDelete();
+              await rulesProvider.disableAllRules();
+              _clearDismissStates();
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext);
+              }
+            },
+            child: const Text('Delete All & Reset Rules'),
           ),
         ],
       ),

@@ -12,6 +12,9 @@ import '../models/tracker_widget.dart'; // NEW - Widget Cards Feature
 import '../models/toggle_widget.dart'; // NEW - Widget Cards Feature
 import '../models/tracker_widget_template.dart'; // NEW - Deck templates for utilities
 import '../models/toggle_widget_template.dart'; // NEW - Deck templates for utilities
+import '../models/token_rule.dart';
+import '../models/rule_trigger.dart';
+import '../models/rule_outcome.dart';
 
 /// Result of Hive initialization, containing info about any boxes that were wiped.
 class HiveInitResult {
@@ -52,6 +55,9 @@ Future<HiveInitResult> initHive() async {
     Hive.registerAdapter(ToggleWidgetAdapter()); // NEW - Widget Cards Feature
     Hive.registerAdapter(TrackerWidgetTemplateAdapter()); // NEW - Deck templates for utilities
     Hive.registerAdapter(ToggleWidgetTemplateAdapter()); // NEW - Deck templates for utilities
+    Hive.registerAdapter(TokenRuleAdapter());
+    Hive.registerAdapter(RuleTriggerAdapter());
+    Hive.registerAdapter(RuleOutcomeAdapter());
 
     if (kIsWeb) {
       // Web uses IndexedDB via Hive — no file system, no backup/restore
@@ -60,6 +66,7 @@ Future<HiveInitResult> initHive() async {
       await Hive.openBox<TokenArtworkPreference>('artworkPreferences');
       await Hive.openBox<TrackerWidget>('trackerWidgets');
       await Hive.openBox<ToggleWidget>('toggleWidgets');
+      await Hive.openBox<TokenRule>('tokenRules');
       await Hive.openBox<String>('customTokens');
     } else {
       // Resolve the Hive data directory for backup/restore operations
@@ -71,6 +78,7 @@ Future<HiveInitResult> initHive() async {
       await _openBoxResilient<TokenArtworkPreference>('artworkPreferences', hivePath, wipedBoxes);
       await _openBoxResilient<TrackerWidget>('trackerWidgets', hivePath, wipedBoxes);
       await _openBoxResilient<ToggleWidget>('toggleWidgets', hivePath, wipedBoxes);
+      await _openBoxResilient<TokenRule>('tokenRules', hivePath, wipedBoxes);
       await _openBoxResilient<String>('customTokens', hivePath, wipedBoxes);
 
       // Fire-and-forget: backup all .hive files after successful boot
@@ -206,7 +214,7 @@ void _backupAllBoxes(String hivePath) {
         await backupDir.create(recursive: true);
       }
 
-      final boxNames = ['items', 'decks', 'artworkPreferences', 'trackerWidgets', 'toggleWidgets', 'customTokens'];
+      final boxNames = ['items', 'decks', 'artworkPreferences', 'trackerWidgets', 'toggleWidgets', 'tokenRules', 'customTokens'];
 
       for (final boxName in boxNames) {
         try {

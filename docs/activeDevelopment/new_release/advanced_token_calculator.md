@@ -1,6 +1,205 @@
 # Advanced Token Calculator
 
-## Status: Todo
+## Status: Implemented — Pending Testing
+
+## Implementation Summary
+
+### What Was Built
+
+**Rules Engine** (`lib/providers/rules_provider.dart`)
+- Full replacement effect engine compliant with MTG rules 614.16 and 616.1
+- Top-down ordered evaluation; companion tokens from "also create" continue from next rule down (loop-safe by construction)
+- `evaluateRules()` returns list of `TokenCreationResult` with all tokens to create
+- `calculateCounterAmount()` applies counter modifier formula to any counter placement
+- Quantity cap at 999,999 with user-facing alert modal
+- Identity case: no enabled rules = pass-through (quantity in = quantity out)
+
+**Data Models** (`lib/models/token_rule.dart`, `rule_trigger.dart`, `rule_outcome.dart`)
+- Hive TypeIds 10, 11, 12 — all fields have `defaultValue` for upgrade safety
+- `TokenRule` extends HiveObject, stored in `tokenRules` box with resilient boot
+- `RuleTrigger` and `RuleOutcome` are nested objects (same pattern as TokenCounter inside Item)
+
+**Preset System** (persisted via SharedPreferences, computed at evaluation time)
+- Token Doublers (×2 each, quantity stepper) — Parallel Lives, Anointed Procession, Mondrak, Adrix and Nev, Elspeth Storm Slayer, Exalted Sunborn
+- Doubling Season (×2 tokens + ×2 all counters)
+- Primal Vigor (×2 tokens + ×2 +1/+1 counters)
+- Ojer Taq (×3 creature tokens only)
+- Academy Manufactor (Food/Treasure/Clue → also create the other two)
+- +1/+1 Doublers, +1/+1 Extra, All-Counter Doublers
+
+**Counter Modifier** (two-scope system)
+- +1/+1 scope: `(base + extra) �� 2^(plus_one_doublers) × 2^(all_doublers)`
+- All-counter scope: `base × 2^(all_doublers)` — applies to -1/-1, custom, +1/+0, +0/+1
+- Integrated at ALL counter placement call sites: addPlusOneToAll, addMinusOneToAll, Cathar's Crusade, individual +1/+1, -1/-1, +1/+0, +0/+1, and custom counter edits
+- Manual quantity typing bypasses the formula (escape hatch)
+
+**UI** (`lib/widgets/rules_sheet.dart`, `lib/screens/rule_creator_screen.dart`, `lib/widgets/rules_preview_modal.dart`)
+- Draggable bottom sheet with two-section layout: Replacements (reorderable) on top, Multipliers (flat) on bottom
+- Full-screen rule creator with trigger picker (5 types), effect editor, token search integration
+- Dynamic preview modal detecting trigger categories from enabled rules
+- Sticky preview at top of rules sheet, tappable for detailed breakdown
+- Quantity dialog shows per-token breakdown ("3 Food + 3 Treasure + 3 Clue")
+
+**Integration** (all token creation entry points)
+- Token Search, Custom Token, Quick-Add (tap + long-press), Scute Swarm, Krenko — all route through rules engine
+- Companion tokens handled properly: stack merging, artwork resolution (preferences → database fallback → download), summoning sickness, ETB events
+- `TokenCreationService` (`lib/services/token_creation_service.dart`) — shared companion token creation logic
+- Split Stack, Copy Token, Deck Load correctly bypass rules
+- Academy Manufactor hardcoded utility code removed from TokenProvider (preset rule replaces it)
+- Board wipe gains "Delete All & Reset Rules" option
+
+**Migration**
+- Old `tokenMultiplier` auto-converted: power-of-2 → doubler count, other → custom rule
+- Old `counterMultiplier` migrated similarly
+- Silent SnackBar notification on first launch after migration
+- Old SharedPreferences keys cleared after successful migration
+- If tokenRules box wiped during resilient boot, migration flag cleared for re-run
+
+**Entry Point**
+- MultiplierView FAB replaced with rules entry point showing smart label + dot badge when rules active
+
+### Files Created
+- `lib/models/token_rule.dart` (+.g.dart)
+- `lib/models/rule_trigger.dart` (+.g.dart)
+- `lib/models/rule_outcome.dart` (+.g.dart)
+- `lib/providers/rules_provider.dart`
+- `lib/widgets/rules_sheet.dart`
+- `lib/screens/rule_creator_screen.dart`
+- `lib/widgets/rules_preview_modal.dart`
+- `lib/services/token_creation_service.dart`
+
+### Files Modified
+- `lib/utils/constants.dart`, `lib/database/hive_setup.dart`, `lib/main.dart`
+- `lib/screens/content_screen.dart`, `lib/widgets/multiplier_view.dart`
+- `lib/screens/token_search_screen.dart`, `lib/widgets/new_token_sheet.dart`
+- `lib/widgets/token_card.dart`, `lib/providers/token_provider.dart`
+- `lib/screens/expanded_token_screen.dart`, `lib/widgets/tracker_widget_card.dart`
+- `lib/database/token_database.dart`, `lib/providers/settings_provider.dart`
+- `pubspec.yaml` (added `collection` dependency)
+
+### Known Deviations from Spec (Intentional)
+- Academy Manufactor board utility card kept (delegates to rules engine internally)
+- Quick-add companion notification uses SnackBar (not custom fade-in/out widget)
+- Academy Manufactor handles all three token types bidirectionally (more correct than spec's Food-only trigger)
+
+---
+
+## Testing Checklist
+
+### Rules Sheet UI
+- [ ] Tapping the calculator FAB opens the rules sheet
+- [ ] Dot badge appears on FAB when any rule is enabled
+- [ ] Dot badge disappears when all rules disabled
+- [ ] Preset quantity steppers increment/decrement correctly
+- [ ] Stepper `-` disabled at 0, `+` disabled at 10
+- [ ] Academy Manufactor toggle enables/disables
+- [ ] Counter modifier section expands/collapses
+- [ ] Counter modifier shows correct summary when collapsed
+- [ ] Sticky preview updates live when toggling/adjusting presets
+- [ ] Tapping sticky preview opens detailed preview modal
+- [ ] Preview modal shows correct per-trigger-category breakdown
+
+### Custom Rules
+- [ ] "Add Custom Rule" opens full-screen creator
+- [ ] Can set rule name
+- [ ] Trigger dropdown shows all 5 types (any token, has P/T, token type, color, specific token)
+- [ ] Selecting "specific token" trigger opens token search picker
+- [ ] Selecting "color" shows color buttons
+- [ ] Selecting "token type" shows type chips
+- [ ] Can add multiple effects per rule
+- [ ] Can delete individual effects
+- [ ] Multiply effect has number input
+- [ ] Also-create effect has quantity input + token picker
+- [ ] Save validation: name required, at least one effect, also-create needs token
+- [ ] Created rule appears in correct section (also-create → Replacements, multiply → Multipliers)
+- [ ] Can tap a custom rule to edit it
+- [ ] Can swipe to delete a custom rule
+- [ ] Can toggle a custom rule enabled/disabled
+- [ ] Can drag-reorder custom rules in Replacements section
+
+### Token Doublers (Presets)
+- [ ] Set Token Doublers to 1 → creating 1 token produces 2
+- [ ] Set Token Doublers to 2 → creating 1 token produces 4
+- [ ] Set Token Doublers to 3 → creating 1 token produces 8
+- [ ] Doubling Season at 1 → tokens doubled AND counters doubled
+- [ ] Primal Vigor at 1 → tokens doubled AND +1/+1 counters doubled (not custom counters)
+- [ ] Ojer Taq at 1 → creature tokens tripled, non-creature tokens unaffected
+- [ ] Ojer Taq + Token Doublers → creature tokens get ×6 (2×3)
+- [ ] Multiple preset types active simultaneously produce correct combined result
+
+### Academy Manufactor
+- [ ] Enable Academy Manufactor → creating 1 Food also creates 1 Treasure + 1 Clue
+- [ ] Creating 1 Treasure also creates 1 Food + 1 Clue
+- [ ] Creating 1 Clue also creates 1 Food + 1 Treasure
+- [ ] Academy Manufactor + Token Doublers(1): 1 Food → 2 Food + 2 Treasure + 2 Clue
+- [ ] Companion tokens appear as board items with correct artwork
+- [ ] Companion tokens merge into existing stacks when matching stack exists
+
+### Counter Modifier
+- [ ] Hardened Scales (Extra +1): placing 1 +1/+1 → 2 counters
+- [ ] Branching Evolution (Doubler): placing 1 +1/+1 → 2 counters
+- [ ] Hardened Scales + Branching Evolution: 1 +1/+1 → (1+1)×2 = 4
+- [ ] Doubling Season: 1 +1/+1 → 2 (all-counter scope applies)
+- [ ] Hardened Scales + Doubling Season: 1 +1/+1 → (1+1)×2 = 4
+- [ ] Vorinclex (All-Counter Doubler): 1 charge counter → 2
+- [ ] Hardened Scales + Vorinclex: 1 charge counter → 1 (plus-one scope doesn't apply to non-+1/+1)
+- [ ] -1/-1 counters only affected by all-counter scope
+- [ ] +1/+1 Everything applies counter formula
+- [ ] -1/-1 Everything applies counter formula
+- [ ] Individual +1/+1 edit in expanded screen applies formula
+- [ ] Individual -1/-1 edit in expanded screen applies formula
+- [ ] Individual +1/+0 edit applies all-counter formula
+- [ ] Individual +0/+1 edit applies all-counter formula
+- [ ] Custom counter edit (charge, loyalty) applies all-counter formula
+- [ ] Cathar's Crusade counter placement applies formula
+
+### Token Creation Entry Points
+- [ ] Token Search → quantity dialog → rules applied, preview shows breakdown
+- [ ] Custom Token (New Token Sheet) → rules applied, preview shows breakdown
+- [ ] Quick-add tap (+) → rules applied, companion notification shown
+- [ ] Quick-add long-press (+10) → rules applied
+- [ ] Scute Swarm doubling → rules applied, companions created
+- [ ] Krenko goblin creation → rules applied, companions created
+- [ ] Split Stack → rules NOT applied
+- [ ] Copy Token → rules NOT applied
+- [ ] Deck Load → rules NOT applied
+- [ ] Manual quantity edit (typing a number) → rules NOT applied (bypass)
+
+### Quantity Cap
+- [ ] Set extreme doublers (e.g., 10 Token Doublers = ×1024) and create tokens
+- [ ] If quantity exceeds 999,999, alert modal appears with correct message
+- [ ] Tokens are capped at 999,999 despite higher calculated value
+
+### Rule Ordering
+- [ ] Academy Manufactor ABOVE Doubling Season: 1 Food → 2 Food + 2 Treasure + 2 Clue
+- [ ] Doubling Season ABOVE Academy Manufactor: 1 Food → 2 Food + 1 Treasure + 1 Clue
+- [ ] Reordering rules updates preview immediately
+
+### Migration
+- [ ] Fresh install: no migration notification, rules sheet is empty
+- [ ] Upgrade from old multiplier=4: notification "Your multiplier has been converted to token rules", Token Doublers set to 2
+- [ ] Upgrade from old multiplier=6: custom rule "Migrated ×6" created
+- [ ] Old tokenMultiplier/counterMultiplier keys cleared after migration
+
+### Board Wipe
+- [ ] Standard board wipe clears tokens, rules stay active
+- [ ] "Delete All & Reset Rules" clears tokens AND disables all rules
+- [ ] Rules sheet confirms rules are disabled after reset wipe
+
+### Persistence
+- [ ] Rules persist after app restart
+- [ ] Preset values persist after app restart
+- [ ] Custom rules persist after app restart
+- [ ] Enable/disable state persists
+
+### Summoning Sickness
+- [ ] Companion creature tokens get summoning sickness when setting is enabled
+- [ ] Non-creature companion tokens (Treasure, Food, Clue) do NOT get summoning sickness
+
+### Artwork
+- [ ] Companion tokens show artwork from database
+- [ ] Companion tokens respect user artwork preferences
+- [ ] Artwork downloads in background without blocking creation
 
 ## Overview
 

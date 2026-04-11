@@ -2,11 +2,13 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:collection/collection.dart';
 import '../models/item.dart';
 import '../providers/settings_provider.dart';
 import '../providers/toggle_provider.dart';
 import '../providers/tracker_provider.dart';
 import '../providers/token_provider.dart';
+import '../providers/rules_provider.dart';
 import '../screens/expanded_token_screen.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
@@ -17,6 +19,8 @@ import 'split_stack_sheet.dart';
 // Unused import was causing build warnings
 // import 'cropped_artwork_widget.dart';
 import 'mixins/artwork_display_mixin.dart';
+import '../services/token_creation_service.dart';
+import '../database/token_database.dart';
 
 /// Animated widget that pops when P/T changes (from counter addition)
 class _AnimatedPowerToughness extends StatefulWidget {
@@ -422,23 +426,19 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
               onTap: () {
                 final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
                 if (widget.item.isEmblem) {
-                  // Emblems always add 1 (no multiplier)
+                  // Emblems always add 1 (no rules)
                   tokenProvider.addTokens(widget.item, 1, summoningSick);
                 } else {
-                  // Tokens use multiplier
-                  final multiplier = context.read<SettingsProvider>().tokenMultiplier;
-                  tokenProvider.addTokens(widget.item, multiplier, summoningSick);
+                  _addTokensViaRules(context, tokenProvider, 1, summoningSick);
                 }
               },
               onLongPress: () {
                 final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
                 if (widget.item.isEmblem) {
-                  // Emblems add 10 on long press (no multiplier)
+                  // Emblems add 10 on long press (no rules)
                   tokenProvider.addTokens(widget.item, 10, summoningSick);
                 } else {
-                  // Tokens use 10x multiplier
-                  final multiplier = context.read<SettingsProvider>().tokenMultiplier;
-                  tokenProvider.addTokens(widget.item, multiplier * 10, summoningSick);
+                  _addTokensViaRules(context, tokenProvider, 10, summoningSick);
                 }
               },
               color: primaryColor,
@@ -486,13 +486,15 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
                 context,
                 icon: Icons.trending_up,
                 onTap: () {
-                  final counterMultiplier = context.read<SettingsProvider>().counterMultiplier;
-                  widget.item.plusOneCounters = widget.item.plusOneCounters + counterMultiplier;
+                  final rulesProvider = context.read<RulesProvider>();
+                  final amount = rulesProvider.calculateCounterAmount(1, isPlusOne: true);
+                  widget.item.plusOneCounters = widget.item.plusOneCounters + amount;
                   tokenProvider.updateItem(widget.item);
                 },
                 onLongPress: () {
-                  final counterMultiplier = context.read<SettingsProvider>().counterMultiplier;
-                  widget.item.plusOneCounters = widget.item.plusOneCounters + (counterMultiplier * 10);
+                  final rulesProvider = context.read<RulesProvider>();
+                  final amount = rulesProvider.calculateCounterAmount(10, isPlusOne: true);
+                  widget.item.plusOneCounters = widget.item.plusOneCounters + amount;
                   tokenProvider.updateItem(widget.item);
                 },
                 color: primaryColor,
@@ -540,13 +542,28 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
                 context,
                 icon: Icons.bug_report,
                 onTap: () {
-                  final multiplier = context.read<SettingsProvider>().tokenMultiplier;
+                  final rulesProvider = context.read<RulesProvider>();
                   final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
                   final trackerProvider = context.read<TrackerProvider>();
                   final toggleProvider = context.read<ToggleProvider>();
 
+                  // Count all Scute Swarm tokens on the board
+                  int totalScuteCount = 0;
+                  for (final item in tokenProvider.items) {
+                    if (item.name.toLowerCase().contains(GameConstants.scuteSwarmName) && item.amount > 0) {
+                      totalScuteCount += item.amount;
+                    }
+                  }
+
+                  // Route through rules engine (replaces old multiplier)
+                  final results = rulesProvider.evaluateRules(
+                    widget.item.name, widget.item.pt, widget.item.colors,
+                    widget.item.type, widget.item.abilities, totalScuteCount,
+                  );
+                  // Primary result quantity is the final scute count
+                  final finalAmount = results.first.quantity;
+
                   // Calculate order to place new token right after source token
-                  // Collect all board items and sort by order
                   final allItems = <({double order, dynamic item})>[];
                   for (var item in tokenProvider.items) {
                     allItems.add((order: item.order, item: item));
@@ -559,22 +576,60 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
                   }
                   allItems.sort((a, b) => a.order.compareTo(b.order));
 
-                  // Find source token and calculate insertion order
                   final sourceIndex = allItems.indexWhere((item) =>
                     item.item is Item && (item.item as Item).key == widget.item.key
                   );
 
                   double insertionOrder;
                   if (sourceIndex == -1 || sourceIndex == allItems.length - 1) {
-                    // Source not found or is last item - add after source
                     insertionOrder = widget.item.order + 1.0;
                   } else {
-                    // Insert between source and next item (fractional)
                     final nextOrder = allItems[sourceIndex + 1].order;
                     insertionOrder = (widget.item.order + nextOrder) / 2.0;
                   }
 
-                  tokenProvider.createScuteSwarmTokens(widget.item, multiplier, summoningSick, insertionOrder);
+                  // Pass finalAmount as 1 * finalAmount (rules already applied)
+                  // Use multiplier=1 since rules already calculated the quantity
+                  tokenProvider.createScuteSwarmTokens(widget.item, 1, summoningSick, insertionOrder, overrideAmount: finalAmount);
+
+                  // Create companion tokens from rules (e.g., Academy Manufactor)
+                  if (results.length > 1) {
+                    for (final companion in results.skip(1)) {
+                      if (companion.quantity <= 0) continue;
+
+                      final existingStack = tokenProvider.items.firstWhereOrNull(
+                        (item) =>
+                          item.name == companion.name &&
+                          item.pt == companion.pt &&
+                          item.colors == companion.colors &&
+                          item.type == companion.type &&
+                          item.abilities == companion.abilities &&
+                          item.plusOneCounters == 0 &&
+                          item.minusOneCounters == 0 &&
+                          item.counters.isEmpty,
+                      );
+
+                      if (existingStack != null) {
+                        tokenProvider.addTokens(existingStack, companion.quantity, summoningSick);
+                      } else {
+                        final newItem = Item(
+                          name: companion.name,
+                          pt: companion.pt,
+                          abilities: companion.abilities,
+                          colors: companion.colors,
+                          type: companion.type,
+                          amount: companion.quantity,
+                          tapped: 0,
+                          summoningSick: 0,
+                        );
+                        tokenProvider.insertItem(newItem).then((_) {
+                          if (summoningSick && newItem.hasPowerToughness && !newItem.hasHaste) {
+                            newItem.summoningSick = companion.quantity;
+                          }
+                        });
+                      }
+                    }
+                  }
                 },
                 onLongPress: null, // No long-press behavior for Scute Swarm
                 color: primaryColor,
@@ -584,6 +639,68 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
         );
       },
     );
+  }
+
+  /// Routes quick-add through the rules engine. For multiply-only rules, silently
+  /// adds the modified quantity. When companion tokens are created, shows a brief
+  /// notification.
+  Future<void> _addTokensViaRules(BuildContext context, TokenProvider tokenProvider, int baseQuantity, bool summoningSick) async {
+    final rulesProvider = context.read<RulesProvider>();
+    final results = rulesProvider.evaluateRules(
+      widget.item.name, widget.item.pt, widget.item.colors,
+      widget.item.type, widget.item.abilities, baseQuantity,
+    );
+
+    // Primary token: add to existing stack
+    final primaryResult = results.first;
+    tokenProvider.addTokens(widget.item, primaryResult.quantity, summoningSick);
+
+    // Companion tokens (if any): delegate to shared service
+    if (results.length > 1) {
+      final tokenDatabase = TokenDatabase();
+      final companionCount = await TokenCreationService.createCompanionTokens(
+        results: results,
+        tokenProvider: tokenProvider,
+        summoningSicknessEnabled: summoningSick,
+        insertionOrder: widget.item.order + 1.0,
+        tokenDatabase: tokenDatabase,
+      );
+      tokenDatabase.dispose();
+
+      final totalCreated = primaryResult.quantity + companionCount;
+
+      // Show brief notification for companion tokens
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Created $totalCreated tokens'),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+
+    // Show cap alert if any results were capped
+    if (results.any((r) => r.wasCapped) && context.mounted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Woah there!'),
+          content: const Text(
+            'Looks like your deck is popping off. Congrats! '
+            'For performance reasons, tokens have been capped at 999,999. '
+            'Please win the game this turn.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Widget _buildActionButton(
