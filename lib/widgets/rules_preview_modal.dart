@@ -130,7 +130,7 @@ class RulesPreviewModal extends StatelessWidget {
       ));
     }
 
-    if (rules.academyManufactorEnabled) {
+    if (rules.academyManufactorCount > 0) {
       addIfNew(_TriggerCategory(
         label: 'Food:',
         name: 'Food',

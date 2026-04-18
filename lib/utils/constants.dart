@@ -19,6 +19,8 @@ class GameConstants {
       'Treasure|||Artifact \u2014 Treasure|{T}, Sacrifice this token: Add one mana of any color.';
   static const String clueCompositeId =
       'Clue|||Artifact \u2014 Clue|{2}, Sacrifice this token: Draw a card.';
+  static const String squirrelCompositeId =
+      'Squirrel|1/1|G|Creature \u2014 Squirrel|';
 }
 
 /// Hive type IDs (must be unique and never change)
@@ -142,6 +144,8 @@ class PreferenceKeys {
   static const String presetPrimalVigor = 'preset_primal_vigor';
   static const String presetOjerTaq = 'preset_ojer_taq';
   static const String presetAcademyManufactor = 'preset_academy_manufactor';
+  static const String presetAcademyManufactorCount = 'preset_academy_manufactor_count';
+  static const String presetChatterfang = 'preset_chatterfang';
   static const String presetPlusOneDoublers = 'preset_plus_one_doublers';
   static const String presetPlusOneExtra = 'preset_plus_one_extra';
   static const String presetAllCounterDoublers = 'preset_all_counter_doublers';

@@ -22,11 +22,15 @@ class TokenRule extends HiveObject {
   @HiveField(4, defaultValue: [])
   List<RuleOutcome> outcomes;
 
+  @HiveField(5, defaultValue: 1)
+  int count;
+
   TokenRule({
     required this.name,
     this.enabled = true,
     this.order = 0.0,
     required this.trigger,
     List<RuleOutcome>? outcomes,
+    this.count = 1,
   }) : outcomes = outcomes ?? [];
 }

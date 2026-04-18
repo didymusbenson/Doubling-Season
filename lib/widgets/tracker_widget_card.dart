@@ -587,6 +587,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     // Create companion tokens from rules via shared service
     if (results.length > 1) {
       final tokenDatabase = TokenDatabase();
+      await tokenDatabase.loadTokens();
       await TokenCreationService.createCompanionTokens(
         results: results,
         tokenProvider: tokenProvider,
@@ -666,6 +667,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     // Create companion tokens from rules via shared service
     if (results.length > 1) {
       final tokenDatabase = TokenDatabase();
+      await tokenDatabase.loadTokens();
       await TokenCreationService.createCompanionTokens(
         results: results,
         tokenProvider: tokenProvider,
@@ -821,6 +823,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     // Create all tokens from rules results via shared service
     // Academy Manufactor has no distinct "primary" — all results are peers
     final tokenDatabase = TokenDatabase();
+    await tokenDatabase.loadTokens();
     await TokenCreationService.createAllFromResults(
       results: results,
       tokenProvider: tokenProvider,

@@ -119,20 +119,22 @@ class TokenCreationService {
           newItem.summoningSick = companion.quantity;
         }
 
-        // Download artwork in background
+        // Download artwork in background, then trigger rebuild
         if (!kIsWeb && newItem.artworkUrl != null && !newItem.artworkUrl!.startsWith('file://')) {
           final downloadUrl = newItem.artworkUrl!;
           ArtworkManager.downloadArtwork(downloadUrl).then((file) {
-            if (file == null) {
+            final currentItem = tokenProvider.items.firstWhereOrNull(
+              (item) => item.artworkUrl == downloadUrl,
+            );
+            if (currentItem == null) return;
+            if (file != null) {
+              // Trigger rebuild so FutureBuilder picks up the cached file
+              currentItem.save();
+            } else {
               debugPrint('Artwork download failed for ${companion.name}, resetting URL');
-              final currentItem = tokenProvider.items.firstWhereOrNull(
-                (item) => item.artworkUrl == downloadUrl,
-              );
-              if (currentItem != null) {
-                currentItem.artworkUrl = null;
-                currentItem.artworkSet = null;
-                currentItem.save();
-              }
+              currentItem.artworkUrl = null;
+              currentItem.artworkSet = null;
+              currentItem.save();
             }
           }).catchError((error) {
             debugPrint('Error during background artwork download: $error');
@@ -239,19 +241,21 @@ class TokenCreationService {
           newItem.summoningSick = result.quantity;
         }
 
-        // Download artwork in background
+        // Download artwork in background, then trigger rebuild
         if (!kIsWeb && newItem.artworkUrl != null && !newItem.artworkUrl!.startsWith('file://')) {
           final downloadUrl = newItem.artworkUrl!;
           ArtworkManager.downloadArtwork(downloadUrl).then((file) {
-            if (file == null) {
-              final currentItem = tokenProvider.items.firstWhereOrNull(
-                (item) => item.artworkUrl == downloadUrl,
-              );
-              if (currentItem != null) {
-                currentItem.artworkUrl = null;
-                currentItem.artworkSet = null;
-                currentItem.save();
-              }
+            final currentItem = tokenProvider.items.firstWhereOrNull(
+              (item) => item.artworkUrl == downloadUrl,
+            );
+            if (currentItem == null) return;
+            if (file != null) {
+              // Trigger rebuild so FutureBuilder picks up the cached file
+              currentItem.save();
+            } else {
+              currentItem.artworkUrl = null;
+              currentItem.artworkSet = null;
+              currentItem.save();
             }
           }).catchError((error) {
             debugPrint('Error during background artwork download: $error');

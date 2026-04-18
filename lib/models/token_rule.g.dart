@@ -23,13 +23,14 @@ class TokenRuleAdapter extends TypeAdapter<TokenRule> {
       trigger: fields[3] as RuleTrigger,
       outcomes:
           fields[4] == null ? [] : (fields[4] as List?)?.cast<RuleOutcome>(),
+      count: fields[5] == null ? 1 : fields[5] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, TokenRule obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
@@ -39,7 +40,9 @@ class TokenRuleAdapter extends TypeAdapter<TokenRule> {
       ..writeByte(3)
       ..write(obj.trigger)
       ..writeByte(4)
-      ..write(obj.outcomes);
+      ..write(obj.outcomes)
+      ..writeByte(5)
+      ..write(obj.count);
   }
 
   @override

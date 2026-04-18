@@ -21,6 +21,7 @@ import 'split_stack_sheet.dart';
 import 'mixins/artwork_display_mixin.dart';
 import '../services/token_creation_service.dart';
 import '../database/token_database.dart';
+import 'multiplier_view.dart';
 
 /// Animated widget that pops when P/T changes (from counter addition)
 class _AnimatedPowerToughness extends StatefulWidget {
@@ -651,13 +652,61 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
       widget.item.type, widget.item.abilities, baseQuantity,
     );
 
-    // Primary token: add to existing stack
+    // Primary token: tokens enter the battlefield with no counters.
+    // If the tapped stack has counters, route the primary through the same
+    // find-or-create-counter-less-stack logic the companions use.
     final primaryResult = results.first;
-    tokenProvider.addTokens(widget.item, primaryResult.quantity, summoningSick);
+    final tappedStackHasCounters = widget.item.plusOneCounters != 0 ||
+        widget.item.minusOneCounters != 0 ||
+        widget.item.counters.isNotEmpty;
+
+    if (!tappedStackHasCounters) {
+      tokenProvider.addTokens(widget.item, primaryResult.quantity, summoningSick);
+    } else {
+      final existingCounterless = tokenProvider.items.firstWhereOrNull(
+        (item) =>
+            item.name == primaryResult.name &&
+            item.pt == primaryResult.pt &&
+            item.colors == primaryResult.colors &&
+            item.type == primaryResult.type &&
+            item.abilities == primaryResult.abilities &&
+            item.plusOneCounters == 0 &&
+            item.minusOneCounters == 0 &&
+            item.counters.isEmpty,
+      );
+      if (existingCounterless != null) {
+        await tokenProvider.addTokens(
+            existingCounterless, primaryResult.quantity, summoningSick);
+      } else {
+        final newItem = Item(
+          name: primaryResult.name,
+          pt: primaryResult.pt,
+          abilities: primaryResult.abilities,
+          colors: primaryResult.colors,
+          type: primaryResult.type,
+          amount: primaryResult.quantity,
+          tapped: 0,
+          summoningSick: 0,
+          order: widget.item.order + 0.5,
+          artworkUrl: widget.item.artworkUrl,
+          artworkSet: widget.item.artworkSet,
+          artworkOptions: widget.item.artworkOptions != null
+              ? List.from(widget.item.artworkOptions!)
+              : null,
+        );
+        await tokenProvider.insertItem(newItem);
+        if (summoningSick &&
+            newItem.hasPowerToughness &&
+            !newItem.hasHaste) {
+          newItem.summoningSick = primaryResult.quantity;
+        }
+      }
+    }
 
     // Companion tokens (if any): delegate to shared service
     if (results.length > 1) {
       final tokenDatabase = TokenDatabase();
+      await tokenDatabase.loadTokens();
       final companionCount = await TokenCreationService.createCompanionTokens(
         results: results,
         tokenProvider: tokenProvider,
@@ -667,17 +716,10 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
       );
       tokenDatabase.dispose();
 
-      final totalCreated = primaryResult.quantity + companionCount;
-
-      // Show brief notification for companion tokens
+      // Show tooltip above rules FAB for companion tokens
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Created $totalCreated tokens'),
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        final totalCreated = primaryResult.quantity + companionCount;
+        MultiplierView.showTooltip(context, 'Created $totalCreated tokens');
       }
     }
 

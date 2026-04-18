@@ -20,28 +20,46 @@ class RulesSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.6,
-      minChildSize: 0.4,
-      maxChildSize: 0.95,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(20)),
+    return Stack(
+      children: [
+        // Tappable barrier above the sheet to dismiss
+        Positioned.fill(
+          child: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            behavior: HitTestBehavior.opaque,
+            child: const ColoredBox(color: Colors.transparent),
           ),
-          child: Column(
-            children: [
-              _buildHeader(context),
-              _buildStickyPreview(context),
-              Expanded(
-                child: _RulesBody(scrollController: scrollController),
+        ),
+        // The actual draggable sheet
+        DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
+          snap: true,
+          snapSizes: const [0.6, 0.95],
+          builder: (context, scrollController) {
+            return GestureDetector(
+              onTap: () {}, // Absorb taps so they don't dismiss
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: Column(
+                  children: [
+                    _buildHeader(context),
+                    _buildStickyPreview(context),
+                    Expanded(
+                      child: _RulesBody(scrollController: scrollController),
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
-        );
-      },
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -119,27 +137,56 @@ class _RulesBody extends StatelessWidget {
     final alsoCreateRules = rules.customRules
         .where((r) => r.outcomes.any((o) => o.outcomeType == 'also_create'))
         .toList();
+    final replaceRules = rules.customRules
+        .where((r) => r.outcomes.any((o) => o.outcomeType == 'replace'))
+        .toList();
     final multiplyRules = rules.customRules
         .where((r) =>
             r.outcomes.any((o) => o.outcomeType == 'multiply') &&
-            !r.outcomes.any((o) => o.outcomeType == 'also_create'))
+            !r.outcomes.any((o) =>
+                o.outcomeType == 'also_create' || o.outcomeType == 'replace'))
         .toList();
 
     return ListView(
       controller: scrollController,
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       children: [
-        // Replacements section
-        _buildSectionHeader(context, 'REPLACEMENTS'),
+        // Also Create section
+        _buildSectionHeader(context, 'ALSO CREATE'),
         const SizedBox(height: 8),
-        _AcademyManufactorRow(
-          enabled: rules.academyManufactorEnabled,
-          onChanged: (val) => rules.setAcademyManufactorEnabled(val),
+        _PresetStepperRow(
+          title: 'Academy Manufactor',
+          subtitle: 'Food, Treasure, or Clue → also create the other two',
+          count: rules.academyManufactorCount,
+          onChanged: (val) => rules.setAcademyManufactorCount(val),
+        ),
+        const SizedBox(height: 4),
+        _PresetStepperRow(
+          title: 'Chatterfang',
+          subtitle: 'Any token → also create a 1/1 green Squirrel',
+          count: rules.chatterfangCount,
+          onChanged: (val) => rules.setChatterfangCount(val),
         ),
         if (alsoCreateRules.isNotEmpty) ...[
           const SizedBox(height: 4),
           _CustomRulesList(rules: alsoCreateRules),
         ],
+
+        const SizedBox(height: 20),
+
+        // Replacements section
+        _buildSectionHeader(context, 'REPLACEMENTS'),
+        const SizedBox(height: 8),
+        if (replaceRules.isNotEmpty)
+          _CustomRulesList(rules: replaceRules, showStepper: false)
+        else
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              'No replacement rules. Use "Add Custom Rule" with a "Replace (instead)" effect.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
 
         const SizedBox(height: 20),
 
@@ -182,7 +229,29 @@ class _RulesBody extends StatelessWidget {
         const SizedBox(height: 20),
 
         // Counter Modifiers section
-        _buildCounterModifiersSection(context, rules),
+        _buildSectionHeader(context, 'COUNTER MODIFIERS'),
+        const SizedBox(height: 8),
+        _PresetStepperRow(
+          title: '+1/+1 Doublers',
+          subtitle: 'Branching Evolution, Corpsejack Menace, The Earth Crystal',
+          count: rules.plusOneDoublerCount,
+          onChanged: (val) => rules.setPlusOneDoublerCount(val),
+        ),
+        const SizedBox(height: 4),
+        _PresetStepperRow(
+          title: '+1/+1 Extra',
+          subtitle:
+              'Hardened Scales, Conclave Mentor, High Score, Ozolith, Michelangelo',
+          count: rules.plusOneExtraCount,
+          onChanged: (val) => rules.setPlusOneExtraCount(val),
+        ),
+        const SizedBox(height: 4),
+        _PresetStepperRow(
+          title: 'All-Counter Doublers',
+          subtitle: "Vorinclex, Innkeeper's Talent L3, Loading Zone",
+          count: rules.allCounterDoublerCount,
+          onChanged: (val) => rules.setAllCounterDoublerCount(val),
+        ),
 
         const SizedBox(height: 20),
 
@@ -209,42 +278,6 @@ class _RulesBody extends StatelessWidget {
     );
   }
 
-  Widget _buildCounterModifiersSection(
-      BuildContext context, RulesProvider rules) {
-    return ExpansionTile(
-      tilePadding: EdgeInsets.zero,
-      title: Text(
-        'Counter Modifiers',
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
-      ),
-      children: [
-        _PresetStepperRow(
-          title: '+1/+1 Doublers',
-          subtitle: 'Branching Evolution, Corpsejack Menace, The Earth Crystal',
-          count: rules.plusOneDoublerCount,
-          onChanged: (val) => rules.setPlusOneDoublerCount(val),
-        ),
-        const SizedBox(height: 4),
-        _PresetStepperRow(
-          title: '+1/+1 Extra',
-          subtitle:
-              'Hardened Scales, Conclave Mentor, High Score, Ozolith, Michelangelo',
-          count: rules.plusOneExtraCount,
-          onChanged: (val) => rules.setPlusOneExtraCount(val),
-        ),
-        const SizedBox(height: 4),
-        _PresetStepperRow(
-          title: 'All-Counter Doublers',
-          subtitle: "Vorinclex, Innkeeper's Talent L3, Loading Zone",
-          count: rules.allCounterDoublerCount,
-          onChanged: (val) => rules.setAllCounterDoublerCount(val),
-        ),
-      ],
-    );
-  }
-
   void _openRuleCreator(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -255,54 +288,6 @@ class _RulesBody extends StatelessWidget {
   }
 }
 
-class _AcademyManufactorRow extends StatelessWidget {
-  final bool enabled;
-  final ValueChanged<bool> onChanged;
-
-  const _AcademyManufactorRow({
-    required this.enabled,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Theme.of(context).cardColor,
-      borderRadius: BorderRadius.circular(UIConstants.borderRadius),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: UIConstants.standardPadding, vertical: UIConstants.smallPadding),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Academy Manufactor',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Food, Treasure, or Clue → also create the other two',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).textTheme.bodySmall?.color,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-            Switch(
-              value: enabled,
-              onChanged: onChanged,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _PresetStepperRow extends StatelessWidget {
   final String title;
@@ -428,8 +413,9 @@ class _QuantityStepper extends StatelessWidget {
 
 class _CustomRulesList extends StatelessWidget {
   final List<TokenRule> rules;
+  final bool showStepper;
 
-  const _CustomRulesList({required this.rules});
+  const _CustomRulesList({required this.rules, this.showStepper = true});
 
   @override
   Widget build(BuildContext context) {
@@ -452,6 +438,11 @@ class _CustomRulesList extends StatelessWidget {
             rule.enabled = enabled;
             rulesProvider.updateRule(rule);
           },
+          onCountChanged: showStepper ? (val) {
+            rule.count = val;
+            rule.enabled = val > 0;
+            rulesProvider.updateRule(rule);
+          } : null,
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(
@@ -473,6 +464,7 @@ class _CustomRuleRow extends StatelessWidget {
   final int index;
   final bool reorderable;
   final ValueChanged<bool> onToggle;
+  final ValueChanged<int>? onCountChanged;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
@@ -482,6 +474,7 @@ class _CustomRuleRow extends StatelessWidget {
     required this.index,
     this.reorderable = true,
     required this.onToggle,
+    this.onCountChanged,
     required this.onTap,
     required this.onDelete,
   });
@@ -526,37 +519,61 @@ class _CustomRuleRow extends StatelessWidget {
       child: Material(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(UIConstants.borderRadius),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(UIConstants.borderRadius),
-          onTap: onTap,
-          child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: Row(
-              children: [
-                if (reorderable) ...[
-                  ReorderableDragStartListener(
-                    index: index,
-                    child: const Icon(Icons.drag_handle, color: Colors.grey),
-                  ),
-                  const SizedBox(width: 8),
-                ] else
-                  const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    rule.name,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(UIConstants.borderRadius),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+            ),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(UIConstants.borderRadius),
+            onTap: onTap,
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                children: [
+                  if (reorderable) ...[
+                    ReorderableDragStartListener(
+                      index: index,
+                      child: const Icon(Icons.drag_handle, color: Colors.grey),
+                    ),
+                    const SizedBox(width: 8),
+                  ] else
+                    const SizedBox(width: 8),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Text(
+                          rule.name,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w500,
+                              ),
                         ),
+                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.edit,
+                          size: 14,
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Switch(
-                  value: rule.enabled,
-                  onChanged: onToggle,
-                ),
+                  if (onCountChanged != null)
+                    _QuantityStepper(
+                      value: rule.count,
+                      onChanged: onCountChanged!,
+                    )
+                  else
+                    Switch(
+                      value: rule.enabled,
+                      onChanged: onToggle,
+                    ),
               ],
             ),
           ),
+        ),
         ),
       ),
     );
@@ -583,6 +600,11 @@ class _CustomMultiplyRulesList extends StatelessWidget {
             reorderable: false,
             onToggle: (enabled) {
               rule.enabled = enabled;
+              rulesProvider.updateRule(rule);
+            },
+            onCountChanged: (val) {
+              rule.count = val;
+              rule.enabled = val > 0;
               rulesProvider.updateRule(rule);
             },
             onTap: () {

@@ -85,7 +85,8 @@ class _RuleCreatorScreenState extends State<RuleCreatorScreen> {
     if (_effects.isEmpty) return false;
 
     for (final effect in _effects) {
-      if (effect.outcomeType == 'also_create' &&
+      if ((effect.outcomeType == 'also_create' ||
+              effect.outcomeType == 'replace') &&
           effect.targetTokenId == null) {
         return false;
       }
@@ -138,6 +139,33 @@ class _RuleCreatorScreenState extends State<RuleCreatorScreen> {
     }
 
     if (mounted) Navigator.pop(context);
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Rule'),
+        content: Text('Remove "${widget.existingRule!.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete',
+                style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final rulesProvider = context.read<RulesProvider>();
+      await rulesProvider.deleteRule(widget.existingRule!);
+      if (mounted) Navigator.pop(context);
+    }
   }
 
   Future<void> _pickToken({
@@ -223,6 +251,22 @@ class _RuleCreatorScreenState extends State<RuleCreatorScreen> {
               icon: const Icon(Icons.add),
               label: const Text('Add Effect'),
             ),
+
+            if (_isEditing) ...[
+              const SizedBox(height: 32),
+              OutlinedButton.icon(
+                onPressed: _confirmDelete,
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                label: const Text(
+                  'Delete Rule',
+                  style: TextStyle(color: Colors.red),
+                ),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  side: const BorderSide(color: Colors.red),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -429,6 +473,8 @@ class _EffectRow extends StatelessWidget {
                         value: 'multiply', child: Text('Multiply')),
                     DropdownMenuItem(
                         value: 'also_create', child: Text('Also create')),
+                    DropdownMenuItem(
+                        value: 'replace', child: Text('Replace (instead)')),
                   ],
                   onChanged: (val) {
                     if (val == null) return;
@@ -451,6 +497,7 @@ class _EffectRow extends StatelessWidget {
           if (effect.outcomeType == 'multiply') _buildMultiplyRow(context),
           if (effect.outcomeType == 'also_create')
             _buildAlsoCreateRow(context),
+          if (effect.outcomeType == 'replace') _buildReplaceRow(context),
         ],
       ),
     );
@@ -478,6 +525,26 @@ class _EffectRow extends StatelessWidget {
             },
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildReplaceRow(BuildContext context) {
+    return Row(
+      children: [
+        const Text('Create '),
+        const SizedBox(width: 8),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: onPickToken,
+            icon: const Icon(Icons.search, size: 18),
+            label: Text(
+              effect.targetTokenDisplayName ?? 'Select Token',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        const Text(' instead'),
       ],
     );
   }

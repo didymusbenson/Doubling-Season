@@ -44,10 +44,16 @@ class _EvalRule {
   final RuleTrigger trigger;
   final List<RuleOutcome> outcomes;
 
+  /// Rules with the same groupId are considered the same effect (MTG 614.5).
+  /// Companion tokens created by a rule skip all other rules in the same group.
+  /// Null means no grouping (each rule is independent).
+  final String? groupId;
+
   _EvalRule({
     required this.name,
     required this.trigger,
     required this.outcomes,
+    this.groupId,
   });
 }
 
@@ -74,7 +80,8 @@ class RulesProvider extends ChangeNotifier {
   int doublingSeasonCount = 0;
   int primalVigorCount = 0;
   int ojerTaqCount = 0;
-  bool academyManufactorEnabled = false;
+  int academyManufactorCount = 0;
+  int chatterfangCount = 0;
 
   // Counter presets
   int plusOneDoublerCount = 0;
@@ -105,8 +112,18 @@ class RulesProvider extends ChangeNotifier {
         _prefs.getInt(PreferenceKeys.presetPrimalVigor) ?? 0;
     ojerTaqCount =
         _prefs.getInt(PreferenceKeys.presetOjerTaq) ?? 0;
-    academyManufactorEnabled =
-        _prefs.getBool(PreferenceKeys.presetAcademyManufactor) ?? false;
+    // Migrate old bool key to int (update-safe)
+    final oldBool = _prefs.getBool(PreferenceKeys.presetAcademyManufactor);
+    if (oldBool != null) {
+      academyManufactorCount = oldBool ? 1 : 0;
+      _prefs.remove(PreferenceKeys.presetAcademyManufactor);
+      _prefs.setInt(PreferenceKeys.presetAcademyManufactorCount, academyManufactorCount);
+    } else {
+      academyManufactorCount =
+          _prefs.getInt(PreferenceKeys.presetAcademyManufactorCount) ?? 0;
+    }
+    chatterfangCount =
+        _prefs.getInt(PreferenceKeys.presetChatterfang) ?? 0;
     plusOneDoublerCount =
         _prefs.getInt(PreferenceKeys.presetPlusOneDoublers) ?? 0;
     plusOneExtraCount =
@@ -123,8 +140,10 @@ class RulesProvider extends ChangeNotifier {
     await _prefs.setInt(
         PreferenceKeys.presetPrimalVigor, primalVigorCount);
     await _prefs.setInt(PreferenceKeys.presetOjerTaq, ojerTaqCount);
-    await _prefs.setBool(
-        PreferenceKeys.presetAcademyManufactor, academyManufactorEnabled);
+    await _prefs.setInt(
+        PreferenceKeys.presetAcademyManufactorCount, academyManufactorCount);
+    await _prefs.setInt(
+        PreferenceKeys.presetChatterfang, chatterfangCount);
     await _prefs.setInt(
         PreferenceKeys.presetPlusOneDoublers, plusOneDoublerCount);
     await _prefs.setInt(
@@ -156,8 +175,13 @@ class RulesProvider extends ChangeNotifier {
     await _savePresetState();
   }
 
-  Future<void> setAcademyManufactorEnabled(bool value) async {
-    academyManufactorEnabled = value;
+  Future<void> setAcademyManufactorCount(int value) async {
+    academyManufactorCount = value.clamp(0, 10);
+    await _savePresetState();
+  }
+
+  Future<void> setChatterfangCount(int value) async {
+    chatterfangCount = value.clamp(0, 10);
     await _savePresetState();
   }
 
@@ -231,16 +255,21 @@ class RulesProvider extends ChangeNotifier {
     final rules = <_EvalRule>[];
 
     // 1. Custom "also_create" rules (user-reorderable)
+    // Each copy of the rule is an independent effect (like having multiple copies of a card).
     for (final rule in customRules) {
       if (!rule.enabled) continue;
-      final alsoCreateOutcomes =
-          rule.outcomes.where((o) => o.outcomeType == 'also_create').toList();
+      final alsoCreateOutcomes = rule.outcomes
+          .where((o) => o.outcomeType == 'also_create')
+          .toList();
       if (alsoCreateOutcomes.isNotEmpty) {
-        rules.add(_EvalRule(
-          name: rule.name,
-          trigger: rule.trigger,
-          outcomes: alsoCreateOutcomes,
-        ));
+        for (int i = 0; i < rule.count; i++) {
+          rules.add(_EvalRule(
+            name: rule.count > 1 ? '${rule.name} ${i + 1}' : rule.name,
+            trigger: rule.trigger,
+            outcomes: alsoCreateOutcomes,
+            groupId: 'custom_${rule.key}',
+          ));
+        }
       }
     }
 
@@ -248,8 +277,15 @@ class RulesProvider extends ChangeNotifier {
     // When you create a Food, Treasure, or Clue token, also create the other two.
     // Uses token_type trigger with subtype matching (.contains()) for robustness.
     // Outcome composite IDs match real database entries for correct metadata/artwork.
-    if (academyManufactorEnabled) {
-      // Food triggers Treasure + Clue
+    // Academy Manufactor: N copies = 3^(N-1) of each type per trigger.
+    // Per official rulings, each AM triples the total (1 AM = 3 tokens,
+    // 2 AMs = 9, 3 AMs = 27, N AMs = 3^N total / 3^(N-1) of each type).
+    // Modeled as: multiply triggering type by 3^(N-1), then also_create
+    // the other two types (which inherit the multiplied quantity).
+    if (academyManufactorCount > 0) {
+      final amMultiplier = pow(3, academyManufactorCount - 1).toInt();
+
+      // Food triggers: multiply Food × 3^(N-1), also create Treasure + Clue
       rules.add(_EvalRule(
         name: 'Academy Manufactor (Food)',
         trigger: RuleTrigger(
@@ -257,6 +293,8 @@ class RulesProvider extends ChangeNotifier {
           targetType: 'Food',
         ),
         outcomes: [
+          if (amMultiplier > 1)
+            RuleOutcome(outcomeType: 'multiply', multiplier: amMultiplier),
           RuleOutcome(
             outcomeType: 'also_create',
             targetTokenId: GameConstants.treasureCompositeId,
@@ -268,8 +306,9 @@ class RulesProvider extends ChangeNotifier {
             quantity: 1,
           ),
         ],
+        groupId: 'academy_manufactor',
       ));
-      // Treasure triggers Food + Clue
+      // Treasure triggers: multiply Treasure × 3^(N-1), also create Food + Clue
       rules.add(_EvalRule(
         name: 'Academy Manufactor (Treasure)',
         trigger: RuleTrigger(
@@ -277,6 +316,8 @@ class RulesProvider extends ChangeNotifier {
           targetType: 'Treasure',
         ),
         outcomes: [
+          if (amMultiplier > 1)
+            RuleOutcome(outcomeType: 'multiply', multiplier: amMultiplier),
           RuleOutcome(
             outcomeType: 'also_create',
             targetTokenId: GameConstants.foodCompositeId,
@@ -288,8 +329,9 @@ class RulesProvider extends ChangeNotifier {
             quantity: 1,
           ),
         ],
+        groupId: 'academy_manufactor',
       ));
-      // Clue triggers Food + Treasure
+      // Clue triggers: multiply Clue × 3^(N-1), also create Food + Treasure
       rules.add(_EvalRule(
         name: 'Academy Manufactor (Clue)',
         trigger: RuleTrigger(
@@ -297,6 +339,8 @@ class RulesProvider extends ChangeNotifier {
           targetType: 'Clue',
         ),
         outcomes: [
+          if (amMultiplier > 1)
+            RuleOutcome(outcomeType: 'multiply', multiplier: amMultiplier),
           RuleOutcome(
             outcomeType: 'also_create',
             targetTokenId: GameConstants.foodCompositeId,
@@ -308,24 +352,62 @@ class RulesProvider extends ChangeNotifier {
             quantity: 1,
           ),
         ],
+        groupId: 'academy_manufactor',
       ));
     }
 
-    // 3. Custom "multiply" rules
+    // 3. Chatterfang preset (if enabled)
+    // Any token creation also creates that many 1/1 green Squirrel creature tokens.
+    // Multiple Chatterfangs each trigger independently.
+    if (chatterfangCount > 0) {
+      for (int i = 0; i < chatterfangCount; i++) {
+        rules.add(_EvalRule(
+          name: 'Chatterfang${chatterfangCount > 1 ? ' ${i + 1}' : ''}',
+          trigger: RuleTrigger(triggerType: 'any_token'),
+          outcomes: [
+            RuleOutcome(
+              outcomeType: 'also_create',
+              targetTokenId: GameConstants.squirrelCompositeId,
+              quantity: 1,
+            ),
+          ],
+          groupId: 'chatterfang',
+        ));
+      }
+    }
+
+    // 4. Custom "replace" rules (user-reorderable)
+    for (final rule in customRules) {
+      if (!rule.enabled) continue;
+      final replaceOutcomes = rule.outcomes
+          .where((o) => o.outcomeType == 'replace')
+          .toList();
+      if (replaceOutcomes.isNotEmpty) {
+        rules.add(_EvalRule(
+          name: rule.name,
+          trigger: rule.trigger,
+          outcomes: replaceOutcomes,
+        ));
+      }
+    }
+
+    // 5. Custom "multiply" rules
     for (final rule in customRules) {
       if (!rule.enabled) continue;
       final multiplyOutcomes =
           rule.outcomes.where((o) => o.outcomeType == 'multiply').toList();
       if (multiplyOutcomes.isNotEmpty) {
-        rules.add(_EvalRule(
-          name: rule.name,
-          trigger: rule.trigger,
-          outcomes: multiplyOutcomes,
-        ));
+        for (int i = 0; i < rule.count; i++) {
+          rules.add(_EvalRule(
+            name: rule.count > 1 ? '${rule.name} ${i + 1}' : rule.name,
+            trigger: rule.trigger,
+            outcomes: multiplyOutcomes,
+          ));
+        }
       }
     }
 
-    // 4. Preset multipliers
+    // 6. Preset multipliers
     // Token doublers: ×2 per count (Parallel Lives, Anointed Procession, etc.)
     for (int i = 0; i < tokenDoublerCount; i++) {
       rules.add(_EvalRule(
@@ -407,7 +489,10 @@ class RulesProvider extends ChangeNotifier {
   }
 
   /// Recursively evaluates rules starting from [startIndex].
-  /// Companion tokens from "also_create" start from startIndex + 1.
+  /// Companion tokens from "also_create" continue from the next rule down.
+  /// [skipGroupId] implements MTG 614.5: a replacement effect doesn't invoke
+  /// itself repeatedly. Companion tokens skip rules with the same groupId
+  /// as the rule that created them.
   List<TokenCreationResult> _evaluateFromIndex(
     String name,
     String pt,
@@ -416,13 +501,22 @@ class RulesProvider extends ChangeNotifier {
     String abilities,
     int quantity,
     List<_EvalRule> rules,
-    int startIndex,
-  ) {
+    int startIndex, {
+    String? skipGroupId,
+  }) {
     final results = <TokenCreationResult>[];
     int currentQuantity = quantity;
 
     for (int i = startIndex; i < rules.length; i++) {
       final rule = rules[i];
+
+      // MTG 614.5: skip rules from the same effect that created this token
+      if (skipGroupId != null &&
+          rule.groupId != null &&
+          rule.groupId == skipGroupId) {
+        continue;
+      }
+
       if (!_matchesTrigger(rule.trigger, name, pt, colors, type, abilities)) {
         continue;
       }
@@ -430,6 +524,16 @@ class RulesProvider extends ChangeNotifier {
       for (final outcome in rule.outcomes) {
         if (outcome.outcomeType == 'multiply') {
           currentQuantity *= outcome.multiplier;
+        } else if (outcome.outcomeType == 'replace') {
+          // "Instead" effect — swap the token identity, continue down the list
+          final parts = outcome.targetTokenId?.split('|');
+          if (parts != null && parts.length == 5) {
+            name = parts[0];
+            pt = parts[1];
+            colors = parts[2];
+            type = parts[3];
+            abilities = parts[4];
+          }
         } else if (outcome.outcomeType == 'also_create') {
           // Parse the companion token from composite ID
           final parts = outcome.targetTokenId?.split('|');
@@ -440,7 +544,7 @@ class RulesProvider extends ChangeNotifier {
             final companionType = parts[3];
             final companionAbilities = parts[4];
 
-            // Companion starts evaluation from the NEXT rule
+            // Companion continues from next rule, skipping the creating effect's group
             final companionResults = _evaluateFromIndex(
               companionName,
               companionPt,
@@ -450,6 +554,7 @@ class RulesProvider extends ChangeNotifier {
               outcome.quantity * currentQuantity,
               rules,
               i + 1,
+              skipGroupId: rule.groupId,
             );
             results.addAll(companionResults);
           }
@@ -575,7 +680,8 @@ class RulesProvider extends ChangeNotifier {
         doublingSeasonCount > 0 ||
         primalVigorCount > 0 ||
         ojerTaqCount > 0 ||
-        academyManufactorEnabled ||
+        academyManufactorCount > 0 ||
+        chatterfangCount > 0 ||
         plusOneDoublerCount > 0 ||
         plusOneExtraCount > 0 ||
         allCounterDoublerCount > 0 ||
@@ -605,7 +711,8 @@ class RulesProvider extends ChangeNotifier {
     doublingSeasonCount = 0;
     primalVigorCount = 0;
     ojerTaqCount = 0;
-    academyManufactorEnabled = false;
+    academyManufactorCount = 0;
+    chatterfangCount = 0;
     plusOneDoublerCount = 0;
     plusOneExtraCount = 0;
     allCounterDoublerCount = 0;

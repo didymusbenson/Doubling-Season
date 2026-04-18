@@ -17,7 +17,9 @@
 **Data Models** (`lib/models/token_rule.dart`, `rule_trigger.dart`, `rule_outcome.dart`)
 - Hive TypeIds 10, 11, 12 — all fields have `defaultValue` for upgrade safety
 - `TokenRule` extends HiveObject, stored in `tokenRules` box with resilient boot
+- `TokenRule.count` (HiveField 5, default 1) — number of copies of this rule in play
 - `RuleTrigger` and `RuleOutcome` are nested objects (same pattern as TokenCounter inside Item)
+- Three outcome types: `multiply`, `also_create`, `replace` (instead effect — swaps token identity)
 
 **Preset System** (persisted via SharedPreferences, computed at evaluation time)
 - Token Doublers (×2 each, quantity stepper) — Parallel Lives, Anointed Procession, Mondrak, Adrix and Nev, Elspeth Storm Slayer, Exalted Sunborn
@@ -25,6 +27,7 @@
 - Primal Vigor (×2 tokens + ×2 +1/+1 counters)
 - Ojer Taq (×3 creature tokens only)
 - Academy Manufactor (Food/Treasure/Clue → also create the other two)
+- Chatterfang (any token → also create a 1/1 green Squirrel)
 - +1/+1 Doublers, +1/+1 Extra, All-Counter Doublers
 
 **Counter Modifier** (two-scope system)
@@ -34,15 +37,20 @@
 - Manual quantity typing bypasses the formula (escape hatch)
 
 **UI** (`lib/widgets/rules_sheet.dart`, `lib/screens/rule_creator_screen.dart`, `lib/widgets/rules_preview_modal.dart`)
-- Draggable bottom sheet with two-section layout: Replacements (reorderable) on top, Multipliers (flat) on bottom
-- Full-screen rule creator with trigger picker (5 types), effect editor, token search integration
+- Draggable bottom sheet with four-section layout: Also Create → Replacements → Multipliers → Counter Modifiers (all flat, consistent styling)
+- Custom rules visually distinct from presets via subtle outline border + pencil edit icon
+- Custom also_create and multiply rules show quantity stepper (for multiple copies); replace rules show toggle (multiples are redundant)
+- Full-screen rule creator with trigger picker (5 types), effect editor (3 types: multiply, also create, replace), token search integration
+- Rule editor has delete button when editing existing rules
 - Dynamic preview modal detecting trigger categories from enabled rules
 - Sticky preview at top of rules sheet, tappable for detailed breakdown
 - Quantity dialog shows per-token breakdown ("3 Food + 3 Treasure + 3 Clue")
+- Tapping outside the rules sheet dismisses it
 
 **Integration** (all token creation entry points)
 - Token Search, Custom Token, Quick-Add (tap + long-press), Scute Swarm, Krenko — all route through rules engine
 - Companion tokens handled properly: stack merging, artwork resolution (preferences → database fallback → download), summoning sickness, ETB events
+- Companion token artwork fix: `TokenDatabase.loadTokens()` called before artwork lookup; `item.save()` called after background download to trigger UI rebuild
 - `TokenCreationService` (`lib/services/token_creation_service.dart`) — shared companion token creation logic
 - Split Stack, Copy Token, Deck Load correctly bypass rules
 - Academy Manufactor hardcoded utility code removed from TokenProvider (preset rule replaces it)
@@ -77,6 +85,16 @@
 - `lib/database/token_database.dart`, `lib/providers/settings_provider.dart`
 - `pubspec.yaml` (added `collection` dependency)
 
+### Evaluation Order
+1. Custom `also_create` rules (user-reorderable, respects `count` — each copy is independent with shared `groupId`)
+2. Academy Manufactor preset (also_create with `3^(N-1)` multiplier)
+3. Chatterfang preset (also_create Squirrels with `groupId: 'chatterfang'`)
+4. Custom `replace` rules (user-reorderable, toggle only — multiples are redundant)
+5. Custom `multiply` rules (respects `count`)
+6. Preset multipliers (Token Doublers, Doubling Season, Primal Vigor, Ojer Taq)
+
+Priority: Also Create → Replace → Doublers. This ensures companion tokens are created first, then identities are swapped, then everything is multiplied.
+
 ### Known Deviations from Spec (Intentional)
 - Academy Manufactor board utility card kept (delegates to rules engine internally)
 - Quick-add companion notification uses SnackBar (not custom fade-in/out widget)
@@ -92,9 +110,9 @@
 - [ ] Dot badge disappears when all rules disabled
 - [ ] Preset quantity steppers increment/decrement correctly
 - [ ] Stepper `-` disabled at 0, `+` disabled at 10
-- [ ] Academy Manufactor toggle enables/disables
-- [ ] Counter modifier section expands/collapses
-- [ ] Counter modifier shows correct summary when collapsed
+- [ ] Academy Manufactor stepper increments/decrements
+- [ ] Chatterfang stepper increments/decrements
+- [ ] Tapping outside the sheet dismisses it
 - [ ] Sticky preview updates live when toggling/adjusting presets
 - [ ] Tapping sticky preview opens detailed preview modal
 - [ ] Preview modal shows correct per-trigger-category breakdown
@@ -110,12 +128,17 @@
 - [ ] Can delete individual effects
 - [ ] Multiply effect has number input
 - [ ] Also-create effect has quantity input + token picker
-- [ ] Save validation: name required, at least one effect, also-create needs token
-- [ ] Created rule appears in correct section (also-create → Replacements, multiply → Multipliers)
-- [ ] Can tap a custom rule to edit it
+- [ ] Replace (instead) effect has token picker, reads "Create [token] instead"
+- [ ] Save validation: name required, at least one effect, also-create/replace needs token
+- [ ] Created rule appears in correct section (also-create → Also Create, replace → Replacements, multiply → Multipliers)
+- [ ] Can tap a custom rule to edit it (pencil icon visible)
 - [ ] Can swipe to delete a custom rule
-- [ ] Can toggle a custom rule enabled/disabled
-- [ ] Can drag-reorder custom rules in Replacements section
+- [ ] Can delete a custom rule from the edit screen
+- [ ] Custom also-create and multiply rules show quantity stepper (for multiple copies)
+- [ ] Custom replace rules show toggle (not stepper)
+- [ ] Custom rules have subtle outline border distinguishing them from presets
+- [ ] Setting stepper to 0 auto-disables the rule
+- [ ] Can drag-reorder custom rules in Also Create section
 
 ### Token Doublers (Presets)
 - [ ] Set Token Doublers to 1 → creating 1 token produces 2
@@ -134,6 +157,19 @@
 - [ ] Academy Manufactor + Token Doublers(1): 1 Food → 2 Food + 2 Treasure + 2 Clue
 - [ ] Companion tokens appear as board items with correct artwork
 - [ ] Companion tokens merge into existing stacks when matching stack exists
+
+### Chatterfang
+- [ ] Enable Chatterfang → creating any token also creates a 1/1 green Squirrel
+- [ ] Chatterfang at 2 → each token also creates 2 Squirrels (independent triggers, but groupId prevents Squirrels from re-triggering Chatterfang)
+- [ ] Chatterfang + Token Doublers(1): 1 token → 2 tokens + 2 Squirrels
+- [ ] Squirrel companion tokens show correct artwork from database
+
+### Replace (Instead) Rules
+- [ ] Custom replace rule: creating trigger token produces replacement token instead
+- [ ] Replace rule swaps identity — downstream rules see the replacement token
+- [ ] Replace + Token Doublers: replacement token gets multiplied
+- [ ] Multiple identical replace rules are redundant (toggle, not stepper)
+- [ ] Replace rules fire after also-create rules (so they can intercept companion tokens)
 
 ### Counter Modifier
 - [ ] Hardened Scales (Extra +1): placing 1 +1/+1 → 2 counters
@@ -197,9 +233,10 @@
 - [ ] Non-creature companion tokens (Treasure, Food, Clue) do NOT get summoning sickness
 
 ### Artwork
-- [ ] Companion tokens show artwork from database
+- [ ] Companion tokens show artwork from database immediately (not requiring tap/interaction)
 - [ ] Companion tokens respect user artwork preferences
 - [ ] Artwork downloads in background without blocking creation
+- [ ] Artwork appears after background download completes (UI rebuilds automatically)
 
 ## Overview
 
@@ -251,8 +288,11 @@ Triggers reference the token database (913 tokens) so users can search for and s
 |---------|-------------|---------|
 | **Multiply** | Scale the quantity of the triggering token by N | "...instead create ×2" (Doubling Season) |
 | **Also create** | Create N of a specific token alongside the triggering token | "...also create 1 Treasure" (Academy Manufactor) |
+| **Replace (instead)** | Swap the triggering token's identity to a different token | "...create a 2/2 Cat instead" (Jinnie Fay) |
 
 A rule can have **multiple outcomes** (e.g., Academy Manufactor: "when creating a Food → also create 1 Treasure + also create 1 Clue").
+
+**Replace outcomes** swap the token identity mid-evaluation. Downstream rules see the replacement token, not the original. The quantity is unchanged. Multiple identical replace rules are redundant (the identity is already swapped after the first one).
 
 **Quantity scaling:** "Also create" outcomes scale proportionally to the triggering quantity. Creating 3 Food with Academy Manufactor active produces 3 Food + 3 Treasure + 3 Clue (per MTG rules, each token creation triggers independently).
 
