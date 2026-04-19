@@ -240,6 +240,20 @@ class WidgetDatabase extends ChangeNotifier {
           ArtworkVariant(set: 'MH2', url: 'https://cards.scryfall.io/large/front/b/6/b67c27f1-12d1-4c48-9e22-31c43a9ecbbc.jpg?1681082373'),
         ],
       ),
+      WidgetDefinition(
+        id: 'hare_apparent',
+        type: WidgetType.special,
+        name: 'Hare Apparent',
+        description: 'Hare Apparents you control',
+        colorIdentity: 'W', // White
+        defaultValue: 1, // Start with one Hare Apparent
+        hasAction: true,
+        actionButtonText: 'New Hare',
+        actionType: 'hare_apparent',
+        artwork: [
+          ArtworkVariant(set: 'FDN', url: 'https://cards.scryfall.io/large/front/9/f/9fc6f0e9-eb5f-4bc0-b3d7-756644b66d12.jpg?1730488646'),
+        ],
+      ),
     ];
 
     _isLoaded = true;

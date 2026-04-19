@@ -503,9 +503,54 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
       case 'academy_manufactor':
         _performAcademyManufactorAction(context);
         break;
+      case 'hare_apparent':
+        _performHareApparentAction(context);
+        break;
       default:
         break;
     }
+  }
+
+  Future<void> _performHareApparentAction(BuildContext context) async {
+    final tokenProvider = context.read<TokenProvider>();
+    final settingsProvider = context.read<SettingsProvider>();
+    final rulesProvider = context.read<RulesProvider>();
+    final trackerProvider = context.read<TrackerProvider>();
+    final toggleProvider = context.read<ToggleProvider>();
+
+    // Increment first: a new Hare Apparent just entered the battlefield
+    widget.tracker.increment(1);
+    trackerProvider.updateTracker(widget.tracker);
+
+    // "Other" Hare Apparents = total on board minus the one that just entered
+    final rabbitsToCreate = widget.tracker.currentValue - 1;
+    if (rabbitsToCreate <= 0) return;
+
+    // Evaluate rules so Token Doublers / Doubling Season / Anointed Procession
+    // / Chatterfang / etc. layer on via the rules engine
+    final results = rulesProvider.evaluateRules(
+      'Rabbit', '1/1', 'W', 'Creature \u2014 Rabbit', '', rabbitsToCreate,
+    );
+
+    // Calculate max order across ALL board items (tokens + trackers + toggles)
+    final allOrders = <double>[];
+    allOrders.addAll(tokenProvider.items.map((item) => item.order));
+    allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
+    allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
+    final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
+    final nextOrder = maxOrder.floor() + 1.0;
+
+    // Create rabbits (plus any companions from rules) as peer results
+    final tokenDatabase = TokenDatabase();
+    await tokenDatabase.loadTokens();
+    await TokenCreationService.createAllFromResults(
+      results: results,
+      tokenProvider: tokenProvider,
+      summoningSicknessEnabled: settingsProvider.summoningSicknessEnabled,
+      insertionOrder: nextOrder,
+      tokenDatabase: tokenDatabase,
+    );
+    tokenDatabase.dispose();
   }
 
   Future<void> _performKrenkoMobBossAction(BuildContext context) async {
