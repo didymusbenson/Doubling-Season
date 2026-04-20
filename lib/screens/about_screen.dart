@@ -1,6 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../models/heart_style.dart';
+import '../services/iap_service.dart';
 import '../utils/artwork_manager.dart';
+import '../widgets/heart_icon.dart';
+import '../widgets/purchase_menu.dart';
+import 'heart_customization_screen.dart';
 
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
@@ -15,6 +23,9 @@ class _AboutScreenState extends State<AboutScreen> {
   int _customUploadsSize = 0;
   bool _isLoadingCache = true;
   bool _isLoadingCustom = true;
+  HeartStyle? _collectorHeartStyle;
+
+  static const String _koFiUrl = 'https://ko-fi.com/loosetie';
 
   @override
   void initState() {
@@ -22,6 +33,21 @@ class _AboutScreenState extends State<AboutScreen> {
     _loadVersion();
     _loadCacheSize();
     _loadCustomUploadsSize();
+    _loadCollectorHeartStyle();
+  }
+
+  Future<void> _loadCollectorHeartStyle() async {
+    final prefs = await SharedPreferences.getInstance();
+    final styleId =
+        prefs.getString(IAPService.heartStyleKey) ?? 'rainbow';
+    if (mounted) {
+      setState(() {
+        _collectorHeartStyle = HeartStyle.getAllStyles().firstWhere(
+          (s) => s.id == styleId,
+          orElse: () => HeartStyle.rainbow(),
+        );
+      });
+    }
   }
 
   Future<void> _loadVersion() async {
@@ -241,6 +267,11 @@ class _AboutScreenState extends State<AboutScreen> {
 
             const SizedBox(height: 16),
 
+            // Support
+            _buildSupportCard(),
+
+            const SizedBox(height: 16),
+
             // Credits
             Card(
               child: Padding(
@@ -378,6 +409,171 @@ class _AboutScreenState extends State<AboutScreen> {
             ),
 
             const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  HeartStyle _currentHeartStyle() {
+    final iap = IAPService();
+    if (iap.shouldShowRainbowHeart()) {
+      return _collectorHeartStyle ?? HeartStyle.rainbow();
+    }
+    if (iap.shouldShowBlueHeart()) return HeartStyle.blue();
+    if (iap.shouldShowRedHeart()) return HeartStyle.red();
+    return HeartStyle.red(); // placeholder, only shown with outline icon
+  }
+
+  Future<void> _handleSupportButtonTap() async {
+    if (kIsWeb) {
+      final uri = Uri.parse(_koFiUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open Ko-fi link')),
+        );
+      }
+      return;
+    }
+
+    final iap = IAPService();
+    if (iap.hasCollectorTier()) {
+      final changed = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const HeartCustomizationScreen(),
+        ),
+      );
+      if (changed == true) {
+        await _loadCollectorHeartStyle();
+      }
+      return;
+    }
+
+    if (iap.hasPlayTier()) {
+      await _showUpgradeDialog(
+        nextTier: 'Collector',
+        scrollTo: 'collector',
+      );
+      return;
+    }
+
+    if (iap.hasThankYouTier()) {
+      await _showUpgradeDialog(
+        nextTier: 'Play',
+        scrollTo: 'play',
+      );
+      return;
+    }
+
+    final purchased = await PurchaseMenu.show(context);
+    if (purchased == true && mounted) {
+      await _loadCollectorHeartStyle();
+      setState(() {});
+    }
+  }
+
+  Future<void> _showUpgradeDialog({
+    required String nextTier,
+    required String scrollTo,
+  }) async {
+    final shouldOpen = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Upgrade to $nextTier?'),
+        content: Text(
+          'Thank you for supporting Tripling Season! Would you like to upgrade to the $nextTier tier?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Not now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('View Tiers'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldOpen == true && mounted) {
+      final purchased =
+          await PurchaseMenu.show(context, scrollToTier: scrollTo);
+      if (purchased == true && mounted) {
+        await _loadCollectorHeartStyle();
+        setState(() {});
+      }
+    }
+  }
+
+  Widget _buildSupportCard() {
+    final iap = IAPService();
+    final showFilledHeart = iap.hasAnyTier();
+    final heartStyle = _currentHeartStyle();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Support',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const Spacer(),
+                InkWell(
+                  onTap: iap.hasCollectorTier() ? _handleSupportButtonTap : null,
+                  borderRadius: BorderRadius.circular(24),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: showFilledHeart
+                        ? HeartIcon(style: heartStyle, size: 32)
+                        : Icon(
+                            Icons.favorite_border,
+                            size: 32,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.5),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              iap.hasCollectorTier()
+                  ? 'Thanks for your Collector-tier support! Tap the heart to customize your badge.'
+                  : 'Tripling Season is free and ad-free. If you\'d like to help keep it that way, you can leave a tip.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _handleSupportButtonTap,
+                icon: Icon(
+                  kIsWeb ? Icons.open_in_new : Icons.favorite,
+                ),
+                label: Text(
+                  kIsWeb
+                      ? 'Support via Ko-fi'
+                      : iap.hasCollectorTier()
+                          ? 'Customize Heart Badge'
+                          : iap.hasAnyTier()
+                              ? 'Upgrade Tier'
+                              : 'Support Tripling Season',
+                ),
+              ),
+            ),
           ],
         ),
       ),

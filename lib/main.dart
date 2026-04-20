@@ -16,6 +16,7 @@ import 'providers/rules_provider.dart';
 import 'screens/content_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/error_screen.dart';
+import 'services/iap_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +35,9 @@ void main() async {
 
   // Initialize Hive with resilient error handling — this NEVER throws
   final hiveResult = await initHive();
+
+  // Initialize IAP service (non-blocking of UI — errors are swallowed internally)
+  await IAPService().initialize();
 
   runApp(MyApp(wipedBoxes: hiveResult.wipedBoxes));
 }
@@ -308,6 +312,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       toggleProvider.dispose(); // NEW - Widget Cards Feature
       rulesProvider.dispose();
     }
+    IAPService().dispose();
     super.dispose();
   }
 
