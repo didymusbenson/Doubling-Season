@@ -129,6 +129,21 @@
   },
   {
     "name": "Alien",
+    "abilities": "Haste This token attacks each combat if able.",
+    "pt": "1/1",
+    "colors": "R",
+    "type": "Creature — Alien",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/e/c/eca87cbb-5958-4775-93ce-b1d4c7ef3a99.jpg"
+      }
+    ],
+    "reverse_related": []
+  },
+  {
+    "name": "Alien",
     "abilities": "",
     "pt": "0/0",
     "colors": "U",
@@ -344,7 +359,7 @@
     "pt": "4/4",
     "colors": "W",
     "type": "Creature — Angel",
-    "popularity": 10,
+    "popularity": 11,
     "artwork": [
       {
         "set": "2X2",
@@ -369,6 +384,14 @@
       {
         "set": "MH1",
         "url": "https://cards.scryfall.io/large/front/9/1/91808554-23ab-44f9-92a1-87ee7d58cd9a.jpg"
+      },
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/7/5/75378703-7c80-4a4b-87ef-203eb74edc21.jpg"
+      },
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/9/8/9864812a-b3b1-4e12-8737-0795cdff994c.jpg"
       },
       {
         "set": "NEC",
@@ -396,6 +419,7 @@
       }
     ],
     "reverse_related": [
+      "Angel",
       "Divine Visitation",
       "Finale of Glory",
       "Historian's Boon",
@@ -824,6 +848,25 @@
       "Pongify",
       "Side to Side"
     ]
+  },
+  {
+    "name": "Ape Villain",
+    "abilities": "Haste",
+    "pt": "3/3",
+    "colors": "R",
+    "type": "Creature — Ape Villain",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/c/3/c3679a02-b514-44ef-9950-c350069ac389.jpg"
+      },
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/b/0/b0212004-3d0b-4dcd-b166-e5f80cb150a1.jpg"
+      }
+    ],
+    "reverse_related": []
   },
   {
     "name": "Arco-Flagellant",
@@ -1623,6 +1666,14 @@
         "url": "https://cards.scryfall.io/large/front/b/4/b4333372-80ea-42df-bf8a-d1f12bcb348e.jpg"
       },
       {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/4/2/4296d26c-3ba6-49e8-986c-76f875a0498c.jpg"
+      },
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/6/2/62facbb8-1a83-4731-b515-0f7759ee8c3b.jpg"
+      },
+      {
         "set": "NCC",
         "url": "https://cards.scryfall.io/large/front/3/b/3bc86c34-d129-4ef1-9b28-e5b291d5de3f.jpg"
       },
@@ -2082,7 +2133,7 @@
     "pt": "1/1",
     "colors": "W",
     "type": "Creature — Bird",
-    "popularity": 20,
+    "popularity": 21,
     "artwork": [
       {
         "set": "BLC",
@@ -2149,6 +2200,14 @@
         "url": "https://cards.scryfall.io/large/front/3/8/38476293-627e-44e6-a83e-24aaf3de8e9a.jpg"
       },
       {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/9/5/95181e08-33c2-4df9-97bd-34fb5f78b820.jpg"
+      },
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/4/5/456832f6-60b5-46d7-b37e-4fb44e60e792.jpg"
+      },
+      {
         "set": "ONC",
         "url": "https://cards.scryfall.io/large/front/2/e/2e5db619-2ccc-4e5b-bf74-0f8ed77afad9.jpg"
       },
@@ -2186,6 +2245,7 @@
       "Akim, the Soaring Wind",
       "Battle Screech",
       "Beck // Call",
+      "Bird",
       "Emeria Angel",
       "Eyes in the Skies",
       "Falconer Adept",
@@ -3835,6 +3895,10 @@
         "url": "https://cards.scryfall.io/large/front/e/1/e197929c-1334-48f5-a03c-546a4074ad02.jpg"
       },
       {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/5/e/5e644586-888f-4e2e-8d66-8aa02bd79ec1.jpg"
+      },
+      {
         "set": "NCC",
         "url": "https://cards.scryfall.io/large/front/8/4/84bb0127-b093-47a0-94ea-30e28e238b67.jpg"
       },
@@ -4404,6 +4468,25 @@
   },
   {
     "name": "Construct",
+    "abilities": "Flying, haste",
+    "pt": "4/4",
+    "colors": "",
+    "type": "Artifact Creature — Construct",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/5/3/530c7ad1-1127-40ad-86b4-cb959eb297cb.jpg"
+      },
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/0/9/0910f9ee-755f-4a94-a2ab-20df2d7f7f27.jpg"
+      }
+    ],
+    "reverse_related": []
+  },
+  {
+    "name": "Construct",
     "abilities": "Haste",
     "pt": "3/1",
     "colors": "R",
@@ -4476,7 +4559,7 @@
     "pt": "",
     "colors": "",
     "type": "Token",
-    "popularity": 341,
+    "popularity": 342,
     "artwork": [
       {
         "set": "2XM",
@@ -4557,6 +4640,14 @@
       {
         "set": "MKC",
         "url": "https://cards.scryfall.io/large/front/3/0/30016f7d-5150-4ed1-bcd7-323063fa34dd.jpg"
+      },
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/b/2/b2a03ba1-2182-4074-99f5-f3952c1d37ec.jpg"
+      },
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/f/4/f4e87a11-b3b1-47b2-bd73-f4c78d6fbe6c.jpg"
       },
       {
         "set": "OTJ",
@@ -4822,6 +4913,7 @@
       "Molten Echoes",
       "Moonlit Meditation",
       "Mordor on the March",
+      "Muddle, the Ever-Changing",
       "Myr Propagator",
       "Myrkul, Lord of Bones",
       "Mythos of Illuna",
@@ -5035,6 +5127,28 @@
     ],
     "reverse_related": [
       "Coruscation Mage"
+    ]
+  },
+  {
+    "name": "Council of Reeds",
+    "abilities": "The \"legend rule\" doesn't apply to creatures you control. At the beginning of combat on your turn, if you've cast a noncreature spell this turn, create a token that's a copy of Council of Reeds.",
+    "pt": "2/2",
+    "colors": "",
+    "type": "Legendary Creature — Human Scientist Hero",
+    "popularity": 2,
+    "artwork": [
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/b/1/b1776802-c1d7-4d4d-926f-ab3748942b62.jpg"
+      },
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/7/f/7f625f8c-e842-4090-8e9a-3d0367d44635.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Council of Reeds",
+      "Council of Reeds Token"
     ]
   },
   {
@@ -5887,6 +6001,21 @@
     ]
   },
   {
+    "name": "Doombot",
+    "abilities": "",
+    "pt": "3/3",
+    "colors": "",
+    "type": "Artifact Creature — Robot Villain",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/4/5/452680b5-5032-413a-bb5a-3fc8cfe88be9.jpg"
+      }
+    ],
+    "reverse_related": []
+  },
+  {
     "name": "Dovin Baan Emblem",
     "abilities": "Your opponents can't untap more than two permanents during their untap steps.",
     "pt": "",
@@ -6535,11 +6664,30 @@
       {
         "set": "ELD",
         "url": "https://cards.scryfall.io/large/front/c/a/cab5d0dd-8095-4410-8feb-8c13edfcb2e5.jpg"
+      },
+      {
+        "set": "PLST",
+        "url": "https://cards.scryfall.io/large/front/4/6/46203366-7104-4fda-b38d-dc18d93154a9.jpg"
       }
     ],
     "reverse_related": [
       "Dwarven Mine"
     ]
+  },
+  {
+    "name": "Dwarf",
+    "abilities": "",
+    "pt": "2/2",
+    "colors": "",
+    "type": "Creature — Dwarf",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "HOB",
+        "url": "https://cards.scryfall.io/large/front/9/f/9fcb3a3f-c0d4-43d4-8549-826a38bfa27d.jpg"
+      }
+    ],
+    "reverse_related": []
   },
   {
     "name": "Dwarf Berserker",
@@ -6672,6 +6820,10 @@
       {
         "set": "OTC",
         "url": "https://cards.scryfall.io/large/front/4/3/43110337-7361-4f6b-9c7f-5f4ea97b9486.jpg"
+      },
+      {
+        "set": "PLST",
+        "url": "https://cards.scryfall.io/large/front/4/d/4d88f2e5-eaff-4d23-ae6e-d118deb21bb5.jpg"
       },
       {
         "set": "SCD",
@@ -6923,6 +7075,10 @@
       {
         "set": "PCA",
         "url": "https://cards.scryfall.io/large/front/e/7/e7a55908-ad02-43f4-8968-cd5598cb05c6.jpg"
+      },
+      {
+        "set": "PLST",
+        "url": "https://cards.scryfall.io/large/front/c/7/c74a7492-ed7b-4037-aa5c-bcfabe4c8951.jpg"
       },
       {
         "set": "ROE",
@@ -7928,7 +8084,7 @@
     "pt": "3/3",
     "colors": "G",
     "type": "Creature — Elephant",
-    "popularity": 13,
+    "popularity": 14,
     "artwork": [
       {
         "set": "2XM",
@@ -8027,6 +8183,14 @@
         "url": "https://cards.scryfall.io/large/front/5/4/540a3b26-ca61-46c6-9e75-981cae435b2e.jpg"
       },
       {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/e/2/e2030e94-c186-4b7d-9924-6d53440244fe.jpg"
+      },
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/e/9/e96f22c0-b9c8-418a-8224-e7d0b2841bd2.jpg"
+      },
+      {
         "set": "NCC",
         "url": "https://cards.scryfall.io/large/front/5/3/5331dc6a-2e19-4628-a8f7-f69c8a890e1e.jpg"
       },
@@ -8056,6 +8220,7 @@
       "Autarch Mammoth",
       "Bestial Menace",
       "Call of the Herd",
+      "Elephant",
       "Elephant Ambush",
       "Elephant Guide",
       "Generous Gift",
@@ -8809,6 +8974,10 @@
         "url": "https://cards.scryfall.io/large/front/4/4/44057462-40b7-4709-afac-2ce03d53d525.jpg"
       },
       {
+        "set": "PLST",
+        "url": "https://cards.scryfall.io/large/front/c/5/c5a8b2c9-c933-4b91-afc0-b211145a348e.jpg"
+      },
+      {
         "set": "WHO",
         "url": "https://cards.scryfall.io/large/front/2/9/297fc694-08f6-4477-b898-60ec641a0757.jpg"
       },
@@ -8988,6 +9157,10 @@
       {
         "set": "MOC",
         "url": "https://cards.scryfall.io/large/front/9/5/95a625ba-330c-4677-a9b3-9c471225b204.jpg"
+      },
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/3/9/39389acc-cfa7-4a44-9d46-45be7dd72564.jpg"
       },
       {
         "set": "NCC",
@@ -9491,6 +9664,21 @@
     ]
   },
   {
+    "name": "Galactus",
+    "abilities": "Flying, trample Whenever Galactus attacks, destroy target land.",
+    "pt": "16/16",
+    "colors": "B",
+    "type": "Legendary Creature — Elder Alien",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/d/9/d911f8c6-88a5-4f66-a400-4df72b49c351.jpg"
+      }
+    ],
+    "reverse_related": []
+  },
+  {
     "name": "Gargoyle",
     "abilities": "Flying",
     "pt": "3/4",
@@ -9926,7 +10114,7 @@
     "pt": "0/1",
     "colors": "W",
     "type": "Creature — Goat",
-    "popularity": 9,
+    "popularity": 10,
     "artwork": [
       {
         "set": "BLC",
@@ -9973,6 +10161,14 @@
         "url": "https://cards.scryfall.io/large/front/6/4/64e90524-bad8-4d24-85be-9402401e7b42.jpg"
       },
       {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/7/2/72387c9a-e50b-4606-a3e1-b640b9eaaf6c.jpg"
+      },
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/f/a/fa815976-a443-4d8b-acd5-cd3b5202654e.jpg"
+      },
+      {
         "set": "NCC",
         "url": "https://cards.scryfall.io/large/front/0/3/031dc414-b956-45af-b4a5-40e695f7370a.jpg"
       },
@@ -10002,6 +10198,7 @@
       "Contraband Livestock",
       "Discordant Piper",
       "Everythingamajig",
+      "Goat",
       "Goldmeadow",
       "Springjack Pasture",
       "Springjack Shepherd",
@@ -10015,7 +10212,7 @@
     "pt": "1/1",
     "colors": "R",
     "type": "Creature — Goblin",
-    "popularity": 65,
+    "popularity": 66,
     "artwork": [
       {
         "set": "10E",
@@ -10202,6 +10399,10 @@
         "url": "https://cards.scryfall.io/large/front/d/9/d99cc0a4-4868-47f3-bd1d-f46b7cb74650.jpg"
       },
       {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/0/9/09faad62-42ff-4e37-b8a5-d8e8a0f6d096.jpg"
+      },
+      {
         "set": "SOM",
         "url": "https://cards.scryfall.io/large/front/b/3/b37f4fdb-1533-4c38-a654-f715fbef6abf.jpg"
       },
@@ -10249,6 +10450,7 @@
       "Garbage Elemental",
       "General Kreat, the Boltbringer",
       "Gift Horse",
+      "Goblin",
       "Goblin Assault",
       "Goblin Gang Leader",
       "Goblin Gathering",
@@ -11073,6 +11275,26 @@
     ]
   },
   {
+    "name": "Halfling",
+    "abilities": "",
+    "pt": "1/1",
+    "colors": "W",
+    "type": "Creature — Halfling",
+    "popularity": 4,
+    "artwork": [
+      {
+        "set": "LTC",
+        "url": "https://cards.scryfall.io/large/front/b/b/bbd9ff58-4d38-4d34-9dfc-6f788830297e.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Farmer Cotton",
+      "Field-Tested Frying Pan",
+      "Of Herbs and Stewed Rabbit",
+      "Saradoc, Master of Buckland"
+    ]
+  },
+  {
     "name": "Hammers of Moradin",
     "abilities": "Myriad, Whenever this creature attacks, for each opponent, tap up to one target creature that player controls.",
     "pt": "3/3",
@@ -11291,6 +11513,21 @@
       "White Mage's Staff",
       "Zanarkand, Ancient Metropolis // Lasting Fayth"
     ]
+  },
+  {
+    "name": "Hero",
+    "abilities": "Vigilance",
+    "pt": "3/2",
+    "colors": "",
+    "type": "Creature — Hero",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/e/4/e4a64831-eec5-4fc9-8904-19523af3ca42.jpg"
+      }
+    ],
+    "reverse_related": []
   },
   {
     "name": "Hippo",
@@ -12871,6 +13108,10 @@
         "url": "https://cards.scryfall.io/large/front/5/9/599b5074-86a5-4666-8cf4-3deb83c09ba0.jpg"
       },
       {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/e/5/e5aa36ec-5f3a-405d-9a65-5a56a44dcee3.jpg"
+      },
+      {
         "set": "NCC",
         "url": "https://cards.scryfall.io/large/front/0/2/02162b6a-e06b-4928-a405-16a28c78951f.jpg"
       },
@@ -13846,6 +14087,10 @@
         "url": "https://cards.scryfall.io/large/front/6/7/67615047-1b17-4dc1-80d2-2d5da109db94.jpg"
       },
       {
+        "set": "PLST",
+        "url": "https://cards.scryfall.io/large/front/9/4/94f8d753-a796-4b99-bd37-087dd5f9cd97.jpg"
+      },
+      {
         "set": "TSR",
         "url": "https://cards.scryfall.io/large/front/4/f/4f4e8e64-7caa-4d98-8e20-0a4a20056143.jpg"
       }
@@ -14192,6 +14437,21 @@
     "reverse_related": [
       "Soundwave, Sonic Spy // Soundwave, Superior Captain"
     ]
+  },
+  {
+    "name": "Leviathan",
+    "abilities": "Hexproof",
+    "pt": "6/5",
+    "colors": "U",
+    "type": "Creature — Leviathan",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/7/1/71211c95-8698-4570-abf7-3579988a329e.jpg"
+      }
+    ],
+    "reverse_related": []
   },
   {
     "name": "Lightning Rager",
@@ -14590,7 +14850,7 @@
     "pt": "1/1",
     "colors": "U",
     "type": "Creature — Merfolk",
-    "popularity": 3,
+    "popularity": 5,
     "artwork": [
       {
         "set": "DMU",
@@ -14605,14 +14865,24 @@
         "url": "https://cards.scryfall.io/large/front/c/6/c63ce61b-480a-4da6-80f6-63e096902ae6.jpg"
       },
       {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/8/3/834fef59-eaf0-4ea3-88e9-cbde4dff4243.jpg"
+      },
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/7/f/7f7a4f95-f12b-4c28-a6f7-f3c64364abba.jpg"
+      },
+      {
         "set": "ZEN",
         "url": "https://cards.scryfall.io/large/front/f/b/fb1b292b-2da6-4601-9f93-5eb273ce3a50.jpg"
       }
     ],
     "reverse_related": [
       "A Killer Among Us",
+      "Daughter of the Deep",
       "Emperor Mihail II",
-      "Lullmage Mentor"
+      "Lullmage Mentor",
+      "Merfolk"
     ]
   },
   {
@@ -14800,6 +15070,21 @@
     "reverse_related": [
       "Mishra, Eminent One"
     ]
+  },
+  {
+    "name": "Moloid",
+    "abilities": "Whenever this token attacks, you may mill a card.",
+    "pt": "1/1",
+    "colors": "G",
+    "type": "Creature — Minion",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/5/7/57bcf5f4-da1e-4b6a-85ef-aad91d2276cf.jpg"
+      }
+    ],
+    "reverse_related": []
   },
   {
     "name": "Monk",
@@ -15998,8 +16283,16 @@
     "pt": "2/2",
     "colors": "W",
     "type": "Creature — Ox",
-    "popularity": 2,
+    "popularity": 3,
     "artwork": [
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/4/d/4db2ad28-a2d9-41ba-811b-bde40a870675.jpg"
+      },
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/6/7/67be7a72-b7dc-47db-9b30-ebf70e4aaf81.jpg"
+      },
       {
         "set": "OTJ",
         "url": "https://cards.scryfall.io/large/front/c/e/cee3ecef-4566-4164-af39-89cb0bbbffeb.jpg"
@@ -16011,7 +16304,8 @@
     ],
     "reverse_related": [
       "Bovine Intervention",
-      "Bruse Tarl, Roving Rancher"
+      "Bruse Tarl, Roving Rancher",
+      "Ox"
     ]
   },
   {
@@ -17402,6 +17696,10 @@
         "url": "https://cards.scryfall.io/large/front/7/3/7384238b-cffb-4946-96de-dc6b7a37b979.jpg"
       },
       {
+        "set": "PLST",
+        "url": "https://cards.scryfall.io/large/front/2/e/2edc9c4b-0f50-46cd-87f0-4bd3c73bd117.jpg"
+      },
+      {
         "set": "WOE",
         "url": "https://cards.scryfall.io/large/front/1/e/1e0205f2-25c1-403b-b408-56e3f2d63b4d.jpg"
       }
@@ -17513,6 +17811,21 @@
     ]
   },
   {
+    "name": "Redwing",
+    "abilities": "Flying Redwing enters tapped. Whenever Redwing attacks, surveil 1.",
+    "pt": "1/1",
+    "colors": "U",
+    "type": "Legendary Creature — Bird Scout",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/9/0/905bbfdf-17c4-4493-a842-3112947d8e13.jpg"
+      }
+    ],
+    "reverse_related": []
+  },
+  {
     "name": "Reflection",
     "abilities": "",
     "pt": "3/2",
@@ -17590,7 +17903,7 @@
     "pt": "4/4",
     "colors": "G",
     "type": "Creature — Rhino",
-    "popularity": 4,
+    "popularity": 5,
     "artwork": [
       {
         "set": "C19",
@@ -17605,6 +17918,14 @@
         "url": "https://cards.scryfall.io/large/front/b/c/bc651dc2-9a3b-470c-b415-ecce0a725433.jpg"
       },
       {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/6/2/62ba25b3-fbf5-40b8-9dbd-66215a31a258.jpg"
+      },
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/d/3/d3f65365-03a7-48a4-9e9e-018330966124.jpg"
+      },
+      {
         "set": "RTR",
         "url": "https://cards.scryfall.io/large/front/1/3/1331008a-ae86-4640-b823-a73be766ac16.jpg"
       },
@@ -17617,6 +17938,7 @@
       "Crashing Footfalls",
       "Ghired, Conclave Exile",
       "Horncaller's Chant",
+      "Rhino",
       "Trostani's Summoner"
     ]
   },
@@ -17756,6 +18078,28 @@
     ]
   },
   {
+    "name": "Robot Villain",
+    "abilities": "",
+    "pt": "2/2",
+    "colors": "",
+    "type": "Artifact Creature — Robot Villain",
+    "popularity": 2,
+    "artwork": [
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/8/e/8eb1de03-fc45-45bd-bd1f-5b164104426e.jpg"
+      },
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/9/5/957221ab-3614-446c-b436-f4f620d91a9c.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Age of Ultron",
+      "Robot Villain"
+    ]
+  },
+  {
     "name": "Robot Warrior",
     "abilities": "",
     "pt": "3/3",
@@ -17795,8 +18139,16 @@
     "pt": "2/2",
     "colors": "B",
     "type": "Creature — Rogue",
-    "popularity": 4,
+    "popularity": 5,
     "artwork": [
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/0/6/064dec90-75ae-4afe-a5d5-a878e9fd9f34.jpg"
+      },
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/8/f/8f37ef2b-e390-4c0e-abf2-482623581d47.jpg"
+      },
       {
         "set": "OTC",
         "url": "https://cards.scryfall.io/large/front/2/4/245c0d1e-7bf5-4115-b018-cbeaccdfaf77.jpg"
@@ -17814,6 +18166,7 @@
       "Currency Converter",
       "Girder Goons",
       "Misfortune Teller",
+      "Rogue",
       "Waste Management"
     ]
   },
@@ -18949,7 +19302,7 @@
     "pt": "3/2",
     "colors": "",
     "type": "Creature — Shapeshifter",
-    "popularity": 1,
+    "popularity": 2,
     "artwork": [
       {
         "set": "ACR",
@@ -18964,12 +19317,21 @@
         "url": "https://cards.scryfall.io/large/front/c/4/c4846f1d-d9ff-454b-8408-2809012d28b3.jpg"
       },
       {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/0/4/049048af-9945-4b73-9aa3-7f09bf4c22b3.jpg"
+      },
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/b/6/b66aadb2-cbbb-4150-b4b4-bb0dc5327394.jpg"
+      },
+      {
         "set": "PLST",
         "url": "https://cards.scryfall.io/large/front/2/b/2b670d1d-2016-4df3-a3ad-52d018b9bcf1.jpg"
       }
     ],
     "reverse_related": [
-      "Black Market Connections"
+      "Black Market Connections",
+      "Shapeshifter"
     ]
   },
   {
@@ -19685,7 +20047,7 @@
     "pt": "1/1",
     "colors": "W",
     "type": "Creature — Soldier",
-    "popularity": 74,
+    "popularity": 75,
     "artwork": [
       {
         "set": "10E",
@@ -19884,6 +20246,18 @@
         "url": "https://cards.scryfall.io/large/front/d/0/d0cc09a9-a21b-40ee-8b68-bc084f71737d.jpg"
       },
       {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/e/c/ecd686bf-d14b-491c-b0c5-88fc8f0472f9.jpg"
+      },
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/5/e/5ef2f34e-0ff2-4157-9d4a-73ecf4cd449b.jpg"
+      },
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/7/0/70205fb6-7722-4974-a8c6-8909dbb1c96d.jpg"
+      },
+      {
         "set": "ONC",
         "url": "https://cards.scryfall.io/large/front/4/6/461532a6-ef9c-4a9b-9815-3b5158ada976.jpg"
       },
@@ -19953,6 +20327,7 @@
       "Basri Ket",
       "Basri Ket Emblem",
       "Benalish Commander",
+      "Captain America, Liberator",
       "Captain of the Watch",
       "Captain's Call",
       "Charisma Bobblehead",
@@ -20224,6 +20599,32 @@
   {
     "name": "Soldier",
     "abilities": "",
+    "pt": "1/1",
+    "colors": "R",
+    "type": "Creature — Soldier",
+    "popularity": 2,
+    "artwork": [
+      {
+        "set": "PLST",
+        "url": "https://cards.scryfall.io/large/front/d/f/dfb0ae06-9a02-4cd6-bc1d-423662d7a1bd.jpg"
+      },
+      {
+        "set": "THS",
+        "url": "https://cards.scryfall.io/large/front/5/0/509e44d4-72c1-4d68-b942-c3e8de6ed7a8.jpg"
+      },
+      {
+        "set": "UMA",
+        "url": "https://cards.scryfall.io/large/front/0/3/039b8e44-b435-4e05-b94c-02c4dda11943.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Akroan Crusader",
+      "Frontline Heroism"
+    ]
+  },
+  {
+    "name": "Soldier",
+    "abilities": "",
     "pt": "*/*",
     "colors": "W",
     "type": "Creature — Human",
@@ -20252,28 +20653,6 @@
     "reverse_related": [
       "Riling Dawnbreaker // Signaling Roar",
       "Teeming Dragonstorm"
-    ]
-  },
-  {
-    "name": "Soldier",
-    "abilities": "",
-    "pt": "1/1",
-    "colors": "R",
-    "type": "Creature — Soldier",
-    "popularity": 2,
-    "artwork": [
-      {
-        "set": "THS",
-        "url": "https://cards.scryfall.io/large/front/5/0/509e44d4-72c1-4d68-b942-c3e8de6ed7a8.jpg"
-      },
-      {
-        "set": "UMA",
-        "url": "https://cards.scryfall.io/large/front/0/3/039b8e44-b435-4e05-b94c-02c4dda11943.jpg"
-      }
-    ],
-    "reverse_related": [
-      "Akroan Crusader",
-      "Frontline Heroism"
     ]
   },
   {
@@ -21753,6 +22132,10 @@
         "url": "https://cards.scryfall.io/large/front/9/7/977ddd05-1aae-46fc-95ce-866710d1c5c6.jpg"
       },
       {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/f/d/fd0474f3-682d-4c6d-b902-84f3250aa269.jpg"
+      },
+      {
         "set": "PIP",
         "url": "https://cards.scryfall.io/large/front/f/9/f90bb066-79fd-48cd-ab5a-eaed71139b4e.jpg"
       },
@@ -21956,6 +22339,21 @@
       "Crow Storm",
       "Murmuration"
     ]
+  },
+  {
+    "name": "Sturdy Shield",
+    "abilities": "Equipped creature gets +1/+2. Equip {2}",
+    "pt": "",
+    "colors": "",
+    "type": "Artifact — Equipment",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/d/a/da23a10f-7ac6-4cdc-a35c-ef6bba6b6b6f.jpg"
+      }
+    ],
+    "reverse_related": []
   },
   {
     "name": "Sumala Rumblers",
@@ -22557,6 +22955,36 @@
     ]
   },
   {
+    "name": "The Tiger God",
+    "abilities": "The Tiger God can't be blocked by more than one creature.",
+    "pt": "4/4",
+    "colors": "G",
+    "type": "Legendary Creature — Cat God",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/4/d/4d1ca2ed-c987-4f92-ad7b-991d7a64d145.jpg"
+      }
+    ],
+    "reverse_related": []
+  },
+  {
+    "name": "The Void",
+    "abilities": "Flying, indestructible The Void attacks each combat if able.",
+    "pt": "5/5",
+    "colors": "B",
+    "type": "Legendary Creature — Horror Villain",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/d/6/d656b085-fb86-4d2f-a4fc-b65f6ed9f001.jpg"
+      }
+    ],
+    "reverse_related": []
+  },
+  {
     "name": "Thopter",
     "abilities": "Flying",
     "pt": "1/1",
@@ -23079,7 +23507,7 @@
     "pt": "",
     "colors": "",
     "type": "Artifact — Treasure",
-    "popularity": 344,
+    "popularity": 349,
     "artwork": [
       {
         "set": "2X2",
@@ -23170,6 +23598,10 @@
         "url": "https://cards.scryfall.io/large/front/5/3/5379b994-5f9e-44ec-a69c-8d58ffb0dbd8.jpg"
       },
       {
+        "set": "HOB",
+        "url": "https://cards.scryfall.io/large/front/c/6/c6e096bb-ad9e-4a8b-8b42-26852fa32c1d.jpg"
+      },
+      {
         "set": "KHM",
         "url": "https://cards.scryfall.io/large/front/4/a/4ae9f454-4f8c-4123-9886-674bc439dfe7.jpg"
       },
@@ -23222,6 +23654,14 @@
         "url": "https://cards.scryfall.io/large/front/1/7/1728ad2d-c8a6-49e4-85bb-29934fa26208.jpg"
       },
       {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/f/9/f909bd95-58a1-4299-9570-87724145fc85.jpg"
+      },
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/c/e/cec5cc8b-bc15-415a-bde6-6c783f8d0b0b.jpg"
+      },
+      {
         "set": "NEO",
         "url": "https://cards.scryfall.io/large/front/6/9/6911181d-573b-41eb-96a4-799c96e008fc.jpg"
       },
@@ -23260,6 +23700,10 @@
       {
         "set": "PLST",
         "url": "https://cards.scryfall.io/large/front/f/b/fb66ddf1-9efc-458a-962d-f28294986845.jpg"
+      },
+      {
+        "set": "PLST",
+        "url": "https://cards.scryfall.io/large/front/e/4/e420f3b0-21c4-4f6b-802c-f5e93975540a.jpg"
       },
       {
         "set": "PTSNC",
@@ -23449,10 +23893,12 @@
     "reverse_related": [
       "Academy Manufactor",
       "Alchemist's Talent",
+      "Alicia Masters, Skilled Sculptor",
       "An Offer You Can't Refuse",
       "Ancestors' Aid",
       "Ancient Adamantoise",
       "Ancient Copper Dragon",
+      "Ant-Man, Elusive Avenger",
       "Ashling's Command",
       "Atsushi, the Blazing Sky",
       "Axgard Artisan",
@@ -23495,14 +23941,17 @@
       "Collector's Vault",
       "Common Crook",
       "Contested Game Ball",
+      "Contract Hero",
       "Contract Killing",
       "Corsair Captain",
       "Covetous Elegy",
       "Crack Open",
       "Creative Outburst",
+      "Crossover Collaboration",
       "Culmination of Studies",
       "Currency Converter",
       "Cutthroat Negotiator",
+      "Daily Bugle Newspaper",
       "Deadeye Plunderers",
       "Deadly Derision",
       "Deadly Dispute",
@@ -24534,6 +24983,48 @@
     ]
   },
   {
+    "name": "Vibranium",
+    "abilities": "Indestructible {T}: Add {C}. This mana can't be spent to cast a nonartifact spell.",
+    "pt": "",
+    "colors": "",
+    "type": "Artifact — Vibranium",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/7/f/7f9e9b3a-c515-449a-95da-ee3f5175b74f.jpg"
+      },
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/2/5/252ff4c7-758e-4ceb-aed1-ef15a94e245e.jpg"
+      }
+    ],
+    "reverse_related": []
+  },
+  {
+    "name": "Villain",
+    "abilities": "Menace",
+    "pt": "2/1",
+    "colors": "B",
+    "type": "Creature — Villain",
+    "popularity": 3,
+    "artwork": [
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/4/a/4a51b6a0-9a54-4f01-b959-0a28c15d103f.jpg"
+      },
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/c/d/cd76092f-0f5e-4890-996c-33f4f47c659c.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Criminal Enterprise",
+      "Crimson Cowl, Master of Evil",
+      "Villain"
+    ]
+  },
+  {
     "name": "Vivien Reid Emblem",
     "abilities": "Creatures you control get +2/+2 and have vigilance, trample, and indestructible.",
     "pt": "",
@@ -24795,6 +25286,46 @@
   },
   {
     "name": "Wall",
+    "abilities": "Defender, reach",
+    "pt": "0/3",
+    "colors": "",
+    "type": "Creature — Wall",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/4/2/424d7099-8842-4700-8366-093e7b176d1a.jpg"
+      },
+      {
+        "set": "MSC",
+        "url": "https://cards.scryfall.io/large/front/a/5/a503235b-1213-4da5-967a-e8159dc313d9.jpg"
+      }
+    ],
+    "reverse_related": []
+  },
+  {
+    "name": "Wall",
+    "abilities": "Defender",
+    "pt": "0/4",
+    "colors": "",
+    "type": "Artifact Creature — Wall",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/5/5/55076c94-5f7d-465a-8e31-0b16633d8bcc.jpg"
+      },
+      {
+        "set": "THB",
+        "url": "https://cards.scryfall.io/large/front/d/b/dbdd5d53-65e7-42c3-a325-791f11335e62.jpg"
+      }
+    ],
+    "reverse_related": [
+      "The Birth of Meletis"
+    ]
+  },
+  {
+    "name": "Wall",
     "abilities": "Defender",
     "pt": "1/3",
     "colors": "W",
@@ -24808,23 +25339,6 @@
     ],
     "reverse_related": [
       "Rampart Architect"
-    ]
-  },
-  {
-    "name": "Wall",
-    "abilities": "Defender",
-    "pt": "0/4",
-    "colors": "",
-    "type": "Artifact Creature — Wall",
-    "popularity": 1,
-    "artwork": [
-      {
-        "set": "THB",
-        "url": "https://cards.scryfall.io/large/front/d/b/dbdd5d53-65e7-42c3-a325-791f11335e62.jpg"
-      }
-    ],
-    "reverse_related": [
-      "The Birth of Meletis"
     ]
   },
   {
@@ -25902,6 +26416,21 @@
       {
         "set": "CLB",
         "url": "https://cards.scryfall.io/large/front/f/0/f00a57fc-b4a6-48fa-a20c-864c10099e4b.jpg?1674135352"
+      }
+    ],
+    "reverse_related": []
+  },
+  {
+    "name": "Zabu",
+    "abilities": "Landfall — Whenever a land you control enters, put a +1/+1 counter on Zabu.",
+    "pt": "2/2",
+    "colors": "G",
+    "type": "Legendary Creature — Cat",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MSH",
+        "url": "https://cards.scryfall.io/large/front/8/f/8ff55043-379e-400c-9847-30b75e4a1322.jpg"
       }
     ],
     "reverse_related": []
