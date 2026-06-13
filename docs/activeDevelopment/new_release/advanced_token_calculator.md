@@ -45,6 +45,8 @@
 - Dynamic preview modal detecting trigger categories from enabled rules
 - Sticky preview at top of rules sheet, tappable for detailed breakdown
 - Quantity dialog shows per-token breakdown ("3 Food + 3 Treasure + 3 Clue")
+- All preview surfaces consolidate identical token identities for display via `TokenCreationResult.aggregateForDisplay` (groups by composite ID, sums quantities, preserves first-occurrence order) so multi-trigger spawns read "6 Squirrel" not three "2 Squirrel" fragments; engine/creation output is unchanged
+- Krenko ("Make Goblins") and Hare Apparent ("Make Rabbits") confirm dialogs show the full consolidated breakdown (primary + companions) from the same `evaluateRules` result used for creation — preview can't under-report companions like Chatterfang Squirrels
 - Tapping outside the rules sheet dismisses it
 
 **Integration** (all token creation entry points)
@@ -56,12 +58,21 @@
 - Academy Manufactor hardcoded utility code removed from TokenProvider (preset rule replaces it)
 - Board wipe gains "Delete All & Reset Rules" option
 
-**Migration**
-- Old `tokenMultiplier` auto-converted: power-of-2 → doubler count, other → custom rule
-- Old `counterMultiplier` migrated similarly
-- Silent SnackBar notification on first launch after migration
-- Old SharedPreferences keys cleared after successful migration
-- If tokenRules box wiped during resilient boot, migration flag cleared for re-run
+**Legacy multiplier removal (no migration)**
+- The old multiplier mechanism is removed cleanly on upgrade. The previous
+  value is NOT carried forward in any form — no preset is auto-set and no
+  custom rule is created from it. (Silently maintaining a hidden multiplier
+  is worse than a clean break; affected users are an edge case and can
+  re-set effects in the new rules calculator.)
+- On first launch after upgrade, the legacy `tokenMultiplier` and
+  `counterMultiplier` SharedPreferences keys are safely deleted.
+- A one-time SnackBar notice is shown ONLY if either old value was a
+  non-default value (> 1): "Your previous multiplier was removed. Set up
+  token effects in the new rules calculator." If both were 1/default/absent,
+  no notice is shown.
+- Runs exactly once, gated by the `rules_migration_done` flag. Resilient:
+  absent or corrupt old keys do not crash boot (the removal is wrapped so
+  resilient boot's "never throws" guarantee is preserved).
 
 **Entry Point**
 - MultiplierView FAB replaced with rules entry point showing smart label + dot badge when rules active
@@ -96,9 +107,15 @@
 Priority: Also Create → Replace → Doublers. This ensures companion tokens are created first, then identities are swapped, then everything is multiplied.
 
 ### Known Deviations from Spec (Intentional)
-- Academy Manufactor board utility card kept (delegates to rules engine internally)
+- Academy Manufactor board utility card kept (delegates to rules engine internally); the utility passes `evaluateRules(..., forceAcademyManufactorCount: <utility count>)` so it always yields the full Food+Treasure+Clue set scaled by its own count, independent of the AM *preset* toggle (other doublers/presets/custom rules still layer; preset path unchanged) — BUG-4 fix
 - Quick-add companion notification uses SnackBar (not custom fade-in/out widget)
 - Academy Manufactor handles all three token types bidirectionally (more correct than spec's Food-only trigger)
+
+### Experimental Gating of Custom-Rule Machinery
+- The custom-rule authoring machinery is gated behind the existing **experimental features** flag (`SettingsProvider.experimentalFeaturesEnabled`, key `experimentalFeaturesEnabled`). When the flag is OFF, the rules sheet hides: the entire **REPLACEMENTS** section, the inline custom-rule lists in ALSO CREATE and MULTIPLIERS, and the **"Add Custom Rule"** entry point.
+- **Presets always remain visible** regardless of the flag: Token Doublers, Doubling Season, Primal Vigor, Ojer Taq, Academy Manufactor, Chatterfang, the full MULTIPLIERS section, and the COUNTER MODIFIERS section. Presets are computed at runtime and are never gated or cleared.
+- **Clear-on-disable:** Turning the experimental flag OFF (in Settings) calls `RulesProvider.clearUserCustomRules()`, which deletes **ALL** custom rules from the `tokenRules` Hive box with no exceptions or preservation special-case (the legacy-multiplier migration was removed entirely, so every rule in the box is a user-created custom rule). With the box emptied, `_evaluationOrder` adds no custom rules, so `evaluateRules()` fully neutralizes custom-rule effects.
+- **No migration edge case:** There is no `Migrated ×N` rule and no `createdByMigration` flag. The legacy multiplier is deleted on upgrade and never enters the `tokenRules` box, so there is no hidden-but-active migrated multiplier to reason about.
 
 ---
 
@@ -211,11 +228,13 @@ Priority: Also Create → Replace → Doublers. This ensures companion tokens ar
 - [ ] Doubling Season ABOVE Academy Manufactor: 1 Food → 2 Food + 1 Treasure + 1 Clue
 - [ ] Reordering rules updates preview immediately
 
-### Migration
-- [ ] Fresh install: no migration notification, rules sheet is empty
-- [ ] Upgrade from old multiplier=4: notification "Your multiplier has been converted to token rules", Token Doublers set to 2
-- [ ] Upgrade from old multiplier=6: custom rule "Migrated ×6" created
-- [ ] Old tokenMultiplier/counterMultiplier keys cleared after migration
+### Legacy multiplier removal (no migration)
+- [ ] Fresh install / old multiplier = 1 / absent: NO notification, NO rules created, rules sheet empty, legacy keys absent
+- [ ] Upgrade from old multiplier = 4 (power-of-2): notification "Your previous multiplier was removed. Set up token effects in the new rules calculator.", NO Token Doublers preset set, NO custom rule created, `tokenMultiplier` key deleted
+- [ ] Upgrade from old multiplier = 6 (non-power-of-2): same one-time notification, NO `Migrated ×6` rule (no rules created at all), `tokenMultiplier` key deleted
+- [ ] Upgrade with old `counterMultiplier` > 1: notification shown, NO counter preset set, `counterMultiplier` key deleted
+- [ ] Notification appears at most once (relaunch after upgrade → no notification, gate flag set)
+- [ ] Resilient boot: absent or corrupt legacy keys do not crash boot; app launches normally
 
 ### Board Wipe
 - [ ] Standard board wipe clears tokens, rules stay active
@@ -444,6 +463,8 @@ The counter modifier must be applied at **ALL counter placement call sites**, no
 | **Individual custom counter edits** | Direct increment | Apply all-counter formula only |
 | **Manual quantity typing** | Direct set | **Bypass** — no modifier (matches token rules bypass principle) |
 
+**+1/+0 and +0/+1 UI behavior:** As of the token-detail UI refinement, +1/+0 and +0/+1 are no longer always-visible rows in the expanded token screen. They behave like custom counters: hidden by default, added via the counter search ("Add Counter") flow, shown only when nonzero, and removed from the UI when they reach zero. They remain stored as the dedicated `Item.plusOnePowerCounters` / `plusOneToughnessCounters` fields (HiveFields 16/17 — no data-model change). +1/+1 and -1/-1 remain always-visible (common counters). The all-counter formula (`calculateCounterAmount(1, isPlusOne: false)`) still fires on their increment buttons when the conditional rows are present, exactly as before.
+
 **Cathar's Crusade interaction:** Cathar's Crusade INITIATES counter placement (triggered ability). The counter modifier MODIFIES the counters being placed (replacement effect). These are different layers that stack. Example: Cathar's Crusade fires for 3 creatures entering, with Hardened Scales + Doubling Season active → each creature gets `(3 + 1) × 2 = 8` counters.
 
 **ETB count for Cathar's Crusade:** When token rules double token creation (e.g., Doubling Season doubles 1 Soldier to 2), Cathar's Crusade fires based on the FINAL token count after rules evaluation. Doubling Season doubles 1 Soldier to 2 → Cathar's sees 2 creatures entering.
@@ -490,7 +511,7 @@ The rules engine is modeled on MTG's replacement effect system. Key comprehensiv
 
 - **~~Negative conditions~~**: **RESOLVED** — Out of scope for v1. The only card that truly needs negation is Chatterfang. "May" effects like Jinnie Fay are user choices (just pick the token), Brudiclad is a utility, Ojer Taq is a positive P/T check. Not worth the UI complexity for one card.
 - **~~Counter rules~~**: **RESOLVED** — In scope for v1 with a simpler handler than token rules. Two scopes: "+1/+1 only" and "all counters." Each scope tracks doublers (×2 each) and extra (+1 each). No ordered rule list needed. Presets for 12 well-known cards. See [Counter Modifier](#counter-modifier) section.
-- **~~Multiplier integration~~**: **RESOLVED** — Rules replace the existing multiplier entirely. The manual multiplier slider is removed. Flat doublers are expressed as rules. Existing users get a one-time migration converting their multiplier value to equivalent doubler rules.
+- **~~Multiplier integration~~**: **RESOLVED** — Rules replace the existing multiplier entirely. The manual multiplier slider is removed. Flat doublers are expressed as rules. **No migration:** the old multiplier is removed cleanly on upgrade (legacy prefs keys deleted, value NOT carried forward as a preset or rule). Affected users get a one-time SnackBar notice (only if the old value was > 1) and re-set effects in the rules calculator.
 - **~~"Also create" quantity and multipliers~~**: **RESOLVED** — Per 614.16, companion tokens ARE subject to replacement effects. Companion tokens evaluate against remaining rules below the one that created them (see Execution Flow). This is rules-accurate and loop-safe.
 
 ## Scoping
@@ -522,12 +543,11 @@ The current manual multiplier (int 1–1024 in SharedPreferences, applied at cre
 
 To preserve ease-of-use for the common case ("I have 3 doublers"), the rules UI should offer a **quick-add shortcut** — e.g., "+ Add Doubler" creates a pre-filled "any token → ×2" rule in one tap. This keeps the simple case fast without maintaining two parallel systems.
 
-**Migration:** Existing users with a multiplier > 1 will need a one-time migration:
-- Power-of-2 values decompose into doubler rules (e.g., multiplier=8 → Token Doublers quantity = 3)
-- Non-power-of-2 values (3, 5, 6, etc.) become a single custom rule with the exact multiplier value (e.g., multiplier=6 → custom rule "any token → ×6")
-- The `counterMultiplier` SharedPreferences key (already in use in `token_card.dart` for the +1/+1 button) must also be migrated to the counter modifier system
-- Migration runs in `RulesProvider.init()`. The old SharedPreferences keys are kept as backup until confirmed successful migration, then cleared on next launch. If the rules box is wiped during resilient boot, migration re-runs from the backup keys.
-- Silent migration with a SnackBar notification: "Your ×N multiplier has been converted to token rules." No blocking dialog. If multiplier was 1 (default), skip the notification.
+**No migration — clean removal:** Final decision (product owner): the old multiplier is NOT carried forward in any form. Silently maintaining (or hiding) a legacy multiplier is worse than a clean break; affected users are an edge case and can re-set effects in the new rules UI.
+- Power-of-2 and non-power-of-2 values alike: NO preset is auto-set and NO custom rule is created. Nothing enters the `tokenRules` box from the old multiplier.
+- The legacy `tokenMultiplier` and `counterMultiplier` SharedPreferences keys are safely deleted on first launch after upgrade.
+- Removal runs once in `RulesProvider.init()` (via `_removeOldMultiplier()`), gated by the `rules_migration_done` flag. Old keys are NOT kept as a backup and the gate is NOT cleared when the rules box is wiped (there is nothing to re-derive — only key deletion + an optional one-time notice). The whole step is wrapped so absent/corrupt keys never break resilient boot.
+- One-time SnackBar notice ONLY if the old value was > 1: "Your previous multiplier was removed. Set up token effects in the new rules calculator." No blocking dialog. If the multiplier was 1 / default / absent, no notice.
 
 ### Existing Utility Overlap
 

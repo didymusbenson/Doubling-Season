@@ -1659,6 +1659,10 @@
         "url": "https://cards.scryfall.io/large/front/d/e/deed7d9f-07b7-4a8a-8e6c-cbd536be5135.jpg"
       },
       {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/5/8/5871be0a-0fd6-441d-8f9e-76c66b5bd8bc.jpg"
+      },
+      {
         "set": "TDC",
         "url": "https://cards.scryfall.io/large/front/f/0/f0aba72c-4dd1-47e5-a447-e074d0ab4ba1.jpg"
       },
@@ -2653,6 +2657,10 @@
         "url": "https://cards.scryfall.io/large/front/7/c/7cbd1416-dbcc-45fc-8837-3e2c50647ebc.jpg"
       },
       {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/3/2/32ffd1ae-8ce6-4e84-a496-ffcfdd0460bc.jpg"
+      },
+      {
         "set": "THS",
         "url": "https://cards.scryfall.io/large/front/2/f/2f40613b-1bde-4939-86ad-6bd40f9db0d6.jpg"
       }
@@ -2879,6 +2887,10 @@
       {
         "set": "SCD",
         "url": "https://cards.scryfall.io/large/front/d/a/dadc7cd3-ab95-4f7d-923d-900abddbe8d4.jpg"
+      },
+      {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/7/d/7d400b41-813d-4a63-848f-5eb4db4bf3bb.jpg"
       },
       {
         "set": "SOM",
@@ -4442,12 +4454,29 @@
     ]
   },
   {
+    "name": "Contract",
+    "abilities": "Enchant creature Whenever enchanted creature attacks, it gets +2/+0 until end of turn if it's attacking one of your opponents. Otherwise, its controller loses 2 life.",
+    "pt": "",
+    "colors": "W",
+    "type": "Enchantment — Aura",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/4/c/4c5e0caa-a043-41de-acbf-cdf3a6b6ab18.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Scriv, the Obligator"
+    ]
+  },
+  {
     "name": "Copy",
     "abilities": "",
     "pt": "",
     "colors": "",
     "type": "Token",
-    "popularity": 332,
+    "popularity": 341,
     "artwork": [
       {
         "set": "2XM",
@@ -4550,6 +4579,10 @@
         "url": "https://cards.scryfall.io/large/front/1/e/1e6ce56c-ca2e-48e8-a4d9-671cb4de8a9d.jpg"
       },
       {
+        "set": "SOS",
+        "url": "https://cards.scryfall.io/large/front/4/e/4e119457-948d-4ef8-8c27-59fa675f766f.jpg"
+      },
+      {
         "set": "SPM",
         "url": "https://cards.scryfall.io/large/front/e/9/e980eddf-92f8-4dc4-8bad-b2f3dcaf03ef.jpg"
       },
@@ -4597,6 +4630,7 @@
       "Adrix and Nev, Twincasters",
       "Aggressive Biomancy",
       "Altaïr Ibn-La'Ahad",
+      "Angel of Indemnity",
       "Anikthea, Hand of Erebos",
       "Araumi of the Dead Tide",
       "Arcane Artisan",
@@ -4619,6 +4653,7 @@
       "Bramble Sovereign",
       "Brenard, Ginger Sculptor",
       "Briarblade Adept",
+      "Brigid's Command",
       "Broodbirth Viper",
       "Broodmate Tyrant",
       "Cabaretti Confluence",
@@ -4638,6 +4673,7 @@
       "Clone Legion",
       "Coastline Marauders",
       "Cogwork Assembler",
+      "Colorstorm Stallion",
       "Compy Swarm",
       "Conclave Evangelist",
       "Copy",
@@ -4661,6 +4697,7 @@
       "Dutiful Replicator",
       "Echo Chamber",
       "Echo Storm",
+      "Echocasting Symposium",
       "Echoing Assault",
       "Electroduplicate",
       "Elminster's Simulacrum",
@@ -4728,6 +4765,7 @@
       "Impulsivity",
       "Inalla, Archmage Ritualist",
       "Inchblade Companion",
+      "Inspired Skypainter // Maestro's Gift",
       "Invasion of Alara // Awaken the Maelstrom",
       "Irenicus's Vile Duplication",
       "Ironwill Forger",
@@ -4750,9 +4788,11 @@
       "Lamentation",
       "Lazotep Quarry",
       "Legion Loyalty",
+      "Leitmotif Composer",
       "Leonardo da Vinci",
       "Life of the Party",
       "Littjara Mirrorlake",
+      "Lorehold Archivist // Restore Relic",
       "Lucy MacLean, Positively Armed",
       "Magus Lucea Kane",
       "March of Progress",
@@ -4817,9 +4857,11 @@
       "Radiant Performer",
       "Rakshasa Debaser",
       "Rally the Galadhrim",
+      "Ran and Shaw",
       "Ratadrabik of Urborg",
       "Rebuild the City",
       "Red Sun's Twilight",
+      "Redoubled Stormsinger",
       "Reflections of Littjara",
       "Relm's Sketching",
       "Replication Specialist",
@@ -6209,7 +6251,7 @@
     "name": "Dragon",
     "abilities": "Flying, firebending 4",
     "pt": "4/4",
-    "colors": "",
+    "colors": "R",
     "type": "Creature — Dragon",
     "popularity": 1,
     "artwork": [
@@ -6278,6 +6320,10 @@
     "type": "Creature — Dragon Illusion",
     "popularity": 1,
     "artwork": [
+      {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/4/4/44b7c73d-80a0-4a27-b0a2-317164362449.jpg"
+      },
       {
         "set": "TDC",
         "url": "https://cards.scryfall.io/large/front/5/7/57c706a3-02e3-4313-9110-a7da72cadaab.jpg"
@@ -6889,6 +6935,10 @@
       {
         "set": "ROE",
         "url": "https://cards.scryfall.io/large/front/d/0/d0da4f8d-cce9-4d08-8d11-792e0b2af7d0.jpg"
+      },
+      {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/9/6/96b0ffdf-351e-4b89-92f2-79b20420b3bc.jpg"
       }
     ],
     "reverse_related": [
@@ -7345,6 +7395,10 @@
         "url": "https://cards.scryfall.io/large/front/e/3/e3c88b9d-6ac2-4d38-8551-23998d76e6ee.jpg"
       },
       {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/8/b/8ba20bb4-a476-448d-bb39-23f8dd59e5a8.jpg"
+      },
+      {
         "set": "STX",
         "url": "https://cards.scryfall.io/large/front/3/d/3d0b9b88-705e-4df0-8a93-3e240b81355b.jpg"
       },
@@ -7519,17 +7573,22 @@
     "pt": "1/1",
     "colors": "UR",
     "type": "Creature — Elemental",
-    "popularity": 4,
+    "popularity": 5,
     "artwork": [
       {
         "set": "MOM",
         "url": "https://cards.scryfall.io/large/front/2/8/28a7a9b0-d823-4b34-829f-ade81fc141e0.jpg"
+      },
+      {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/2/2/222b8394-20e7-4808-8eec-cb048f548055.jpg"
       }
     ],
     "reverse_related": [
       "Invasion of Mercadia // Kyren Flamewright",
       "Joyful Stormsculptor",
       "Preening Champion",
+      "Prismari Pianist",
       "Ral's Reinforcements"
     ]
   },
@@ -7624,6 +7683,49 @@
     ],
     "reverse_related": [
       "Din of the Fireherd"
+    ]
+  },
+  {
+    "name": "Elemental",
+    "abilities": "Flying, haste",
+    "pt": "*/*",
+    "colors": "UR",
+    "type": "Creature — Elemental",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/f/e/fe42cba4-e00f-4e34-8e26-99721727dced.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Rootha, Mastering the Moment"
+    ]
+  },
+  {
+    "name": "Elemental",
+    "abilities": "Flying",
+    "pt": "3/3",
+    "colors": "UR",
+    "type": "Creature — Elemental",
+    "popularity": 6,
+    "artwork": [
+      {
+        "set": "SOS",
+        "url": "https://cards.scryfall.io/large/front/5/7/57b98846-85e3-47c7-a903-29953d0b0e8a.jpg"
+      },
+      {
+        "set": "SOS",
+        "url": "https://cards.scryfall.io/large/front/b/5/b5b2df9c-228f-4441-a962-46b335bb356e.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Artistic Process",
+      "Campus Composer // Aqueous Aria",
+      "Elemental",
+      "Furygale Flocking",
+      "Muse's Encouragement",
+      "Visionary's Dance"
     ]
   },
   {
@@ -8948,6 +9050,10 @@
         "url": "https://cards.scryfall.io/large/front/c/6/c6002fe4-a5c0-426d-860b-59f66896c75c.jpg"
       },
       {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/d/a/da1fca2e-4ea7-4c5f-bd58-f9529dfb6f37.jpg"
+      },
+      {
         "set": "SPM",
         "url": "https://cards.scryfall.io/large/front/0/f/0fb2c5a4-859e-40ac-8091-7ba44f57b878.jpg"
       },
@@ -9215,11 +9321,19 @@
     "pt": "0/0",
     "colors": "UG",
     "type": "Creature — Fractal",
-    "popularity": 14,
+    "popularity": 27,
     "artwork": [
       {
         "set": "DSC",
         "url": "https://cards.scryfall.io/large/front/0/5/05386ae8-7b94-4820-9e2a-b9da41edd8f0.jpg"
+      },
+      {
+        "set": "SOS",
+        "url": "https://cards.scryfall.io/large/front/d/e/de564776-9d88-4533-8717-842eecdd0594.jpg"
+      },
+      {
+        "set": "SOS",
+        "url": "https://cards.scryfall.io/large/front/8/b/8b5f1fdb-04df-4224-acb4-7819c37565f5.jpg"
       },
       {
         "set": "STX",
@@ -9227,20 +9341,33 @@
       }
     ],
     "reverse_related": [
+      "Additive Evolution",
+      "Ambitious Augmenter",
+      "Applied Geometry",
+      "Berta, Wise Extrapolator",
       "Biomathematician",
       "Body of Research",
       "Deekah, Fractal Theorist",
+      "Emil, Vastlands Roamer",
+      "Fractal",
+      "Fractal Anomaly",
       "Fractal Harness",
       "Fractal Summoning",
+      "Fractal Tender",
       "Geometric Nexus",
+      "Jadzi, Steward of Fate // Oracle's Gift",
       "Kasmina, Enigma Sage",
       "Kianne, Dean of Substance // Imbraham, Dean of Theory",
+      "Lattice Library",
       "Leyline Invocation",
       "Manifestation Sage",
       "Oversimplify",
       "Paradox Zone",
+      "Primo, the Unbounded",
       "Sequence Engine",
-      "Serpentine Curve"
+      "Serpentine Curve",
+      "Snarl Song",
+      "Wild Hypothesis"
     ]
   },
   {
@@ -9293,6 +9420,10 @@
         "url": "https://cards.scryfall.io/large/front/4/9/495d3391-6311-418e-b55a-10c0af751026.jpg"
       },
       {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/4/2/42e98a20-325e-476f-8297-cbe8e09d85b2.jpg"
+      },
+      {
         "set": "TDC",
         "url": "https://cards.scryfall.io/large/front/0/1/018e138e-adef-45db-ae2a-31f0c98658ed.jpg"
       }
@@ -9332,6 +9463,10 @@
       {
         "set": "C21",
         "url": "https://cards.scryfall.io/large/front/b/f/bfaa2850-3846-4c6a-8e08-937645db3752.jpg"
+      },
+      {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/2/6/2646dda1-05f0-49e4-b610-19205784b3b0.jpg"
       }
     ],
     "reverse_related": [
@@ -9844,6 +9979,10 @@
       {
         "set": "PCA",
         "url": "https://cards.scryfall.io/large/front/3/7/37624323-b00f-4096-a3af-115217cfca16.jpg"
+      },
+      {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/a/8/a8d85b98-8390-412f-9542-2f1e2890235d.jpg"
       },
       {
         "set": "TDC",
@@ -12302,6 +12441,10 @@
         "url": "https://cards.scryfall.io/large/front/b/6/b6b43dc2-eaa4-4369-8c8c-b17c64326c5b.jpg"
       },
       {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/f/6/f6469938-5af9-4f0a-9f2e-603c833e48ba.jpg"
+      },
+      {
         "set": "ZNR",
         "url": "https://cards.scryfall.io/large/front/2/3/2300635e-7771-4676-a5a5-29a9d8f49f1a.jpg"
       }
@@ -12582,7 +12725,7 @@
     "pt": "2/1",
     "colors": "WB",
     "type": "Creature — Inkling",
-    "popularity": 10,
+    "popularity": 12,
     "artwork": [
       {
         "set": "BRC",
@@ -12601,6 +12744,10 @@
         "url": "https://cards.scryfall.io/large/front/2/a/2af2f485-ee1c-468f-9854-a9529c38ec55.jpg"
       },
       {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/b/2/b2ef67fc-b544-4fb3-8362-a29d4533fdd7.jpg"
+      },
+      {
         "set": "STX",
         "url": "https://cards.scryfall.io/large/front/c/9/c9deae5c-80d4-4701-b425-91853b7ee03b.jpg"
       },
@@ -12615,11 +12762,39 @@
       "Dramatic Finale",
       "Fain, the Broker",
       "Felisa, Fang of Silverquill",
+      "Forum Filibuster",
       "Inkling Summoning",
       "Inkshield",
+      "Intermediate Chirography",
       "Mascot Exhibition",
       "Shadrix Silverquill",
       "Umbral Juke"
+    ]
+  },
+  {
+    "name": "Inkling",
+    "abilities": "Flying",
+    "pt": "1/1",
+    "colors": "WB",
+    "type": "Creature Inkling",
+    "popularity": 6,
+    "artwork": [
+      {
+        "set": "SOS",
+        "url": "https://cards.scryfall.io/large/front/b/a/bab52920-9d67-4cd4-9015-6e645ff9764f.jpg"
+      },
+      {
+        "set": "SOS",
+        "url": "https://cards.scryfall.io/large/front/4/3/43e9f729-abaf-4000-8df5-fa46d59eff9e.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Eager Glyphmage",
+      "Emeritus of Truce // Swords to Plowshares",
+      "Eternal Student",
+      "Harsh Annotation",
+      "Informed Inkwright",
+      "Inkling"
     ]
   },
   {
@@ -15910,6 +16085,10 @@
         "url": "https://cards.scryfall.io/large/front/9/c/9c2f9b68-07a4-4502-9cf8-de8583b5cdd0.jpg"
       },
       {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/f/1/f130171f-a3e2-4dac-806a-1f2c428ac9fc.jpg"
+      },
+      {
         "set": "THB",
         "url": "https://cards.scryfall.io/large/front/d/e/dee1c2ee-d92e-409a-995a-b4c91620c918.jpg"
       },
@@ -15957,7 +16136,7 @@
     "pt": "1/1",
     "colors": "BG",
     "type": "Creature — Pest",
-    "popularity": 12,
+    "popularity": 16,
     "artwork": [
       {
         "set": "BLC",
@@ -15976,6 +16155,10 @@
         "url": "https://cards.scryfall.io/large/front/1/a/1ae25997-391f-45b2-bdc1-d86cf6b69223.jpg"
       },
       {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/c/7/c72ceae7-72d6-41dc-82cc-b86e845d7aa6.jpg"
+      },
+      {
         "set": "STX",
         "url": "https://cards.scryfall.io/large/front/d/0/d0ddbe3e-4a66-494d-9304-7471232549bf.jpg"
       }
@@ -15985,14 +16168,44 @@
       "Blight Mound",
       "Callous Bloodmage",
       "Containment Breach",
+      "Eccentric Pestfinder // Turn Stones",
+      "Feral Appetite",
       "Hunt for Specimens",
       "Pest Infestation",
+      "Pest Rescuer",
       "Pest Summoning",
       "Pestilent Cauldron // Restorative Burst",
       "Professor of Zoomancy",
+      "Ribtruss Roaster",
       "Sedgemoor Witch",
       "Tend the Pests",
       "Valentin, Dean of the Vein // Lisette, Dean of the Root"
+    ]
+  },
+  {
+    "name": "Pest",
+    "abilities": "Whenever this token attacks, you gain 1 life.",
+    "pt": "1/1",
+    "colors": "BG",
+    "type": "Creature — Pest",
+    "popularity": 6,
+    "artwork": [
+      {
+        "set": "SOS",
+        "url": "https://cards.scryfall.io/large/front/b/a/ba854032-6ad2-4654-990a-64006e7f92fd.jpg"
+      },
+      {
+        "set": "SOS",
+        "url": "https://cards.scryfall.io/large/front/4/0/40b22872-7b7b-4a6d-a343-4152e552b00a.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Essenceknit Scholar",
+      "Lluwen, Exchange Student // Pest Friend",
+      "Moseo, Vein's New Dean",
+      "Pest",
+      "Pestbrood Sloth",
+      "Send in the Pest"
     ]
   },
   {
@@ -16109,6 +16322,10 @@
       {
         "set": "ONC",
         "url": "https://cards.scryfall.io/large/front/1/1/113959ba-be71-47ce-93e2-b81157034822.jpg"
+      },
+      {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/6/5/65c65445-1016-4fd3-963e-1c9eb252d4a6.jpg"
       }
     ],
     "reverse_related": [
@@ -16387,6 +16604,10 @@
       {
         "set": "MUL",
         "url": "https://cards.scryfall.io/large/front/4/6/46e4ef38-0885-4c3d-8851-0a873d9f0a22.jpg"
+      },
+      {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/c/a/ca7e566f-5eb4-4f0f-bf87-5788c57ba1e4.jpg"
       }
     ],
     "reverse_related": [
@@ -16879,10 +17100,31 @@
       {
         "set": "DSK",
         "url": "https://cards.scryfall.io/large/front/c/a/ca9de169-fb85-43cc-8527-9829d7cb5bc5.jpg"
+      },
+      {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/c/9/c990db6b-e1f2-4802-b8b1-80a8b768be0e.jpg"
       }
     ],
     "reverse_related": [
       "Zimone, All-Questioning"
+    ]
+  },
+  {
+    "name": "Professor Dellian Fel Emblem",
+    "abilities": "Whenever you gain life, target opponent loses that much life.",
+    "pt": "",
+    "colors": "",
+    "type": "Emblem",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "SOS",
+        "url": "https://cards.scryfall.io/large/front/5/4/5472cdbf-eec2-40fe-a1f5-1a4eb74126c0.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Professor Dellian Fel"
     ]
   },
   {
@@ -17562,6 +17804,10 @@
       {
         "set": "SNC",
         "url": "https://cards.scryfall.io/large/front/0/6/06e503b9-a822-4c42-b478-1f598bc5941d.jpg"
+      },
+      {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/8/0/80244f4b-3361-4776-a72b-1b0d70c7e855.jpg"
       }
     ],
     "reverse_related": [
@@ -18000,6 +18246,10 @@
       {
         "set": "SLD",
         "url": "https://cards.scryfall.io/large/front/5/a/5a88aa73-baca-49c2-a6c3-0a1624b6078b.jpg"
+      },
+      {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/2/4/248ade83-ac57-42d6-985c-1e4cc3639f36.jpg"
       },
       {
         "set": "TSR",
@@ -19386,6 +19636,10 @@
         "url": "https://cards.scryfall.io/large/front/8/b/8b9be7c2-efe5-4d37-a43e-ddcd50a77aa9.jpg"
       },
       {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/6/2/62340bbb-cff0-48c1-8854-235340e80477.jpg"
+      },
+      {
         "set": "TDC",
         "url": "https://cards.scryfall.io/large/front/3/f/3f1092e1-c7c0-4ea6-8128-eb7069783747.jpg"
       }
@@ -20753,6 +21007,10 @@
         "url": "https://cards.scryfall.io/large/front/1/d/1d9b18e5-d842-4114-b395-ff5dd42c94d9.jpg"
       },
       {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/6/f/6f5a5786-e2be-4bb0-b971-81d1d5cc8f52.jpg"
+      },
+      {
         "set": "SOI",
         "url": "https://cards.scryfall.io/large/front/3/a/3a53a7c6-6b32-4491-8c96-e564abea8880.jpg"
       },
@@ -21056,7 +21314,7 @@
     "pt": "3/2",
     "colors": "WR",
     "type": "Creature — Spirit",
-    "popularity": 11,
+    "popularity": 13,
     "artwork": [
       {
         "set": "LCI",
@@ -21065,6 +21323,10 @@
       {
         "set": "MOM",
         "url": "https://cards.scryfall.io/large/front/0/b/0ba7dada-ba7f-4233-ba21-f6f32698997a.jpg"
+      },
+      {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/5/a/5a9c5b21-c770-4fc0-b205-d96862e6be3e.jpg"
       },
       {
         "set": "STX",
@@ -21076,6 +21338,7 @@
       }
     ],
     "reverse_related": [
+      "Ceaseless Conflict",
       "Illuminate History",
       "Illustrious Historian",
       "Lorehold Command",
@@ -21084,6 +21347,7 @@
       "Mascot Exhibition",
       "Quintorius Kand",
       "Quintorius, Field Historian",
+      "Quintorius, History Chaser",
       "Quintorius, Loremaster",
       "Reduce to Memory",
       "Spirit Summoning"
@@ -21162,6 +21426,32 @@
       "Obscura Ascendancy",
       "Phantom Interference",
       "Wrangler of the Damned"
+    ]
+  },
+  {
+    "name": "Spirit",
+    "abilities": "",
+    "pt": "2/2",
+    "colors": "WR",
+    "type": "Creature — Spirit",
+    "popularity": 6,
+    "artwork": [
+      {
+        "set": "SOS",
+        "url": "https://cards.scryfall.io/large/front/8/7/877f7ddb-ed70-41a0-b845-d9bf8ac65f9b.jpg"
+      },
+      {
+        "set": "SOS",
+        "url": "https://cards.scryfall.io/large/front/d/0/d0f3bd3d-08cf-4783-ae31-03770c8be69c.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Antiquities on the Loose",
+      "Garrison Excavator",
+      "Group Project",
+      "Living History",
+      "Spirit",
+      "Strife Scholar // Awaken the Ages"
     ]
   },
   {
@@ -22454,6 +22744,10 @@
         "url": "https://cards.scryfall.io/large/front/3/b/3b442416-747f-47ec-b967-363e7a7e952b.jpg"
       },
       {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/b/9/b9d38c75-c69f-45cd-a745-03ac7513491b.jpg"
+      },
+      {
         "set": "TDC",
         "url": "https://cards.scryfall.io/large/front/8/c/8cf7fb45-2454-4d3e-a79f-05a3eb8f4da1.jpg"
       },
@@ -22785,7 +23079,7 @@
     "pt": "",
     "colors": "",
     "type": "Artifact — Treasure",
-    "popularity": 340,
+    "popularity": 344,
     "artwork": [
       {
         "set": "2X2",
@@ -23048,6 +23342,10 @@
         "url": "https://cards.scryfall.io/large/front/9/3/93116d98-2dad-4b80-a3af-9e36e34da6d4.jpg"
       },
       {
+        "set": "SOS",
+        "url": "https://cards.scryfall.io/large/front/b/4/b4f61b5e-9c53-40b1-b93e-3ffa351ff052.jpg"
+      },
+      {
         "set": "SPM",
         "url": "https://cards.scryfall.io/large/front/d/5/d52efeb3-661d-45e9-97c3-af167f889684.jpg"
       },
@@ -23155,6 +23453,7 @@
       "Ancestors' Aid",
       "Ancient Adamantoise",
       "Ancient Copper Dragon",
+      "Ashling's Command",
       "Atsushi, the Blazing Sky",
       "Axgard Artisan",
       "Baeloth Barrityl, Entertainer",
@@ -23253,6 +23552,7 @@
       "Gluntch, the Bestower",
       "Glóin, Dwarf Emissary",
       "Goblin Airbrusher",
+      "Goblin Glasswright // Craft with Pride",
       "Goblin Shaman",
       "Gold Pan",
       "Gold Rush",
@@ -23394,6 +23694,7 @@
       "Reckoner Bankbuster // Reckoner Bankbuster",
       "Redcap Thief",
       "Redrock Sentinel",
+      "Relic Retriever",
       "Rev, Tithe Extractor",
       "Revel in Riches",
       "Riveteers Requisitioner",
@@ -23403,6 +23704,7 @@
       "Ruthless Technomancer",
       "Safana, Calimport Cutthroat",
       "Sailor of Means",
+      "Sanar, Unfinished Genius // Wild Idea",
       "Sarkhan, Dragon Ascendant",
       "Scion of Opulence",
       "Scuzzback Scrounger",
@@ -25259,6 +25561,10 @@
       {
         "set": "MMA",
         "url": "https://cards.scryfall.io/large/front/8/2/828b9eb1-ccdc-4540-9d53-7853539af189.jpg"
+      },
+      {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/9/f/9f5ddcda-dcf0-468d-a5db-011e1b6ccab1.jpg"
       }
     ],
     "reverse_related": [
@@ -26174,6 +26480,10 @@
       {
         "set": "MID",
         "url": "https://cards.scryfall.io/large/front/6/a/6adb8607-1066-451d-a719-74ad32358278.jpg"
+      },
+      {
+        "set": "SOC",
+        "url": "https://cards.scryfall.io/large/front/b/0/b0d6fd21-48f0-4151-9671-762c25d95592.jpg"
       }
     ],
     "reverse_related": [

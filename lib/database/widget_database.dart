@@ -248,7 +248,7 @@ class WidgetDatabase extends ChangeNotifier {
         colorIdentity: 'W', // White
         defaultValue: 1, // Start with one Hare Apparent
         hasAction: true,
-        actionButtonText: 'New Hare',
+        actionButtonText: 'Make Rabbits',
         actionType: 'hare_apparent',
         artwork: [
           ArtworkVariant(set: 'FDN', url: 'https://cards.scryfall.io/large/front/9/f/9fc6f0e9-eb5f-4bc0-b3d7-756644b66d12.jpg?1730488646'),

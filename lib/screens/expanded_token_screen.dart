@@ -855,10 +855,11 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                           },
                         ),
 
-                        const SizedBox(height: 8),
-
                         // +1/+0 Counters (power only, no auto-cancel)
-                        Builder(
+                        // Conditional: only shown when present (added via counter search)
+                        if (currentItem.plusOnePowerCounters > 0) ...[
+                          const SizedBox(height: 8),
+                          Builder(
                           builder: (context) {
                             final isEditingPlusPower = _editingNumericField == 'counter_plusPower';
                             return Row(
@@ -965,12 +966,14 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                               ],
                             );
                           },
-                        ),
-
-                        const SizedBox(height: 8),
+                          ),
+                        ],
 
                         // +0/+1 Counters (toughness only, no auto-cancel)
-                        Builder(
+                        // Conditional: only shown when present (added via counter search)
+                        if (currentItem.plusOneToughnessCounters > 0) ...[
+                          const SizedBox(height: 8),
+                          Builder(
                           builder: (context) {
                             final isEditingPlusToughness = _editingNumericField == 'counter_plusToughness';
                             return Row(
@@ -1077,7 +1080,8 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                               ],
                             );
                           },
-                        ),
+                          ),
+                        ],
 
                         if (currentItem.isPowerToughnessModified) ...[
                           const SizedBox(height: 8),

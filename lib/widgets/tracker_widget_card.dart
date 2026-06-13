@@ -515,24 +515,104 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     final tokenProvider = context.read<TokenProvider>();
     final settingsProvider = context.read<SettingsProvider>();
     final rulesProvider = context.read<RulesProvider>();
-    final trackerProvider = context.read<TrackerProvider>();
-    final toggleProvider = context.read<ToggleProvider>();
 
-    // Increment first: a new Hare Apparent just entered the battlefield
-    widget.tracker.increment(1);
-    trackerProvider.updateTracker(widget.tracker);
+    // The user controls the Hare Apparent count manually via the stepper.
+    // When a new Hare Apparent enters, its ETB creates a number of 1/1 white
+    // Rabbits equal to the number of *other* Hare Apparents you control.
+    final hareCount = widget.tracker.currentValue;
+    final rabbitsToCreate = hareCount - 1;
 
-    // "Other" Hare Apparents = total on board minus the one that just entered
-    final rabbitsToCreate = widget.tracker.currentValue - 1;
-    if (rabbitsToCreate <= 0) return;
+    if (rabbitsToCreate <= 0) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Hare Apparent'),
+          content: const Text(
+            'A new Hare Apparent makes 1 Rabbit for each other Hare Apparent '
+            'you control. With 1 or fewer Hare Apparents, no Rabbits are '
+            'created.\n\nUse the +/\u2212 buttons to set how many Hare '
+            'Apparents you control before pressing Make Rabbits.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
 
     // Evaluate rules so Token Doublers / Doubling Season / Anointed Procession
-    // / Chatterfang / etc. layer on via the rules engine
+    // / Chatterfang / etc. layer on via the rules engine. The SAME [results]
+    // list is reused for the preview and the actual creation below so the
+    // confirmation cannot diverge from what is created.
     final results = rulesProvider.evaluateRules(
       'Rabbit', '1/1', 'W', 'Creature \u2014 Rabbit', '', rabbitsToCreate,
     );
+    final rabbitsAfterRules = results.first.quantity;
+    // Consolidate identical token identities for the breakdown line so
+    // companions (e.g. Chatterfang Squirrels) are reflected, not just the
+    // primary Rabbit count (display-only \u2014 creation uses the full list).
+    final displayResults = TokenCreationResult.aggregateForDisplay(results);
+    final breakdownLine = displayResults.length > 1
+        ? displayResults
+            .map((r) => '${r.quantity}\u00d7 ${r.name}')
+            .join(', ')
+        : '$rabbitsAfterRules rabbits';
+    final confirmLabel = displayResults.length > 1
+        ? 'Create Tokens'
+        : 'Create $rabbitsAfterRules Rabbits';
+    final wasCapped = results.any((r) => r.wasCapped);
+
+    // Show confirmation dialog (mirrors Krenko's Make Goblins flow)
+    final shouldCreate = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Create Rabbit Tokens'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Based on other Hare Apparents you control ($rabbitsToCreate):',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              breakdownLine,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (wasCapped) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Quantity capped at ${GameConstants.maxTokenQuantity}.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, rabbitsAfterRules),
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldCreate == null) return;
 
     // Calculate max order across ALL board items (tokens + trackers + toggles)
+    final trackerProvider = context.read<TrackerProvider>();
+    final toggleProvider = context.read<ToggleProvider>();
     final allOrders = <double>[];
     allOrders.addAll(tokenProvider.items.map((item) => item.order));
     allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
@@ -570,9 +650,25 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     // Calculate goblin creation amounts via rules engine
     final nontokenGoblins = widget.tracker.currentValue;
     final totalGoblins = tokenGoblinCount + nontokenGoblins;
-    // Evaluate rules on goblin token creation
+    // Evaluate rules on goblin token creation. The SAME [results] list backs
+    // both the preview here and the creation below (createKrenkoGoblins for
+    // results.first + createCompanionTokens for the rest), so the confirmation
+    // cannot diverge from what is actually created.
     final results = rulesProvider.evaluateRules('Goblin', '1/1', 'R', 'Creature Token \u2014 Goblin', '', totalGoblins);
     final byTotalGoblins = results.first.quantity;
+    // Consolidate identical token identities for the breakdown line so
+    // companions (e.g. Chatterfang Squirrels) are reflected, not just the
+    // primary Goblin count (display-only \u2014 creation uses the full list).
+    final displayResults = TokenCreationResult.aggregateForDisplay(results);
+    final breakdownLine = displayResults.length > 1
+        ? displayResults
+            .map((r) => '${r.quantity}\u00d7 ${r.name}')
+            .join(', ')
+        : '$byTotalGoblins goblins';
+    final confirmLabel = displayResults.length > 1
+        ? 'Create Tokens'
+        : 'Create $byTotalGoblins Goblins';
+    final wasCapped = results.any((r) => r.wasCapped);
 
     // Show dialog to choose which calculation to use
     final shouldCreate = await showDialog<int>(
@@ -589,11 +685,18 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
             ),
             const SizedBox(height: 4),
             Text(
-              '$byTotalGoblins goblins',
+              breakdownLine,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
+            if (wasCapped) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Quantity capped at ${GameConstants.maxTokenQuantity}.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
           ],
         ),
         actions: [
@@ -607,7 +710,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
-            child: Text('Create $byTotalGoblins Goblins'),
+            child: Text(confirmLabel),
           ),
         ],
       ),
@@ -809,14 +912,29 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     // At 0 copies, action is disabled
     if (manufactorCount <= 0) return;
 
-    // Evaluate rules to preview what will be created from a Food token
-    // (Academy Manufactor rule will generate companion Clue + Treasure)
-    // Use the real database type 'Artifact — Food' so token_type trigger matches
+    // Evaluate rules to preview what will be created from a Food token.
+    // The AM utility card represents physical Academy Manufactor copies on
+    // the battlefield, so it FORCES the AM expansion at its own count
+    // (`forceAcademyManufactorCount`) independent of the rules-calculator AM
+    // preset — pressing it must always yield the full Food + Treasure + Clue
+    // set scaled by the utility's count, with any active doublers/presets/
+    // custom rules layered on by the engine. The SAME [results] list is reused
+    // for the preview and the actual creation below, so they cannot diverge.
+    // Use the real database type 'Artifact — Food' so token_type trigger matches.
     final foodParts = GameConstants.foodCompositeId.split('|');
     final results = rulesProvider.evaluateRules(
       foodParts[0], foodParts[1], foodParts[2], foodParts[3], foodParts[4], 1,
+      forceAcademyManufactorCount: manufactorCount,
     );
     final totalPerType = results.fold<int>(0, (sum, r) => sum + r.quantity);
+    // Consolidate identical token identities for the breakdown line
+    // (display-only — actual creation still uses the full result list).
+    final displayResults = TokenCreationResult.aggregateForDisplay(results);
+    final breakdownLine = displayResults.length > 1
+        ? displayResults
+            .map((r) => '${r.quantity}× ${r.name}')
+            .join(', ')
+        : '$totalPerType tokens';
 
     // Show confirmation dialog with breakdown
     final shouldCreate = await showDialog<bool>(
@@ -828,7 +946,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Creating ${results.length > 1 ? "${results.map((r) => "${r.quantity}\u00d7 ${r.name}").join(", ")}" : "$totalPerType tokens"}',
+              'Creating $breakdownLine',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),

@@ -36,6 +36,62 @@ class TokenCreationResult {
   });
 
   String get compositeId => '$name|$pt|$colors|$type|$abilities';
+
+  /// Aggregates a rules-engine result list by token identity for DISPLAY only.
+  ///
+  /// The engine intentionally emits one [TokenCreationResult] per trigger event
+  /// (e.g. Academy Manufactor + Chatterfang spawns a Squirrel for each of Clue,
+  /// Food, Treasure independently). The TOTALS are correct, but rendering each
+  /// fragment separately reads as
+  /// `2 Clue + 2 Food + 2 Squirrel + 2 Treasure + 2 Squirrel + 2 Squirrel`.
+  ///
+  /// This collapses entries that share the exact same composite ID
+  /// (`name|pt|colors|type|abilities`) into one consolidated entry, summing
+  /// quantities, so it instead reads `2 Clue + 2 Food + 6 Squirrel + 2 Treasure`.
+  ///
+  /// Distinct tokens stay separate (Food and Treasure never merge). The order
+  /// of the FIRST occurrence of each distinct token is preserved so the
+  /// breakdown is not reshuffled. [wasCapped] is OR-ed across merged entries.
+  ///
+  /// This is display-only and must NOT be used on the token-creation path —
+  /// the engine's per-event output is what the board-creation logic relies on.
+  static List<TokenCreationResult> aggregateForDisplay(
+    List<TokenCreationResult> results,
+  ) {
+    final order = <String>[];
+    final byId = <String, TokenCreationResult>{};
+
+    for (final r in results) {
+      final id = r.compositeId;
+      final existing = byId[id];
+      if (existing == null) {
+        order.add(id);
+        byId[id] = r;
+      } else {
+        byId[id] = TokenCreationResult(
+          name: existing.name,
+          pt: existing.pt,
+          colors: existing.colors,
+          type: existing.type,
+          abilities: existing.abilities,
+          tokenDatabaseId: existing.tokenDatabaseId,
+          quantity: existing.quantity + r.quantity,
+          wasCapped: existing.wasCapped || r.wasCapped,
+        );
+      }
+    }
+
+    return [for (final id in order) byId[id]!];
+  }
+
+  /// Builds the consolidated "2 Clue + 2 Food + 6 Squirrel + 2 Treasure"
+  /// breakdown string used by every preview surface. Aggregates by composite
+  /// ID first (see [aggregateForDisplay]).
+  static String breakdownString(List<TokenCreationResult> results) {
+    return aggregateForDisplay(results)
+        .map((r) => '${r.quantity} ${r.name}')
+        .join(' + ');
+  }
 }
 
 /// Internal representation of a rule during evaluation.
@@ -96,7 +152,7 @@ class RulesProvider extends ChangeNotifier {
     _rulesBox = Hive.box<TokenRule>(DatabaseConstants.tokenRulesBox);
     _prefs = await SharedPreferences.getInstance();
     _loadPresetState();
-    await _migrateOldMultiplier();
+    await _removeOldMultiplier();
     _initialized = true;
     notifyListeners();
   }
@@ -156,102 +212,118 @@ class RulesProvider extends ChangeNotifier {
   // --- Preset setters (each persists and notifies) ---
 
   Future<void> setTokenDoublerCount(int value) async {
-    tokenDoublerCount = value.clamp(0, 10);
+    tokenDoublerCount = value.clamp(0, 20);
     await _savePresetState();
   }
 
   Future<void> setDoublingSeasonCount(int value) async {
-    doublingSeasonCount = value.clamp(0, 10);
+    doublingSeasonCount = value.clamp(0, 20);
     await _savePresetState();
   }
 
   Future<void> setPrimalVigorCount(int value) async {
-    primalVigorCount = value.clamp(0, 10);
+    primalVigorCount = value.clamp(0, 20);
     await _savePresetState();
   }
 
   Future<void> setOjerTaqCount(int value) async {
-    ojerTaqCount = value.clamp(0, 10);
+    ojerTaqCount = value.clamp(0, 20);
     await _savePresetState();
   }
 
   Future<void> setAcademyManufactorCount(int value) async {
-    academyManufactorCount = value.clamp(0, 10);
+    academyManufactorCount = value.clamp(0, 20);
     await _savePresetState();
   }
 
   Future<void> setChatterfangCount(int value) async {
-    chatterfangCount = value.clamp(0, 10);
+    chatterfangCount = value.clamp(0, 20);
     await _savePresetState();
   }
 
   Future<void> setPlusOneDoublerCount(int value) async {
-    plusOneDoublerCount = value.clamp(0, 10);
+    plusOneDoublerCount = value.clamp(0, 20);
     await _savePresetState();
   }
 
   Future<void> setPlusOneExtraCount(int value) async {
-    plusOneExtraCount = value.clamp(0, 10);
+    plusOneExtraCount = value.clamp(0, 20);
     await _savePresetState();
   }
 
   Future<void> setAllCounterDoublerCount(int value) async {
-    allCounterDoublerCount = value.clamp(0, 10);
+    allCounterDoublerCount = value.clamp(0, 20);
     await _savePresetState();
   }
 
-  // --- Migration ---
+  // --- Old multiplier removal ---
 
-  Future<void> _migrateOldMultiplier() async {
-    final migrated =
-        _prefs.getBool(PreferenceKeys.rulesMigrationDone) ?? false;
-    if (migrated) return;
+  /// One-time clean removal of the legacy token/counter multiplier mechanism.
+  ///
+  /// The old multiplier is intentionally NOT carried forward — no preset is
+  /// auto-set and no custom rule is created from it. Silently maintaining a
+  /// hidden multiplier is worse than a clean break; affected users are an
+  /// edge case and can re-set effects in the rules calculator.
+  ///
+  /// Behavior:
+  /// - Deletes the legacy [PreferenceKeys.tokenMultiplier] and
+  ///   [PreferenceKeys.counterMultiplier] keys if present.
+  /// - Shows the one-time removal notice (SnackBar) only if either old value
+  ///   was a non-default value (> 1).
+  /// - Runs exactly once, gated by [PreferenceKeys.rulesMigrationDone].
+  /// - Resilient: absent or corrupt old keys must not crash boot. Any failure
+  ///   is swallowed so resilient boot is preserved.
+  Future<void> _removeOldMultiplier() async {
+    try {
+      final done =
+          _prefs.getBool(PreferenceKeys.rulesMigrationDone) ?? false;
+      if (done) return;
 
-    final oldMultiplier =
-        _prefs.getInt(PreferenceKeys.tokenMultiplier) ?? 1;
-    if (oldMultiplier > 1) {
-      if (_isPowerOfTwo(oldMultiplier)) {
-        final doublerCount = (log(oldMultiplier) / log(2)).round();
-        tokenDoublerCount = doublerCount;
-      } else {
-        final rule = TokenRule(
-          name: 'Migrated ×$oldMultiplier',
-          enabled: true,
-          order: 0,
-          trigger: RuleTrigger(triggerType: 'any_token'),
-          outcomes: [
-            RuleOutcome(outcomeType: 'multiply', multiplier: oldMultiplier)
-          ],
-        );
-        await _rulesBox.add(rule);
+      // getInt returns null if the key is absent OR stored as a different
+      // type (corrupt), so a missing/corrupt key falls back to the default 1.
+      int oldMultiplier = 1;
+      int oldCounterMult = 1;
+      try {
+        oldMultiplier = _prefs.getInt(PreferenceKeys.tokenMultiplier) ?? 1;
+      } catch (_) {
+        oldMultiplier = 1;
       }
-      _needsMigrationNotification = true;
-    }
-
-    final oldCounterMult =
-        _prefs.getInt(PreferenceKeys.counterMultiplier) ?? 1;
-    if (oldCounterMult > 1) {
-      if (_isPowerOfTwo(oldCounterMult)) {
-        final doublerCount = (log(oldCounterMult) / log(2)).round();
-        allCounterDoublerCount = doublerCount;
+      try {
+        oldCounterMult =
+            _prefs.getInt(PreferenceKeys.counterMultiplier) ?? 1;
+      } catch (_) {
+        oldCounterMult = 1;
       }
-      _needsMigrationNotification = true;
+
+      if (oldMultiplier > 1 || oldCounterMult > 1) {
+        _needsMigrationNotification = true;
+      }
+
+      // Safely delete the legacy keys. No presets or rules are created.
+      await _prefs.remove(PreferenceKeys.tokenMultiplier);
+      await _prefs.remove(PreferenceKeys.counterMultiplier);
+
+      await _prefs.setBool(PreferenceKeys.rulesMigrationDone, true);
+    } catch (e) {
+      // Resilient boot: never throw. If anything goes wrong, leave prefs as-is
+      // (the gate flag may not be set, so this retries next launch — harmless,
+      // it only ever deletes keys and shows an optional one-time notice).
+      debugPrint('RulesProvider: old multiplier removal skipped: $e');
     }
-
-    // Clear old keys now that migration is complete (safe — SettingsProvider getters use ?? defaults)
-    await _prefs.remove(PreferenceKeys.tokenMultiplier);
-    await _prefs.remove(PreferenceKeys.counterMultiplier);
-
-    await _prefs.setBool(PreferenceKeys.rulesMigrationDone, true);
-    await _savePresetState();
   }
-
-  bool _isPowerOfTwo(int n) => n > 0 && (n & (n - 1)) == 0;
 
   // --- Rule evaluation ---
 
   /// Builds the unified evaluation list: replacement rules first, then multipliers.
-  List<_EvalRule> get _evaluationOrder {
+  ///
+  /// [forceAcademyManufactorCount] forces the Academy Manufactor expansion at
+  /// the given count even when the AM *preset* is off. Used by the Academy
+  /// Manufactor board *utility* card, which represents physical AM copies on
+  /// the battlefield and must always produce the full Food + Treasure + Clue
+  /// set scaled by its own count — independent of the rules-calculator preset.
+  /// The effective AM count is `max(preset, forced)` so the two never
+  /// double-stack and the utility never under-produces.
+  List<_EvalRule> _buildEvaluationOrder({int forceAcademyManufactorCount = 0}) {
     final rules = <_EvalRule>[];
 
     // 1. Custom "also_create" rules (user-reorderable)
@@ -273,87 +345,17 @@ class RulesProvider extends ChangeNotifier {
       }
     }
 
-    // 2. Academy Manufactor preset (if enabled)
-    // When you create a Food, Treasure, or Clue token, also create the other two.
-    // Uses token_type trigger with subtype matching (.contains()) for robustness.
-    // Outcome composite IDs match real database entries for correct metadata/artwork.
-    // Academy Manufactor: N copies = 3^(N-1) of each type per trigger.
-    // Per official rulings, each AM triples the total (1 AM = 3 tokens,
-    // 2 AMs = 9, 3 AMs = 27, N AMs = 3^N total / 3^(N-1) of each type).
-    // Modeled as: multiply triggering type by 3^(N-1), then also_create
-    // the other two types (which inherit the multiplied quantity).
-    if (academyManufactorCount > 0) {
-      final amMultiplier = pow(3, academyManufactorCount - 1).toInt();
-
-      // Food triggers: multiply Food × 3^(N-1), also create Treasure + Clue
-      rules.add(_EvalRule(
-        name: 'Academy Manufactor (Food)',
-        trigger: RuleTrigger(
-          triggerType: 'token_type',
-          targetType: 'Food',
-        ),
-        outcomes: [
-          if (amMultiplier > 1)
-            RuleOutcome(outcomeType: 'multiply', multiplier: amMultiplier),
-          RuleOutcome(
-            outcomeType: 'also_create',
-            targetTokenId: GameConstants.treasureCompositeId,
-            quantity: 1,
-          ),
-          RuleOutcome(
-            outcomeType: 'also_create',
-            targetTokenId: GameConstants.clueCompositeId,
-            quantity: 1,
-          ),
-        ],
-        groupId: 'academy_manufactor',
-      ));
-      // Treasure triggers: multiply Treasure × 3^(N-1), also create Food + Clue
-      rules.add(_EvalRule(
-        name: 'Academy Manufactor (Treasure)',
-        trigger: RuleTrigger(
-          triggerType: 'token_type',
-          targetType: 'Treasure',
-        ),
-        outcomes: [
-          if (amMultiplier > 1)
-            RuleOutcome(outcomeType: 'multiply', multiplier: amMultiplier),
-          RuleOutcome(
-            outcomeType: 'also_create',
-            targetTokenId: GameConstants.foodCompositeId,
-            quantity: 1,
-          ),
-          RuleOutcome(
-            outcomeType: 'also_create',
-            targetTokenId: GameConstants.clueCompositeId,
-            quantity: 1,
-          ),
-        ],
-        groupId: 'academy_manufactor',
-      ));
-      // Clue triggers: multiply Clue × 3^(N-1), also create Food + Treasure
-      rules.add(_EvalRule(
-        name: 'Academy Manufactor (Clue)',
-        trigger: RuleTrigger(
-          triggerType: 'token_type',
-          targetType: 'Clue',
-        ),
-        outcomes: [
-          if (amMultiplier > 1)
-            RuleOutcome(outcomeType: 'multiply', multiplier: amMultiplier),
-          RuleOutcome(
-            outcomeType: 'also_create',
-            targetTokenId: GameConstants.foodCompositeId,
-            quantity: 1,
-          ),
-          RuleOutcome(
-            outcomeType: 'also_create',
-            targetTokenId: GameConstants.treasureCompositeId,
-            quantity: 1,
-          ),
-        ],
-        groupId: 'academy_manufactor',
-      ));
+    // 2. Academy Manufactor (preset OR forced by the AM utility card).
+    // Active at the effective count = max(preset, forced). The utility card
+    // forces the expansion at its own count even when the preset is 0; the
+    // preset path is unchanged when nothing is forced (forced defaults to 0).
+    // See [_buildAcademyManufactorRules] for the 3^(N-1) per-trigger math.
+    final effectiveAmCount =
+        academyManufactorCount > forceAcademyManufactorCount
+            ? academyManufactorCount
+            : forceAcademyManufactorCount;
+    if (effectiveAmCount > 0) {
+      rules.addAll(_buildAcademyManufactorRules(effectiveAmCount));
     }
 
     // 3. Chatterfang preset (if enabled)
@@ -447,21 +449,118 @@ class RulesProvider extends ChangeNotifier {
     return rules;
   }
 
+  /// Builds the Academy Manufactor eval rules for a given AM [count].
+  ///
+  /// When you create a Food, Treasure, or Clue token, also create the other
+  /// two. Uses token_type trigger with subtype matching (.contains()) for
+  /// robustness. Outcome composite IDs match real database entries for correct
+  /// metadata/artwork.
+  ///
+  /// Academy Manufactor: N copies = 3^(N-1) of each type per trigger. Per
+  /// official rulings, each AM triples the total (1 AM = 3 tokens, 2 AMs = 9,
+  /// 3 AMs = 27, N AMs = 3^N total / 3^(N-1) of each type). Modeled as:
+  /// multiply triggering type by 3^(N-1), then also_create the other two types
+  /// (which inherit the multiplied quantity).
+  ///
+  /// Shared by the AM *preset* path and the AM board *utility* card so both
+  /// produce identical, rules-accurate output.
+  List<_EvalRule> _buildAcademyManufactorRules(int count) {
+    final amMultiplier = pow(3, count - 1).toInt();
+    return [
+      // Food triggers: multiply Food × 3^(N-1), also create Treasure + Clue
+      _EvalRule(
+        name: 'Academy Manufactor (Food)',
+        trigger: RuleTrigger(
+          triggerType: 'token_type',
+          targetType: 'Food',
+        ),
+        outcomes: [
+          if (amMultiplier > 1)
+            RuleOutcome(outcomeType: 'multiply', multiplier: amMultiplier),
+          RuleOutcome(
+            outcomeType: 'also_create',
+            targetTokenId: GameConstants.treasureCompositeId,
+            quantity: 1,
+          ),
+          RuleOutcome(
+            outcomeType: 'also_create',
+            targetTokenId: GameConstants.clueCompositeId,
+            quantity: 1,
+          ),
+        ],
+        groupId: 'academy_manufactor',
+      ),
+      // Treasure triggers: multiply Treasure × 3^(N-1), also create Food + Clue
+      _EvalRule(
+        name: 'Academy Manufactor (Treasure)',
+        trigger: RuleTrigger(
+          triggerType: 'token_type',
+          targetType: 'Treasure',
+        ),
+        outcomes: [
+          if (amMultiplier > 1)
+            RuleOutcome(outcomeType: 'multiply', multiplier: amMultiplier),
+          RuleOutcome(
+            outcomeType: 'also_create',
+            targetTokenId: GameConstants.foodCompositeId,
+            quantity: 1,
+          ),
+          RuleOutcome(
+            outcomeType: 'also_create',
+            targetTokenId: GameConstants.clueCompositeId,
+            quantity: 1,
+          ),
+        ],
+        groupId: 'academy_manufactor',
+      ),
+      // Clue triggers: multiply Clue × 3^(N-1), also create Food + Treasure
+      _EvalRule(
+        name: 'Academy Manufactor (Clue)',
+        trigger: RuleTrigger(
+          triggerType: 'token_type',
+          targetType: 'Clue',
+        ),
+        outcomes: [
+          if (amMultiplier > 1)
+            RuleOutcome(outcomeType: 'multiply', multiplier: amMultiplier),
+          RuleOutcome(
+            outcomeType: 'also_create',
+            targetTokenId: GameConstants.foodCompositeId,
+            quantity: 1,
+          ),
+          RuleOutcome(
+            outcomeType: 'also_create',
+            targetTokenId: GameConstants.treasureCompositeId,
+            quantity: 1,
+          ),
+        ],
+        groupId: 'academy_manufactor',
+      ),
+    ];
+  }
+
   /// Evaluates all enabled rules against a token creation intent.
   ///
   /// Per MTG 614.16: companion tokens from "also_create" continue evaluation
   /// from the NEXT rule down, never re-entering from the top.
   ///
   /// Returns a list of [TokenCreationResult] with final quantities.
+  ///
+  /// [forceAcademyManufactorCount] forces the Academy Manufactor expansion at
+  /// the given count even when the AM preset is off (used by the AM board
+  /// utility card). See [_buildEvaluationOrder].
   List<TokenCreationResult> evaluateRules(
     String tokenName,
     String tokenPt,
     String tokenColors,
     String tokenType,
     String tokenAbilities,
-    int quantity,
-  ) {
-    final rules = _evaluationOrder;
+    int quantity, {
+    int forceAcademyManufactorCount = 0,
+  }) {
+    final rules = _buildEvaluationOrder(
+      forceAcademyManufactorCount: forceAcademyManufactorCount,
+    );
     if (rules.isEmpty) {
       return [
         TokenCreationResult(
@@ -666,11 +765,19 @@ class RulesProvider extends ChangeNotifier {
   }
 
   /// Returns a human-readable summary for a generic "1 token" preview.
+  ///
+  /// When companion tokens are produced, shows the consolidated per-token
+  /// breakdown (identical token identities merged — see
+  /// [TokenCreationResult.aggregateForDisplay]); otherwise the simple total.
   String get genericPreviewSummary {
     final results =
         evaluateRules('Generic', '1/1', '', 'Token Creature', '', 1);
     final total = results.fold<int>(0, (sum, r) => sum + r.quantity);
     if (total == 1 && results.length == 1) return 'No active rules';
+    final aggregated = TokenCreationResult.aggregateForDisplay(results);
+    if (aggregated.length > 1) {
+      return '1 token → ${TokenCreationResult.breakdownString(results)}';
+    }
     return '1 token → $total tokens';
   }
 
@@ -702,6 +809,25 @@ class RulesProvider extends ChangeNotifier {
 
   Future<void> deleteRule(TokenRule rule) async {
     await rule.delete();
+    notifyListeners();
+  }
+
+  /// Clears ALL custom rules from the [tokenRules] box, with no exceptions.
+  ///
+  /// Called when the experimental-features flag is turned OFF — the custom
+  /// rule authoring machinery is gated behind that flag, so leftover custom
+  /// rules must not keep affecting token creation while it is hidden.
+  ///
+  /// There is no longer any preservation special-case: the legacy multiplier
+  /// migration was removed entirely, so every rule in the box is a
+  /// user-created custom rule and all of them are deleted. Presets are
+  /// computed at runtime and are unaffected.
+  Future<void> clearUserCustomRules() async {
+    if (!_initialized) return;
+    final toDelete = _rulesBox.values.toList();
+    for (final rule in toDelete) {
+      await rule.delete();
+    }
     notifyListeners();
   }
 

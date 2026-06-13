@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/rules_provider.dart';
+import '../providers/settings_provider.dart';
 import '../models/token_rule.dart';
 import '../screens/rule_creator_screen.dart';
 import '../utils/constants.dart';
@@ -133,6 +134,12 @@ class _RulesBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final rules = context.watch<RulesProvider>();
 
+    // Custom-rule authoring (Replacements section, inline custom rule lists,
+    // and the "Add Custom Rule" entry point) is gated behind the experimental
+    // features flag. Presets and the Counter Modifiers section always show.
+    final customRulesEnabled =
+        context.watch<SettingsProvider>().experimentalFeaturesEnabled;
+
     // Split custom rules by outcome type
     final alsoCreateRules = rules.customRules
         .where((r) => r.outcomes.any((o) => o.outcomeType == 'also_create'))
@@ -149,7 +156,7 @@ class _RulesBody extends StatelessWidget {
 
     return ListView(
       controller: scrollController,
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       children: [
         // Also Create section
         _buildSectionHeader(context, 'ALSO CREATE'),
@@ -167,31 +174,45 @@ class _RulesBody extends StatelessWidget {
           count: rules.chatterfangCount,
           onChanged: (val) => rules.setChatterfangCount(val),
         ),
-        if (alsoCreateRules.isNotEmpty) ...[
+        if (customRulesEnabled && alsoCreateRules.isNotEmpty) ...[
           const SizedBox(height: 4),
           _CustomRulesList(rules: alsoCreateRules),
         ],
 
         const SizedBox(height: 20),
 
-        // Replacements section
-        _buildSectionHeader(context, 'REPLACEMENTS'),
-        const SizedBox(height: 8),
-        if (replaceRules.isNotEmpty)
-          _CustomRulesList(rules: replaceRules, showStepper: false)
-        else
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text(
-              'No replacement rules. Use "Add Custom Rule" with a "Replace (instead)" effect.',
-              style: Theme.of(context).textTheme.bodySmall,
+        // Replacements section (custom-rule machinery — experimental only)
+        if (customRulesEnabled) ...[
+          _buildSectionHeader(context, 'REPLACEMENTS'),
+          const SizedBox(height: 8),
+          if (replaceRules.isNotEmpty)
+            _CustomRulesList(rules: replaceRules, showStepper: false)
+          else
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                'No replacement rules. Use "Add Custom Rule" with a "Replace (instead)" effect.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ),
-          ),
-
-        const SizedBox(height: 20),
+          const SizedBox(height: 20),
+        ],
 
         // Multipliers section
         _buildSectionHeader(context, 'MULTIPLIERS'),
+        if (rules.tokenDoublerCount >= 20 ||
+            rules.doublingSeasonCount >= 20 ||
+            rules.primalVigorCount >= 20 ||
+            rules.ojerTaqCount >= 20)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              'Token creation capped at 999,999.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.red,
+                  ),
+            ),
+          ),
         const SizedBox(height: 8),
         _PresetStepperRow(
           title: 'Token Doublers',
@@ -221,7 +242,7 @@ class _RulesBody extends StatelessWidget {
           count: rules.ojerTaqCount,
           onChanged: (val) => rules.setOjerTaqCount(val),
         ),
-        if (multiplyRules.isNotEmpty) ...[
+        if (customRulesEnabled && multiplyRules.isNotEmpty) ...[
           const SizedBox(height: 4),
           _CustomMultiplyRulesList(rules: multiplyRules),
         ],
@@ -253,17 +274,18 @@ class _RulesBody extends StatelessWidget {
           onChanged: (val) => rules.setAllCounterDoublerCount(val),
         ),
 
-        const SizedBox(height: 20),
-
-        // Add custom rule button
-        OutlinedButton.icon(
-          onPressed: () => _openRuleCreator(context),
-          icon: const Icon(Icons.add),
-          label: const Text('Add Custom Rule'),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
+        // Add custom rule entry point (custom-rule machinery — experimental only)
+        if (customRulesEnabled) ...[
+          const SizedBox(height: 20),
+          OutlinedButton.icon(
+            onPressed: () => _openRuleCreator(context),
+            icon: const Icon(Icons.add),
+            label: const Text('Add Custom Rule'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -353,7 +375,7 @@ class _QuantityStepper extends StatelessWidget {
   const _QuantityStepper({
     required this.value,
     required this.onChanged,
-    this.maxValue = 10,
+    this.maxValue = 20,
   });
 
   @override
@@ -374,7 +396,7 @@ class _QuantityStepper extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: SizedBox(
-              width: 20,
+              width: 28,
               child: Text(
                 '$value',
                 textAlign: TextAlign.center,

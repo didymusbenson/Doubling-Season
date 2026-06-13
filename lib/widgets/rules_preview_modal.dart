@@ -94,7 +94,10 @@ class RulesPreviewModal extends StatelessWidget {
               ?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: UIConstants.verticalSpacing),
-        ...category.results.map((result) {
+        // Consolidate identical token identities (e.g. three separate
+        // "2 Squirrel" fragments → one "6 Squirrel"). Display-only.
+        ...TokenCreationResult.aggregateForDisplay(category.results)
+            .map((result) {
           return Padding(
             padding: const EdgeInsets.only(left: 12),
             child: Text(

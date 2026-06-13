@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/heart_style.dart';
 import '../services/iap_service.dart';
 import '../utils/artwork_manager.dart';
+import '../utils/whats_new_content.dart';
 import '../widgets/heart_icon.dart';
 import '../widgets/purchase_menu.dart';
 import 'heart_customization_screen.dart';
@@ -19,6 +20,7 @@ class AboutScreen extends StatefulWidget {
 
 class _AboutScreenState extends State<AboutScreen> {
   String _version = '';
+  String _versionKey = '';
   int _cacheSize = 0;
   int _customUploadsSize = 0;
   bool _isLoadingCache = true;
@@ -52,8 +54,10 @@ class _AboutScreenState extends State<AboutScreen> {
 
   Future<void> _loadVersion() async {
     final packageInfo = await PackageInfo.fromPlatform();
+    if (!mounted) return;
     setState(() {
       _version = 'Version ${packageInfo.version} (${packageInfo.buildNumber})';
+      _versionKey = packageInfo.version;
     });
   }
 
@@ -189,11 +193,32 @@ class _AboutScreenState extends State<AboutScreen> {
             const SizedBox(height: 8),
 
             if (_version.isNotEmpty)
-              Text(
-                _version,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    _version,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey,
+                    ),
+                  ),
+                  if (hasWhatsNewContent(_versionKey)) ...[
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => showWhatsNewDialog(context),
+                      child: Text(
+                        "What's new?",
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.blue,
+                          decoration: TextDecoration.underline,
+                          decorationColor: Colors.blue,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
 
             const SizedBox(height: 32),
@@ -215,8 +240,7 @@ class _AboutScreenState extends State<AboutScreen> {
                     Text(
                       'Tripling Season is a token tracker for Magic: The Gathering. '
                       'This project is a labor of love for the Magic community and is '
-                      'committed to being 100% free and ad free forever. Your support '
-                      'helps keep Tripling Season free.',
+                      'committed to being 100% free and ad free forever.',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],
@@ -225,7 +249,11 @@ class _AboutScreenState extends State<AboutScreen> {
             ),
 
             const SizedBox(height: 16),
+            
+            // Support
+            _buildSupportCard(),
 
+            const SizedBox(height: 16),
             // Features
             Card(
               child: Padding(
@@ -265,10 +293,7 @@ class _AboutScreenState extends State<AboutScreen> {
               ),
             ),
 
-            const SizedBox(height: 16),
 
-            // Support
-            _buildSupportCard(),
 
             const SizedBox(height: 16),
 
@@ -552,7 +577,7 @@ class _AboutScreenState extends State<AboutScreen> {
             Text(
               iap.hasCollectorTier()
                   ? 'Thanks for your Collector-tier support! Tap the heart to customize your badge.'
-                  : 'Tripling Season is free and ad-free. If you\'d like to help keep it that way, you can leave a tip.',
+                  : 'You can support ongoing development of Tripling Season by leaving a tip.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),

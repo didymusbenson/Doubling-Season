@@ -131,8 +131,11 @@ class DatabaseConstants {
 
 /// SharedPreferences keys
 class PreferenceKeys {
+  // Legacy multiplier keys. The old multiplier mechanism was removed; these
+  // are only read+deleted once by RulesProvider._removeOldMultiplier on
+  // upgrade. Do NOT use for new code.
   static const String tokenMultiplier = 'tokenMultiplier';
-  static const String counterMultiplier = 'counterMultiplier'; // For future work involving counter multipliers (not yet implemented)
+  static const String counterMultiplier = 'counterMultiplier';
   static const String summoningSicknessEnabled = 'summoningSicknessEnabled';
   static const String favoriteTokens = 'favoriteTokens';
   static const String recentTokens = 'recentTokens';
@@ -149,7 +152,17 @@ class PreferenceKeys {
   static const String presetPlusOneDoublers = 'preset_plus_one_doublers';
   static const String presetPlusOneExtra = 'preset_plus_one_extra';
   static const String presetAllCounterDoublers = 'preset_all_counter_doublers';
+  // One-time gate for the legacy-multiplier clean removal (see
+  // RulesProvider._removeOldMultiplier). Once set, the old multiplier keys
+  // are never inspected again.
   static const String rulesMigrationDone = 'rules_migration_done';
+
+  // Last version string for which the user dismissed the What's New modal.
+  // When `PackageInfo.fromPlatform().version` differs from this, the modal
+  // auto-shows once on launch. About-screen "What's new?" link bypasses
+  // this gate (always shows when there is content).
+  static const String lastDismissedWhatsNewVersion =
+      'lastDismissedWhatsNewVersion';
 }
 
 /// Asset paths

@@ -230,7 +230,7 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
                   );
                   final previewText = results.length == 1
                       ? 'Final amount: ${results.first.quantity}'
-                      : results.map((r) => '${r.quantity} ${r.name}').join(' + ');
+                      : TokenCreationResult.breakdownString(results);
                   return Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(

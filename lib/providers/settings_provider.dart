@@ -105,4 +105,13 @@ class SettingsProvider extends ChangeNotifier {
     await _prefs.setBool(PreferenceKeys.experimentalFeaturesEnabled, value);
     notifyListeners();
   }
+
+  String? get lastDismissedWhatsNewVersion =>
+      _prefs.getString(PreferenceKeys.lastDismissedWhatsNewVersion);
+
+  Future<void> setLastDismissedWhatsNewVersion(String version) async {
+    await _prefs.setString(
+        PreferenceKeys.lastDismissedWhatsNewVersion, version);
+    notifyListeners();
+  }
 }

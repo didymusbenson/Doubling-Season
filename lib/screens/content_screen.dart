@@ -739,8 +739,12 @@ class _ContentScreenState extends State<ContentScreen> {
                       // Show confirmation dialog when enabling
                       _showExperimentalFeaturesConfirmation(context, settings);
                     } else {
-                      // Allow disabling without confirmation
+                      // Allow disabling without confirmation. Clear ALL
+                      // custom rules so the gated custom-rule machinery stops
+                      // affecting token creation while hidden
+                      // (see RulesProvider.clearUserCustomRules).
                       settings.setExperimentalFeaturesEnabled(false);
+                      context.read<RulesProvider>().clearUserCustomRules();
                     }
                   },
                   contentPadding: EdgeInsets.zero,

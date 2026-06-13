@@ -2,11 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'database/hive_setup.dart';
 import 'database/database_maintenance.dart';
-import 'utils/constants.dart';
 import 'providers/token_provider.dart';
 import 'providers/deck_provider.dart';
 import 'providers/settings_provider.dart';
@@ -17,6 +15,8 @@ import 'screens/content_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/error_screen.dart';
 import 'services/iap_service.dart';
+import 'utils/whats_new_content.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -117,6 +117,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
       // Show migration notification if multiplier was converted to rules
       _showMigrationNotificationIfNeeded();
+
+      // Show What's New modal once per version upgrade
+      _showWhatsNewIfNeeded();
     } catch (e, stackTrace) {
       // Log provider initialization errors (only in debug mode)
       if (kDebugMode) {
@@ -182,11 +185,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   Future<RulesProvider> _initRulesProvider() async {
     final stopwatch = Stopwatch()..start();
-    // If tokenRules box was wiped, clear migration flag so it re-runs
-    if (widget.wipedBoxes.contains(DatabaseConstants.tokenRulesBox)) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(PreferenceKeys.rulesMigrationDone);
-    }
     final provider = RulesProvider();
     await provider.init();
     stopwatch.stop();
@@ -270,7 +268,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     });
   }
 
-  /// Show a one-time SnackBar if the old multiplier was migrated to token rules.
+  /// Show a one-time SnackBar if the old multiplier mechanism was removed on
+  /// upgrade. The old multiplier is NOT carried forward; this only informs
+  /// users who had a non-default multiplier set.
   void _showMigrationNotificationIfNeeded() {
     if (!rulesProvider.needsMigrationNotification) return;
 
@@ -281,13 +281,37 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
         ScaffoldMessenger.of(navContext).showSnackBar(
           const SnackBar(
-            content: Text('Your multiplier has been converted to token rules.'),
-            duration: Duration(seconds: 4),
+            content: Text(
+              'Your previous multiplier was removed. Set up token '
+              'effects in the new rules calculator.',
+            ),
+            duration: Duration(seconds: 5),
             behavior: SnackBarBehavior.floating,
           ),
         );
 
         rulesProvider.clearMigrationNotification();
+      });
+    });
+  }
+
+  /// Show the What's New modal once per version on launch. Skipped if Hive
+  /// boxes were wiped (data-loss dialog takes priority), if there's no entry
+  /// for the current version in `whatsNewContent`, or if the user already
+  /// dismissed this version.
+  Future<void> _showWhatsNewIfNeeded() async {
+    if (widget.wipedBoxes.isNotEmpty) return;
+    final packageInfo = await PackageInfo.fromPlatform();
+    final version = packageInfo.version;
+    if (!hasWhatsNewContent(version)) return;
+    if (settingsProvider.lastDismissedWhatsNewVersion == version) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final navContext = _navigatorKey.currentContext;
+        if (navContext == null) return;
+        await showWhatsNewDialog(navContext);
+        await settingsProvider.setLastDismissedWhatsNewVersion(version);
       });
     });
   }

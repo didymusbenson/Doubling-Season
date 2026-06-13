@@ -851,7 +851,7 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                 const SizedBox(height: 8),
                 Text(
                   hasCompanionTokens
-                      ? previewResults.map((r) => '${r.quantity} ${r.name}').join(' + ')
+                      ? TokenCreationResult.breakdownString(previewResults)
                       : 'Final amount: $totalTokens',
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                   textAlign: TextAlign.center,
