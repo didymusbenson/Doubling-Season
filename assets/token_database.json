@@ -5595,6 +5595,16 @@
     ]
   },
   {
+    "name": "Diagnostic Drake",
+    "abilities": "Flying. (This token exists only on the testing branch — used to validate remote token database updates.)",
+    "pt": "3/3",
+    "colors": "U",
+    "type": "Token Creature — Drake",
+    "popularity": 0,
+    "artwork": [],
+    "reverse_related": []
+  },
+  {
     "name": "Dinosaur",
     "abilities": "Trample",
     "pt": "3/3",
@@ -17454,6 +17464,16 @@
     "reverse_related": [
       "Proven Combatant"
     ]
+  },
+  {
+    "name": "QA Goblin",
+    "abilities": "Haste. (This token exists only on the testing branch — used to validate remote token database updates.)",
+    "pt": "1/1",
+    "colors": "R",
+    "type": "Token Creature — Goblin",
+    "popularity": 0,
+    "artwork": [],
+    "reverse_related": []
   },
   {
     "name": "Rabbit",
