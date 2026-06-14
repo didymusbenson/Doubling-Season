@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 const Map<String, String> whatsNewContent = {
-  '1.9.0': '• New Rules Calculator (the button next to +) for all '
+  '1.10.0': '• New Rules Calculator (the button next to +) for all '
       'token-multiplying effects — stack Doubling Season, Ojer Taq, '
       'Academy Manufactor, Chatterfang, and more\n'
       '• Hare Apparent utility\n'

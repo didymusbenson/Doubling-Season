@@ -33,7 +33,7 @@ An outdated CLAUDE.md leads to repeated mistakes, inconsistent patterns, and mis
 
 The app targets iOS, Android, Web, macOS, and Windows platforms using Flutter's single codebase approach.
 
-**Current Version:** 1.8.0+16 (as of December 2025)
+**Current Version:** 1.10.0+18 (as of June 2026)
 
 ## Experimental Feature: Utilities (formerly "Widget Cards")
 
@@ -69,7 +69,7 @@ The app targets iOS, Android, Web, macOS, and Windows platforms using Flutter's 
 - Location: `android/app/build.gradle.kts` (also set as `namespace`)
 
 **App Version:**
-- Current: `1.8.0+16` (Version 1.8.0, Build 16)
+- Current: `1.10.0+18` (Version 1.10.0, Build 18)
 - Location: `pubspec.yaml` → `version: X.Y.Z+B`
 - **Tip**: Use `/shipfortestflight` to auto-increment version and build IPA
 
