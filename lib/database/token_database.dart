@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/token_definition.dart' as token_models;
 import '../providers/settings_provider.dart';
 import '../utils/constants.dart';
@@ -100,11 +103,16 @@ class TokenDatabase extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final jsonString = await rootBundle.loadString(AssetPaths.tokenDatabase);
+      final source = await _resolveActiveSource();
 
       // For large files (>100KB), parse in background isolate
-      _allTokens = await compute(_parseTokens, jsonString);
+      _allTokens = await compute(_parseTokens, source.jsonString);
       _buildReverseLookup();
+
+      // Record the active version in prefs so the update service can compare
+      // against remote without re-reading the bundled or override manifests.
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(PreferenceKeys.tokenDbVersion, source.version);
 
       _isLoading = false;
       notifyListeners();
@@ -112,6 +120,68 @@ class TokenDatabase extends ChangeNotifier {
       _loadError = 'Failed to load tokens: ${e.toString()}';
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Picks the higher-versioned token database between the bundled asset and
+  /// any downloaded override in the app documents directory. Self-heals if the
+  /// override is corrupt or its companion DB file is missing: deletes the
+  /// stale override and falls back to bundled.
+  Future<_TokenSource> _resolveActiveSource() async {
+    final bundledManifestStr =
+        await rootBundle.loadString(AssetPaths.tokenManifest);
+    final bundledManifest =
+        jsonDecode(bundledManifestStr) as Map<String, dynamic>;
+    final bundledVersion = bundledManifest['version'] as int;
+
+    final overrideManifestFile = await _overrideManifestFile();
+    final overrideDbFile = await _overrideDbFile();
+
+    if (await overrideManifestFile.exists()) {
+      try {
+        final overrideManifest = jsonDecode(
+                await overrideManifestFile.readAsString())
+            as Map<String, dynamic>;
+        final overrideVersion = overrideManifest['version'] as int;
+
+        if (overrideVersion > bundledVersion && await overrideDbFile.exists()) {
+          final jsonString = await overrideDbFile.readAsString();
+          return _TokenSource(jsonString, overrideVersion);
+        }
+
+        // Override exists but is older than (or equal to) bundled, or its DB
+        // file is missing. Either way, it's stale — clean it up so the user's
+        // app documents dir doesn't accumulate dead files.
+        await _deleteOverride();
+      } catch (_) {
+        // Corrupt override JSON — wipe and fall back to bundled.
+        await _deleteOverride();
+      }
+    }
+
+    final bundledJson =
+        await rootBundle.loadString(AssetPaths.tokenDatabase);
+    return _TokenSource(bundledJson, bundledVersion);
+  }
+
+  static Future<File> _overrideDbFile() async {
+    final dir = await getApplicationDocumentsDirectory();
+    return File('${dir.path}/token_db/token_database.json');
+  }
+
+  static Future<File> _overrideManifestFile() async {
+    final dir = await getApplicationDocumentsDirectory();
+    return File('${dir.path}/token_db/manifest.json');
+  }
+
+  static Future<void> _deleteOverride() async {
+    try {
+      final db = await _overrideDbFile();
+      if (await db.exists()) await db.delete();
+      final mf = await _overrideManifestFile();
+      if (await mf.exists()) await mf.delete();
+    } catch (_) {
+      // Best-effort cleanup; never throw from a load path.
     }
   }
 
@@ -267,4 +337,10 @@ class TokenDatabase extends ChangeNotifier {
     }
     return null;
   }
+}
+
+class _TokenSource {
+  final String jsonString;
+  final int version;
+  const _TokenSource(this.jsonString, this.version);
 }

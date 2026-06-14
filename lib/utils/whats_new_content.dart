@@ -8,6 +8,8 @@ const Map<String, String> whatsNewContent = {
       '• Hare Apparent utility\n'
       '• Tip jar with three support tiers (Collector tier includes a '
       'customizable heart badge)\n'
+      '• Token database can update between app releases — About → Token '
+      'Database → "Check for Updates" pulls new tokens on your tap\n'
       '• Confirm dialogs now show the full token breakdown\n'
       '• Companion artwork loads immediately\n'
       '• Red warning when token math is about to hit the 999,999 ceiling',

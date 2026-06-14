@@ -41,6 +41,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/token_database.json
+    - assets/token_manifest.json
     - assets/AppIconSource.png
 
 # App Icons Configuration

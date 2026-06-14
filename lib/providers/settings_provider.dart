@@ -114,4 +114,24 @@ class SettingsProvider extends ChangeNotifier {
         PreferenceKeys.lastDismissedWhatsNewVersion, version);
     notifyListeners();
   }
+
+  int get tokenDbVersion =>
+      _prefs.getInt(PreferenceKeys.tokenDbVersion) ?? 0;
+
+  Future<void> setTokenDbVersion(int version) async {
+    await _prefs.setInt(PreferenceKeys.tokenDbVersion, version);
+    notifyListeners();
+  }
+
+  DateTime? get tokenDbLastCheck {
+    final raw = _prefs.getString(PreferenceKeys.tokenDbLastCheck);
+    if (raw == null) return null;
+    return DateTime.tryParse(raw);
+  }
+
+  Future<void> setTokenDbLastCheck(DateTime when) async {
+    await _prefs.setString(
+        PreferenceKeys.tokenDbLastCheck, when.toIso8601String());
+    notifyListeners();
+  }
 }

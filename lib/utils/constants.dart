@@ -163,9 +163,26 @@ class PreferenceKeys {
   // this gate (always shows when there is content).
   static const String lastDismissedWhatsNewVersion =
       'lastDismissedWhatsNewVersion';
+
+  // Remote token database update tracking. Version of the active database
+  // (bundled or downloaded override). `tokenDbLastCheck` is an ISO8601
+  // timestamp of the last manifest fetch (for future auto-check throttling).
+  static const String tokenDbVersion = 'tokenDbVersion';
+  static const String tokenDbLastCheck = 'tokenDbLastCheck';
 }
 
 /// Asset paths
 class AssetPaths {
   static const String tokenDatabase = 'assets/token_database.json';
+  static const String tokenManifest = 'assets/token_manifest.json';
+}
+
+/// Remote URLs for the token database update service. Points at the `main`
+/// branch of the public repo — every commit there becomes the published
+/// snapshot, no separate CDN required.
+class RemoteUrls {
+  static const String _rawBase =
+      'https://raw.githubusercontent.com/didymusbenson/Doubling-Season/main';
+  static const String tokenManifestUrl = '$_rawBase/assets/token_manifest.json';
+  static const String tokenDatabaseUrl = '$_rawBase/assets/token_database.json';
 }

@@ -1,11 +1,16 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../database/token_database.dart';
 import '../models/heart_style.dart';
 import '../services/iap_service.dart';
+import '../services/token_update_service.dart';
 import '../utils/artwork_manager.dart';
+import '../utils/constants.dart';
 import '../utils/whats_new_content.dart';
 import '../widgets/heart_icon.dart';
 import '../widgets/purchase_menu.dart';
@@ -27,6 +32,14 @@ class _AboutScreenState extends State<AboutScreen> {
   bool _isLoadingCustom = true;
   HeartStyle? _collectorHeartStyle;
 
+  int _activeDbVersion = 0;
+  int? _activeTokenCount;
+  String? _activeDbUpdatedDate;
+  bool _hasOverride = false;
+  bool _isCheckingForUpdate = false;
+  bool _isDownloading = false;
+  TokenUpdateResult? _lastCheckResult;
+
   static const String _koFiUrl = 'https://ko-fi.com/loosetie';
 
   @override
@@ -36,6 +49,7 @@ class _AboutScreenState extends State<AboutScreen> {
     _loadCacheSize();
     _loadCustomUploadsSize();
     _loadCollectorHeartStyle();
+    _loadTokenDbInfo();
   }
 
   Future<void> _loadCollectorHeartStyle() async {
@@ -152,6 +166,141 @@ class _AboutScreenState extends State<AboutScreen> {
         await _loadCustomUploadsSize();
       }
     }
+  }
+
+  /// Reads the active manifest (override if newer than bundled, else bundled)
+  /// and a fresh token-count parse for display. Cheap enough to run on every
+  /// About-screen open since the parse is ~940 entries.
+  Future<void> _loadTokenDbInfo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final activeVersion = prefs.getInt(PreferenceKeys.tokenDbVersion) ?? 0;
+      final hasOverride = await TokenUpdateService.hasOverride();
+
+      final bundledStr = await rootBundle.loadString(AssetPaths.tokenManifest);
+      final bundledManifest =
+          jsonDecode(bundledStr) as Map<String, dynamic>;
+      final bundledVersion = bundledManifest['version'] as int;
+
+      String? updatedDate = bundledManifest['updated'] as String?;
+      if (hasOverride && activeVersion > bundledVersion) {
+        // The override manifest holds the truer "updated" string.
+        final db = TokenDatabase();
+        await db.loadTokens();
+        // Re-read prefs because loadTokens may have rewritten the version.
+        // (Token count is now known.)
+        if (!mounted) return;
+        setState(() {
+          _activeDbVersion =
+              prefs.getInt(PreferenceKeys.tokenDbVersion) ?? activeVersion;
+          _activeTokenCount = db.allTokens.length;
+          _activeDbUpdatedDate = updatedDate; // best-effort fallback
+          _hasOverride = hasOverride;
+        });
+        return;
+      }
+
+      // Common path: bundled is active. Count tokens via a fresh load.
+      final db = TokenDatabase();
+      await db.loadTokens();
+      if (!mounted) return;
+      setState(() {
+        _activeDbVersion = bundledVersion;
+        _activeTokenCount = db.allTokens.length;
+        _activeDbUpdatedDate = updatedDate;
+        _hasOverride = hasOverride;
+      });
+    } catch (_) {
+      // Non-fatal — card just shows what it has.
+    }
+  }
+
+  Future<void> _checkForTokenUpdate() async {
+    setState(() {
+      _isCheckingForUpdate = true;
+      _lastCheckResult = null;
+    });
+    final result = await TokenUpdateService.checkForUpdate();
+    if (!mounted) return;
+    setState(() {
+      _isCheckingForUpdate = false;
+      _lastCheckResult = result;
+    });
+  }
+
+  Future<void> _downloadTokenUpdate() async {
+    final result = _lastCheckResult;
+    if (result == null ||
+        result.remoteVersion == null ||
+        result.remoteSha256 == null) {
+      return;
+    }
+
+    setState(() => _isDownloading = true);
+    final success = await TokenUpdateService.downloadUpdate(
+      remoteVersion: result.remoteVersion!,
+      expectedSha256: result.remoteSha256!,
+      expectedSize: result.remoteSize,
+      updatedDate: result.remoteUpdatedDate,
+      minAppVersion: result.minAppVersion,
+    );
+    if (!mounted) return;
+    setState(() => _isDownloading = false);
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Token database updated. Restart token search to see new tokens.',
+          ),
+        ),
+      );
+      await _loadTokenDbInfo();
+      // Clear the "available" banner — we just installed it.
+      if (mounted) setState(() => _lastCheckResult = null);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Update failed. Your token data is unchanged.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _revertTokenDbToBundled() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset token database?'),
+        content: const Text(
+          'This will remove the downloaded token data and revert to the '
+          'version bundled with this app build.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    await TokenUpdateService.revertToBundled();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Reverted to built-in database. Restart token search to apply.',
+        ),
+      ),
+    );
+    await _loadTokenDbInfo();
+    setState(() => _lastCheckResult = null);
   }
 
   @override
@@ -332,6 +481,11 @@ class _AboutScreenState extends State<AboutScreen> {
                 ),
               ),
             ),
+
+            const SizedBox(height: 16),
+
+            // Token Database
+            _buildTokenDatabaseCard(),
 
             const SizedBox(height: 16),
 
@@ -601,6 +755,150 @@ class _AboutScreenState extends State<AboutScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTokenDatabaseCard() {
+    final result = _lastCheckResult;
+    final updateAvailable = result?.available == true;
+    final hasCheckedAndUpToDate =
+        result != null && !result.available && result.error == null;
+    final hasCheckError = result?.error != null;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Token Database',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            _tokenDbInfoRow(
+              'Version',
+              _activeDbVersion > 0 ? _activeDbVersion.toString() : '—',
+            ),
+            if (_activeDbUpdatedDate != null)
+              _tokenDbInfoRow('Updated', _activeDbUpdatedDate!),
+            if (_activeTokenCount != null)
+              _tokenDbInfoRow('Tokens', _activeTokenCount.toString()),
+            const SizedBox(height: 12),
+            if (updateAvailable)
+              _tokenDbStatusBanner(
+                color: Colors.green,
+                icon: Icons.system_update_alt,
+                text:
+                    'Update available (v${result!.remoteVersion}). Tap below to download.',
+              )
+            else if (hasCheckedAndUpToDate)
+              _tokenDbStatusBanner(
+                color: Colors.green,
+                icon: Icons.check_circle_outline,
+                text: 'Up to date',
+              )
+            else if (hasCheckError)
+              _tokenDbStatusBanner(
+                color: Colors.grey,
+                icon: Icons.cloud_off,
+                text: result!.error!,
+              ),
+            if (updateAvailable || hasCheckedAndUpToDate || hasCheckError)
+              const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: (_isCheckingForUpdate || _isDownloading)
+                    ? null
+                    : (updateAvailable
+                        ? _downloadTokenUpdate
+                        : _checkForTokenUpdate),
+                icon: _isCheckingForUpdate || _isDownloading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(updateAvailable
+                        ? Icons.download
+                        : Icons.refresh),
+                label: Text(_tokenDbButtonLabel(updateAvailable)),
+              ),
+            ),
+            if (_hasOverride) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  onPressed:
+                      (_isCheckingForUpdate || _isDownloading)
+                          ? null
+                          : _revertTokenDbToBundled,
+                  icon: const Icon(Icons.restore, size: 18),
+                  label: const Text('Reset to Built-in Database'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _tokenDbButtonLabel(bool updateAvailable) {
+    if (_isDownloading) return 'Downloading…';
+    if (_isCheckingForUpdate) return 'Checking…';
+    if (updateAvailable) return 'Download Update';
+    return 'Check for Updates';
+  }
+
+  Widget _tokenDbInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tokenDbStatusBanner({
+    required Color color,
+    required IconData icon,
+    required String text,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: color,
+                  ),
+            ),
+          ),
+        ],
       ),
     );
   }

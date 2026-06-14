@@ -11,12 +11,14 @@ Usage:
     (Run from repo root)
 """
 
+import hashlib
 import json
 import lzma
 import os
 import re
 import time
 from collections import defaultdict
+from datetime import datetime, timezone
 from typing import Dict, List, Set
 from urllib.request import urlopen, Request
 from email.utils import formatdate, parsedate_to_datetime
@@ -25,6 +27,7 @@ MTGJSON_URL = "https://mtgjson.com/api/v5/AllPrintings.json.xz"
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "mtgjson_cache")
 CACHE_FILE = os.path.join(CACHE_DIR, "AllPrintings.json")
 OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "token_database.json")
+MANIFEST_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "token_manifest.json")
 
 # WUBRG ordering for color sorting (matches Cockatrice script convention)
 WUBRG_ORDER = {'W': 0, 'U': 1, 'B': 2, 'R': 3, 'G': 4}
@@ -308,6 +311,49 @@ def save_output(tokens: List[Dict], output_path: str):
     print(f"Done! Saved {len(tokens)} tokens.")
 
 
+def update_manifest(output_path: str, manifest_path: str) -> None:
+    """Refresh the bundled manifest so the in-app remote-update service can
+    compare versions cheaply. Bumps `version` by 1 and recomputes sha256/size
+    from the freshly-written database. min_app_version is preserved if the
+    file already exists; otherwise it falls back to the current pubspec value
+    (hardcoded here — keep in sync if the floor changes)."""
+    manifest_path = os.path.normpath(manifest_path)
+
+    # Compute fresh SHA + size from the just-written database.
+    sha = hashlib.sha256()
+    size = 0
+    with open(output_path, 'rb') as f:
+        for chunk in iter(lambda: f.read(1 << 16), b''):
+            sha.update(chunk)
+            size += len(chunk)
+
+    prior_version = 0
+    prior_min_app_version = "1.9.0"
+    if os.path.exists(manifest_path):
+        try:
+            with open(manifest_path, 'r', encoding='utf-8') as f:
+                prior = json.load(f)
+            prior_version = int(prior.get('version', 0))
+            prior_min_app_version = prior.get(
+                'min_app_version', prior_min_app_version)
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    manifest = {
+        'version': prior_version + 1,
+        'sha256': sha.hexdigest(),
+        'size': size,
+        'updated': datetime.now(timezone.utc).date().isoformat(),
+        'min_app_version': prior_min_app_version,
+    }
+    with open(manifest_path, 'w', encoding='utf-8') as f:
+        json.dump(manifest, f, indent=2)
+        f.write('\n')
+    print(f"Updated manifest: version {manifest['version']}, "
+          f"sha {manifest['sha256'][:12]}…, "
+          f"updated {manifest['updated']}")
+
+
 def main():
     """Main execution."""
     start = time.time()
@@ -330,6 +376,10 @@ def main():
 
     # Save output
     save_output(cleaned, OUTPUT_PATH)
+
+    # Refresh the bundled manifest so the in-app remote-update service can
+    # see the new version + sha256.
+    update_manifest(OUTPUT_PATH, MANIFEST_PATH)
 
     # Summary
     color_counts = defaultdict(int)

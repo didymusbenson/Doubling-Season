@@ -236,3 +236,69 @@ Alternative: GitHub Release assets on the main repo. Also free, slightly more ce
 - Hosting setup — one-time, outside the app
 
 No model changes. No Hive migrations. No breaking changes. Fully backwards compatible — if the remote never existed, the app behaves exactly as it does today.
+
+---
+
+## Implementation Summary (2026-06-13)
+
+### Hosting decision: skipped CDN, point at the main branch
+
+Every commit to `main` becomes the published snapshot. No separate hosting infra, no GitHub Pages branch, no manual upload step — the regen-tokens commit IS the publish event. URLs:
+
+- Manifest: `https://raw.githubusercontent.com/didymusbenson/Doubling-Season/main/assets/token_manifest.json`
+- Database: `https://raw.githubusercontent.com/didymusbenson/Doubling-Season/main/assets/token_database.json`
+
+Constants defined in a new `RemoteUrls` class in `lib/utils/constants.dart`. **If the branch needs to walk back to a different ref (e.g., a dedicated `tokens-stable` branch), `RemoteUrls._rawBase` is the single line to edit.**
+
+### Files changed
+
+**New files:**
+- `assets/token_manifest.json` — bundled manifest, version 1, sha256 of the v940-token DB, `min_app_version: "1.9.0"`. Registered in `pubspec.yaml` alongside the database asset.
+- `lib/services/token_update_service.dart` — stateless `checkForUpdate()` / `downloadUpdate()` / `revertToBundled()` / `hasOverride()`. Uses `http`, `crypto`, `path_provider`, `shared_preferences` (all pre-existing deps). All methods catch their own failures; never throw. `TokenUpdateResult` carries `available`, `currentVersion`, `remoteVersion`, `remoteSha256`, `remoteSize`, `remoteUpdatedDate`, `minAppVersion`, `error`.
+
+**Modified:**
+- `lib/database/token_database.dart` — `loadTokens()` now calls a new `_resolveActiveSource()` that reads the bundled manifest, checks for an override manifest in `<app-docs>/token_db/manifest.json`, and uses whichever version is higher. Corrupt overrides self-heal (deleted, falls back to bundled). After load, writes the active version to `prefs.tokenDbVersion` so the update service can compare cheaply.
+- `lib/screens/about_screen.dart` — new "Token Database" Card placed just above Storage. Shows active version, updated date, token count. Single primary button toggles between **Check for Updates** → **Download Update** → **Up to date** / **No internet** / error. Spinner during in-flight network. Secondary **Reset to Built-in Database** button appears only when an override is present, behind a confirm dialog.
+- `lib/providers/settings_provider.dart` — added `tokenDbVersion` (int, default 0) and `tokenDbLastCheck` (DateTime? from ISO8601 string) getter/setter pairs.
+- `lib/utils/constants.dart` — added `PreferenceKeys.tokenDbVersion` and `tokenDbLastCheck`; added `AssetPaths.tokenManifest`; added the new `RemoteUrls` class.
+- `pubspec.yaml` — registered `assets/token_manifest.json` as a bundled asset.
+- `docs/housekeeping/process_tokens_mtgjson.py` — new `update_manifest()` step in `main()`. Reads the existing manifest (preserves `min_app_version`), increments `version` by 1, recomputes `sha256` / `size` from the freshly-written DB, sets `updated` to today's UTC date. Auto-runs on every regen. **Publishing workflow is now: `python3 docs/housekeeping/process_tokens_mtgjson.py` → commit → push to `main`. That's it.**
+
+### Behavior differences from the original spec
+
+- **No separate hosting / GitHub Pages.** Branch-pointer simplification per product owner.
+- **Override-vs-bundled priority is version-aware**, not "override always wins." If the user installs an app update whose bundled DB is newer than their downloaded override, the bundled wins and the now-stale override is deleted on next load. Prevents the case where a user is stuck on an obsolete remote snapshot after upgrading the app.
+- **No in-process broadcast after download.** Each call site that needs the token DB instantiates a fresh `TokenDatabase()` and calls `loadTokens()` (existing pattern across the codebase — there's no singleton). Snackbar after a successful download tells the user to restart the token search screen so the new data is parsed. If a singleton or notifier broadcast is later desired, that's a separate refactor not gated on this feature.
+- **Auto-check on launch (spec v2)** intentionally not implemented in this pass — keeping to v1 manual-trigger scope.
+
+### Edge cases handled
+
+| Scenario | Behavior | Tested via |
+|----------|----------|------------|
+| No internet | "No internet connection" status banner; current data unchanged | `SocketException` catch in `checkForUpdate` |
+| Manifest fetch returns non-200 | "Server returned NNN" status banner; current data unchanged | status-code check |
+| Download fails / interrupts | Returns false from `downloadUpdate`; no partial files written (DB written with `flush: true` BEFORE manifest is written; if DB write fails, manifest is never touched) | exception bubbles into `catch`, snackbar shows generic "Update failed" |
+| SHA256 mismatch | `downloadUpdate` returns false BEFORE writing anything; current data unchanged | `if (actualSha != expectedSha256) return false` |
+| Override JSON corrupt at load | `_resolveActiveSource` catches the decode error, deletes both override files, falls back to bundled | corrupt-fallback path in `loadTokens` |
+| Override exists but DB file missing | Detected in `_resolveActiveSource`; both override files deleted, bundled used | `await overrideDbFile.exists()` check |
+| `min_app_version` from manifest exceeds running app | **Not yet gated** — TODO note: `TokenUpdateResult.minAppVersion` is parsed and surfaced but `available` is currently true regardless. If a schema bump ever requires this gate, add an `AppVersionCheck.satisfies(minAppVersion)` comparison in `checkForUpdate`. |
+| App downgrade puts stored `tokenDbVersion` higher than bundled version | Bundled loses to override; override stays in use. No harm — when next remote update lands, comparison still works. |
+
+### Walk-back instructions
+
+If you need to disable the remote feature entirely:
+
+1. In `about_screen.dart`'s `build()`, comment out the `_buildTokenDatabaseCard()` line.
+2. In `token_database.dart`'s `loadTokens()`, replace the `_resolveActiveSource()` call with `final jsonString = await rootBundle.loadString(AssetPaths.tokenDatabase);` and the prefs write with nothing. The override-file path becomes dead code but harmless.
+3. Existing overrides on user devices stay on disk until manually cleared (low priority — they're small).
+
+If you need a different branch / mirror:
+- Edit `RemoteUrls._rawBase` in `lib/utils/constants.dart`.
+
+### Open items to validate before ship
+
+- [ ] Tap "Check for Updates" with no override and current bundle → "Up to date" banner.
+- [ ] Simulate a remote bump (e.g., temporarily edit `assets/token_manifest.json` to `version: 2`, push to a test branch, point `_rawBase` at it) → "Update available (v2)" banner → "Download Update" → "Restart token search" snackbar → next token search shows new tokens.
+- [ ] SHA mismatch path: deliberately wrong-sha the test manifest → "Update failed" snackbar, no override written.
+- [ ] Reset to Built-in: confirms, deletes override, snackbar, card re-renders without the secondary button.
+- [ ] Airplane mode: "No internet connection" banner; no crash; subsequent online check works.
