@@ -15,6 +15,8 @@ import 'screens/content_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/error_screen.dart';
 import 'services/iap_service.dart';
+import 'services/token_update_service.dart';
+import 'utils/token_update_prompt.dart';
 import 'utils/whats_new_content.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -120,6 +122,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
       // Show What's New modal once per version upgrade
       _showWhatsNewIfNeeded();
+
+      // Background check for a newer token database (24h throttled)
+      _checkForTokenDatabaseUpdatesIfNeeded();
     } catch (e, stackTrace) {
       // Log provider initialization errors (only in debug mode)
       if (kDebugMode) {
@@ -312,6 +317,77 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         if (navContext == null) return;
         await showWhatsNewDialog(navContext);
         await settingsProvider.setLastDismissedWhatsNewVersion(version);
+      });
+    });
+  }
+
+  /// Background check for a newer token database. Throttled to once per 24h
+  /// via `tokenDbLastCheck` (which the check itself writes on success). If a
+  /// newer version is available AND the user hasn't already tapped "Not now"
+  /// on that specific version, we surface a modal that can perform the
+  /// download inline.
+  Future<void> _checkForTokenDatabaseUpdatesIfNeeded() async {
+    if (widget.wipedBoxes.isNotEmpty) return;
+
+    // Defer to the What's New modal — if it's going to fire this launch, bail
+    // rather than stack two dialogs on top of each other. We haven't hit the
+    // network or written `tokenDbLastCheck` yet, so this same check runs
+    // fresh on the next launch (once What's New is dismissed).
+    final packageInfo = await PackageInfo.fromPlatform();
+    final appVersion = packageInfo.version;
+    final whatsNewWillFire = hasWhatsNewContent(appVersion) &&
+        settingsProvider.lastDismissedWhatsNewVersion != appVersion;
+    if (whatsNewWillFire) return;
+
+    final lastCheck = settingsProvider.tokenDbLastCheck;
+    if (lastCheck != null &&
+        DateTime.now().difference(lastCheck) < const Duration(hours: 24)) {
+      return;
+    }
+
+    final result = await TokenUpdateService.checkForUpdate();
+    if (!result.available || result.remoteVersion == null) return;
+
+    // Respect a previous "Not now" tap for this specific version.
+    final dismissed = settingsProvider.tokenDbDismissedUpdateVersion;
+    if (dismissed != null && dismissed == result.remoteVersion) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final navContext = _navigatorKey.currentContext;
+        if (navContext == null) return;
+
+        final outcome = await showTokenUpdatePrompt(navContext, result);
+        if (!navContext.mounted) return;
+
+        switch (outcome) {
+          case TokenUpdatePromptOutcome.updated:
+            ScaffoldMessenger.of(navContext).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Token database updated. Restart token search to see new tokens.',
+                ),
+                duration: Duration(seconds: 5),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+            break;
+          case TokenUpdatePromptOutcome.failed:
+            ScaffoldMessenger.of(navContext).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Token database update failed. Your existing tokens are unchanged.',
+                ),
+                duration: Duration(seconds: 5),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+            break;
+          case TokenUpdatePromptOutcome.dismissed:
+            await settingsProvider
+                .setTokenDbDismissedUpdateVersion(result.remoteVersion!);
+            break;
+        }
       });
     });
   }
