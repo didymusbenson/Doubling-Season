@@ -27,7 +27,7 @@ An outdated CLAUDE.md leads to repeated mistakes, inconsistent patterns, and mis
 
 ## Project Overview
 
-**Tripling Season** is a cross-platform Flutter app for tracking Magic: The Gathering tokens during gameplay. It manages token stacks with tapped/untapped states, summoning sickness, counters (+1/+1, -1/-1, and custom counters), token artwork display, and provides a searchable database of 940 token types.
+**Tripling Season** is a cross-platform Flutter app for tracking Magic: The Gathering tokens during gameplay. It manages token stacks with tapped/untapped states, summoning sickness, counters (+1/+1, -1/-1, and custom counters), token artwork display, and provides a searchable database of 942 token types.
 
 **Note:** The app's official name is "Tripling Season" (as of December 2025). Display name, bundle identifiers, and package names reflect this branding.
 
@@ -374,7 +374,7 @@ lib/
 ├── widgets/token_card.dart      # Canonical reference for all board item UI
 └── widgets/split_stack_sheet.dart  # Early-dismiss pattern (critical)
 
-assets/token_database.json       # 940 bundled tokens
+assets/token_database.json       # 942 bundled tokens
 docs/activeDevelopment/patterns/ # Reusable implementation patterns
 ```
 
