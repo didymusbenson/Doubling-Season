@@ -305,18 +305,34 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   /// for the current version in `whatsNewContent`, or if the user already
   /// dismissed this version.
   Future<void> _showWhatsNewIfNeeded() async {
-    if (widget.wipedBoxes.isNotEmpty) return;
+    if (widget.wipedBoxes.isNotEmpty) {
+      debugPrint("WhatsNew: skipped — wipedBoxes non-empty");
+      return;
+    }
     final packageInfo = await PackageInfo.fromPlatform();
     final version = packageInfo.version;
-    if (!hasWhatsNewContent(version)) return;
-    if (settingsProvider.lastDismissedWhatsNewVersion == version) return;
+    if (!hasWhatsNewContent(version)) {
+      debugPrint("WhatsNew: skipped — no content for v$version");
+      return;
+    }
+    if (settingsProvider.lastDismissedWhatsNewVersion == version) {
+      debugPrint("WhatsNew: skipped — already dismissed for v$version");
+      return;
+    }
 
+    debugPrint("WhatsNew: scheduling modal for v$version");
     WidgetsBinding.instance.addPostFrameCallback((_) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         final navContext = _navigatorKey.currentContext;
-        if (navContext == null) return;
+        if (navContext == null) {
+          debugPrint(
+              "WhatsNew: SKIPPED SILENTLY — navigator context null when callback fired");
+          return;
+        }
+        debugPrint("WhatsNew: showing modal now");
         await showWhatsNewDialog(navContext);
         await settingsProvider.setLastDismissedWhatsNewVersion(version);
+        debugPrint("WhatsNew: modal dismissed, recorded v$version");
       });
     });
   }
@@ -327,7 +343,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   /// on that specific version, we surface a modal that can perform the
   /// download inline.
   Future<void> _checkForTokenDatabaseUpdatesIfNeeded() async {
-    if (widget.wipedBoxes.isNotEmpty) return;
+    if (widget.wipedBoxes.isNotEmpty) {
+      debugPrint('TokenUpdate: skipped — wipedBoxes non-empty');
+      return;
+    }
 
     // Defer to the What's New modal — if it's going to fire this launch, bail
     // rather than stack two dialogs on top of each other. We haven't hit the
@@ -337,20 +356,36 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final appVersion = packageInfo.version;
     final whatsNewWillFire = hasWhatsNewContent(appVersion) &&
         settingsProvider.lastDismissedWhatsNewVersion != appVersion;
-    if (whatsNewWillFire) return;
+    if (whatsNewWillFire) {
+      debugPrint("TokenUpdate: skipped — What's New will fire this launch");
+      return;
+    }
 
     final lastCheck = settingsProvider.tokenDbLastCheck;
     if (lastCheck != null &&
         DateTime.now().difference(lastCheck) < const Duration(hours: 24)) {
+      final hrs =
+          DateTime.now().difference(lastCheck).inHours;
+      debugPrint(
+          'TokenUpdate: skipped — last check was ${hrs}h ago (throttle: 24h)');
       return;
     }
 
+    debugPrint('TokenUpdate: fetching remote manifest...');
     final result = await TokenUpdateService.checkForUpdate();
+    debugPrint(
+        'TokenUpdate: remote=${result.remoteVersion}, local=${result.currentVersion}, available=${result.available}, error=${result.error}');
     if (!result.available || result.remoteVersion == null) return;
 
     // Respect a previous "Not now" tap for this specific version.
     final dismissed = settingsProvider.tokenDbDismissedUpdateVersion;
-    if (dismissed != null && dismissed == result.remoteVersion) return;
+    if (dismissed != null && dismissed == result.remoteVersion) {
+      debugPrint(
+          'TokenUpdate: skipped — user already dismissed v${result.remoteVersion}');
+      return;
+    }
+
+    debugPrint('TokenUpdate: showing modal for v${result.remoteVersion}');
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
