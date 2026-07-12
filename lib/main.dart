@@ -387,44 +387,50 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     debugPrint('TokenUpdate: showing modal for v${result.remoteVersion}');
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        final navContext = _navigatorKey.currentContext;
-        if (navContext == null) return;
+    // We resume here after an await on PackageInfo + a network fetch, so the
+    // ContentScreen's MaterialApp (and its navigator) is long since built.
+    // Call showDialog directly rather than deferring via addPostFrameCallback:
+    // the app is idle after startup, so no frame is being pumped and a
+    // post-frame callback would sit queued until the user happened to tap
+    // something — which is exactly the "modal only appears after I interact"
+    // bug. showDialog schedules its own frame, so a direct call is reliable.
+    final navContext = _navigatorKey.currentContext;
+    if (navContext == null) {
+      debugPrint('TokenUpdate: navigator not ready, skipping modal');
+      return;
+    }
 
-        final outcome = await showTokenUpdatePrompt(navContext, result);
-        if (!navContext.mounted) return;
+    final outcome = await showTokenUpdatePrompt(navContext, result);
+    if (!navContext.mounted) return;
 
-        switch (outcome) {
-          case TokenUpdatePromptOutcome.updated:
-            ScaffoldMessenger.of(navContext).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Token database updated. Restart token search to see new tokens.',
-                ),
-                duration: Duration(seconds: 5),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-            break;
-          case TokenUpdatePromptOutcome.failed:
-            ScaffoldMessenger.of(navContext).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Token database update failed. Your existing tokens are unchanged.',
-                ),
-                duration: Duration(seconds: 5),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-            break;
-          case TokenUpdatePromptOutcome.dismissed:
-            await settingsProvider
-                .setTokenDbDismissedUpdateVersion(result.remoteVersion!);
-            break;
-        }
-      });
-    });
+    switch (outcome) {
+      case TokenUpdatePromptOutcome.updated:
+        ScaffoldMessenger.of(navContext).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Token database updated. Restart token search to see new tokens.',
+            ),
+            duration: Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        break;
+      case TokenUpdatePromptOutcome.failed:
+        ScaffoldMessenger.of(navContext).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Token database update failed. Your existing tokens are unchanged.',
+            ),
+            duration: Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        break;
+      case TokenUpdatePromptOutcome.dismissed:
+        await settingsProvider
+            .setTokenDbDismissedUpdateVersion(result.remoteVersion!);
+        break;
+    }
   }
 
   void _skipSplash() {
