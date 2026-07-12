@@ -375,13 +375,31 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final result = await TokenUpdateService.checkForUpdate();
     debugPrint(
         'TokenUpdate: remote=${result.remoteVersion}, local=${result.currentVersion}, available=${result.available}, error=${result.error}');
-    if (!result.available || result.remoteVersion == null) return;
 
-    // Respect a previous "Not now" tap for this specific version.
+    // A failed check (no internet / server error) leaves the throttle unset so
+    // we retry on the next launch rather than waiting out the 24h window.
+    if (result.error != null) {
+      debugPrint(
+          'TokenUpdate: check failed — ${result.error}; will retry next launch');
+      return;
+    }
+
+    // Successful check. Stamp the 24h throttle now for every path EXCEPT the
+    // one where we actually surface the modal — there we defer stamping until
+    // the user closes it, so a modal that's shown but force-quit re-appears on
+    // the next launch instead of being silently marked "seen".
+    if (!result.available || result.remoteVersion == null) {
+      await settingsProvider.setTokenDbLastCheck(DateTime.now());
+      return;
+    }
+
+    // Respect a previous "Not now" tap for this specific version. Nothing will
+    // be shown, so stamp the throttle to avoid re-hitting the network for 24h.
     final dismissed = settingsProvider.tokenDbDismissedUpdateVersion;
     if (dismissed != null && dismissed == result.remoteVersion) {
       debugPrint(
           'TokenUpdate: skipped — user already dismissed v${result.remoteVersion}');
+      await settingsProvider.setTokenDbLastCheck(DateTime.now());
       return;
     }
 
@@ -400,6 +418,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       return;
     }
 
+    // navContext was just fetched synchronously from the GlobalKey above and
+    // null-checked; no await sits between that fetch and this use.
+    // ignore: use_build_context_synchronously
     final outcome = await showTokenUpdatePrompt(navContext, result);
     if (!navContext.mounted) return;
 
@@ -431,6 +452,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             .setTokenDbDismissedUpdateVersion(result.remoteVersion!);
         break;
     }
+
+    // The user closed the modal (any outcome), so it now counts as "seen":
+    // stamp the 24h throttle here rather than at check time. If the app had
+    // been killed while the modal was up, we'd never reach this line and the
+    // modal would re-appear on the next launch.
+    await settingsProvider.setTokenDbLastCheck(DateTime.now());
   }
 
   void _skipSplash() {
