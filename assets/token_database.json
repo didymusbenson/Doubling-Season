@@ -27535,5 +27535,15 @@
     "reverse_related": [
       "Lich Lord of Unx"
     ]
+  },
+  {
+    "name": "Staging Test Token",
+    "pt": "1/1",
+    "colors": "",
+    "type": "Token Creature — Test",
+    "abilities": "TEMPORARY staging token to verify remote update detection. Safe to remove.",
+    "popularity": 0,
+    "reverse_related": [],
+    "artwork": []
   }
 ]
