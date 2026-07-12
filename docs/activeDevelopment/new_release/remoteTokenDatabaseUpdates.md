@@ -302,3 +302,25 @@ If you need a different branch / mirror:
 - [ ] SHA mismatch path: deliberately wrong-sha the test manifest → "Update failed" snackbar, no override written.
 - [ ] Reset to Built-in: confirms, deletes override, snackbar, card re-renders without the secondary button.
 - [ ] Airplane mode: "No internet connection" banner; no crash; subsequent online check works.
+
+---
+
+## ⚠️ Version watermark: the next real release must bump past the last staging test
+
+**Detection is one-directional: it only fires when the remote `version` is strictly greater than the version a device has already stored** (`tokenDbVersion` in SharedPreferences). Reverting the manifest to a *lower* number does NOT re-arm those devices.
+
+This bites when staging tests bump the manifest and then revert it:
+
+- During launch-modal testing (July 2026) the manifest on `main` was bumped to **v3**, then **v4**, each time reverted back to **v2**.
+- Any device that checked during those windows stored `tokenDbVersion = 3` or `4`.
+- `main` is now back at **v2**. The Python regen (`process_tokens_mtgjson.py`) auto-increments from the committed manifest, so the next real refresh produces **v3** — which those test devices will silently ignore (`3 > 4` is false).
+
+**Before the next real token-database release, set the manifest `version` higher than the highest number ever pushed during testing (currently 4).** Practically:
+
+1. Run `python3 docs/housekeeping/process_tokens_mtgjson.py` as usual (it bumps v2 → v3).
+2. **Manually edit `assets/token_manifest.json` to set `version` to `5`** (or higher) before committing — leave `sha256`/`size`/`updated` as the script wrote them.
+3. Commit + push to `main`.
+
+Alternatively, reinstall the app on any device used for staging tests (a fresh install resets `tokenDbVersion` to the bundled value).
+
+> Rule of thumb: whenever you push a staging version bump to `main` for testing, note the highest number you used, and make sure the next production manifest clears it.
