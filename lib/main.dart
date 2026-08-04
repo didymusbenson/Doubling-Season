@@ -15,6 +15,8 @@ import 'screens/content_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/error_screen.dart';
 import 'services/iap_service.dart';
+import 'services/token_update_service.dart';
+import 'utils/token_update_prompt.dart';
 import 'utils/whats_new_content.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -120,6 +122,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
       // Show What's New modal once per version upgrade
       _showWhatsNewIfNeeded();
+
+      // Background check for a newer token database (24h throttled)
+      _checkForTokenDatabaseUpdatesIfNeeded();
     } catch (e, stackTrace) {
       // Log provider initialization errors (only in debug mode)
       if (kDebugMode) {
@@ -300,20 +305,159 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   /// for the current version in `whatsNewContent`, or if the user already
   /// dismissed this version.
   Future<void> _showWhatsNewIfNeeded() async {
-    if (widget.wipedBoxes.isNotEmpty) return;
+    if (widget.wipedBoxes.isNotEmpty) {
+      debugPrint("WhatsNew: skipped — wipedBoxes non-empty");
+      return;
+    }
     final packageInfo = await PackageInfo.fromPlatform();
     final version = packageInfo.version;
-    if (!hasWhatsNewContent(version)) return;
-    if (settingsProvider.lastDismissedWhatsNewVersion == version) return;
+    if (!hasWhatsNewContent(version)) {
+      debugPrint("WhatsNew: skipped — no content for v$version");
+      return;
+    }
+    if (settingsProvider.lastDismissedWhatsNewVersion == version) {
+      debugPrint("WhatsNew: skipped — already dismissed for v$version");
+      return;
+    }
 
+    debugPrint("WhatsNew: scheduling modal for v$version");
     WidgetsBinding.instance.addPostFrameCallback((_) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         final navContext = _navigatorKey.currentContext;
-        if (navContext == null) return;
+        if (navContext == null) {
+          debugPrint(
+              "WhatsNew: SKIPPED SILENTLY — navigator context null when callback fired");
+          return;
+        }
+        debugPrint("WhatsNew: showing modal now");
         await showWhatsNewDialog(navContext);
         await settingsProvider.setLastDismissedWhatsNewVersion(version);
+        debugPrint("WhatsNew: modal dismissed, recorded v$version");
       });
     });
+  }
+
+  /// Background check for a newer token database. Throttled to once per 24h
+  /// via `tokenDbLastCheck` (which the check itself writes on success). If a
+  /// newer version is available AND the user hasn't already tapped "Not now"
+  /// on that specific version, we surface a modal that can perform the
+  /// download inline.
+  Future<void> _checkForTokenDatabaseUpdatesIfNeeded() async {
+    if (widget.wipedBoxes.isNotEmpty) {
+      debugPrint('TokenUpdate: skipped — wipedBoxes non-empty');
+      return;
+    }
+
+    // Defer to the What's New modal — if it's going to fire this launch, bail
+    // rather than stack two dialogs on top of each other. We haven't hit the
+    // network or written `tokenDbLastCheck` yet, so this same check runs
+    // fresh on the next launch (once What's New is dismissed).
+    final packageInfo = await PackageInfo.fromPlatform();
+    final appVersion = packageInfo.version;
+    final whatsNewWillFire = hasWhatsNewContent(appVersion) &&
+        settingsProvider.lastDismissedWhatsNewVersion != appVersion;
+    if (whatsNewWillFire) {
+      debugPrint("TokenUpdate: skipped — What's New will fire this launch");
+      return;
+    }
+
+    final lastCheck = settingsProvider.tokenDbLastCheck;
+    if (lastCheck != null &&
+        DateTime.now().difference(lastCheck) < const Duration(hours: 24)) {
+      final hrs =
+          DateTime.now().difference(lastCheck).inHours;
+      debugPrint(
+          'TokenUpdate: skipped — last check was ${hrs}h ago (throttle: 24h)');
+      return;
+    }
+
+    debugPrint('TokenUpdate: fetching remote manifest...');
+    final result = await TokenUpdateService.checkForUpdate();
+    debugPrint(
+        'TokenUpdate: remote=${result.remoteVersion}, local=${result.currentVersion}, available=${result.available}, error=${result.error}');
+
+    // A failed check (no internet / server error) leaves the throttle unset so
+    // we retry on the next launch rather than waiting out the 24h window.
+    if (result.error != null) {
+      debugPrint(
+          'TokenUpdate: check failed — ${result.error}; will retry next launch');
+      return;
+    }
+
+    // Successful check. Stamp the 24h throttle now for every path EXCEPT the
+    // one where we actually surface the modal — there we defer stamping until
+    // the user closes it, so a modal that's shown but force-quit re-appears on
+    // the next launch instead of being silently marked "seen".
+    if (!result.available || result.remoteVersion == null) {
+      await settingsProvider.setTokenDbLastCheck(DateTime.now());
+      return;
+    }
+
+    // Respect a previous "Not now" tap for this specific version. Nothing will
+    // be shown, so stamp the throttle to avoid re-hitting the network for 24h.
+    final dismissed = settingsProvider.tokenDbDismissedUpdateVersion;
+    if (dismissed != null && dismissed == result.remoteVersion) {
+      debugPrint(
+          'TokenUpdate: skipped — user already dismissed v${result.remoteVersion}');
+      await settingsProvider.setTokenDbLastCheck(DateTime.now());
+      return;
+    }
+
+    debugPrint('TokenUpdate: showing modal for v${result.remoteVersion}');
+
+    // We resume here after an await on PackageInfo + a network fetch, so the
+    // ContentScreen's MaterialApp (and its navigator) is long since built.
+    // Call showDialog directly rather than deferring via addPostFrameCallback:
+    // the app is idle after startup, so no frame is being pumped and a
+    // post-frame callback would sit queued until the user happened to tap
+    // something — which is exactly the "modal only appears after I interact"
+    // bug. showDialog schedules its own frame, so a direct call is reliable.
+    final navContext = _navigatorKey.currentContext;
+    if (navContext == null) {
+      debugPrint('TokenUpdate: navigator not ready, skipping modal');
+      return;
+    }
+
+    // navContext was just fetched synchronously from the GlobalKey above and
+    // null-checked; no await sits between that fetch and this use.
+    // ignore: use_build_context_synchronously
+    final outcome = await showTokenUpdatePrompt(navContext, result);
+    if (!navContext.mounted) return;
+
+    switch (outcome) {
+      case TokenUpdatePromptOutcome.updated:
+        ScaffoldMessenger.of(navContext).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Token database updated. Restart token search to see new tokens.',
+            ),
+            duration: Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        break;
+      case TokenUpdatePromptOutcome.failed:
+        ScaffoldMessenger.of(navContext).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Token database update failed. Your existing tokens are unchanged.',
+            ),
+            duration: Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        break;
+      case TokenUpdatePromptOutcome.dismissed:
+        await settingsProvider
+            .setTokenDbDismissedUpdateVersion(result.remoteVersion!);
+        break;
+    }
+
+    // The user closed the modal (any outcome), so it now counts as "seen":
+    // stamp the 24h throttle here rather than at check time. If the app had
+    // been killed while the modal was up, we'd never reach this line and the
+    // modal would re-appear on the next launch.
+    await settingsProvider.setTokenDbLastCheck(DateTime.now());
   }
 
   void _skipSplash() {

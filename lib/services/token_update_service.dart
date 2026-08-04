@@ -47,7 +47,9 @@ class TokenUpdateService {
   static const Duration _timeout = Duration(seconds: 10);
 
   /// Fetches the remote manifest and compares against the locally-stored
-  /// `tokenDbVersion`. Does NOT download the database itself.
+  /// `tokenDbVersion`. Does NOT download the database itself, and does NOT
+  /// stamp the `tokenDbLastCheck` throttle — the caller owns that, so it can
+  /// defer stamping until the user has actually acknowledged a shown modal.
   static Future<TokenUpdateResult> checkForUpdate() async {
     final prefs = await SharedPreferences.getInstance();
     final currentVersion = prefs.getInt(PreferenceKeys.tokenDbVersion) ?? 0;
@@ -61,9 +63,6 @@ class TokenUpdateService {
         return TokenUpdateResult.failure(
             currentVersion, 'Server returned ${response.statusCode}');
       }
-
-      await prefs.setString(PreferenceKeys.tokenDbLastCheck,
-          DateTime.now().toIso8601String());
 
       final manifest = jsonDecode(response.body) as Map<String, dynamic>;
       final remoteVersion = manifest['version'] as int;

@@ -166,9 +166,14 @@ class PreferenceKeys {
 
   // Remote token database update tracking. Version of the active database
   // (bundled or downloaded override). `tokenDbLastCheck` is an ISO8601
-  // timestamp of the last manifest fetch (for future auto-check throttling).
+  // timestamp of the last manifest fetch — also gates the launch-time
+  // auto-check to at most once per 24h. `tokenDbDismissedUpdateVersion` is
+  // the remote version the user tapped "Not now" on, so we don't nag them
+  // repeatedly for the same update.
   static const String tokenDbVersion = 'tokenDbVersion';
   static const String tokenDbLastCheck = 'tokenDbLastCheck';
+  static const String tokenDbDismissedUpdateVersion =
+      'tokenDbDismissedUpdateVersion';
 }
 
 /// Asset paths
