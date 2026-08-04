@@ -1220,6 +1220,24 @@
     ]
   },
   {
+    "name": "Axe",
+    "abilities": "Equipped creature gets +1/+0. Equip {2}",
+    "pt": "",
+    "colors": "",
+    "type": "Artifact — Equipment",
+    "popularity": 2,
+    "artwork": [
+      {
+        "set": "HOB",
+        "url": "https://cards.scryfall.io/large/front/6/f/6f7a3999-e341-43bb-9b8f-6c1a05b98906.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Dáin Ironfoot",
+      "Iron Hills Blacksmith"
+    ]
+  },
+  {
     "name": "Badger",
     "abilities": "",
     "pt": "3/3",
@@ -1460,7 +1478,7 @@
     "pt": "2/2",
     "colors": "G",
     "type": "Creature — Bear",
-    "popularity": 12,
+    "popularity": 13,
     "artwork": [
       {
         "set": "BRO",
@@ -1477,6 +1495,10 @@
       {
         "set": "ELD",
         "url": "https://cards.scryfall.io/large/front/b/0/b0f09f9e-e0f9-4ed8-bfc0-5f1a3046106e.jpg"
+      },
+      {
+        "set": "HOB",
+        "url": "https://cards.scryfall.io/large/front/3/1/31661af9-a40a-418c-82e3-b74aa14cc7c4.jpg"
       },
       {
         "set": "KHM",
@@ -1500,6 +1522,7 @@
       "Ayula's Influence",
       "Bearscape",
       "Caller of the Claw",
+      "Dancing from Dark to Dawn",
       "Fade from History",
       "Flaxen Intruder // Welcome Home",
       "Grizzly Fate",
@@ -2091,7 +2114,7 @@
     "pt": "1/1",
     "colors": "U",
     "type": "Creature — Bird",
-    "popularity": 7,
+    "popularity": 6,
     "artwork": [
       {
         "set": "30A",
@@ -2128,8 +2151,7 @@
       "Ordered Migration",
       "Ravenform",
       "Riku of Many Paths",
-      "The Raven's Warning",
-      "Wolf"
+      "The Raven's Warning"
     ]
   },
   {
@@ -2562,6 +2584,23 @@
     ],
     "reverse_related": [
       "Flurry of Wings"
+    ]
+  },
+  {
+    "name": "Bird Soldier",
+    "abilities": "Flying",
+    "pt": "4/4",
+    "colors": "",
+    "type": "Creature — Bird Soldier",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "HOB",
+        "url": "https://cards.scryfall.io/large/front/9/e/9ed2d2f3-e1b0-41e0-a29d-31624e5e9004.jpg"
+      }
+    ],
+    "reverse_related": [
+      "The Eagles Are Coming!"
     ]
   },
   {
@@ -4572,7 +4611,7 @@
     "pt": "",
     "colors": "",
     "type": "Token",
-    "popularity": 350,
+    "popularity": 351,
     "artwork": [
       {
         "set": "2XM",
@@ -5045,6 +5084,7 @@
       "The Jolly Balloon Man",
       "The Master, Gallifrey's End",
       "The Master, Multiplied",
+      "The Notary Hobbits",
       "The Scarab God",
       "Theoretical Duplication",
       "Thousand-Faced Shadow",
@@ -6270,7 +6310,7 @@
     "pt": "6/6",
     "colors": "R",
     "type": "Creature — Dragon",
-    "popularity": 2,
+    "popularity": 3,
     "artwork": [
       {
         "set": "C17",
@@ -6279,6 +6319,10 @@
       {
         "set": "GK2",
         "url": "https://cards.scryfall.io/large/front/d/5/d5013fdc-fae8-4170-8320-1ed13902f319.jpg"
+      },
+      {
+        "set": "HOB",
+        "url": "https://cards.scryfall.io/large/front/1/e/1e4408fa-8037-42f1-989e-2da84867f76c.jpg"
       },
       {
         "set": "RTR",
@@ -6291,6 +6335,7 @@
     ],
     "reverse_related": [
       "Mega Flare",
+      "The Misty Mountains Cold",
       "Utvara Hellkite"
     ]
   },
@@ -6703,14 +6748,19 @@
     "pt": "2/2",
     "colors": "",
     "type": "Creature — Dwarf",
-    "popularity": 0,
+    "popularity": 4,
     "artwork": [
       {
         "set": "HOB",
         "url": "https://cards.scryfall.io/large/front/9/f/9fcb3a3f-c0d4-43d4-8549-826a38bfa27d.jpg"
       }
     ],
-    "reverse_related": []
+    "reverse_related": [
+      "An Unexpected Party // At the Door",
+      "Dwarven Shortsword",
+      "Fíli the Pathfinder",
+      "The Lonely Mountain"
+    ]
   },
   {
     "name": "Dwarf Berserker",
@@ -8296,6 +8346,25 @@
     ]
   },
   {
+    "name": "Elf",
+    "abilities": "",
+    "pt": "1/1",
+    "colors": "G",
+    "type": "Creature — Elf",
+    "popularity": 3,
+    "artwork": [
+      {
+        "set": "HOB",
+        "url": "https://cards.scryfall.io/large/front/7/6/761c7c31-c6c5-44e2-a845-f590542b6eda.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Down in the Valley",
+      "Thranduil the Strategist",
+      "Thranduil, Sindarin Liege // Silvan Rally"
+    ]
+  },
+  {
     "name": "Elf Druid",
     "abilities": "{T}: Add {G}.",
     "pt": "1/1",
@@ -8380,7 +8449,7 @@
     "pt": "1/1",
     "colors": "G",
     "type": "Creature — Elf Warrior",
-    "popularity": 29,
+    "popularity": 30,
     "artwork": [
       {
         "set": "A25",
@@ -8469,6 +8538,18 @@
       {
         "set": "SHM",
         "url": "https://cards.scryfall.io/large/front/b/7/b7663358-c85c-4ba4-ac9b-6be6105363a9.jpg"
+      },
+      {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/1/2/120ecded-7968-4bb9-ab85-9cc5ad031e0e.jpg"
+      },
+      {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/e/9/e9db3b46-a9cf-4221-830a-dbed7ad76ead.jpg"
+      },
+      {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/e/c/ecbfc4bf-56be-4275-b36b-c2c57f93ad15.jpg"
       }
     ],
     "reverse_related": [
@@ -8476,6 +8557,7 @@
       "Battle for Bretagard",
       "Dwynen's Elite",
       "Elderleaf Mentor",
+      "Elf Warrior",
       "Elfsworn Giant",
       "Elven Ambush",
       "Elven Bow",
@@ -9100,7 +9182,7 @@
     "pt": "",
     "colors": "",
     "type": "Artifact — Food",
-    "popularity": 154,
+    "popularity": 155,
     "artwork": [
       {
         "set": "BIG",
@@ -9251,6 +9333,38 @@
         "url": "https://cards.scryfall.io/large/front/c/6/c6002fe4-a5c0-426d-860b-59f66896c75c.jpg"
       },
       {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/3/5/356e7a19-9dc5-4c39-ad88-8c355fbdca1a.jpg"
+      },
+      {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/e/4/e4a685df-00dd-434a-baef-d04541ab4b9a.jpg"
+      },
+      {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/d/4/d4a47380-3e51-4c1d-9ffa-472d4f97d36b.jpg"
+      },
+      {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/d/6/d6fbb5c7-9cc4-4528-8fc5-ec7a9d19a92e.jpg"
+      },
+      {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/1/1/110f41a6-1ca5-463e-8a6d-fdf021842b43.jpg"
+      },
+      {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/1/7/174eb62b-b02a-4533-8822-eacc9dcc0a20.jpg"
+      },
+      {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/2/7/276dedb8-3d41-499c-8804-bb1471fcb06f.jpg"
+      },
+      {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/e/b/eb838522-93e6-475a-8825-b65fe2e4f68b.jpg"
+      },
+      {
         "set": "SOC",
         "url": "https://cards.scryfall.io/large/front/d/a/da1fca2e-4ea7-4c5f-bd58-f9529dfb6f37.jpg"
       },
@@ -9330,6 +9444,7 @@
       "Apothecary White",
       "Applejack",
       "Astrid Peth",
+      "Bag End Banquet",
       "Bake into a Pie",
       "Bakersbane Duo",
       "Bartered Cow",
@@ -10688,6 +10803,42 @@
     "reverse_related": []
   },
   {
+    "name": "Goblin Army",
+    "abilities": "",
+    "pt": "0/0",
+    "colors": "B",
+    "type": "Creature — Goblin Army",
+    "popularity": 16,
+    "artwork": [
+      {
+        "set": "HOB",
+        "url": "https://cards.scryfall.io/large/front/2/e/2e2028b1-34c0-40b6-8f65-79f79a279996.jpg"
+      },
+      {
+        "set": "HOB",
+        "url": "https://cards.scryfall.io/large/front/0/0/0045408d-4ab9-48bf-84aa-c6d827682090.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Along the Crooked Way",
+      "Azog, Moria's Ruin",
+      "Bolg of the North",
+      "Bothersome Noisemaker",
+      "Down, Down to Goblin-town",
+      "Fearsome Goblin Pair",
+      "Gathering of Darkness",
+      "Goblin Army",
+      "Goblin Plate Mail",
+      "Goblin-town Flunkies",
+      "Great Goblin, Foul-Hearted",
+      "Great Ugly-Looking Goblin // Clap! Snap!",
+      "Misty Mountains Raider",
+      "Rage into the Valley",
+      "Rhovanion Rampager",
+      "Tidings of War"
+    ]
+  },
+  {
     "name": "Goblin Construct",
     "abilities": "This creature can't block. At the beginning of your upkeep, this creature deals 1 damage to you.",
     "pt": "0/1",
@@ -12042,6 +12193,23 @@
   },
   {
     "name": "Human",
+    "abilities": "Permanents can't phase in.",
+    "pt": "0/1",
+    "colors": "W",
+    "type": "Creature — Human",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "TRK",
+        "url": "https://cards.scryfall.io/large/front/2/5/25b0644d-4934-4495-9b6e-c31d1d10c298.jpg"
+      }
+    ],
+    "reverse_related": [
+      "The City on the Edge of Forever"
+    ]
+  },
+  {
+    "name": "Human",
     "abilities": "Doctor spells you cast cost {1} less to cast.",
     "pt": "1/1",
     "colors": "W",
@@ -12332,7 +12500,7 @@
     "pt": "1/1",
     "colors": "W",
     "type": "Creature — Human Soldier",
-    "popularity": 44,
+    "popularity": 54,
     "artwork": [
       {
         "set": "2XM",
@@ -12361,6 +12529,10 @@
       {
         "set": "GN3",
         "url": "https://cards.scryfall.io/large/front/a/6/a625ca5f-d4fd-4baf-8e8e-1db3e3325bcd.jpg"
+      },
+      {
+        "set": "HOB",
+        "url": "https://cards.scryfall.io/large/front/6/0/6007af81-4541-4b55-90ea-03d365362ae5.jpg"
       },
       {
         "set": "IKO",
@@ -12429,30 +12601,37 @@
     ],
     "reverse_related": [
       "Aragorn, the Uniter",
+      "Bard's Company",
       "Bastion of Remembrance",
       "Call the Coppercoats",
+      "Celebrate the Mountain-king",
       "Commanding Presence",
       "Cosmogrand Zenith",
       "Daysquad Marshal",
       "Denethor, Ruling Steward",
       "Dinosaur",
       "Elspeth, Sun's Nemesis",
+      "Esgaroth Garrison",
       "Faramir, Field Commander",
       "Faramir, Prince of Ithilien",
       "Faramir, Steward of Gondor",
       "Forbidden Friendship",
       "Garrison Cat",
       "General's Enforcer",
+      "Great Gilded Boat",
       "Hero of the Nyxborn",
       "Honored Knight-Captain",
       "Horn of Gondor",
       "Human Soldier",
       "Jirina Kudro",
       "Knight Luminary",
+      "Lake-town Lookout",
+      "Long Lake Nuisance",
       "Lossarnach Captain",
       "Nightsquad Commando",
       "Oath of Eorl",
       "Omen of the Sun",
+      "Patient Instructor",
       "Prince Imrahil the Fair",
       "Protector of Gondor",
       "Quarrel's End",
@@ -12462,8 +12641,11 @@
       "Riders of the Mark",
       "Sigarda, Heron's Grace",
       "Siona, Captain of the Pyleas",
+      "Sound the Trumpets",
       "Strength of Arms",
       "The First Iroan Games",
+      "The Mountain-king's Return",
+      "The Queen of Dale",
       "Thraben Standard Bearer",
       "Trynn, Champion of Freedom",
       "Ulvenwald Mysteries",
@@ -13051,7 +13233,7 @@
     "abilities": "Flying",
     "pt": "1/1",
     "colors": "WB",
-    "type": "Creature Inkling",
+    "type": "Creature — Inkling",
     "popularity": 6,
     "artwork": [
       {
@@ -16083,6 +16265,10 @@
       {
         "set": "PCA",
         "url": "https://cards.scryfall.io/large/front/1/8/18b9c83d-4422-4b95-9fc2-070ed6b5bdf6.jpg"
+      },
+      {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/2/1/21dfe90c-3383-4da5-9194-c6f7c2ba291c.jpg"
       }
     ],
     "reverse_related": [
@@ -16272,7 +16458,7 @@
     "pt": "1/1",
     "colors": "UR",
     "type": "Creature — Otter",
-    "popularity": 3,
+    "popularity": 4,
     "artwork": [
       {
         "set": "BLB",
@@ -16282,7 +16468,8 @@
     "reverse_related": [
       "Otterball Antics",
       "Ral, Crackling Wit",
-      "Stormchaser's Talent"
+      "Stormchaser's Talent",
+      "Tolabow, Loch Rascal"
     ]
   },
   {
@@ -22376,6 +22563,23 @@
     ]
   },
   {
+    "name": "Stone Boulder",
+    "abilities": "Defender",
+    "pt": "3/1",
+    "colors": "",
+    "type": "Artifact Creature — Wall",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "HOB",
+        "url": "https://cards.scryfall.io/large/front/3/4/3440e247-a733-4609-9d80-d4a5fc58ae46.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Stone-Giant of High Pass"
+    ]
+  },
+  {
     "name": "Stoneforged Blade",
     "abilities": "Indestructible Equipped creature gets +5/+5 and has double strike. Equip {0}",
     "pt": "",
@@ -23597,7 +23801,7 @@
     "pt": "",
     "colors": "",
     "type": "Artifact — Treasure",
-    "popularity": 359,
+    "popularity": 373,
     "artwork": [
       {
         "set": "2X2",
@@ -23690,6 +23894,10 @@
       {
         "set": "HOB",
         "url": "https://cards.scryfall.io/large/front/c/6/c6e096bb-ad9e-4a8b-8b42-26852fa32c1d.jpg"
+      },
+      {
+        "set": "HOB",
+        "url": "https://cards.scryfall.io/large/front/d/1/d1892b78-7663-4cbd-a732-9a4b0b18d4c8.jpg"
       },
       {
         "set": "KHM",
@@ -23856,6 +24064,10 @@
         "url": "https://cards.scryfall.io/large/front/7/3/73f94f72-a689-41ca-b1af-6004e2a57e9c.jpg"
       },
       {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/0/b/0bb11342-bc1d-4eea-b0b0-94799be2602a.jpg"
+      },
+      {
         "set": "SNC",
         "url": "https://cards.scryfall.io/large/front/1/b/1be23c27-d8b6-4f59-8ab8-9ce80e9e29dd.jpg"
       },
@@ -23998,9 +24210,11 @@
       "Bank Job",
       "Battle Angels of Tyr",
       "Beamtown Beatstick",
+      "Bejeweled Warg",
       "Beza, the Bounding Spring",
       "Big Score",
       "Big Spender",
+      "Bilbo's Gambit",
       "Bilbo, Retired Burglar",
       "Bill Ferny, Bree Swindler",
       "Black Market Connections",
@@ -24058,6 +24272,8 @@
       "Dockside Extortionist",
       "Don Andres, the Renegade",
       "Done for the Day",
+      "Dori, Bearer of Friends",
+      "Dragon-Cursed Halls",
       "Dungeon of the Mad Mage",
       "Dungeoneer's Pack",
       "Edward Kenway",
@@ -24090,6 +24306,7 @@
       "Gilded Pinions",
       "Gimli of the Glittering Caves",
       "Gleaming Barrier",
+      "Gleaming Splendor",
       "Glittermonger",
       "Gluntch, the Bestower",
       "Glóin, Dwarf Emissary",
@@ -24155,6 +24372,7 @@
       "Life Insurance",
       "Lobelia Sackville-Baggins",
       "Locke, Treasure Hunter",
+      "Long-Bodied Grey Dog",
       "Loot Dispute",
       "Lost Mine of Phandelver",
       "Lotho, Corrupt Shirriff",
@@ -24197,6 +24415,7 @@
       "Old Gnawbone",
       "Old Rutstein",
       "Olivia, Opulent Outlaw",
+      "Orcrist, Goblin-cleaver",
       "Orochi Soul-Reaver",
       "Pain Distributor",
       "Patient Naturalist",
@@ -24265,6 +24484,9 @@
       "Skullport Merchant",
       "Smashing Success",
       "Smaug",
+      "Smaug the Impenetrable",
+      "Smaug the Magnificent",
+      "Smaug, Wicked Worm",
       "Smoke Blessing",
       "Smoke Spirits' Aid",
       "Smothering Tithe",
@@ -24298,11 +24520,15 @@
       "The Gold Saucer",
       "The Golden City of Orazca",
       "The Matrix of Time",
+      "The Misty Mountains Cold",
       "The Reaver Cleaver",
+      "The Sackville-Bagginses",
       "The Third Doctor",
       "The Western Cloud",
       "There and Back Again",
       "Thieves' Tools",
+      "Thorin, Company's Leader",
+      "Thorin, King of Durin's Folk",
       "Ticket Tortoise",
       "Tireless Provisioner",
       "Tivit, Seller of Secrets",
@@ -25947,7 +26173,7 @@
     "pt": "2/2",
     "colors": "G",
     "type": "Creature — Wolf",
-    "popularity": 42,
+    "popularity": 43,
     "artwork": [
       {
         "set": "2XM",
@@ -25996,6 +26222,10 @@
       {
         "set": "CNS",
         "url": "https://cards.scryfall.io/large/front/a/4/a4cd989d-e274-4058-876f-3c20f28def0d.jpg"
+      },
+      {
+        "set": "HOB",
+        "url": "https://cards.scryfall.io/large/front/e/0/e07312b9-f3c1-4e36-88fc-b29cde581eb6.jpg"
       },
       {
         "set": "INR",
@@ -26075,7 +26305,7 @@
       "Arlinn, Voice of the Pack",
       "Arlinn, the Pack's Hope // Arlinn, the Moon's Fury",
       "Bestial Menace",
-      "Bird",
+      "Chief Warg's Company",
       "Child of the Pack // Savage Packmate",
       "Cult of the Waxing Moon",
       "Elturgard Ranger",
@@ -26084,6 +26314,7 @@
       "Feed the Pack",
       "Ferocious Pup",
       "Garruk Relentless // Garruk, the Veil-Cursed",
+      "Head of the Hunt",
       "Hollowhenge Overlord",
       "Howl of the Night Pack",
       "Howling Giant",

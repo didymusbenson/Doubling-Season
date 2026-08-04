@@ -324,3 +324,7 @@ This bites when staging tests bump the manifest and then revert it:
 Alternatively, reinstall the app on any device used for staging tests (a fresh install resets `tokenDbVersion` to the bundled value).
 
 > Rule of thumb: whenever you push a staging version bump to `main` for testing, note the highest number you used, and make sure the next production manifest clears it.
+
+### ✅ Resolved 2026-08-04
+
+The 942 → 948 token refresh shipped as manifest **v5** (script auto-bumped v2 → v3; manually set to 5 to clear the highest staging number, 4). All devices — including any that stored `tokenDbVersion` 3 or 4 during July staging — now detect the update, since `5 > 4`. The watermark is clear: future regens auto-increment normally (v6, v7, …) with no further manual intervention needed.
