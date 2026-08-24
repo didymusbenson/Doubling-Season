@@ -2114,7 +2114,7 @@
     "pt": "1/1",
     "colors": "U",
     "type": "Creature — Bird",
-    "popularity": 6,
+    "popularity": 7,
     "artwork": [
       {
         "set": "30A",
@@ -2148,6 +2148,7 @@
     "reverse_related": [
       "Alrund's Epiphany",
       "Fable of Wolf and Owl",
+      "Feroz, Ulgrotha's Warden",
       "Ordered Migration",
       "Ravenform",
       "Riku of Many Paths",
@@ -3846,7 +3847,7 @@
     "pt": "",
     "colors": "",
     "type": "Artifact — Clue",
-    "popularity": 165,
+    "popularity": 166,
     "artwork": [
       {
         "set": "2XM",
@@ -4107,6 +4108,7 @@
       "Fire Nation Raider",
       "Fire Nation Warship",
       "Fleeting Memories",
+      "Flitwing, Lyev Detective",
       "Floodhound",
       "Flotsam // Jetsam",
       "Follow the Bodies",
@@ -4611,7 +4613,7 @@
     "pt": "",
     "colors": "",
     "type": "Token",
-    "popularity": 351,
+    "popularity": 354,
     "artwork": [
       {
         "set": "2XM",
@@ -4809,6 +4811,7 @@
       "Case of the Shifting Visage",
       "Caught in a Parallel Universe",
       "Chandra, Flameshaper",
+      "Chief Magistrate of Mercadia",
       "Chrome Dome",
       "Chronozoa",
       "City of Death",
@@ -4961,6 +4964,7 @@
       "Mirrorpool",
       "Mirrorworks",
       "Mishra's Self-Replicator",
+      "Miss Highwater",
       "Mist Dancer",
       "Mist-Syndicate Naga",
       "Mizzix, Replica Rider",
@@ -5103,6 +5107,7 @@
       "Uchuulon",
       "Ulalek, Fused Atrocity",
       "Urza, Prince of Kroog",
+      "Uugguu, the Omniplasm",
       "Vaultborn Tyrant",
       "Verazol, the Split Current",
       "Vesuvan Duplimancy",
@@ -9182,7 +9187,7 @@
     "pt": "",
     "colors": "",
     "type": "Artifact — Food",
-    "popularity": 155,
+    "popularity": 157,
     "artwork": [
       {
         "set": "BIG",
@@ -9507,6 +9512,7 @@
       "Insatiable Frugivore",
       "Intrepid Trufflesnout // Go Hog Wild",
       "Iroh, Tea Master",
+      "Jandor, Fortuned Traveler",
       "Killer Service",
       "Late to Dinner",
       "Leaves from the Vine",
@@ -9514,6 +9520,7 @@
       "Lucky the Pizza Dog",
       "Madame Vastra",
       "Many Partings",
+      "Meatsqueak, Hoard Lord",
       "Meriadoc Brandybuck",
       "Michelangelo, the Heart",
       "Midnight Snack",
@@ -9601,7 +9608,7 @@
     "pt": "1/1",
     "colors": "G",
     "type": "Land Creature — Forest Dryad",
-    "popularity": 3,
+    "popularity": 4,
     "artwork": [
       {
         "set": "BRO",
@@ -9613,6 +9620,7 @@
       }
     ],
     "reverse_related": [
+      "Autumn Willow, Harmony",
       "Awaken the Woods",
       "Jyoti, Moag Ancient",
       "Staff of Titania"
@@ -10731,7 +10739,7 @@
     "pt": "2/1",
     "colors": "R",
     "type": "Creature — Goblin",
-    "popularity": 1,
+    "popularity": 2,
     "artwork": [
       {
         "set": "RVR",
@@ -10739,6 +10747,7 @@
       }
     ],
     "reverse_related": [
+      "Chief Magistrate of Mercadia",
       "Rakdos Guildmage"
     ]
   },
@@ -11344,7 +11353,7 @@
     "pt": "1/1",
     "colors": "R",
     "type": "Creature — Gremlin",
-    "popularity": 5,
+    "popularity": 6,
     "artwork": [
       {
         "set": "DSK",
@@ -11364,7 +11373,8 @@
       "Gremlin Tamer",
       "Midnight Mayhem",
       "Razorkin Hordecaller",
-      "Scurry of Gremlins"
+      "Scurry of Gremlins",
+      "The Unluckiest Planeswalker"
     ]
   },
   {
@@ -15074,7 +15084,7 @@
     "pt": "1/1",
     "colors": "U",
     "type": "Creature — Merfolk",
-    "popularity": 8,
+    "popularity": 9,
     "artwork": [
       {
         "set": "DMU",
@@ -15105,6 +15115,7 @@
       "A Killer Among Us",
       "Daughter of the Deep",
       "Emperor Mihail II",
+      "Grandmother Goby",
       "Lullmage Mentor",
       "Merfolk",
       "Namor the Sub-Mariner",
@@ -17572,7 +17583,7 @@
     "pt": "",
     "colors": "",
     "type": "Artifact — Powerstone",
-    "popularity": 32,
+    "popularity": 33,
     "artwork": [
       {
         "set": "BRO",
@@ -17588,6 +17599,7 @@
       "Argothian Opportunist",
       "Ashnod, Flesh Mechanist",
       "Cityscape Leveler",
+      "Dyfed, the Guiding Hand",
       "Excavation Explosion",
       "Fallaji Excavation",
       "Geology Enthusiast",
@@ -17981,7 +17993,7 @@
     "pt": "1/1",
     "colors": "B",
     "type": "Creature — Rat Rogue",
-    "popularity": 1,
+    "popularity": 2,
     "artwork": [
       {
         "set": "NEO",
@@ -17989,6 +18001,7 @@
       }
     ],
     "reverse_related": [
+      "Boss Uramon, Shadow's Reach",
       "Tribute to Horobi // Echo of Death's Wail"
     ]
   },
@@ -20307,7 +20320,7 @@
     "pt": "1/1",
     "colors": "W",
     "type": "Creature — Soldier",
-    "popularity": 84,
+    "popularity": 85,
     "artwork": [
       {
         "set": "10E",
@@ -20606,6 +20619,7 @@
       "Evangel of Heliod",
       "Even the Odds",
       "First Response",
+      "Grizzlegom, Hurloon Hero",
       "Heidegger, Shinra Executive",
       "Hero of Bladehold",
       "Heroic Reinforcements",
@@ -23801,7 +23815,7 @@
     "pt": "",
     "colors": "",
     "type": "Artifact — Treasure",
-    "popularity": 373,
+    "popularity": 374,
     "artwork": [
       {
         "set": "2X2",
@@ -24241,6 +24255,7 @@
       "Cavern-Hoard Dragon",
       "Centrifuge",
       "Charming Scoundrel",
+      "Chira, All In",
       "City of Death",
       "Cloud, Ex-SOLDIER",
       "Coin of Mastery",
@@ -26846,7 +26861,7 @@
     "pt": "2/2",
     "colors": "B",
     "type": "Creature — Zombie",
-    "popularity": 107,
+    "popularity": 108,
     "artwork": [
       {
         "set": "10E",
@@ -27261,6 +27276,7 @@
       "The Book of Vile Darkness",
       "The Fourth Sphere",
       "The Necrobloom",
+      "Thomil, the Destroyer",
       "Tobias, Doomed Conqueror",
       "Tormod, the Desecrator",
       "Tymaret Calls the Dead",
