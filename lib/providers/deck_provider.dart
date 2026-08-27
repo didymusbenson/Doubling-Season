@@ -17,7 +17,8 @@ import '../utils/constants.dart';
 
 // Helper class for preserving exact order when loading decks
 class _TemplateForLoad {
-  final dynamic template; // TokenTemplate, TrackerWidgetTemplate, or ToggleWidgetTemplate
+  final dynamic
+  template; // TokenTemplate, TrackerWidgetTemplate, or ToggleWidgetTemplate
   final double order;
   final String type; // 'token', 'tracker', 'toggle'
 
@@ -64,7 +65,9 @@ class DeckProvider extends ChangeNotifier {
 
     await _decksBox.add(deck);
     notifyListeners();
-    debugPrint('DeckProvider: Saved deck "${deck.name}" with ${deck.templates.length} tokens, order=${deck.order}');
+    debugPrint(
+      'DeckProvider: Saved deck "${deck.name}" with ${deck.templates.length} tokens, order=${deck.order}',
+    );
   }
 
   Future<void> deleteDeck(Deck deck) async {
@@ -109,7 +112,9 @@ class DeckProvider extends ChangeNotifier {
     _checkAndCompactDeckOrders(decks);
 
     notifyListeners();
-    debugPrint('DeckProvider: Reordered deck "${deck.name}" to order=$newOrder');
+    debugPrint(
+      'DeckProvider: Reordered deck "${deck.name}" to order=$newOrder',
+    );
   }
 
   void _checkAndCompactDeckOrders(List<Deck> deckList) {
@@ -137,51 +142,72 @@ class DeckProvider extends ChangeNotifier {
     final newName = _generateUniqueName(original.name);
 
     // Deep-copy templates
-    final newTemplates = original.templates.map((t) => TokenTemplate(
-      name: t.name,
-      pt: t.pt,
-      abilities: t.abilities,
-      colors: t.colors,
-      type: t.type,
-      order: t.order,
-      artworkUrl: t.artworkUrl,
-      artworkSet: t.artworkSet,
-      artworkOptions: t.artworkOptions != null ? List.from(t.artworkOptions!) : null,
-    )).toList();
+    final newTemplates = original.templates
+        .map(
+          (t) => TokenTemplate(
+            name: t.name,
+            pt: t.pt,
+            abilities: t.abilities,
+            colors: t.colors,
+            type: t.type,
+            order: t.order,
+            artworkUrl: t.artworkUrl,
+            artworkSet: t.artworkSet,
+            artworkOptions: t.artworkOptions != null
+                ? List.from(t.artworkOptions!)
+                : null,
+          ),
+        )
+        .toList();
 
-    final newTrackers = original.trackerWidgets?.map((t) => TrackerWidgetTemplate(
-      name: t.name,
-      description: t.description,
-      colorIdentity: t.colorIdentity,
-      artworkUrl: t.artworkUrl,
-      artworkSet: t.artworkSet,
-      artworkOptions: t.artworkOptions != null ? List.from(t.artworkOptions!) : null,
-      defaultValue: t.defaultValue,
-      tapIncrement: t.tapIncrement,
-      longPressIncrement: t.longPressIncrement,
-      hasAction: t.hasAction,
-      actionButtonText: t.actionButtonText,
-      actionType: t.actionType,
-      isCustom: t.isCustom,
-      order: t.order,
-    )).toList();
+    final newTrackers = original.trackerWidgets
+        ?.map(
+          (t) => TrackerWidgetTemplate(
+            name: t.name,
+            description: t.description,
+            colorIdentity: t.colorIdentity,
+            artworkUrl: t.artworkUrl,
+            artworkSet: t.artworkSet,
+            artworkOptions: t.artworkOptions != null
+                ? List.from(t.artworkOptions!)
+                : null,
+            defaultValue: t.defaultValue,
+            tapIncrement: t.tapIncrement,
+            longPressIncrement: t.longPressIncrement,
+            hasAction: t.hasAction,
+            actionButtonText: t.actionButtonText,
+            actionType: t.actionType,
+            actionOnly: t.actionOnly,
+            isCustom: t.isCustom,
+            order: t.order,
+          ),
+        )
+        .toList();
 
-    final newToggles = original.toggleWidgets?.map((t) => ToggleWidgetTemplate(
-      name: t.name,
-      colorIdentity: t.colorIdentity,
-      artworkUrl: t.artworkUrl,
-      artworkSet: t.artworkSet,
-      artworkOptions: t.artworkOptions != null ? List.from(t.artworkOptions!) : null,
-      onDescription: t.onDescription,
-      offDescription: t.offDescription,
-      onArtworkUrl: t.onArtworkUrl,
-      offArtworkUrl: t.offArtworkUrl,
-      isCustom: t.isCustom,
-      order: t.order,
-    )).toList();
+    final newToggles = original.toggleWidgets
+        ?.map(
+          (t) => ToggleWidgetTemplate(
+            name: t.name,
+            colorIdentity: t.colorIdentity,
+            artworkUrl: t.artworkUrl,
+            artworkSet: t.artworkSet,
+            artworkOptions: t.artworkOptions != null
+                ? List.from(t.artworkOptions!)
+                : null,
+            onDescription: t.onDescription,
+            offDescription: t.offDescription,
+            onArtworkUrl: t.onArtworkUrl,
+            offArtworkUrl: t.offArtworkUrl,
+            isCustom: t.isCustom,
+            order: t.order,
+          ),
+        )
+        .toList();
 
     final allDecks = _decksBox.values.toList();
-    final maxOrder = allDecks.isEmpty ? 0.0 : allDecks.map((d) => d.order).reduce(max);
+    final maxOrder = allDecks.isEmpty
+        ? 0.0
+        : allDecks.map((d) => d.order).reduce(max);
 
     final newDeck = Deck(
       name: newName,
@@ -199,9 +225,14 @@ class DeckProvider extends ChangeNotifier {
 
     // Copy custom artwork file to a new path keyed to the new deck's Hive key,
     // so re-picking art on the original doesn't silently change the duplicate's art.
-    if (newDeck.customArtworkUrl != null && newDeck.customArtworkUrl!.startsWith('file://') && !kIsWeb) {
+    if (newDeck.customArtworkUrl != null &&
+        newDeck.customArtworkUrl!.startsWith('file://') &&
+        !kIsWeb) {
       try {
-        final originalPath = newDeck.customArtworkUrl!.replaceFirst('file://', '');
+        final originalPath = newDeck.customArtworkUrl!.replaceFirst(
+          'file://',
+          '',
+        );
         final originalFile = File(originalPath);
         if (await originalFile.exists()) {
           final cacheDir = await ArtworkManager.getArtworkCacheDirectory();
@@ -211,12 +242,16 @@ class DeckProvider extends ChangeNotifier {
           newDeck.save();
         }
       } catch (e) {
-        debugPrint('DeckProvider: Failed to copy custom artwork for duplicate - $e');
+        debugPrint(
+          'DeckProvider: Failed to copy custom artwork for duplicate - $e',
+        );
       }
     }
 
     notifyListeners();
-    debugPrint('DeckProvider: Duplicated deck "${original.name}" as "$newName"');
+    debugPrint(
+      'DeckProvider: Duplicated deck "${original.name}" as "$newName"',
+    );
     return newDeck;
   }
 
@@ -227,7 +262,9 @@ class DeckProvider extends ChangeNotifier {
     // Strip existing suffix like " (2)" to get base
     final suffixPattern = RegExp(r' \((\d+)\)$');
     final match = suffixPattern.firstMatch(baseName);
-    final cleanBase = match != null ? baseName.substring(0, match.start) : baseName;
+    final cleanBase = match != null
+        ? baseName.substring(0, match.start)
+        : baseName;
 
     int counter = 2;
     String candidate = '$cleanBase ($counter)';
@@ -311,51 +348,72 @@ class DeckProvider extends ChangeNotifier {
       'deck': {
         'name': deck.name,
         'colorIdentity': deck.colorIdentity,
-        'templates': deck.templates.map((t) => {
-          'name': t.name,
-          'pt': t.pt,
-          'abilities': t.abilities,
-          'colors': t.colors,
-          'type': t.type,
-          'order': t.order,
-          'artworkUrl': t.artworkUrl,
-          'artworkSet': t.artworkSet,
-          'artworkOptions': t.artworkOptions?.map((a) => a.toJson()).toList(),
-        }).toList(),
-        'trackerWidgets': deck.trackerWidgets?.map((t) => {
-          'name': t.name,
-          'description': t.description,
-          'colorIdentity': t.colorIdentity,
-          'defaultValue': t.defaultValue,
-          'tapIncrement': t.tapIncrement,
-          'longPressIncrement': t.longPressIncrement,
-          'hasAction': t.hasAction,
-          'actionButtonText': t.actionButtonText,
-          'actionType': t.actionType,
-          'isCustom': t.isCustom,
-          'order': t.order,
-          'artworkUrl': t.artworkUrl,
-          'artworkSet': t.artworkSet,
-          'artworkOptions': t.artworkOptions?.map((a) => a.toJson()).toList(),
-        }).toList(),
-        'toggleWidgets': deck.toggleWidgets?.map((t) => {
-          'name': t.name,
-          'colorIdentity': t.colorIdentity,
-          'onDescription': t.onDescription,
-          'offDescription': t.offDescription,
-          'isCustom': t.isCustom,
-          'order': t.order,
-          'artworkUrl': t.artworkUrl,
-          'artworkSet': t.artworkSet,
-          'artworkOptions': t.artworkOptions?.map((a) => a.toJson()).toList(),
-          'onArtworkUrl': t.onArtworkUrl,
-          'offArtworkUrl': t.offArtworkUrl,
-        }).toList(),
+        'templates': deck.templates
+            .map(
+              (t) => {
+                'name': t.name,
+                'pt': t.pt,
+                'abilities': t.abilities,
+                'colors': t.colors,
+                'type': t.type,
+                'order': t.order,
+                'artworkUrl': t.artworkUrl,
+                'artworkSet': t.artworkSet,
+                'artworkOptions': t.artworkOptions
+                    ?.map((a) => a.toJson())
+                    .toList(),
+              },
+            )
+            .toList(),
+        'trackerWidgets': deck.trackerWidgets
+            ?.map(
+              (t) => {
+                'name': t.name,
+                'description': t.description,
+                'colorIdentity': t.colorIdentity,
+                'defaultValue': t.defaultValue,
+                'tapIncrement': t.tapIncrement,
+                'longPressIncrement': t.longPressIncrement,
+                'hasAction': t.hasAction,
+                'actionButtonText': t.actionButtonText,
+                'actionType': t.actionType,
+                'actionOnly': t.actionOnly,
+                'isCustom': t.isCustom,
+                'order': t.order,
+                'artworkUrl': t.artworkUrl,
+                'artworkSet': t.artworkSet,
+                'artworkOptions': t.artworkOptions
+                    ?.map((a) => a.toJson())
+                    .toList(),
+              },
+            )
+            .toList(),
+        'toggleWidgets': deck.toggleWidgets
+            ?.map(
+              (t) => {
+                'name': t.name,
+                'colorIdentity': t.colorIdentity,
+                'onDescription': t.onDescription,
+                'offDescription': t.offDescription,
+                'isCustom': t.isCustom,
+                'order': t.order,
+                'artworkUrl': t.artworkUrl,
+                'artworkSet': t.artworkSet,
+                'artworkOptions': t.artworkOptions
+                    ?.map((a) => a.toJson())
+                    .toList(),
+                'onArtworkUrl': t.onArtworkUrl,
+                'offArtworkUrl': t.offArtworkUrl,
+              },
+            )
+            .toList(),
       },
     };
 
     final jsonString = const JsonEncoder.withIndent('  ').convert(exportData);
-    debugPrint('DeckProvider: Exported deck "${deck.name}" (${deck.templates.length} tokens, schema v2)');
+    debugPrint(
+      'DeckProvider: Exported deck "${deck.name}" (${deck.templates.length} tokens, schema v2)',
+    );
     return jsonString;
   }
 
@@ -370,7 +428,9 @@ class DeckProvider extends ChangeNotifier {
         throw FormatException('Missing schemaVersion in imported file');
       }
       if (schemaVersion > 2) {
-        throw FormatException('Unsupported schema version $schemaVersion. Please update the app.');
+        throw FormatException(
+          'Unsupported schema version $schemaVersion. Please update the app.',
+        );
       }
       debugPrint('DeckProvider: Import - schema version $schemaVersion');
 
@@ -420,6 +480,7 @@ class DeckProvider extends ChangeNotifier {
             hasAction: map['hasAction'] as bool? ?? false,
             actionButtonText: map['actionButtonText'] as String?,
             actionType: map['actionType'] as String?,
+            actionOnly: map['actionOnly'] as bool? ?? false,
             isCustom: map['isCustom'] as bool? ?? false,
             order: (map['order'] as num?)?.toDouble() ?? 0.0,
             artworkUrl: map['artworkUrl'] as String?,
@@ -464,7 +525,9 @@ class DeckProvider extends ChangeNotifier {
       }
 
       final allDecks = _decksBox.values.toList();
-      final maxOrder = allDecks.isEmpty ? 0.0 : allDecks.map((d) => d.order).reduce(max);
+      final maxOrder = allDecks.isEmpty
+          ? 0.0
+          : allDecks.map((d) => d.order).reduce(max);
 
       final deck = Deck(
         name: deckName,
@@ -484,7 +547,9 @@ class DeckProvider extends ChangeNotifier {
 
       await _decksBox.add(deck);
       notifyListeners();
-      debugPrint('DeckProvider: Imported deck "$deckName" with ${templates.length} tokens');
+      debugPrint(
+        'DeckProvider: Imported deck "$deckName" with ${templates.length} tokens',
+      );
       return deck;
     } on FormatException catch (e) {
       debugPrint('DeckProvider: Import failed - ${e.message}');
@@ -504,13 +569,16 @@ class DeckProvider extends ChangeNotifier {
     int migratedCount = 0;
 
     // Assign sequential orders where all are 0.0 (pre-migration decks)
-    final needsOrderMigration = allDecks.every((d) => d.order == 0.0) && allDecks.length > 1;
+    final needsOrderMigration =
+        allDecks.every((d) => d.order == 0.0) && allDecks.length > 1;
     if (needsOrderMigration) {
       for (int i = 0; i < allDecks.length; i++) {
         allDecks[i].order = i.toDouble();
         allDecks[i].save();
       }
-      debugPrint('DeckProvider: Migrated ${allDecks.length} decks with sequential orders');
+      debugPrint(
+        'DeckProvider: Migrated ${allDecks.length} decks with sequential orders',
+      );
       migratedCount += allDecks.length;
     }
 
@@ -519,13 +587,17 @@ class DeckProvider extends ChangeNotifier {
       if (deck.colorIdentity == null) {
         deck.colorIdentity = autoDetectColorIdentity(deck);
         deck.save();
-        debugPrint('DeckProvider: Migrated deck "${deck.name}" colorIdentity="${deck.colorIdentity}"');
+        debugPrint(
+          'DeckProvider: Migrated deck "${deck.name}" colorIdentity="${deck.colorIdentity}"',
+        );
         migratedCount++;
       }
     }
 
     if (migratedCount > 0) {
-      debugPrint('DeckProvider: Migration complete - $migratedCount decks updated');
+      debugPrint(
+        'DeckProvider: Migration complete - $migratedCount decks updated',
+      );
     }
   }
 
@@ -536,13 +608,21 @@ class DeckProvider extends ChangeNotifier {
     TrackerProvider trackerProvider,
     ToggleProvider toggleProvider,
   ) async {
-    debugPrint('DeckProvider: Loading deck "${deck.name}" (clear & load, ${deck.templates.length} tokens)');
+    debugPrint(
+      'DeckProvider: Loading deck "${deck.name}" (clear & load, ${deck.templates.length} tokens)',
+    );
 
     await tokenProvider.boardWipeDelete();
     await trackerProvider.deleteAll();
     await toggleProvider.deleteAll();
 
-    await _loadDeckItems(tokenProvider, trackerProvider, toggleProvider, deck, startOrder: 0.0);
+    await _loadDeckItems(
+      tokenProvider,
+      trackerProvider,
+      toggleProvider,
+      deck,
+      startOrder: 0.0,
+    );
   }
 
   /// Load a deck to the board, adding to existing items
@@ -552,7 +632,9 @@ class DeckProvider extends ChangeNotifier {
     TrackerProvider trackerProvider,
     ToggleProvider toggleProvider,
   ) async {
-    debugPrint('DeckProvider: Loading deck "${deck.name}" (add to board, ${deck.templates.length} tokens)');
+    debugPrint(
+      'DeckProvider: Loading deck "${deck.name}" (add to board, ${deck.templates.length} tokens)',
+    );
 
     // Find max order across all board items
     final allOrders = <double>[];
@@ -561,7 +643,13 @@ class DeckProvider extends ChangeNotifier {
     allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
     final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce(max);
 
-    await _loadDeckItems(tokenProvider, trackerProvider, toggleProvider, deck, startOrder: maxOrder.floor() + 1.0);
+    await _loadDeckItems(
+      tokenProvider,
+      trackerProvider,
+      toggleProvider,
+      deck,
+      startOrder: maxOrder.floor() + 1.0,
+    );
   }
 
   /// Internal: load deck items into the board at the given starting order
@@ -618,7 +706,9 @@ class DeckProvider extends ChangeNotifier {
       }
     }
 
-    debugPrint('DeckProvider: Loaded ${allTemplates.length} items from deck "${deck.name}"');
+    debugPrint(
+      'DeckProvider: Loaded ${allTemplates.length} items from deck "${deck.name}"',
+    );
   }
 
   @override

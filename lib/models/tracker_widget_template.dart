@@ -50,6 +50,9 @@ class TrackerWidgetTemplate extends HiveObject {
   @HiveField(13, defaultValue: 0.0)
   double order;
 
+  @HiveField(14, defaultValue: false)
+  bool actionOnly;
+
   TrackerWidgetTemplate({
     required this.name,
     required this.description,
@@ -65,6 +68,7 @@ class TrackerWidgetTemplate extends HiveObject {
     this.actionType,
     this.isCustom = false,
     this.order = 0.0,
+    this.actionOnly = false,
   });
 
   factory TrackerWidgetTemplate.fromWidget(TrackerWidget widget) {
@@ -74,7 +78,9 @@ class TrackerWidgetTemplate extends HiveObject {
       colorIdentity: widget.colorIdentity,
       artworkUrl: widget.artworkUrl,
       artworkSet: widget.artworkSet,
-      artworkOptions: widget.artworkOptions != null ? List.from(widget.artworkOptions!) : null,
+      artworkOptions: widget.artworkOptions != null
+          ? List.from(widget.artworkOptions!)
+          : null,
       defaultValue: widget.defaultValue,
       tapIncrement: widget.tapIncrement,
       longPressIncrement: widget.longPressIncrement,
@@ -83,6 +89,7 @@ class TrackerWidgetTemplate extends HiveObject {
       actionType: widget.actionType,
       isCustom: widget.isCustom,
       order: widget.order,
+      actionOnly: widget.actionOnly,
     );
   }
 
@@ -94,7 +101,9 @@ class TrackerWidgetTemplate extends HiveObject {
       colorIdentity: colorIdentity,
       artworkUrl: artworkUrl,
       artworkSet: artworkSet,
-      artworkOptions: artworkOptions != null ? List.from(artworkOptions!) : null,
+      artworkOptions: artworkOptions != null
+          ? List.from(artworkOptions!)
+          : null,
       order: customOrder ?? order,
       createdAt: DateTime.now(),
       currentValue: defaultValue, // Reset to default when loading
@@ -105,6 +114,7 @@ class TrackerWidgetTemplate extends HiveObject {
       actionButtonText: actionButtonText,
       actionType: actionType,
       isCustom: isCustom,
+      actionOnly: actionOnly,
     );
   }
 }

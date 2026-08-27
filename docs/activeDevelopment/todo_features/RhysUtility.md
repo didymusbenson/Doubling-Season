@@ -1,5 +1,7 @@
 # Rhys the Redeemed Utility
 
+**Status:** Implemented on `codex/rhys-utility`; pending acceptance testing
+
 ## Card Reference
 
 **Rhys the Redeemed** — {G/W} Legendary Creature — Elf Warrior (1/1)
@@ -7,92 +9,108 @@
 - {2}{G/W}, {T}: Create a 1/1 green and white Elf Warrior creature token.
 - {4}{G/W}{G/W}, {T}: For each creature token you control, create a token that's a copy of that creature.
 
-## Overview
+The utility implements the second ability as an action-only **Copy Tokens** card.
+The first ability remains available through normal Elf Warrior token creation.
 
-Add a utility for Rhys the Redeemed following the existing action tracker pattern (Krenko, Academy Manufactor). The utility's action button triggers Rhys's second ability: duplicate every creature token on the board.
+## Utility Definition
 
-## What the Utility Does
+- ID/action type: `rhys_the_redeemed`
+- Description: `Copy each creature token you control`
+- Color identity: `GW`
+- No value or +/- controls (`TrackerWidget.actionOnly`)
+- Artwork:
+  - TLE: `https://cards.scryfall.io/large/front/e/b/ebcf9ad6-5c1c-4b12-9778-2b9338bf49aa.jpg?1783904844`
+  - 2XM: `https://cards.scryfall.io/large/front/b/9/b91dadcb-31e9-43b0-b425-c9311af3e9d7.jpg?1783930128`
 
-**Tracker purpose:** None — Rhys has no tracker value. He is a pure action button: tap "Copy Tokens" and it duplicates every creature token on the board. The first ability (create a 1/1 Elf Warrior) is trivial for the user to do manually.
+`actionOnly` is Hive-backed with `defaultValue: false` and is preserved through
+`TrackerWidgetTemplate` and deck JSON export/import.
 
-### Layout Consideration: Action-Only Widget
+## Eligibility and Copy Identity
 
-The current `TrackerWidget` system assumes every utility has a counter value with +/- buttons. Rhys doesn't need any of that — just a name and an action button. This is new territory.
+- Snapshot every non-emblem `Item` with nonempty P/T when the action begins.
+- P/T is the app-level signal that the token is currently a creature.
+- Copy stored name, colors, type, abilities, and artwork exactly. Customized token
+  characteristics are authoritative; Rhys does not look up a presumed base token.
+- If the stored type line contains `Creature` (case-insensitive), preserve P/T.
+- If it does not contain `Creature`, strip P/T from the copy. This allows an
+  animated Clue to qualify while producing a normal noncreature Clue copy.
+- Do not copy tapped state, summoning-sickness state, +1/+1, -1/-1, power-only,
+  toughness-only, or custom counters.
+- Later activations include copies created by earlier activations.
 
-**Decision: Option B — Action-only layout mode.** Add a new `actionOnly` boolean field to `TrackerWidget` (`@HiveField` with `defaultValue: false`). When true, the card skips the counter display and +/- buttons entirely, rendering only the name + action button. Clean and reusable for any future action-only utilities.
+Known approximation: a Vehicle stored with printed P/T is treated as currently
+animated and eligible. The copy has P/T stripped because its type line does not
+contain `Creature`.
 
-### Token Duplication Logic
+## Rules Evaluation and Preview
 
-For every `Item` on the board that is a creature (has P/T, is not an emblem):
-- Create a new `Item` that copies: name, pt, colors, type, abilities, artwork fields
-- The new stack's `amount` = original stack's `amount` × multiplier
-- Apply summoning sickness to the new copies if the setting is enabled
-- New stacks should be inserted adjacent to their source (fractional order, same pattern as Scute Swarm)
-- +1/+1 and -1/-1 counters are NOT copied (they represent modifications to the original, not the base token)
-- Custom counters are NOT copied
+Each eligible source stack is independently passed to
+`RulesProvider.evaluateRules()` with its full amount. The removed legacy global
+multiplier is not used. Active doublers, triplers, replacement rules, and companion
+effects therefore apply to each copied identity correctly.
 
-### Token Database Match
+The handler retains a source-to-results group for each stack. The exact evaluated
+groups shown in the confirmation dialog are reused for execution; rules are not
+recalculated after confirmation. The preview aggregates identical display results,
+includes companions, and reports quantity caps.
 
-Rhys's first ability creates an Elf Warrior token already in the database:
-- **Name:** Elf Warrior
-- **P/T:** 1/1
-- **Colors:** GW
-- **Type:** Creature — Elf Warrior
-- **Artwork:** Available from 2XM and SHM sets
+The action is never disabled. With no eligible tokens, the dialog previews no
+tokens and confirmation performs a successful no-op.
 
-## Implementation Steps
+## Artwork Rules
 
-### 1. Widget Database Entry (`lib/database/widget_database.dart`)
+- An unchanged primary copy preserves the source's exact artwork URL, set, and
+  artwork options.
+- If a replacement rule changes the token identity, discard the source artwork and
+  resolve normal artwork for the resulting token (preference, then database/default).
+- Companion tokens resolve artwork from their own identity.
+- A result may merge only when `artworkUrl` matches exactly, including both null.
+  This prevents selected or customized artwork from being silently lost.
 
-Add a new `WidgetDefinition`:
-- `id: 'rhys_the_redeemed'`
-- `type: WidgetType.special`
-- `name: 'Rhys the Redeemed'`
-- `description:` TBD (see questions)
-- `colorIdentity: 'GW'`
-- `hasAction: true`
-- `actionButtonText: 'Copy Tokens'`
-- `actionType: 'rhys_the_redeemed'`
+Example: Food replaced by Treasure creates a normal Treasure with Treasure artwork,
+never a Treasure displaying the copied Food artwork.
 
-### 2. Action Dispatch (`lib/widgets/tracker_widget_card.dart`)
+## Stack Merging, State, and Ordering
 
-Add case to `_performAction()` switch:
-```dart
-case 'rhys_the_redeemed':
-  _performRhysTheRedeemedAction(context);
-  break;
-```
+- Merge into an existing stack only when name, P/T, colors, type, abilities, and
+  artwork URL match and the destination has no counters of any kind.
+- A source with counters can therefore copy into a separate compatible clean stack,
+  but never into the modified source.
+- Preserve all preexisting tapped and summoning-sickness counts on a merged stack.
+- Newly created creatures enter untapped and add only their new quantity to the
+  summoning-sickness count when the setting is enabled and they do not have haste.
+- When no compatible stack exists, insert the result fractionally beside its source.
 
-### 3. Action Handler (`lib/widgets/tracker_widget_card.dart`)
+## Trigger Integration
 
-Implement `_performRhysTheRedeemedAction()`:
-- Read all creature tokens from `TokenProvider`
-- For each, call a new `TokenProvider` method to create the copy
-- May want a confirmation dialog since this could create many tokens at once
+Every actually created result with P/T emits the existing creature-ETB event using
+the post-rules quantity, whether it was merged or inserted as a new stack. This
+includes creature companion tokens and ensures Cathar's Crusade receives the full
+trigger count. Results whose P/T was stripped (such as a normal copied Clue) do not
+emit creature ETB events.
 
-### 4. Provider Method (`lib/providers/token_provider.dart`)
+## Rules Basis
 
-Add `duplicateAllCreatureTokens()` or `performRhysPopulate()`:
-- Snapshot the current token list (avoid iterating over a mutating list)
-- For each creature token, create a new `Item` copying base fields
-- Insert with fractional order placement
-- Apply summoning sickness after insert (existing two-step pattern)
-- Fire ETB events for Cathar's Crusade integration
+Verified against French Vanilla's Comprehensive Rules corpus:
 
-## Clarifying Questions
+- CR 111.3: token-defined characteristics establish copiable values.
+- CR 613.1 and 613.2a-c: copy effects/copiable values are layer 1; later type,
+  ability, and P/T effects are not normally copied.
+- CR 707.2 and 707.9: copy effects exclude status, counters, and ordinary later
+  continuous effects, while copy-effect modifications can be copiable.
 
-### Behavior
-1. **Does the multiplier apply?** When duplicating, should each copy stack's amount be `original.amount * multiplier` or just `original.amount`? The card says "create a token that's a copy" per creature token you control — the multiplier simulates Doubling Season/Parallel Lives, so it probably should apply.
-2. ~~**Should the tracker value be used for anything?**~~ **Resolved:** No tracker value — Rhys is action-only.
-3. ~~**Action-only layout**~~ **Resolved:** Option B — new `actionOnly` HiveField on TrackerWidget with `defaultValue: false`.
-4. **Confirmation dialog?** With many creature tokens on board, a single tap could create dozens of new stacks. Should there be a confirmation showing how many tokens will be created?
+Rhys has no separate official card-specific ruling for this interaction.
 
-### Copying Details
-5. **Tapped state** — Should copies enter untapped (matching the card's behavior — new tokens enter untapped) regardless of whether the original is tapped?
-6. **Existing copies** — If the user activates Rhys twice, the second activation should also copy the tokens created by the first activation (they are creature tokens too). Is this the expected behavior, or should there be any dedup?
-7. **Non-token creatures** — The card says "creature token," so it only copies tokens. In our app, everything on the board is a token. Should all creatures be copied, or should there be any filtering?
-8. **Utility widgets on board** — TrackerWidgets and ToggleWidgets on the board are not creature tokens. Confirm these are naturally excluded (they should be, since we'd iterate `TokenProvider.items` only).
+## Acceptance Checklist
 
-### UI
-9. ~~**Button count**~~ **Resolved:** No +/- buttons. Action button only — just "Copy Tokens".
-10. **Action button disabled state** — Should "Copy Tokens" be disabled when there are no creature tokens on the board? (Academy Manufactor disables when its value is 0.)
+- [ ] Card renders name, description, artwork, and Copy Tokens without value controls.
+- [ ] Action-only state survives save/load, export/import, and an upgrade from old data.
+- [ ] Empty board previews no tokens and confirming is a no-op.
+- [ ] Multiple source identities are evaluated independently and preview matches output.
+- [ ] Animated noncreature token qualifies but its copy has P/T stripped.
+- [ ] Counters and tapped state never copy.
+- [ ] Matching clean stacks merge only when artwork also matches.
+- [ ] New merged quantities receive sickness without changing old quantities.
+- [ ] Replacement and companion identities receive their own normal artwork.
+- [ ] New and merged creatures increment Cathar's Crusade by final created quantity.
+- [ ] Repeated activation includes copies from the previous activation.

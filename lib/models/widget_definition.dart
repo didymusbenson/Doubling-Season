@@ -19,6 +19,7 @@ class WidgetDefinition {
   final bool hasAction; // True if this tracker has an action button
   final String? actionButtonText; // Text for action button
   final String? actionType; // Type of action (e.g., "krenko_goblins")
+  final bool actionOnly; // Hide tracker value controls; render only the action
   // Artwork fields (same as tokens)
   final List<ArtworkVariant> artwork; // Available artwork options
 
@@ -35,6 +36,7 @@ class WidgetDefinition {
     this.hasAction = false,
     this.actionButtonText,
     this.actionType,
+    this.actionOnly = false,
     this.artwork = const [], // Default to empty list
   });
 
@@ -49,7 +51,10 @@ class WidgetDefinition {
 
   /// Convert definition to TrackerWidget instance
   TrackerWidget toTrackerWidget({required double order}) {
-    assert(type == WidgetType.tracker || type == WidgetType.special, 'Can only convert tracker/special definitions to TrackerWidget');
+    assert(
+      type == WidgetType.tracker || type == WidgetType.special,
+      'Can only convert tracker/special definitions to TrackerWidget',
+    );
 
     return TrackerWidget(
       widgetId: const Uuid().v4(),
@@ -66,13 +71,17 @@ class WidgetDefinition {
       hasAction: hasAction, // Action tracker fields
       actionButtonText: actionButtonText,
       actionType: actionType,
+      actionOnly: actionOnly,
       artworkOptions: artwork.isNotEmpty ? List.from(artwork) : null,
     );
   }
 
   /// Convert definition to ToggleWidget instance
   ToggleWidget toToggleWidget({required double order}) {
-    assert(type == WidgetType.toggle, 'Can only convert toggle definitions to ToggleWidget');
+    assert(
+      type == WidgetType.toggle,
+      'Can only convert toggle definitions to ToggleWidget',
+    );
     assert(offDescription != null, 'Toggle widget must have offDescription');
 
     return ToggleWidget(

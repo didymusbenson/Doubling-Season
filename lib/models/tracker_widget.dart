@@ -58,6 +58,9 @@ class TrackerWidget extends HiveObject {
   @HiveField(16, defaultValue: null)
   List<ArtworkVariant>? artworkOptions; // Available artwork variants
 
+  @HiveField(17, defaultValue: false)
+  bool actionOnly; // Hide tracker value controls; render only the action
+
   TrackerWidget({
     required this.widgetId,
     required this.name,
@@ -76,6 +79,7 @@ class TrackerWidget extends HiveObject {
     this.actionType,
     this.artworkSet,
     this.artworkOptions,
+    this.actionOnly = false,
   });
 
   /// Increment the current value by the specified amount

@@ -380,7 +380,9 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
             // Help text
             Text(
               widget.isTracker
-                  ? 'Tap +/- to adjust value. Long-press for ${(widget.widget as TrackerWidget).longPressIncrement}.'
+                  ? (widget.widget as TrackerWidget).actionOnly
+                      ? 'Use the action button on the utility card.'
+                      : 'Tap +/- to adjust value. Long-press for ${(widget.widget as TrackerWidget).longPressIncrement}.'
                   : 'Tap the checkbox button on the card to toggle ON/OFF state.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),

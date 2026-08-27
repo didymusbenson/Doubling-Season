@@ -27,7 +27,8 @@ class TrackerWidgetCard extends StatefulWidget {
   State<TrackerWidgetCard> createState() => _TrackerWidgetCardState();
 }
 
-class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDisplayMixin {
+class _TrackerWidgetCardState extends State<TrackerWidgetCard>
+    with ArtworkDisplayMixin {
   final DateTime _createdAt = DateTime.now();
   bool _artworkAnimated = false;
   bool _artworkCleanupAttempted = false;
@@ -67,7 +68,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     super.initState();
     // Cache the artwork Future on initialization
     if (widget.tracker.artworkUrl != null) {
-      _cachedArtworkFuture = ArtworkManager.getCachedArtworkFile(widget.tracker.artworkUrl!);
+      _cachedArtworkFuture = ArtworkManager.getCachedArtworkFile(
+        widget.tracker.artworkUrl!,
+      );
     }
   }
 
@@ -102,97 +105,117 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
             );
           },
           child: Opacity(
-            opacity: (widget.tracker.actionType == 'academy_manufactor' && widget.tracker.currentValue <= 0) ? 0.4 : 1.0,
+            opacity:
+                (widget.tracker.actionType == 'academy_manufactor' &&
+                    widget.tracker.currentValue <= 0)
+                ? 0.4
+                : 1.0,
             child: LayoutBuilder(
               builder: (context, constraints) {
                 return Stack(
-                children: [
-                  // Base card background layer (transparent to allow red swipe indicator through)
-                  Container(
-                    decoration: BoxDecoration(
+                  children: [
+                    // Base card background layer (transparent to allow red swipe indicator through)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(
+                          UIConstants.borderRadius - 3.0,
+                        ),
+                      ),
+                    ),
+
+                    // Gradient background layer
+                    if (widget.tracker.artworkUrl == null ||
+                        widget.tracker.artworkUrl!.isEmpty)
+                      _buildGradientLayer(context)
+                    else
+                      _buildConditionalGradient(context),
+
+                    // Artwork layer
+                    if (widget.tracker.artworkUrl != null)
+                      buildArtworkLayer(
+                        context: context,
+                        constraints: constraints,
+                        artworkDisplayStyle: artworkDisplayStyle,
+                      ),
+
+                    // Content layer
+                    Container(
                       color: Colors.transparent,
-                      borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
-                    ),
-                  ),
-
-                  // Gradient background layer
-                  if (widget.tracker.artworkUrl == null || widget.tracker.artworkUrl!.isEmpty)
-                    _buildGradientLayer(context)
-                  else
-                    _buildConditionalGradient(context),
-
-                  // Artwork layer
-                  if (widget.tracker.artworkUrl != null)
-                    buildArtworkLayer(
-                      context: context,
-                      constraints: constraints,
-                      artworkDisplayStyle: artworkDisplayStyle,
-                    ),
-
-                  // Content layer
-                  Container(
-                    color: Colors.transparent,
-                    padding: const EdgeInsets.all(UIConstants.cardPadding),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Top row: Name/Description and Value
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // Left side: Name, Description (takes remaining space)
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // Name
-                                  BackgroundText(
-                                    child: Text(
-                                      widget.tracker.name,
-                                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
-                                    ),
-                                  ),
-
-                                  // Description (if present)
-                                  if (widget.tracker.description.isNotEmpty) ...[
-                                    const SizedBox(height: UIConstants.mediumSpacing),
+                      padding: const EdgeInsets.all(UIConstants.cardPadding),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Top row: Name/Description and Value
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // Left side: Name, Description (takes remaining space)
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Name
                                     BackgroundText(
                                       child: Text(
-                                        widget.tracker.description,
-                                        style: Theme.of(context).textTheme.bodyMedium,
+                                        widget.tracker.name,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleLarge
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                         overflow: TextOverflow.ellipsis,
-                                        maxLines: 3,
+                                        maxLines: 1,
                                       ),
                                     ),
+
+                                    // Description (if present)
+                                    if (widget
+                                        .tracker
+                                        .description
+                                        .isNotEmpty) ...[
+                                      const SizedBox(
+                                        height: UIConstants.mediumSpacing,
+                                      ),
+                                      BackgroundText(
+                                        child: Text(
+                                          widget.tracker.description,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.bodyMedium,
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 3,
+                                        ),
+                                      ),
+                                    ],
                                   ],
-                                ],
+                                ),
                               ),
-                            ),
 
-                            const SizedBox(width: UIConstants.mediumSpacing),
+                              if (!widget.tracker.actionOnly) ...[
+                                const SizedBox(
+                                  width: UIConstants.mediumSpacing,
+                                ),
+                                // Right side: Value display (shrink-wraps)
+                                _buildValueDisplay(context),
+                              ],
+                            ],
+                          ),
 
-                            // Right side: Value display (shrink-wraps)
-                            _buildValueDisplay(context),
-                          ],
-                        ),
+                          const SizedBox(height: UIConstants.mediumSpacing),
 
-                        const SizedBox(height: UIConstants.mediumSpacing),
-
-                        // Bottom row: Action buttons (full width)
-                        _buildActionButtons(context),
-                      ],
+                          // Bottom row: Action buttons (full width)
+                          _buildActionButtons(context),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              );
-            },
-          ),
+                  ],
+                );
+              },
+            ),
           ), // Opacity
         );
       },
@@ -200,19 +223,35 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
   }
 
   Widget _buildActionButtons(BuildContext context) {
-    final trackerProvider = context.read<TrackerProvider>();
     final primaryColor = Theme.of(context).colorScheme.primary;
+
+    if (widget.tracker.actionOnly) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: _buildTextActionButton(
+          context,
+          text: widget.tracker.actionButtonText ?? 'Action',
+          onTap: () => _performAction(context),
+          color: primaryColor,
+          spacing: 0,
+        ),
+      );
+    }
+
+    final trackerProvider = context.read<TrackerProvider>();
 
     // Calculate button count: +/- buttons, plus optional action button(s)
     final int buttonCount = widget.tracker.actionType == 'cathars_crusade'
-        ? 4  // -, +, Quick +1, Resolve All
+        ? 4 // -, +, Quick +1, Resolve All
         : (widget.tracker.hasAction ? 3 : 2); // -, +, [optional Action]
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        const double buttonInternalWidth = UIConstants.actionButtonInternalWidth;
+        const double buttonInternalWidth =
+            UIConstants.actionButtonInternalWidth;
         final double totalButtonWidth = buttonCount * buttonInternalWidth;
-        final double availableSpacingWidth = constraints.maxWidth - totalButtonWidth;
+        final double availableSpacingWidth =
+            constraints.maxWidth - totalButtonWidth;
         final double spacing = buttonCount > 1
             ? (availableSpacingWidth / (buttonCount - 1)).clamp(
                 UIConstants.minButtonSpacing,
@@ -252,11 +291,14 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
                 trackerProvider.updateTracker(widget.tracker);
               },
               color: primaryColor,
-              spacing: widget.tracker.hasAction ? spacing : 0, // Spacing if action button follows
+              spacing: widget.tracker.hasAction
+                  ? spacing
+                  : 0, // Spacing if action button follows
             ),
 
             // Action buttons (conditional)
-            if (widget.tracker.hasAction && widget.tracker.actionType == 'cathars_crusade') ...[
+            if (widget.tracker.hasAction &&
+                widget.tracker.actionType == 'cathars_crusade') ...[
               // Quick +1 button for Cathar's Crusade (icon + text)
               _buildIconTextActionButton(
                 context,
@@ -296,9 +338,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Text(
           '${widget.tracker.currentValue}',
-          style: Theme.of(context).textTheme.displayMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.bold),
           textAlign: TextAlign.center,
         ),
       ),
@@ -307,7 +349,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
 
   void _showValueEditDialog(BuildContext context) {
     final trackerProvider = context.read<TrackerProvider>();
-    final controller = TextEditingController(text: '${widget.tracker.currentValue}');
+    final controller = TextEditingController(
+      text: '${widget.tracker.currentValue}',
+    );
     final focusNode = FocusNode();
 
     showDialog(
@@ -331,8 +375,12 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
             ),
             onTapOutside: (_) => FocusScope.of(dialogContext).unfocus(),
             onSubmitted: (value) {
-              final newValue = int.tryParse(value) ?? widget.tracker.currentValue;
-              widget.tracker.currentValue = newValue.clamp(0, double.maxFinite.toInt());
+              final newValue =
+                  int.tryParse(value) ?? widget.tracker.currentValue;
+              widget.tracker.currentValue = newValue.clamp(
+                0,
+                double.maxFinite.toInt(),
+              );
               trackerProvider.updateTracker(widget.tracker);
               FocusScope.of(dialogContext).unfocus();
               Navigator.of(dialogContext).pop();
@@ -345,8 +393,13 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
             ),
             TextButton(
               onPressed: () {
-                final newValue = int.tryParse(controller.text) ?? widget.tracker.currentValue;
-                widget.tracker.currentValue = newValue.clamp(0, double.maxFinite.toInt());
+                final newValue =
+                    int.tryParse(controller.text) ??
+                    widget.tracker.currentValue;
+                widget.tracker.currentValue = newValue.clamp(
+                  0,
+                  double.maxFinite.toInt(),
+                );
                 trackerProvider.updateTracker(widget.tracker);
                 FocusScope.of(dialogContext).unfocus();
                 Navigator.of(dialogContext).pop();
@@ -370,7 +423,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     required Color color,
     required double spacing,
   }) {
-    final buttonBackgroundColor = Theme.of(context).cardColor.withValues(alpha: 0.85);
+    final buttonBackgroundColor = Theme.of(
+      context,
+    ).cardColor.withValues(alpha: 0.85);
 
     return Padding(
       padding: EdgeInsets.only(right: spacing),
@@ -381,17 +436,15 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
           padding: const EdgeInsets.all(UIConstants.actionButtonPadding),
           decoration: BoxDecoration(
             color: buttonBackgroundColor,
-            borderRadius: BorderRadius.circular(UIConstants.actionButtonBorderRadius),
+            borderRadius: BorderRadius.circular(
+              UIConstants.actionButtonBorderRadius,
+            ),
             border: Border.all(
               color: color,
               width: UIConstants.actionButtonBorderWidth,
             ),
           ),
-          child: Icon(
-            icon,
-            color: color,
-            size: UIConstants.iconSize,
-          ),
+          child: Icon(icon, color: color, size: UIConstants.iconSize),
         ),
       ),
     );
@@ -404,7 +457,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     required Color color,
     required double spacing,
   }) {
-    final buttonBackgroundColor = Theme.of(context).cardColor.withValues(alpha: 0.85);
+    final buttonBackgroundColor = Theme.of(
+      context,
+    ).cardColor.withValues(alpha: 0.85);
 
     return Padding(
       padding: EdgeInsets.only(right: spacing),
@@ -417,7 +472,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
           ),
           decoration: BoxDecoration(
             color: buttonBackgroundColor,
-            borderRadius: BorderRadius.circular(UIConstants.actionButtonBorderRadius),
+            borderRadius: BorderRadius.circular(
+              UIConstants.actionButtonBorderRadius,
+            ),
             border: Border.all(
               color: color,
               width: UIConstants.actionButtonBorderWidth,
@@ -443,7 +500,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     required Color color,
     required double spacing,
   }) {
-    final buttonBackgroundColor = Theme.of(context).cardColor.withValues(alpha: 0.85);
+    final buttonBackgroundColor = Theme.of(
+      context,
+    ).cardColor.withValues(alpha: 0.85);
 
     return Padding(
       padding: EdgeInsets.only(right: spacing),
@@ -456,7 +515,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
           ),
           decoration: BoxDecoration(
             color: buttonBackgroundColor,
-            borderRadius: BorderRadius.circular(UIConstants.actionButtonBorderRadius),
+            borderRadius: BorderRadius.circular(
+              UIConstants.actionButtonBorderRadius,
+            ),
             border: Border.all(
               color: color,
               width: UIConstants.actionButtonBorderWidth,
@@ -465,11 +526,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                icon,
-                size: 16,
-                color: color,
-              ),
+              Icon(icon, size: 16, color: color),
               const SizedBox(width: 4),
               Text(
                 text,
@@ -506,8 +563,137 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
       case 'hare_apparent':
         _performHareApparentAction(context);
         break;
+      case 'rhys_the_redeemed':
+        _performRhysTheRedeemedAction(context);
+        break;
       default:
         break;
+    }
+  }
+
+  Future<void> _performRhysTheRedeemedAction(BuildContext context) async {
+    final tokenProvider = context.read<TokenProvider>();
+    final settingsProvider = context.read<SettingsProvider>();
+    final rulesProvider = context.read<RulesProvider>();
+    final trackerProvider = context.read<TrackerProvider>();
+    final toggleProvider = context.read<ToggleProvider>();
+
+    final sourceItems = tokenProvider.items
+        .where(
+          (item) =>
+              item.amount > 0 && item.hasPowerToughness && !item.isEmblem,
+        )
+        .toList(growable: false);
+    final allOrders = <double>[
+      ...tokenProvider.items.map((item) => item.order),
+      ...trackerProvider.trackers.map((tracker) => tracker.order),
+      ...toggleProvider.toggles.map((toggle) => toggle.order),
+    ]..sort();
+
+    final groups = <RhysCreationGroup>[];
+    for (final source in sourceItems) {
+      final copiesKeepPowerToughness = source.type.toLowerCase().contains(
+        'creature',
+      );
+      final copiedPt = copiesKeepPowerToughness ? source.pt : '';
+      final inputCompositeId =
+          '${source.name}|$copiedPt|${source.colors}|${source.type}|${source.abilities}';
+      final results = rulesProvider.evaluateRules(
+        source.name,
+        copiedPt,
+        source.colors,
+        source.type,
+        source.abilities,
+        source.amount,
+      );
+      final nextOrder = allOrders.firstWhere(
+        (order) => order > source.order,
+        orElse: () => source.order + 1.0,
+      );
+      groups.add(
+        RhysCreationGroup(
+          source: source,
+          inputCompositeId: inputCompositeId,
+          results: results,
+          nextBoardOrder: nextOrder,
+        ),
+      );
+    }
+
+    final previewResults = TokenCreationResult.aggregateForDisplay(
+      groups.expand((group) => group.results).toList(),
+    );
+    final wasCapped = groups.any(
+      (group) => group.results.any((result) => result.wasCapped),
+    );
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Copy Creature Tokens'),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 360),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (previewResults.isEmpty)
+                  const Text('No creature tokens will be created.')
+                else ...[
+                  Text(
+                    'Rhys will create:',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  for (final result in previewResults)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        '${result.quantity}× ${result.name}',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                ],
+                if (wasCapped) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'One or more quantities were capped at '
+                    '${GameConstants.maxTokenQuantity}.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Copy Tokens'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || groups.isEmpty) return;
+
+    final tokenDatabase = TokenDatabase();
+    await tokenDatabase.loadTokens();
+    try {
+      await TokenCreationService.createRhysCopies(
+        groups: groups,
+        tokenProvider: tokenProvider,
+        summoningSicknessEnabled: settingsProvider.summoningSicknessEnabled,
+        tokenDatabase: tokenDatabase,
+      );
+    } finally {
+      tokenDatabase.dispose();
     }
   }
 
@@ -549,7 +735,12 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     // list is reused for the preview and the actual creation below so the
     // confirmation cannot diverge from what is created.
     final results = rulesProvider.evaluateRules(
-      'Rabbit', '1/1', 'W', 'Creature \u2014 Rabbit', '', rabbitsToCreate,
+      'Rabbit',
+      '1/1',
+      'W',
+      'Creature \u2014 Rabbit',
+      '',
+      rabbitsToCreate,
     );
     final rabbitsAfterRules = results.first.quantity;
     // Consolidate identical token identities for the breakdown line so
@@ -557,9 +748,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     // primary Rabbit count (display-only \u2014 creation uses the full list).
     final displayResults = TokenCreationResult.aggregateForDisplay(results);
     final breakdownLine = displayResults.length > 1
-        ? displayResults
-            .map((r) => '${r.quantity}\u00d7 ${r.name}')
-            .join(', ')
+        ? displayResults.map((r) => '${r.quantity}\u00d7 ${r.name}').join(', ')
         : '$rabbitsAfterRules rabbits';
     final confirmLabel = displayResults.length > 1
         ? 'Create Tokens'
@@ -582,9 +771,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
             const SizedBox(height: 4),
             Text(
               breakdownLine,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             if (wasCapped) ...[
               const SizedBox(height: 8),
@@ -617,7 +806,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     allOrders.addAll(tokenProvider.items.map((item) => item.order));
     allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
     allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
-    final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
+    final maxOrder = allOrders.isEmpty
+        ? 0.0
+        : allOrders.reduce((a, b) => a > b ? a : b);
     final nextOrder = maxOrder.floor() + 1.0;
 
     // Create rabbits (plus any companions from rules) as peer results
@@ -654,16 +845,21 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     // both the preview here and the creation below (createKrenkoGoblins for
     // results.first + createCompanionTokens for the rest), so the confirmation
     // cannot diverge from what is actually created.
-    final results = rulesProvider.evaluateRules('Goblin', '1/1', 'R', 'Creature Token \u2014 Goblin', '', totalGoblins);
+    final results = rulesProvider.evaluateRules(
+      'Goblin',
+      '1/1',
+      'R',
+      'Creature Token \u2014 Goblin',
+      '',
+      totalGoblins,
+    );
     final byTotalGoblins = results.first.quantity;
     // Consolidate identical token identities for the breakdown line so
     // companions (e.g. Chatterfang Squirrels) are reflected, not just the
     // primary Goblin count (display-only \u2014 creation uses the full list).
     final displayResults = TokenCreationResult.aggregateForDisplay(results);
     final breakdownLine = displayResults.length > 1
-        ? displayResults
-            .map((r) => '${r.quantity}\u00d7 ${r.name}')
-            .join(', ')
+        ? displayResults.map((r) => '${r.quantity}\u00d7 ${r.name}').join(', ')
         : '$byTotalGoblins goblins';
     final confirmLabel = displayResults.length > 1
         ? 'Create Tokens'
@@ -686,9 +882,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
             const SizedBox(height: 4),
             Text(
               breakdownLine,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             if (wasCapped) ...[
               const SizedBox(height: 8),
@@ -725,11 +921,17 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     allOrders.addAll(tokenProvider.items.map((item) => item.order));
     allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
     allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
-    final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
+    final maxOrder = allOrders.isEmpty
+        ? 0.0
+        : allOrders.reduce((a, b) => a > b ? a : b);
     double nextOrder = maxOrder.floor() + 1.0;
 
     // Create goblin tokens using TokenProvider (primary result)
-    await tokenProvider.createKrenkoGoblins(shouldCreate, settingsProvider.summoningSicknessEnabled, nextOrder);
+    await tokenProvider.createKrenkoGoblins(
+      shouldCreate,
+      settingsProvider.summoningSicknessEnabled,
+      nextOrder,
+    );
     nextOrder += 1.0;
 
     // Create companion tokens from rules via shared service
@@ -754,7 +956,14 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
 
     // Calculate goblin creation amount based on Krenko's power, via rules engine
     final krenkoPower = widget.tracker.currentValue;
-    final results = rulesProvider.evaluateRules('Goblin', '1/1', 'R', 'Creature Token \u2014 Goblin', '', krenkoPower);
+    final results = rulesProvider.evaluateRules(
+      'Goblin',
+      '1/1',
+      'R',
+      'Creature Token \u2014 Goblin',
+      '',
+      krenkoPower,
+    );
     final goblinsToCreate = results.first.quantity;
 
     // Show dialog
@@ -773,9 +982,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
             const SizedBox(height: 4),
             Text(
               '$goblinsToCreate goblins',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -805,11 +1014,17 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     allOrders.addAll(tokenProvider.items.map((item) => item.order));
     allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
     allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
-    final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
+    final maxOrder = allOrders.isEmpty
+        ? 0.0
+        : allOrders.reduce((a, b) => a > b ? a : b);
     double nextOrder = maxOrder.floor() + 1.0;
 
     // Create goblin tokens using TokenProvider (primary result)
-    await tokenProvider.createKrenkoGoblins(shouldCreate, settingsProvider.summoningSicknessEnabled, nextOrder);
+    await tokenProvider.createKrenkoGoblins(
+      shouldCreate,
+      settingsProvider.summoningSicknessEnabled,
+      nextOrder,
+    );
     nextOrder += 1.0;
 
     // Create companion tokens from rules via shared service
@@ -838,7 +1053,10 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     }
 
     // Calculate final counter amount via rules engine
-    final finalCounterAmount = rulesProvider.calculateCounterAmount(triggerCount, isPlusOne: true);
+    final finalCounterAmount = rulesProvider.calculateCounterAmount(
+      triggerCount,
+      isPlusOne: true,
+    );
 
     // Show confirmation dialog
     final shouldResolve = await showDialog<bool>(
@@ -923,7 +1141,12 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     // Use the real database type 'Artifact — Food' so token_type trigger matches.
     final foodParts = GameConstants.foodCompositeId.split('|');
     final results = rulesProvider.evaluateRules(
-      foodParts[0], foodParts[1], foodParts[2], foodParts[3], foodParts[4], 1,
+      foodParts[0],
+      foodParts[1],
+      foodParts[2],
+      foodParts[3],
+      foodParts[4],
+      1,
       forceAcademyManufactorCount: manufactorCount,
     );
     final totalPerType = results.fold<int>(0, (sum, r) => sum + r.quantity);
@@ -931,9 +1154,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     // (display-only — actual creation still uses the full result list).
     final displayResults = TokenCreationResult.aggregateForDisplay(results);
     final breakdownLine = displayResults.length > 1
-        ? displayResults
-            .map((r) => '${r.quantity}× ${r.name}')
-            .join(', ')
+        ? displayResults.map((r) => '${r.quantity}× ${r.name}').join(', ')
         : '$totalPerType tokens';
 
     // Show confirmation dialog with breakdown
@@ -947,9 +1168,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
           children: [
             Text(
               'Creating $breakdownLine',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             Text(
@@ -980,7 +1201,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     allOrders.addAll(tokenProvider.items.map((item) => item.order));
     allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
     allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
-    final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
+    final maxOrder = allOrders.isEmpty
+        ? 0.0
+        : allOrders.reduce((a, b) => a > b ? a : b);
     double nextOrder = maxOrder.floor() + 1.0;
 
     // Create all tokens from rules results via shared service
@@ -990,7 +1213,8 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     await TokenCreationService.createAllFromResults(
       results: results,
       tokenProvider: tokenProvider,
-      summoningSicknessEnabled: false, // Artifact tokens (Food/Treasure/Clue) have no P/T
+      summoningSicknessEnabled:
+          false, // Artifact tokens (Food/Treasure/Clue) have no P/T
       insertionOrder: nextOrder,
       tokenDatabase: tokenDatabase,
     );
@@ -998,7 +1222,10 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
   }
 
   Widget _buildGradientLayer(BuildContext context) {
-    final gradient = ColorUtils.gradientForColors(widget.tracker.colorIdentity, isEmblem: false);
+    final gradient = ColorUtils.gradientForColors(
+      widget.tracker.colorIdentity,
+      isEmblem: false,
+    );
 
     return Positioned.fill(
       child: Container(
@@ -1013,14 +1240,21 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
   Widget _buildConditionalGradient(BuildContext context) {
     return Positioned.fill(
       child: FutureBuilder<File?>(
-        future: _cachedArtworkFuture, // Use cached Future (prevents flicker on rebuild)
+        future:
+            _cachedArtworkFuture, // Use cached Future (prevents flicker on rebuild)
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done && snapshot.data == null) {
-            final gradient = ColorUtils.gradientForColors(widget.tracker.colorIdentity, isEmblem: false);
+          if (snapshot.connectionState == ConnectionState.done &&
+              snapshot.data == null) {
+            final gradient = ColorUtils.gradientForColors(
+              widget.tracker.colorIdentity,
+              isEmblem: false,
+            );
             return Container(
               decoration: BoxDecoration(
                 gradient: gradient,
-                borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
+                borderRadius: BorderRadius.circular(
+                  UIConstants.borderRadius - 3.0,
+                ),
               ),
             );
           }
