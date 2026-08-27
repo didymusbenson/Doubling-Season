@@ -50,6 +50,9 @@ class TrackerWidgetTemplate extends HiveObject {
   @HiveField(13, defaultValue: 0.0)
   double order;
 
+  @HiveField(14, defaultValue: false)
+  bool actionOnly;
+
   TrackerWidgetTemplate({
     required this.name,
     required this.description,
@@ -65,6 +68,7 @@ class TrackerWidgetTemplate extends HiveObject {
     this.actionType,
     this.isCustom = false,
     this.order = 0.0,
+    this.actionOnly = false,
   });
 
   factory TrackerWidgetTemplate.fromWidget(TrackerWidget widget) {
@@ -83,6 +87,7 @@ class TrackerWidgetTemplate extends HiveObject {
       actionType: widget.actionType,
       isCustom: widget.isCustom,
       order: widget.order,
+      actionOnly: widget.actionOnly,
     );
   }
 
@@ -105,6 +110,7 @@ class TrackerWidgetTemplate extends HiveObject {
       actionButtonText: actionButtonText,
       actionType: actionType,
       isCustom: isCustom,
+      actionOnly: actionOnly,
     );
   }
 }

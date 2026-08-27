@@ -241,6 +241,22 @@ class WidgetDatabase extends ChangeNotifier {
         ],
       ),
       WidgetDefinition(
+        id: 'rhys_the_redeemed',
+        type: WidgetType.special,
+        name: 'Rhys the Redeemed',
+        description: 'Copy each creature token you control',
+        colorIdentity: 'GW', // Green/White hybrid
+        defaultValue: 0, // Action-only — no tracker value
+        hasAction: true,
+        actionButtonText: 'Copy Tokens',
+        actionType: 'rhys_the_redeemed',
+        actionOnly: true, // No counter, no +/- buttons — just the action button
+        artwork: [
+          ArtworkVariant(set: 'TLE', url: 'https://cards.scryfall.io/large/front/e/b/ebcf9ad6-5c1c-4b12-9778-2b9338bf49aa.jpg?1783904844'),
+          ArtworkVariant(set: '2XM', url: 'https://cards.scryfall.io/large/front/b/9/b91dadcb-31e9-43b0-b425-c9311af3e9d7.jpg?1783930128'),
+        ],
+      ),
+      WidgetDefinition(
         id: 'hare_apparent',
         type: WidgetType.special,
         name: 'Hare Apparent',
