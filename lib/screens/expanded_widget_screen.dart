@@ -379,9 +379,7 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
 
             // Help text
             Text(
-              widget.isTracker
-                  ? 'Tap +/- to adjust value. Long-press for ${(widget.widget as TrackerWidget).longPressIncrement}.'
-                  : 'Tap the checkbox button on the card to toggle ON/OFF state.',
+              _helpText(context),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
               ),
@@ -391,6 +389,21 @@ class _ExpandedWidgetScreenState extends State<ExpandedWidgetScreen> {
         ),
       ),
     );
+  }
+
+  String _helpText(BuildContext context) {
+    if (!widget.isTracker) {
+      return 'Tap the checkbox button on the card to toggle ON/OFF state.';
+    }
+
+    final tracker = widget.widget as TrackerWidget;
+    if (tracker.actionOnly) {
+      // Action-only utilities have no value to adjust — just the action button.
+      final label = tracker.actionButtonText ?? 'the action button';
+      return 'Tap $label on the card to activate this utility.';
+    }
+
+    return 'Tap +/- to adjust value. Long-press for ${tracker.longPressIncrement}.';
   }
 
   Widget _buildEditableDescriptionField(BuildContext context) {

@@ -16,6 +16,7 @@ import 'common/background_text.dart';
 // import 'cropped_artwork_widget.dart';
 import 'mixins/artwork_display_mixin.dart';
 import '../services/token_creation_service.dart';
+import '../services/rhys_copy_planner.dart';
 import '../database/token_database.dart';
 
 class TrackerWidgetCard extends StatefulWidget {
@@ -175,10 +176,12 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
                               ),
                             ),
 
-                            const SizedBox(width: UIConstants.mediumSpacing),
-
-                            // Right side: Value display (shrink-wraps)
-                            _buildValueDisplay(context),
+                            // Right side: Value display (shrink-wraps).
+                            // Action-only utilities have no tracker value.
+                            if (!widget.tracker.actionOnly) ...[
+                              const SizedBox(width: UIConstants.mediumSpacing),
+                              _buildValueDisplay(context),
+                            ],
                           ],
                         ),
 
@@ -202,6 +205,18 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
   Widget _buildActionButtons(BuildContext context) {
     final trackerProvider = context.read<TrackerProvider>();
     final primaryColor = Theme.of(context).colorScheme.primary;
+
+    // Action-only utilities (e.g. Rhys the Redeemed) have no tracker value,
+    // so they skip the +/- buttons entirely and give the action button the
+    // full width of the card.
+    if (widget.tracker.actionOnly) {
+      return _buildWideTextActionButton(
+        context,
+        text: widget.tracker.actionButtonText ?? 'Action',
+        onTap: () => _performAction(context),
+        color: primaryColor,
+      );
+    }
 
     // Calculate button count: +/- buttons, plus optional action button(s)
     final int buttonCount = widget.tracker.actionType == 'cathars_crusade'
@@ -435,6 +450,44 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     );
   }
 
+  /// Full-width action button used by action-only utilities, which have no
+  /// +/- buttons to share the row with.
+  Widget _buildWideTextActionButton(
+    BuildContext context, {
+    required String text,
+    required VoidCallback? onTap,
+    required Color color,
+  }) {
+    final buttonBackgroundColor = Theme.of(context).cardColor.withValues(alpha: 0.85);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          horizontal: UIConstants.actionButtonPadding + 2,
+          vertical: UIConstants.actionButtonPadding,
+        ),
+        decoration: BoxDecoration(
+          color: buttonBackgroundColor,
+          borderRadius: BorderRadius.circular(UIConstants.actionButtonBorderRadius),
+          border: Border.all(
+            color: color,
+            width: UIConstants.actionButtonBorderWidth,
+          ),
+        ),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: color,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildIconTextActionButton(
     BuildContext context, {
     required IconData icon,
@@ -506,9 +559,154 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
       case 'hare_apparent':
         _performHareApparentAction(context);
         break;
+      case 'rhys_the_redeemed':
+        _performRhysTheRedeemedAction(context);
+        break;
       default:
         break;
     }
+  }
+
+  Future<void> _performRhysTheRedeemedAction(BuildContext context) async {
+    final tokenProvider = context.read<TokenProvider>();
+    final settingsProvider = context.read<SettingsProvider>();
+    final rulesProvider = context.read<RulesProvider>();
+
+    // Rhys's second ability: "For each creature token you control, create a
+    // token that's a copy of that creature." Every eligible stack is snapshot
+    // and evaluated independently, so copies made by a previous activation are
+    // themselves copied by the next one.
+    final tokenDatabase = TokenDatabase();
+    await tokenDatabase.loadTokens();
+
+    final RhysCopyPlan plan;
+    try {
+      plan = RhysCopyPlanner.build(
+        items: tokenProvider.items,
+        rulesProvider: rulesProvider,
+        tokenDatabase: tokenDatabase,
+      );
+    } finally {
+      tokenDatabase.dispose();
+    }
+
+    if (!context.mounted) return;
+
+    // The SAME [plan] backs both the preview below and the board mutation, so
+    // the confirmation cannot diverge from what is actually created.
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Rhys the Redeemed'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                plan.isEmpty
+                    ? 'No creature tokens on the board — nothing will be created.'
+                    : 'Copying every creature token you control:',
+                style: Theme.of(dialogContext).textTheme.bodyMedium,
+              ),
+              if (plan.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final group in plan.groups)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    '${group.source.name} ×${group.source.amount}',
+                                    style: Theme.of(dialogContext).textTheme.bodyMedium,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    _rhysBreakdown(group.results),
+                                    textAlign: TextAlign.right,
+                                    style: Theme.of(dialogContext)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const Divider(height: 20),
+                Text(
+                  'Total: ${plan.totalTokens} token${plan.totalTokens == 1 ? '' : 's'}',
+                  style: Theme.of(dialogContext).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+              if (plan.wasCapped) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Quantity capped at ${GameConstants.maxTokenQuantity}.',
+                  style: Theme.of(dialogContext).textTheme.bodySmall,
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Copy Tokens'),
+          ),
+        ],
+      ),
+    );
+
+    // Confirming an empty plan is a successful no-op.
+    if (confirmed != true) return;
+
+    await tokenProvider.performRhysPopulate(
+      plan,
+      settingsProvider.summoningSicknessEnabled,
+    );
+  }
+
+  /// Consolidates a group's results by token identity for the preview line,
+  /// so companions read as "3× Elf Warrior, 3× Squirrel" rather than
+  /// one fragment per rules trigger.
+  String _rhysBreakdown(List<RhysCopyResult> results) {
+    final order = <String>[];
+    final totals = <String, int>{};
+    final names = <String, String>{};
+
+    for (final result in results) {
+      final id = result.compositeId;
+      if (!totals.containsKey(id)) {
+        order.add(id);
+        names[id] = result.name;
+        totals[id] = 0;
+      }
+      totals[id] = totals[id]! + result.quantity;
+    }
+
+    return order.map((id) => '${totals[id]}× ${names[id]}').join(', ');
   }
 
   Future<void> _performHareApparentAction(BuildContext context) async {

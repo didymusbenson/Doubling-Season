@@ -31,13 +31,14 @@ class TrackerWidgetTemplateAdapter extends TypeAdapter<TrackerWidgetTemplate> {
       actionType: fields[11] as String?,
       isCustom: fields[12] == null ? false : fields[12] as bool,
       order: fields[13] == null ? 0.0 : fields[13] as double,
+      actionOnly: fields[14] == null ? false : fields[14] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, TrackerWidgetTemplate obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
@@ -65,7 +66,9 @@ class TrackerWidgetTemplateAdapter extends TypeAdapter<TrackerWidgetTemplate> {
       ..writeByte(12)
       ..write(obj.isCustom)
       ..writeByte(13)
-      ..write(obj.order);
+      ..write(obj.order)
+      ..writeByte(14)
+      ..write(obj.actionOnly);
   }
 
   @override

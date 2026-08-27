@@ -9,6 +9,7 @@ import '../utils/artwork_manager.dart';
 import '../utils/artwork_preference_manager.dart';
 import '../utils/constants.dart';
 import '../utils/game_events.dart';
+import '../services/rhys_copy_planner.dart';
 
 class TokenProvider extends ChangeNotifier {
   late Box<Item> _itemsBox;
@@ -752,6 +753,182 @@ class TokenProvider extends ChangeNotifier {
       notifyListeners();
       rethrow;
     }
+  }
+
+  /// Executes a Rhys the Redeemed activation from a pre-evaluated [plan].
+  ///
+  /// "For each creature token you control, create a token that's a copy of
+  /// that creature."
+  ///
+  /// The plan was built and shown to the user before confirmation, so nothing
+  /// is re-evaluated here — the board gets exactly what the preview promised.
+  /// See [RhysCopyPlanner] for the eligibility and copiable-value heuristics.
+  ///
+  /// For each result: merge into a compatible clean stack when one exists,
+  /// otherwise insert a new stack adjacent to the source it came from.
+  /// Copies always enter untapped; counters are never copied and never merged
+  /// into. Returns the total number of tokens created.
+  Future<int> performRhysPopulate(
+    RhysCopyPlan plan,
+    bool summoningSicknessEnabled,
+  ) async {
+    try {
+      if (plan.isEmpty) {
+        debugPrint('TokenProvider.performRhysPopulate: No eligible creature tokens — no-op');
+        return 0;
+      }
+
+      int createdCount = 0;
+
+      for (final group in plan.groups) {
+        // New stacks land immediately after their source, in result order, so
+        // a source's primary copy and its companions stay grouped together.
+        Item anchor = group.source;
+
+        for (final result in group.results) {
+          if (result.quantity <= 0) continue;
+
+          final mergeTarget = _findRhysMergeTarget(result);
+
+          if (mergeTarget != null) {
+            // Only the newly created quantity becomes summoning sick — the
+            // stack's existing tapped/sick counts are left untouched.
+            mergeTarget.amount += result.quantity;
+            if (summoningSicknessEnabled &&
+                mergeTarget.hasPowerToughness &&
+                !mergeTarget.hasHaste) {
+              mergeTarget.summoningSick += result.quantity;
+            }
+            await mergeTarget.save();
+
+            // Fire ETB for Cathar's Crusade and other listeners
+            if (mergeTarget.hasPowerToughness) {
+              GameEvents.instance
+                  .notifyCreatureEntered(mergeTarget, result.quantity);
+            }
+
+            createdCount += result.quantity;
+            continue; // Merged — the anchor for this group doesn't move
+          }
+
+          final newItem = Item(
+            name: result.name,
+            pt: result.pt,
+            abilities: result.abilities,
+            colors: result.colors,
+            type: result.type,
+            amount: result.quantity,
+            tapped: 0, // Copies always enter untapped
+            summoningSick: 0, // Applied after insert (Hive key required)
+            order: _orderAfter(anchor),
+            artworkUrl: result.artworkUrl,
+            artworkSet: result.artworkSet,
+            artworkOptions: result.artworkOptions != null
+                ? List.from(result.artworkOptions!)
+                : null,
+          );
+
+          // insertItem fires the creature ETB event automatically
+          await insertItem(newItem);
+
+          if (summoningSicknessEnabled &&
+              newItem.hasPowerToughness &&
+              !newItem.hasHaste) {
+            newItem.summoningSick = result.quantity;
+          }
+
+          _downloadArtworkInBackground(newItem);
+
+          anchor = newItem;
+          createdCount += result.quantity;
+        }
+      }
+
+      _errorMessage = null;
+      notifyListeners();
+      debugPrint('TokenProvider.performRhysPopulate: Created $createdCount tokens across ${plan.groups.length} source stack(s)');
+      return createdCount;
+    } on HiveError catch (e) {
+      _errorMessage = 'Database error while copying tokens: Changes could not be saved. Some copies may be missing.';
+      debugPrint('TokenProvider.performRhysPopulate: HiveError. Error: ${e.message}');
+      notifyListeners();
+      rethrow;
+    } catch (e, stackTrace) {
+      _errorMessage = 'Unexpected error while copying tokens. Some copies may not have been created.';
+      debugPrint('TokenProvider.performRhysPopulate: Unexpected error. Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Finds a stack a Rhys copy can merge into, or null if a new stack is needed.
+  ///
+  /// Requires an exact identity match, no counters of any kind, and identical
+  /// artwork. Counters represent modifications to the tokens already in that
+  /// stack, so merging clean copies in would silently grant them those
+  /// modifications; artwork must match exactly (both null counts) so a
+  /// user's selected art is never lost to a merge.
+  Item? _findRhysMergeTarget(RhysCopyResult result) {
+    for (final item in items) {
+      if (item.name != result.name ||
+          item.pt != result.pt ||
+          item.colors != result.colors ||
+          item.type != result.type ||
+          item.abilities != result.abilities) {
+        continue;
+      }
+      if (item.plusOneCounters != 0 ||
+          item.minusOneCounters != 0 ||
+          item.plusOnePowerCounters != 0 ||
+          item.plusOneToughnessCounters != 0 ||
+          item.counters.isNotEmpty) {
+        continue;
+      }
+      if (item.artworkUrl != result.artworkUrl) continue;
+      return item;
+    }
+    return null;
+  }
+
+  /// Fractional order slotting a new stack directly after [anchor]
+  /// (same approach as [copyToken]).
+  double _orderAfter(Item anchor) {
+    final sorted = items;
+    final index = sorted.indexWhere((i) => i.key == anchor.key);
+
+    final double order;
+    if (index < 0 || index == sorted.length - 1) {
+      order = anchor.order + 1.0;
+    } else {
+      order = (anchor.order + sorted[index + 1].order) / 2.0;
+    }
+
+    // insertItem treats 0.0 as "unassigned" and would move the stack to the
+    // end of the board, so never hand it exactly zero.
+    return order == 0.0 ? 0.0001 : order;
+  }
+
+  /// Caches artwork for a freshly created stack without blocking the UI.
+  void _downloadArtworkInBackground(Item item) {
+    if (kIsWeb) return; // Web loads artwork straight from the network URL
+    final url = item.artworkUrl;
+    if (url == null || url.startsWith('file://')) return;
+
+    ArtworkManager.downloadArtwork(url).then((file) {
+      if (!item.isInBox) return; // Deleted while downloading
+      if (file != null) {
+        // Keep the original Scryfall URL so crop percentages still apply;
+        // saving just triggers a rebuild that picks up the cached file.
+        item.save();
+      } else {
+        debugPrint('TokenProvider: Artwork download failed for "${item.name}", clearing URL');
+        item.updateArtwork(url: null, set: null, options: item.artworkOptions);
+      }
+      notifyListeners();
+    }).catchError((error) {
+      debugPrint('TokenProvider: Artwork download error: $error');
+    });
   }
 
   Future<void> boardWipeZero() async {
