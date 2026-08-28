@@ -19,6 +19,8 @@ class GameConstants {
       'Treasure|||Artifact \u2014 Treasure|{T}, Sacrifice this token: Add one mana of any color.';
   static const String clueCompositeId =
       'Clue|||Artifact \u2014 Clue|{2}, Sacrifice this token: Draw a card.';
+  static const String phyrexianMyrCompositeId =
+      'Phyrexian Myr|2/1|U|Artifact Creature — Phyrexian Myr|';
   static const String squirrelCompositeId =
       'Squirrel|1/1|G|Creature \u2014 Squirrel|';
 }
@@ -33,8 +35,10 @@ class HiveTypeIds {
   static const int artworkPreference = 5; // NEW - Custom Artwork Feature
   static const int trackerWidget = 6; // NEW - Widget Cards Feature
   static const int toggleWidget = 7; // NEW - Widget Cards Feature
-  static const int trackerWidgetTemplate = 8; // NEW - Deck templates for utilities
-  static const int toggleWidgetTemplate = 9; // NEW - Deck templates for utilities
+  static const int trackerWidgetTemplate =
+      8; // NEW - Deck templates for utilities
+  static const int toggleWidgetTemplate =
+      9; // NEW - Deck templates for utilities
   static const int tokenRule = 10;
   static const int ruleTrigger = 11;
   static const int ruleOutcome = 12;
@@ -54,61 +58,68 @@ class UIConstants {
   static const double verticalSpacing = 4.0;
   static const double mediumSpacing = 8.0;
   static const double largeSpacing = 12.0;
-  
+
   // Border and corner radius
   static const double borderRadius = 12.0;
-  static const double smallBorderRadius = 7.0; // 12 - 5 = 7 (to fit inside border)
+  static const double smallBorderRadius =
+      7.0; // 12 - 5 = 7 (to fit inside border)
   static const double counterPillBorderRadius = 12.0;
   static const double actionButtonBorderRadius = 8.0;
   static const double borderWidth = 5.0;
   static const double actionButtonBorderWidth = 1.5;
-  
+
   // Icon and button sizes
   static const double iconSize = 20.0;
   static const double actionButtonPadding = 8.0;
   static const double actionButtonInternalWidth = 39.0;
   static const double minButtonSpacing = 4.0;
   static const double maxButtonSpacing = 8.0;
-  
+
   // Counter pill specific
   static const double counterPillHorizontalPadding = 8.0;
   static const double counterPillVerticalPadding = 5.0;
   static const double counterPillSpacing = 4.0;
   static const double counterPillFontSize = 14.0;
   static const double counterPillAmountFontSize = 12.0;
-  
+
   // List padding
   static const double listTopPadding = 8.0;
   static const double listBottomPadding = 120.0;
-  
+
   // Shadow and elevation
-  static const double shadowBlurRadius = 2.0;        // Stark shadow with minimal blur
-  static const double shadowOffsetY = 5.0;           // Vertical offset (bottom)
-  static const double shadowOffsetX = 0.0;           // Centered horizontally
-  static const double lightShadowBlurRadius = 1.0;   // Sharp secondary shadow
-  static const double lightShadowOffsetY = 2.0;      // Vertical offset
-  static const double lightShadowOffsetX = 0.0;      // Centered horizontally
+  static const double shadowBlurRadius = 2.0; // Stark shadow with minimal blur
+  static const double shadowOffsetY = 5.0; // Vertical offset (bottom)
+  static const double shadowOffsetX = 0.0; // Centered horizontally
+  static const double lightShadowBlurRadius = 1.0; // Sharp secondary shadow
+  static const double lightShadowOffsetY = 2.0; // Vertical offset
+  static const double lightShadowOffsetX = 0.0; // Centered horizontally
   static const double dragElevation = 8.0;
   static const double dragScaleFactor = 1.03;
 
   // Opacity values
   static const double disabledOpacity = 0.3;
-  static const double actionButtonBackgroundOpacity = 0.15; // Used only when no artwork
-  static const double shadowOpacity = 0.35;          // High contrast shadow
-  static const double lightShadowOpacity = 0.15;     // Visible secondary shadow
+  static const double actionButtonBackgroundOpacity =
+      0.15; // Used only when no artwork
+  static const double shadowOpacity = 0.35; // High contrast shadow
+  static const double lightShadowOpacity = 0.15; // Visible secondary shadow
   static const double dragShadowOpacity = 0.3;
-  static const double darkModeGlowOpacity = 0.40;    // Strong glow in dark mode
+  static const double darkModeGlowOpacity = 0.40; // Strong glow in dark mode
 
   // Animation constants
   static const Duration animationDuration = Duration(milliseconds: 300);
   static const Duration sheetDismissDelay = Duration(milliseconds: 100);
 
   // Artwork display constants
-  static const int artworkAnimationThreshold = 100; // ms - cached vs downloaded distinction
-  static const int artworkCleanupDelay = 2000; // ms - prevents cleanup during drag/scroll
-  static const Duration artworkFadeInDuration = Duration(milliseconds: 500); // animation duration
-  static const double artworkFadeoutWidthPercent = 0.50; // 50% width for fadeout mode
-  static const double textBackgroundOpacity = 0.85; // semi-transparent backgrounds for readability
+  static const int artworkAnimationThreshold =
+      100; // ms - cached vs downloaded distinction
+  static const int artworkCleanupDelay =
+      2000; // ms - prevents cleanup during drag/scroll
+  static const Duration artworkFadeInDuration =
+      Duration(milliseconds: 500); // animation duration
+  static const double artworkFadeoutWidthPercent =
+      0.50; // 50% width for fadeout mode
+  static const double textBackgroundOpacity =
+      0.85; // semi-transparent backgrounds for readability
 
   // MTG color strings
   static const String colorWhite = 'W';
@@ -124,8 +135,10 @@ class DatabaseConstants {
   static const String countersBox = 'counters';
   static const String decksBox = 'decks';
   static const String templatesBox = 'templates';
-  static const String trackerWidgetsBox = 'trackerWidgets'; // NEW - Widget Cards Feature
-  static const String toggleWidgetsBox = 'toggleWidgets'; // NEW - Widget Cards Feature
+  static const String trackerWidgetsBox =
+      'trackerWidgets'; // NEW - Widget Cards Feature
+  static const String toggleWidgetsBox =
+      'toggleWidgets'; // NEW - Widget Cards Feature
   static const String tokenRulesBox = 'tokenRules';
 }
 
@@ -139,7 +152,8 @@ class PreferenceKeys {
   static const String summoningSicknessEnabled = 'summoningSicknessEnabled';
   static const String favoriteTokens = 'favoriteTokens';
   static const String recentTokens = 'recentTokens';
-  static const String experimentalFeaturesEnabled = 'experimentalFeaturesEnabled';
+  static const String experimentalFeaturesEnabled =
+      'experimentalFeaturesEnabled';
 
   // Rules engine presets
   static const String presetTokenDoublers = 'preset_token_doublers';
@@ -147,7 +161,8 @@ class PreferenceKeys {
   static const String presetPrimalVigor = 'preset_primal_vigor';
   static const String presetOjerTaq = 'preset_ojer_taq';
   static const String presetAcademyManufactor = 'preset_academy_manufactor';
-  static const String presetAcademyManufactorCount = 'preset_academy_manufactor_count';
+  static const String presetAcademyManufactorCount =
+      'preset_academy_manufactor_count';
   static const String presetChatterfang = 'preset_chatterfang';
   static const String presetPlusOneDoublers = 'preset_plus_one_doublers';
   static const String presetPlusOneExtra = 'preset_plus_one_extra';

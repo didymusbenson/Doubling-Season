@@ -1,12 +1,13 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import '../models/item.dart';
-import '../models/token_definition.dart' as token_models;
 import '../database/token_database.dart';
 import '../providers/token_provider.dart';
 import '../providers/rules_provider.dart';
 import '../utils/artwork_manager.dart';
-import '../utils/artwork_preference_manager.dart';
+import '../utils/game_events.dart';
+import 'token_merge_compatibility.dart';
+import 'token_result_artwork_resolver.dart';
 
 /// Shared service for creating tokens from rules engine results.
 /// Eliminates duplication across token search, new token sheet,
@@ -41,17 +42,22 @@ class TokenCreationService {
       if (companion.quantity <= 0) continue;
       companionCount += companion.quantity;
 
-      // Check for existing matching stack (same identity, no counters)
+      final artwork = TokenResultArtworkResolver.resolve(
+        result: companion,
+        tokenDatabase: tokenDatabase,
+      );
+
+      // Check for an exact, clean, artwork-compatible stack.
       final existingStack = tokenProvider.items.firstWhereOrNull(
-        (item) =>
-            item.name == companion.name &&
-            item.pt == companion.pt &&
-            item.colors == companion.colors &&
-            item.type == companion.type &&
-            item.abilities == companion.abilities &&
-            item.plusOneCounters == 0 &&
-            item.minusOneCounters == 0 &&
-            item.counters.isEmpty,
+        (item) => TokenMergeCompatibility.canMerge(
+          item,
+          name: companion.name,
+          pt: companion.pt,
+          colors: companion.colors,
+          type: companion.type,
+          abilities: companion.abilities,
+          artworkUrl: artwork.url,
+        ),
       );
 
       if (existingStack != null) {
@@ -62,38 +68,11 @@ class TokenCreationService {
           existingStack.summoningSick += companion.quantity;
         }
         await existingStack.save();
-      } else {
-        // Resolve artwork via preferences → database fallback
-        String? artworkUrl;
-        String? artworkSet;
-        List<token_models.ArtworkVariant>? artworkOptions;
-
-        final artworkPrefManager = ArtworkPreferenceManager();
-        final companionDef = tokenDatabase?.findByCompositeId(companion.tokenDatabaseId);
-
-        if (companionDef != null) {
-          final preferredArtwork = artworkPrefManager.getPreferredArtwork(companionDef.id);
-          if (preferredArtwork != null) {
-            artworkUrl = preferredArtwork;
-            if (!preferredArtwork.startsWith('file://') && companionDef.artwork.isNotEmpty) {
-              final matchingArtwork = companionDef.artwork.firstWhere(
-                (art) => art.url == preferredArtwork,
-                orElse: () => companionDef.artwork[0],
-              );
-              artworkSet = matchingArtwork.set;
-            }
-          } else if (companionDef.artwork.isNotEmpty) {
-            artworkUrl = companionDef.artwork[0].url;
-            artworkSet = companionDef.artwork[0].set;
-          }
-          artworkOptions = companionDef.artwork.isNotEmpty
-              ? List<token_models.ArtworkVariant>.from(companionDef.artwork)
-              : null;
-        } else {
-          // No database entry — try preference by composite ID directly
-          artworkUrl = artworkPrefManager.getPreferredArtwork(companion.compositeId);
+        if (existingStack.hasPowerToughness) {
+          GameEvents.instance
+              .notifyCreatureEntered(existingStack, companion.quantity);
         }
-
+      } else {
         final newItem = Item(
           name: companion.name,
           pt: companion.pt,
@@ -104,9 +83,9 @@ class TokenCreationService {
           tapped: 0,
           summoningSick: 0,
           order: nextOrder,
-          artworkUrl: artworkUrl,
-          artworkSet: artworkSet,
-          artworkOptions: artworkOptions,
+          artworkUrl: artwork.url,
+          artworkSet: artwork.set,
+          artworkOptions: artwork.options,
         );
         nextOrder += 1.0;
 
@@ -120,7 +99,9 @@ class TokenCreationService {
         }
 
         // Download artwork in background, then trigger rebuild
-        if (!kIsWeb && newItem.artworkUrl != null && !newItem.artworkUrl!.startsWith('file://')) {
+        if (!kIsWeb &&
+            newItem.artworkUrl != null &&
+            !newItem.artworkUrl!.startsWith('file://')) {
           final downloadUrl = newItem.artworkUrl!;
           ArtworkManager.downloadArtwork(downloadUrl).then((file) {
             final currentItem = tokenProvider.items.firstWhereOrNull(
@@ -131,7 +112,8 @@ class TokenCreationService {
               // Trigger rebuild so FutureBuilder picks up the cached file
               currentItem.save();
             } else {
-              debugPrint('Artwork download failed for ${companion.name}, resetting URL');
+              debugPrint(
+                  'Artwork download failed for ${companion.name}, resetting URL');
               currentItem.artworkUrl = null;
               currentItem.artworkSet = null;
               currentItem.save();
@@ -165,17 +147,22 @@ class TokenCreationService {
       if (result.quantity <= 0) continue;
       totalCount += result.quantity;
 
-      // Check for existing matching stack (same identity, no counters)
+      final artwork = TokenResultArtworkResolver.resolve(
+        result: result,
+        tokenDatabase: tokenDatabase,
+      );
+
+      // Check for an exact, clean, artwork-compatible stack.
       final existingStack = tokenProvider.items.firstWhereOrNull(
-        (item) =>
-            item.name == result.name &&
-            item.pt == result.pt &&
-            item.colors == result.colors &&
-            item.type == result.type &&
-            item.abilities == result.abilities &&
-            item.plusOneCounters == 0 &&
-            item.minusOneCounters == 0 &&
-            item.counters.isEmpty,
+        (item) => TokenMergeCompatibility.canMerge(
+          item,
+          name: result.name,
+          pt: result.pt,
+          colors: result.colors,
+          type: result.type,
+          abilities: result.abilities,
+          artworkUrl: artwork.url,
+        ),
       );
 
       if (existingStack != null) {
@@ -186,37 +173,11 @@ class TokenCreationService {
           existingStack.summoningSick += result.quantity;
         }
         await existingStack.save();
-      } else {
-        // Resolve artwork
-        String? artworkUrl;
-        String? artworkSet;
-        List<token_models.ArtworkVariant>? artworkOptions;
-
-        final artworkPrefManager = ArtworkPreferenceManager();
-        final def = tokenDatabase?.findByCompositeId(result.tokenDatabaseId);
-
-        if (def != null) {
-          final preferredArtwork = artworkPrefManager.getPreferredArtwork(def.id);
-          if (preferredArtwork != null) {
-            artworkUrl = preferredArtwork;
-            if (!preferredArtwork.startsWith('file://') && def.artwork.isNotEmpty) {
-              final matchingArtwork = def.artwork.firstWhere(
-                (art) => art.url == preferredArtwork,
-                orElse: () => def.artwork[0],
-              );
-              artworkSet = matchingArtwork.set;
-            }
-          } else if (def.artwork.isNotEmpty) {
-            artworkUrl = def.artwork[0].url;
-            artworkSet = def.artwork[0].set;
-          }
-          artworkOptions = def.artwork.isNotEmpty
-              ? List<token_models.ArtworkVariant>.from(def.artwork)
-              : null;
-        } else {
-          artworkUrl = artworkPrefManager.getPreferredArtwork(result.compositeId);
+        if (existingStack.hasPowerToughness) {
+          GameEvents.instance
+              .notifyCreatureEntered(existingStack, result.quantity);
         }
-
+      } else {
         final newItem = Item(
           name: result.name,
           pt: result.pt,
@@ -227,9 +188,9 @@ class TokenCreationService {
           tapped: 0,
           summoningSick: 0,
           order: nextOrder,
-          artworkUrl: artworkUrl,
-          artworkSet: artworkSet,
-          artworkOptions: artworkOptions,
+          artworkUrl: artwork.url,
+          artworkSet: artwork.set,
+          artworkOptions: artwork.options,
         );
         nextOrder += 1.0;
 
@@ -242,7 +203,9 @@ class TokenCreationService {
         }
 
         // Download artwork in background, then trigger rebuild
-        if (!kIsWeb && newItem.artworkUrl != null && !newItem.artworkUrl!.startsWith('file://')) {
+        if (!kIsWeb &&
+            newItem.artworkUrl != null &&
+            !newItem.artworkUrl!.startsWith('file://')) {
           final downloadUrl = newItem.artworkUrl!;
           ArtworkManager.downloadArtwork(downloadUrl).then((file) {
             final currentItem = tokenProvider.items.firstWhereOrNull(

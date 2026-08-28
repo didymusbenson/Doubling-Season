@@ -22,6 +22,8 @@ import 'mixins/artwork_display_mixin.dart';
 import '../services/token_creation_service.dart';
 import '../database/token_database.dart';
 import 'multiplier_view.dart';
+import 'mana/mana_text.dart';
+import 'mana/mana_icons.dart';
 
 /// Animated widget that pops when P/T changes (from counter addition)
 class _AnimatedPowerToughness extends StatefulWidget {
@@ -38,7 +40,8 @@ class _AnimatedPowerToughness extends StatefulWidget {
   });
 
   @override
-  State<_AnimatedPowerToughness> createState() => _AnimatedPowerToughnessState();
+  State<_AnimatedPowerToughness> createState() =>
+      _AnimatedPowerToughnessState();
 }
 
 class _AnimatedPowerToughnessState extends State<_AnimatedPowerToughness>
@@ -156,196 +159,237 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
     // Use Selector to only rebuild when summoningSicknessEnabled or artworkDisplayStyle changes
     // This prevents rebuilds when multiplier changes
     return Selector<SettingsProvider, (bool, String)>(
-      selector: (context, settings) => (settings.summoningSicknessEnabled, settings.artworkDisplayStyle),
+      selector: (context, settings) =>
+          (settings.summoningSicknessEnabled, settings.artworkDisplayStyle),
       builder: (context, settingsData, child) {
         final summoningSicknessEnabled = settingsData.$1;
         final artworkDisplayStyle = settingsData.$2;
         return GestureDetector(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => ExpandedTokenScreen(item: widget.item),
-          ),
-        );
-      },
-      child: Opacity(
-      opacity: widget.item.amount == 0 ? 0.5 : 1.0,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Stack(
-            children: [
-              // Base card background layer (ensures left side is solid in fadeout mode)
-              // Uses borderRadius - borderWidth to fit inside the gradient border
-              Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
-                ),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => ExpandedTokenScreen(item: widget.item),
               ),
-
-              // Gradient background layer (Custom Artwork Feature)
-              // Shows immediately as placeholder while artwork loads, or permanently for artless tokens
-              if (widget.item.artworkUrl == null || widget.item.artworkUrl!.isEmpty)
-                _buildGradientLayer(context)
-              else
-                // Show gradient while artwork is loading
-                _buildConditionalGradient(context),
-
-              // Artwork layer (appears on top of gradient when file is available)
-              if (widget.item.artworkUrl != null)
-                buildArtworkLayer(
-                  context: context,
-                  constraints: constraints,
-                  artworkDisplayStyle: artworkDisplayStyle,
-                ),
-
-              // Content layer (all existing UI elements)
-              Container(
-                color: Colors.transparent,
-                padding: const EdgeInsets.all(UIConstants.cardPadding),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+            );
+          },
+          child: Opacity(
+            opacity: widget.item.amount == 0 ? 0.5 : 1.0,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Stack(
                   children: [
-            // Top row - name, summoning sickness, tapped/untapped
-            Row(
-              children: [
-                if (!widget.item.isEmblem)
-                  // Name with truncation to prevent overflow, background shrink-wraps
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: BackgroundText(
-                        child: Text(
-                          widget.item.name,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
+                    // Base card background layer (ensures left side is solid in fadeout mode)
+                    // Uses borderRadius - borderWidth to fit inside the gradient border
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(
+                            UIConstants.borderRadius - 3.0),
+                      ),
+                    ),
+
+                    // Gradient background layer (Custom Artwork Feature)
+                    // Shows immediately as placeholder while artwork loads, or permanently for artless tokens
+                    if (widget.item.artworkUrl == null ||
+                        widget.item.artworkUrl!.isEmpty)
+                      _buildGradientLayer(context)
+                    else
+                      // Show gradient while artwork is loading
+                      _buildConditionalGradient(context),
+
+                    // Artwork layer (appears on top of gradient when file is available)
+                    if (widget.item.artworkUrl != null)
+                      buildArtworkLayer(
+                        context: context,
+                        constraints: constraints,
+                        artworkDisplayStyle: artworkDisplayStyle,
+                      ),
+
+                    // Content layer (all existing UI elements)
+                    Container(
+                      color: Colors.transparent,
+                      padding: const EdgeInsets.all(UIConstants.cardPadding),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Top row - name, summoning sickness, tapped/untapped
+                          Row(
+                            children: [
+                              if (!widget.item.isEmblem)
+                                // Name with truncation to prevent overflow, background shrink-wraps
+                                Expanded(
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: BackgroundText(
+                                      child: Text(
+                                        widget.item.name,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleLarge
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              if (widget.item.isEmblem)
+                                // Emblems need to center, so use Expanded
+                                Expanded(
+                                  child: BackgroundText(
+                                    child: Text(
+                                      widget.item.name,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                              if (!widget.item.isEmblem)
+                                const SizedBox(
+                                    width: UIConstants.mediumSpacing),
+                              if (!widget.item.isEmblem)
+                                // Unified background for entire tapped/untapped section
+                                BackgroundText(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (widget.item.summoningSick > 0 &&
+                                          summoningSicknessEnabled) ...[
+                                        const Icon(ManaIcons.summoningSickness,
+                                            size: UIConstants.iconSize),
+                                        const SizedBox(
+                                            width: UIConstants.verticalSpacing),
+                                        Text(
+                                          '${widget.item.summoningSick}',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleLarge
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                        ),
+                                        const SizedBox(
+                                            width: UIConstants.mediumSpacing),
+                                      ],
+                                      const Icon(Icons.mobile_friendly,
+                                          size: UIConstants.iconSize),
+                                      const SizedBox(
+                                          width: UIConstants.verticalSpacing),
+                                      Text(
+                                        '${widget.item.amount - widget.item.tapped}',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleLarge
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                      ),
+                                      const SizedBox(
+                                          width: UIConstants.mediumSpacing),
+                                      const Icon(ManaIcons.tap,
+                                          size: UIConstants.iconSize),
+                                      const SizedBox(
+                                          width: UIConstants.verticalSpacing),
+                                      Text(
+                                        '${widget.item.tapped}',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleLarge
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
                           ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                    ),
-                  ),
-                if (widget.item.isEmblem)
-                  // Emblems need to center, so use Expanded
-                  Expanded(
-                    child: BackgroundText(
-                      child: Text(
-                        widget.item.name,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                if (!widget.item.isEmblem) const SizedBox(width: UIConstants.mediumSpacing),
-                if (!widget.item.isEmblem)
-                  // Unified background for entire tapped/untapped section
-                  BackgroundText(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (widget.item.summoningSick > 0 && summoningSicknessEnabled) ...[
-                          const Icon(Icons.adjust, size: UIConstants.iconSize),
-                          const SizedBox(width: UIConstants.verticalSpacing),
-                          Text(
-                            '${widget.item.summoningSick}',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
+
+                          // Counter pills
+                          if (widget.item.counters.isNotEmpty ||
+                              widget.item.plusOneCounters > 0 ||
+                              widget.item.minusOneCounters > 0 ||
+                              widget.item.plusOnePowerCounters > 0 ||
+                              widget.item.plusOneToughnessCounters > 0) ...[
+                            const SizedBox(height: UIConstants.mediumSpacing),
+                            Wrap(
+                              spacing: UIConstants.verticalSpacing,
+                              runSpacing: UIConstants.verticalSpacing,
+                              children: [
+                                ...widget.item.counters.map(
+                                  (c) => CounterPillView(
+                                      name: c.name, amount: c.amount),
+                                ),
+                                if (widget.item.plusOneCounters > 0)
+                                  CounterPillView(
+                                    name: '+1/+1',
+                                    amount: widget.item.plusOneCounters,
+                                  ),
+                                if (widget.item.minusOneCounters > 0)
+                                  CounterPillView(
+                                    name: '-1/-1',
+                                    amount: widget.item.minusOneCounters,
+                                  ),
+                                if (widget.item.plusOnePowerCounters > 0)
+                                  CounterPillView(
+                                    name: '+1/+0',
+                                    amount: widget.item.plusOnePowerCounters,
+                                  ),
+                                if (widget.item.plusOneToughnessCounters > 0)
+                                  CounterPillView(
+                                    name: '+0/+1',
+                                    amount:
+                                        widget.item.plusOneToughnessCounters,
+                                  ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: UIConstants.mediumSpacing),
+                          ],
+
+                          // Type, Abilities, and P/T - combined section (condensed layout)
+                          if ((widget.item.type.isNotEmpty &&
+                                  !widget.item.isEmblem) ||
+                              widget.item.abilities.isNotEmpty ||
+                              (!widget.item.isEmblem &&
+                                  widget.item.pt.isNotEmpty)) ...[
+                            const SizedBox(height: UIConstants.mediumSpacing),
+                            Padding(
+                              padding: EdgeInsets.only(right: kIsWeb ? 40 : 0),
+                              // Use Column layout if formatted P/T is too long (>= 8 chars like "1000/1000")
+                              child: (!widget.item.isEmblem &&
+                                      widget.item.pt.isNotEmpty &&
+                                      widget.item.formattedPowerToughness
+                                              .length >=
+                                          8)
+                                  ? _buildStackedTypeAbilitiesAndPT(
+                                      context, widget.item)
+                                  : _buildInlineTypeAbilitiesAndPT(
+                                      context, widget.item),
+                            ),
+                          ],
+
+                          const SizedBox(height: UIConstants.mediumSpacing),
+
+                          // Button Row (centered)
+                          _buildActionButtons(
+                              context, context.read<SettingsProvider>()),
                         ],
-                        const Icon(Icons.mobile_friendly, size: UIConstants.iconSize),
-                        const SizedBox(width: UIConstants.verticalSpacing),
-                        Text(
-                          '${widget.item.amount - widget.item.tapped}',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: UIConstants.mediumSpacing),
-                        const Icon(Icons.screen_rotation, size: UIConstants.iconSize),
-                        const SizedBox(width: UIConstants.verticalSpacing),
-                        Text(
-                          '${widget.item.tapped}',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-
-            // Counter pills
-            if (widget.item.counters.isNotEmpty ||
-                widget.item.plusOneCounters > 0 ||
-                widget.item.minusOneCounters > 0 ||
-                widget.item.plusOnePowerCounters > 0 ||
-                widget.item.plusOneToughnessCounters > 0) ...[
-              const SizedBox(height: UIConstants.mediumSpacing),
-              Wrap(
-                spacing: UIConstants.verticalSpacing,
-                runSpacing: UIConstants.verticalSpacing,
-                children: [
-                  ...widget.item.counters.map(
-                    (c) => CounterPillView(name: c.name, amount: c.amount),
-                  ),
-                  if (widget.item.plusOneCounters > 0)
-                    CounterPillView(
-                      name: '+1/+1',
-                      amount: widget.item.plusOneCounters,
-                    ),
-                  if (widget.item.minusOneCounters > 0)
-                    CounterPillView(
-                      name: '-1/-1',
-                      amount: widget.item.minusOneCounters,
-                    ),
-                  if (widget.item.plusOnePowerCounters > 0)
-                    CounterPillView(
-                      name: '+1/+0',
-                      amount: widget.item.plusOnePowerCounters,
-                    ),
-                  if (widget.item.plusOneToughnessCounters > 0)
-                    CounterPillView(
-                      name: '+0/+1',
-                      amount: widget.item.plusOneToughnessCounters,
-                    ),
-                ],
-              ),
-            ],
-
-            // Type, Abilities, and P/T - combined section (condensed layout)
-            if ((widget.item.type.isNotEmpty && !widget.item.isEmblem) ||
-                widget.item.abilities.isNotEmpty ||
-                (!widget.item.isEmblem && widget.item.pt.isNotEmpty)) ...[
-              const SizedBox(height: UIConstants.mediumSpacing),
-              Padding(
-                padding: EdgeInsets.only(right: kIsWeb ? 40 : 0),
-                // Use Column layout if formatted P/T is too long (>= 8 chars like "1000/1000")
-                child: (!widget.item.isEmblem && widget.item.pt.isNotEmpty && widget.item.formattedPowerToughness.length >= 8)
-                    ? _buildStackedTypeAbilitiesAndPT(context, widget.item)
-                    : _buildInlineTypeAbilitiesAndPT(context, widget.item),
-              ),
-            ],
-
-            const SizedBox(height: UIConstants.mediumSpacing),
-
-            // Button Row (centered)
-            _buildActionButtons(context, context.read<SettingsProvider>()),
-          ],
-        ),
-              ), // Close Container (content layer)
-            ], // Close Stack children
-          ); // Close Stack
-        }, // Close LayoutBuilder builder
-      ), // Close LayoutBuilder
-      ), // Close Opacity
+                      ),
+                    ), // Close Container (content layer)
+                  ], // Close Stack children
+                ); // Close Stack
+              }, // Close LayoutBuilder builder
+            ), // Close LayoutBuilder
+          ), // Close Opacity
         ); // Close GestureDetector
       }, // Close Selector builder
     ); // Close Selector
@@ -375,13 +419,15 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
       builder: (context, constraints) {
         // Calculate responsive spacing
         // Button internal padding, icon size, and border width
-        const double buttonInternalWidth = UIConstants.actionButtonInternalWidth;
+        const double buttonInternalWidth =
+            UIConstants.actionButtonInternalWidth;
 
         // Calculate total width needed for all buttons without spacing
         final double totalButtonWidth = buttonCount * buttonInternalWidth;
 
         // Available width for spacing between buttons
-        final double availableSpacingWidth = constraints.maxWidth - totalButtonWidth;
+        final double availableSpacingWidth =
+            constraints.maxWidth - totalButtonWidth;
 
         // Spacing between buttons (n buttons need n-1 spaces)
         final double spacing = buttonCount > 1
@@ -399,7 +445,8 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
               context,
               icon: Icons.remove,
               onTap: () => tokenProvider.removeTokens(widget.item, 1),
-              onLongPress: () => tokenProvider.removeTokens(widget.item, widget.item.amount),
+              onLongPress: () =>
+                  tokenProvider.removeTokens(widget.item, widget.item.amount),
               color: primaryColor,
               spacing: spacing,
             ),
@@ -409,13 +456,15 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
               Padding(
                 padding: EdgeInsets.only(right: spacing),
                 child: BackgroundText(
-                  padding: const EdgeInsets.all(UIConstants.actionButtonPadding), // Match button padding
+                  padding: const EdgeInsets.all(
+                      UIConstants.actionButtonPadding), // Match button padding
                   child: Text(
                     '${widget.item.amount}',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      fontSize: UIConstants.iconSize, // Match icon size for consistent height
-                    ),
+                          fontWeight: FontWeight.bold,
+                          fontSize: UIConstants
+                              .iconSize, // Match icon size for consistent height
+                        ),
                   ),
                 ),
               ),
@@ -425,7 +474,8 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
               context,
               icon: Icons.add,
               onTap: () {
-                final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
+                final summoningSick =
+                    context.read<SettingsProvider>().summoningSicknessEnabled;
                 if (widget.item.isEmblem) {
                   // Emblems always add 1 (no rules)
                   tokenProvider.addTokens(widget.item, 1, summoningSick);
@@ -434,7 +484,8 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
                 }
               },
               onLongPress: () {
-                final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
+                final summoningSick =
+                    context.read<SettingsProvider>().summoningSicknessEnabled;
                 if (widget.item.isEmblem) {
                   // Emblems add 10 on long press (no rules)
                   tokenProvider.addTokens(widget.item, 10, summoningSick);
@@ -452,7 +503,8 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
                 context,
                 icon: Icons.mobile_friendly,
                 onTap: () => tokenProvider.untapTokens(widget.item, 1),
-                onLongPress: () => tokenProvider.untapTokens(widget.item, widget.item.tapped),
+                onLongPress: () =>
+                    tokenProvider.untapTokens(widget.item, widget.item.tapped),
                 color: primaryColor,
                 spacing: spacing,
               ),
@@ -460,9 +512,10 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
               // Tap button
               _buildActionButton(
                 context,
-                icon: Icons.screen_rotation,
+                icon: ManaIcons.tap,
                 onTap: () => tokenProvider.tapTokens(widget.item, 1),
-                onLongPress: () => tokenProvider.tapTokens(widget.item, widget.item.amount - widget.item.tapped),
+                onLongPress: () => tokenProvider.tapTokens(
+                    widget.item, widget.item.amount - widget.item.tapped),
                 color: primaryColor,
                 spacing: spacing,
               ),
@@ -488,14 +541,18 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
                 icon: Icons.trending_up,
                 onTap: () {
                   final rulesProvider = context.read<RulesProvider>();
-                  final amount = rulesProvider.calculateCounterAmount(1, isPlusOne: true);
-                  widget.item.plusOneCounters = widget.item.plusOneCounters + amount;
+                  final amount =
+                      rulesProvider.calculateCounterAmount(1, isPlusOne: true);
+                  widget.item.plusOneCounters =
+                      widget.item.plusOneCounters + amount;
                   tokenProvider.updateItem(widget.item);
                 },
                 onLongPress: () {
                   final rulesProvider = context.read<RulesProvider>();
-                  final amount = rulesProvider.calculateCounterAmount(10, isPlusOne: true);
-                  widget.item.plusOneCounters = widget.item.plusOneCounters + amount;
+                  final amount =
+                      rulesProvider.calculateCounterAmount(10, isPlusOne: true);
+                  widget.item.plusOneCounters =
+                      widget.item.plusOneCounters + amount;
                   tokenProvider.updateItem(widget.item);
                 },
                 color: primaryColor,
@@ -507,7 +564,8 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
                 context,
                 icon: Icons.content_copy,
                 onTap: () {
-                  final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
+                  final summoningSick =
+                      context.read<SettingsProvider>().summoningSicknessEnabled;
                   tokenProvider.copyToken(widget.item, summoningSick);
                 },
                 onLongPress: null,
@@ -519,17 +577,19 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
               _buildActionButton(
                 context,
                 icon: Icons.call_split,
-                onTap: widget.item.amount > 1 ? () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) => SplitStackSheet(
-                      item: widget.item,
-                      // No onSplitCompleted callback - sheet dismisses itself
-                    ),
-                  );
-                } : null,
+                onTap: widget.item.amount > 1
+                    ? () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => SplitStackSheet(
+                            item: widget.item,
+                            // No onSplitCompleted callback - sheet dismisses itself
+                          ),
+                        );
+                      }
+                    : null,
                 onLongPress: null,
                 color: primaryColor,
                 spacing: spacing,
@@ -538,28 +598,38 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
             ],
 
             // Scute Swarm special button (last button gets 0 spacing)
-            if (widget.item.name.toLowerCase().contains(GameConstants.scuteSwarmName))
+            if (widget.item.name
+                .toLowerCase()
+                .contains(GameConstants.scuteSwarmName))
               _buildActionButton(
                 context,
                 icon: Icons.bug_report,
                 onTap: () {
                   final rulesProvider = context.read<RulesProvider>();
-                  final summoningSick = context.read<SettingsProvider>().summoningSicknessEnabled;
+                  final summoningSick =
+                      context.read<SettingsProvider>().summoningSicknessEnabled;
                   final trackerProvider = context.read<TrackerProvider>();
                   final toggleProvider = context.read<ToggleProvider>();
 
                   // Count all Scute Swarm tokens on the board
                   int totalScuteCount = 0;
                   for (final item in tokenProvider.items) {
-                    if (item.name.toLowerCase().contains(GameConstants.scuteSwarmName) && item.amount > 0) {
+                    if (item.name
+                            .toLowerCase()
+                            .contains(GameConstants.scuteSwarmName) &&
+                        item.amount > 0) {
                       totalScuteCount += item.amount;
                     }
                   }
 
                   // Route through rules engine (replaces old multiplier)
                   final results = rulesProvider.evaluateRules(
-                    widget.item.name, widget.item.pt, widget.item.colors,
-                    widget.item.type, widget.item.abilities, totalScuteCount,
+                    widget.item.name,
+                    widget.item.pt,
+                    widget.item.colors,
+                    widget.item.type,
+                    widget.item.abilities,
+                    totalScuteCount,
                   );
                   // Primary result quantity is the final scute count
                   final finalAmount = results.first.quantity;
@@ -578,8 +648,8 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
                   allItems.sort((a, b) => a.order.compareTo(b.order));
 
                   final sourceIndex = allItems.indexWhere((item) =>
-                    item.item is Item && (item.item as Item).key == widget.item.key
-                  );
+                      item.item is Item &&
+                      (item.item as Item).key == widget.item.key);
 
                   double insertionOrder;
                   if (sourceIndex == -1 || sourceIndex == allItems.length - 1) {
@@ -591,27 +661,31 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
 
                   // Pass finalAmount as 1 * finalAmount (rules already applied)
                   // Use multiplier=1 since rules already calculated the quantity
-                  tokenProvider.createScuteSwarmTokens(widget.item, 1, summoningSick, insertionOrder, overrideAmount: finalAmount);
+                  tokenProvider.createScuteSwarmTokens(
+                      widget.item, 1, summoningSick, insertionOrder,
+                      overrideAmount: finalAmount);
 
                   // Create companion tokens from rules (e.g., Academy Manufactor)
                   if (results.length > 1) {
                     for (final companion in results.skip(1)) {
                       if (companion.quantity <= 0) continue;
 
-                      final existingStack = tokenProvider.items.firstWhereOrNull(
+                      final existingStack =
+                          tokenProvider.items.firstWhereOrNull(
                         (item) =>
-                          item.name == companion.name &&
-                          item.pt == companion.pt &&
-                          item.colors == companion.colors &&
-                          item.type == companion.type &&
-                          item.abilities == companion.abilities &&
-                          item.plusOneCounters == 0 &&
-                          item.minusOneCounters == 0 &&
-                          item.counters.isEmpty,
+                            item.name == companion.name &&
+                            item.pt == companion.pt &&
+                            item.colors == companion.colors &&
+                            item.type == companion.type &&
+                            item.abilities == companion.abilities &&
+                            item.plusOneCounters == 0 &&
+                            item.minusOneCounters == 0 &&
+                            item.counters.isEmpty,
                       );
 
                       if (existingStack != null) {
-                        tokenProvider.addTokens(existingStack, companion.quantity, summoningSick);
+                        tokenProvider.addTokens(
+                            existingStack, companion.quantity, summoningSick);
                       } else {
                         final newItem = Item(
                           name: companion.name,
@@ -624,7 +698,9 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
                           summoningSick: 0,
                         );
                         tokenProvider.insertItem(newItem).then((_) {
-                          if (summoningSick && newItem.hasPowerToughness && !newItem.hasHaste) {
+                          if (summoningSick &&
+                              newItem.hasPowerToughness &&
+                              !newItem.hasHaste) {
                             newItem.summoningSick = companion.quantity;
                           }
                         });
@@ -645,11 +721,16 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
   /// Routes quick-add through the rules engine. For multiply-only rules, silently
   /// adds the modified quantity. When companion tokens are created, shows a brief
   /// notification.
-  Future<void> _addTokensViaRules(BuildContext context, TokenProvider tokenProvider, int baseQuantity, bool summoningSick) async {
+  Future<void> _addTokensViaRules(BuildContext context,
+      TokenProvider tokenProvider, int baseQuantity, bool summoningSick) async {
     final rulesProvider = context.read<RulesProvider>();
     final results = rulesProvider.evaluateRules(
-      widget.item.name, widget.item.pt, widget.item.colors,
-      widget.item.type, widget.item.abilities, baseQuantity,
+      widget.item.name,
+      widget.item.pt,
+      widget.item.colors,
+      widget.item.type,
+      widget.item.abilities,
+      baseQuantity,
     );
 
     // Primary token: tokens enter the battlefield with no counters.
@@ -661,7 +742,8 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
         widget.item.counters.isNotEmpty;
 
     if (!tappedStackHasCounters) {
-      tokenProvider.addTokens(widget.item, primaryResult.quantity, summoningSick);
+      tokenProvider.addTokens(
+          widget.item, primaryResult.quantity, summoningSick);
     } else {
       final existingCounterless = tokenProvider.items.firstWhereOrNull(
         (item) =>
@@ -695,9 +777,7 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
               : null,
         );
         await tokenProvider.insertItem(newItem);
-        if (summoningSick &&
-            newItem.hasPowerToughness &&
-            !newItem.hasHaste) {
+        if (summoningSick && newItem.hasPowerToughness && !newItem.hasHaste) {
           newItem.summoningSick = primaryResult.quantity;
         }
       }
@@ -754,11 +834,13 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
     required double spacing,
     bool disabled = false,
   }) {
-    final effectiveColor = disabled ? color.withValues(alpha: UIConstants.disabledOpacity) : color;
+    final effectiveColor =
+        disabled ? color.withValues(alpha: UIConstants.disabledOpacity) : color;
 
     // Use card background color for button backgrounds (needed for artwork or gradient)
     // Always use solid background since tokens always have either artwork or gradient background
-    final buttonBackgroundColor = Theme.of(context).cardColor.withValues(alpha: 0.85);
+    final buttonBackgroundColor =
+        Theme.of(context).cardColor.withValues(alpha: 0.85);
 
     return Padding(
       padding: EdgeInsets.only(right: spacing),
@@ -769,7 +851,8 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
           padding: const EdgeInsets.all(UIConstants.actionButtonPadding),
           decoration: BoxDecoration(
             color: buttonBackgroundColor,
-            borderRadius: BorderRadius.circular(UIConstants.actionButtonBorderRadius),
+            borderRadius:
+                BorderRadius.circular(UIConstants.actionButtonBorderRadius),
             border: Border.all(
               color: effectiveColor,
               width: UIConstants.actionButtonBorderWidth,
@@ -795,7 +878,8 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
     // - Color-shifted variants (lighter/darker hues)
     // - Different gradient direction (vertical, diagonal, etc.)
 
-    final gradient = ColorUtils.gradientForColors(widget.item.colors, isEmblem: widget.item.isEmblem);
+    final gradient = ColorUtils.gradientForColors(widget.item.colors,
+        isEmblem: widget.item.isEmblem);
 
     return Positioned.fill(
       child: Container(
@@ -815,11 +899,13 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
         builder: (context, snapshot) {
           // Only show gradient if artwork file is NOT available yet
           if (!snapshot.hasData || snapshot.data == null) {
-            final gradient = ColorUtils.gradientForColors(widget.item.colors, isEmblem: widget.item.isEmblem);
+            final gradient = ColorUtils.gradientForColors(widget.item.colors,
+                isEmblem: widget.item.isEmblem);
             return Container(
               decoration: BoxDecoration(
                 gradient: gradient,
-                borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
+                borderRadius:
+                    BorderRadius.circular(UIConstants.borderRadius - 3.0),
               ),
             );
           }
@@ -848,27 +934,34 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
                     child: Text(
                       widget.item.type,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontStyle: FontStyle.italic,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
-                      ),
+                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.color
+                                ?.withValues(alpha: 0.7),
+                          ),
                       textAlign: TextAlign.left,
                     ),
                   ),
 
                 // Spacing between type and abilities
-                if (widget.item.type.isNotEmpty && widget.item.abilities.isNotEmpty && !item.isEmblem)
+                if (widget.item.type.isNotEmpty &&
+                    widget.item.abilities.isNotEmpty &&
+                    !item.isEmblem)
                   const SizedBox(height: UIConstants.verticalSpacing),
 
                 // Abilities (if present)
                 if (widget.item.abilities.isNotEmpty)
                   BackgroundText(
-                    child: Text(
+                    child: ManaText(
                       widget.item.abilities,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
+                            fontWeight: FontWeight.bold,
+                          ),
+                      textAlign:
+                          item.isEmblem ? TextAlign.center : TextAlign.left,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -906,17 +999,23 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
               child: Text(
                 widget.item.type,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontStyle: FontStyle.italic,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
-                ),
+                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.color
+                          ?.withValues(alpha: 0.7),
+                    ),
                 textAlign: TextAlign.left,
               ),
             ),
           ),
 
         // Spacing between type and abilities
-        if (widget.item.type.isNotEmpty && widget.item.abilities.isNotEmpty && !item.isEmblem)
+        if (widget.item.type.isNotEmpty &&
+            widget.item.abilities.isNotEmpty &&
+            !item.isEmblem)
           const SizedBox(height: UIConstants.verticalSpacing),
 
         // Abilities (full width)
@@ -924,11 +1023,11 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
           Align(
             alignment: Alignment.centerLeft,
             child: BackgroundText(
-              child: Text(
+              child: ManaText(
                 item.abilities,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                      fontWeight: FontWeight.bold,
+                    ),
                 textAlign: item.isEmblem ? TextAlign.center : TextAlign.left,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
@@ -954,8 +1053,8 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
   /// Build P/T widget (modified or normal styling)
   Widget _buildPTWidget(BuildContext context) {
     final textStyle = Theme.of(context).textTheme.headlineMedium?.copyWith(
-      fontWeight: FontWeight.bold,
-    );
+          fontWeight: FontWeight.bold,
+        );
 
     return widget.item.isPowerToughnessModified
         ? _AnimatedPowerToughness(
@@ -971,7 +1070,8 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
             powerToughness: widget.item.formattedPowerToughness,
             style: textStyle,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            backgroundColor: Theme.of(context).cardColor.withValues(alpha: 0.85),
+            backgroundColor:
+                Theme.of(context).cardColor.withValues(alpha: 0.85),
           );
   }
 }

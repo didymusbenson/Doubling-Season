@@ -17,6 +17,7 @@ import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
 import '../utils/artwork_preference_manager.dart';
 import '../services/token_creation_service.dart';
+import '../widgets/mana/mana_text.dart';
 
 enum SearchTab { all, recent, favorites, custom }
 
@@ -327,7 +328,7 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
               children: [
                 Text(token.cleanType),
                 if (token.abilities.isNotEmpty)
-                  Text(
+                  ManaText(
                     token.abilities,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -734,7 +735,7 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                     ),
                     if (token.abilities.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      Text(
+                      ManaText(
                         token.abilities,
                         style: const TextStyle(fontSize: 12, color: Colors.grey),
                         maxLines: 3,

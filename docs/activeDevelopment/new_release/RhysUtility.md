@@ -131,8 +131,8 @@ Add a new `WidgetDefinition`:
 - `actionButtonText: 'Copy Tokens'`
 - `actionType: 'rhys_the_redeemed'`
 - `artwork:`
-  - `ArtworkVariant(set: 'TLE', url: 'https://cards.scryfall.io/large/front/e/b/ebcf9ad6-5c1c-4b12-9778-2b9338bf49aa.jpg?1783904844')`
   - `ArtworkVariant(set: '2XM', url: 'https://cards.scryfall.io/large/front/b/9/b91dadcb-31e9-43b0-b425-c9311af3e9d7.jpg?1783930128')`
+  - `ArtworkVariant(set: 'TLE', url: 'https://cards.scryfall.io/large/front/e/b/ebcf9ad6-5c1c-4b12-9778-2b9338bf49aa.jpg?1783904844')`
 
 ### 2. Action Dispatch (`lib/widgets/tracker_widget_card.dart`)
 
@@ -279,7 +279,9 @@ a replaced identity and every companion resolve normally
 ### Acceptance test checklist
 
 - [ ] Add Rhys from the utility picker — card shows name, description, and a
-      full-width **Copy Tokens** button with no counter and no +/− buttons
+      intrinsic-width **Copy Tokens** button with no counter and no +/− buttons
+- [ ] Existing pre-release Rhys utility using the former TLE default migrates
+      to the preferred 2XM artwork without changing custom/manual selections
 - [ ] Empty board → dialog previews nothing; confirming is a clean no-op
 - [ ] Two Soldier stacks (3 and 2) → preview lists both; board ends at 10 total
 - [ ] Source stack with +1/+1 counters → copies land in a separate clean stack,

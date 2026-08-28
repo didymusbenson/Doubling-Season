@@ -2,7 +2,8 @@ import '../models/item.dart';
 import '../models/token_definition.dart' show ArtworkVariant;
 import '../database/token_database.dart';
 import '../providers/rules_provider.dart';
-import '../utils/artwork_preference_manager.dart';
+import 'token_copy_semantics.dart';
+import 'token_result_artwork_resolver.dart';
 
 /// One fully-resolved token stack that Rhys will create.
 ///
@@ -73,8 +74,7 @@ class RhysCopyGroup {
     required this.nextBoardOrder,
   });
 
-  int get totalQuantity =>
-      results.fold<int>(0, (sum, r) => sum + r.quantity);
+  int get totalQuantity => results.fold<int>(0, (sum, r) => sum + r.quantity);
 }
 
 /// A complete, immutable plan for one Rhys activation.
@@ -87,16 +87,13 @@ class RhysCopyPlan {
 
   bool get isNotEmpty => groups.isNotEmpty;
 
-  int get totalTokens =>
-      groups.fold<int>(0, (sum, g) => sum + g.totalQuantity);
+  int get totalTokens => groups.fold<int>(0, (sum, g) => sum + g.totalQuantity);
 
-  bool get wasCapped =>
-      groups.any((g) => g.results.any((r) => r.wasCapped));
+  bool get wasCapped => groups.any((g) => g.results.any((r) => r.wasCapped));
 
   /// Flat list of every result, for a consolidated "3 Elf Warrior + 2 Squirrel"
   /// breakdown line.
-  List<RhysCopyResult> get allResults =>
-      [for (final g in groups) ...g.results];
+  List<RhysCopyResult> get allResults => [for (final g in groups) ...g.results];
 }
 
 /// Builds the Rhys the Redeemed activation plan.
@@ -122,12 +119,11 @@ class RhysCopyPlanner {
   /// Emblems are never permanents Rhys sees, and an empty stack (amount 0,
   /// e.g. after a board wipe that zeroed instead of deleted) isn't on the
   /// battlefield.
-  static bool isEligible(Item item) =>
-      !item.isEmblem && item.hasPowerToughness && item.amount > 0;
+  static bool isEligible(Item item) => TokenCopySemantics.isCreatureToken(item);
 
   /// P/T the copy should be created with, per the Creature-type heuristic.
   static String copiedPtFor(Item item) =>
-      item.type.toLowerCase().contains('creature') ? item.pt : '';
+      TokenCopySemantics.copiablePtFor(item);
 
   /// Snapshots [items], evaluates each eligible stack independently through
   /// the rules engine, and resolves artwork for every result.
@@ -141,7 +137,6 @@ class RhysCopyPlanner {
     required RulesProvider rulesProvider,
     required TokenDatabase tokenDatabase,
   }) {
-    final artworkPrefManager = ArtworkPreferenceManager();
     final groups = <RhysCopyGroup>[];
 
     for (final source in items) {
@@ -190,10 +185,9 @@ class RhysCopyPlanner {
                 : null,
           ));
         } else {
-          final artwork = _resolveArtwork(
+          final artwork = TokenResultArtworkResolver.resolve(
             result: r,
             tokenDatabase: tokenDatabase,
-            artworkPrefManager: artworkPrefManager,
           );
           results.add(RhysCopyResult(
             name: r.name,
@@ -217,65 +211,15 @@ class RhysCopyPlanner {
         copiedPt: copiedPt,
         results: results,
         nextBoardOrder: boardOrders
-            .where((order) => order > source.order)
-            .fold<double?>(null, (next, order) =>
-                next == null || order < next ? order : next) ??
+                .where((order) => order > source.order)
+                .fold<double?>(
+                    null,
+                    (next, order) =>
+                        next == null || order < next ? order : next) ??
             source.order + 1.0,
       ));
     }
 
     return RhysCopyPlan(groups);
   }
-
-  /// Normal artwork resolution: saved preference first, then the token
-  /// database's default. Mirrors [TokenCreationService]'s companion path.
-  static _ResolvedArtwork _resolveArtwork({
-    required TokenCreationResult result,
-    required TokenDatabase tokenDatabase,
-    required ArtworkPreferenceManager artworkPrefManager,
-  }) {
-    final def = tokenDatabase.findByCompositeId(result.tokenDatabaseId);
-
-    if (def == null) {
-      // Not a database token (a custom identity) — a preference may still
-      // exist for its composite ID.
-      return _ResolvedArtwork(
-        url: artworkPrefManager.getPreferredArtwork(result.compositeId),
-      );
-    }
-
-    String? url;
-    String? set;
-
-    final preferred = artworkPrefManager.getPreferredArtwork(def.id);
-    if (preferred != null) {
-      url = preferred;
-      if (!preferred.startsWith('file://') && def.artwork.isNotEmpty) {
-        final match = def.artwork.firstWhere(
-          (art) => art.url == preferred,
-          orElse: () => def.artwork[0],
-        );
-        set = match.set;
-      }
-    } else if (def.artwork.isNotEmpty) {
-      url = def.artwork[0].url;
-      set = def.artwork[0].set;
-    }
-
-    return _ResolvedArtwork(
-      url: url,
-      set: set,
-      options: def.artwork.isNotEmpty
-          ? List<ArtworkVariant>.from(def.artwork)
-          : null,
-    );
-  }
-}
-
-class _ResolvedArtwork {
-  final String? url;
-  final String? set;
-  final List<ArtworkVariant>? options;
-
-  const _ResolvedArtwork({this.url, this.set, this.options});
 }

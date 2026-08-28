@@ -12,6 +12,7 @@ import 'common/background_text.dart';
 // Unused import was causing build warnings
 // import 'cropped_artwork_widget.dart';
 import 'mixins/artwork_display_mixin.dart';
+import 'mana/mana_text.dart';
 
 class ToggleWidgetCard extends StatefulWidget {
   final ToggleWidget toggle;
@@ -22,7 +23,8 @@ class ToggleWidgetCard extends StatefulWidget {
   State<ToggleWidgetCard> createState() => _ToggleWidgetCardState();
 }
 
-class _ToggleWidgetCardState extends State<ToggleWidgetCard> with ArtworkDisplayMixin {
+class _ToggleWidgetCardState extends State<ToggleWidgetCard>
+    with ArtworkDisplayMixin {
   final DateTime _createdAt = DateTime.now();
   bool _artworkAnimated = false;
   bool _artworkCleanupAttempted = false;
@@ -84,84 +86,92 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> with ArtworkDisplay
             );
           },
           child: Opacity(
-            opacity: 1.0, // Full opacity (matching TokenCard pattern for consistent swipe behavior)
+            opacity:
+                1.0, // Full opacity (matching TokenCard pattern for consistent swipe behavior)
             child: LayoutBuilder(
               builder: (context, constraints) {
                 return Stack(
-                children: [
-                  // Base card background layer (transparent to allow red swipe indicator through)
-                  Container(
-                    decoration: BoxDecoration(
+                  children: [
+                    // Base card background layer (transparent to allow red swipe indicator through)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(
+                            UIConstants.borderRadius - 3.0),
+                      ),
+                    ),
+
+                    // Gradient background layer
+                    if (_getCurrentArtworkUrl() == null ||
+                        _getCurrentArtworkUrl()!.isEmpty)
+                      _buildGradientLayer(context)
+                    else
+                      _buildConditionalGradient(context),
+
+                    // Artwork layer
+                    if (_getCurrentArtworkUrl() != null)
+                      buildArtworkLayer(
+                        context: context,
+                        constraints: constraints,
+                        artworkDisplayStyle: artworkDisplayStyle,
+                      ),
+
+                    // Content layer
+                    Container(
                       color: Colors.transparent,
-                      borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
-                    ),
-                  ),
-
-                  // Gradient background layer
-                  if (_getCurrentArtworkUrl() == null || _getCurrentArtworkUrl()!.isEmpty)
-                    _buildGradientLayer(context)
-                  else
-                    _buildConditionalGradient(context),
-
-                  // Artwork layer
-                  if (_getCurrentArtworkUrl() != null)
-                    buildArtworkLayer(
-                      context: context,
-                      constraints: constraints,
-                      artworkDisplayStyle: artworkDisplayStyle,
-                    ),
-
-                  // Content layer
-                  Container(
-                    color: Colors.transparent,
-                    padding: const EdgeInsets.all(UIConstants.cardPadding),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Left side: Name and Description (takes remaining space)
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Name
-                              BackgroundText(
-                                child: Text(
-                                  widget.toggle.name,
-                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
+                      padding: const EdgeInsets.all(UIConstants.cardPadding),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Left side: Name and Description (takes remaining space)
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Name
+                                BackgroundText(
+                                  child: Text(
+                                    widget.toggle.name,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
                                   ),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
                                 ),
-                              ),
 
-                              const SizedBox(height: UIConstants.mediumSpacing),
+                                const SizedBox(
+                                    height: UIConstants.mediumSpacing),
 
-                              // Current description (ON or OFF)
-                              BackgroundText(
-                                child: Text(
-                                  widget.toggle.currentDescription,
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 3,
+                                // Current description (ON or OFF)
+                                BackgroundText(
+                                  child: ManaText(
+                                    widget.toggle.currentDescription,
+                                    style:
+                                        Theme.of(context).textTheme.bodyMedium,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 3,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
 
-                        const SizedBox(width: UIConstants.mediumSpacing),
+                          const SizedBox(width: UIConstants.mediumSpacing),
 
-                        // Right side: Toggle button (shrink-wraps)
-                        _buildToggleButton(context),
-                      ],
+                          // Right side: Toggle button (shrink-wraps)
+                          _buildToggleButton(context),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              );
-            },
-          ),
+                  ],
+                );
+              },
+            ),
           ), // Opacity
         );
       },
@@ -171,7 +181,8 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> with ArtworkDisplay
   Widget _buildToggleButton(BuildContext context) {
     final toggleProvider = context.read<ToggleProvider>();
     final activeColor = Colors.green;
-    final inactiveColor = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+    final inactiveColor =
+        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
 
     return GestureDetector(
       onTap: () {
@@ -181,7 +192,9 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> with ArtworkDisplay
       child: BackgroundText(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Icon(
-          widget.toggle.isActive ? Icons.check_box : Icons.check_box_outline_blank,
+          widget.toggle.isActive
+              ? Icons.check_box
+              : Icons.check_box_outline_blank,
           size: 48, // Large size to match tracker value emphasis
           color: widget.toggle.isActive ? activeColor : inactiveColor,
         ),
@@ -195,7 +208,8 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> with ArtworkDisplay
   }
 
   Widget _buildGradientLayer(BuildContext context) {
-    final gradient = ColorUtils.gradientForColors(widget.toggle.colorIdentity, isEmblem: false);
+    final gradient = ColorUtils.gradientForColors(widget.toggle.colorIdentity,
+        isEmblem: false);
 
     return Positioned.fill(
       child: Container(
@@ -215,12 +229,16 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard> with ArtworkDisplay
       child: FutureBuilder<File?>(
         future: ArtworkManager.getCachedArtworkFile(artworkUrl),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done && snapshot.data == null) {
-            final gradient = ColorUtils.gradientForColors(widget.toggle.colorIdentity, isEmblem: false);
+          if (snapshot.connectionState == ConnectionState.done &&
+              snapshot.data == null) {
+            final gradient = ColorUtils.gradientForColors(
+                widget.toggle.colorIdentity,
+                isEmblem: false);
             return Container(
               decoration: BoxDecoration(
                 gradient: gradient,
-                borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
+                borderRadius:
+                    BorderRadius.circular(UIConstants.borderRadius - 3.0),
               ),
             );
           }

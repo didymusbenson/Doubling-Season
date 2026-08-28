@@ -10,6 +10,7 @@ import '../providers/rules_provider.dart';
 import '../widgets/color_selection_button.dart';
 import '../widgets/split_stack_sheet.dart';
 import '../widgets/artwork_selection_sheet.dart';
+import '../widgets/mana/mana_icons.dart';
 import '../utils/artwork_manager.dart';
 import '../utils/artwork_preference_manager.dart';
 import '../database/token_database.dart';
@@ -558,7 +559,7 @@ class _ExpandedTokenScreenState extends State<ExpandedTokenScreen> {
                       // Summoning Sickness
                       if (summoningSicknessEnabled) ...[
                         _buildCountRow(
-                          icon: Icons.adjust,
+                          icon: ManaIcons.summoningSickness,
                           label: 'Summoning Sick',
                           value: widget.item.summoningSick,
                           fieldId: 'summoningSick',

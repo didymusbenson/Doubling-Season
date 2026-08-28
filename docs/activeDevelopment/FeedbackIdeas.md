@@ -56,7 +56,8 @@ In Fadeout mode:
 
 ## Symbol String Replacement
 
-**Status:** IMPORTANT: full requirements detailed in ./wildcardReplacement.md
+**Status:** Implemented; acceptance requirements are tracked in
+`in_progress_features/ManaSymbolRendering.md`.
 
 Replace bracketed variables in abilities text with proper Magic symbols in the **card view** only.
 
@@ -274,14 +275,13 @@ Descoped from decks phase 2. Currently, users can add/remove tokens and utilitie
 
 A future improvement would let users tap a token/utility row in `DeckDetailScreen` to open an expanded edit view for that template's fields (like `ExpandedTokenScreen` but without live game state — no amounts, tapped, counters, sickness). Changes would auto-save back to the template. This would also be the natural place for per-template artwork selection.
 
-## Future Non-Token Type Handling (Counters, States, Bounties, Dungeons)
+## Future Non-Token Type Handling (Counters, States, Bounties)
 **TODO: Flesh out requirements**
 
 Currently excluded from search results (not traditional tokens):
 - **Counters** (6 tokens): Energy Reserve, Poison Counter, Radiation, Experience Counter, etc.
 - **States** (12 tokens): The Monarch, The Ring, On an Adventure, etc.
 - **Bounties** (12 tokens): Outlaw bounty mechanic
-- **Dungeons** (4 tokens): Dungeon cards
 
 These are game state markers, not creature/artifact tokens. Need to determine:
 - Should they have a dedicated UI section?

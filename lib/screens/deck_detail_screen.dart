@@ -18,8 +18,8 @@ import '../utils/constants.dart';
 import '../utils/color_utils.dart';
 import '../utils/artwork_manager.dart';
 import '../widgets/color_selection_button.dart';
-import '../widgets/common/background_text.dart';
 import '../widgets/cropped_artwork_widget.dart';
+import '../widgets/definition_preview_card.dart';
 import 'token_search_screen.dart';
 import 'widget_selection_screen.dart';
 
@@ -92,13 +92,17 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
 
     if (needsSave) {
       _updateLastModified();
-      debugPrint('DeckDetailScreen: Auto-assigned artwork for templates missing artworkUrl');
+      debugPrint(
+          'DeckDetailScreen: Auto-assigned artwork for templates missing artworkUrl');
     }
   }
 
   /// If artworkUrl is null but artworkOptions has entries, auto-assign the first one.
   /// Returns true if assignment was made.
-  bool _autoAssignArtwork(String? artworkUrl, List<token_models.ArtworkVariant>? options, void Function(String url, String set) assign) {
+  bool _autoAssignArtwork(
+      String? artworkUrl,
+      List<token_models.ArtworkVariant>? options,
+      void Function(String url, String set) assign) {
     if (artworkUrl == null && options != null && options.isNotEmpty) {
       assign(options[0].url, options[0].set);
       return true;
@@ -186,7 +190,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                 child: ElevatedButton.icon(
                   onPressed: () => _bulkDelete(),
                   icon: const Icon(Icons.delete),
-                  label: Text('Delete ${_selectedIndices.length} item${_selectedIndices.length == 1 ? '' : 's'}'),
+                  label: Text(
+                      'Delete ${_selectedIndices.length} item${_selectedIndices.length == 1 ? '' : 's'}'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
                     foregroundColor: Colors.white,
@@ -298,7 +303,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     if (artworkUrl.startsWith('file://')) {
       if (kIsWeb) {
         return Center(
-          child: Icon(Icons.photo_camera, size: 24, color: Colors.grey.shade400),
+          child:
+              Icon(Icons.photo_camera, size: 24, color: Colors.grey.shade400),
         );
       }
       final file = File(artworkUrl.replaceFirst('file://', ''));
@@ -339,7 +345,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
           );
         }
         return Center(
-          child: Icon(Icons.photo_camera, size: 24, color: Colors.grey.shade400),
+          child:
+              Icon(Icons.photo_camera, size: 24, color: Colors.grey.shade400),
         );
       },
     );
@@ -394,7 +401,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
               if (hasCustomArt)
                 ListTile(
                   leading: const Icon(Icons.delete_outline, color: Colors.red),
-                  title: const Text('Remove Image', style: TextStyle(color: Colors.red)),
+                  title: const Text('Remove Image',
+                      style: TextStyle(color: Colors.red)),
                   onTap: () {
                     Navigator.pop(sheetContext);
                     setState(() {
@@ -410,7 +418,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     );
   }
 
-  Widget _buildColorToggle(String symbol, Color color, String label, String currentColors) {
+  Widget _buildColorToggle(
+      String symbol, Color color, String label, String currentColors) {
     return ColorSelectionButton(
       symbol: symbol,
       isSelected: currentColors.contains(symbol),
@@ -419,7 +428,9 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
       onChanged: (selected) {
         setState(() {
           final colors = Set<String>.from(
-            (widget.deck.colorIdentity ?? '').split('').where((c) => 'WUBRG'.contains(c)),
+            (widget.deck.colorIdentity ?? '')
+                .split('')
+                .where((c) => 'WUBRG'.contains(c)),
           );
           if (selected) {
             colors.add(symbol);
@@ -465,7 +476,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     return ReorderableListView.builder(
       itemCount: items.length,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      onReorder: (oldIndex, newIndex) => _handleReorder(items, oldIndex, newIndex),
+      onReorder: (oldIndex, newIndex) =>
+          _handleReorder(items, oldIndex, newIndex),
       proxyDecorator: _buildDragProxy,
       itemBuilder: (context, index) {
         final item = items[index];
@@ -491,7 +503,10 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
 
   /// Wraps card content in the correct border structure matching content_screen.dart:
   /// Padding (margin) → Container (gradient border) → ClipRRect → Material (card color)
-  Widget _buildBorderedCard({required String colorIdentity, required Widget child, bool transparentBackground = false}) {
+  Widget _buildBorderedCard(
+      {required String colorIdentity,
+      required Widget child,
+      bool transparentBackground = false}) {
     const borderWidth = 3.0;
     final innerBorderRadius = UIConstants.borderRadius - borderWidth;
 
@@ -508,7 +523,9 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(innerBorderRadius),
           child: Material(
-            color: transparentBackground ? Colors.transparent : Theme.of(context).cardColor,
+            color: transparentBackground
+                ? Colors.transparent
+                : Theme.of(context).cardColor,
             child: child,
           ),
         ),
@@ -551,23 +568,26 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
             ),
             confirmDismiss: (direction) async {
               return await showDialog<bool>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Remove item?'),
-                  content: Text('Remove "${_getItemName(item)}" from this deck?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Cancel'),
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Remove item?'),
+                      content: Text(
+                          'Remove "${_getItemName(item)}" from this deck?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          style:
+                              TextButton.styleFrom(foregroundColor: Colors.red),
+                          child: const Text('Remove'),
+                        ),
+                      ],
                     ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx, true),
-                      style: TextButton.styleFrom(foregroundColor: Colors.red),
-                      child: const Text('Remove'),
-                    ),
-                  ],
-                ),
-              ) ?? false;
+                  ) ??
+                  false;
             },
             onDismissed: (_) {
               _removeItem(item);
@@ -582,7 +602,6 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     );
   }
 
-
   /// Edit-mode card with checkbox on the right, matching DecksListScreen pattern.
   Widget _buildItemCardWithCheckbox(_DeckItem item, int index) {
     return _buildBorderedCard(
@@ -594,7 +613,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
 
   String _getItemColorIdentity(_DeckItem item) {
     if (item.type == 'token') return (item.template as TokenTemplate).colors;
-    if (item.type == 'tracker') return (item.template as TrackerWidgetTemplate).colorIdentity;
+    if (item.type == 'tracker')
+      return (item.template as TrackerWidgetTemplate).colorIdentity;
     return (item.template as ToggleWidgetTemplate).colorIdentity;
   }
 
@@ -608,96 +628,15 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     IconData? leadingIcon,
     int? checkboxIndex,
   }) {
-    const innerBorderRadius = UIConstants.borderRadius - 3.0;
-
-    return Stack(
-      children: [
-        // Base background
-        Positioned.fill(
-          child: Container(color: Theme.of(context).cardColor),
-        ),
-
-        // Full-width artwork layer
-        if (artworkUrl != null && artworkUrl.isNotEmpty && !kIsWeb)
-          Positioned.fill(
-            child: FutureBuilder<File?>(
-              future: ArtworkManager.getCachedArtworkFile(artworkUrl),
-              builder: (context, snapshot) {
-                if (snapshot.hasData && snapshot.data != null) {
-                  final crop = ArtworkManager.getCropPercentages(artworkUrl);
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(innerBorderRadius),
-                    child: CroppedArtworkWidget(
-                      imageFile: snapshot.data!,
-                      cropLeft: crop['left']!,
-                      cropRight: crop['right']!,
-                      cropTop: crop['top']!,
-                      cropBottom: crop['bottom']!,
-                      fillWidth: true,
-                    ),
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-          ),
-
-        // Content layer with BackgroundText
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              if (leadingIcon != null) ...[
-                BackgroundText(
-                  padding: const EdgeInsets.all(4),
-                  child: Icon(leadingIcon, size: 20),
-                ),
-                const SizedBox(width: 12),
-              ],
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    BackgroundText(
-                      child: Text(
-                        name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    if (subtitle.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      BackgroundText(
-                        child: Text(
-                          subtitle,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).textTheme.bodySmall?.color,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (trailing != null)
-                BackgroundText(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Text(
-                    trailing,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              if (checkboxIndex != null)
-                _buildCheckbox(checkboxIndex),
-            ],
-          ),
-        ),
-      ],
+    return DefinitionPreviewCard(
+      artworkUrl: artworkUrl,
+      colorIdentity: '',
+      name: name,
+      subtitle: subtitle,
+      trailing: trailing,
+      leadingIcon: leadingIcon,
+      endWidget: checkboxIndex == null ? null : _buildCheckbox(checkboxIndex),
+      showBorder: false,
     );
   }
 
@@ -749,7 +688,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
 
   String _getItemName(_DeckItem item) {
     if (item.type == 'token') return (item.template as TokenTemplate).name;
-    if (item.type == 'tracker') return (item.template as TrackerWidgetTemplate).name;
+    if (item.type == 'tracker')
+      return (item.template as TrackerWidgetTemplate).name;
     return (item.template as ToggleWidgetTemplate).name;
   }
 
@@ -774,7 +714,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Remove items?'),
-        content: Text('Remove $count item${count == 1 ? '' : 's'} from this deck?'),
+        content:
+            Text('Remove $count item${count == 1 ? '' : 's'} from this deck?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -783,13 +724,15 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
           TextButton(
             onPressed: () {
               // Collect items to remove (sorted descending)
-              final sorted = _selectedIndices.toList()..sort((a, b) => b.compareTo(a));
+              final sorted = _selectedIndices.toList()
+                ..sort((a, b) => b.compareTo(a));
               for (final idx in sorted) {
                 if (idx < items.length) {
                   _removeItem(items[idx]);
                 }
               }
-              debugPrint('DeckProvider: Bulk deleted $count items from deck "${widget.deck.name}"');
+              debugPrint(
+                  'DeckProvider: Bulk deleted $count items from deck "${widget.deck.name}"');
               _selectedIndices.clear();
               Navigator.pop(ctx);
               setState(() {
@@ -847,7 +790,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
             (updated[j].template as ToggleWidgetTemplate).order = j.toDouble();
           }
         }
-        debugPrint('DeckProvider: Compacted template orders in deck "${widget.deck.name}"');
+        debugPrint(
+            'DeckProvider: Compacted template orders in deck "${widget.deck.name}"');
         break;
       }
     }
@@ -859,12 +803,15 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     return AnimatedBuilder(
       animation: animation,
       builder: (context, child) {
-        final scale = lerpDouble(1.0, UIConstants.dragScaleFactor, animation.value) ?? 1.0;
+        final scale =
+            lerpDouble(1.0, UIConstants.dragScaleFactor, animation.value) ??
+                1.0;
         return Transform.scale(
           scale: scale,
           child: Material(
             elevation: UIConstants.dragElevation,
-            shadowColor: Colors.black.withValues(alpha: UIConstants.dragShadowOpacity),
+            shadowColor:
+                Colors.black.withValues(alpha: UIConstants.dragShadowOpacity),
             borderRadius: BorderRadius.circular(UIConstants.borderRadius),
             clipBehavior: Clip.antiAlias,
             type: MaterialType.transparency,
@@ -912,7 +859,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
   }
 
   Future<void> _addToken() async {
-    final result = await Navigator.of(context).push<token_models.TokenDefinition>(
+    final result =
+        await Navigator.of(context).push<token_models.TokenDefinition>(
       MaterialPageRoute(
         builder: (context) => const TokenSearchScreen(selectorMode: true),
         fullscreenDialog: true,
@@ -931,7 +879,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
       order: _nextOrder(),
       artworkUrl: result.artwork.isNotEmpty ? result.artwork[0].url : null,
       artworkSet: result.artwork.isNotEmpty ? result.artwork[0].set : null,
-      artworkOptions: result.artwork.isNotEmpty ? List.from(result.artwork) : null,
+      artworkOptions:
+          result.artwork.isNotEmpty ? List.from(result.artwork) : null,
     );
 
     setState(() {
@@ -956,7 +905,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     final order = _nextOrder();
 
     setState(() {
-      if (result.type == WidgetType.tracker || result.type == WidgetType.special) {
+      if (result.type == WidgetType.tracker ||
+          result.type == WidgetType.special) {
         final template = TrackerWidgetTemplate(
           name: result.name,
           description: result.description,
@@ -971,7 +921,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
           order: order,
           artworkUrl: result.artwork.isNotEmpty ? result.artwork[0].url : null,
           artworkSet: result.artwork.isNotEmpty ? result.artwork[0].set : null,
-          artworkOptions: result.artwork.isNotEmpty ? List.from(result.artwork) : null,
+          artworkOptions:
+              result.artwork.isNotEmpty ? List.from(result.artwork) : null,
         );
         widget.deck.trackerWidgets ??= [];
         widget.deck.trackerWidgets!.add(template);
@@ -984,7 +935,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
           order: order,
           artworkUrl: result.artwork.isNotEmpty ? result.artwork[0].url : null,
           artworkSet: result.artwork.isNotEmpty ? result.artwork[0].set : null,
-          artworkOptions: result.artwork.isNotEmpty ? List.from(result.artwork) : null,
+          artworkOptions:
+              result.artwork.isNotEmpty ? List.from(result.artwork) : null,
         );
         widget.deck.toggleWidgets ??= [];
         widget.deck.toggleWidgets!.add(template);
@@ -1000,7 +952,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
 
   /// Fire-and-forget download of artwork to local cache so it renders in deck cards.
   void _precacheArtwork(String? url) {
-    if (url == null || url.isEmpty || url.startsWith('file://') || kIsWeb) return;
+    if (url == null || url.isEmpty || url.startsWith('file://') || kIsWeb)
+      return;
     ArtworkManager.downloadArtwork(url).then((_) {
       if (mounted) setState(() {}); // Rebuild to show newly cached artwork
     }).catchError((e) {
@@ -1019,17 +972,20 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
       final deckProvider = context.read<DeckProvider>();
       final json = await deckProvider.exportDeckToJson(widget.deck);
 
-      final safeName = widget.deck.name.replaceAll(RegExp(r'[^\w\s-]'), '').trim();
+      final safeName =
+          widget.deck.name.replaceAll(RegExp(r'[^\w\s-]'), '').trim();
       final fileName = '$safeName.json';
 
       debugPrint('DeckProvider: Sharing deck "${widget.deck.name}"');
 
       await Share.shareXFiles(
-        [XFile.fromData(
-          utf8.encode(json),
-          name: fileName,
-          mimeType: 'application/json',
-        )],
+        [
+          XFile.fromData(
+            utf8.encode(json),
+            name: fileName,
+            mimeType: 'application/json',
+          )
+        ],
         subject: widget.deck.name,
       );
     } catch (e) {
