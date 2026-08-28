@@ -571,6 +571,8 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     final tokenProvider = context.read<TokenProvider>();
     final settingsProvider = context.read<SettingsProvider>();
     final rulesProvider = context.read<RulesProvider>();
+    final trackerProvider = context.read<TrackerProvider>();
+    final toggleProvider = context.read<ToggleProvider>();
 
     // Rhys's second ability: "For each creature token you control, create a
     // token that's a copy of that creature." Every eligible stack is snapshot
@@ -583,6 +585,11 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard> with ArtworkDispl
     try {
       plan = RhysCopyPlanner.build(
         items: tokenProvider.items,
+        boardOrders: [
+          ...tokenProvider.items.map((item) => item.order),
+          ...trackerProvider.trackers.map((tracker) => tracker.order),
+          ...toggleProvider.toggles.map((toggle) => toggle.order),
+        ],
         rulesProvider: rulesProvider,
         tokenDatabase: tokenDatabase,
       );

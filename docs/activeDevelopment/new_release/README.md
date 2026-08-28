@@ -9,7 +9,7 @@ ships.
 
 ### Rhys the Redeemed Utility
 
-**Status:** Implemented in PR #33; pending acceptance testing
+**Status:** Implemented on `codex/rhys-update-1-11`; pending acceptance testing
 **Feature record:** [RhysUtility.md](RhysUtility.md)
 
 Implemented an action-only Rhys utility whose **Copy Tokens** action:
@@ -56,8 +56,5 @@ including Hive and deck-template support.
 - [ ] Confirm quantity-cap messaging and behavior with large stacks and active rules.
 - [ ] Smoke-test the complete flow on both iOS and Android.
 
-## Outstanding Review Item
-
-- [ ] Decide whether deck JSON export should advance from schema v2 to v3 for
-      `actionOnly`. The implementation preserves the field in current-version deck
-      workflows, but an older schema-v2 app would accept the file and ignore it.
+Deck JSON export advances to schema v3 for `actionOnly`. The importer remains
+backward-compatible with schema v1/v2, where the field safely defaults to false.

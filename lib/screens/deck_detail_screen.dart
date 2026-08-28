@@ -967,6 +967,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
           hasAction: result.hasAction,
           actionButtonText: result.actionButtonText,
           actionType: result.actionType,
+          actionOnly: result.actionOnly,
           order: order,
           artworkUrl: result.artwork.isNotEmpty ? result.artwork[0].url : null,
           artworkSet: result.artwork.isNotEmpty ? result.artwork[0].set : null,

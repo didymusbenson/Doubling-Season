@@ -781,11 +781,10 @@ class TokenProvider extends ChangeNotifier {
       int createdCount = 0;
 
       for (final group in plan.groups) {
-        // New stacks land immediately after their source, in result order, so
-        // a source's primary copy and its companions stay grouped together.
-        Item anchor = group.source;
-
-        for (final result in group.results) {
+        for (int resultIndex = 0;
+            resultIndex < group.results.length;
+            resultIndex++) {
+          final result = group.results[resultIndex];
           if (result.quantity <= 0) continue;
 
           final mergeTarget = _findRhysMergeTarget(result);
@@ -820,7 +819,7 @@ class TokenProvider extends ChangeNotifier {
             amount: result.quantity,
             tapped: 0, // Copies always enter untapped
             summoningSick: 0, // Applied after insert (Hive key required)
-            order: _orderAfter(anchor),
+            order: _rhysOrderFor(group, resultIndex),
             artworkUrl: result.artworkUrl,
             artworkSet: result.artworkSet,
             artworkOptions: result.artworkOptions != null
@@ -839,7 +838,6 @@ class TokenProvider extends ChangeNotifier {
 
           _downloadArtworkInBackground(newItem);
 
-          anchor = newItem;
           createdCount += result.quantity;
         }
       }
@@ -891,22 +889,17 @@ class TokenProvider extends ChangeNotifier {
     return null;
   }
 
-  /// Fractional order slotting a new stack directly after [anchor]
-  /// (same approach as [copyToken]).
-  double _orderAfter(Item anchor) {
-    final sorted = items;
-    final index = sorted.indexWhere((i) => i.key == anchor.key);
+  /// Places each result between its source and the next item on the unified
+  /// board. The plan snapshots that boundary before confirmation.
+  double _rhysOrderFor(RhysCopyGroup group, int resultIndex) {
+    final gap = group.nextBoardOrder - group.source.order;
+    final order = group.source.order +
+        gap * ((resultIndex + 1) / (group.results.length + 1));
 
-    final double order;
-    if (index < 0 || index == sorted.length - 1) {
-      order = anchor.order + 1.0;
-    } else {
-      order = (anchor.order + sorted[index + 1].order) / 2.0;
-    }
-
-    // insertItem treats 0.0 as "unassigned" and would move the stack to the
-    // end of the board, so never hand it exactly zero.
-    return order == 0.0 ? 0.0001 : order;
+    // insertItem treats exactly 0.0 as "unassigned". When a negative source
+    // and positive successor produce zero, choose another point inside the
+    // same interval instead of teleporting the copy to the board's end.
+    return order == 0.0 ? group.source.order / 2.0 : order;
   }
 
   /// Caches artwork for a freshly created stack without blocking the UI.

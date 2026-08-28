@@ -241,8 +241,8 @@ Add `duplicateAllCreatureTokens()` or `performRhysPopulate()`:
 
 ## Implementation Status
 
-**Implemented** — branch `claude-rhys`. Pending manual acceptance testing; move this
-doc to `new_release/` once it passes.
+**Implemented** — branch `codex/rhys-update-1-11`. Pending manual acceptance
+testing for the 1.11 release.
 
 ### Files changed
 
@@ -253,7 +253,9 @@ doc to `new_release/` once it passes.
 | `lib/models/widget_definition.dart` | New `actionOnly` field, forwarded by `toTrackerWidget()` |
 | `lib/database/widget_database.dart` | New `rhys_the_redeemed` definition (TLE + 2XM artwork) |
 | `lib/services/rhys_copy_planner.dart` | **New** — builds the source-grouped, artwork-resolved activation plan |
-| `lib/providers/token_provider.dart` | New `performRhysPopulate()`, `_findRhysMergeTarget()`, `_orderAfter()`, `_downloadArtworkInBackground()` |
+| `lib/providers/token_provider.dart` | New `performRhysPopulate()`, counter/artwork-safe merging, and unified-board fractional placement |
+| `lib/providers/deck_provider.dart` | Preserves `actionOnly` through duplication and schema-v3 export/import |
+| `lib/screens/deck_detail_screen.dart` | Preserves `actionOnly` when adding Rhys through the deck editor |
 | `lib/widgets/tracker_widget_card.dart` | Action-only layout, `rhys_the_redeemed` dispatch, `_performRhysTheRedeemedAction()` |
 | `lib/screens/expanded_widget_screen.dart` | Help text reflects action-only utilities |
 
@@ -295,3 +297,9 @@ a replaced identity and every companion resolve normally
 - [ ] Copies always enter untapped, even from a fully tapped source
 - [ ] Second activation copies the tokens the first activation made
 - [ ] Save a deck containing Rhys, load it → still renders action-only
+- [ ] Duplicate, export/import, and add Rhys through the deck editor → still
+      renders action-only
+- [ ] Put a tracker or toggle immediately after a source token → new stacks stay
+      between the source and that utility with no order collision
+- [ ] Arrange negative/positive fractional orders around zero → copies remain
+      adjacent instead of moving to the board's end

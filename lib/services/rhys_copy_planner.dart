@@ -61,10 +61,16 @@ class RhysCopyGroup {
   /// rule); the rest are companion tokens.
   final List<RhysCopyResult> results;
 
+  /// The next item on the unified board (token, tracker, or toggle). New
+  /// stacks are fractionally placed between this group's source and that
+  /// item, so Rhys never jumps across an intervening utility.
+  final double nextBoardOrder;
+
   const RhysCopyGroup({
     required this.source,
     required this.copiedPt,
     required this.results,
+    required this.nextBoardOrder,
   });
 
   int get totalQuantity =>
@@ -131,6 +137,7 @@ class RhysCopyPlanner {
   /// source's own artwork).
   static RhysCopyPlan build({
     required List<Item> items,
+    required List<double> boardOrders,
     required RulesProvider rulesProvider,
     required TokenDatabase tokenDatabase,
   }) {
@@ -209,6 +216,11 @@ class RhysCopyPlanner {
         source: source,
         copiedPt: copiedPt,
         results: results,
+        nextBoardOrder: boardOrders
+            .where((order) => order > source.order)
+            .fold<double?>(null, (next, order) =>
+                next == null || order < next ? order : next) ??
+            source.order + 1.0,
       ));
     }
 
