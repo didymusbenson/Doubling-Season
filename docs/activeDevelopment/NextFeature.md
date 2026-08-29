@@ -2,24 +2,24 @@
 
 **Last updated:** 2026-08-27
 
-Artist Credit is the highest-priority new feature. The separately discussed
-Inline Token Details concept is speculative and does not displace the ranked
-backlog unless its interaction prototype proves worthwhile.
+Inline Token Details is the active next-priority feature. Implement and verify
+everything possible before its human interaction and artwork review gate.
 
-## Higher-Priority Features Being Scoped
+## Active Priority
 
-1. **Artist Credit**
-   Full specification: `todo_features/ArtistCredit.md`. Carry artist metadata
-   per artwork variant, credit cropped Scryfall artwork in the detailed artwork
-   interfaces, display user-uploaded artwork as `custom`, and leave room for
-   future collaborator names or social handles.
+1. **Inline Token Details**
+   Active specification: `in_progress_features/inline_token_details.md`. Expand
+   tokens into editable board cards, preserve established game actions, and use
+   focused sheets for secondary operations. Human review will choose the final
+   expanded-artwork treatment and validate the interaction feel.
 
-## Speculative Exploration
+## Next Feature Being Scoped
 
-- **Inline Token Details**
-  Full design exploration: `todo_features/inline_token_details.md`. A token
-  would expand into an editable board card with tap-to-edit values and sheets
-  for secondary operations. This is a “maybe” feature, not a current priority.
+- **Artist Credit**
+  Full specification: `todo_features/ArtistCredit.md`. Carry artist metadata
+  per artwork variant, place credit beneath set codes in the shared **Select
+  Token Artwork** sheet, display user-uploaded artwork as `custom`, and leave
+  room for future collaborator names or social handles.
 
 ## Ranked Backlog
 
@@ -75,6 +75,5 @@ backlog unless its interaction prototype proves worthwhile.
 
 ## Planning Notes
 
-- Implement Artist Credit before treating Inline Token Details as a candidate.
-- Inline Token Details needs an interaction prototype and product decisions
-  before it can enter the ranked implementation queue.
+- Complete Inline Token Details through its documented human review gate before
+  advancing Artist Credit.

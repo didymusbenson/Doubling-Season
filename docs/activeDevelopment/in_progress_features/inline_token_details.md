@@ -1,8 +1,8 @@
 # Inline Token Details
 
-**Status:** Speculative “maybe” feature — design exploration, not an implementation priority
+**Status:** Implementation complete — awaiting human interaction and artwork review
 
-**Last updated:** 2026-08-28
+**Last updated:** 2026-08-29
 
 ## Premise
 
@@ -18,9 +18,9 @@ Example:
 4. Press the keyboard's check mark/Done or focus elsewhere.
 5. The name saves and returns to rendered text without leaving the board.
 
-The concept is intentionally speculative. This file scopes the interaction and
-records the decisions needed to decide whether it improves gameplay enough to
-replace a conventional detail screen.
+This specification now drives the active implementation. Human review remains
+required for the interaction feel and final expanded-artwork treatment before
+the former full-screen detail experience is retired.
 
 ## Product Goals
 
@@ -35,7 +35,6 @@ replace a conventional detail screen.
 ## Non-Goals
 
 - Changing the `Item` schema or how token data is stored.
-- Editing trackers or toggles inline in the first implementation.
 - Replacing artwork selection, counter search, or split workflows with new
   custom interfaces.
 - Making every pixel of the expanded card editable.
@@ -58,12 +57,12 @@ Research record:
 
 ## Proposed Board State
 
-`ContentScreen` owns the identity of the currently expanded token, for example
-the token's stable Hive key. Expansion is board UI state and is not persisted.
+`ContentScreen` owns the identity of the currently expanded board item using
+its stable persisted key. Expansion is board UI state and is not persisted.
 
 Locked invariant for the exploratory MVP:
 
-- Exactly zero or one token card is expanded; multiple simultaneous expansions
+- Exactly zero or one board card is expanded; multiple simultaneous expansions
   are never allowed.
 - While one token is expanded, tapping any other token is treated as an
   off-card dismissal tap: commit the active edit and collapse the current token,
@@ -72,7 +71,7 @@ Locked invariant for the exploratory MVP:
 - If the active edit cannot be committed safely, keep the current token
   expanded and do not transfer the interaction to another token.
 - Closing/reopening the app starts with all cards collapsed.
-- Tracker and toggle cards remain unchanged.
+- Tokens, trackers, and toggles share the same commit-or-veto collapse contract.
 - A token provider rebuild retains expansion while the keyed token still exists.
 - Deleting or replacing the expanded token clears expansion safely.
 
@@ -94,6 +93,9 @@ reordering, and board composition are owned above `TokenCard`.
 - Expansion occurs within the same `ReorderableListView` row.
 - Use a short size transition that preserves the artwork/background layer and
   does not animate from a duplicate card.
+- Expansion uses a lightly overshooting height transition for a bouncy feel;
+  do not scale the whole card, because scaling makes stable artwork appear to
+  jitter. Collapse is quicker and smooth.
 - After expansion, keep the card visible by scrolling only enough to reveal the
   active field or lower controls. Do not automatically jump it to the top.
 
@@ -111,48 +113,53 @@ This is added room, not a global scale increase:
 - use the additional horizontal space for breathing room, longer text, and
   future explicit controls rather than enlarging every element;
 - preserve minimum touch targets and existing internal padding;
-- keep token-to-token vertical separation sufficient to distinguish rows, but
-  do not reintroduce horizontal card margins;
+- stack compact token rows edge to edge without exterior horizontal or vertical
+  whitespace; a full-height 7 px left identity rail replaces the former
+  perimeter border and provides the ambient color cue;
 - respect the device safe area and any actual list viewport inset; “full-width”
   means edge-to-edge within the usable board content area, not underneath the
   physical screen bezel; and
 - apply the layout consistently to special tokens, including Scute Swarm, and
   to tokens without artwork.
 
-Trackers and toggles are not automatically changed by this token-specific
-feature. A later board-wide layout decision may align every item type, but this
-spec must not silently broaden its scope.
+The accepted board-wide treatment also applies to tracker and toggle utilities:
+all board items are full-width, square, edge-to-edge rows with no exterior
+vertical gap and a 7 px left color-identity rail. Utilities expand in place;
+their names and applicable description/state fields edit inline, while color
+identity and artwork controls live in the expanded card. Existing value,
+toggle, and commander actions retain their compact behavior.
+
+Tracker values use the same two-stage inline interaction: tapping the compact
+number expands the utility, and tapping the expanded number replaces it with a
+bounded numeric field. Done, focus loss, another utility action, or collapse
+commits the value; invalid or failed saves retain the editor. Board tracker
+values must never open a separate setting dialog.
 
 The wider aspect ratio compounds the expanded-artwork risk described below.
 Compact and expanded crops must be tested separately; gaining horizontal space
 must not introduce a new focal-point jump, card-frame artifact, or stretch.
+The compact artwork surface remains mounted as the stable painted base during
+expansion. Expanded canonical/art-crop rendering is additive and may replace
+that base visually only after its image has decoded, using a short crossfade;
+never discard the already-painted compact image while resolving or decoding an
+expanded source. Freeze the compact artwork's pre-expansion layout geometry
+during the size transition so the growing card reveals more of a stationary
+image rather than rescaling or recentering it on every frame. Begin the expanded
+crop crossfade only after the size transition has settled.
 
 Full-width rows must retain the complete swipe-delete hit area, stable
-reordering geometry, identity-border visibility, clipping, and rounded-corner
-treatment. Expansion must not briefly restore the old margins during its size
-animation.
+reordering geometry, identity-rail visibility, and clipping. Every board item
+and its artwork uses square exterior corners. Token expansion must not briefly
+restore old margins or rounded corners during its size animation.
 
 ### Collapse
 
-Do not reserve action-row space for a collapse button. Token action rows can
-already be crowded (Scute Swarm is the canonical stress case). The expanded
-card instead displays a circular floating collapse control centered along its
-bottom edge, below the action buttons and slightly overlapping the following
-board row. Use an upward collapse chevron/caret rather than a generic close
-placement in the card header.
-
-The control belongs to the expanded token even where it visually overlaps the
-next token. It must paint above the following row, consume its own complete
-touch target, and never pass the tap through to or expand the token underneath.
-The list must provide enough vertical boundary clearance that the control does
-not obscure the next token's name, status, counters, or other interactive
-content. It must remain centered and visible across dense token variants, safe
-areas, and text scaling. The visible circle may be compact, but its accessible
-touch target must meet platform requirements.
+Do not add or reserve space for a dedicated collapse button. Existing spatial
+collapse gestures are sufficient, while another floating control makes the
+dense board visually busier without materially improving discoverability.
 
 Collapse triggers:
 
-- tapping the floating bottom-center collapse control;
 - tapping outside the expanded token;
 - tapping a noneditable, non-action portion of the expanded token;
 - tapping another token, which collapses the first without expanding the
@@ -183,11 +190,11 @@ The expanded card retains the compact card's visual hierarchy:
 
 ```text
 ┌─────────────────────────────────────────────┐
-│ Name  color identity          sick ready tap │
-│ counter pills / counter summary             │
+│ Name                          sick ready tap │
+│ counter pills  +                            │
 │ Type                                        │
 │ Abilities                                   │
-│                                      P / T  │
+│ W U B R G  art                        P / T  │
 │ existing token actions                      │
 └─────────────────────────────────────────────┘
 ```
@@ -196,10 +203,19 @@ The existing background artwork remains a card layer. Text retains
 `BackgroundText` treatment for legibility. Expansion reveals room around the
 same elements instead of rearranging them into the full-screen detail layout.
 
-The vertical order is locked: name and color identity, existing counter region,
-type, abilities, P/T as space permits, then the existing action row. Expansion
-must not move counters below abilities or create a separate counter-control
-section.
+The vertical order is locked: name/status, the existing counter region with its
+add-counter affordance, type, abilities, a compact characteristics row holding
+the inline color selector and artwork control at left with P/T anchored right,
+then the existing action row. Expansion must not move counters below abilities
+or create a separate counter-control section. Editable fields remain bounded to
+their content regions and must not force the compact hierarchy into new rows.
+
+Expanded artwork fills the card using the available derived crop without
+mutating the persisted artwork preference merely to produce a taller crop. The
+color-identity gradient is always painted beneath expanded artwork, so any
+space not covered by the crop reveals an intentional identity field instead of
+the neutral card background. Human review still determines whether the crop
+and gradient balance is visually satisfying across representative artwork.
 
 ## Field Behavior
 
@@ -262,30 +278,19 @@ section.
 
 ### Colors
 
-Color identity does not have a natural text cursor, so editing it should open a
-focused color-selection bottom sheet. Add a compact, tappable Mana-library
-color-identity glyph/indicator immediately beside the token name as the sole
-entry point. Do not place it beside the type line and do not make the border
-interactive: neither is the intended discoverable control location.
-
-The indicator communicates the current identity before opening the sheet. It
-must represent colorless, mono-color, and all supported multicolor combinations
-clearly. Confirm the exact Mana glyphs and accessibility labels before
-implementation; do not substitute ambiguous symbols merely to keep the control
-small.
-
-The bottom sheet should extract and reuse the existing five-color selector from
-`ExpandedTokenScreen`, including its current toggle behavior, rather than
-introducing new color mutation rules. It must support colorless, mono-color,
-and multicolor results; update the card border/indicator immediately after a
-save; and mutate only color identity. Opening or dismissing the sheet must not
-collapse the expanded card or discard another committed edit.
+Color identity uses a compact inline segmented W/U/B/R/G control in the lower
+characteristics row. Each segment exposes selected/unselected state, toggles
+directly, has an individual accessibility label, and persists immediately. An
+empty selection represents colorless. This replaces the color-selection bottom
+sheet in the inline workflow and immediately refreshes the identity rail and
+gradient.
 
 ### Artwork
 
 Tap the visible artwork or a clear artwork affordance to open the existing
 `ArtworkSelectionSheet`. Inline expansion does not duplicate downloading,
-preference, removal, or artist-credit logic.
+preference, removal, or artist-credit logic. Artist credit belongs beneath the
+set code inside **Select Token Artwork**, not on the expanded card.
 
 ### Expanded artwork aspect-ratio risk
 
@@ -486,7 +491,7 @@ generic **More** control:
 | Edit type | Tap type |
 | Edit abilities | Tap abilities/empty Abilities placeholder |
 | Select or remove artwork | Tap artwork → existing artwork sheet |
-| Edit color identity | Mana identity indicator beside name → color sheet |
+| Edit color identity | Inline segmented W/U/B/R/G selector |
 | Set total, tapped distribution, or sickness | Tap upper-right status summary → status/count sheet |
 | View untapped count | Derived in status summary/sheet |
 | Edit built-in or custom counters | Tap counter region → counter-management sheet |
@@ -548,8 +553,12 @@ growing.
 ### Expansion
 
 - [ ] One token expands in place without changing persisted board order.
+- [ ] Expansion visibly eases, softly overshoots, and settles; it never snaps
+      directly to the expanded height or produces a distracting spring effect.
 - [ ] Compact and expanded tokens occupy the full usable board width without
       scaling up their internal typography or controls.
+- [ ] Tracker and toggle utilities use the same full-width, square, zero-gap
+      surface and left identity rail without changing utility-specific actions.
 - [ ] Full-width layout remains correct for artwork-free and special tokens and
       does not alter tracker/toggle sizing.
 - [ ] Only one token can be expanded at a time.
@@ -616,7 +625,8 @@ growing.
 
 ### Non-regression
 
-- [ ] Tracker and toggle cards behave unchanged.
+- [ ] Tracker and toggle utility actions, navigation, persistence, swipe, and
+      reorder behavior remain unchanged.
 - [ ] Reordering compact cards behaves unchanged.
 - [ ] Full-width token swipe-delete and reorder hit regions remain reliable.
 - [ ] Deck save/load and undo snapshots remain unaffected.
@@ -630,9 +640,10 @@ permanent Settings toggle, or compatibility mode for the former full-screen
 detail route. Implementation branches and normal pre-release testing provide
 the development boundary; the shipped product commits fully to the new model.
 
-## Exit Criteria Before Implementation Priority
+## Human Review Gate
 
-This feature should not enter the ranked implementation queue until:
+Complete everything that can be validated mechanically before review. Human
+acceptance then covers:
 
 - a low-fidelity interaction mockup demonstrates expansion on a realistic board;
 - expanded swipe/reorder rules are chosen;
@@ -640,3 +651,36 @@ This feature should not enter the ranked implementation queue until:
   fallback are chosen;
 - every current detail operation has a named destination;
 - the prototype is judged meaningfully faster or clearer than the current detail route.
+
+## Implementation Handoff
+
+Completed before human review:
+
+- board-owned single-token expansion with guarded collapse, Back, outside-tap,
+  swipe, and reorder behavior;
+- full-width, square, zero-gap rows and left identity rails for tokens,
+  trackers, and toggles;
+- edge-to-edge compact token stacking without exterior vertical whitespace,
+  while retaining collapse-control clearance beneath an expanded token;
+- inline name, P/T, type, and bounded raw-abilities editing;
+- focused status, color-identity, counter-management, and artwork workflows;
+- measured two-row counter overflow that respects accessibility text scaling;
+- canonical-versus-`art_crop` expanded rendering with canonical loading/failure
+  fallback and race-safe image replacement;
+- save-failure rollback that keeps the editor expanded;
+- expanded/collapsed semantics, spoken color names, and keyboard visibility
+  follow-up; and
+- removal of `ExpandedTokenScreen` and its route dependency.
+
+Mechanical verification:
+
+- focused analysis of every touched Dart file: clean;
+- full-project analysis: no new findings (the existing project lint backlog
+  remains); and
+- Android debug APK, iOS Simulator app, and web bundle build successfully; the
+  iOS build also installs and launches with the existing simulator board data.
+
+Human review remains responsible for renderer preference, focal-point quality,
+physical-device keyboard feel, dense-board spacing, and overall interaction
+speed/discoverability. Do not move this document to `new_release/` until that
+acceptance pass succeeds.

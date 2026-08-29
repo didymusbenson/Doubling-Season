@@ -6,16 +6,126 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
+/// Developer-only comparison modes for artwork shown by an expanded token.
+///
+/// This is deliberately not persisted. The canonical URL remains the selected
+/// artwork identity regardless of which renderer is used for expansion.
+enum ExpandedArtworkRenderer {
+  canonical,
+  artCrop,
+}
+
+/// The source and crop behavior selected for an artwork render.
+class ArtworkRenderSource {
+  final String url;
+  final bool useCanonicalCrop;
+
+  const ArtworkRenderSource({
+    required this.url,
+    required this.useCanonicalCrop,
+  });
+}
+
 /// Manages downloading and caching of token artwork from Scryfall CDN
 class ArtworkManager {
   /// User-Agent header for good etiquette when downloading from Scryfall
   static const String userAgent = 'DoublingSeason/1.0';
 
+  /// Change this constant while comparing expanded artwork renderers.
+  /// It is intentionally not exposed as a user preference.
+  static const ExpandedArtworkRenderer expandedArtworkRenderer =
+      ExpandedArtworkRenderer.artCrop;
+
+  /// Derives Scryfall's illustration-only source from a canonical large image.
+  ///
+  /// Only the exact, known Scryfall CDN URL shape is accepted. Custom artwork,
+  /// third-party hosts, non-HTTPS URLs, and future unknown URL shapes return
+  /// null and continue through the canonical renderer.
+  static String? deriveScryfallArtCropUrl(String canonicalUrl) {
+    final uri = Uri.tryParse(canonicalUrl);
+    if (uri == null ||
+        uri.scheme != 'https' ||
+        uri.host != 'cards.scryfall.io' ||
+        uri.userInfo.isNotEmpty ||
+        uri.port != 443 && uri.hasPort) {
+      return null;
+    }
+
+    final segments = uri.pathSegments;
+    if (segments.length != 5 ||
+        segments[0] != 'large' ||
+        (segments[1] != 'front' && segments[1] != 'back') ||
+        !RegExp(r'^[0-9a-f]$').hasMatch(segments[2]) ||
+        !RegExp(r'^[0-9a-f]$').hasMatch(segments[3]) ||
+        !RegExp(
+          r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$',
+        ).hasMatch(segments[4])) {
+      return null;
+    }
+
+    return uri.replace(
+        pathSegments: <String>['art_crop', ...segments.skip(1)]).toString();
+  }
+
+  /// Selects an expanded-display source without mutating persisted artwork.
+  static ArtworkRenderSource expandedRenderSource(
+    String canonicalUrl, {
+    ExpandedArtworkRenderer renderer = expandedArtworkRenderer,
+  }) {
+    if (renderer == ExpandedArtworkRenderer.artCrop) {
+      final artCropUrl = deriveScryfallArtCropUrl(canonicalUrl);
+      if (artCropUrl != null) {
+        return ArtworkRenderSource(
+          url: artCropUrl,
+          useCanonicalCrop: false,
+        );
+      }
+    }
+
+    return ArtworkRenderSource(
+      url: canonicalUrl,
+      useCanonicalCrop: true,
+    );
+  }
+
+  /// Resolves and caches an expanded source, falling back to canonical art.
+  ///
+  /// Since the URL is the cache key, derived and canonical images remain
+  /// separate. A failed derivative never clears or rewrites the selected URL.
+  static Future<ArtworkRenderSource> resolveExpandedRenderSource(
+    String canonicalUrl, {
+    ExpandedArtworkRenderer renderer = expandedArtworkRenderer,
+  }) async {
+    final candidate = expandedRenderSource(
+      canonicalUrl,
+      renderer: renderer,
+    );
+    if (kIsWeb) return candidate;
+
+    if (candidate.useCanonicalCrop) {
+      await getCachedArtworkFile(canonicalUrl) ??
+          await downloadArtwork(canonicalUrl);
+      return candidate;
+    }
+
+    final candidateFile = await getCachedArtworkFile(candidate.url) ??
+        await downloadArtwork(candidate.url);
+    if (candidateFile != null) return candidate;
+
+    await getCachedArtworkFile(canonicalUrl) ??
+        await downloadArtwork(canonicalUrl);
+    return ArtworkRenderSource(
+      url: canonicalUrl,
+      useCanonicalCrop: true,
+    );
+  }
+
   /// Get the artwork cache directory path
   static Future<Directory> getArtworkCacheDirectory() async {
     if (kIsWeb) {
       // Web doesn't support file system access
-      throw UnsupportedError('File system caching not available on web platform');
+      throw UnsupportedError(
+          'File system caching not available on web platform');
     }
 
     final appDir = await getApplicationSupportDirectory();
@@ -108,7 +218,8 @@ class ArtworkManager {
 
       if (streamedResponse.statusCode != 200) {
         if (kDebugMode) {
-          print('Failed to download artwork: HTTP ${streamedResponse.statusCode}');
+          print(
+              'Failed to download artwork: HTTP ${streamedResponse.statusCode}');
         }
         return null;
       }
@@ -134,7 +245,6 @@ class ArtworkManager {
 
       onProgress?.call(1.0);
       return file;
-
     } catch (e) {
       if (kDebugMode) {
         print('Error downloading artwork: $e');
@@ -354,7 +464,8 @@ class ArtworkManager {
       // Skip resize if already within limits
       if (originalWidth <= maxDimension && originalHeight <= maxDimension) {
         originalImage.dispose();
-        debugPrint('Image already within size limit: ${originalWidth}x$originalHeight');
+        debugPrint(
+            'Image already within size limit: ${originalWidth}x$originalHeight');
         return imageFile;
       }
 

@@ -1,14 +1,16 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/tracker_widget.dart';
+import '../models/token_definition.dart';
+import '../controllers/expandable_card_controller.dart';
 import '../models/item.dart';
 import '../providers/settings_provider.dart';
 import '../providers/toggle_provider.dart';
 import '../providers/tracker_provider.dart';
 import '../providers/token_provider.dart';
 import '../providers/rules_provider.dart';
-import '../screens/expanded_widget_screen.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
 import '../utils/color_utils.dart';
@@ -22,13 +24,30 @@ import '../services/brudiclad_transform_planner.dart';
 import '../services/board_undo_snapshot.dart';
 import '../services/token_result_artwork_resolver.dart';
 import '../database/token_database.dart';
+import '../database/widget_database.dart';
 import 'definition_preview_card.dart';
 import 'mana/mana_text.dart';
+import 'artwork_selection_sheet.dart';
+import 'inline_color_identity_bar.dart';
+import 'inline_artwork_button.dart';
 
 class TrackerWidgetCard extends StatefulWidget {
   final TrackerWidget tracker;
+  final bool isExpanded;
+  final VoidCallback onExpand;
+  final VoidCallback onCollapse;
+  final ValueChanged<bool> onEditingChanged;
+  final ExpandableCardController? controller;
 
-  const TrackerWidgetCard({super.key, required this.tracker});
+  const TrackerWidgetCard({
+    super.key,
+    required this.tracker,
+    required this.isExpanded,
+    required this.onExpand,
+    required this.onCollapse,
+    required this.onEditingChanged,
+    this.controller,
+  });
 
   @override
   State<TrackerWidgetCard> createState() => _TrackerWidgetCardState();
@@ -51,11 +70,23 @@ class _BrudicladSelection {
 
 class _TrackerWidgetCardState extends State<TrackerWidgetCard>
     with ArtworkDisplayMixin {
+  static const double _identityRailWidth = 7;
   final DateTime _createdAt = DateTime.now();
   bool _artworkAnimated = false;
   bool _artworkCleanupAttempted = false;
+  late final TextEditingController _descriptionController;
+  late final FocusNode _descriptionFocusNode;
+  late final TextEditingController _nameController;
+  late final FocusNode _nameFocusNode;
+  late final TextEditingController _valueController;
+  late final FocusNode _valueFocusNode;
+  bool _editingName = false;
+  bool _editingValue = false;
+  bool _committingValue = false;
+  int? _valueBeforeEdit;
+  bool _editingDescription = false;
 
-  // Cached artwork Future to prevent FutureBuilder rebuilds (matching ExpandedTokenScreen pattern)
+  // Cached artwork Future to prevent FutureBuilder rebuilds.
   Future<File?>? _cachedArtworkFuture;
 
   // Implement ArtworkDisplayMixin interface
@@ -88,6 +119,15 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
   @override
   void initState() {
     super.initState();
+    _descriptionController =
+        TextEditingController(text: widget.tracker.description);
+    _descriptionFocusNode = FocusNode()..addListener(_handleDescriptionFocus);
+    _nameController = TextEditingController(text: widget.tracker.name);
+    _nameFocusNode = FocusNode()..addListener(_handleNameFocus);
+    _valueController =
+        TextEditingController(text: '${widget.tracker.currentValue}');
+    _valueFocusNode = FocusNode()..addListener(_handleValueFocus);
+    widget.controller?.attach(_requestCollapse);
     // Cache the artwork Future on initialization
     if (widget.tracker.artworkUrl != null) {
       _cachedArtworkFuture =
@@ -98,6 +138,21 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
   @override
   void didUpdateWidget(TrackerWidgetCard oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?.detach(_requestCollapse);
+      widget.controller?.attach(_requestCollapse);
+    }
+    if (!_editingDescription &&
+        _descriptionController.text != widget.tracker.description) {
+      _descriptionController.text = widget.tracker.description;
+    }
+    if (!_editingName && _nameController.text != widget.tracker.name) {
+      _nameController.text = widget.tracker.name;
+    }
+    if (!_editingValue &&
+        _valueController.text != '${widget.tracker.currentValue}') {
+      _valueController.text = '${widget.tracker.currentValue}';
+    }
     // Reset cleanup flag if artwork URL changed
     if (oldWidget.tracker.artworkUrl != widget.tracker.artworkUrl) {
       _artworkCleanupAttempted = false;
@@ -110,132 +165,425 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
   }
 
   @override
+  void dispose() {
+    widget.controller?.detach(_requestCollapse);
+    _descriptionFocusNode
+      ..removeListener(_handleDescriptionFocus)
+      ..dispose();
+    _descriptionController.dispose();
+    _nameFocusNode
+      ..removeListener(_handleNameFocus)
+      ..dispose();
+    _nameController.dispose();
+    _valueFocusNode
+      ..removeListener(_handleValueFocus)
+      ..dispose();
+    _valueController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Selector<SettingsProvider, String>(
       selector: (context, settings) => settings.artworkDisplayStyle,
       builder: (context, artworkDisplayStyle, child) {
         return GestureDetector(
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => ExpandedWidgetScreen(
-                  widget: widget.tracker,
-                  isTracker: true,
-                ),
-              ),
-            );
-          },
-          child: Opacity(
-            opacity: (widget.tracker.actionType == 'academy_manufactor' &&
-                    widget.tracker.currentValue <= 0)
-                ? 0.4
-                : 1.0,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return Stack(
-                  children: [
-                    // Base card background layer (transparent to allow red swipe indicator through)
-                    Container(
-                      decoration: BoxDecoration(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.isExpanded ? _collapseAfterCommit : widget.onExpand,
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 380),
+            reverseDuration: const Duration(milliseconds: 240),
+            curve: const Cubic(0.18, 0.89, 0.32, 1.08),
+            alignment: Alignment.topCenter,
+            child: Opacity(
+              opacity: (widget.tracker.actionType == 'academy_manufactor' &&
+                      widget.tracker.currentValue <= 0)
+                  ? 0.4
+                  : 1.0,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return Stack(
+                    children: [
+                      // Base card background layer (transparent to allow red swipe indicator through)
+                      Container(
                         color: Colors.transparent,
-                        borderRadius: BorderRadius.circular(
-                            UIConstants.borderRadius - 3.0),
-                      ),
-                    ),
-
-                    // Gradient background layer
-                    if (widget.tracker.artworkUrl == null ||
-                        widget.tracker.artworkUrl!.isEmpty)
-                      _buildGradientLayer(context)
-                    else
-                      _buildConditionalGradient(context),
-
-                    // Artwork layer
-                    if (widget.tracker.artworkUrl != null)
-                      buildArtworkLayer(
-                        context: context,
-                        constraints: constraints,
-                        artworkDisplayStyle: artworkDisplayStyle,
                       ),
 
-                    // Content layer
-                    Container(
-                      color: Colors.transparent,
-                      padding: const EdgeInsets.all(UIConstants.cardPadding),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Top row: Name/Description and Value
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              // Left side: Name, Description (takes remaining space)
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    // Name
-                                    BackgroundText(
-                                      child: Text(
-                                        widget.tracker.name,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 1,
-                                      ),
-                                    ),
+                      // Gradient background layer
+                      if (widget.tracker.artworkUrl == null ||
+                          widget.tracker.artworkUrl!.isEmpty)
+                        _buildGradientLayer(context)
+                      else
+                        _buildConditionalGradient(context),
 
-                                    // Description (if present)
-                                    if (widget
-                                        .tracker.description.isNotEmpty) ...[
-                                      const SizedBox(
-                                          height: UIConstants.mediumSpacing),
-                                      BackgroundText(
-                                        child: ManaText(
-                                          widget.tracker.description,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium,
-                                          overflow: TextOverflow.ellipsis,
-                                          maxLines: 3,
-                                        ),
-                                      ),
+                      // Artwork layer
+                      if (widget.tracker.artworkUrl != null)
+                        buildArtworkLayer(
+                          context: context,
+                          constraints: constraints,
+                          artworkDisplayStyle: artworkDisplayStyle,
+                          cornerRadius: 0,
+                        ),
+
+                      // Content layer
+                      Container(
+                        color: Colors.transparent,
+                        padding: const EdgeInsets.fromLTRB(
+                          UIConstants.cardPadding + _identityRailWidth,
+                          UIConstants.cardPadding,
+                          UIConstants.cardPadding,
+                          UIConstants.cardPadding,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Top row: Name/Description and Value
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                // Left side: Name, Description (takes remaining space)
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // Name
+                                      _buildInlineName(context),
+
+                                      // Description (if present)
+                                      if (widget.isExpanded ||
+                                          widget.tracker.description
+                                              .isNotEmpty) ...[
+                                        const SizedBox(
+                                            height: UIConstants.mediumSpacing),
+                                        _buildInlineDescription(context),
+                                      ],
                                     ],
-                                  ],
+                                  ),
                                 ),
-                              ),
 
-                              // Right side: Value display (shrink-wraps).
-                              // Action-only utilities have no tracker value.
-                              if (!widget.tracker.actionOnly) ...[
-                                const SizedBox(
-                                    width: UIConstants.mediumSpacing),
-                                _buildValueDisplay(context),
+                                // Right side: Value display (shrink-wraps).
+                                // Action-only utilities have no tracker value.
+                                if (!widget.tracker.actionOnly) ...[
+                                  const SizedBox(
+                                      width: UIConstants.mediumSpacing),
+                                  _buildValueDisplay(context),
+                                ],
                               ],
+                            ),
+
+                            const SizedBox(height: UIConstants.mediumSpacing),
+
+                            // Bottom row: Action buttons (full width)
+                            _buildActionButtons(context),
+                            if (widget.isExpanded) ...[
+                              const SizedBox(height: UIConstants.mediumSpacing),
+                              _buildExpandedCharacteristics(context),
                             ],
-                          ),
-
-                          const SizedBox(height: UIConstants.mediumSpacing),
-
-                          // Bottom row: Action buttons (full width)
-                          _buildActionButtons(context),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ), // Opacity
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: _identityRailWidth,
+                        child: IgnorePointer(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: ColorUtils.gradientForColors(
+                                widget.tracker.colorIdentity,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ), // Opacity
+          ),
         );
       },
     );
+  }
+
+  void _handleDescriptionFocus() {
+    if (!_descriptionFocusNode.hasFocus && _editingDescription) {
+      _commitDescription();
+    }
+  }
+
+  void _handleNameFocus() {
+    if (!_nameFocusNode.hasFocus && _editingName) _commitName();
+  }
+
+  void _handleValueFocus() {
+    if (!_valueFocusNode.hasFocus && _editingValue) _commitValue();
+  }
+
+  Future<void> _beginNameEdit() async {
+    if (!await _commitDescription() || !await _commitValue() || !mounted) {
+      return;
+    }
+    setState(() => _editingName = true);
+    widget.onEditingChanged(true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _nameFocusNode.requestFocus();
+    });
+  }
+
+  Future<bool> _commitName() async {
+    if (!_editingName) return true;
+    final previous = widget.tracker.name;
+    final next = _nameController.text.trim();
+    if (next.isEmpty) {
+      _nameController.text = previous;
+      return false;
+    }
+    widget.tracker.name = next;
+    try {
+      await context.read<TrackerProvider>().updateTracker(widget.tracker);
+      if (mounted) setState(() => _editingName = false);
+      widget.onEditingChanged(false);
+      return true;
+    } catch (_) {
+      widget.tracker.name = previous;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Utility name could not be saved.')),
+        );
+      }
+      return false;
+    }
+  }
+
+  Widget _buildInlineName(BuildContext context) {
+    if (_editingName) {
+      return ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360, maxHeight: 52),
+        child: TextField(
+          controller: _nameController,
+          focusNode: _nameFocusNode,
+          maxLines: 1,
+          textInputAction: TextInputAction.done,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+          decoration: const InputDecoration(
+            isDense: true,
+            filled: true,
+            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (_) => _commitName(),
+        ),
+      );
+    }
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.isExpanded ? _beginNameEdit : null,
+      child: BackgroundText(
+        child: Text(
+          widget.tracker.name,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _beginDescriptionEdit() async {
+    if (_editingDescription) return;
+    if (!await _commitName() || !await _commitValue() || !mounted) return;
+    setState(() => _editingDescription = true);
+    widget.onEditingChanged(true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _descriptionFocusNode.requestFocus();
+    });
+  }
+
+  Future<bool> _commitDescription() async {
+    if (!_editingDescription) return true;
+    final previous = widget.tracker.description;
+    widget.tracker.description = _descriptionController.text;
+    try {
+      await context.read<TrackerProvider>().updateTracker(widget.tracker);
+      if (mounted) setState(() => _editingDescription = false);
+      widget.onEditingChanged(false);
+      return true;
+    } catch (_) {
+      widget.tracker.description = previous;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Description could not be saved.')),
+        );
+      }
+      return false;
+    }
+  }
+
+  Future<bool> _requestCollapse() async {
+    if (!await _commitName()) return false;
+    if (!await _commitDescription()) return false;
+    return _commitValue();
+  }
+
+  Future<void> _collapseAfterCommit() async {
+    final approved = await (widget.controller?.requestCollapse() ??
+        Future<bool>.value(true));
+    if (mounted && approved) widget.onCollapse();
+  }
+
+  Widget _buildInlineDescription(BuildContext context) {
+    if (_editingDescription) {
+      return ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520, maxHeight: 112),
+        child: TextField(
+          controller: _descriptionController,
+          focusNode: _descriptionFocusNode,
+          maxLines: 3,
+          textInputAction: TextInputAction.done,
+          decoration: const InputDecoration(
+            isDense: true,
+            filled: true,
+            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (_) => _commitDescription(),
+        ),
+      );
+    }
+    return Semantics(
+      button: true,
+      label: widget.tracker.description.isEmpty
+          ? 'Empty utility description'
+          : 'Utility description',
+      hint: 'Double tap to edit',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _beginDescriptionEdit,
+        child: BackgroundText(
+          child: widget.tracker.description.isEmpty
+              ? Text(
+                  'Description',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontStyle: FontStyle.italic,
+                        color: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.color
+                            ?.withValues(alpha: 0.55),
+                      ),
+                )
+              : ManaText(
+                  widget.tracker.description,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 3,
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpandedCharacteristics(BuildContext context) => Row(
+        children: [
+          InlineColorIdentityBar(
+            colorIdentity: widget.tracker.colorIdentity,
+            onToggle: _toggleColorIdentity,
+          ),
+          const SizedBox(width: UIConstants.verticalSpacing),
+          _buildArtworkButton(context),
+        ],
+      );
+
+  Widget _buildArtworkButton(BuildContext context) => InlineArtworkButton(
+        hasArtwork: widget.tracker.artworkUrl != null,
+        onPressed: _showArtworkSelection,
+      );
+
+  Future<void> _toggleColorIdentity(String symbol) async {
+    if (!await _requestCollapse() || !mounted) return;
+    final selected = widget.tracker.colorIdentity.characters.toSet();
+    selected.contains(symbol) ? selected.remove(symbol) : selected.add(symbol);
+    widget.tracker.colorIdentity =
+        'WUBRG'.characters.where(selected.contains).join();
+    await context.read<TrackerProvider>().updateTracker(widget.tracker);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _showArtworkSelection() async {
+    if (!await _requestCollapse() || !mounted) return;
+    final trackerProvider = context.read<TrackerProvider>();
+    final options = await _artworkOptions();
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => ConstrainedBox(
+        constraints:
+            BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * .85),
+        child: ArtworkSelectionSheet(
+          artworkVariants: options,
+          currentArtworkUrl: widget.tracker.artworkUrl,
+          currentArtworkSet: widget.tracker.artworkSet,
+          tokenName: widget.tracker.name,
+          tokenIdentity: widget.tracker.widgetId,
+          databaseLoadError: false,
+          onArtworkSelected: (url, setCode) async {
+            if (!url.startsWith('file://')) {
+              await ArtworkManager.downloadArtwork(url);
+            }
+            widget.tracker
+              ..artworkUrl = url
+              ..artworkSet = setCode
+              ..artworkOptions = List<ArtworkVariant>.from(options);
+            await trackerProvider.updateTracker(widget.tracker);
+            if (mounted) {
+              setState(() {
+                _artworkCleanupAttempted = false;
+                _cachedArtworkFuture = ArtworkManager.getCachedArtworkFile(url);
+              });
+            }
+          },
+          onRemoveArtwork: widget.tracker.artworkUrl == null
+              ? null
+              : () async {
+                  widget.tracker
+                    ..artworkUrl = null
+                    ..artworkSet = null;
+                  await trackerProvider.updateTracker(widget.tracker);
+                  if (mounted) {
+                    setState(() {
+                      _artworkCleanupAttempted = false;
+                      _cachedArtworkFuture = null;
+                    });
+                  }
+                },
+        ),
+      ),
+    );
+  }
+
+  Future<List<ArtworkVariant>> _artworkOptions() async {
+    final existing = widget.tracker.artworkOptions;
+    if (existing != null && existing.isNotEmpty) return existing;
+    final database = WidgetDatabase();
+    final match = database.filteredWidgets.where(
+      (definition) => definition.name == widget.tracker.name,
+    );
+    if (match.isEmpty) return const <ArtworkVariant>[];
+    final options = List<ArtworkVariant>.from(match.first.artwork);
+    widget.tracker.artworkOptions = options;
+    await context.read<TrackerProvider>().updateTracker(widget.tracker);
+    return options;
   }
 
   Widget _buildActionButtons(BuildContext context) {
@@ -251,7 +599,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
         child: _buildTextActionButton(
           context,
           text: widget.tracker.actionButtonText ?? 'Action',
-          onTap: () => _performAction(context),
+          onTap: _performAction,
           color: primaryColor,
           spacing: 0,
         ),
@@ -284,13 +632,15 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
             _buildActionButton(
               context,
               icon: Icons.remove,
-              onTap: () {
+              onTap: () async {
+                if (!await _requestCollapse() || !mounted) return;
                 widget.tracker.decrement(widget.tracker.tapIncrement);
-                trackerProvider.updateTracker(widget.tracker);
+                await trackerProvider.updateTracker(widget.tracker);
               },
-              onLongPress: () {
+              onLongPress: () async {
+                if (!await _requestCollapse() || !mounted) return;
                 widget.tracker.decrement(widget.tracker.longPressIncrement);
-                trackerProvider.updateTracker(widget.tracker);
+                await trackerProvider.updateTracker(widget.tracker);
               },
               color: primaryColor,
               spacing: spacing,
@@ -300,13 +650,15 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
             _buildActionButton(
               context,
               icon: Icons.add,
-              onTap: () {
+              onTap: () async {
+                if (!await _requestCollapse() || !mounted) return;
                 widget.tracker.increment(widget.tracker.tapIncrement);
-                trackerProvider.updateTracker(widget.tracker);
+                await trackerProvider.updateTracker(widget.tracker);
               },
-              onLongPress: () {
+              onLongPress: () async {
+                if (!await _requestCollapse() || !mounted) return;
                 widget.tracker.increment(widget.tracker.longPressIncrement);
-                trackerProvider.updateTracker(widget.tracker);
+                await trackerProvider.updateTracker(widget.tracker);
               },
               color: primaryColor,
               spacing: widget.tracker.hasAction
@@ -322,7 +674,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
                 context,
                 icon: Icons.trending_up,
                 text: 'x1',
-                onTap: () => _performQuickPlusOne(context),
+                onTap: _performQuickPlusOne,
                 color: primaryColor,
                 spacing: spacing,
               ),
@@ -330,7 +682,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
               _buildTextActionButton(
                 context,
                 text: widget.tracker.actionButtonText ?? 'Action',
-                onTap: () => _performAction(context),
+                onTap: _performAction,
                 color: primaryColor,
                 spacing: 0, // Last button gets no spacing
               ),
@@ -338,7 +690,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
               _buildTextActionButton(
                 context,
                 text: widget.tracker.actionButtonText ?? 'Action',
-                onTap: () => _performAction(context),
+                onTap: _performAction,
                 color: primaryColor,
                 spacing: 0, // Last button gets no spacing
               ),
@@ -349,9 +701,35 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
   }
 
   Widget _buildValueDisplay(BuildContext context) {
-    // Big number display - takes full vertical space
+    if (_editingValue) {
+      return ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 72, maxWidth: 112),
+        child: TextField(
+          controller: _valueController,
+          focusNode: _valueFocusNode,
+          autofocus: false,
+          keyboardType: const TextInputType.numberWithOptions(signed: false),
+          inputFormatters: <TextInputFormatter>[
+            FilteringTextInputFormatter.digitsOnly,
+          ],
+          textInputAction: TextInputAction.done,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+          decoration: const InputDecoration(
+            isDense: true,
+            filled: true,
+            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (_) => _commitValue(),
+        ),
+      );
+    }
     return GestureDetector(
-      onTap: () => _showValueEditDialog(context),
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.isExpanded ? _beginValueEdit : widget.onExpand,
       child: BackgroundText(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Text(
@@ -365,66 +743,59 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
     );
   }
 
-  void _showValueEditDialog(BuildContext context) {
-    final trackerProvider = context.read<TrackerProvider>();
-    final controller =
-        TextEditingController(text: '${widget.tracker.currentValue}');
-    final focusNode = FocusNode();
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        // Request focus after dialog is built (Android compatibility)
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (dialogContext.mounted) {
-            focusNode.requestFocus();
-          }
-        });
-        return AlertDialog(
-          title: Text('Set ${widget.tracker.name}'),
-          content: TextField(
-            controller: controller,
-            focusNode: focusNode,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Value',
-              border: OutlineInputBorder(),
-            ),
-            onTapOutside: (_) => FocusScope.of(dialogContext).unfocus(),
-            onSubmitted: (value) {
-              final newValue =
-                  int.tryParse(value) ?? widget.tracker.currentValue;
-              widget.tracker.currentValue =
-                  newValue.clamp(0, double.maxFinite.toInt());
-              trackerProvider.updateTracker(widget.tracker);
-              FocusScope.of(dialogContext).unfocus();
-              Navigator.of(dialogContext).pop();
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                final newValue = int.tryParse(controller.text) ??
-                    widget.tracker.currentValue;
-                widget.tracker.currentValue =
-                    newValue.clamp(0, double.maxFinite.toInt());
-                trackerProvider.updateTracker(widget.tracker);
-                FocusScope.of(dialogContext).unfocus();
-                Navigator.of(dialogContext).pop();
-              },
-              child: const Text('Set'),
-            ),
-          ],
-        );
-      },
-    ).then((_) {
-      controller.dispose();
-      focusNode.dispose();
+  Future<void> _beginValueEdit() async {
+    if (_editingValue) return;
+    if (!await _commitName() || !await _commitDescription() || !mounted) return;
+    _valueBeforeEdit = widget.tracker.currentValue;
+    _valueController.text = '${widget.tracker.currentValue}';
+    setState(() => _editingValue = true);
+    widget.onEditingChanged(true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _valueFocusNode.requestFocus();
+      _valueController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _valueController.text.length,
+      );
     });
+  }
+
+  Future<bool> _commitValue() async {
+    if (!_editingValue) return true;
+    if (_committingValue) return false;
+    final parsed = int.tryParse(_valueController.text.trim());
+    if (parsed == null || parsed < 0) {
+      if (mounted) {
+        final original = _valueBeforeEdit ?? widget.tracker.currentValue;
+        widget.tracker.currentValue = original;
+        _valueController.text = '$original';
+        setState(() => _editingValue = false);
+        widget.onEditingChanged(false);
+      }
+      _valueBeforeEdit = null;
+      return true;
+    }
+    final previous = widget.tracker.currentValue;
+    _committingValue = true;
+    widget.tracker.currentValue = parsed;
+    try {
+      await context.read<TrackerProvider>().updateTracker(widget.tracker);
+      if (mounted) setState(() => _editingValue = false);
+      widget.onEditingChanged(false);
+      _valueBeforeEdit = null;
+      return true;
+    } catch (_) {
+      widget.tracker.currentValue = previous;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Utility value could not be saved.')),
+        );
+        _valueFocusNode.requestFocus();
+      }
+      return false;
+    } finally {
+      _committingValue = false;
+    }
   }
 
   Widget _buildActionButton(
@@ -556,32 +927,34 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
     );
   }
 
-  void _performAction(BuildContext context) {
+  Future<void> _performAction() async {
+    final actionContext = context;
+    if (!await _requestCollapse() || !actionContext.mounted) return;
     final actionType = widget.tracker.actionType;
 
     if (actionType == null) return;
 
     switch (actionType) {
       case 'krenko_mob_boss':
-        _performKrenkoMobBossAction(context);
+        _performKrenkoMobBossAction(actionContext);
         break;
       case 'krenko_tin_street':
-        _performKrenkoTinStreetAction(context);
+        _performKrenkoTinStreetAction(actionContext);
         break;
       case 'cathars_crusade':
-        _performCatharsCrusadeAction(context);
+        _performCatharsCrusadeAction(actionContext);
         break;
       case 'academy_manufactor':
-        _performAcademyManufactorAction(context);
+        _performAcademyManufactorAction(actionContext);
         break;
       case 'hare_apparent':
-        _performHareApparentAction(context);
+        _performHareApparentAction(actionContext);
         break;
       case 'rhys_the_redeemed':
-        _performRhysTheRedeemedAction(context);
+        _performRhysTheRedeemedAction(actionContext);
         break;
       case 'brudiclad_telchor_engineer':
-        _performBrudicladAction(context);
+        _performBrudicladAction(actionContext);
         break;
       default:
         break;
@@ -1417,9 +1790,11 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
     await widget.tracker.save();
   }
 
-  Future<void> _performQuickPlusOne(BuildContext context) async {
-    final tokenProvider = context.read<TokenProvider>();
-    final rulesProvider = context.read<RulesProvider>();
+  Future<void> _performQuickPlusOne() async {
+    final actionContext = context;
+    if (!await _requestCollapse() || !actionContext.mounted) return;
+    final tokenProvider = actionContext.read<TokenProvider>();
+    final rulesProvider = actionContext.read<RulesProvider>();
 
     // Calculate counter amount via rules engine
     final amount = rulesProvider.calculateCounterAmount(1, isPlusOne: true);
@@ -1544,10 +1919,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
 
     return Positioned.fill(
       child: Container(
-        decoration: BoxDecoration(
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
-        ),
+        decoration: BoxDecoration(gradient: gradient),
       ),
     );
   }
@@ -1564,11 +1936,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
                 widget.tracker.colorIdentity,
                 isEmblem: false);
             return Container(
-              decoration: BoxDecoration(
-                gradient: gradient,
-                borderRadius:
-                    BorderRadius.circular(UIConstants.borderRadius - 3.0),
-              ),
+              decoration: BoxDecoration(gradient: gradient),
             );
           }
           return const SizedBox.shrink();

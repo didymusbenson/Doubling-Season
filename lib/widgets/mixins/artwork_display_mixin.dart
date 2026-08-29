@@ -35,6 +35,9 @@ import '../cropped_artwork_widget.dart';
 /// void clearArtwork();     // Clear artworkUrl, artworkSet, artworkOptions, save()
 /// ```
 mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
+  final Map<String, Future<ArtworkRenderSource>> _expandedSourceFutures = {};
+  final Map<String, Future<File?>> _expandedFileFutures = {};
+
   // Subclasses must provide these
   DateTime get createdAt;
   bool get artworkAnimated;
@@ -43,6 +46,26 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
   set artworkCleanupAttempted(bool value);
   String? get artworkUrl;
   void clearArtwork();
+
+  Future<ArtworkRenderSource> _expandedSourceFuture(
+    String canonicalUrl,
+    ExpandedArtworkRenderer renderer,
+  ) {
+    final key = '${renderer.name}|$canonicalUrl';
+    return _expandedSourceFutures.putIfAbsent(
+      key,
+      () => ArtworkManager.resolveExpandedRenderSource(
+        canonicalUrl,
+        renderer: renderer,
+      ),
+    );
+  }
+
+  Future<File?> _expandedFileFuture(String url) =>
+      _expandedFileFutures.putIfAbsent(
+        url,
+        () => ArtworkManager.getCachedArtworkFile(url),
+      );
 
   /// Try to re-download a missing artwork file. If download fails, clear the reference.
   void _redownloadOrClear(String url) {
@@ -73,12 +96,113 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
     required BuildContext context,
     required BoxConstraints constraints,
     required String artworkDisplayStyle,
+    bool isExpanded = false,
+    double? revealViewportHeight,
+    double cornerRadius = UIConstants.borderRadius - 3.0,
+    ExpandedArtworkRenderer expandedRenderer =
+        ArtworkManager.expandedArtworkRenderer,
   }) {
-    if (artworkDisplayStyle == 'fadeout') {
-      return buildFadeoutArtwork(context, constraints);
-    } else {
-      return buildFullViewArtwork(context, constraints);
+    if (isExpanded) {
+      return buildExpandedArtwork(
+        context,
+        constraints,
+        renderer: expandedRenderer,
+        cornerRadius: cornerRadius,
+      );
     }
+    if (artworkDisplayStyle == 'fadeout') {
+      return buildFadeoutArtwork(
+        context,
+        constraints,
+        cornerRadius: cornerRadius,
+        revealViewportHeight: revealViewportHeight,
+      );
+    } else {
+      return buildFullViewArtwork(
+        context,
+        constraints,
+        cornerRadius: cornerRadius,
+        revealViewportHeight: revealViewportHeight,
+      );
+    }
+  }
+
+  /// Builds only the expanded artwork overlay.
+  ///
+  /// Callers keep their compact artwork renderer mounted underneath this layer
+  /// so its decoded image remains visible until the expanded source is ready.
+  Widget buildExpandedArtwork(
+    BuildContext context,
+    BoxConstraints constraints, {
+    ExpandedArtworkRenderer renderer = ArtworkManager.expandedArtworkRenderer,
+    double cornerRadius = UIConstants.borderRadius - 3.0,
+  }) {
+    final canonicalUrl = artworkUrl!;
+
+    if (kIsWeb) {
+      if (canonicalUrl.startsWith('file://')) return const SizedBox.shrink();
+      final source = ArtworkManager.expandedRenderSource(
+        canonicalUrl,
+        renderer: renderer,
+      );
+      final crop = source.useCanonicalCrop
+          ? ArtworkManager.getCropPercentages(canonicalUrl)
+          : ArtworkManager.getCropPercentages('file://derived-art-crop');
+      final canonicalCrop = ArtworkManager.getCropPercentages(canonicalUrl);
+      return Positioned.fill(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(cornerRadius),
+          child: CroppedArtworkWidget(
+            imageUrl: source.url,
+            fallbackImageUrl: source.useCanonicalCrop ? null : canonicalUrl,
+            fallbackCropLeft: canonicalCrop['left'],
+            fallbackCropRight: canonicalCrop['right'],
+            fallbackCropTop: canonicalCrop['top'],
+            fallbackCropBottom: canonicalCrop['bottom'],
+            cropLeft: crop['left']!,
+            cropRight: crop['right']!,
+            cropTop: crop['top']!,
+            cropBottom: crop['bottom']!,
+            fillWidth: true,
+            fadeIn: true,
+          ),
+        ),
+      );
+    }
+
+    return Positioned.fill(
+      child: FutureBuilder<ArtworkRenderSource>(
+        future: _expandedSourceFuture(canonicalUrl, renderer),
+        builder: (context, sourceSnapshot) {
+          final source = sourceSnapshot.data;
+          if (source == null) return const SizedBox.shrink();
+          return FutureBuilder<File?>(
+            future: _expandedFileFuture(source.url),
+            builder: (context, fileSnapshot) {
+              final file = fileSnapshot.data;
+              if (file == null) return const SizedBox.shrink();
+              final crop = source.useCanonicalCrop
+                  ? ArtworkManager.getCropPercentages(canonicalUrl)
+                  : ArtworkManager.getCropPercentages(
+                      'file://derived-art-crop',
+                    );
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(cornerRadius),
+                child: CroppedArtworkWidget(
+                  imageFile: file,
+                  cropLeft: crop['left']!,
+                  cropRight: crop['right']!,
+                  cropTop: crop['top']!,
+                  cropBottom: crop['bottom']!,
+                  fillWidth: true,
+                  fadeIn: true,
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
   }
 
   /// Build the CroppedArtworkWidget with the appropriate source (file or URL).
@@ -86,6 +210,7 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
     File? file,
     required Map<String, double> crop,
     required bool fillWidth,
+    double? revealViewportHeight,
   }) {
     if (kIsWeb) {
       // Web: skip file:// URLs (custom artwork not supported on web)
@@ -98,6 +223,7 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
           cropTop: crop['top']!,
           cropBottom: crop['bottom']!,
           fillWidth: fillWidth,
+          layoutHeight: revealViewportHeight,
         );
       }
       return CroppedArtworkWidget(
@@ -107,6 +233,7 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
         cropTop: crop['top']!,
         cropBottom: crop['bottom']!,
         fillWidth: fillWidth,
+        layoutHeight: revealViewportHeight,
       );
     }
     return CroppedArtworkWidget(
@@ -116,11 +243,17 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
       cropTop: crop['top']!,
       cropBottom: crop['bottom']!,
       fillWidth: fillWidth,
+      layoutHeight: revealViewportHeight,
     );
   }
 
   /// Build full-width artwork background layer (fills entire card).
-  Widget buildFullViewArtwork(BuildContext context, BoxConstraints constraints) {
+  Widget buildFullViewArtwork(
+    BuildContext context,
+    BoxConstraints constraints, {
+    double cornerRadius = UIConstants.borderRadius - 3.0,
+    double? revealViewportHeight,
+  }) {
     final crop = ArtworkManager.getCropPercentages(artworkUrl);
 
     // Web: render directly from URL (no local file cache)
@@ -130,8 +263,12 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
 
       return Positioned.fill(
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
-          child: _buildCroppedWidget(crop: crop, fillWidth: true),
+          borderRadius: BorderRadius.circular(cornerRadius),
+          child: _buildCroppedWidget(
+            crop: crop,
+            fillWidth: true,
+            revealViewportHeight: revealViewportHeight,
+          ),
         ),
       );
     }
@@ -145,7 +282,9 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
             // If it appears > 100ms after card creation = downloaded (animate)
             // If it appears < 100ms after card creation = cached (no animation)
             final elapsed = DateTime.now().difference(createdAt).inMilliseconds;
-            final shouldAnimate = elapsed > UIConstants.artworkAnimationThreshold && !artworkAnimated;
+            final shouldAnimate =
+                elapsed > UIConstants.artworkAnimationThreshold &&
+                    !artworkAnimated;
 
             if (shouldAnimate) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -159,11 +298,18 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
 
             return AnimatedOpacity(
               opacity: 1.0,
-              duration: shouldAnimate ? UIConstants.artworkFadeInDuration : Duration.zero,
+              duration: shouldAnimate
+                  ? UIConstants.artworkFadeInDuration
+                  : Duration.zero,
               curve: Curves.easeIn,
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
-                child: _buildCroppedWidget(file: snapshot.data!, crop: crop, fillWidth: true),
+                borderRadius: BorderRadius.circular(cornerRadius),
+                child: _buildCroppedWidget(
+                  file: snapshot.data!,
+                  crop: crop,
+                  fillWidth: true,
+                  revealViewportHeight: revealViewportHeight,
+                ),
               ),
             );
           }
@@ -187,7 +333,12 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
   }
 
   /// Build fadeout artwork layer (right-side 50% with gradient fade).
-  Widget buildFadeoutArtwork(BuildContext context, BoxConstraints constraints) {
+  Widget buildFadeoutArtwork(
+    BuildContext context,
+    BoxConstraints constraints, {
+    double cornerRadius = UIConstants.smallBorderRadius,
+    double? revealViewportHeight,
+  }) {
     final crop = ArtworkManager.getCropPercentages(artworkUrl);
     final cardWidth = constraints.maxWidth;
     final artworkWidth = cardWidth * UIConstants.artworkFadeoutWidthPercent;
@@ -203,9 +354,9 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
         bottom: 0,
         width: artworkWidth,
         child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            topRight: Radius.circular(UIConstants.smallBorderRadius),
-            bottomRight: Radius.circular(UIConstants.smallBorderRadius),
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(cornerRadius),
+            bottomRight: Radius.circular(cornerRadius),
           ),
           child: ShaderMask(
             shaderCallback: (bounds) {
@@ -217,7 +368,11 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
               ).createShader(bounds);
             },
             blendMode: BlendMode.dstIn,
-            child: _buildCroppedWidget(crop: crop, fillWidth: false),
+            child: _buildCroppedWidget(
+              crop: crop,
+              fillWidth: false,
+              revealViewportHeight: revealViewportHeight,
+            ),
           ),
         ),
       );
@@ -234,7 +389,9 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
           if (snapshot.hasData && snapshot.data != null) {
             // Same animation logic as full view
             final elapsed = DateTime.now().difference(createdAt).inMilliseconds;
-            final shouldAnimate = elapsed > UIConstants.artworkAnimationThreshold && !artworkAnimated;
+            final shouldAnimate =
+                elapsed > UIConstants.artworkAnimationThreshold &&
+                    !artworkAnimated;
 
             if (shouldAnimate) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -248,12 +405,14 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
 
             return AnimatedOpacity(
               opacity: 1.0,
-              duration: shouldAnimate ? UIConstants.artworkFadeInDuration : Duration.zero,
+              duration: shouldAnimate
+                  ? UIConstants.artworkFadeInDuration
+                  : Duration.zero,
               curve: Curves.easeIn,
               child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(UIConstants.smallBorderRadius),
-                  bottomRight: Radius.circular(UIConstants.smallBorderRadius),
+                borderRadius: BorderRadius.only(
+                  topRight: Radius.circular(cornerRadius),
+                  bottomRight: Radius.circular(cornerRadius),
                 ),
                 child: ShaderMask(
                   shaderCallback: (bounds) {
@@ -265,7 +424,12 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
                     ).createShader(bounds);
                   },
                   blendMode: BlendMode.dstIn,
-                  child: _buildCroppedWidget(file: snapshot.data!, crop: crop, fillWidth: false),
+                  child: _buildCroppedWidget(
+                    file: snapshot.data!,
+                    crop: crop,
+                    fillWidth: false,
+                    revealViewportHeight: revealViewportHeight,
+                  ),
                 ),
               ),
             );

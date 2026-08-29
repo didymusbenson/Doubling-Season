@@ -2,7 +2,7 @@
 
 **Status:** Deferred follow-up — do not include in the first inline-token-details implementation
 
-**Depends on:** `inline_token_details.md`
+**Depends on:** `../in_progress_features/inline_token_details.md`
 
 **Last updated:** 2026-08-28
 

@@ -3,13 +3,12 @@
 **Status:** Proposed — full feature specification  
 **Priority:** Expected to rank above the existing backlog; compare with the
 second forthcoming feature before selecting implementation order.  
-**Last updated:** 2026-08-27
+**Last updated:** 2026-08-29
 
 ## Objective
 
-Show the creator credit for the artwork selected on a token. The immediate
-requirement is a subtitle beneath the artwork preview in the detailed token
-view, for example:
+Show the creator credit for token artwork in the **Select Token Artwork** sheet.
+The credit appears directly beneath the corresponding set code, for example:
 
 > [Mana artist-nib icon] Steve Prescott
 
@@ -87,8 +86,9 @@ An `Item` stores:
 - `artworkOptions`
 
 The selected credit can be resolved by matching `artworkUrl` to the variant in
-`artworkOptions`. `ExpandedTokenScreen` already restores missing options from
-the token database for legacy items when it can match their token identity.
+`artworkOptions`. The inline token artwork-selection flow already restores
+missing options from the token database for legacy items when it can match
+their token identity.
 
 User uploads are distinguishable without metadata because their URLs begin with
 `file://`. Those always resolve to `custom`.
@@ -194,36 +194,42 @@ Never infer custom status from set code alone; `file://` is the canonical custom
 upload signal. New custom-token creation paths should nevertheless construct
 their temporary variants with `artist: 'custom'` for consistency.
 
-## Detailed Token UI
+## Artwork Selection UI
 
-The requested MVP surface is
-`ExpandedTokenScreen._buildArtworkSelectionBox()`.
+The authoritative MVP surface is the shared **Select Token Artwork** sheet in
+`ArtworkSelectionSheet`. Inline token details do not have enough persistent
+space for legible attribution, so credit does not appear on the expanded or
+compact board card.
 
 Current layout:
 
 ```text
-Artwork
-[ cropped artwork preview ]
+[ artwork preview ]
+2X2
 ```
 
 New layout:
 
 ```text
-Artwork
-[ cropped artwork preview ]
+[ artwork preview ]
+2X2
 [Mana artist-nib icon] Steve Prescott
 ```
 
 Requirements:
 
-- Credit sits directly below the selected artwork preview as its subtitle.
+- Credit sits directly beneath the set code for each artwork option.
+- The currently-selected artwork summary also shows the credit beneath its set
+  code when that summary is present.
 - Use the exact resolved string without changing capitalization or adding “by”.
 - Use a subdued body-small/label style but maintain accessible contrast.
 - Long names and handles wrap to a second line rather than ellipsizing away the
   identity.
-- No caption is shown when no artwork is selected.
-- Changing artwork updates the credit in the same rebuild.
-- Removing artwork removes the credit.
+- Upload/download action tiles without a concrete artwork variant show no
+  credit.
+- Changing artwork updates the currently-selected summary credit in the same
+  rebuild.
+- Removing artwork removes the currently-selected summary credit.
 - Missing cached files continue using the current cleanup behavior.
 
 Create a small reusable widget such as `ArtworkCreditCaption` so the artist nib,
@@ -237,27 +243,22 @@ its pinned mapping and license registration.
 
 ## Artwork Surface Scope
 
-Credit appears only beneath the selected-artwork preview control on detail
-screens:
-
-1. **Expanded token detail** — required.
-2. **Expanded utility detail** — required for utilities with artwork.
-
-These are the screens where the selected artwork is already represented by a
-dedicated preview icon/thumbnail. Both surfaces use the same resolver and
-`ArtworkCreditCaption` widget.
+Credit appears only in the shared artwork-selection sheet, directly beneath a
+variant's set code. This includes token and utility flows wherever they use the
+same sheet and variant model. The shared resolver and `ArtworkCreditCaption`
+keep option tiles and the currently-selected summary consistent.
 
 The following are explicitly out of scope:
 
 - compact token, tracker, and toggle cards on the board;
-- artwork-selection sheet rows, tiles, and confirmation dialogs;
+- compact and expanded token-detail surfaces outside the artwork sheet;
 - deck rows and deck-list previews;
 - Brudiclad definition rows;
 - search results and creation previews;
 - any other card or background-art presentation.
 
 Those surfaces remain visually unchanged. The credit is discoverable by
-opening the corresponding detail view.
+opening **Select Token Artwork**.
 
 ## Custom and Collaboration Artwork
 
@@ -403,7 +404,8 @@ schema changes, though examples should include artist when edited in the future.
 5. Populate all hardcoded utility variants and Rhys migration variants.
 6. Manually resolve Poison Counters and Experience Counters.
 7. Regenerate and validate `token_database.json` plus manifest.
-8. Add the caption beneath the artwork previews in token and utility detail.
+8. Add the caption beneath set codes in the shared artwork-selection sheet,
+   including its currently-selected summary.
 9. Verify old Hive data, old deck JSON, custom tokens, and custom uploads.
 
 ## Files Expected to Change
@@ -420,9 +422,8 @@ schema changes, though examples should include artist when edited in the future.
 | `lib/providers/tracker_provider.dart` | preserve artist in Rhys migration options |
 | `lib/utils/artwork_credit_resolver.dart` | **new** centralized resolution |
 | `lib/widgets/artwork_credit_caption.dart` | **new** shared caption UI |
-| `lib/screens/expanded_token_screen.dart` | detail-preview caption |
+| `lib/widgets/artwork_selection_sheet.dart` | captions beneath variant set codes and selected summary |
 | `lib/widgets/new_token_sheet.dart` | label staged custom variants `custom` |
-| `lib/screens/expanded_widget_screen.dart` | utility detail-preview caption |
 | `lib/providers/deck_provider.dart` | no structural change expected; verify JSON round trip |
 
 ## Open Decisions
@@ -455,15 +456,18 @@ schema changes, though examples should include artist when edited in the future.
 - [ ] Old schema deck JSON imports successfully with unresolved credits handled.
 - [ ] Custom token definitions stored in the Hive custom-token box round-trip.
 
-### Detailed token view
+### Artwork-selection sheet
 
-- [ ] Selected database artwork shows the Mana artist nib and artist name below its preview.
-- [ ] Switching variants immediately switches the artist.
+- [ ] Every concrete database artwork option shows the Mana artist nib and
+      artist name directly beneath its set code.
+- [ ] The currently-selected summary shows the same credit beneath its set
+      code.
+- [ ] Switching variants immediately switches the selected-summary artist.
 - [ ] Long artist names and joint credits wrap without clipping.
-- [ ] Removing artwork removes the caption.
-- [ ] No artwork selected shows no caption.
+- [ ] Removing artwork removes the selected-summary caption.
+- [ ] Upload/download action tiles show no artist caption.
 - [ ] Missing artist displays the chosen visible fallback.
-- [ ] Web and native detail views render the same credit.
+- [ ] Web and native artwork sheets render the same credit.
 
 ### Custom artwork
 
@@ -474,15 +478,17 @@ schema changes, though examples should include artist when edited in the future.
 
 ### Utilities
 
-- [ ] Expanded utility detail shows the selected variant's artist.
-- [ ] All hardcoded utility artwork choices update credit when switched.
+- [ ] Utility artwork variants show their artist beneath the set code in the
+      shared artwork-selection sheet.
+- [ ] All hardcoded utility artwork choices update the selected-summary credit
+      when switched.
 - [ ] Rhys migration retains 2XM/TLE credit metadata.
 - [ ] Compact utility cards remain visually unchanged.
 
 ### Non-regression
 
 - [ ] Artwork cache/download/crop behavior remains unchanged.
-- [ ] Artwork-selection sheets, token cards, deck rows, search/creation previews,
+- [ ] Token cards, expanded inline details, deck rows, search/creation previews,
       and the Brudiclad picker remain visually unchanged.
 - [ ] Artist is not added to token composite identity or merge compatibility.
 - [ ] User-uploaded files collect no new personal metadata.

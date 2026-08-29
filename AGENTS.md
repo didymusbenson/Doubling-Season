@@ -211,14 +211,24 @@ After adding fields: run `build_runner build --delete-conflicting-outputs`, test
 
 **ContentScreen** (`lib/screens/content_screen.dart`) — Main game board
 - `ValueListenableBuilder` on Hive box for reactive token list
+- Owns the single expanded-board-item key and guards collapse through `ExpandableCardController`
+- Expanded/editing tokens and utilities disable swipe deletion and reordering
 - FloatingActionMenu: new token, +1/+1 Everything, untap all, clear sickness, save/load deck, board wipe
 
-**TokenCard** (`lib/widgets/token_card.dart`) — Compact token display
+**TokenCard** (`lib/widgets/token_card.dart`) — Compact and inline-expanded token display
 - Color identity border gradient, counter pills, artwork display, animated P/T
+- Inline editing uses `TokenEditSession`; status, colors, counters, and artwork use focused sheets
+- Failed saves veto collapse and retain the active editor
 - **Canonical reference for all board items** (see Utility Development Pattern)
 
-**ExpandedTokenScreen** (`lib/screens/expanded_token_screen.dart`) — Token editor
-- Editable name/P/T/abilities, color selection, artwork selection, counter management, stack splitting
+**TrackerWidgetCard / ToggleWidgetCard** — Compact and inline-expanded utilities
+- Utility names and applicable description/state fields edit inline
+- Color identity and artwork controls appear within the expanded board card
+- Use the shared `ExpandableCardController`; do not restore a separate utility detail route
+
+**Board detail navigation**
+- Token and utility details expand inside `ContentScreen`; there are no separate detail screens
+- At most one board item is expanded, and tapping another collapses the first without expanding the second
 
 **TokenSearchScreen** (`lib/screens/token_search_screen.dart`) — Database search
 - Three tabs: All / Recent / Favorites, live search, category filtering, artwork precaching
@@ -309,8 +319,13 @@ When implementing features for any utility type (TrackerWidget, ToggleWidget, fu
 1. Check `lib/widgets/token_card.dart` first — copy existing patterns rather than reimplementing
 2. For artwork: follow `docs/activeDevelopment/patterns/artwork_display.md`
 3. Layer order in Stack: base background → artwork → content (always)
+4. Board surfaces are shared across item types: full-width square rows, no
+   exterior vertical gap, and a 7 px full-height left color-identity rail.
+   Preserve normal card padding after the rail rather than allowing the rail to
+   consume the content inset.
 
 ### UI Conventions
+- Token detail editing is inline; do not reintroduce a full-screen token-detail route
 - `Navigator.of(context).push()` for full-screen navigation
 - `showDialog()` for alerts/confirmations
 - `showModalBottomSheet()` for secondary sheets (deck loading, split stack)

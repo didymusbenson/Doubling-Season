@@ -1,21 +1,30 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:collection/collection.dart';
+import '../controllers/token_edit_session.dart';
+import '../controllers/expandable_card_controller.dart';
 import '../models/item.dart';
+import '../models/token_definition.dart';
 import '../providers/settings_provider.dart';
 import '../providers/toggle_provider.dart';
 import '../providers/tracker_provider.dart';
 import '../providers/token_provider.dart';
 import '../providers/rules_provider.dart';
-import '../screens/expanded_token_screen.dart';
+import '../screens/counter_search_screen.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
 import '../utils/color_utils.dart';
 import 'common/background_text.dart';
 import 'counter_pill.dart';
+import 'inline_token_edit_field.dart';
+import 'inline_color_identity_bar.dart';
+import 'artwork_selection_sheet.dart';
 import 'split_stack_sheet.dart';
+import 'token_counter_management_sheet.dart';
+import 'token_status_sheet.dart';
 // Unused import was causing build warnings
 // import 'cropped_artwork_widget.dart';
 import 'mixins/artwork_display_mixin.dart';
@@ -108,17 +117,42 @@ class _AnimatedPowerToughnessState extends State<_AnimatedPowerToughness>
 
 class TokenCard extends StatefulWidget {
   final Item item;
+  final bool isExpanded;
+  final VoidCallback onExpand;
+  final VoidCallback onCollapse;
+  final ValueChanged<bool> onEditingChanged;
+  final ExpandableCardController? controller;
 
-  const TokenCard({super.key, required this.item});
+  const TokenCard({
+    super.key,
+    required this.item,
+    required this.isExpanded,
+    required this.onExpand,
+    required this.onCollapse,
+    required this.onEditingChanged,
+    this.controller,
+  });
 
   @override
   State<TokenCard> createState() => _TokenCardState();
 }
 
 class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
+  static const double _identityRailWidth = 7;
   final DateTime _createdAt = DateTime.now();
   bool _artworkAnimated = false;
   bool _artworkCleanupAttempted = false;
+  TokenEditSession? _editSession;
+  bool _reportedEditing = false;
+  double? _artworkRevealHeight;
+  bool _showExpandedArtwork = false;
+  Timer? _artworkTransitionTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller?.attach(_requestCollapse);
+  }
 
   // Implement ArtworkDisplayMixin interface
   @override
@@ -148,10 +182,63 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
   @override
   void didUpdateWidget(TokenCard oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?.detach(_requestCollapse);
+      widget.controller?.attach(_requestCollapse);
+    }
+    if (!oldWidget.isExpanded && widget.isExpanded) {
+      final renderBox = context.findRenderObject();
+      if (renderBox is RenderBox && renderBox.hasSize) {
+        _artworkRevealHeight = renderBox.size.height;
+      }
+      _showExpandedArtwork = false;
+      _artworkTransitionTimer?.cancel();
+      _artworkTransitionTimer = Timer(const Duration(milliseconds: 380), () {
+        if (mounted && widget.isExpanded) {
+          setState(() => _showExpandedArtwork = true);
+        }
+      });
+    }
     // Reset cleanup flag if artwork URL changed (e.g., user removed then re-added artwork)
     if (oldWidget.item.artworkUrl != widget.item.artworkUrl) {
       _artworkCleanupAttempted = false;
     }
+    if (oldWidget.isExpanded && !widget.isExpanded) {
+      _artworkTransitionTimer?.cancel();
+      _showExpandedArtwork = false;
+      _artworkTransitionTimer = Timer(const Duration(milliseconds: 240), () {
+        if (mounted && !widget.isExpanded) {
+          setState(() => _artworkRevealHeight = null);
+        }
+      });
+      _editSession?.commitActive();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _editSession ??= TokenEditSession(
+      item: widget.item,
+      tokenProvider: context.read<TokenProvider>(),
+    )..addListener(_handleEditSessionChanged);
+  }
+
+  void _handleEditSessionChanged() {
+    final editing = _editSession?.isEditing ?? false;
+    if (_reportedEditing == editing) return;
+    _reportedEditing = editing;
+    widget.onEditingChanged(editing);
+  }
+
+  @override
+  void dispose() {
+    _artworkTransitionTimer?.cancel();
+    widget.controller?.detach(_requestCollapse);
+    _editSession
+      ?..removeListener(_handleEditSessionChanged)
+      ..dispose();
+    super.dispose();
   }
 
   @override
@@ -164,235 +251,792 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
       builder: (context, settingsData, child) {
         final summoningSicknessEnabled = settingsData.$1;
         final artworkDisplayStyle = settingsData.$2;
-        return GestureDetector(
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => ExpandedTokenScreen(item: widget.item),
-              ),
-            );
-          },
-          child: Opacity(
-            opacity: widget.item.amount == 0 ? 0.5 : 1.0,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return Stack(
-                  children: [
-                    // Base card background layer (ensures left side is solid in fadeout mode)
-                    // Uses borderRadius - borderWidth to fit inside the gradient border
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor,
-                        borderRadius: BorderRadius.circular(
-                            UIConstants.borderRadius - 3.0),
-                      ),
-                    ),
+        return Semantics(
+          button: true,
+          expanded: widget.isExpanded,
+          label: widget.isExpanded
+              ? 'Expanded token details for ${widget.item.name}'
+              : 'Token ${widget.item.name}',
+          hint: widget.isExpanded
+              ? 'Double tap blank space to collapse'
+              : 'Double tap to expand details',
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.isExpanded ? _collapseAfterCommit : widget.onExpand,
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 380),
+              reverseDuration: const Duration(milliseconds: 240),
+              curve: const Cubic(0.18, 0.89, 0.32, 1.08),
+              alignment: Alignment.topCenter,
+              child: Opacity(
+                opacity: widget.item.amount == 0 ? 0.5 : 1.0,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        // Base card background layer (ensures left side is solid in fadeout mode)
+                        // Uses borderRadius - borderWidth to fit inside the gradient border
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                          ),
+                        ),
 
-                    // Gradient background layer (Custom Artwork Feature)
-                    // Shows immediately as placeholder while artwork loads, or permanently for artless tokens
-                    if (widget.item.artworkUrl == null ||
-                        widget.item.artworkUrl!.isEmpty)
-                      _buildGradientLayer(context)
-                    else
-                      // Show gradient while artwork is loading
-                      _buildConditionalGradient(context),
+                        // Gradient background layer (Custom Artwork Feature)
+                        // Shows immediately as placeholder while artwork loads, or permanently for artless tokens
+                        if (widget.item.artworkUrl == null ||
+                            widget.item.artworkUrl!.isEmpty ||
+                            widget.isExpanded)
+                          _buildGradientLayer(context)
+                        else
+                          // Show gradient while artwork is loading
+                          _buildConditionalGradient(context),
 
-                    // Artwork layer (appears on top of gradient when file is available)
-                    if (widget.item.artworkUrl != null)
-                      buildArtworkLayer(
-                        context: context,
-                        constraints: constraints,
-                        artworkDisplayStyle: artworkDisplayStyle,
-                      ),
-
-                    // Content layer (all existing UI elements)
-                    Container(
-                      color: Colors.transparent,
-                      padding: const EdgeInsets.all(UIConstants.cardPadding),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Top row - name, summoning sickness, tapped/untapped
-                          Row(
-                            children: [
-                              if (!widget.item.isEmblem)
-                                // Name with truncation to prevent overflow, background shrink-wraps
-                                Expanded(
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: BackgroundText(
-                                      child: Text(
-                                        widget.item.name,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 1,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              if (widget.item.isEmblem)
-                                // Emblems need to center, so use Expanded
-                                Expanded(
-                                  child: BackgroundText(
-                                    child: Text(
-                                      widget.item.name,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                              if (!widget.item.isEmblem)
-                                const SizedBox(
-                                    width: UIConstants.mediumSpacing),
-                              if (!widget.item.isEmblem)
-                                // Unified background for entire tapped/untapped section
-                                BackgroundText(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (widget.item.summoningSick > 0 &&
-                                          summoningSicknessEnabled) ...[
-                                        const Icon(ManaIcons.summoningSickness,
-                                            size: UIConstants.iconSize),
-                                        const SizedBox(
-                                            width: UIConstants.verticalSpacing),
-                                        Text(
-                                          '${widget.item.summoningSick}',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleLarge
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                        ),
-                                        const SizedBox(
-                                            width: UIConstants.mediumSpacing),
-                                      ],
-                                      const Icon(Icons.mobile_friendly,
-                                          size: UIConstants.iconSize),
-                                      const SizedBox(
-                                          width: UIConstants.verticalSpacing),
-                                      Text(
-                                        '${widget.item.amount - widget.item.tapped}',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                      ),
-                                      const SizedBox(
-                                          width: UIConstants.mediumSpacing),
-                                      const Icon(ManaIcons.tap,
-                                          size: UIConstants.iconSize),
-                                      const SizedBox(
-                                          width: UIConstants.verticalSpacing),
-                                      Text(
-                                        '${widget.item.tapped}',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                            ],
+                        // Artwork layer (appears on top of gradient when file is available)
+                        if (widget.item.artworkUrl != null)
+                          buildArtworkLayer(
+                            context: context,
+                            constraints: constraints,
+                            artworkDisplayStyle: artworkDisplayStyle,
+                            cornerRadius: 0,
+                            revealViewportHeight: _artworkRevealHeight,
                           ),
 
-                          // Counter pills
-                          if (widget.item.counters.isNotEmpty ||
-                              widget.item.plusOneCounters > 0 ||
-                              widget.item.minusOneCounters > 0 ||
-                              widget.item.plusOnePowerCounters > 0 ||
-                              widget.item.plusOneToughnessCounters > 0) ...[
-                            const SizedBox(height: UIConstants.mediumSpacing),
-                            Wrap(
-                              spacing: UIConstants.verticalSpacing,
-                              runSpacing: UIConstants.verticalSpacing,
-                              children: [
-                                ...widget.item.counters.map(
-                                  (c) => CounterPillView(
-                                      name: c.name, amount: c.amount),
-                                ),
-                                if (widget.item.plusOneCounters > 0)
-                                  CounterPillView(
-                                    name: '+1/+1',
-                                    amount: widget.item.plusOneCounters,
-                                  ),
-                                if (widget.item.minusOneCounters > 0)
-                                  CounterPillView(
-                                    name: '-1/-1',
-                                    amount: widget.item.minusOneCounters,
-                                  ),
-                                if (widget.item.plusOnePowerCounters > 0)
-                                  CounterPillView(
-                                    name: '+1/+0',
-                                    amount: widget.item.plusOnePowerCounters,
-                                  ),
-                                if (widget.item.plusOneToughnessCounters > 0)
-                                  CounterPillView(
-                                    name: '+0/+1',
-                                    amount:
-                                        widget.item.plusOneToughnessCounters,
-                                  ),
+                        // Expansion is additive: retain the compact artwork
+                        // surface (and its decoded image) underneath until
+                        // the expanded source has decoded and faded in.
+                        if (_showExpandedArtwork &&
+                            widget.item.artworkUrl != null)
+                          buildExpandedArtwork(
+                            context,
+                            constraints,
+                            cornerRadius: 0,
+                          ),
+
+                        // Content layer (all existing UI elements)
+                        Container(
+                          color: Colors.transparent,
+                          padding: const EdgeInsets.fromLTRB(
+                            UIConstants.cardPadding + _identityRailWidth,
+                            UIConstants.cardPadding,
+                            UIConstants.cardPadding,
+                            UIConstants.cardPadding,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildTopRow(context, summoningSicknessEnabled),
+
+                              // Counter pills
+                              if (widget.isExpanded ||
+                                  widget.item.counters.isNotEmpty ||
+                                  widget.item.plusOneCounters > 0 ||
+                                  widget.item.minusOneCounters > 0 ||
+                                  widget.item.plusOnePowerCounters > 0 ||
+                                  widget.item.plusOneToughnessCounters > 0) ...[
+                                const SizedBox(
+                                    height: UIConstants.mediumSpacing),
+                                _buildCounterRegion(context),
                               ],
+
+                              // Type, Abilities, and P/T - combined section (condensed layout)
+                              if (widget.isExpanded ||
+                                  (widget.item.type.isNotEmpty &&
+                                      !widget.item.isEmblem) ||
+                                  widget.item.abilities.isNotEmpty ||
+                                  (!widget.item.isEmblem &&
+                                      widget.item.pt.isNotEmpty)) ...[
+                                const SizedBox(
+                                    height: UIConstants.mediumSpacing),
+                                Padding(
+                                  padding:
+                                      EdgeInsets.only(right: kIsWeb ? 40 : 0),
+                                  // Use Column layout if formatted P/T is too long (>= 8 chars like "1000/1000")
+                                  child: widget.isExpanded
+                                      ? _buildExpandedDetails(
+                                          context, widget.item)
+                                      : (!widget.item.isEmblem &&
+                                              widget.item.pt.isNotEmpty &&
+                                              widget
+                                                      .item
+                                                      .formattedPowerToughness
+                                                      .length >=
+                                                  8)
+                                          ? _buildStackedTypeAbilitiesAndPT(
+                                              context, widget.item)
+                                          : _buildInlineTypeAbilitiesAndPT(
+                                              context, widget.item),
+                                ),
+                              ],
+
+                              const SizedBox(height: UIConstants.mediumSpacing),
+
+                              // Button Row (centered)
+                              _buildActionButtons(
+                                  context, context.read<SettingsProvider>()),
+                            ],
+                          ),
+                        ), // Close Container (content layer)
+
+                        // A quiet, persistent identity marker replaces the
+                        // former full perimeter border. Keep it above art
+                        // and content surfaces so its color is never lost.
+                        Positioned(
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: _identityRailWidth,
+                          child: IgnorePointer(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: ColorUtils.gradientForColors(
+                                  widget.item.colors,
+                                  isEmblem: widget.item.isEmblem,
+                                ),
+                              ),
                             ),
-                          ],
-
-                          // Type, Abilities, and P/T - combined section (condensed layout)
-                          if ((widget.item.type.isNotEmpty &&
-                                  !widget.item.isEmblem) ||
-                              widget.item.abilities.isNotEmpty ||
-                              (!widget.item.isEmblem &&
-                                  widget.item.pt.isNotEmpty)) ...[
-                            const SizedBox(height: UIConstants.mediumSpacing),
-                            Padding(
-                              padding: EdgeInsets.only(right: kIsWeb ? 40 : 0),
-                              // Use Column layout if formatted P/T is too long (>= 8 chars like "1000/1000")
-                              child: (!widget.item.isEmblem &&
-                                      widget.item.pt.isNotEmpty &&
-                                      widget.item.formattedPowerToughness
-                                              .length >=
-                                          8)
-                                  ? _buildStackedTypeAbilitiesAndPT(
-                                      context, widget.item)
-                                  : _buildInlineTypeAbilitiesAndPT(
-                                      context, widget.item),
-                            ),
-                          ],
-
-                          const SizedBox(height: UIConstants.mediumSpacing),
-
-                          // Button Row (centered)
-                          _buildActionButtons(
-                              context, context.read<SettingsProvider>()),
-                        ],
-                      ),
-                    ), // Close Container (content layer)
-                  ], // Close Stack children
-                ); // Close Stack
-              }, // Close LayoutBuilder builder
-            ), // Close LayoutBuilder
-          ), // Close Opacity
-        ); // Close GestureDetector
+                          ),
+                        ),
+                      ], // Close Stack children
+                    ); // Close Stack
+                  }, // Close LayoutBuilder builder
+                ), // Close LayoutBuilder
+              ), // Close Opacity
+            ), // Close AnimatedSize
+          ), // Close GestureDetector
+        ); // Close Semantics
       }, // Close Selector builder
     ); // Close Selector
+  }
+
+  Future<void> _collapseAfterCommit() async {
+    final saved = widget.controller == null
+        ? await _requestCollapse()
+        : await widget.controller!.requestCollapse();
+    if (mounted && saved) widget.onCollapse();
+  }
+
+  Future<bool> _requestCollapse() async {
+    final saved = await _editSession?.commitActive() ?? true;
+    if (!saved && mounted) {
+      final message = _editSession?.lastCommitError?.toString() ??
+          'The edit could not be saved.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+    return saved;
+  }
+
+  Widget _buildTopRow(BuildContext context, bool summoningSicknessEnabled) {
+    final nameStyle = Theme.of(context).textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.bold,
+        );
+    final renderedName = BackgroundText(
+      child: Text(
+        widget.item.name,
+        style: nameStyle,
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
+        textAlign: widget.item.isEmblem ? TextAlign.center : TextAlign.left,
+      ),
+    );
+
+    final name = Expanded(
+      child: Align(
+        alignment:
+            widget.item.isEmblem ? Alignment.center : Alignment.centerLeft,
+        child: widget.isExpanded
+            ? InlineTokenEditField(
+                session: _editSession!,
+                field: TokenEditableField.name,
+                semanticLabel: 'Token name: ${widget.item.name}',
+                editorStyle: nameStyle,
+                editorDecoration: const InputDecoration(
+                  isDense: true,
+                  filled: true,
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  border: OutlineInputBorder(),
+                ),
+                readOnlyChild: renderedName,
+              )
+            : renderedName,
+      ),
+    );
+    final status = _buildStatusSummary(context, summoningSicknessEnabled);
+    return Row(
+      children: [
+        name,
+        if (!widget.item.isEmblem || widget.isExpanded) ...[
+          const SizedBox(width: UIConstants.verticalSpacing),
+          status,
+        ],
+      ],
+    );
+  }
+
+  Widget _buildStatusSummary(
+      BuildContext context, bool summoningSicknessEnabled) {
+    final style = Theme.of(context).textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.bold,
+        );
+    return Semantics(
+      button: widget.isExpanded,
+      label: widget.item.isEmblem
+          ? 'Token status. ${widget.item.amount} total'
+          : 'Token status. ${widget.item.amount} total, '
+              '${widget.item.amount - widget.item.tapped} ready, '
+              '${widget.item.tapped} tapped',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.isExpanded ? _showStatusSheet : null,
+        child: BackgroundText(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          child: widget.item.isEmblem
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.layers, size: UIConstants.iconSize),
+                    const SizedBox(width: UIConstants.verticalSpacing),
+                    Text('${widget.item.amount}', style: style),
+                  ],
+                )
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (widget.item.summoningSick > 0 &&
+                        summoningSicknessEnabled) ...[
+                      const Icon(ManaIcons.summoningSickness,
+                          size: UIConstants.iconSize),
+                      const SizedBox(width: UIConstants.verticalSpacing),
+                      Text('${widget.item.summoningSick}', style: style),
+                      const SizedBox(width: UIConstants.mediumSpacing),
+                    ],
+                    const Icon(Icons.mobile_friendly,
+                        size: UIConstants.iconSize),
+                    const SizedBox(width: UIConstants.verticalSpacing),
+                    Text('${widget.item.amount - widget.item.tapped}',
+                        style: style),
+                    const SizedBox(width: UIConstants.mediumSpacing),
+                    const Icon(ManaIcons.tap, size: UIConstants.iconSize),
+                    const SizedBox(width: UIConstants.verticalSpacing),
+                    Text('${widget.item.tapped}', style: style),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildColorIdentityButton(BuildContext context) {
+    return InlineColorIdentityBar(
+      colorIdentity: widget.item.colors,
+      onToggle: _toggleColorIdentity,
+    );
+  }
+
+  Future<void> _toggleColorIdentity(String symbol) async {
+    final saved = await _editSession?.commitActive() ?? true;
+    if (!saved || !mounted) return;
+
+    final selected = widget.item.colors.characters.toSet();
+    selected.contains(symbol) ? selected.remove(symbol) : selected.add(symbol);
+    widget.item.colors = 'WUBRG'.characters.where(selected.contains).join();
+    try {
+      await context.read<TokenProvider>().updateItem(widget.item);
+      if (mounted) setState(() {});
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Color identity could not be saved.')),
+      );
+    }
+  }
+
+  Widget _buildExpandedIndicatorSurface(
+    BuildContext context, {
+    required String tooltip,
+    required VoidCallback onTap,
+    required Widget child,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: InkResponse(
+        onTap: onTap,
+        radius: 22,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius:
+                    BorderRadius.circular(UIConstants.smallBorderRadius),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
+              child: child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildArtworkIndicator(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: widget.item.artworkUrl == null
+          ? 'Choose token artwork'
+          : 'Change token artwork',
+      child: _buildExpandedIndicatorSurface(
+        context,
+        tooltip: widget.item.artworkUrl == null
+            ? 'Choose artwork'
+            : 'Change artwork',
+        onTap: _showArtworkSelection,
+        child: const Icon(Icons.image_outlined, size: UIConstants.iconSize),
+      ),
+    );
+  }
+
+  Widget _buildCounterAddButton(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Add counter',
+      child: Tooltip(
+        message: 'Add counter',
+        child: IconButton.filledTonal(
+          onPressed: () => _showCounterManagement(context),
+          icon: const Icon(Icons.add),
+          visualDensity: VisualDensity.compact,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpandedCounterControls(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildColorIdentityButton(context),
+        const SizedBox(width: UIConstants.verticalSpacing),
+        _buildArtworkIndicator(context),
+      ],
+    );
+  }
+
+  Widget _buildExpandedCounterPills(
+    BuildContext context,
+    List<({String name, int amount})> entries,
+    double maxWidth,
+  ) {
+    final visible = _entriesForTwoRows(
+      entries,
+      maxWidth,
+      Directionality.of(context),
+      MediaQuery.textScalerOf(context),
+    );
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Wrap(
+          spacing: UIConstants.verticalSpacing,
+          runSpacing: UIConstants.verticalSpacing,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            for (final pill in visible)
+              Semantics(
+                button: true,
+                label: 'Manage token counter',
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _showCounterManagement(context),
+                  child: pill,
+                ),
+              ),
+            _buildCounterAddButton(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<({String name, int amount})> _counterEntries() => [
+        ...widget.item.counters
+            .map((counter) => (name: counter.name, amount: counter.amount)),
+        if (widget.item.plusOneCounters > 0)
+          (name: '+1/+1', amount: widget.item.plusOneCounters),
+        if (widget.item.minusOneCounters > 0)
+          (name: '-1/-1', amount: widget.item.minusOneCounters),
+        if (widget.item.plusOnePowerCounters > 0)
+          (name: '+1/+0', amount: widget.item.plusOnePowerCounters),
+        if (widget.item.plusOneToughnessCounters > 0)
+          (name: '+0/+1', amount: widget.item.plusOneToughnessCounters),
+      ];
+
+  Widget _buildCounterRegion(BuildContext context) {
+    final entries = _counterEntries();
+    if (!widget.isExpanded) {
+      return Wrap(
+        spacing: UIConstants.verticalSpacing,
+        runSpacing: UIConstants.verticalSpacing,
+        children: entries
+            .map((entry) =>
+                CounterPillView(name: entry.name, amount: entry.amount))
+            .toList(),
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) => _buildExpandedCounterPills(
+        context,
+        entries,
+        constraints.maxWidth,
+      ),
+    );
+  }
+
+  List<Widget> _entriesForTwoRows(
+    List<({String name, int amount})> entries,
+    double maxWidth,
+    TextDirection direction,
+    TextScaler textScaler,
+  ) {
+    final widths = entries
+        .map((entry) => _counterPillWidth(entry, direction, textScaler))
+        .toList();
+    if (_fitsInTwoRows(widths, maxWidth)) {
+      return entries
+          .map((entry) =>
+              CounterPillView(name: entry.name, amount: entry.amount))
+          .toList();
+    }
+
+    final overflowWidth = _counterOverflowWidth(direction, textScaler);
+    var prefixLength = entries.length;
+    while (prefixLength > 0 &&
+        !_fitsInTwoRows(
+            [...widths.take(prefixLength), overflowWidth], maxWidth)) {
+      prefixLength--;
+    }
+    return [
+      ...entries.take(prefixLength).map(
+          (entry) => CounterPillView(name: entry.name, amount: entry.amount)),
+      _buildCounterOverflowPill(),
+    ];
+  }
+
+  bool _fitsInTwoRows(List<double> widths, double maxWidth) {
+    var rows = 1;
+    var used = 0.0;
+    for (final width in widths) {
+      final required =
+          used == 0 ? width : used + UIConstants.verticalSpacing + width;
+      if (required <= maxWidth) {
+        used = required;
+      } else {
+        rows++;
+        used = width;
+        if (rows > 2 || width > maxWidth) return false;
+      }
+    }
+    return true;
+  }
+
+  double _counterPillWidth(
+    ({String name, int amount}) entry,
+    TextDirection direction,
+    TextScaler textScaler,
+  ) {
+    final namePainter = TextPainter(
+      text: TextSpan(
+        text: entry.name,
+        style: const TextStyle(
+          fontSize: UIConstants.counterPillFontSize,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      textDirection: direction,
+      textScaler: textScaler,
+    )..layout();
+    var width =
+        namePainter.width + UIConstants.counterPillHorizontalPadding * 2;
+    if (entry.amount > 1) {
+      final amountPainter = TextPainter(
+        text: TextSpan(
+          text: '${entry.amount}',
+          style: const TextStyle(
+            fontSize: UIConstants.counterPillAmountFontSize,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: direction,
+        textScaler: textScaler,
+      )..layout();
+      width += UIConstants.counterPillSpacing + amountPainter.width;
+    }
+    return width;
+  }
+
+  double _counterOverflowWidth(TextDirection direction, TextScaler textScaler) {
+    final painter = TextPainter(
+      text: const TextSpan(
+        text: '…',
+        style: TextStyle(
+          fontSize: UIConstants.counterPillAmountFontSize,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      textDirection: direction,
+      textScaler: textScaler,
+    )..layout();
+    return painter.width + UIConstants.counterPillHorizontalPadding * 2;
+  }
+
+  Widget _buildCounterOverflowPill() => Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: UIConstants.counterPillHorizontalPadding,
+          vertical: UIConstants.counterPillVerticalPadding,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.orange.withValues(alpha: 0.85),
+          borderRadius:
+              BorderRadius.circular(UIConstants.counterPillBorderRadius),
+        ),
+        child: const Text(
+          '…',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: UIConstants.counterPillAmountFontSize,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+
+  Widget _buildExpandedDetails(BuildContext context, Item item) {
+    final typeStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+          fontStyle: FontStyle.italic,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.color
+              ?.withValues(alpha: 0.7),
+        );
+    final abilityStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
+          fontWeight: FontWeight.bold,
+        );
+    return LayoutBuilder(
+      builder: (context, constraints) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InlineTokenEditField(
+            session: _editSession!,
+            field: TokenEditableField.type,
+            semanticLabel: item.type.isEmpty
+                ? 'Empty token type'
+                : 'Token type: ${item.type}',
+            editorStyle: typeStyle,
+            editorConstraints: BoxConstraints(
+              minWidth: constraints.maxWidth * 0.4,
+              maxWidth: constraints.maxWidth * 0.72,
+            ),
+            editorDecoration: const InputDecoration(
+              isDense: true,
+              filled: true,
+              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              border: OutlineInputBorder(),
+            ),
+            readOnlyChild: BackgroundText(
+              child: Text(
+                item.type.isEmpty ? 'Type' : item.type,
+                style: typeStyle,
+              ),
+            ),
+          ),
+          const SizedBox(height: UIConstants.verticalSpacing),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: constraints.maxWidth * 0.82,
+              maxHeight: 112,
+            ),
+            child: InlineTokenEditField(
+              session: _editSession!,
+              field: TokenEditableField.abilities,
+              semanticLabel: item.abilities.isEmpty
+                  ? 'Empty abilities field'
+                  : 'Token abilities',
+              maxLines: null,
+              textCapitalization: TextCapitalization.sentences,
+              editorStyle: abilityStyle,
+              editorConstraints: BoxConstraints(
+                minWidth: constraints.maxWidth * 0.5,
+                maxWidth: constraints.maxWidth * 0.82,
+                maxHeight: 112,
+              ),
+              editorDecoration: const InputDecoration(
+                isDense: true,
+                filled: true,
+                alignLabelWithHint: true,
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                border: OutlineInputBorder(),
+              ),
+              readOnlyChild: BackgroundText(
+                child: SingleChildScrollView(
+                  child: item.abilities.isEmpty
+                      ? Text(
+                          'Abilities',
+                          style: abilityStyle?.copyWith(
+                            fontStyle: FontStyle.italic,
+                            color: abilityStyle.color?.withValues(alpha: 0.55),
+                          ),
+                        )
+                      : ManaText(item.abilities, style: abilityStyle),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: UIConstants.verticalSpacing),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _buildExpandedCounterControls(context),
+              const Spacer(),
+              if (!item.isEmblem)
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 120),
+                  child: InlineTokenEditField(
+                    session: _editSession!,
+                    field: TokenEditableField.powerToughness,
+                    semanticLabel: item.pt.isEmpty
+                        ? 'Empty base power and toughness'
+                        : 'Base power and toughness: ${item.pt}',
+                    textAlign: TextAlign.right,
+                    editorConstraints:
+                        const BoxConstraints(minWidth: 76, maxWidth: 120),
+                    editorStyle: Theme.of(context)
+                        .textTheme
+                        .headlineMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                    editorDecoration: const InputDecoration(
+                      isDense: true,
+                      filled: true,
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                      border: OutlineInputBorder(),
+                    ),
+                    readOnlyChild: item.pt.isEmpty
+                        ? BackgroundText(
+                            child: Text(
+                              'P/T',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    fontStyle: FontStyle.italic,
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.color
+                                        ?.withValues(alpha: 0.55),
+                                  ),
+                            ),
+                          )
+                        : _buildPTWidget(context),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showCounterManagement(BuildContext context) async {
+    final saved = await _editSession?.commitActive() ?? true;
+    if (!saved || !context.mounted) return;
+    final result = await TokenCounterManagementSheet.show(context, widget.item);
+    if (result == CounterSheetResult.addCounter && context.mounted) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => CounterSearchScreen(item: widget.item),
+          fullscreenDialog: true,
+        ),
+      );
+    }
+  }
+
+  Future<void> _showArtworkSelection() async {
+    final saved = await _editSession?.commitActive() ?? true;
+    if (!saved || !mounted) return;
+    var artwork = widget.item.artworkOptions ?? const <ArtworkVariant>[];
+    var databaseLoadError = false;
+    if (artwork.isEmpty) {
+      final database = TokenDatabase();
+      try {
+        await database.loadTokens();
+        final definition = database.allTokens.firstWhereOrNull(
+          (token) =>
+              token.name == widget.item.name &&
+              token.pt == widget.item.pt &&
+              token.type == widget.item.type &&
+              token.abilities == widget.item.abilities,
+        );
+        artwork = definition?.artwork ?? const <ArtworkVariant>[];
+      } catch (_) {
+        databaseLoadError = true;
+      } finally {
+        database.dispose();
+      }
+    }
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => ConstrainedBox(
+        constraints:
+            BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.85),
+        child: ArtworkSelectionSheet(
+          artworkVariants: artwork,
+          currentArtworkUrl: widget.item.artworkUrl,
+          currentArtworkSet: widget.item.artworkSet,
+          tokenName: widget.item.name,
+          tokenIdentity:
+              '${widget.item.name}|${widget.item.pt}|${widget.item.colors}|${widget.item.type}|${widget.item.abilities}',
+          databaseLoadError: databaseLoadError,
+          onArtworkSelected: (url, setCode) async {
+            if (!url.startsWith('file://')) {
+              await ArtworkManager.downloadArtwork(url);
+            }
+            widget.item.updateArtwork(
+                url: url, set: setCode, options: artwork.toList());
+            if (mounted) setState(() => _artworkCleanupAttempted = false);
+          },
+          onRemoveArtwork: widget.item.artworkUrl == null
+              ? null
+              : () {
+                  widget.item.updateArtwork(
+                      url: null, set: null, options: artwork.toList());
+                  if (mounted) setState(() {});
+                },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showStatusSheet() async {
+    final saved = await _editSession?.commitActive() ?? true;
+    if (saved && mounted) {
+      await TokenStatusSheet.show(context, widget.item);
+    }
   }
 
   Widget _buildActionButtons(BuildContext context, SettingsProvider settings) {
@@ -841,12 +1485,19 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
     // Always use solid background since tokens always have either artwork or gradient background
     final buttonBackgroundColor =
         Theme.of(context).cardColor.withValues(alpha: 0.85);
+    Future<void> runAfterCommit(VoidCallback? action) async {
+      if (action == null) return;
+      final saved = await _editSession?.commitActive() ?? true;
+      if (saved && mounted) action();
+    }
 
     return Padding(
       padding: EdgeInsets.only(right: spacing),
       child: GestureDetector(
-        onTap: disabled ? null : onTap,
-        onLongPress: disabled ? null : onLongPress,
+        onTap: disabled || onTap == null ? null : () => runAfterCommit(onTap),
+        onLongPress: disabled || onLongPress == null
+            ? null
+            : () => runAfterCommit(onLongPress),
         child: Container(
           padding: const EdgeInsets.all(UIConstants.actionButtonPadding),
           decoration: BoxDecoration(
@@ -885,7 +1536,6 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
       child: Container(
         decoration: BoxDecoration(
           gradient: gradient,
-          borderRadius: BorderRadius.circular(UIConstants.borderRadius - 3.0),
         ),
       ),
     );
@@ -904,8 +1554,6 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
             return Container(
               decoration: BoxDecoration(
                 gradient: gradient,
-                borderRadius:
-                    BorderRadius.circular(UIConstants.borderRadius - 3.0),
               ),
             );
           }

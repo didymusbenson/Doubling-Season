@@ -3,7 +3,8 @@ import '../database/counter_database.dart';
 import '../models/item.dart';
 import '../providers/token_provider.dart';
 import 'package:provider/provider.dart';
-import '../screens/expanded_token_screen.dart';
+
+const int kMaxCounterValue = 99999999;
 
 class CounterSearchScreen extends StatefulWidget {
   final Item item;
@@ -221,7 +222,6 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                controller.dispose();
                 Navigator.pop(context);
               },
               child: const Text('Cancel'),
@@ -229,19 +229,20 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
             TextButton(
               onPressed: () {
                 _addCounter(counterName, quantity, applyToAll: true);
-                controller.dispose();
-                if (context.mounted) Navigator.pop(context); // Close dialog
-                if (context.mounted) Navigator.pop(context); // Close counter search
+                if (context.mounted) {
+                  Navigator.pop(context); // Close dialog
+                  Navigator.pop(context); // Close counter search
+                }
               },
               child: const Text('Add to All'),
             ),
             TextButton(
               onPressed: () {
                 _addCounter(counterName, quantity, applyToAll: false);
-                controller.dispose();
-                if (context.mounted) Navigator.pop(context); // Close dialog
-                if (context.mounted) Navigator.pop(context); // Close counter search
-                if (context.mounted) Navigator.pop(context); // Close expanded token screen
+                if (context.mounted) {
+                  Navigator.pop(context); // Close dialog
+                  Navigator.pop(context); // Close counter search
+                }
               },
               child: const Text('Split & Add to One'),
             ),
