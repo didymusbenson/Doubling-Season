@@ -2,9 +2,16 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/tracker_widget.dart';
+import '../models/token_definition.dart';
 import '../models/item.dart';
 import '../utils/constants.dart';
+import '../utils/artwork_manager.dart';
 import '../utils/game_events.dart';
+
+const _rhysOldDefaultArtworkUrl =
+    'https://cards.scryfall.io/large/front/e/b/ebcf9ad6-5c1c-4b12-9778-2b9338bf49aa.jpg?1783904844';
+const _rhysNewDefaultArtworkUrl =
+    'https://cards.scryfall.io/large/front/b/9/b91dadcb-31e9-43b0-b425-c9311af3e9d7.jpg?1783930128';
 
 class TrackerProvider extends ChangeNotifier {
   late Box<TrackerWidget> _trackersBox;
@@ -25,6 +32,7 @@ class TrackerProvider extends ChangeNotifier {
 
       debugPrint('TrackerProvider.init: Running migration...');
       _ensureOrdersAssigned(); // Silent migration for order field
+      await _migrateRhysArtworkPriority();
       debugPrint('TrackerProvider.init: Migration complete');
 
       debugPrint('TrackerProvider.init: Registering event listeners...');
@@ -47,6 +55,32 @@ class TrackerProvider extends ChangeNotifier {
       debugPrint('Stack trace: $stackTrace');
       _errorMessage = 'Failed to load tracker utilities: $e';
       rethrow;
+    }
+  }
+
+  /// Updates the unreleased Rhys default without overriding custom artwork or
+  /// a manually selected variant. This only touches the exact former default.
+  Future<void> _migrateRhysArtworkPriority() async {
+    final rhysTrackers = _trackersBox.values.where(
+      (tracker) =>
+          tracker.actionType == 'rhys_the_redeemed' &&
+          tracker.artworkUrl == _rhysOldDefaultArtworkUrl,
+    );
+
+    for (final tracker in rhysTrackers) {
+      if (!kIsWeb) {
+        final artworkFile =
+            await ArtworkManager.downloadArtwork(_rhysNewDefaultArtworkUrl);
+        if (artworkFile == null) continue;
+      }
+
+      tracker.artworkUrl = _rhysNewDefaultArtworkUrl;
+      tracker.artworkSet = '2XM';
+      tracker.artworkOptions = [
+        ArtworkVariant(set: '2XM', url: _rhysNewDefaultArtworkUrl),
+        ArtworkVariant(set: 'TLE', url: _rhysOldDefaultArtworkUrl),
+      ];
+      await tracker.save();
     }
   }
 

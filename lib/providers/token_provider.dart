@@ -9,6 +9,9 @@ import '../utils/artwork_manager.dart';
 import '../utils/artwork_preference_manager.dart';
 import '../utils/constants.dart';
 import '../utils/game_events.dart';
+import '../services/rhys_copy_planner.dart';
+import '../services/brudiclad_transform_planner.dart';
+import '../services/token_merge_compatibility.dart';
 
 class TokenProvider extends ChangeNotifier {
   late Box<Item> _itemsBox;
@@ -31,7 +34,8 @@ class TokenProvider extends ChangeNotifier {
     try {
       debugPrint('TokenProvider.init: Opening items box...');
       _itemsBox = await Hive.openBox<Item>(DatabaseConstants.itemsBox);
-      debugPrint('TokenProvider.init: Box opened, has ${_itemsBox.length} items');
+      debugPrint(
+          'TokenProvider.init: Box opened, has ${_itemsBox.length} items');
 
       debugPrint('TokenProvider.init: Running migration...');
       _ensureOrdersAssigned(); // Silent migration for order field
@@ -52,20 +56,24 @@ class TokenProvider extends ChangeNotifier {
     try {
       debugPrint('TokenProvider._ensureOrdersAssigned: Reading items...');
       final items = _itemsBox.values.toList();
-      debugPrint('TokenProvider._ensureOrdersAssigned: Got ${items.length} items');
+      debugPrint(
+          'TokenProvider._ensureOrdersAssigned: Got ${items.length} items');
 
       bool needsReorder = items.any((item) => item.order == 0);
 
       if (needsReorder) {
-        debugPrint('TokenProvider._ensureOrdersAssigned: Migrating ${items.length} items with missing order');
+        debugPrint(
+            'TokenProvider._ensureOrdersAssigned: Migrating ${items.length} items with missing order');
         // Assign sequential orders based on current position
         for (int i = 0; i < items.length; i++) {
           items[i].order = i.toDouble();
           items[i].save();
         }
-        debugPrint('TokenProvider: Migrated ${items.length} tokens to use order field');
+        debugPrint(
+            'TokenProvider: Migrated ${items.length} tokens to use order field');
       } else {
-        debugPrint('TokenProvider._ensureOrdersAssigned: All items already have order assigned');
+        debugPrint(
+            'TokenProvider._ensureOrdersAssigned: All items already have order assigned');
       }
     } catch (e, stackTrace) {
       debugPrint('TokenProvider._ensureOrdersAssigned: ERROR during migration');
@@ -104,15 +112,20 @@ class TokenProvider extends ChangeNotifier {
 
       _errorMessage = null; // Clear any previous errors
       notifyListeners();
-      debugPrint('TokenProvider: Successfully created token "${item.name}" with amount ${item.amount}');
+      debugPrint(
+          'TokenProvider: Successfully created token "${item.name}" with amount ${item.amount}');
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while creating token: Unable to save to storage. This might happen if device storage is full or the database is corrupted.';
-      debugPrint('TokenProvider.insertItem: HiveError while adding item "${item.name}". Error: ${e.message}');
+      _errorMessage =
+          'Database error while creating token: Unable to save to storage. This might happen if device storage is full or the database is corrupted.';
+      debugPrint(
+          'TokenProvider.insertItem: HiveError while adding item "${item.name}". Error: ${e.message}');
       notifyListeners();
       rethrow; // Re-throw so UI can handle it if needed
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while creating token. Please try again or restart the app if the problem persists.';
-      debugPrint('TokenProvider.insertItem: Unexpected error while adding item "${item.name}". Error: $e');
+      _errorMessage =
+          'Unexpected error while creating token. Please try again or restart the app if the problem persists.';
+      debugPrint(
+          'TokenProvider.insertItem: Unexpected error while adding item "${item.name}". Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -131,15 +144,20 @@ class TokenProvider extends ChangeNotifier {
       await item.save(); // HiveObject method
       _errorMessage = null; // Clear any previous errors
       notifyListeners();
-      debugPrint('TokenProvider: Successfully updated token "${item.name}" (amount: ${item.amount}, tapped: ${item.tapped})');
+      debugPrint(
+          'TokenProvider: Successfully updated token "${item.name}" (amount: ${item.amount}, tapped: ${item.tapped})');
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while updating token: Changes could not be saved to storage. Your device might be low on storage space.';
-      debugPrint('TokenProvider.updateItem: HiveError while saving item "${item.name}". Error: ${e.message}');
+      _errorMessage =
+          'Database error while updating token: Changes could not be saved to storage. Your device might be low on storage space.';
+      debugPrint(
+          'TokenProvider.updateItem: HiveError while saving item "${item.name}". Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while updating token. Changes may not have been saved.';
-      debugPrint('TokenProvider.updateItem: Unexpected error while saving item "${item.name}". Error: $e');
+      _errorMessage =
+          'Unexpected error while updating token. Changes may not have been saved.';
+      debugPrint(
+          'TokenProvider.updateItem: Unexpected error while saving item "${item.name}". Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -153,13 +171,17 @@ class TokenProvider extends ChangeNotifier {
       notifyListeners();
       debugPrint('TokenProvider: Successfully deleted token "${item.name}"');
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while deleting token: Unable to remove from storage. The token may still appear after restarting the app.';
-      debugPrint('TokenProvider.deleteItem: HiveError while deleting item "${item.name}". Error: ${e.message}');
+      _errorMessage =
+          'Database error while deleting token: Unable to remove from storage. The token may still appear after restarting the app.';
+      debugPrint(
+          'TokenProvider.deleteItem: HiveError while deleting item "${item.name}". Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while deleting token. The token may not have been removed.';
-      debugPrint('TokenProvider.deleteItem: Unexpected error while deleting item "${item.name}". Error: $e');
+      _errorMessage =
+          'Unexpected error while deleting token. The token may not have been removed.';
+      debugPrint(
+          'TokenProvider.deleteItem: Unexpected error while deleting item "${item.name}". Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -167,12 +189,15 @@ class TokenProvider extends ChangeNotifier {
   }
 
   // Token manipulation methods
-  Future<void> addTokens(Item item, int amount, bool summoningSicknessEnabled) async {
+  Future<void> addTokens(
+      Item item, int amount, bool summoningSicknessEnabled) async {
     try {
       final oldAmount = item.amount;
       item.amount += amount;
       // Apply summoning sickness if enabled AND token is a creature without Haste
-      if (summoningSicknessEnabled && item.hasPowerToughness && !item.hasHaste) {
+      if (summoningSicknessEnabled &&
+          item.hasPowerToughness &&
+          !item.hasHaste) {
         item.summoningSick += amount;
       }
       await item.save();
@@ -184,15 +209,20 @@ class TokenProvider extends ChangeNotifier {
 
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TokenProvider: Added $amount tokens to "${item.name}" ($oldAmount → $item.amount)');
+      debugPrint(
+          'TokenProvider: Added $amount tokens to "${item.name}" ($oldAmount → $item.amount)');
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while adding tokens: Changes could not be saved. Your token count may not have increased.';
-      debugPrint('TokenProvider.addTokens: HiveError adding $amount to "${item.name}". Error: ${e.message}');
+      _errorMessage =
+          'Database error while adding tokens: Changes could not be saved. Your token count may not have increased.';
+      debugPrint(
+          'TokenProvider.addTokens: HiveError adding $amount to "${item.name}". Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while adding tokens. The operation may have failed.';
-      debugPrint('TokenProvider.addTokens: Unexpected error adding $amount to "${item.name}". Error: $e');
+      _errorMessage =
+          'Unexpected error while adding tokens. The operation may have failed.';
+      debugPrint(
+          'TokenProvider.addTokens: Unexpected error adding $amount to "${item.name}". Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -218,15 +248,20 @@ class TokenProvider extends ChangeNotifier {
       await item.save();
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TokenProvider: Removed $toRemove tokens from "${item.name}" ($oldAmount → $item.amount)');
+      debugPrint(
+          'TokenProvider: Removed $toRemove tokens from "${item.name}" ($oldAmount → $item.amount)');
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while removing tokens: Changes could not be saved. Your token count may not have decreased.';
-      debugPrint('TokenProvider.removeTokens: HiveError removing $amount from "${item.name}". Error: ${e.message}');
+      _errorMessage =
+          'Database error while removing tokens: Changes could not be saved. Your token count may not have decreased.';
+      debugPrint(
+          'TokenProvider.removeTokens: HiveError removing $amount from "${item.name}". Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while removing tokens. The operation may have failed.';
-      debugPrint('TokenProvider.removeTokens: Unexpected error removing $amount from "${item.name}". Error: $e');
+      _errorMessage =
+          'Unexpected error while removing tokens. The operation may have failed.';
+      debugPrint(
+          'TokenProvider.removeTokens: Unexpected error removing $amount from "${item.name}". Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -242,15 +277,20 @@ class TokenProvider extends ChangeNotifier {
       await item.save();
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TokenProvider: Tapped $toTap tokens of "${item.name}" (tapped: $oldTapped → $item.tapped)');
+      debugPrint(
+          'TokenProvider: Tapped $toTap tokens of "${item.name}" (tapped: $oldTapped → $item.tapped)');
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while tapping tokens: Changes could not be saved. Tap state may not have changed.';
-      debugPrint('TokenProvider.tapTokens: HiveError tapping $amount of "${item.name}". Error: ${e.message}');
+      _errorMessage =
+          'Database error while tapping tokens: Changes could not be saved. Tap state may not have changed.';
+      debugPrint(
+          'TokenProvider.tapTokens: HiveError tapping $amount of "${item.name}". Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while tapping tokens. The operation may have failed.';
-      debugPrint('TokenProvider.tapTokens: Unexpected error tapping $amount of "${item.name}". Error: $e');
+      _errorMessage =
+          'Unexpected error while tapping tokens. The operation may have failed.';
+      debugPrint(
+          'TokenProvider.tapTokens: Unexpected error tapping $amount of "${item.name}". Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -265,15 +305,20 @@ class TokenProvider extends ChangeNotifier {
       await item.save();
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TokenProvider: Untapped $toUntap tokens of "${item.name}" (tapped: $oldTapped → $item.tapped)');
+      debugPrint(
+          'TokenProvider: Untapped $toUntap tokens of "${item.name}" (tapped: $oldTapped → $item.tapped)');
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while untapping tokens: Changes could not be saved. Tap state may not have changed.';
-      debugPrint('TokenProvider.untapTokens: HiveError untapping $amount of "${item.name}". Error: ${e.message}');
+      _errorMessage =
+          'Database error while untapping tokens: Changes could not be saved. Tap state may not have changed.';
+      debugPrint(
+          'TokenProvider.untapTokens: HiveError untapping $amount of "${item.name}". Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while untapping tokens. The operation may have failed.';
-      debugPrint('TokenProvider.untapTokens: Unexpected error untapping $amount of "${item.name}". Error: $e');
+      _errorMessage =
+          'Unexpected error while untapping tokens. The operation may have failed.';
+      debugPrint(
+          'TokenProvider.untapTokens: Unexpected error untapping $amount of "${item.name}". Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -300,8 +345,8 @@ class TokenProvider extends ChangeNotifier {
 
       // Create single new token that is summoning sick if appropriate
       final shouldBeSummoningSick = summoningSicknessEnabled &&
-                                    original.hasPowerToughness &&
-                                    !original.hasHaste;
+          original.hasPowerToughness &&
+          !original.hasHaste;
 
       final newItem = Item(
         name: original.name,
@@ -311,7 +356,9 @@ class TokenProvider extends ChangeNotifier {
         type: original.type,
         amount: 1, // Always create just 1 token
         tapped: 0, // New token is untapped
-        summoningSick: shouldBeSummoningSick ? 1 : 0, // Summoning sick if creature without haste
+        summoningSick: shouldBeSummoningSick
+            ? 1
+            : 0, // Summoning sick if creature without haste
         order: newOrder,
         artworkUrl: original.artworkUrl,
         artworkSet: original.artworkSet,
@@ -353,15 +400,20 @@ class TokenProvider extends ChangeNotifier {
 
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TokenProvider: Successfully copied token "${original.name}" (amount: ${original.amount}, counters: ${original.counters.length})');
+      debugPrint(
+          'TokenProvider: Successfully copied token "${original.name}" (amount: ${original.amount}, counters: ${original.counters.length})');
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while copying token: Unable to create duplicate. Your device may be low on storage.';
-      debugPrint('TokenProvider.copyToken: HiveError copying "${original.name}". Error: ${e.message}');
+      _errorMessage =
+          'Database error while copying token: Unable to create duplicate. Your device may be low on storage.';
+      debugPrint(
+          'TokenProvider.copyToken: HiveError copying "${original.name}". Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while copying token. The duplicate may not have been created.';
-      debugPrint('TokenProvider.copyToken: Unexpected error copying "${original.name}". Error: $e');
+      _errorMessage =
+          'Unexpected error while copying token. The duplicate may not have been created.';
+      debugPrint(
+          'TokenProvider.copyToken: Unexpected error copying "${original.name}". Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -377,15 +429,20 @@ class TokenProvider extends ChangeNotifier {
       }
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TokenProvider: Successfully untapped all tokens (${itemList.length} token stacks)');
+      debugPrint(
+          'TokenProvider: Successfully untapped all tokens (${itemList.length} token stacks)');
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while untapping all: Some tokens may not have been untapped. Try untapping individual stacks.';
-      debugPrint('TokenProvider.untapAll: HiveError during bulk untap operation. Error: ${e.message}');
+      _errorMessage =
+          'Database error while untapping all: Some tokens may not have been untapped. Try untapping individual stacks.';
+      debugPrint(
+          'TokenProvider.untapAll: HiveError during bulk untap operation. Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while untapping all tokens. Some may not have been untapped.';
-      debugPrint('TokenProvider.untapAll: Unexpected error during bulk untap. Error: $e');
+      _errorMessage =
+          'Unexpected error while untapping all tokens. Some may not have been untapped.';
+      debugPrint(
+          'TokenProvider.untapAll: Unexpected error during bulk untap. Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -401,15 +458,20 @@ class TokenProvider extends ChangeNotifier {
       }
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TokenProvider: Successfully cleared summoning sickness from all tokens (${itemList.length} token stacks)');
+      debugPrint(
+          'TokenProvider: Successfully cleared summoning sickness from all tokens (${itemList.length} token stacks)');
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while clearing summoning sickness: Some tokens may still have summoning sickness. Try clearing individual stacks.';
-      debugPrint('TokenProvider.clearSummoningSickness: HiveError during bulk clear operation. Error: ${e.message}');
+      _errorMessage =
+          'Database error while clearing summoning sickness: Some tokens may still have summoning sickness. Try clearing individual stacks.';
+      debugPrint(
+          'TokenProvider.clearSummoningSickness: HiveError during bulk clear operation. Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while clearing summoning sickness. Some tokens may not have been updated.';
-      debugPrint('TokenProvider.clearSummoningSickness: Unexpected error during bulk clear. Error: $e');
+      _errorMessage =
+          'Unexpected error while clearing summoning sickness. Some tokens may not have been updated.';
+      debugPrint(
+          'TokenProvider.clearSummoningSickness: Unexpected error during bulk clear. Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -430,15 +492,20 @@ class TokenProvider extends ChangeNotifier {
       }
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TokenProvider: Successfully added +$amount/+$amount to all tokens with P/T (${tokensToModify.length} token stacks affected)');
+      debugPrint(
+          'TokenProvider: Successfully added +$amount/+$amount to all tokens with P/T (${tokensToModify.length} token stacks affected)');
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while adding +1/+1 counters: Some tokens may not have received counters. Try adding counters individually.';
-      debugPrint('TokenProvider.addPlusOneToAll: HiveError during bulk counter operation. Error: ${e.message}');
+      _errorMessage =
+          'Database error while adding +1/+1 counters: Some tokens may not have received counters. Try adding counters individually.';
+      debugPrint(
+          'TokenProvider.addPlusOneToAll: HiveError during bulk counter operation. Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while adding +1/+1 counters. Some tokens may not have been updated.';
-      debugPrint('TokenProvider.addPlusOneToAll: Unexpected error during bulk counter operation. Error: $e');
+      _errorMessage =
+          'Unexpected error while adding +1/+1 counters. Some tokens may not have been updated.';
+      debugPrint(
+          'TokenProvider.addPlusOneToAll: Unexpected error during bulk counter operation. Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -459,15 +526,20 @@ class TokenProvider extends ChangeNotifier {
       }
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TokenProvider: Successfully added -$amount/-$amount to all tokens with P/T (${tokensToModify.length} token stacks affected)');
+      debugPrint(
+          'TokenProvider: Successfully added -$amount/-$amount to all tokens with P/T (${tokensToModify.length} token stacks affected)');
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while adding -1/-1 counters: Some tokens may not have received counters. Try adding counters individually.';
-      debugPrint('TokenProvider.addMinusOneToAll: HiveError during bulk counter operation. Error: ${e.message}');
+      _errorMessage =
+          'Database error while adding -1/-1 counters: Some tokens may not have received counters. Try adding counters individually.';
+      debugPrint(
+          'TokenProvider.addMinusOneToAll: HiveError during bulk counter operation. Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while adding -1/-1 counters. Some tokens may not have been updated.';
-      debugPrint('TokenProvider.addMinusOneToAll: Unexpected error during bulk counter operation. Error: $e');
+      _errorMessage =
+          'Unexpected error while adding -1/-1 counters. Some tokens may not have been updated.';
+      debugPrint(
+          'TokenProvider.addMinusOneToAll: Unexpected error during bulk counter operation. Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -484,7 +556,9 @@ class TokenProvider extends ChangeNotifier {
   /// Creates Scute Swarm tokens
   ///
   /// [insertionOrder] - The order value for new token if creating new stack (calculated by caller from all board items)
-  Future<void> createScuteSwarmTokens(Item sourceToken, int multiplier, bool summoningSicknessEnabled, double insertionOrder, {int? overrideAmount}) async {
+  Future<void> createScuteSwarmTokens(Item sourceToken, int multiplier,
+      bool summoningSicknessEnabled, double insertionOrder,
+      {int? overrideAmount}) async {
     try {
       // Step 1: Calculate final amount to create
       int finalAmount;
@@ -496,14 +570,16 @@ class TokenProvider extends ChangeNotifier {
         final allItems = items;
         int totalScuteCount = 0;
         for (final item in allItems) {
-          if (item.name.toLowerCase().contains(GameConstants.scuteSwarmName) && item.amount > 0) {
+          if (item.name.toLowerCase().contains(GameConstants.scuteSwarmName) &&
+              item.amount > 0) {
             totalScuteCount += item.amount;
           }
         }
         finalAmount = totalScuteCount * multiplier;
       }
       if (finalAmount <= 0) {
-        debugPrint('TokenProvider.createScuteSwarmTokens: No tokens to create (finalAmount: $finalAmount)');
+        debugPrint(
+            'TokenProvider.createScuteSwarmTokens: No tokens to create (finalAmount: $finalAmount)');
         return;
       }
 
@@ -522,11 +598,14 @@ class TokenProvider extends ChangeNotifier {
 
       if (targetStack != null) {
         // Add to existing stack
-        debugPrint('TokenProvider.createScuteSwarmTokens: Adding $finalAmount tokens to existing stack');
+        debugPrint(
+            'TokenProvider.createScuteSwarmTokens: Adding $finalAmount tokens to existing stack');
         targetStack.amount += finalAmount;
 
         // Add summoning sickness to new tokens only
-        if (summoningSicknessEnabled && targetStack.hasPowerToughness && !targetStack.hasHaste) {
+        if (summoningSicknessEnabled &&
+            targetStack.hasPowerToughness &&
+            !targetStack.hasHaste) {
           targetStack.summoningSick += finalAmount;
         }
 
@@ -539,30 +618,38 @@ class TokenProvider extends ChangeNotifier {
 
         _errorMessage = null;
         notifyListeners();
-        debugPrint('TokenProvider.createScuteSwarmTokens: Successfully added $finalAmount Scute Swarms to existing stack');
+        debugPrint(
+            'TokenProvider.createScuteSwarmTokens: Successfully added $finalAmount Scute Swarms to existing stack');
       } else {
         // Step 4: Create new stack from database definition
-        debugPrint('TokenProvider.createScuteSwarmTokens: Creating new stack with $finalAmount tokens');
+        debugPrint(
+            'TokenProvider.createScuteSwarmTokens: Creating new stack with $finalAmount tokens');
 
         // Load token database and find Scute Swarm (cached for performance)
         if (_scuteSwarmCache == null) {
-          final jsonString = await rootBundle.loadString(AssetPaths.tokenDatabase);
+          final jsonString =
+              await rootBundle.loadString(AssetPaths.tokenDatabase);
           final List<dynamic> jsonList = jsonDecode(jsonString);
           final scuteSwarmJson = jsonList.firstWhere(
-            (json) => (json['name'] as String).toLowerCase().contains(GameConstants.scuteSwarmName),
-            orElse: () => throw Exception('Scute Swarm not found in token database'),
+            (json) => (json['name'] as String)
+                .toLowerCase()
+                .contains(GameConstants.scuteSwarmName),
+            orElse: () =>
+                throw Exception('Scute Swarm not found in token database'),
           );
-          _scuteSwarmCache = TokenDefinition.fromJson(scuteSwarmJson as Map<String, dynamic>);
+          _scuteSwarmCache =
+              TokenDefinition.fromJson(scuteSwarmJson as Map<String, dynamic>);
         }
 
         final scuteSwarmDefinition = _scuteSwarmCache!;
 
-        debugPrint('TokenProvider.createScuteSwarmTokens: Using insertion order $insertionOrder');
+        debugPrint(
+            'TokenProvider.createScuteSwarmTokens: Using insertion order $insertionOrder');
 
         // Create new item with database values and source artwork
         final shouldBeSummoningSick = summoningSicknessEnabled &&
-                                      scuteSwarmDefinition.pt.isNotEmpty &&
-                                      !scuteSwarmDefinition.abilities.toLowerCase().contains('haste');
+            scuteSwarmDefinition.pt.isNotEmpty &&
+            !scuteSwarmDefinition.abilities.toLowerCase().contains('haste');
 
         final newItem = Item(
           name: scuteSwarmDefinition.name,
@@ -586,16 +673,21 @@ class TokenProvider extends ChangeNotifier {
         // insertItem handles ETB events automatically
         await insertItem(newItem);
 
-        debugPrint('TokenProvider.createScuteSwarmTokens: Successfully created new stack with $finalAmount Scute Swarms');
+        debugPrint(
+            'TokenProvider.createScuteSwarmTokens: Successfully created new stack with $finalAmount Scute Swarms');
       }
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while creating Scute Swarm tokens: Changes could not be saved.';
-      debugPrint('TokenProvider.createScuteSwarmTokens: HiveError. Error: ${e.message}');
+      _errorMessage =
+          'Database error while creating Scute Swarm tokens: Changes could not be saved.';
+      debugPrint(
+          'TokenProvider.createScuteSwarmTokens: HiveError. Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while creating Scute Swarm tokens: ${e.toString()}';
-      debugPrint('TokenProvider.createScuteSwarmTokens: Unexpected error. Error: $e');
+      _errorMessage =
+          'Unexpected error while creating Scute Swarm tokens: ${e.toString()}';
+      debugPrint(
+          'TokenProvider.createScuteSwarmTokens: Unexpected error. Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -612,25 +704,31 @@ class TokenProvider extends ChangeNotifier {
   /// 5. Fires ETB events for Cathar's Crusade and other listeners
   ///
   /// [insertionOrder] - The order value for the new token (should be calculated from all board items)
-  Future<void> createKrenkoGoblins(int amount, bool summoningSicknessEnabled, double insertionOrder) async {
+  Future<void> createKrenkoGoblins(
+      int amount, bool summoningSicknessEnabled, double insertionOrder) async {
     try {
       if (amount <= 0) {
-        debugPrint('TokenProvider.createKrenkoGoblins: No tokens to create (amount: $amount)');
+        debugPrint(
+            'TokenProvider.createKrenkoGoblins: No tokens to create (amount: $amount)');
         return;
       }
 
       // Step 1: Load basic Goblin from database (cached for performance)
       if (_basicGoblinCache == null) {
-        final jsonString = await rootBundle.loadString(AssetPaths.tokenDatabase);
+        final jsonString =
+            await rootBundle.loadString(AssetPaths.tokenDatabase);
         final List<dynamic> jsonList = jsonDecode(jsonString);
         final goblinJson = jsonList.firstWhere(
-          (json) => (json['name'] as String) == 'Goblin' &&
-                    (json['pt'] as String) == '1/1' &&
-                    (json['colors'] as String) == 'R' &&
-                    (json['abilities'] as String).isEmpty,
-          orElse: () => throw Exception('Basic 1/1 red Goblin not found in token database'),
+          (json) =>
+              (json['name'] as String) == 'Goblin' &&
+              (json['pt'] as String) == '1/1' &&
+              (json['colors'] as String) == 'R' &&
+              (json['abilities'] as String).isEmpty,
+          orElse: () => throw Exception(
+              'Basic 1/1 red Goblin not found in token database'),
         );
-        _basicGoblinCache = TokenDefinition.fromJson(goblinJson as Map<String, dynamic>);
+        _basicGoblinCache =
+            TokenDefinition.fromJson(goblinJson as Map<String, dynamic>);
       }
       final goblinDefinition = _basicGoblinCache!;
 
@@ -651,44 +749,57 @@ class TokenProvider extends ChangeNotifier {
 
           return isMatchingGoblin && hasNoCounters;
         },
-        orElse: () => Item(name: '', pt: '', abilities: '', colors: '', type: ''), // Sentinel value
+        orElse: () => Item(
+            name: '',
+            pt: '',
+            abilities: '',
+            colors: '',
+            type: ''), // Sentinel value
       );
 
       if (existingGoblinWithoutCounters.name.isNotEmpty) {
         // Add to existing token without counters
-        debugPrint('TokenProvider.createKrenkoGoblins: Adding $amount goblins to existing stack');
+        debugPrint(
+            'TokenProvider.createKrenkoGoblins: Adding $amount goblins to existing stack');
         existingGoblinWithoutCounters.amount += amount;
 
         // Add summoning sickness to new tokens only
-        if (summoningSicknessEnabled && !existingGoblinWithoutCounters.hasHaste) {
+        if (summoningSicknessEnabled &&
+            !existingGoblinWithoutCounters.hasHaste) {
           existingGoblinWithoutCounters.summoningSick += amount;
         }
 
         await existingGoblinWithoutCounters.save();
 
         // Fire ETB event for Cathar's Crusade and other listeners
-        GameEvents.instance.notifyCreatureEntered(existingGoblinWithoutCounters, amount);
+        GameEvents.instance
+            .notifyCreatureEntered(existingGoblinWithoutCounters, amount);
 
         _errorMessage = null;
         notifyListeners();
-        debugPrint('TokenProvider.createKrenkoGoblins: Successfully added $amount Goblins to existing stack');
+        debugPrint(
+            'TokenProvider.createKrenkoGoblins: Successfully added $amount Goblins to existing stack');
       } else {
         // Step 3: Create new stack from database definition
-        debugPrint('TokenProvider.createKrenkoGoblins: Creating new stack with $amount goblins at order $insertionOrder');
+        debugPrint(
+            'TokenProvider.createKrenkoGoblins: Creating new stack with $amount goblins at order $insertionOrder');
 
         // Create new item with database values and default artwork
-        final shouldBeSummoningSick = summoningSicknessEnabled && !goblinDefinition.abilities.toLowerCase().contains('haste');
+        final shouldBeSummoningSick = summoningSicknessEnabled &&
+            !goblinDefinition.abilities.toLowerCase().contains('haste');
 
         // Resolve preferred artwork (same path as normal token creation)
         final artworkPrefManager = ArtworkPreferenceManager();
         final tokenIdentity = goblinDefinition.id;
-        final preferredArtwork = artworkPrefManager.getPreferredArtwork(tokenIdentity);
+        final preferredArtwork =
+            artworkPrefManager.getPreferredArtwork(tokenIdentity);
 
         String? artworkUrl;
         String? artworkSet;
         if (preferredArtwork != null) {
           artworkUrl = preferredArtwork;
-          if (!preferredArtwork.startsWith('file://') && goblinDefinition.artwork.isNotEmpty) {
+          if (!preferredArtwork.startsWith('file://') &&
+              goblinDefinition.artwork.isNotEmpty) {
             final matchingArtwork = goblinDefinition.artwork.firstWhere(
               (art) => art.url == preferredArtwork,
               orElse: () => goblinDefinition.artwork[0],
@@ -712,7 +823,9 @@ class TokenProvider extends ChangeNotifier {
           order: insertionOrder,
           artworkUrl: artworkUrl,
           artworkSet: artworkSet,
-          artworkOptions: goblinDefinition.artwork.isNotEmpty ? List.from(goblinDefinition.artwork) : null,
+          artworkOptions: goblinDefinition.artwork.isNotEmpty
+              ? List.from(goblinDefinition.artwork)
+              : null,
         );
 
         // insertItem handles ETB events and notifyListeners automatically
@@ -720,38 +833,281 @@ class TokenProvider extends ChangeNotifier {
 
         // Download artwork in background (fire-and-forget)
         // Skip on web - artwork loads directly from network URL
-        if (!kIsWeb && newGoblin.artworkUrl != null && !newGoblin.artworkUrl!.startsWith('file://')) {
+        if (!kIsWeb &&
+            newGoblin.artworkUrl != null &&
+            !newGoblin.artworkUrl!.startsWith('file://')) {
           final artworkUrl = newGoblin.artworkUrl!;
           ArtworkManager.downloadArtwork(artworkUrl).then((file) {
             if (file == null) {
-              debugPrint('TokenProvider.createKrenkoGoblins: Artwork download failed, resetting URL');
-              newGoblin.updateArtwork(url: null, set: null, options: newGoblin.artworkOptions);
+              debugPrint(
+                  'TokenProvider.createKrenkoGoblins: Artwork download failed, resetting URL');
+              newGoblin.updateArtwork(
+                  url: null, set: null, options: newGoblin.artworkOptions);
             } else {
-              debugPrint('TokenProvider.createKrenkoGoblins: Artwork downloaded');
+              debugPrint(
+                  'TokenProvider.createKrenkoGoblins: Artwork downloaded');
               // Keep original Scryfall URL (don't convert to file://)
               // so getCropPercentages() applies correct Scryfall crop values
               newGoblin.save();
               notifyListeners();
             }
           }).catchError((error) {
-            debugPrint('TokenProvider.createKrenkoGoblins: Artwork download error: $error');
+            debugPrint(
+                'TokenProvider.createKrenkoGoblins: Artwork download error: $error');
           });
         }
 
-        debugPrint('TokenProvider.createKrenkoGoblins: Successfully created new stack with $amount Goblins (${goblinDefinition.artwork.length} artwork options available)');
+        debugPrint(
+            'TokenProvider.createKrenkoGoblins: Successfully created new stack with $amount Goblins (${goblinDefinition.artwork.length} artwork options available)');
       }
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while creating Goblin tokens: Changes could not be saved.';
-      debugPrint('TokenProvider.createKrenkoGoblins: HiveError. Error: ${e.message}');
+      _errorMessage =
+          'Database error while creating Goblin tokens: Changes could not be saved.';
+      debugPrint(
+          'TokenProvider.createKrenkoGoblins: HiveError. Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while creating Goblin tokens: ${e.toString()}';
-      debugPrint('TokenProvider.createKrenkoGoblins: Unexpected error. Error: $e');
+      _errorMessage =
+          'Unexpected error while creating Goblin tokens: ${e.toString()}';
+      debugPrint(
+          'TokenProvider.createKrenkoGoblins: Unexpected error. Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
     }
+  }
+
+  /// Executes a Rhys the Redeemed activation from a pre-evaluated [plan].
+  ///
+  /// "For each creature token you control, create a token that's a copy of
+  /// that creature."
+  ///
+  /// The plan was built and shown to the user before confirmation, so nothing
+  /// is re-evaluated here — the board gets exactly what the preview promised.
+  /// See [RhysCopyPlanner] for the eligibility and copiable-value heuristics.
+  ///
+  /// For each result: merge into a compatible clean stack when one exists,
+  /// otherwise insert a new stack adjacent to the source it came from.
+  /// Copies always enter untapped; counters are never copied and never merged
+  /// into. Returns the total number of tokens created.
+  Future<int> performRhysPopulate(
+    RhysCopyPlan plan,
+    bool summoningSicknessEnabled,
+  ) async {
+    try {
+      if (plan.isEmpty) {
+        debugPrint(
+            'TokenProvider.performRhysPopulate: No eligible creature tokens — no-op');
+        return 0;
+      }
+
+      int createdCount = 0;
+
+      for (final group in plan.groups) {
+        for (int resultIndex = 0;
+            resultIndex < group.results.length;
+            resultIndex++) {
+          final result = group.results[resultIndex];
+          if (result.quantity <= 0) continue;
+
+          final mergeTarget = _findRhysMergeTarget(result);
+
+          if (mergeTarget != null) {
+            // Only the newly created quantity becomes summoning sick — the
+            // stack's existing tapped/sick counts are left untouched.
+            mergeTarget.amount += result.quantity;
+            if (summoningSicknessEnabled &&
+                mergeTarget.hasPowerToughness &&
+                !mergeTarget.hasHaste) {
+              mergeTarget.summoningSick += result.quantity;
+            }
+            await mergeTarget.save();
+
+            // Fire ETB for Cathar's Crusade and other listeners
+            if (mergeTarget.hasPowerToughness) {
+              GameEvents.instance
+                  .notifyCreatureEntered(mergeTarget, result.quantity);
+            }
+
+            createdCount += result.quantity;
+            continue; // Merged — the anchor for this group doesn't move
+          }
+
+          final newItem = Item(
+            name: result.name,
+            pt: result.pt,
+            abilities: result.abilities,
+            colors: result.colors,
+            type: result.type,
+            amount: result.quantity,
+            tapped: 0, // Copies always enter untapped
+            summoningSick: 0, // Applied after insert (Hive key required)
+            order: _rhysOrderFor(group, resultIndex),
+            artworkUrl: result.artworkUrl,
+            artworkSet: result.artworkSet,
+            artworkOptions: result.artworkOptions != null
+                ? List.from(result.artworkOptions!)
+                : null,
+          );
+
+          // insertItem fires the creature ETB event automatically
+          await insertItem(newItem);
+
+          if (summoningSicknessEnabled &&
+              newItem.hasPowerToughness &&
+              !newItem.hasHaste) {
+            newItem.summoningSick = result.quantity;
+          }
+
+          _downloadArtworkInBackground(newItem);
+
+          createdCount += result.quantity;
+        }
+      }
+
+      _errorMessage = null;
+      notifyListeners();
+      debugPrint(
+          'TokenProvider.performRhysPopulate: Created $createdCount tokens across ${plan.groups.length} source stack(s)');
+      return createdCount;
+    } on HiveError catch (e) {
+      _errorMessage =
+          'Database error while copying tokens: Changes could not be saved. Some copies may be missing.';
+      debugPrint(
+          'TokenProvider.performRhysPopulate: HiveError. Error: ${e.message}');
+      notifyListeners();
+      rethrow;
+    } catch (e, stackTrace) {
+      _errorMessage =
+          'Unexpected error while copying tokens. Some copies may not have been created.';
+      debugPrint(
+          'TokenProvider.performRhysPopulate: Unexpected error. Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Finds a stack a Rhys copy can merge into, or null if a new stack is needed.
+  ///
+  /// Requires an exact identity match, no counters of any kind, and identical
+  /// artwork. Counters represent modifications to the tokens already in that
+  /// stack, so merging clean copies in would silently grant them those
+  /// modifications; artwork must match exactly (both null counts) so a
+  /// user's selected art is never lost to a merge.
+  Item? _findRhysMergeTarget(RhysCopyResult result) {
+    for (final item in items) {
+      if (TokenMergeCompatibility.canMerge(
+        item,
+        name: result.name,
+        pt: result.pt,
+        colors: result.colors,
+        type: result.type,
+        abilities: result.abilities,
+        artworkUrl: result.artworkUrl,
+      )) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  /// Rewrites the current board from an immutable Brudiclad plan. This method
+  /// never evaluates creation rules and never emits creature-ETB events.
+  Future<int> performBrudicladTransform(
+    BrudicladTransformPlan plan,
+  ) async {
+    try {
+      for (final target in plan.targets) {
+        await target.source.becomeCopyOf(
+          copiedName: plan.chosen.name,
+          copiedPt: plan.chosen.pt,
+          copiedColors: plan.chosen.colors,
+          copiedType: plan.chosen.type,
+          copiedAbilities: plan.chosen.abilities,
+          copiedArtworkUrl: plan.chosen.artworkUrl,
+          copiedArtworkSet: plan.chosen.artworkSet,
+          copiedArtworkOptions: plan.chosen.artworkOptions,
+        );
+      }
+
+      final anchor = plan.mergeAnchor;
+      if (anchor != null) {
+        for (final target in plan.targets.where((target) => target.willMerge)) {
+          if (!target.source.isInBox) continue;
+          await anchor.mergeRuntimeStateFrom(target.source);
+          await target.source.delete();
+        }
+      }
+
+      for (final item in items) {
+        if (item.hasPowerToughness) {
+          await item.clearSummoningSicknessBatched();
+        }
+      }
+
+      _errorMessage = null;
+      notifyListeners();
+      return plan.affectedTokens;
+    } on HiveError catch (e) {
+      _errorMessage =
+          'Database error while modifying tokens: Changes could not be saved.';
+      debugPrint('TokenProvider.performBrudicladTransform: ${e.message}');
+      notifyListeners();
+      rethrow;
+    } catch (e, stackTrace) {
+      _errorMessage = 'Unexpected error while modifying tokens.';
+      debugPrint('TokenProvider.performBrudicladTransform: $e');
+      debugPrint('Stack trace: $stackTrace');
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> clearCreatureTokenSickness() async {
+    for (final item in items) {
+      if (item.hasPowerToughness) {
+        await item.clearSummoningSicknessBatched();
+      }
+    }
+    notifyListeners();
+  }
+
+  /// Places each result between its source and the next item on the unified
+  /// board. The plan snapshots that boundary before confirmation.
+  double _rhysOrderFor(RhysCopyGroup group, int resultIndex) {
+    final gap = group.nextBoardOrder - group.source.order;
+    final order = group.source.order +
+        gap * ((resultIndex + 1) / (group.results.length + 1));
+
+    // insertItem treats exactly 0.0 as "unassigned". When a negative source
+    // and positive successor produce zero, choose another point inside the
+    // same interval instead of teleporting the copy to the board's end.
+    return order == 0.0 ? group.source.order / 2.0 : order;
+  }
+
+  /// Caches artwork for a freshly created stack without blocking the UI.
+  void _downloadArtworkInBackground(Item item) {
+    if (kIsWeb) return; // Web loads artwork straight from the network URL
+    final url = item.artworkUrl;
+    if (url == null || url.startsWith('file://')) return;
+
+    ArtworkManager.downloadArtwork(url).then((file) {
+      if (!item.isInBox) return; // Deleted while downloading
+      if (file != null) {
+        // Keep the original Scryfall URL so crop percentages still apply;
+        // saving just triggers a rebuild that picks up the cached file.
+        item.save();
+      } else {
+        debugPrint(
+            'TokenProvider: Artwork download failed for "${item.name}", clearing URL');
+        item.updateArtwork(url: null, set: null, options: item.artworkOptions);
+      }
+      notifyListeners();
+    }).catchError((error) {
+      debugPrint('TokenProvider: Artwork download error: $error');
+    });
   }
 
   Future<void> boardWipeZero() async {
@@ -765,15 +1121,20 @@ class TokenProvider extends ChangeNotifier {
       }
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TokenProvider: Successfully performed board wipe (set all token amounts to 0, ${itemList.length} stacks affected)');
+      debugPrint(
+          'TokenProvider: Successfully performed board wipe (set all token amounts to 0, ${itemList.length} stacks affected)');
     } on HiveError catch (e) {
-      _errorMessage = 'Database error during board wipe: Some tokens may not have been reset to zero. You may need to manually adjust them.';
-      debugPrint('TokenProvider.boardWipeZero: HiveError during board wipe operation. Error: ${e.message}');
+      _errorMessage =
+          'Database error during board wipe: Some tokens may not have been reset to zero. You may need to manually adjust them.';
+      debugPrint(
+          'TokenProvider.boardWipeZero: HiveError during board wipe operation. Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error during board wipe. Some tokens may not have been reset.';
-      debugPrint('TokenProvider.boardWipeZero: Unexpected error during board wipe. Error: $e');
+      _errorMessage =
+          'Unexpected error during board wipe. Some tokens may not have been reset.';
+      debugPrint(
+          'TokenProvider.boardWipeZero: Unexpected error during board wipe. Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -789,15 +1150,20 @@ class TokenProvider extends ChangeNotifier {
       await _itemsBox.clear();
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TokenProvider: Successfully deleted all tokens from board ($itemCount token stacks removed)');
+      debugPrint(
+          'TokenProvider: Successfully deleted all tokens from board ($itemCount token stacks removed)');
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while deleting all tokens: The board may not have been completely cleared. Try deleting tokens individually.';
-      debugPrint('TokenProvider.boardWipeDelete: HiveError clearing items box. Error: ${e.message}');
+      _errorMessage =
+          'Database error while deleting all tokens: The board may not have been completely cleared. Try deleting tokens individually.';
+      debugPrint(
+          'TokenProvider.boardWipeDelete: HiveError clearing items box. Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while deleting all tokens. Some tokens may remain on the board.';
-      debugPrint('TokenProvider.boardWipeDelete: Unexpected error clearing box. Error: $e');
+      _errorMessage =
+          'Unexpected error while deleting all tokens. Some tokens may remain on the board.';
+      debugPrint(
+          'TokenProvider.boardWipeDelete: Unexpected error clearing box. Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;

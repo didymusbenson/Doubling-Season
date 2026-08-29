@@ -18,10 +18,12 @@ import 'services/iap_service.dart';
 import 'services/token_update_service.dart';
 import 'utils/token_update_prompt.dart';
 import 'utils/whats_new_content.dart';
+import 'utils/bundled_licenses.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  registerBundledLicenses();
 
   // Lock orientation to portrait only
   await SystemChrome.setPreferredOrientations([
@@ -101,12 +103,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       tokenProvider = results[0] as TokenProvider;
       deckProvider = results[1] as DeckProvider;
       settingsProvider = results[2] as SettingsProvider;
-      trackerProvider = results[3] as TrackerProvider; // NEW - Widget Cards Feature
-      toggleProvider = results[4] as ToggleProvider; // NEW - Widget Cards Feature
+      trackerProvider =
+          results[3] as TrackerProvider; // NEW - Widget Cards Feature
+      toggleProvider =
+          results[4] as ToggleProvider; // NEW - Widget Cards Feature
       rulesProvider = results[5] as RulesProvider;
 
       stopwatch.stop();
-      debugPrint('═══ App Initialization Complete: ${stopwatch.elapsedMilliseconds}ms ═══');
+      debugPrint(
+          '═══ App Initialization Complete: ${stopwatch.elapsedMilliseconds}ms ═══');
 
       _providersReady = true;
       _checkReadyToTransition();
@@ -148,7 +153,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final provider = TokenProvider();
     await provider.init();
     stopwatch.stop();
-    debugPrint('TokenProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
+    debugPrint(
+        'TokenProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
     return provider;
   }
 
@@ -157,7 +163,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final provider = DeckProvider();
     await provider.init();
     stopwatch.stop();
-    debugPrint('DeckProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
+    debugPrint(
+        'DeckProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
     return provider;
   }
 
@@ -166,7 +173,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final provider = SettingsProvider();
     await provider.init();
     stopwatch.stop();
-    debugPrint('SettingsProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
+    debugPrint(
+        'SettingsProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
     return provider;
   }
 
@@ -175,7 +183,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final provider = TrackerProvider();
     await provider.init();
     stopwatch.stop();
-    debugPrint('TrackerProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
+    debugPrint(
+        'TrackerProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
     return provider;
   }
 
@@ -184,7 +193,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final provider = ToggleProvider();
     await provider.init();
     stopwatch.stop();
-    debugPrint('ToggleProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
+    debugPrint(
+        'ToggleProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
     return provider;
   }
 
@@ -193,7 +203,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final provider = RulesProvider();
     await provider.init();
     stopwatch.stop();
-    debugPrint('RulesProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
+    debugPrint(
+        'RulesProvider initialized in ${stopwatch.elapsedMilliseconds}ms');
     return provider;
   }
 
@@ -364,8 +375,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final lastCheck = settingsProvider.tokenDbLastCheck;
     if (lastCheck != null &&
         DateTime.now().difference(lastCheck) < const Duration(hours: 24)) {
-      final hrs =
-          DateTime.now().difference(lastCheck).inHours;
+      final hrs = DateTime.now().difference(lastCheck).inHours;
       debugPrint(
           'TokenUpdate: skipped — last check was ${hrs}h ago (throttle: 24h)');
       return;
@@ -561,7 +571,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             brightness: Brightness.dark,
           ).copyWith(
             surface: const Color(0xFF181818), // Darker scaffold background
-            surfaceContainerHighest: const Color(0xFF37373C), // Lighter card background
+            surfaceContainerHighest:
+                const Color(0xFF37373C), // Lighter card background
           ),
           cardTheme: const CardThemeData(
             color: Color(0xFF37373C), // Explicit card color override
@@ -583,8 +594,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ChangeNotifierProvider.value(value: tokenProvider),
         ChangeNotifierProvider.value(value: deckProvider),
         ChangeNotifierProvider.value(value: settingsProvider),
-        ChangeNotifierProvider.value(value: trackerProvider), // NEW - Widget Cards Feature
-        ChangeNotifierProvider.value(value: toggleProvider), // NEW - Widget Cards Feature
+        ChangeNotifierProvider.value(
+            value: trackerProvider), // NEW - Widget Cards Feature
+        ChangeNotifierProvider.value(
+            value: toggleProvider), // NEW - Widget Cards Feature
         ChangeNotifierProvider.value(value: rulesProvider),
       ],
       child: Consumer<SettingsProvider>(
@@ -602,7 +615,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 brightness: Brightness.dark,
               ).copyWith(
                 surface: const Color(0xFF181818), // Darker scaffold background
-                surfaceContainerHighest: const Color(0xFF37373C), // Lighter card background
+                surfaceContainerHighest:
+                    const Color(0xFF37373C), // Lighter card background
               ),
               cardTheme: const CardThemeData(
                 color: Color(0xFF37373C), // Explicit card color override

@@ -157,12 +157,22 @@ class Item extends HiveObject {
     this.artworkUrl,
     this.artworkSet,
     this.artworkOptions,
+    int plusOneCounters = 0,
+    int minusOneCounters = 0,
+    int plusOnePowerCounters = 0,
+    int plusOneToughnessCounters = 0,
   })  : counters = counters ?? [],
         _colors = colors.toUpperCase(),
         _type = type,
         _amount = amount < 0 ? 0 : amount,
         _tapped = tapped < 0 ? 0 : tapped,
         _summoningSick = summoningSick < 0 ? 0 : summoningSick,
+        _plusOneCounters = plusOneCounters < 0 ? 0 : plusOneCounters,
+        _minusOneCounters = minusOneCounters < 0 ? 0 : minusOneCounters,
+        _plusOnePowerCounters =
+            plusOnePowerCounters < 0 ? 0 : plusOnePowerCounters,
+        _plusOneToughnessCounters =
+            plusOneToughnessCounters < 0 ? 0 : plusOneToughnessCounters,
         createdAt = createdAt ?? DateTime.now();
 
   // Computed properties
@@ -210,7 +220,8 @@ class Item extends HiveObject {
 
     // Non-integer P/T — show modifier suffix
     final powerSign = powerBonus >= 0 ? '+$powerBonus' : '$powerBonus';
-    final toughnessSign = toughnessBonus >= 0 ? '+$toughnessBonus' : '$toughnessBonus';
+    final toughnessSign =
+        toughnessBonus >= 0 ? '+$toughnessBonus' : '$toughnessBonus';
     return '$pt ($powerSign/$toughnessSign)';
   }
 
@@ -219,7 +230,8 @@ class Item extends HiveObject {
     if (amount > 0) {
       // Adding +1/+1 counters
       if (_minusOneCounters > 0) {
-        final reduction = amount < _minusOneCounters ? amount : _minusOneCounters;
+        final reduction =
+            amount < _minusOneCounters ? amount : _minusOneCounters;
         _minusOneCounters -= reduction;
         final remaining = amount - reduction;
         _plusOneCounters += remaining;
@@ -230,7 +242,8 @@ class Item extends HiveObject {
       // Adding -1/-1 counters
       final absAmount = amount.abs();
       if (_plusOneCounters > 0) {
-        final reduction = absAmount < _plusOneCounters ? absAmount : _plusOneCounters;
+        final reduction =
+            absAmount < _plusOneCounters ? absAmount : _plusOneCounters;
         _plusOneCounters -= reduction;
         final remaining = absAmount - reduction;
         _minusOneCounters += remaining;
@@ -281,11 +294,51 @@ class Item extends HiveObject {
   /// Batch-update artwork fields in a single Hive write.
   /// Use this instead of setting artworkUrl/artworkSet/artworkOptions individually
   /// followed by save(), to avoid multiple writes.
-  void updateArtwork({String? url, String? set, List<ArtworkVariant>? options}) {
+  void updateArtwork(
+      {String? url, String? set, List<ArtworkVariant>? options}) {
     artworkUrl = url;
     artworkSet = set;
     artworkOptions = options;
     save();
+  }
+
+  /// Rewrites only this stack's copiable identity in one Hive write.
+  /// Runtime state, counters, amount, and board order are preserved.
+  Future<void> becomeCopyOf({
+    required String copiedName,
+    required String copiedPt,
+    required String copiedColors,
+    required String copiedType,
+    required String copiedAbilities,
+    String? copiedArtworkUrl,
+    String? copiedArtworkSet,
+    List<ArtworkVariant>? copiedArtworkOptions,
+  }) async {
+    name = copiedName;
+    pt = copiedPt;
+    abilities = copiedAbilities;
+    _colors = copiedColors.toUpperCase();
+    _type = copiedType;
+    artworkUrl = copiedArtworkUrl;
+    artworkSet = copiedArtworkSet;
+    artworkOptions = copiedArtworkOptions == null
+        ? null
+        : List<ArtworkVariant>.from(copiedArtworkOptions);
+    await save();
+  }
+
+  /// Adds another compatible stack's live counts in one write.
+  Future<void> mergeRuntimeStateFrom(Item other) async {
+    _amount += other.amount;
+    _tapped = (_tapped + other.tapped).clamp(0, _amount);
+    _summoningSick = (_summoningSick + other.summoningSick).clamp(0, _amount);
+    await save();
+  }
+
+  Future<void> clearSummoningSicknessBatched() async {
+    if (_summoningSick == 0) return;
+    _summoningSick = 0;
+    await save();
   }
 
   Item createDuplicate() {
@@ -301,7 +354,8 @@ class Item extends HiveObject {
       order: 0.0, // Order will be set by caller
       artworkUrl: artworkUrl,
       artworkSet: artworkSet,
-      artworkOptions: artworkOptions != null ? List.from(artworkOptions!) : null,
+      artworkOptions:
+          artworkOptions != null ? List.from(artworkOptions!) : null,
     );
 
     // Store counter values to be applied after item is added to box

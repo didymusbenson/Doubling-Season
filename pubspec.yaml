@@ -43,6 +43,11 @@ flutter:
     - assets/token_database.json
     - assets/token_manifest.json
     - assets/AppIconSource.png
+    - assets/fonts/Mana-OFL.txt
+  fonts:
+    - family: Mana
+      fonts:
+        - asset: assets/fonts/mana.ttf
 
 # App Icons Configuration
 flutter_launcher_icons:
