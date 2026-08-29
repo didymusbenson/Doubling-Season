@@ -13,12 +13,13 @@ import '../utils/artwork_preference_manager.dart';
 /// Bottom sheet for selecting token artwork from available variants
 class ArtworkSelectionSheet extends StatefulWidget {
   final List<ArtworkVariant> artworkVariants;
-  final Function(String url, String setCode) onArtworkSelected;
+  final Future<void> Function(String url, String setCode) onArtworkSelected;
   final VoidCallback? onRemoveArtwork;
   final String? currentArtworkUrl;
   final String? currentArtworkSet;
   final String tokenName;
-  final String tokenIdentity; // Composite ID for preference lookup (NEW - Custom Artwork Feature)
+  final String
+      tokenIdentity; // Composite ID for preference lookup (NEW - Custom Artwork Feature)
   final bool databaseLoadError; // Whether token database failed to load
 
   const ArtworkSelectionSheet({
@@ -81,7 +82,8 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
     for (final variant in widget.artworkVariants) {
       try {
         // Check if already cached
-        final cachedFile = await ArtworkManager.getCachedArtworkFile(variant.url);
+        final cachedFile =
+            await ArtworkManager.getCachedArtworkFile(variant.url);
         if (cachedFile == null) {
           // Download if not cached
           await ArtworkManager.downloadArtwork(variant.url);
@@ -147,10 +149,12 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
                                 )
                               : const Icon(Icons.download),
-                          onPressed: _isDownloading ? null : _downloadAllArtwork,
+                          onPressed:
+                              _isDownloading ? null : _downloadAllArtwork,
                         ),
                       IconButton(
                         icon: const Icon(Icons.close),
@@ -190,7 +194,9 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                               child: Text(
                                 'Token database failed to load. Artwork options may not be available.',
                                 style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onErrorContainer,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onErrorContainer,
                                 ),
                               ),
                             ),
@@ -199,15 +205,22 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                       ),
 
                     // Currently selected artwork (only show if there's artwork selected)
-                    if (widget.currentArtworkUrl != null && widget.onRemoveArtwork != null)
+                    if (widget.currentArtworkUrl != null &&
+                        widget.onRemoveArtwork != null)
                       Container(
-                        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primaryContainer
+                            .withValues(alpha: 0.3),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
                           child: Row(
                             children: [
                               // Thumbnail
-                              if (kIsWeb && !widget.currentArtworkUrl!.startsWith('file://'))
+                              if (kIsWeb &&
+                                  !widget.currentArtworkUrl!
+                                      .startsWith('file://'))
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
                                   child: Image.network(
@@ -215,21 +228,27 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                                     width: 80,
                                     height: 112,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => _artworkPlaceholder(),
+                                    errorBuilder: (_, __, ___) =>
+                                        _artworkPlaceholder(),
                                   ),
                                 )
                               else if (!kIsWeb)
                                 FutureBuilder<File?>(
-                                  future: ArtworkManager.getCachedArtworkFile(widget.currentArtworkUrl!),
+                                  future: ArtworkManager.getCachedArtworkFile(
+                                      widget.currentArtworkUrl!),
                                   builder: (context, snapshot) {
-                                    if (snapshot.hasData && snapshot.data != null) {
+                                    if (snapshot.hasData &&
+                                        snapshot.data != null) {
                                       final file = snapshot.data!;
                                       // Add unique key for custom artwork to force reload on replacement
-                                      final isCustomArtwork = widget.currentArtworkUrl!.startsWith('file://');
+                                      final isCustomArtwork = widget
+                                          .currentArtworkUrl!
+                                          .startsWith('file://');
 
                                       // Safety check: verify file exists before accessing modification time
                                       if (!file.existsSync()) {
-                                        debugPrint('Currently selected artwork file missing: ${file.path}');
+                                        debugPrint(
+                                            'Currently selected artwork file missing: ${file.path}');
                                         return _artworkPlaceholder();
                                       }
 
@@ -237,7 +256,12 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                                         borderRadius: BorderRadius.circular(8),
                                         child: Image.file(
                                           file,
-                                          key: isCustomArtwork ? ValueKey(file.path + file.lastModifiedSync().toString()) : null,
+                                          key: isCustomArtwork
+                                              ? ValueKey(file.path +
+                                                  file
+                                                      .lastModifiedSync()
+                                                      .toString())
+                                              : null,
                                           width: 80,
                                           height: 112,
                                           fit: BoxFit.cover,
@@ -280,7 +304,8 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
 
                               // Remove button
                               IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
+                                icon:
+                                    const Icon(Icons.delete, color: Colors.red),
                                 onPressed: () {
                                   Navigator.pop(context);
                                   widget.onRemoveArtwork!();
@@ -291,7 +316,8 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                         ),
                       ),
 
-                    if (widget.currentArtworkUrl != null && widget.onRemoveArtwork != null)
+                    if (widget.currentArtworkUrl != null &&
+                        widget.onRemoveArtwork != null)
                       const Divider(height: 1),
 
                     // Artwork options grid (always show, even if no Scryfall variants)
@@ -301,25 +327,44 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                       child: GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 3,
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
                           childAspectRatio: 0.65, // Adjust for card proportions
                         ),
-                        itemCount: widget.artworkVariants.length + (kIsWeb ? 0 : 1), // +1 for custom tile (not on web)
+                        itemCount: widget.artworkVariants.length +
+                            (kIsWeb ? 0 : 1), // +1 for custom tile (not on web)
                         itemBuilder: (context, index) {
                           // First tile: Custom artwork upload tile (mobile/desktop only)
                           if (!kIsWeb && index == 0) {
                             return _CustomArtworkTile(
                               tokenIdentity: widget.tokenIdentity,
-                              isSelected: widget.currentArtworkUrl?.startsWith('file://') ?? false,
+                              isSelected: widget.currentArtworkUrl
+                                      ?.startsWith('file://') ??
+                                  false,
                               currentArtworkUrl: widget.currentArtworkUrl,
-                              onUploadComplete: (filePath) {
+                              onUploadComplete: (filePath) async {
                                 // Apply custom artwork to token
                                 setState(() {});
-                                Navigator.pop(context); // Close sheet
-                                widget.onArtworkSelected(filePath, 'Custom Upload');
+                                try {
+                                  await widget.onArtworkSelected(
+                                    filePath,
+                                    'Custom Upload',
+                                  );
+                                  if (context.mounted) Navigator.pop(context);
+                                } catch (_) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Artwork could not be saved.',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                }
                               },
                               onRemoveArtwork: widget.onRemoveArtwork,
                             );
@@ -334,7 +379,8 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                               // Show confirmation preview dialog
                               final confirmed = await showDialog<bool>(
                                 context: context,
-                                builder: (context) => _ArtworkConfirmationDialog(
+                                builder: (context) =>
+                                    _ArtworkConfirmationDialog(
                                   variant: variant,
                                 ),
                               );
@@ -345,8 +391,23 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                               }
 
                               if (confirmed == true && context.mounted) {
-                                Navigator.pop(context); // Close selection sheet
-                                widget.onArtworkSelected(variant.url, variant.set);
+                                try {
+                                  await widget.onArtworkSelected(
+                                    variant.url,
+                                    variant.set,
+                                  );
+                                  if (context.mounted) Navigator.pop(context);
+                                } catch (_) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Artwork could not be downloaded.',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                }
                               }
                             },
                           );
@@ -397,7 +458,8 @@ class _ArtworkOption extends StatelessWidget {
                           color: Colors.grey[300],
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Icon(Icons.broken_image, size: 40, color: Colors.grey[600]),
+                        child: Icon(Icons.broken_image,
+                            size: 40, color: Colors.grey[600]),
                       ),
                     ),
                   )
@@ -516,8 +578,11 @@ class _ArtworkConfirmationDialog extends StatelessWidget {
                     );
                   } else if (snapshot.hasError) {
                     // Check if it's a network error
-                    final isNetworkError = snapshot.error.toString().contains('SocketException') ||
-                        snapshot.error.toString().contains('Failed host lookup');
+                    final isNetworkError =
+                        snapshot.error.toString().contains('SocketException') ||
+                            snapshot.error
+                                .toString()
+                                .contains('Failed host lookup');
 
                     return Container(
                       height: 300,
@@ -608,7 +673,8 @@ class _ArtworkConfirmationDialog extends StatelessWidget {
 class _CustomArtworkTile extends StatefulWidget {
   final String tokenIdentity;
   final bool isSelected; // Is the current artwork the custom artwork?
-  final String? currentArtworkUrl; // Current artwork URL to check at deletion time
+  final String?
+      currentArtworkUrl; // Current artwork URL to check at deletion time
   final Function(String filePath) onUploadComplete;
   final VoidCallback? onRemoveArtwork; // Called when custom artwork is deleted
 
@@ -651,7 +717,8 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
   }
 
   Future<void> _handleTap() async {
-    final hasCustom = _artworkPrefManager.hasCustomArtwork(widget.tokenIdentity);
+    final hasCustom =
+        _artworkPrefManager.hasCustomArtwork(widget.tokenIdentity);
 
     if (hasCustom) {
       // State B: Show replacement dialog
@@ -693,7 +760,8 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
   }
 
   Future<void> _showReplacementDialog() async {
-    final customPath = _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
+    final customPath =
+        _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
 
     final action = await showDialog<String>(
       context: context,
@@ -735,12 +803,14 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
                         borderRadius: BorderRadius.circular(8),
                         child: Image.file(
                           file,
-                          key: ValueKey(file.path + file.lastModifiedSync().toString()),
+                          key: ValueKey(
+                              file.path + file.lastModifiedSync().toString()),
                           height: 200,
                           fit: BoxFit.cover,
                         ),
                       );
-                    } else if (snapshot.connectionState == ConnectionState.waiting) {
+                    } else if (snapshot.connectionState ==
+                        ConnectionState.waiting) {
                       // Loading state
                       return const SizedBox(
                         height: 200,
@@ -758,7 +828,8 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.image_not_supported, size: 48, color: Colors.grey[600]),
+                              Icon(Icons.image_not_supported,
+                                  size: 48, color: Colors.grey[600]),
                               const SizedBox(height: 8),
                               Text(
                                 'Custom artwork not available',
@@ -825,7 +896,8 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
       await _pickAndSaveImage();
     } else if (action == 'use' && mounted) {
       // Reselect this custom artwork
-      final customPath = _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
+      final customPath =
+          _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
       if (customPath != null) {
         setState(() {});
         widget.onUploadComplete(customPath);
@@ -835,7 +907,8 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
 
   Future<void> _deleteCustomArtwork() async {
     try {
-      final customPath = _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
+      final customPath =
+          _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
 
       if (customPath != null) {
         // Delete the physical file
@@ -849,7 +922,8 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
 
         // Only clear the currently selected artwork if the custom artwork IS CURRENTLY selected
         // Check current selection at deletion time (not cached isSelected from sheet open)
-        final isCustomCurrentlySelected = widget.currentArtworkUrl?.startsWith('file://') ?? false;
+        final isCustomCurrentlySelected =
+            widget.currentArtworkUrl?.startsWith('file://') ?? false;
         if (widget.onRemoveArtwork != null && isCustomCurrentlySelected) {
           // Close the artwork selection sheet (to avoid showing stale "Currently Selected")
           // Then the parent will clear the item's artwork
@@ -937,6 +1011,7 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
 
       // Delay to ensure loading dialog renders before cropper launches
       await Future.delayed(const Duration(milliseconds: 200));
+      if (!mounted) return;
 
       // Get theme colors to match app styling
       final theme = Theme.of(context);
@@ -950,15 +1025,12 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
       // Theme-aware colors
       final backgroundColor = isDark ? const Color(0xFF181818) : Colors.white;
       final toolbarWidgetColor = Colors.white;
-      final statusBarColor = Color.alphaBlend(
-        Colors.black.withValues(alpha: 0.2),
-        toolbarColor,
-      ); // Slightly darker than toolbar
       final cropFrameColor = isDark ? Colors.white : Colors.black;
       final cropGridColor = isDark
           ? Colors.white.withValues(alpha: 0.3)
           : Colors.black.withValues(alpha: 0.3);
-      final dimmedLayerColor = isDark ? Colors.black : Colors.white.withValues(alpha: 0.5);
+      final dimmedLayerColor =
+          isDark ? Colors.black : Colors.white.withValues(alpha: 0.5);
 
       // Step 2: Crop image with locked 4:3 aspect ratio
       final CroppedFile? croppedFile = await ImageCropper().cropImage(
@@ -969,7 +1041,7 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
             toolbarTitle: 'Crop Token Artwork',
             toolbarColor: toolbarColor,
             toolbarWidgetColor: toolbarWidgetColor,
-            statusBarColor: statusBarColor,
+            statusBarLight: false,
             backgroundColor: backgroundColor,
             activeControlsWidgetColor: toolbarColor,
             dimmedLayerColor: dimmedLayerColor,
@@ -1010,7 +1082,8 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
       await ArtworkManager.resizeImageFile(File(croppedFile.path));
 
       // Delete old custom artwork file if it exists AND clear image cache
-      final oldCustomPath = _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
+      final oldCustomPath =
+          _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
       if (oldCustomPath != null) {
         final oldFile = File(oldCustomPath.replaceFirst('file://', ''));
         if (await oldFile.exists()) {
@@ -1031,7 +1104,8 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
       }
 
       // Generate unique filename using hash of token identity
-      final identityHash = md5.convert(utf8.encode(widget.tokenIdentity)).toString();
+      final identityHash =
+          md5.convert(utf8.encode(widget.tokenIdentity)).toString();
       final extension = croppedFile.path.split('.').last;
       final fileName = 'custom_$identityHash.$extension';
       final filePath = '${customArtDir.path}/$fileName';
@@ -1080,17 +1154,22 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
 
   @override
   Widget build(BuildContext context) {
-    final hasCustom = _artworkPrefManager.hasCustomArtwork(widget.tokenIdentity);
-    final customPath = _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
+    final hasCustom =
+        _artworkPrefManager.hasCustomArtwork(widget.tokenIdentity);
+    final customPath =
+        _artworkPrefManager.getCustomArtworkPath(widget.tokenIdentity);
 
     // Check if custom file actually exists (synchronous check for initial render)
-    final customFile = customPath != null ? File(customPath.replaceFirst('file://', '')) : null;
+    final customFile = customPath != null
+        ? File(customPath.replaceFirst('file://', ''))
+        : null;
     final customFileExists = customFile?.existsSync() ?? false;
 
     // If we have a stale reference, schedule cleanup for next frame
     if (hasCustom && customPath != null && !customFileExists) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        debugPrint('⚠️  Stale custom artwork reference detected in build: $customPath');
+        debugPrint(
+            '⚠️  Stale custom artwork reference detected in build: $customPath');
         debugPrint('   Token: ${widget.tokenIdentity}');
         debugPrint('   Scheduling cleanup...');
         await _artworkPrefManager.setCustomArtwork(widget.tokenIdentity, null);
@@ -1098,7 +1177,8 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
       });
     }
 
-    final showCustomThumbnail = hasCustom && customPath != null && customFileExists;
+    final showCustomThumbnail =
+        hasCustom && customPath != null && customFileExists;
 
     return InkWell(
       onTap: _handleTap,
@@ -1125,7 +1205,8 @@ class _CustomArtworkTileState extends State<_CustomArtworkTile> {
                               customFile!,
                               // Safe to call lastModifiedSync here because showCustomThumbnail
                               // guarantees file exists (via existsSync check above)
-                              key: ValueKey(customFile.path + customFile.lastModifiedSync().toString()),
+                              key: ValueKey(customFile.path +
+                                  customFile.lastModifiedSync().toString()),
                               fit: BoxFit.contain,
                             ),
                           ),

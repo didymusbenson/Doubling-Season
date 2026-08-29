@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -137,7 +136,8 @@ class TokenCard extends StatefulWidget {
   State<TokenCard> createState() => _TokenCardState();
 }
 
-class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
+class _TokenCardState extends State<TokenCard>
+    with SingleTickerProviderStateMixin, ArtworkDisplayMixin {
   static const double _identityRailWidth = 7;
   final DateTime _createdAt = DateTime.now();
   bool _artworkAnimated = false;
@@ -145,12 +145,21 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
   TokenEditSession? _editSession;
   bool _reportedEditing = false;
   double? _artworkRevealHeight;
-  bool _showExpandedArtwork = false;
-  Timer? _artworkTransitionTimer;
+  late final AnimationController _artworkCenterController;
+  late final CurvedAnimation _artworkCenterProgress;
 
   @override
   void initState() {
     super.initState();
+    _artworkCenterController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+      value: 1,
+    );
+    _artworkCenterProgress = CurvedAnimation(
+      parent: _artworkCenterController,
+      curve: const Cubic(0.18, 0.89, 0.32, 1.08),
+    );
     widget.controller?.attach(_requestCollapse);
   }
 
@@ -191,26 +200,22 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
       if (renderBox is RenderBox && renderBox.hasSize) {
         _artworkRevealHeight = renderBox.size.height;
       }
-      _showExpandedArtwork = false;
-      _artworkTransitionTimer?.cancel();
-      _artworkTransitionTimer = Timer(const Duration(milliseconds: 380), () {
-        if (mounted && widget.isExpanded) {
-          setState(() => _showExpandedArtwork = true);
-        }
-      });
+      _artworkCenterController
+        ..duration = const Duration(milliseconds: 380)
+        ..forward(from: 0);
     }
     // Reset cleanup flag if artwork URL changed (e.g., user removed then re-added artwork)
     if (oldWidget.item.artworkUrl != widget.item.artworkUrl) {
       _artworkCleanupAttempted = false;
     }
     if (oldWidget.isExpanded && !widget.isExpanded) {
-      _artworkTransitionTimer?.cancel();
-      _showExpandedArtwork = false;
-      _artworkTransitionTimer = Timer(const Duration(milliseconds: 240), () {
-        if (mounted && !widget.isExpanded) {
-          setState(() => _artworkRevealHeight = null);
-        }
-      });
+      final renderBox = context.findRenderObject();
+      if (renderBox is RenderBox && renderBox.hasSize) {
+        _artworkRevealHeight = renderBox.size.height;
+      }
+      _artworkCenterController
+        ..duration = const Duration(milliseconds: 240)
+        ..forward(from: 0);
       _editSession?.commitActive();
     }
   }
@@ -233,7 +238,8 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
 
   @override
   void dispose() {
-    _artworkTransitionTimer?.cancel();
+    _artworkCenterProgress.dispose();
+    _artworkCenterController.dispose();
     widget.controller?.detach(_requestCollapse);
     _editSession
       ?..removeListener(_handleEditSessionChanged)
@@ -301,17 +307,7 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
                             artworkDisplayStyle: artworkDisplayStyle,
                             cornerRadius: 0,
                             revealViewportHeight: _artworkRevealHeight,
-                          ),
-
-                        // Expansion is additive: retain the compact artwork
-                        // surface (and its decoded image) underneath until
-                        // the expanded source has decoded and faded in.
-                        if (_showExpandedArtwork &&
-                            widget.item.artworkUrl != null)
-                          buildExpandedArtwork(
-                            context,
-                            constraints,
-                            cornerRadius: 0,
+                            revealProgress: _artworkCenterProgress,
                           ),
 
                         // Content layer (all existing UI elements)
@@ -1013,8 +1009,11 @@ class _TokenCardState extends State<TokenCard> with ArtworkDisplayMixin {
               '${widget.item.name}|${widget.item.pt}|${widget.item.colors}|${widget.item.type}|${widget.item.abilities}',
           databaseLoadError: databaseLoadError,
           onArtworkSelected: (url, setCode) async {
-            if (!url.startsWith('file://')) {
-              await ArtworkManager.downloadArtwork(url);
+            if (!kIsWeb && !url.startsWith('file://')) {
+              final file = await ArtworkManager.downloadArtwork(url);
+              if (file == null) {
+                throw StateError('Artwork download failed');
+              }
             }
             widget.item.updateArtwork(
                 url: url, set: setCode, options: artwork.toList());

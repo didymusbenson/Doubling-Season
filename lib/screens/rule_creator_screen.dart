@@ -154,8 +154,7 @@ class _RuleCreatorScreenState extends State<RuleCreatorScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete',
-                style: TextStyle(color: Colors.red)),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -171,7 +170,8 @@ class _RuleCreatorScreenState extends State<RuleCreatorScreen> {
   Future<void> _pickToken({
     required void Function(String id, String displayName) onSelected,
   }) async {
-    final result = await Navigator.of(context).push<token_models.TokenDefinition>(
+    final result =
+        await Navigator.of(context).push<token_models.TokenDefinition>(
       MaterialPageRoute(
         builder: (context) => const TokenSearchScreen(selectorMode: true),
       ),
@@ -278,22 +278,20 @@ class _RuleCreatorScreenState extends State<RuleCreatorScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         DropdownButtonFormField<String>(
-          value: _triggerType,
+          initialValue: _triggerType,
           decoration: const InputDecoration(
             border: OutlineInputBorder(),
             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
           items: const [
             DropdownMenuItem(value: 'any_token', child: Text('Any token')),
-            DropdownMenuItem(
-                value: 'has_pt', child: Text('A token with P/T')),
+            DropdownMenuItem(value: 'has_pt', child: Text('A token with P/T')),
             DropdownMenuItem(
                 value: 'token_type', child: Text('A token of type...')),
             DropdownMenuItem(
                 value: 'color', child: Text('A token of color...')),
             DropdownMenuItem(
-                value: 'specific_token',
-                child: Text('A specific token...')),
+                value: 'specific_token', child: Text('A specific token...')),
           ],
           onChanged: (val) {
             if (val == null) return;
@@ -461,7 +459,7 @@ class _EffectRow extends StatelessWidget {
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: effect.outcomeType,
+                  initialValue: effect.outcomeType,
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
                     contentPadding:
@@ -495,8 +493,7 @@ class _EffectRow extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           if (effect.outcomeType == 'multiply') _buildMultiplyRow(context),
-          if (effect.outcomeType == 'also_create')
-            _buildAlsoCreateRow(context),
+          if (effect.outcomeType == 'also_create') _buildAlsoCreateRow(context),
           if (effect.outcomeType == 'replace') _buildReplaceRow(context),
         ],
       ),
@@ -515,8 +512,7 @@ class _EffectRow extends StatelessWidget {
             textAlign: TextAlign.center,
             decoration: const InputDecoration(
               border: OutlineInputBorder(),
-              contentPadding:
-                  EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               isDense: true,
             ),
             onChanged: (val) {
@@ -560,8 +556,7 @@ class _EffectRow extends StatelessWidget {
             textAlign: TextAlign.center,
             decoration: const InputDecoration(
               border: OutlineInputBorder(),
-              contentPadding:
-                  EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               isDense: true,
             ),
             onChanged: (val) {

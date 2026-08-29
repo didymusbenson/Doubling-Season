@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +27,7 @@ class CroppedArtworkWidget extends StatefulWidget {
   final bool fillWidth;
   final bool fadeIn;
   final double? layoutHeight;
+  final Animation<double>? verticalCenterProgress;
 
   const CroppedArtworkWidget({
     super.key,
@@ -43,6 +45,7 @@ class CroppedArtworkWidget extends StatefulWidget {
     this.fillWidth = true,
     this.fadeIn = false,
     this.layoutHeight,
+    this.verticalCenterProgress,
   }) : assert(imageFile != null || imageUrl != null,
             'Either imageFile or imageUrl must be provided');
 
@@ -52,6 +55,8 @@ class CroppedArtworkWidget extends StatefulWidget {
 
 class _CroppedArtworkWidgetState extends State<CroppedArtworkWidget>
     with SingleTickerProviderStateMixin {
+  static const int _maxNetworkBytes = 20 * 1024 * 1024;
+  static const int _maxDecodedWidth = 1536;
   ui.Image? _cachedImage;
 
   /// Cache key: file path or URL string
@@ -150,18 +155,50 @@ class _CroppedArtworkWidgetState extends State<CroppedArtworkWidget>
     if (widget.imageFile != null && !kIsWeb) {
       bytes = await widget.imageFile!.readAsBytes();
     } else if (source != null) {
-      final response = await http.get(Uri.parse(source));
-      if (response.statusCode != 200) {
-        throw Exception('Failed to load image: HTTP ${response.statusCode}');
+      final client = http.Client();
+      try {
+        final request = http.Request('GET', Uri.parse(source));
+        final response =
+            await client.send(request).timeout(const Duration(seconds: 30));
+        if (response.statusCode != 200) {
+          throw Exception('Failed to load image: HTTP ${response.statusCode}');
+        }
+        if ((response.contentLength ?? 0) > _maxNetworkBytes) {
+          throw Exception('Artwork exceeds the supported size');
+        }
+        final contentType = response.headers['content-type'];
+        if (contentType != null && !contentType.startsWith('image/')) {
+          throw Exception('Artwork response is not an image');
+        }
+        final builder = BytesBuilder(copy: false);
+        var received = 0;
+        await for (final chunk
+            in response.stream.timeout(const Duration(seconds: 30))) {
+          received += chunk.length;
+          if (received > _maxNetworkBytes) {
+            throw Exception('Artwork exceeds the supported size');
+          }
+          builder.add(chunk);
+        }
+        bytes = builder.takeBytes();
+      } finally {
+        client.close();
       }
-      bytes = response.bodyBytes;
     } else {
       throw StateError('No image source available');
     }
 
-    final codec = await ui.instantiateImageCodec(bytes);
-    final frame = await codec.getNextFrame();
-    return frame.image;
+    final codec = await ui.instantiateImageCodec(
+      bytes,
+      targetWidth: _maxDecodedWidth,
+      allowUpscaling: false,
+    );
+    try {
+      final frame = await codec.getNextFrame();
+      return frame.image;
+    } finally {
+      codec.dispose();
+    }
   }
 
   @override
@@ -186,6 +223,7 @@ class _CroppedArtworkWidgetState extends State<CroppedArtworkWidget>
                 : widget.cropBottom,
             fillWidth: widget.fillWidth,
             layoutHeight: widget.layoutHeight,
+            verticalCenterProgress: widget.verticalCenterProgress,
           ),
           size: Size.infinite,
         ),
@@ -203,6 +241,7 @@ class _CroppedArtworkPainter extends CustomPainter {
   final double cropBottom;
   final bool fillWidth;
   final double? layoutHeight;
+  final Animation<double>? verticalCenterProgress;
 
   _CroppedArtworkPainter({
     required this.image,
@@ -212,7 +251,8 @@ class _CroppedArtworkPainter extends CustomPainter {
     required this.cropBottom,
     required this.fillWidth,
     this.layoutHeight,
-  });
+    this.verticalCenterProgress,
+  }) : super(repaint: verticalCenterProgress);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -236,10 +276,17 @@ class _CroppedArtworkPainter extends CustomPainter {
     final Rect dstRect;
     final stableHeight = layoutHeight ?? size.height;
     if (fillWidth) {
-      // FULL VIEW: Fill width, crop height
+      // FULL VIEW: Keep the width-derived scale stable, but center the
+      // resulting image in the live viewport. AnimatedSize can therefore
+      // reveal more artwork while the image translates smoothly to remain
+      // centered instead of leaving the expansion entirely below it.
       final scaleToFillWidth = size.width / croppedWidth;
       final scaledHeight = croppedHeight * scaleToFillWidth;
-      final dstTop = (stableHeight - scaledHeight) / 2;
+      final progress = verticalCenterProgress?.value ?? 1;
+      final centerHeight = layoutHeight == null
+          ? size.height
+          : ui.lerpDouble(layoutHeight, size.height, progress)!;
+      final dstTop = (centerHeight - scaledHeight) / 2;
       dstRect = Rect.fromLTWH(0, dstTop, size.width, scaledHeight);
     } else {
       // FADEOUT: Fill height, ensure minimum width fills container

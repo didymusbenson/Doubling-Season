@@ -23,10 +23,26 @@ class TokenStatusSheet extends StatefulWidget {
 }
 
 class _TokenStatusSheetState extends State<TokenStatusSheet> {
-  void _changed(VoidCallback mutation) {
+  Future<void> _mutationQueue = Future<void>.value();
+
+  Future<void> _changed(VoidCallback mutation) {
+    return _mutationQueue = _mutationQueue.then(
+      (_) => _persistMutation(mutation),
+    );
+  }
+
+  Future<void> _persistMutation(VoidCallback mutation) async {
     mutation();
-    context.read<TokenProvider>().updateItem(widget.item);
-    setState(() {});
+    try {
+      await context.read<TokenProvider>().updateItem(widget.item);
+      if (mounted) setState(() {});
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Token status could not be saved.')),
+        );
+      }
+    }
   }
 
   void _setTotal(int value) {
@@ -55,50 +71,53 @@ class _TokenStatusSheetState extends State<TokenStatusSheet> {
           20,
           20 + MediaQuery.viewInsetsOf(context).bottom,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Token Status', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 12),
-            _NumericSheetRow(
-              icon: Icons.layers,
-              label: 'Total',
-              value: widget.item.amount,
-              maximum: 99999999,
-              onChanged: _setTotal,
-            ),
-            if (!widget.item.isEmblem) ...[
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Token Status',
+                  style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 12),
               _NumericSheetRow(
-                icon: ManaIcons.tap,
-                label: 'Tapped',
-                value: widget.item.tapped,
-                maximum: widget.item.amount,
-                onChanged: (value) =>
-                    _changed(() => widget.item.tapped = value),
+                icon: Icons.layers,
+                label: 'Total',
+                value: widget.item.amount,
+                maximum: 99999999,
+                onChanged: _setTotal,
               ),
-              ListTile(
-                leading: const Icon(Icons.phone_android),
-                title: const Text('Ready'),
-                trailing: Text('${widget.item.amount - widget.item.tapped}'),
-              ),
-              if (showSickness)
+              if (!widget.item.isEmblem) ...[
                 _NumericSheetRow(
-                  icon: ManaIcons.summoningSickness,
-                  label: 'Summoning sick',
-                  value: widget.item.summoningSick,
+                  icon: ManaIcons.tap,
+                  label: 'Tapped',
+                  value: widget.item.tapped,
                   maximum: widget.item.amount,
                   onChanged: (value) =>
-                      _changed(() => widget.item.summoningSick = value),
+                      _changed(() => widget.item.tapped = value),
                 ),
-              if (showSickness && widget.item.summoningSick > 0)
-                TextButton.icon(
-                  onPressed: () =>
-                      _changed(() => widget.item.summoningSick = 0),
-                  icon: const Icon(Icons.clear),
-                  label: const Text('Clear summoning sickness'),
+                ListTile(
+                  leading: const Icon(Icons.phone_android),
+                  title: const Text('Ready'),
+                  trailing: Text('${widget.item.amount - widget.item.tapped}'),
                 ),
+                if (showSickness)
+                  _NumericSheetRow(
+                    icon: ManaIcons.summoningSickness,
+                    label: 'Summoning sick',
+                    value: widget.item.summoningSick,
+                    maximum: widget.item.amount,
+                    onChanged: (value) =>
+                        _changed(() => widget.item.summoningSick = value),
+                  ),
+                if (showSickness && widget.item.summoningSick > 0)
+                  TextButton.icon(
+                    onPressed: () =>
+                        _changed(() => widget.item.summoningSick = 0),
+                    icon: const Icon(Icons.clear),
+                    label: const Text('Clear summoning sickness'),
+                  ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

@@ -138,14 +138,14 @@ values must never open a separate setting dialog.
 The wider aspect ratio compounds the expanded-artwork risk described below.
 Compact and expanded crops must be tested separately; gaining horizontal space
 must not introduce a new focal-point jump, card-frame artifact, or stretch.
-The compact artwork surface remains mounted as the stable painted base during
-expansion. Expanded canonical/art-crop rendering is additive and may replace
-that base visually only after its image has decoded, using a short crossfade;
-never discard the already-painted compact image while resolving or decoding an
-expanded source. Freeze the compact artwork's pre-expansion layout geometry
-during the size transition so the growing card reveals more of a stationary
-image rather than rescaling or recentering it on every frame. Begin the expanded
-crop crossfade only after the size transition has settled.
+The compact artwork surface remains the sole painted artwork layer throughout
+expansion and collapse. Keep its decoded image, crop, and width-derived scale
+stable while the card changes size. It may translate smoothly to remain
+vertically centered in the live viewport, but must not rescale, recrop, reload,
+or swap sources. Do not add a delayed expanded-art overlay or crossfade:
+testing showed that even a decoded secondary source creates a perceptible
+focal-point jump. Any space still beyond the centered image is intentionally
+filled by the color-identity gradient.
 
 Full-width rows must retain the complete swipe-delete hit area, stable
 reordering geometry, identity-rail visibility, and clipping. Every board item
@@ -301,15 +301,13 @@ same background substantially taller can expose parts of the source card that
 were never intended to be visible, produce an unattractive crop, or make the
 artwork appear to shift as the token expands.
 
-This is a visual constraint the implementation may ultimately need to tolerate;
-not every printing will produce an ideal expanded background. The first
-implementation spike should try Scryfall `art_crop` and compare it directly
-against the current full-card crop before settling on the fallback treatment.
+This is a visual constraint the implementation intentionally tolerates; not
+every printing will fill the expanded background. Stable spatial continuity is
+more important than replacing the source with a more flexible crop.
 
-### Implementation comparison
+### Resolved implementation comparison
 
-Add a developer-only renderer toggle for the spike, not a user-facing setting
-or analytics experiment:
+The implementation compared:
 
 - **A — current source:** stored Scryfall `large` URL plus the existing manual
   card-frame crop percentages;
@@ -328,9 +326,10 @@ metadata/artist attribution. If derivation is unsupported, download fails, or
 the source is custom/non-Scryfall artwork, fall back gracefully to the canonical
 URL and its established crop behavior.
 
-Test representative tokens with both renderers during implementation, then
-default to `art_crop` if it is materially better. No formal remote A/B system is
-needed.
+Representative-device testing rejected the expanded `art_crop` handoff because
+it visibly shifted the focal point after the size transition. Expanded board
+cards therefore retain renderer A as one persistent surface. The derived
+`art_crop` path is not part of the active board-card composition.
 
 The underlying mitigation choices remain:
 
@@ -570,12 +569,13 @@ growing.
       activates the following token.
 - [ ] Provider rebuilds do not lose expansion or active text.
 - [ ] Collapse restores the current compact card exactly.
-- [ ] Artwork does not flash, reload unnecessarily, or disappear during edits.
+- [ ] Artwork remains visually continuous while expansion/collapse reveals or
+      hides it; centering may translate smoothly, but it does not flash,
+      rescale, reload, or swap crop/source.
 - [ ] Expansion does not expose card-frame artifacts or cause unacceptable
       artwork focal-point/crop jumps.
-- [ ] The implementation spike can switch between canonical full-card cropping
-      and derived `art_crop` rendering without mutating persisted artwork data.
-- [ ] Missing/failed `art_crop` loads fall back to the canonical artwork source.
+- [ ] Expansion never mutates the canonical artwork URL, selected printing,
+      crop metadata, or cached artwork identity.
 
 ### Editing
 

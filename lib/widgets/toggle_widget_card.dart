@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/toggle_widget.dart';
@@ -55,6 +56,8 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
   late final FocusNode _nameFocus;
   bool _editingOn = false;
   bool _editingOff = false;
+  Future<bool>? _nameCommit;
+  Future<bool>? _descriptionCommit;
   bool _editingName = false;
 
   @override
@@ -292,13 +295,21 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
     });
   }
 
-  Future<bool> _commitName() async {
+  Future<bool> _commitName() {
+    return _nameCommit ??= _commitNameOnce().whenComplete(() {
+      _nameCommit = null;
+    });
+  }
+
+  Future<bool> _commitNameOnce() async {
     if (!_editingName) return true;
     final previous = widget.toggle.name;
     final next = _nameController.text.trim();
     if (next.isEmpty) {
       _nameController.text = previous;
-      return false;
+      if (mounted) setState(() => _editingName = false);
+      widget.onEditingChanged(false);
+      return true;
     }
     widget.toggle.name = next;
     try {
@@ -368,7 +379,13 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
     });
   }
 
-  Future<bool> _commitDescriptions() async {
+  Future<bool> _commitDescriptions() {
+    return _descriptionCommit ??= _commitDescriptionsOnce().whenComplete(() {
+      _descriptionCommit = null;
+    });
+  }
+
+  Future<bool> _commitDescriptionsOnce() async {
     if (!_editingOn && !_editingOff) return true;
     final oldOn = widget.toggle.onDescription;
     final oldOff = widget.toggle.offDescription;
@@ -499,8 +516,11 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
           tokenIdentity: widget.toggle.widgetId,
           databaseLoadError: false,
           onArtworkSelected: (url, setCode) async {
-            if (!url.startsWith('file://')) {
-              await ArtworkManager.downloadArtwork(url);
+            if (!kIsWeb && !url.startsWith('file://')) {
+              final file = await ArtworkManager.downloadArtwork(url);
+              if (file == null) {
+                throw StateError('Artwork download failed');
+              }
             }
             widget.toggle
               ..artworkUrl = url

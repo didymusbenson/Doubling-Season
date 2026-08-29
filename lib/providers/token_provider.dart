@@ -1097,14 +1097,12 @@ class TokenProvider extends ChangeNotifier {
       if (!item.isInBox) return; // Deleted while downloading
       if (file != null) {
         // Keep the original Scryfall URL so crop percentages still apply;
-        // saving just triggers a rebuild that picks up the cached file.
-        item.save();
+        // notifying triggers a rebuild that picks up the cached file.
+        notifyListeners();
       } else {
         debugPrint(
-            'TokenProvider: Artwork download failed for "${item.name}", clearing URL');
-        item.updateArtwork(url: null, set: null, options: item.artworkOptions);
+            'TokenProvider: Artwork download failed for "${item.name}"; preserving selection for retry');
       }
-      notifyListeners();
     }).catchError((error) {
       debugPrint('TokenProvider: Artwork download error: $error');
     });

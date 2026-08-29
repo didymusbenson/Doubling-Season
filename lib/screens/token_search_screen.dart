@@ -92,15 +92,15 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: _searchFocusNode.hasFocus
-            ? null
-            : const Text('Select Token'),
+        title: _searchFocusNode.hasFocus ? null : const Text('Select Token'),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          if (_selectedCategory != null || _searchController.text.isNotEmpty || _selectedColors.isNotEmpty)
+          if (_selectedCategory != null ||
+              _searchController.text.isNotEmpty ||
+              _selectedColors.isNotEmpty)
             TextButton(
               onPressed: _clearFilters,
               child: const Text('Clear'),
@@ -162,7 +162,8 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
               decoration: const InputDecoration(
                 hintText: 'Search tokens...',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               textCapitalization: TextCapitalization.none,
               autocorrect: false,
@@ -292,7 +293,9 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
               token.matches(searchQuery: _searchController.text);
         }).toList();
       case SearchTab.favorites:
-        return _tokenDatabase.getFavoriteTokens(settingsProvider).where((token) {
+        return _tokenDatabase
+            .getFavoriteTokens(settingsProvider)
+            .where((token) {
           return _searchController.text.isEmpty ||
               token.matches(searchQuery: _searchController.text);
         }).toList();
@@ -349,7 +352,8 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
                 ],
                 if (token.pt.isNotEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.grey.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
@@ -393,27 +397,30 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
             ),
             confirmDismiss: (direction) async {
               return await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Delete Custom Token'),
-                  content: Text('Remove "${token.name}" from your custom library?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel'),
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Delete Custom Token'),
+                      content: Text(
+                          'Remove "${token.name}" from your custom library?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Delete',
+                              style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
                     ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Delete', style: TextStyle(color: Colors.red)),
-                    ),
-                  ],
-                ),
-              ) ?? false;
+                  ) ??
+                  false;
             },
             onDismissed: (_) {
               _tokenDatabase.deleteCustomToken(token.id);
             },
-          child: card,
+            child: card,
           );
         }
 
@@ -539,9 +546,11 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            _selectedTab == SearchTab.favorites ? Icons.star_border
-                : _selectedTab == SearchTab.custom ? Icons.build
-                : Icons.search,
+            _selectedTab == SearchTab.favorites
+                ? Icons.star_border
+                : _selectedTab == SearchTab.custom
+                    ? Icons.build
+                    : Icons.search,
             size: 60,
             color: Colors.grey,
           ),
@@ -552,7 +561,8 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
             textAlign: TextAlign.center,
           ),
           if (_selectedTab == SearchTab.all &&
-              (_selectedCategory != null || _searchController.text.isNotEmpty)) ...[
+              (_selectedCategory != null ||
+                  _searchController.text.isNotEmpty)) ...[
             const SizedBox(height: 20),
             OutlinedButton(
               onPressed: _clearFilters,
@@ -579,7 +589,8 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
             if (widget.selectorMode) {
               // In selector mode, navigate to NewTokenSheet with selectorMode,
               // await the result, and forward it back to the caller
-              final result = await Navigator.of(context).push<token_models.TokenDefinition>(
+              final result = await Navigator.of(context)
+                  .push<token_models.TokenDefinition>(
                 MaterialPageRoute(
                   builder: (context) => const NewTokenSheet(selectorMode: true),
                   fullscreenDialog: true,
@@ -637,7 +648,8 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
     // Check if user has custom artwork preference first
     final artworkPrefManager = ArtworkPreferenceManager();
     final tokenIdentity = token.id;
-    final preferredArtwork = artworkPrefManager.getPreferredArtwork(tokenIdentity);
+    final preferredArtwork =
+        artworkPrefManager.getPreferredArtwork(tokenIdentity);
 
     // Only download if it's a Scryfall URL (not custom file://)
     if (preferredArtwork != null && !preferredArtwork.startsWith('file://')) {
@@ -661,7 +673,6 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
     _showQuantityDialog(token);
   }
 
-
   void _showQuantityDialog(token_models.TokenDefinition token) {
     showModalBottomSheet(
       context: context,
@@ -669,448 +680,497 @@ class _TokenSearchScreenState extends State<TokenSearchScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
           // Compute preview from rules engine for display
-          final rulesProvider = Provider.of<RulesProvider>(context, listen: false);
+          final rulesProvider =
+              Provider.of<RulesProvider>(context, listen: false);
           final previewResults = rulesProvider.evaluateRules(
-            token.name, token.pt, token.colors, token.type, token.abilities, _tokenQuantity,
+            token.name,
+            token.pt,
+            token.colors,
+            token.type,
+            token.abilities,
+            _tokenQuantity,
           );
-          final totalTokens = previewResults.fold<int>(0, (sum, r) => sum + r.quantity);
+          final totalTokens =
+              previewResults.fold<int>(0, (sum, r) => sum + r.quantity);
           final hasCompanionTokens = previewResults.length > 1;
 
           return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 16,
-            right: 16,
-            top: 16,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Token Preview
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            token.name,
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        if (token.pt.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+              left: 16,
+              right: 16,
+              top: 16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Token Preview
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
                             child: Text(
-                              token.pt,
+                              token.name,
                               style: const TextStyle(
-                                fontSize: 18,
+                                fontSize: 22,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      token.cleanType,
-                      style: const TextStyle(color: Colors.grey),
-                    ),
-                    if (token.abilities.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      ManaText(
-                        token.abilities,
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Quantity Selector
-              const Text(
-                'How many tokens?',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: _isEditingQuantity || _tokenQuantity <= 1
-                          ? null
-                          : () => setModalState(() => _tokenQuantity--),
-                      icon: const Icon(Icons.remove_circle),
-                      iconSize: 32,
-                      color: _isEditingQuantity || _tokenQuantity <= 1 ? Colors.grey : Colors.blue,
-                    ),
-                    Expanded(
-                      child: _isEditingQuantity
-                          ? TextField(
-                              controller: _quantityController,
-                              focusNode: _quantityFocusNode,
-                              keyboardType: TextInputType.number,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
+                          if (token.pt.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
                               ),
-                              decoration: const InputDecoration(
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.zero,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              onSubmitted: (value) {
-                                final newQuantity = int.tryParse(value);
-                                if (newQuantity != null && newQuantity > 0) {
-                                  setModalState(() {
-                                    _tokenQuantity = newQuantity;
-                                    _isEditingQuantity = false;
-                                  });
-                                } else {
-                                  setModalState(() => _isEditingQuantity = false);
-                                }
-                              },
-                              onTapOutside: (event) {
-                                final newQuantity = int.tryParse(_quantityController.text);
-                                if (newQuantity != null && newQuantity > 0) {
-                                  setModalState(() {
-                                    _tokenQuantity = newQuantity;
-                                    _isEditingQuantity = false;
-                                  });
-                                } else {
-                                  setModalState(() => _isEditingQuantity = false);
-                                }
-                              },
-                            )
-                          : InkWell(
-                              onTap: () {
-                                setModalState(() {
-                                  _quantityController.text = '$_tokenQuantity';
-                                  _isEditingQuantity = true;
-                                });
-                                // Request focus after state change (Android compatibility)
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                  if (mounted) {
-                                    _quantityFocusNode.requestFocus();
-                                  }
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                child: Text(
-                                  '$_tokenQuantity',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              child: Text(
+                                token.pt,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
-                    ),
-                    IconButton(
-                      onPressed: _isEditingQuantity
-                          ? null
-                          : () => setModalState(() => _tokenQuantity++),
-                      icon: const Icon(Icons.add_circle),
-                      iconSize: 32,
-                      color: _isEditingQuantity ? Colors.grey : Colors.blue,
-                    ),
-                  ],
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        token.cleanType,
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                      if (token.abilities.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        ManaText(
+                          token.abilities,
+                          style:
+                              const TextStyle(fontSize: 12, color: Colors.grey),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
 
-              // Rules preview (replaces old multiplier text)
-              if (rulesProvider.hasActiveRules) ...[
-                const SizedBox(height: 8),
-                Text(
-                  hasCompanionTokens
-                      ? TokenCreationResult.breakdownString(previewResults)
-                      : 'Final amount: $totalTokens',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  textAlign: TextAlign.center,
+                const SizedBox(height: 20),
+
+                // Quantity Selector
+                const Text(
+                  'How many tokens?',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-              ],
+                const SizedBox(height: 12),
 
-              const SizedBox(height: 12),
-
-              // Quick select buttons
-              Row(
-                children: [1, 2, 3, 4, 5].map((num) {
-                  final isSelected = _tokenQuantity == num;
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: OutlinedButton(
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: _isEditingQuantity || _tokenQuantity <= 1
+                            ? null
+                            : () => setModalState(() => _tokenQuantity--),
+                        icon: const Icon(Icons.remove_circle),
+                        iconSize: 32,
+                        color: _isEditingQuantity || _tokenQuantity <= 1
+                            ? Colors.grey
+                            : Colors.blue,
+                      ),
+                      Expanded(
+                        child: _isEditingQuantity
+                            ? TextField(
+                                controller: _quantityController,
+                                focusNode: _quantityFocusNode,
+                                keyboardType: TextInputType.number,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                                onSubmitted: (value) {
+                                  final newQuantity = int.tryParse(value);
+                                  if (newQuantity != null && newQuantity > 0) {
+                                    setModalState(() {
+                                      _tokenQuantity = newQuantity;
+                                      _isEditingQuantity = false;
+                                    });
+                                  } else {
+                                    setModalState(
+                                        () => _isEditingQuantity = false);
+                                  }
+                                },
+                                onTapOutside: (event) {
+                                  final newQuantity =
+                                      int.tryParse(_quantityController.text);
+                                  if (newQuantity != null && newQuantity > 0) {
+                                    setModalState(() {
+                                      _tokenQuantity = newQuantity;
+                                      _isEditingQuantity = false;
+                                    });
+                                  } else {
+                                    setModalState(
+                                        () => _isEditingQuantity = false);
+                                  }
+                                },
+                              )
+                            : InkWell(
+                                onTap: () {
+                                  setModalState(() {
+                                    _quantityController.text =
+                                        '$_tokenQuantity';
+                                    _isEditingQuantity = true;
+                                  });
+                                  // Request focus after state change (Android compatibility)
+                                  WidgetsBinding.instance
+                                      .addPostFrameCallback((_) {
+                                    if (mounted) {
+                                      _quantityFocusNode.requestFocus();
+                                    }
+                                  });
+                                },
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8),
+                                  child: Text(
+                                    '$_tokenQuantity',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                      ),
+                      IconButton(
                         onPressed: _isEditingQuantity
                             ? null
-                            : () => setModalState(() => _tokenQuantity = num),
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor:
-                              isSelected ? Colors.blue : Colors.transparent,
-                          foregroundColor:
-                              isSelected ? Colors.white : (_isEditingQuantity ? Colors.grey : Colors.blue),
+                            : () => setModalState(() => _tokenQuantity++),
+                        icon: const Icon(Icons.add_circle),
+                        iconSize: 32,
+                        color: _isEditingQuantity ? Colors.grey : Colors.blue,
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Rules preview (replaces old multiplier text)
+                if (rulesProvider.hasActiveRules) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    hasCompanionTokens
+                        ? TokenCreationResult.breakdownString(previewResults)
+                        : 'Final amount: $totalTokens',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+
+                const SizedBox(height: 12),
+
+                // Quick select buttons
+                Row(
+                  children: [1, 2, 3, 4, 5].map((quantity) {
+                    final isSelected = _tokenQuantity == quantity;
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: OutlinedButton(
+                          onPressed: _isEditingQuantity
+                              ? null
+                              : () => setModalState(
+                                  () => _tokenQuantity = quantity),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor:
+                                isSelected ? Colors.blue : Colors.transparent,
+                            foregroundColor: isSelected
+                                ? Colors.white
+                                : (_isEditingQuantity
+                                    ? Colors.grey
+                                    : Colors.blue),
+                          ),
+                          child: Text('$quantity'),
                         ),
-                        child: Text('$num'),
                       ),
-                    ),
-                  );
-                }).toList(),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Create Tapped Toggle
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Create Tapped',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Tokens enter the battlefield tapped',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Switch(
-                      value: _createTapped,
-                      onChanged: (value) {
-                        setModalState(() => _createTapped = value);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Create Button
-              ElevatedButton(
-                onPressed: _isCreating ? null : () async {
-                  // Prevent multi-tap
-                  setModalState(() => _isCreating = true);
-
-                  // Capture provider references BEFORE any async operations
-                  final tokenProvider = context.read<TokenProvider>();
-                  final trackerProvider = context.read<TrackerProvider>();
-                  final toggleProvider = context.read<ToggleProvider>();
-                  final settingsProvider = context.read<SettingsProvider>();
-                  final rulesProvider = context.read<RulesProvider>();
-
-                  // Evaluate rules to get all tokens to create
-                  final results = rulesProvider.evaluateRules(
-                    token.name, token.pt, token.colors, token.type, token.abilities, _tokenQuantity,
-                  );
-
-                  // Calculate max order across ALL board items (tokens + trackers + toggles)
-                  final allOrders = <double>[];
-                  allOrders.addAll(tokenProvider.items.map((item) => item.order));
-                  allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
-                  allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
-                  final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
-                  double nextOrder = maxOrder.floor() + 1.0;
-
-                  // Create primary token (results.first)
-                  final primaryResult = results.first;
-                  if (primaryResult.quantity > 0) {
-                    // Primary token - use the selected token's artwork
-                    String? artworkUrl;
-                    String? artworkSet;
-                    List<token_models.ArtworkVariant>? artworkOptions;
-
-                    final artworkPrefManager = ArtworkPreferenceManager();
-                    final tokenIdentity = token.id;
-                    final preferredArtwork = artworkPrefManager.getPreferredArtwork(tokenIdentity);
-
-                    if (preferredArtwork != null) {
-                      artworkUrl = preferredArtwork;
-                      if (!preferredArtwork.startsWith('file://') && token.artwork.isNotEmpty) {
-                        final matchingArtwork = token.artwork.firstWhere(
-                          (art) => art.url == preferredArtwork,
-                          orElse: () => token.artwork[0],
-                        );
-                        artworkSet = matchingArtwork.set;
-                      }
-                    } else if (token.artwork.isNotEmpty) {
-                      artworkUrl = token.artwork[0].url;
-                      artworkSet = token.artwork[0].set;
-                    }
-                    artworkOptions = token.artwork.isNotEmpty ? List<token_models.ArtworkVariant>.from(token.artwork) : null;
-
-                    final newItem = Item(
-                      name: primaryResult.name,
-                      pt: primaryResult.pt,
-                      abilities: primaryResult.abilities,
-                      colors: primaryResult.colors,
-                      type: primaryResult.type,
-                      amount: primaryResult.quantity,
-                      tapped: _createTapped ? primaryResult.quantity : 0,
-                      summoningSick: 0,
-                      order: nextOrder,
-                      artworkUrl: artworkUrl,
-                      artworkSet: artworkSet,
-                      artworkOptions: artworkOptions,
                     );
-                    nextOrder += 1.0;
+                  }).toList(),
+                ),
 
-                    await tokenProvider.insertItem(newItem);
+                const SizedBox(height: 20),
 
-                    // Apply summoning sickness AFTER insert
-                    if (settingsProvider.summoningSicknessEnabled &&
-                        newItem.hasPowerToughness &&
-                        !newItem.hasHaste) {
-                      newItem.summoningSick = primaryResult.quantity;
-                    }
-
-                    // Download artwork in background (non-blocking, fire-and-forget)
-                    if (!kIsWeb && newItem.artworkUrl != null && !newItem.artworkUrl!.startsWith('file://')) {
-                      final downloadUrl = newItem.artworkUrl!;
-                      ArtworkManager.downloadArtwork(downloadUrl).then((file) {
-                        if (file == null) {
-                          debugPrint('Artwork download failed for ${primaryResult.name}, resetting URL');
-                          final currentItem = tokenProvider.items.firstWhereOrNull(
-                            (item) => item.artworkUrl == downloadUrl
-                          );
-                          if (currentItem != null) {
-                            currentItem.artworkUrl = null;
-                            currentItem.artworkSet = null;
-                            currentItem.save();
-                          }
-                        } else {
-                          debugPrint('Artwork downloaded and cached for ${primaryResult.name}');
-                          final currentItem = tokenProvider.items.firstWhereOrNull(
-                            (item) => item.artworkUrl == downloadUrl
-                          );
-                          if (currentItem != null) {
-                            currentItem.save();
-                          }
-                        }
-                      }).catchError((error) {
-                        debugPrint('Error during background artwork download: $error');
-                        final currentItem = tokenProvider.items.firstWhereOrNull(
-                          (item) => item.artworkUrl == downloadUrl
-                        );
-                        if (currentItem != null) {
-                          currentItem.artworkUrl = null;
-                          currentItem.artworkSet = null;
-                          currentItem.save();
-                        }
-                      });
-                    }
-                  }
-
-                  // Create companion tokens via shared service
-                  if (results.length > 1) {
-                    await TokenCreationService.createCompanionTokens(
-                      results: results,
-                      tokenProvider: tokenProvider,
-                      summoningSicknessEnabled: settingsProvider.summoningSicknessEnabled,
-                      insertionOrder: nextOrder,
-                      tokenDatabase: _tokenDatabase,
-                    );
-                  }
-
-                  // Check if any results were capped
-                  final wasCapped = results.any((r) => r.wasCapped);
-
-                  // Reset creating state before closing dialogs
-                  if (mounted) {
-                    setModalState(() => _isCreating = false);
-                  }
-
-                  // Show cap alert before closing dialogs (context is still valid)
-                  if (wasCapped && context.mounted) {
-                    await showDialog(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Woah there!'),
-                        content: const Text(
-                          'Looks like your deck is popping off. Congrats! '
-                          'For performance reasons, tokens have been capped at 999,999. '
-                          'Please win the game this turn.',
+                // Create Tapped Toggle
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Create Tapped',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Tokens enter the battlefield tapped',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
                         ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(ctx).pop(),
-                            child: const Text('OK'),
-                          ),
-                        ],
                       ),
-                    );
-                  }
-
-                  // Close dialogs - token is on board and usable
-                  if (context.mounted) {
-                    Navigator.pop(context); // Close quantity dialog
-                    Navigator.pop(context); // Close search screen
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                  backgroundColor: _isCreating ? Colors.grey : Colors.blue,
-                  foregroundColor: Colors.white,
+                      Switch(
+                        value: _createTapped,
+                        onChanged: (value) {
+                          setModalState(() => _createTapped = value);
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-                child: Text(
-                  _isCreating ? 'Creating...' : 'Create',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
 
-              const SizedBox(height: 20),
-            ],
-          ),
-        );
+                const SizedBox(height: 20),
+
+                // Create Button
+                ElevatedButton(
+                  onPressed: _isCreating
+                      ? null
+                      : () async {
+                          // Prevent multi-tap
+                          setModalState(() => _isCreating = true);
+
+                          // Capture provider references BEFORE any async operations
+                          final tokenProvider = context.read<TokenProvider>();
+                          final trackerProvider =
+                              context.read<TrackerProvider>();
+                          final toggleProvider = context.read<ToggleProvider>();
+                          final settingsProvider =
+                              context.read<SettingsProvider>();
+                          final rulesProvider = context.read<RulesProvider>();
+
+                          // Evaluate rules to get all tokens to create
+                          final results = rulesProvider.evaluateRules(
+                            token.name,
+                            token.pt,
+                            token.colors,
+                            token.type,
+                            token.abilities,
+                            _tokenQuantity,
+                          );
+
+                          // Calculate max order across ALL board items (tokens + trackers + toggles)
+                          final allOrders = <double>[];
+                          allOrders.addAll(
+                              tokenProvider.items.map((item) => item.order));
+                          allOrders.addAll(
+                              trackerProvider.trackers.map((t) => t.order));
+                          allOrders.addAll(
+                              toggleProvider.toggles.map((t) => t.order));
+                          final maxOrder = allOrders.isEmpty
+                              ? 0.0
+                              : allOrders.reduce((a, b) => a > b ? a : b);
+                          double nextOrder = maxOrder.floor() + 1.0;
+
+                          // Create primary token (results.first)
+                          final primaryResult = results.first;
+                          if (primaryResult.quantity > 0) {
+                            // Primary token - use the selected token's artwork
+                            String? artworkUrl;
+                            String? artworkSet;
+                            List<token_models.ArtworkVariant>? artworkOptions;
+
+                            final artworkPrefManager =
+                                ArtworkPreferenceManager();
+                            final tokenIdentity = token.id;
+                            final preferredArtwork = artworkPrefManager
+                                .getPreferredArtwork(tokenIdentity);
+
+                            if (preferredArtwork != null) {
+                              artworkUrl = preferredArtwork;
+                              if (!preferredArtwork.startsWith('file://') &&
+                                  token.artwork.isNotEmpty) {
+                                final matchingArtwork =
+                                    token.artwork.firstWhere(
+                                  (art) => art.url == preferredArtwork,
+                                  orElse: () => token.artwork[0],
+                                );
+                                artworkSet = matchingArtwork.set;
+                              }
+                            } else if (token.artwork.isNotEmpty) {
+                              artworkUrl = token.artwork[0].url;
+                              artworkSet = token.artwork[0].set;
+                            }
+                            artworkOptions = token.artwork.isNotEmpty
+                                ? List<token_models.ArtworkVariant>.from(
+                                    token.artwork)
+                                : null;
+
+                            final newItem = Item(
+                              name: primaryResult.name,
+                              pt: primaryResult.pt,
+                              abilities: primaryResult.abilities,
+                              colors: primaryResult.colors,
+                              type: primaryResult.type,
+                              amount: primaryResult.quantity,
+                              tapped:
+                                  _createTapped ? primaryResult.quantity : 0,
+                              summoningSick: 0,
+                              order: nextOrder,
+                              artworkUrl: artworkUrl,
+                              artworkSet: artworkSet,
+                              artworkOptions: artworkOptions,
+                            );
+                            nextOrder += 1.0;
+
+                            await tokenProvider.insertItem(newItem);
+
+                            // Apply summoning sickness AFTER insert
+                            if (settingsProvider.summoningSicknessEnabled &&
+                                newItem.hasPowerToughness &&
+                                !newItem.hasHaste) {
+                              newItem.summoningSick = primaryResult.quantity;
+                            }
+
+                            // Download artwork in background (non-blocking, fire-and-forget)
+                            if (!kIsWeb &&
+                                newItem.artworkUrl != null &&
+                                !newItem.artworkUrl!.startsWith('file://')) {
+                              final downloadUrl = newItem.artworkUrl!;
+                              ArtworkManager.downloadArtwork(downloadUrl)
+                                  .then((file) {
+                                if (file == null) {
+                                  debugPrint(
+                                      'Artwork download failed for ${primaryResult.name}, resetting URL');
+                                  final currentItem = tokenProvider.items
+                                      .firstWhereOrNull((item) =>
+                                          item.artworkUrl == downloadUrl);
+                                  if (currentItem != null) {
+                                    currentItem.artworkUrl = null;
+                                    currentItem.artworkSet = null;
+                                    currentItem.save();
+                                  }
+                                } else {
+                                  debugPrint(
+                                      'Artwork downloaded and cached for ${primaryResult.name}');
+                                  final currentItem = tokenProvider.items
+                                      .firstWhereOrNull((item) =>
+                                          item.artworkUrl == downloadUrl);
+                                  if (currentItem != null) {
+                                    currentItem.save();
+                                  }
+                                }
+                              }).catchError((error) {
+                                debugPrint(
+                                    'Error during background artwork download: $error');
+                                final currentItem = tokenProvider.items
+                                    .firstWhereOrNull((item) =>
+                                        item.artworkUrl == downloadUrl);
+                                if (currentItem != null) {
+                                  currentItem.artworkUrl = null;
+                                  currentItem.artworkSet = null;
+                                  currentItem.save();
+                                }
+                              });
+                            }
+                          }
+
+                          // Create companion tokens via shared service
+                          if (results.length > 1) {
+                            await TokenCreationService.createCompanionTokens(
+                              results: results,
+                              tokenProvider: tokenProvider,
+                              summoningSicknessEnabled:
+                                  settingsProvider.summoningSicknessEnabled,
+                              insertionOrder: nextOrder,
+                              tokenDatabase: _tokenDatabase,
+                            );
+                          }
+
+                          // Check if any results were capped
+                          final wasCapped = results.any((r) => r.wasCapped);
+
+                          // Reset creating state before closing dialogs
+                          if (mounted) {
+                            setModalState(() => _isCreating = false);
+                          }
+
+                          // Show cap alert before closing dialogs (context is still valid)
+                          if (wasCapped && context.mounted) {
+                            await showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Woah there!'),
+                                content: const Text(
+                                  'Looks like your deck is popping off. Congrats! '
+                                  'For performance reasons, tokens have been capped at 999,999. '
+                                  'Please win the game this turn.',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.of(ctx).pop(),
+                                    child: const Text('OK'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          // Close dialogs - token is on board and usable
+                          if (context.mounted) {
+                            Navigator.pop(context); // Close quantity dialog
+                            Navigator.pop(context); // Close search screen
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                    backgroundColor: _isCreating ? Colors.grey : Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: Text(
+                    _isCreating ? 'Creating...' : 'Create',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+              ],
+            ),
+          );
         },
       ),
     );
   }
-
 
   void _clearFilters() {
     setState(() {

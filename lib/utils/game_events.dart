@@ -20,15 +20,17 @@ class GameEvents {
   /// Callback receives:
   /// - [item]: The token that entered (for future filtering by type/color)
   /// - [count]: Number of tokens that entered (item.amount)
-  void onCreatureEntered(void Function(Item item, int count) callback) {
+  void Function() onCreatureEntered(
+      void Function(Item item, int count) callback) {
     _creatureEnteredListeners.add(callback);
+    return () => _creatureEnteredListeners.remove(callback);
   }
 
   /// Notify all listeners that creature(s) entered the battlefield.
   ///
   /// Called by TokenProvider when tokens with P/T are created/copied.
   void notifyCreatureEntered(Item item, int count) {
-    for (var listener in _creatureEnteredListeners) {
+    for (var listener in List.of(_creatureEnteredListeners)) {
       listener(item, count);
     }
   }
@@ -38,15 +40,16 @@ class GameEvents {
   final _boardWipedListeners = <void Function()>[];
 
   /// Register a listener for board wipe events.
-  void onBoardWiped(void Function() callback) {
+  void Function() onBoardWiped(void Function() callback) {
     _boardWipedListeners.add(callback);
+    return () => _boardWipedListeners.remove(callback);
   }
 
   /// Notify all listeners that board was wiped.
   ///
   /// Called by TokenProvider when user triggers board wipe action.
   void notifyBoardWiped() {
-    for (var listener in _boardWipedListeners) {
+    for (var listener in List.of(_boardWipedListeners)) {
       listener();
     }
   }

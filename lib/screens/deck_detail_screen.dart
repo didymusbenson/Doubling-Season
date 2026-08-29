@@ -613,8 +613,9 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
 
   String _getItemColorIdentity(_DeckItem item) {
     if (item.type == 'token') return (item.template as TokenTemplate).colors;
-    if (item.type == 'tracker')
+    if (item.type == 'tracker') {
       return (item.template as TrackerWidgetTemplate).colorIdentity;
+    }
     return (item.template as ToggleWidgetTemplate).colorIdentity;
   }
 
@@ -688,8 +689,9 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
 
   String _getItemName(_DeckItem item) {
     if (item.type == 'token') return (item.template as TokenTemplate).name;
-    if (item.type == 'tracker')
+    if (item.type == 'tracker') {
       return (item.template as TrackerWidgetTemplate).name;
+    }
     return (item.template as ToggleWidgetTemplate).name;
   }
 
@@ -952,8 +954,9 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
 
   /// Fire-and-forget download of artwork to local cache so it renders in deck cards.
   void _precacheArtwork(String? url) {
-    if (url == null || url.isEmpty || url.startsWith('file://') || kIsWeb)
+    if (url == null || url.isEmpty || url.startsWith('file://') || kIsWeb) {
       return;
+    }
     ArtworkManager.downloadArtwork(url).then((_) {
       if (mounted) setState(() {}); // Rebuild to show newly cached artwork
     }).catchError((e) {

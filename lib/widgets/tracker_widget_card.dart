@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -85,6 +86,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
   bool _committingValue = false;
   int? _valueBeforeEdit;
   bool _editingDescription = false;
+  Future<bool>? _nameCommit;
+  Future<bool>? _descriptionCommit;
+  Future<bool>? _valueCommit;
 
   // Cached artwork Future to prevent FutureBuilder rebuilds.
   Future<File?>? _cachedArtworkFuture;
@@ -336,13 +340,21 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
     });
   }
 
-  Future<bool> _commitName() async {
+  Future<bool> _commitName() {
+    return _nameCommit ??= _commitNameOnce().whenComplete(() {
+      _nameCommit = null;
+    });
+  }
+
+  Future<bool> _commitNameOnce() async {
     if (!_editingName) return true;
     final previous = widget.tracker.name;
     final next = _nameController.text.trim();
     if (next.isEmpty) {
       _nameController.text = previous;
-      return false;
+      if (mounted) setState(() => _editingName = false);
+      widget.onEditingChanged(false);
+      return true;
     }
     widget.tracker.name = next;
     try {
@@ -409,7 +421,13 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
     });
   }
 
-  Future<bool> _commitDescription() async {
+  Future<bool> _commitDescription() {
+    return _descriptionCommit ??= _commitDescriptionOnce().whenComplete(() {
+      _descriptionCommit = null;
+    });
+  }
+
+  Future<bool> _commitDescriptionOnce() async {
     if (!_editingDescription) return true;
     final previous = widget.tracker.description;
     widget.tracker.description = _descriptionController.text;
@@ -538,8 +556,11 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
           tokenIdentity: widget.tracker.widgetId,
           databaseLoadError: false,
           onArtworkSelected: (url, setCode) async {
-            if (!url.startsWith('file://')) {
-              await ArtworkManager.downloadArtwork(url);
+            if (!kIsWeb && !url.startsWith('file://')) {
+              final file = await ArtworkManager.downloadArtwork(url);
+              if (file == null) {
+                throw StateError('Artwork download failed');
+              }
             }
             widget.tracker
               ..artworkUrl = url
@@ -760,7 +781,13 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
     });
   }
 
-  Future<bool> _commitValue() async {
+  Future<bool> _commitValue() {
+    return _valueCommit ??= _commitValueOnce().whenComplete(() {
+      _valueCommit = null;
+    });
+  }
+
+  Future<bool> _commitValueOnce() async {
     if (!_editingValue) return true;
     if (_committingValue) return false;
     final parsed = int.tryParse(_valueController.text.trim());
@@ -965,8 +992,8 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
     final tokenProvider = context.read<TokenProvider>();
     final settingsProvider = context.read<SettingsProvider>();
     final rulesProvider = context.read<RulesProvider>();
-    final trackerProvider = context.read<TrackerProvider>();
-    final toggleProvider = context.read<ToggleProvider>();
+    final trackerProvider = this.context.read<TrackerProvider>();
+    final toggleProvider = this.context.read<ToggleProvider>();
 
     final parts = GameConstants.phyrexianMyrCompositeId.split('|');
     final results = rulesProvider.evaluateRules(
@@ -1263,8 +1290,8 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
     final tokenProvider = context.read<TokenProvider>();
     final settingsProvider = context.read<SettingsProvider>();
     final rulesProvider = context.read<RulesProvider>();
-    final trackerProvider = context.read<TrackerProvider>();
-    final toggleProvider = context.read<ToggleProvider>();
+    final trackerProvider = this.context.read<TrackerProvider>();
+    final toggleProvider = this.context.read<ToggleProvider>();
 
     // Rhys's second ability: "For each creature token you control, create a
     // token that's a copy of that creature." Every eligible stack is snapshot
@@ -1511,11 +1538,11 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
       ),
     );
 
-    if (shouldCreate == null) return;
+    if (shouldCreate == null || !mounted) return;
 
     // Calculate max order across ALL board items (tokens + trackers + toggles)
-    final trackerProvider = context.read<TrackerProvider>();
-    final toggleProvider = context.read<ToggleProvider>();
+    final trackerProvider = this.context.read<TrackerProvider>();
+    final toggleProvider = this.context.read<ToggleProvider>();
     final allOrders = <double>[];
     allOrders.addAll(tokenProvider.items.map((item) => item.order));
     allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
@@ -1619,11 +1646,11 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
       ),
     );
 
-    if (shouldCreate == null) return;
+    if (shouldCreate == null || !mounted) return;
 
     // Calculate max order across ALL board items (tokens + trackers + toggles)
-    final trackerProvider = context.read<TrackerProvider>();
-    final toggleProvider = context.read<ToggleProvider>();
+    final trackerProvider = this.context.read<TrackerProvider>();
+    final toggleProvider = this.context.read<ToggleProvider>();
     final allOrders = <double>[];
     allOrders.addAll(tokenProvider.items.map((item) => item.order));
     allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
@@ -1702,11 +1729,11 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
       ),
     );
 
-    if (shouldCreate == null) return;
+    if (shouldCreate == null || !mounted) return;
 
     // Calculate max order across ALL board items (tokens + trackers + toggles)
-    final trackerProvider = context.read<TrackerProvider>();
-    final toggleProvider = context.read<ToggleProvider>();
+    final trackerProvider = this.context.read<TrackerProvider>();
+    final toggleProvider = this.context.read<ToggleProvider>();
     final allOrders = <double>[];
     allOrders.addAll(tokenProvider.items.map((item) => item.order));
     allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
@@ -1885,11 +1912,11 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
       ),
     );
 
-    if (shouldCreate != true) return;
+    if (shouldCreate != true || !mounted) return;
 
     // Calculate max order across ALL board items (tokens + trackers + toggles)
-    final trackerProvider = context.read<TrackerProvider>();
-    final toggleProvider = context.read<ToggleProvider>();
+    final trackerProvider = this.context.read<TrackerProvider>();
+    final toggleProvider = this.context.read<ToggleProvider>();
     final allOrders = <double>[];
     allOrders.addAll(tokenProvider.items.map((item) => item.order));
     allOrders.addAll(trackerProvider.trackers.map((t) => t.order));

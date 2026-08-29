@@ -32,7 +32,7 @@ import '../cropped_artwork_widget.dart';
 ///                          // For ToggleWidget: widget.toggle.currentArtworkUrl
 ///                          //   NOTE: currentArtworkUrl is scaffolded for state-specific
 ///                          //   artwork but not implemented - always returns artworkUrl
-/// void clearArtwork();     // Clear artworkUrl, artworkSet, artworkOptions, save()
+/// void clearArtwork();     // Explicit user-requested removal only.
 /// ```
 mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
   final Map<String, Future<ArtworkRenderSource>> _expandedSourceFutures = {};
@@ -67,13 +67,14 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
         () => ArtworkManager.getCachedArtworkFile(url),
       );
 
-  /// Try to re-download a missing artwork file. If download fails, clear the reference.
+  /// Try to re-download a missing artwork file without mutating the selection.
+  ///
+  /// Cache availability is transient state. A valid selection must survive an
+  /// offline launch, a temporary CDN failure, or a missing local cache entry.
   void _redownloadOrClear(String url) {
-    // Custom artwork (file://) can't be re-downloaded — clear immediately
+    // Custom artwork cannot be re-downloaded. Keep its metadata so a temporary
+    // filesystem/access problem does not become destructive persistence.
     if (url.startsWith('file://')) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) clearArtwork();
-      });
       return;
     }
 
@@ -82,9 +83,6 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
       if (file != null) {
         // Download succeeded — rebuild to show artwork
         setState(() {});
-      } else {
-        // Download failed — URL is genuinely broken, clear it
-        clearArtwork();
       }
     });
   }
@@ -98,6 +96,7 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
     required String artworkDisplayStyle,
     bool isExpanded = false,
     double? revealViewportHeight,
+    Animation<double>? revealProgress,
     double cornerRadius = UIConstants.borderRadius - 3.0,
     ExpandedArtworkRenderer expandedRenderer =
         ArtworkManager.expandedArtworkRenderer,
@@ -116,6 +115,7 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
         constraints,
         cornerRadius: cornerRadius,
         revealViewportHeight: revealViewportHeight,
+        revealProgress: revealProgress,
       );
     } else {
       return buildFullViewArtwork(
@@ -123,6 +123,7 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
         constraints,
         cornerRadius: cornerRadius,
         revealViewportHeight: revealViewportHeight,
+        revealProgress: revealProgress,
       );
     }
   }
@@ -211,6 +212,7 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
     required Map<String, double> crop,
     required bool fillWidth,
     double? revealViewportHeight,
+    Animation<double>? revealProgress,
   }) {
     if (kIsWeb) {
       // Web: skip file:// URLs (custom artwork not supported on web)
@@ -224,6 +226,7 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
           cropBottom: crop['bottom']!,
           fillWidth: fillWidth,
           layoutHeight: revealViewportHeight,
+          verticalCenterProgress: revealProgress,
         );
       }
       return CroppedArtworkWidget(
@@ -234,6 +237,7 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
         cropBottom: crop['bottom']!,
         fillWidth: fillWidth,
         layoutHeight: revealViewportHeight,
+        verticalCenterProgress: revealProgress,
       );
     }
     return CroppedArtworkWidget(
@@ -244,6 +248,7 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
       cropBottom: crop['bottom']!,
       fillWidth: fillWidth,
       layoutHeight: revealViewportHeight,
+      verticalCenterProgress: revealProgress,
     );
   }
 
@@ -253,6 +258,7 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
     BoxConstraints constraints, {
     double cornerRadius = UIConstants.borderRadius - 3.0,
     double? revealViewportHeight,
+    Animation<double>? revealProgress,
   }) {
     final crop = ArtworkManager.getCropPercentages(artworkUrl);
 
@@ -268,6 +274,7 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
             crop: crop,
             fillWidth: true,
             revealViewportHeight: revealViewportHeight,
+            revealProgress: revealProgress,
           ),
         ),
       );
@@ -309,6 +316,7 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
                   crop: crop,
                   fillWidth: true,
                   revealViewportHeight: revealViewportHeight,
+                  revealProgress: revealProgress,
                 ),
               ),
             );
@@ -338,6 +346,7 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
     BoxConstraints constraints, {
     double cornerRadius = UIConstants.smallBorderRadius,
     double? revealViewportHeight,
+    Animation<double>? revealProgress,
   }) {
     final crop = ArtworkManager.getCropPercentages(artworkUrl);
     final cardWidth = constraints.maxWidth;
@@ -372,6 +381,7 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
               crop: crop,
               fillWidth: false,
               revealViewportHeight: revealViewportHeight,
+              revealProgress: revealProgress,
             ),
           ),
         ),
@@ -429,6 +439,7 @@ mixin ArtworkDisplayMixin<T extends StatefulWidget> on State<T> {
                     crop: crop,
                     fillWidth: false,
                     revealViewportHeight: revealViewportHeight,
+                    revealProgress: revealProgress,
                   ),
                 ),
               ),

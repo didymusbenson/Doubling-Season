@@ -37,7 +37,8 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
   int _amount = 1;
   bool _createTapped = false;
   bool _isCreating = false; // Prevent multi-tap
-  File? _stagedArtwork; // Temp file picked by user, moved to custom_artwork/ on create
+  File?
+      _stagedArtwork; // Temp file picked by user, moved to custom_artwork/ on create
 
   // CRITICAL: SwiftUI NewTokenSheet uses ColorSelectionButton, not TextField
   bool _whiteSelected = false;
@@ -184,17 +185,16 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
             // Hide quantity/multiplier/tapped in selector mode (deck editing)
             if (!widget.selectorMode) ...[
               const SizedBox(height: 24),
-
               const Text(
                 'Quantity',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
-
               Row(
                 children: [
                   IconButton(
-                    onPressed: _amount > 1 ? () => setState(() => _amount--) : null,
+                    onPressed:
+                        _amount > 1 ? () => setState(() => _amount--) : null,
                     icon: const Icon(Icons.remove_circle),
                     iconSize: 32,
                   ),
@@ -215,13 +215,16 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
                   ),
                 ],
               ),
-
               Builder(
                 builder: (context) {
                   final rulesProvider = context.read<RulesProvider>();
-                  if (!rulesProvider.hasActiveRules) return const SizedBox.shrink();
+                  if (!rulesProvider.hasActiveRules) {
+                    return const SizedBox.shrink();
+                  }
                   final results = rulesProvider.evaluateRules(
-                    _nameController.text.isEmpty ? 'Token' : _nameController.text,
+                    _nameController.text.isEmpty
+                        ? 'Token'
+                        : _nameController.text,
                     _ptController.text,
                     _getColorString(),
                     _typeController.text.trim(),
@@ -241,9 +244,7 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
                   );
                 },
               ),
-
               const SizedBox(height: 24),
-
               SwitchListTile(
                 title: const Text('Create Tapped'),
                 subtitle: const Text('Tokens enter the battlefield tapped'),
@@ -263,7 +264,8 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.file(_stagedArtwork!, width: 60, height: 60, fit: BoxFit.cover),
+            child: Image.file(_stagedArtwork!,
+                width: 60, height: 60, fit: BoxFit.cover),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -296,6 +298,7 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
         imageQuality: 85,
       );
       if (image == null) return;
+      if (!mounted) return;
 
       // Get theme colors to match app styling
       final theme = Theme.of(context);
@@ -307,7 +310,8 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
       final cropGridColor = isDark
           ? Colors.white.withValues(alpha: 0.3)
           : Colors.black.withValues(alpha: 0.3);
-      final dimmedLayerColor = isDark ? Colors.black : Colors.white.withValues(alpha: 0.5);
+      final dimmedLayerColor =
+          isDark ? Colors.black : Colors.white.withValues(alpha: 0.5);
 
       // Crop with locked 4:3 aspect ratio (matches artwork_selection_sheet)
       final CroppedFile? croppedFile = await ImageCropper().cropImage(
@@ -346,7 +350,8 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
       if (croppedFile == null) return;
 
       // Resize to cap at 768px on longest edge (matches artwork_selection_sheet)
-      final resized = await ArtworkManager.resizeImageFile(File(croppedFile.path));
+      final resized =
+          await ArtworkManager.resizeImageFile(File(croppedFile.path));
       setState(() => _stagedArtwork = resized);
     } catch (e) {
       debugPrint('NewTokenSheet: Failed to pick artwork - $e');
@@ -360,7 +365,8 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
     try {
       final customDir = await ArtworkManager.getCustomUploadsDirectory();
       final fileName = 'custom_${const Uuid().v4()}.png';
-      final persistentFile = await _stagedArtwork!.copy('${customDir.path}/$fileName');
+      final persistentFile =
+          await _stagedArtwork!.copy('${customDir.path}/$fileName');
       return 'file://${persistentFile.path}';
     } catch (e) {
       debugPrint('NewTokenSheet: Failed to commit staged artwork - $e');
@@ -380,7 +386,8 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
       if (_stagedArtwork != null) {
         final artworkUrl = await _commitStagedArtwork();
         if (artworkUrl != null) {
-          artworkList.add(token_models.ArtworkVariant(set: 'custom', url: artworkUrl));
+          artworkList
+              .add(token_models.ArtworkVariant(set: 'custom', url: artworkUrl));
         }
       }
 
@@ -422,7 +429,12 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
 
     // Evaluate rules to get all tokens to create
     final results = rulesProvider.evaluateRules(
-      tokenName, tokenPt, tokenColors, tokenType, tokenAbilities, _amount,
+      tokenName,
+      tokenPt,
+      tokenColors,
+      tokenType,
+      tokenAbilities,
+      _amount,
     );
 
     // Commit staged artwork for the primary token
@@ -460,7 +472,8 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
     allOrders.addAll(tokenProvider.items.map((item) => item.order));
     allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
     allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
-    final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
+    final maxOrder =
+        allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
     double nextOrder = maxOrder.floor() + 1.0;
 
     // Create primary token (results.first)
@@ -471,7 +484,8 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
         artworkUrl = stagedArtworkUrl;
       } else {
         final artworkPrefManager = ArtworkPreferenceManager();
-        final tokenIdentity = '${primaryResult.name}|${primaryResult.pt}|${primaryResult.colors}|${primaryResult.type}|${primaryResult.abilities}';
+        final tokenIdentity =
+            '${primaryResult.name}|${primaryResult.pt}|${primaryResult.colors}|${primaryResult.type}|${primaryResult.abilities}';
         artworkUrl = artworkPrefManager.getPreferredArtwork(tokenIdentity);
       }
 

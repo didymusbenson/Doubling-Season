@@ -72,10 +72,16 @@ class _ContentScreenState extends State<ContentScreen> {
     _collapseInProgress = true;
     final requestedItemKey = _expandedBoardItemKey;
 
-    final canCollapse =
-        await (_expandedBoardItemController?.requestCollapse() ??
-            Future<bool>.value(true));
-    _collapseInProgress = false;
+    bool canCollapse;
+    try {
+      canCollapse = await (_expandedBoardItemController?.requestCollapse() ??
+          Future<bool>.value(true));
+    } catch (error, stackTrace) {
+      debugPrint('Expanded card collapse failed: $error\n$stackTrace');
+      canCollapse = false;
+    } finally {
+      _collapseInProgress = false;
+    }
     if (!mounted ||
         !canCollapse ||
         _expandedBoardItemKey == null ||

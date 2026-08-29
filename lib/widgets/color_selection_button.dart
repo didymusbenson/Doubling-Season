@@ -37,8 +37,8 @@ class ColorSelectionButton extends StatelessWidget {
     // When DISABLED: use same color as background for seamless appearance
     // When ENABLED: use a darker version of the enabled color
     final borderColor = isSelected
-        ? _darkenColor(effectiveColor, 0.3)      // Darken by 30% when selected
-        : displayColor;                           // Match background when disabled
+        ? _darkenColor(effectiveColor, 0.3) // Darken by 30% when selected
+        : displayColor; // Match background when disabled
 
     // Text color:
     // When ENABLED: use a lightened/desaturated version (simulating disabled circle appearance)
@@ -53,7 +53,7 @@ class ColorSelectionButton extends StatelessWidget {
       child: InkWell(
         onTap: () => onChanged(!isSelected),
         customBorder: const CircleBorder(),
-        child: Container(
+        child: SizedBox(
           width: 48,
           height: 48,
           child: Stack(
@@ -66,13 +66,15 @@ class ColorSelectionButton extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: displayColor,
-                  boxShadow: !isSelected ? [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ] : null,
+                  boxShadow: !isSelected
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
                 ),
               ),
 
@@ -89,13 +91,15 @@ class ColorSelectionButton extends StatelessWidget {
                     fontWeight: FontWeight.w900,
                     color: textColor,
                     height: 1.0,
-                    shadows: (symbol == 'W' && isSelected) ? [
-                      Shadow(
-                        offset: Offset.zero,
-                        blurRadius: 6.0,
-                        color: _darkenColor(const Color(0xFFF0E8DC), 0.8),
-                      ),
-                    ] : null,
+                    shadows: (symbol == 'W' && isSelected)
+                        ? [
+                            Shadow(
+                              offset: Offset.zero,
+                              blurRadius: 6.0,
+                              color: _darkenColor(const Color(0xFFF0E8DC), 0.8),
+                            ),
+                          ]
+                        : null,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -126,7 +130,8 @@ class ColorSelectionButton extends StatelessWidget {
     assert(amount >= 0 && amount <= 1);
 
     final hsl = HSLColor.fromColor(color);
-    final darkened = hsl.withLightness((hsl.lightness * (1 - amount)).clamp(0.0, 1.0));
+    final darkened =
+        hsl.withLightness((hsl.lightness * (1 - amount)).clamp(0.0, 1.0));
 
     return darkened.toColor();
   }
@@ -137,7 +142,8 @@ class ColorSelectionButton extends StatelessWidget {
     assert(amount >= 0 && amount <= 1);
 
     final hsl = HSLColor.fromColor(color);
-    final lightened = hsl.withLightness((hsl.lightness + (1 - hsl.lightness) * amount).clamp(0.0, 1.0));
+    final lightened = hsl.withLightness(
+        (hsl.lightness + (1 - hsl.lightness) * amount).clamp(0.0, 1.0));
 
     return lightened.toColor();
   }

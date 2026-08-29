@@ -28,6 +28,9 @@ class ArtworkRenderSource {
 
 /// Manages downloading and caching of token artwork from Scryfall CDN
 class ArtworkManager {
+  static const int _maxDownloadBytes = 20 * 1024 * 1024;
+  static const Duration _downloadTimeout = Duration(seconds: 30);
+
   /// User-Agent header for good etiquette when downloading from Scryfall
   static const String userAgent = 'DoublingSeason/1.0';
 
@@ -214,7 +217,8 @@ class ArtworkManager {
       final request = http.Request('GET', Uri.parse(url));
       request.headers['User-Agent'] = userAgent;
 
-      final streamedResponse = await client.send(request);
+      final streamedResponse =
+          await client.send(request).timeout(_downloadTimeout);
 
       if (streamedResponse.statusCode != 200) {
         if (kDebugMode) {
@@ -223,13 +227,24 @@ class ArtworkManager {
         }
         return null;
       }
+      final contentType = streamedResponse.headers['content-type'];
+      if (contentType != null && !contentType.startsWith('image/')) {
+        return null;
+      }
 
       // Get content length for progress tracking
       final contentLength = streamedResponse.contentLength ?? 0;
+      if (contentLength > _maxDownloadBytes) {
+        return null;
+      }
 
       // Collect the response bytes
       final bytes = <int>[];
-      await for (var chunk in streamedResponse.stream) {
+      await for (var chunk
+          in streamedResponse.stream.timeout(_downloadTimeout)) {
+        if (bytes.length + chunk.length > _maxDownloadBytes) {
+          return null;
+        }
         bytes.addAll(chunk);
         if (contentLength > 0 && onProgress != null) {
           onProgress(bytes.length / contentLength);

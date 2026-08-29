@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -40,10 +42,11 @@ void main() async {
   // Initialize Hive with resilient error handling — this NEVER throws
   final hiveResult = await initHive();
 
-  // Initialize IAP service (non-blocking of UI — errors are swallowed internally)
-  await IAPService().initialize();
-
   runApp(MyApp(wipedBoxes: hiveResult.wipedBoxes));
+
+  // Store services are not required for the first frame. Initialization owns
+  // its error handling and can safely finish after the UI is visible.
+  unawaited(IAPService().initialize());
 }
 
 class MyApp extends StatefulWidget {

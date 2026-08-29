@@ -27,10 +27,26 @@ class TokenCounterManagementSheet extends StatefulWidget {
 
 class _TokenCounterManagementSheetState
     extends State<TokenCounterManagementSheet> {
-  void _mutate(VoidCallback mutation) {
+  Future<void> _mutationQueue = Future<void>.value();
+
+  Future<void> _mutate(VoidCallback mutation) {
+    return _mutationQueue = _mutationQueue.then(
+      (_) => _persistMutation(mutation),
+    );
+  }
+
+  Future<void> _persistMutation(VoidCallback mutation) async {
     mutation();
-    context.read<TokenProvider>().updateItem(widget.item);
-    setState(() {});
+    try {
+      await context.read<TokenProvider>().updateItem(widget.item);
+      if (mounted) setState(() {});
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Counters could not be saved.')),
+        );
+      }
+    }
   }
 
   int _counterIncrement({required bool plusOne}) => context
@@ -182,10 +198,8 @@ class _TokenCounterManagementSheetState
                           if (value == 0) {
                             item.counters.removeWhere(
                                 (entry) => entry.name == counter.name);
-                            item.save();
                           } else {
                             counter.amount = value;
-                            item.save();
                           }
                         }),
                       ),
