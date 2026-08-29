@@ -2,11 +2,9 @@
 
 **Last updated:** 2026-08-27
 
-Two additional features are expected to take priority over the ranked backlog
-below. Artist Credit is now fully scoped; the second feature is still awaiting
-its specification. Do not treat backlog item 1 as the immediate next
-implementation until both higher-priority features have been scoped and
-compared.
+Artist Credit is the highest-priority new feature. The separately discussed
+Inline Token Details concept is speculative and does not displace the ranked
+backlog unless its interaction prototype proves worthwhile.
 
 ## Higher-Priority Features Being Scoped
 
@@ -16,8 +14,12 @@ compared.
    interfaces, display user-uploaded artwork as `custom`, and leave room for
    future collaborator names or social handles.
 
-2. **Second forthcoming feature**
-   Awaiting product definition and a full feature file.
+## Speculative Exploration
+
+- **Inline Token Details**
+  Full design exploration: `todo_features/inline_token_details.md`. A token
+  would expand into an editable board card with tap-to-edit values and sheets
+  for secondary operations. This is a “maybe” feature, not a current priority.
 
 ## Ranked Backlog
 
@@ -73,5 +75,6 @@ compared.
 
 ## Planning Notes
 
-- Reassess this queue after the second higher-priority feature specification is
-  written.
+- Implement Artist Credit before treating Inline Token Details as a candidate.
+- Inline Token Details needs an interaction prototype and product decisions
+  before it can enter the ranked implementation queue.
