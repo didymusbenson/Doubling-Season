@@ -188,12 +188,14 @@ class TokenCreationService {
     required Iterable<TokenCreationResult> results,
     required bool summoningSicknessEnabled,
     required double insertionOrder,
+    List<double>? insertionOrders,
     TokenDatabase? tokenDatabase,
     TokenMergePolicy mergePolicy = TokenMergePolicy.compatibleCleanStack,
     TokenCreationEventPolicy eventPolicy =
         TokenCreationEventPolicy.creatureEntered,
   }) {
     var nextOrder = insertionOrder;
+    var resultIndex = 0;
     return [
       for (final result in results)
         if (result.quantity > 0)
@@ -203,7 +205,9 @@ class TokenCreationService {
               result: result,
               tokenDatabase: tokenDatabase,
             ),
-            order: nextOrder++,
+            order: insertionOrders == null
+                ? nextOrder++
+                : insertionOrders[resultIndex++],
             applySummoningSickness: summoningSicknessEnabled,
             mergePolicy: mergePolicy,
             eventPolicy: eventPolicy,
@@ -216,6 +220,7 @@ class TokenCreationService {
     required TokenProvider tokenProvider,
     required bool summoningSicknessEnabled,
     required double insertionOrder,
+    List<double>? insertionOrders,
     TokenDatabase? tokenDatabase,
   }) async {
     final outcome = await commit(
@@ -223,6 +228,7 @@ class TokenCreationService {
         results: results.skip(1),
         summoningSicknessEnabled: summoningSicknessEnabled,
         insertionOrder: insertionOrder,
+        insertionOrders: insertionOrders,
         tokenDatabase: tokenDatabase,
       ),
       tokenProvider: tokenProvider,
@@ -235,6 +241,7 @@ class TokenCreationService {
     required TokenProvider tokenProvider,
     required bool summoningSicknessEnabled,
     required double insertionOrder,
+    List<double>? insertionOrders,
     TokenDatabase? tokenDatabase,
   }) async {
     final outcome = await commit(
@@ -242,6 +249,7 @@ class TokenCreationService {
         results: results,
         summoningSicknessEnabled: summoningSicknessEnabled,
         insertionOrder: insertionOrder,
+        insertionOrders: insertionOrders,
         tokenDatabase: tokenDatabase,
       ),
       tokenProvider: tokenProvider,

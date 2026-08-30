@@ -32,6 +32,7 @@ import 'mixins/artwork_display_mixin.dart';
 import '../services/token_creation_service.dart';
 import '../services/token_merge_compatibility.dart';
 import '../services/token_result_artwork_resolver.dart';
+import '../services/board_order_service.dart';
 import 'multiplier_view.dart';
 import 'mana/mana_text.dart';
 import 'mana/mana_icons.dart';
@@ -1258,7 +1259,17 @@ class _TokenCardState extends State<TokenCard>
                 onTap: () {
                   final summoningSick =
                       context.read<SettingsProvider>().summoningSicknessEnabled;
-                  tokenProvider.copyToken(widget.item, summoningSick);
+                  final trackerProvider = context.read<TrackerProvider>();
+                  final toggleProvider = context.read<ToggleProvider>();
+                  tokenProvider.copyToken(
+                    widget.item,
+                    summoningSick,
+                    boardOrders: [
+                      ...tokenProvider.items.map((item) => item.order),
+                      ...trackerProvider.trackers.map((item) => item.order),
+                      ...toggleProvider.toggles.map((item) => item.order),
+                    ],
+                  );
                 },
                 onLongPress: null,
                 color: primaryColor,
@@ -1326,30 +1337,16 @@ class _TokenCardState extends State<TokenCard>
                   // Primary result quantity is the final scute count
                   final finalAmount = results.first.quantity;
 
-                  // Calculate order to place new token right after source token
-                  final allItems = <({double order, dynamic item})>[];
-                  for (var item in tokenProvider.items) {
-                    allItems.add((order: item.order, item: item));
-                  }
-                  for (var tracker in trackerProvider.trackers) {
-                    allItems.add((order: tracker.order, item: tracker));
-                  }
-                  for (var toggle in toggleProvider.toggles) {
-                    allItems.add((order: toggle.order, item: toggle));
-                  }
-                  allItems.sort((a, b) => a.order.compareTo(b.order));
-
-                  final sourceIndex = allItems.indexWhere((item) =>
-                      item.item is Item &&
-                      (item.item as Item).key == widget.item.key);
-
-                  double insertionOrder;
-                  if (sourceIndex == -1 || sourceIndex == allItems.length - 1) {
-                    insertionOrder = widget.item.order + 1.0;
-                  } else {
-                    final nextOrder = allItems[sourceIndex + 1].order;
-                    insertionOrder = (widget.item.order + nextOrder) / 2.0;
-                  }
+                  final resultOrders = BoardOrderService.immediatelyAfter(
+                    sourceOrder: widget.item.order,
+                    boardOrders: [
+                      ...tokenProvider.items.map((item) => item.order),
+                      ...trackerProvider.trackers.map((item) => item.order),
+                      ...toggleProvider.toggles.map((item) => item.order),
+                    ],
+                    count: results.length,
+                  );
+                  final insertionOrder = resultOrders.first;
 
                   // Pass finalAmount as 1 * finalAmount (rules already applied)
                   // Use multiplier=1 since rules already calculated the quantity
@@ -1372,7 +1369,8 @@ class _TokenCardState extends State<TokenCard>
                         results: results,
                         tokenProvider: tokenProvider,
                         summoningSicknessEnabled: summoningSick,
-                        insertionOrder: insertionOrder + 0.0001,
+                        insertionOrder: resultOrders[1],
+                        insertionOrders: resultOrders.skip(1).toList(),
                         tokenDatabase: tokenDatabase,
                       );
                     } finally {
@@ -1413,11 +1411,23 @@ class _TokenCardState extends State<TokenCard>
         primaryResult.abilities == widget.item.abilities;
     var companionCount = 0;
     TokenDatabase? tokenDatabase;
+    final trackerProvider = context.read<TrackerProvider>();
+    final toggleProvider = context.read<ToggleProvider>();
     try {
       if (!primaryIdentityUnchanged || results.length > 1) {
         tokenDatabase = TokenDatabase();
         await tokenDatabase.loadTokens();
       }
+
+      final resultOrders = BoardOrderService.immediatelyAfter(
+        sourceOrder: widget.item.order,
+        boardOrders: [
+          ...tokenProvider.items.map((item) => item.order),
+          ...trackerProvider.trackers.map((item) => item.order),
+          ...toggleProvider.toggles.map((item) => item.order),
+        ],
+        count: results.length,
+      );
 
       if (primaryIdentityUnchanged &&
           TokenMergeCompatibility.isClean(widget.item)) {
@@ -1442,7 +1452,7 @@ class _TokenCardState extends State<TokenCard>
             TokenCommitRequest(
               result: primaryResult,
               artwork: artwork,
-              order: widget.item.order + 0.5,
+              order: resultOrders.first,
               applySummoningSickness: summoningSick,
             ),
           ],
@@ -1455,7 +1465,8 @@ class _TokenCardState extends State<TokenCard>
           results: results,
           tokenProvider: tokenProvider,
           summoningSicknessEnabled: summoningSick,
-          insertionOrder: widget.item.order + 1.0,
+          insertionOrder: resultOrders[1],
+          insertionOrders: resultOrders.skip(1).toList(),
           tokenDatabase: tokenDatabase,
         );
       }

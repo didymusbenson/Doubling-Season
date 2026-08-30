@@ -1,6 +1,6 @@
 # Ordered Board Architecture
 
-**Status:** Definition pending — implementation intentionally paused for user direction
+**Status:** Definition complete — implementation approved
 
 **Last updated:** 2026-08-30
 
@@ -105,9 +105,12 @@ justify moving all persisted data into a new Hive hierarchy.
 - A future board-item type should have an explicit integration contract and
   compile-time-visible touchpoint list.
 
-## Architecture Directions Under Consideration
+## Selected Architecture
 
-No direction is selected yet.
+Direction A is selected: a typed order coordinator over the existing persisted
+models and Hive boxes. No schema migration or unified persisted parent is
+needed. A small shared runtime representation may be introduced where it
+removes repeated dispatch, but it will not alter persistence.
 
 ### Direction A — Typed order coordinator over existing boxes
 
@@ -142,22 +145,27 @@ requirements cannot be met by A or B.
 The previous recommendation to choose this direction based on several planned
 utility model types is withdrawn.
 
-## Product Decisions Still Open
+## Confirmed Placement Contract
 
-Implementation is paused while the desired board behavior is considered:
+| Operation | Required placement |
+|---|---|
+| New token from search or custom creation | Absolute bottom |
+| New utility | Absolute bottom |
+| Utility-created tokens | Absolute bottom |
+| Copy or Split | Immediately after the source |
+| Token-card rule replacement/new stack | Immediately after the source |
+| Scute and Rhys results | Immediately after their source |
+| Multiple new result stacks from one action | Remain together in result order |
+| A result that merges into an existing stack | Existing stack remains in place |
+| Add deck to existing board | Append as one contiguous block |
+| Manual token/utility interleaving | Permanently supported |
 
-1. Should newly created tokens and utilities always append to the absolute
-   bottom, or should the board maintain token/utility regions?
-2. Which operations should remain adjacent to their source: Copy, Split,
-   token-card rules, Scute, Rhys, or utility-created tokens?
-3. When one action creates multiple identities, should they remain a contiguous
-   group even when some results merge into existing stacks?
-4. Should loading a deck onto an existing board always append as one contiguous
-   block?
-5. Is manual interleaving of tokens and utilities a permanent supported
-   behavior? The current UI permits it.
+“Remain together” applies only to newly inserted stacks. An existing compatible
+merge target is never moved merely to make the visual result group contiguous.
+Utility-created tokens intentionally append rather than appearing next to the
+utility that triggered them.
 
-## Work That Can Proceed After Decisions
+## Implementation Work
 
 1. Lock placement semantics as named policies.
 2. Inventory every creation, copy, split, utility, deck, reorder, and restore

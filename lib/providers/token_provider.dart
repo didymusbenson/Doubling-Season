@@ -12,6 +12,7 @@ import '../utils/game_events.dart';
 import '../services/rhys_copy_planner.dart';
 import '../services/brudiclad_transform_planner.dart';
 import '../services/token_merge_compatibility.dart';
+import '../services/board_order_service.dart';
 
 class TokenProvider extends ChangeNotifier {
   late Box<Item> _itemsBox;
@@ -328,23 +329,16 @@ class TokenProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> copyToken(Item original, bool summoningSicknessEnabled) async {
+  Future<void> copyToken(
+    Item original,
+    bool summoningSicknessEnabled, {
+    required Iterable<double> boardOrders,
+  }) async {
     try {
-      // Find the next item after the original
-      final items = _itemsBox.values.toList()
-        ..sort((a, b) => a.order.compareTo(b.order));
-
-      final originalIndex = items.indexWhere((i) => i.key == original.key);
-
-      double newOrder;
-      if (originalIndex == items.length - 1) {
-        // Original is last item - add 1.0
-        newOrder = original.order + 1.0;
-      } else {
-        // Insert between original and next item (fractional)
-        final nextOrder = items[originalIndex + 1].order;
-        newOrder = (original.order + nextOrder) / 2.0;
-      }
+      final newOrder = BoardOrderService.immediatelyAfter(
+        sourceOrder: original.order,
+        boardOrders: boardOrders,
+      ).single;
 
       // Create single new token that is summoning sick if appropriate
       final shouldBeSummoningSick = summoningSicknessEnabled &&
