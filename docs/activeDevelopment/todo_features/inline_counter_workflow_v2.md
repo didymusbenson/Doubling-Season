@@ -1,6 +1,6 @@
 # Inline Counter Workflow V2
 
-**Status:** Deferred follow-up — do not include in the first inline-token-details implementation
+**Status:** Deferred to 1.12 or future
 
 **Depends on:** `../in_progress_features/inline_token_details.md`
 

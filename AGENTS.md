@@ -177,6 +177,14 @@ Manual functional testing only. Do not generate automated test code.
 
 **Auto-save** — Hive models extend `HiveObject`, all setters call `.save()`
 
+**ArtworkVariant artist metadata** — Hive field 2 stores the per-printing
+artist credit with `defaultValue: ''` for upgrade safety. Generated and
+hardcoded variants should carry authoritative credits. User-uploaded `file://`
+art resolves to `user uploaded`; old board metadata is enriched by URL from the
+current token/utility definition when artwork selection opens. Image-cache
+files do not store attribution and must never be redownloaded merely to enrich
+metadata.
+
 ### Hive Type IDs and Schema Rules
 
 **CRITICAL — NEVER change type IDs once assigned. Causes data corruption.**
@@ -310,6 +318,16 @@ onPressed: () {
 ```
 
 **Artwork field updates — always batch into one write** using `item.updateArtwork(url:, set:, options:)` to avoid multiple saves. Cache/download failure must never clear persisted selection metadata; only explicit user removal may clear it. Await remote validation and persistence before dismissing the artwork sheet.
+
+**Immediate destructive-action undo** — capture `BoardUndoSnapshot` before
+mutating the unified board. It clones tokens, trackers, and toggles and restores
+directly to Hive without emitting ETB or board-wipe events. When an operation
+also resets rules, pair it with `RulesProvider.captureState()` and
+`restoreState()` so all preset counts and custom-rule enabled states return.
+Restore automatically if any mutation step fails. After success, use the
+non-dismissible completion pattern with **Undo** on the left and primary
+**Accept** on the right; wrap the dialog in `PopScope(canPop: false)` as
+`barrierDismissible: false` alone does not block system Back.
 
 ### Utility Development Pattern
 

@@ -117,7 +117,7 @@ Currently, Full View artwork mode centers the artwork vertically on the token ca
 
 ## Better Sort Filters
 
-**Status:** Feature idea - not yet implemented
+**Status:** Deferred to 1.12 or future
 
 Allow users to customize how token search results are sorted in TokenSearchScreen.
 
@@ -141,7 +141,8 @@ Allow users to customize how token search results are sorted in TokenSearchScree
 - "Recent" sort provides quick access pattern different from existing Recent tab
 - Flexibility for different user preferences and search patterns
 
-**Priority:** Medium - Nice QoL improvement, current popularity sort works but isn't ideal for all use cases
+**Priority:** 1.12 or future — nice QoL improvement; current popularity sort
+remains functional.
 
 ---
 

@@ -17,6 +17,7 @@ import '../widgets/multiplier_view.dart';
 import '../widgets/floating_action_menu.dart';
 import '../widgets/status_sheet.dart';
 import '../controllers/expandable_card_controller.dart';
+import '../services/board_undo_snapshot.dart';
 import 'token_search_screen.dart';
 import 'widget_selection_screen.dart'; // NEW - Widget Cards Feature
 import 'decks_list_screen.dart';
@@ -34,6 +35,8 @@ class _BoardItem {
   bool get isTracker => item is TrackerWidget;
   bool get isToggle => item is ToggleWidget;
 }
+
+enum _BoardWipeAction { zero, delete, deleteAndResetRules }
 
 class ContentScreen extends StatefulWidget {
   const ContentScreen({super.key});
@@ -1026,9 +1029,6 @@ class _ContentScreenState extends State<ContentScreen> {
   }
 
   void _showBoardWipeDialog() {
-    final tokenProvider = context.read<TokenProvider>();
-    final rulesProvider = context.read<RulesProvider>();
-
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -1040,38 +1040,131 @@ class _ContentScreenState extends State<ContentScreen> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () async {
-              await tokenProvider.boardWipeZero();
-              if (dialogContext.mounted) {
-                Navigator.pop(dialogContext);
-              }
-            },
+            onPressed: () =>
+                _performBoardWipe(dialogContext, _BoardWipeAction.zero),
             child: const Text('Set to 0'),
           ),
           TextButton(
-            onPressed: () async {
-              await tokenProvider.boardWipeDelete();
-              _clearDismissStates();
-              if (dialogContext.mounted) {
-                Navigator.pop(dialogContext);
-              }
-            },
+            onPressed: () =>
+                _performBoardWipe(dialogContext, _BoardWipeAction.delete),
             child: const Text('Delete All'),
           ),
           TextButton(
-            onPressed: () async {
-              await tokenProvider.boardWipeDelete();
-              await rulesProvider.disableAllRules();
-              _clearDismissStates();
-              if (dialogContext.mounted) {
-                Navigator.pop(dialogContext);
-              }
-            },
+            onPressed: () => _performBoardWipe(
+              dialogContext,
+              _BoardWipeAction.deleteAndResetRules,
+            ),
             child: const Text('Delete All & Reset Rules'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _performBoardWipe(
+    BuildContext dialogContext,
+    _BoardWipeAction action,
+  ) async {
+    final tokenProvider = context.read<TokenProvider>();
+    final rulesProvider = context.read<RulesProvider>();
+    final boardSnapshot = BoardUndoSnapshot.capture();
+    final rulesSnapshot = action == _BoardWipeAction.deleteAndResetRules
+        ? rulesProvider.captureState()
+        : null;
+
+    Navigator.pop(dialogContext);
+
+    try {
+      switch (action) {
+        case _BoardWipeAction.zero:
+          await tokenProvider.boardWipeZero();
+        case _BoardWipeAction.delete:
+          await tokenProvider.boardWipeDelete();
+          _clearDismissStates();
+        case _BoardWipeAction.deleteAndResetRules:
+          await tokenProvider.boardWipeDelete();
+          await rulesProvider.disableAllRules();
+          _clearDismissStates();
+      }
+    } catch (error) {
+      var restored = false;
+      try {
+        await _restoreBoardWipe(
+          boardSnapshot: boardSnapshot,
+          rulesSnapshot: rulesSnapshot,
+          rulesProvider: rulesProvider,
+        );
+        restored = true;
+      } catch (restoreError, stackTrace) {
+        debugPrint(
+          'Board wipe rollback failed: $restoreError\n$stackTrace',
+        );
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              restored
+                  ? 'Board wipe failed and was undone.'
+                  : 'Board wipe failed and could not be completely restored.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+    final undo = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (completionContext) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: const Text('Board Wiped'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(completionContext, true),
+              child: const Text('Undo'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(completionContext, false),
+              child: const Text('Accept'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (undo == true) {
+      try {
+        await _restoreBoardWipe(
+          boardSnapshot: boardSnapshot,
+          rulesSnapshot: rulesSnapshot,
+          rulesProvider: rulesProvider,
+        );
+        _clearDismissStates();
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to completely restore the board.'),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _restoreBoardWipe({
+    required BoardUndoSnapshot boardSnapshot,
+    required RulesStateSnapshot? rulesSnapshot,
+    required RulesProvider rulesProvider,
+  }) async {
+    await boardSnapshot.restore();
+    if (rulesSnapshot != null) {
+      await rulesProvider.restoreState(rulesSnapshot);
+    }
   }
 
   void _clearDismissStates() {

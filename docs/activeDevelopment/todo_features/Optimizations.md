@@ -1,6 +1,6 @@
 # Future Optimizations
 
-**Status:** Deferred — not part of 1.11 acceptance
+**Status:** Deferred to 1.12 or future — not part of 1.11 acceptance
 **Last updated:** 2026-08-29
 
 This document collects performance and architectural follow-ups that are not

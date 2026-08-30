@@ -1,5 +1,9 @@
 # Enters Tapped Toggle
 
+**Status:** Deferred to 1.12 or future
+
+**Last updated:** 2026-08-30
+
 ## Overview
 
 Add the ability to control whether tokens enter the battlefield tapped. This should work at two levels:

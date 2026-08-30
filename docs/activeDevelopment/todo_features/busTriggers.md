@@ -1,6 +1,8 @@
 # Event Bus Triggers - Future Implementation
 
-**Status:** Planned but not yet implemented
+**Status:** Deferred to 1.12 or future
+
+**Last updated:** 2026-08-30
 
 This document preserves the design for additional Game Events that will enable future utilities. These triggers follow the same event bus pattern established for Cathar's Crusade.
 

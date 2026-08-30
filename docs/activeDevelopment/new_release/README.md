@@ -87,7 +87,46 @@ Legacy board items are enriched by artwork URL from the current token or
 utility definitions before the sheet opens. The upgrade persists metadata only;
 it does not redownload cached art or change the selected image.
 
+### Undoable Board Wipes
+
+**Status:** Implemented; pending user acceptance testing
+
+**Feature record:**
+[`UndoableBoardWipes.md`](../in_progress_features/UndoableBoardWipes.md)
+
+All three board-wipe choices now capture the exact unified board and present a
+non-dismissible **Board Wiped** completion dialog with **Undo / Accept**.
+Delete/reset additionally restores every preset count and custom-rule enabled
+state. Failed operations automatically attempt rollback, and restoration emits
+no game events.
+
 ## Acceptance Testing Required
+
+### Undoable board-wipe validation
+
+Objective iPhone 17 Pro Simulator smoke pass completed 2026-08-30:
+
+- [x] **Set to 0 → Undo** restored Zombie and Squirrel quantities.
+- [x] **Delete All → Undo** restored both deleted stacks and quantities.
+- [x] **Delete All & Reset Rules → Undo** restored the board and active
+      Chatterfang preset, verified through the `1 Zombie + 1 Squirrel` preview.
+- [x] **Delete All & Reset Rules → Accept** persisted both the empty board and
+      disabled Chatterfang state through process termination and relaunch.
+- [x] All three actions showed **Board Wiped** with Undo left and primary Accept
+      right.
+- [x] System Back could not dismiss the completion dialog; scrim dismissal is
+      disabled.
+- [x] Analyzer and iOS Simulator debug build completed successfully.
+
+Remaining objective validation:
+
+- [ ] Exercise Set to 0 with tapped/sick quantities and every counter type.
+- [ ] Exercise Delete All with interleaved tracker/toggle utilities and a
+      nonzero Cathar's Crusade value.
+- [ ] Restore all nine preset counts and mixed enabled/disabled custom rules.
+- [ ] Fault-inject wipe and restoration persistence failures.
+- [ ] Confirm deck clear-and-load remains unchanged.
+- [ ] Smoke-test physical Android hardware.
 
 ### Artist Credit validation
 
