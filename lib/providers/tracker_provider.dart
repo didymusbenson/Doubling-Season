@@ -94,8 +94,16 @@ class TrackerProvider extends ChangeNotifier {
       tracker.artworkUrl = _rhysNewDefaultArtworkUrl;
       tracker.artworkSet = '2XM';
       tracker.artworkOptions = [
-        ArtworkVariant(set: '2XM', url: _rhysNewDefaultArtworkUrl),
-        ArtworkVariant(set: 'TLE', url: _rhysOldDefaultArtworkUrl),
+        ArtworkVariant(
+          set: '2XM',
+          url: _rhysNewDefaultArtworkUrl,
+          artist: 'Steve Prescott',
+        ),
+        ArtworkVariant(
+          set: 'TLE',
+          url: _rhysOldDefaultArtworkUrl,
+          artist: 'Viacom',
+        ),
       ];
       await tracker.save();
     }

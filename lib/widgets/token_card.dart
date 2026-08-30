@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:collection/collection.dart';
 import '../controllers/token_edit_session.dart';
 import '../controllers/expandable_card_controller.dart';
+import '../database/token_database.dart';
 import '../models/item.dart';
 import '../models/token_definition.dart';
 import '../providers/settings_provider.dart';
@@ -15,6 +16,7 @@ import '../providers/rules_provider.dart';
 import '../screens/counter_search_screen.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
+import '../utils/artwork_metadata_enricher.dart';
 import '../utils/color_utils.dart';
 import 'common/background_text.dart';
 import 'counter_pill.dart';
@@ -28,7 +30,8 @@ import 'token_status_sheet.dart';
 // import 'cropped_artwork_widget.dart';
 import 'mixins/artwork_display_mixin.dart';
 import '../services/token_creation_service.dart';
-import '../database/token_database.dart';
+import '../services/token_merge_compatibility.dart';
+import '../services/token_result_artwork_resolver.dart';
 import 'multiplier_view.dart';
 import 'mana/mana_text.dart';
 import 'mana/mana_icons.dart';
@@ -930,20 +933,49 @@ class _TokenCardState extends State<TokenCard>
                     ),
                     readOnlyChild: item.pt.isEmpty
                         ? BackgroundText(
-                            child: Text(
-                              'P/T',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .headlineMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    fontStyle: FontStyle.italic,
+                            child: ExcludeSemantics(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    ManaIcons.power,
+                                    size: 28,
                                     color: Theme.of(context)
                                         .textTheme
                                         .bodyMedium
                                         ?.color
                                         ?.withValues(alpha: 0.55),
                                   ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 3,
+                                    ),
+                                    child: Text(
+                                      '/',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .headlineSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.color
+                                                ?.withValues(alpha: 0.55),
+                                          ),
+                                    ),
+                                  ),
+                                  Icon(
+                                    ManaIcons.toughness,
+                                    size: 28,
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.color
+                                        ?.withValues(alpha: 0.55),
+                                  ),
+                                ],
+                              ),
                             ),
                           )
                         : _buildPTWidget(context),
@@ -975,18 +1007,35 @@ class _TokenCardState extends State<TokenCard>
     if (!saved || !mounted) return;
     var artwork = widget.item.artworkOptions ?? const <ArtworkVariant>[];
     var databaseLoadError = false;
-    if (artwork.isEmpty) {
+    if (artwork.isEmpty ||
+        ArtworkMetadataEnricher.needsArtistMetadata(artwork)) {
       final database = TokenDatabase();
       try {
         await database.loadTokens();
-        final definition = database.allTokens.firstWhereOrNull(
+        database.loadCustomTokens();
+        final definition = [
+          ...database.allTokens,
+          ...database.customTokens,
+        ].firstWhereOrNull(
           (token) =>
               token.name == widget.item.name &&
               token.pt == widget.item.pt &&
+              token.colors == widget.item.colors &&
               token.type == widget.item.type &&
               token.abilities == widget.item.abilities,
         );
-        artwork = definition?.artwork ?? const <ArtworkVariant>[];
+        final authoritative = definition?.artwork ?? const <ArtworkVariant>[];
+        artwork = ArtworkMetadataEnricher.merge(
+          existing: artwork.toList(),
+          authoritative: authoritative,
+        );
+        if (authoritative.isNotEmpty) {
+          widget.item.updateArtwork(
+            url: widget.item.artworkUrl,
+            set: widget.item.artworkSet,
+            options: artwork.toList(),
+          );
+        }
       } catch (_) {
         databaseLoadError = true;
       } finally {
@@ -1247,7 +1296,7 @@ class _TokenCardState extends State<TokenCard>
               _buildActionButton(
                 context,
                 icon: Icons.bug_report,
-                onTap: () {
+                onTap: () async {
                   final rulesProvider = context.read<RulesProvider>();
                   final summoningSick =
                       context.read<SettingsProvider>().summoningSicknessEnabled;
@@ -1304,50 +1353,30 @@ class _TokenCardState extends State<TokenCard>
 
                   // Pass finalAmount as 1 * finalAmount (rules already applied)
                   // Use multiplier=1 since rules already calculated the quantity
-                  tokenProvider.createScuteSwarmTokens(
-                      widget.item, 1, summoningSick, insertionOrder,
-                      overrideAmount: finalAmount);
+                  await tokenProvider.createScuteSwarmTokens(
+                    widget.item,
+                    1,
+                    summoningSick,
+                    insertionOrder,
+                    overrideAmount: finalAmount,
+                  );
 
-                  // Create companion tokens from rules (e.g., Academy Manufactor)
+                  // Route rule companions through the shared resolver so a
+                  // brand-new Squirrel stack receives the same saved/default
+                  // artwork as one created from token search.
                   if (results.length > 1) {
-                    for (final companion in results.skip(1)) {
-                      if (companion.quantity <= 0) continue;
-
-                      final existingStack =
-                          tokenProvider.items.firstWhereOrNull(
-                        (item) =>
-                            item.name == companion.name &&
-                            item.pt == companion.pt &&
-                            item.colors == companion.colors &&
-                            item.type == companion.type &&
-                            item.abilities == companion.abilities &&
-                            item.plusOneCounters == 0 &&
-                            item.minusOneCounters == 0 &&
-                            item.counters.isEmpty,
+                    final tokenDatabase = TokenDatabase();
+                    try {
+                      await tokenDatabase.loadTokens();
+                      await TokenCreationService.createCompanionTokens(
+                        results: results,
+                        tokenProvider: tokenProvider,
+                        summoningSicknessEnabled: summoningSick,
+                        insertionOrder: insertionOrder + 0.0001,
+                        tokenDatabase: tokenDatabase,
                       );
-
-                      if (existingStack != null) {
-                        tokenProvider.addTokens(
-                            existingStack, companion.quantity, summoningSick);
-                      } else {
-                        final newItem = Item(
-                          name: companion.name,
-                          pt: companion.pt,
-                          abilities: companion.abilities,
-                          colors: companion.colors,
-                          type: companion.type,
-                          amount: companion.quantity,
-                          tapped: 0,
-                          summoningSick: 0,
-                        );
-                        tokenProvider.insertItem(newItem).then((_) {
-                          if (summoningSick &&
-                              newItem.hasPowerToughness &&
-                              !newItem.hasHaste) {
-                            newItem.summoningSick = companion.quantity;
-                          }
-                        });
-                      }
+                    } finally {
+                      tokenDatabase.dispose();
                     }
                   }
                 },
@@ -1376,69 +1405,65 @@ class _TokenCardState extends State<TokenCard>
       baseQuantity,
     );
 
-    // Primary token: tokens enter the battlefield with no counters.
-    // If the tapped stack has counters, route the primary through the same
-    // find-or-create-counter-less-stack logic the companions use.
     final primaryResult = results.first;
-    final tappedStackHasCounters = widget.item.plusOneCounters != 0 ||
-        widget.item.minusOneCounters != 0 ||
-        widget.item.counters.isNotEmpty;
-
-    if (!tappedStackHasCounters) {
-      tokenProvider.addTokens(
-          widget.item, primaryResult.quantity, summoningSick);
-    } else {
-      final existingCounterless = tokenProvider.items.firstWhereOrNull(
-        (item) =>
-            item.name == primaryResult.name &&
-            item.pt == primaryResult.pt &&
-            item.colors == primaryResult.colors &&
-            item.type == primaryResult.type &&
-            item.abilities == primaryResult.abilities &&
-            item.plusOneCounters == 0 &&
-            item.minusOneCounters == 0 &&
-            item.counters.isEmpty,
-      );
-      if (existingCounterless != null) {
-        await tokenProvider.addTokens(
-            existingCounterless, primaryResult.quantity, summoningSick);
-      } else {
-        final newItem = Item(
-          name: primaryResult.name,
-          pt: primaryResult.pt,
-          abilities: primaryResult.abilities,
-          colors: primaryResult.colors,
-          type: primaryResult.type,
-          amount: primaryResult.quantity,
-          tapped: 0,
-          summoningSick: 0,
-          order: widget.item.order + 0.5,
-          artworkUrl: widget.item.artworkUrl,
-          artworkSet: widget.item.artworkSet,
-          artworkOptions: widget.item.artworkOptions != null
-              ? List.from(widget.item.artworkOptions!)
-              : null,
-        );
-        await tokenProvider.insertItem(newItem);
-        if (summoningSick && newItem.hasPowerToughness && !newItem.hasHaste) {
-          newItem.summoningSick = primaryResult.quantity;
-        }
+    final primaryIdentityUnchanged = primaryResult.name == widget.item.name &&
+        primaryResult.pt == widget.item.pt &&
+        primaryResult.colors == widget.item.colors &&
+        primaryResult.type == widget.item.type &&
+        primaryResult.abilities == widget.item.abilities;
+    var companionCount = 0;
+    TokenDatabase? tokenDatabase;
+    try {
+      if (!primaryIdentityUnchanged || results.length > 1) {
+        tokenDatabase = TokenDatabase();
+        await tokenDatabase.loadTokens();
       }
+
+      if (primaryIdentityUnchanged &&
+          TokenMergeCompatibility.isClean(widget.item)) {
+        await tokenProvider.addTokens(
+          widget.item,
+          primaryResult.quantity,
+          summoningSick,
+        );
+      } else {
+        final artwork = primaryIdentityUnchanged
+            ? ResolvedTokenArtwork(
+                url: widget.item.artworkUrl,
+                set: widget.item.artworkSet,
+                options: widget.item.artworkOptions,
+              )
+            : TokenResultArtworkResolver.resolve(
+                result: primaryResult,
+                tokenDatabase: tokenDatabase,
+              );
+        await TokenCreationService.commit(
+          requests: [
+            TokenCommitRequest(
+              result: primaryResult,
+              artwork: artwork,
+              order: widget.item.order + 0.5,
+              applySummoningSickness: summoningSick,
+            ),
+          ],
+          tokenProvider: tokenProvider,
+        );
+      }
+
+      if (results.length > 1) {
+        companionCount = await TokenCreationService.createCompanionTokens(
+          results: results,
+          tokenProvider: tokenProvider,
+          summoningSicknessEnabled: summoningSick,
+          insertionOrder: widget.item.order + 1.0,
+          tokenDatabase: tokenDatabase,
+        );
+      }
+    } finally {
+      tokenDatabase?.dispose();
     }
 
-    // Companion tokens (if any): delegate to shared service
     if (results.length > 1) {
-      final tokenDatabase = TokenDatabase();
-      await tokenDatabase.loadTokens();
-      final companionCount = await TokenCreationService.createCompanionTokens(
-        results: results,
-        tokenProvider: tokenProvider,
-        summoningSicknessEnabled: summoningSick,
-        insertionOrder: widget.item.order + 1.0,
-        tokenDatabase: tokenDatabase,
-      );
-      tokenDatabase.dispose();
-
       // Show tooltip above rules FAB for companion tokens
       if (context.mounted) {
         final totalCreated = primaryResult.quantity + companionCount;

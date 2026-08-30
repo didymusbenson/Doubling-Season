@@ -8,7 +8,9 @@ import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import '../models/token_definition.dart';
 import '../utils/artwork_manager.dart';
+import '../utils/artwork_credit_resolver.dart';
 import '../utils/artwork_preference_manager.dart';
+import 'artwork_credit_caption.dart';
 
 /// Bottom sheet for selecting token artwork from available variants
 class ArtworkSelectionSheet extends StatefulWidget {
@@ -40,6 +42,15 @@ class ArtworkSelectionSheet extends StatefulWidget {
 
 class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
   bool _isDownloading = false;
+
+  String? get _currentArtist {
+    final url = widget.currentArtworkUrl;
+    if (url == null) return null;
+    return ArtworkCreditResolver.forSelection(
+      url: url,
+      variants: widget.artworkVariants,
+    );
+  }
 
   static Widget _artworkPlaceholder() {
     return Container(
@@ -298,6 +309,12 @@ class _ArtworkSelectionSheetState extends State<ArtworkSelectionSheet> {
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
+                                    if (_currentArtist != null) ...[
+                                      const SizedBox(height: 4),
+                                      ArtworkCreditCaption(
+                                        artist: _currentArtist!,
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -625,7 +642,14 @@ class _ArtworkConfirmationDialog extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Set info
+            ArtworkCreditCaption(
+              artist: ArtworkCreditResolver.forVariant(variant),
+              alignment: WrapAlignment.center,
+            ),
+
+            const SizedBox(height: 6),
+
+            // Set info beneath artist credit
             Text(
               variant.set,
               style: const TextStyle(

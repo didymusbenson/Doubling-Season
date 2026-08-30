@@ -1,8 +1,8 @@
 # Artwork Persistence and Loading Watchlist
 
-**Status:** Monitoring — neither issue is currently reproduced
+**Status:** Artwork persistence monitoring; custom-art loading hardened
 
-**Last updated:** 2026-08-27
+**Last updated:** 2026-08-29
 
 This file retains only the artwork risks that are still actionable. Historical
 startup-crash theory and obsolete pre-resize calculations were removed after
@@ -57,24 +57,25 @@ When investigating, distinguish between loss of:
 An Android user previously reported startup failure with roughly 34 custom-art
 tokens. The failure was never reproduced locally.
 
-### Current mitigation
+### Mitigations
 
 - New custom uploads are resized to a maximum 768 px dimension before storage.
 - This substantially reduces file size and decoded image memory.
-- Pre-existing oversized uploads are not migrated.
+- `CroppedArtworkWidget` resolves `FileImage`/`NetworkImage` through Flutter's
+  shared `ImageCache`, so repeated artwork shares pending and completed decodes.
+- Decodes are capped at 768 px wide through `ResizeImage`, including
+  pre-existing full-resolution custom uploads. Source files are not rewritten.
 
 ### Remaining risk
 
-`CroppedArtworkWidget` still performs direct image decoding rather than sharing
-Flutter's normal `ImageProvider` cache. A sufficiently large board could still
-trigger many concurrent decodes, particularly with legacy full-resolution
-files.
+Many distinct custom images can still consume substantial memory at once, but
+the known direct-decode amplification has been removed. Visibility-based
+loading remains an option only if device evidence shows this is insufficient.
 
-### Next action only if reproduced
+### Next action only if reproduced again
 
 Capture device/crash logs and the number and dimensions of loaded files before
-choosing between decode throttling, shared caching, or visibility-based loading.
-Do not implement speculative image-pipeline changes without reproduction data.
+adding decode throttling or visibility-based loading.
 
 ## Acceptance Notes to Collect
 

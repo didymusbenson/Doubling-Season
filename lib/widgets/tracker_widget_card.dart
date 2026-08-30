@@ -14,6 +14,7 @@ import '../providers/token_provider.dart';
 import '../providers/rules_provider.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
+import '../utils/artwork_metadata_enricher.dart';
 import '../utils/color_utils.dart';
 import 'common/background_text.dart';
 // Unused import was causing build warnings
@@ -70,7 +71,7 @@ class _BrudicladSelection {
 }
 
 class _TrackerWidgetCardState extends State<TrackerWidgetCard>
-    with ArtworkDisplayMixin {
+    with SingleTickerProviderStateMixin, ArtworkDisplayMixin {
   static const double _identityRailWidth = 7;
   final DateTime _createdAt = DateTime.now();
   bool _artworkAnimated = false;
@@ -89,6 +90,9 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
   Future<bool>? _nameCommit;
   Future<bool>? _descriptionCommit;
   Future<bool>? _valueCommit;
+  double? _artworkRevealHeight;
+  late final AnimationController _artworkCenterController;
+  late final CurvedAnimation _artworkCenterProgress;
 
   // Cached artwork Future to prevent FutureBuilder rebuilds.
   Future<File?>? _cachedArtworkFuture;
@@ -123,6 +127,15 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
   @override
   void initState() {
     super.initState();
+    _artworkCenterController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+      value: 1,
+    );
+    _artworkCenterProgress = CurvedAnimation(
+      parent: _artworkCenterController,
+      curve: const Cubic(0.18, 0.89, 0.32, 1.08),
+    );
     _descriptionController =
         TextEditingController(text: widget.tracker.description);
     _descriptionFocusNode = FocusNode()..addListener(_handleDescriptionFocus);
@@ -145,6 +158,23 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?.detach(_requestCollapse);
       widget.controller?.attach(_requestCollapse);
+    }
+    if (!oldWidget.isExpanded && widget.isExpanded) {
+      final renderBox = context.findRenderObject();
+      if (renderBox is RenderBox && renderBox.hasSize) {
+        _artworkRevealHeight = renderBox.size.height;
+      }
+      _artworkCenterController
+        ..duration = const Duration(milliseconds: 380)
+        ..forward(from: 0);
+    } else if (oldWidget.isExpanded && !widget.isExpanded) {
+      final renderBox = context.findRenderObject();
+      if (renderBox is RenderBox && renderBox.hasSize) {
+        _artworkRevealHeight = renderBox.size.height;
+      }
+      _artworkCenterController
+        ..duration = const Duration(milliseconds: 240)
+        ..forward(from: 0);
     }
     if (!_editingDescription &&
         _descriptionController.text != widget.tracker.description) {
@@ -170,6 +200,8 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
 
   @override
   void dispose() {
+    _artworkCenterProgress.dispose();
+    _artworkCenterController.dispose();
     widget.controller?.detach(_requestCollapse);
     _descriptionFocusNode
       ..removeListener(_handleDescriptionFocus)
@@ -227,6 +259,8 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
                           constraints: constraints,
                           artworkDisplayStyle: artworkDisplayStyle,
                           cornerRadius: 0,
+                          revealViewportHeight: _artworkRevealHeight,
+                          revealProgress: _artworkCenterProgress,
                         ),
 
                       // Content layer
@@ -595,13 +629,21 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
 
   Future<List<ArtworkVariant>> _artworkOptions() async {
     final existing = widget.tracker.artworkOptions;
-    if (existing != null && existing.isNotEmpty) return existing;
     final database = WidgetDatabase();
     final match = database.filteredWidgets.where(
       (definition) => definition.name == widget.tracker.name,
     );
     if (match.isEmpty) return const <ArtworkVariant>[];
-    final options = List<ArtworkVariant>.from(match.first.artwork);
+    final authoritative = List<ArtworkVariant>.from(match.first.artwork);
+    if (existing != null &&
+        existing.isNotEmpty &&
+        !ArtworkMetadataEnricher.needsArtistMetadata(existing)) {
+      return existing;
+    }
+    final options = ArtworkMetadataEnricher.merge(
+      existing: existing ?? const <ArtworkVariant>[],
+      authoritative: authoritative,
+    );
     widget.tracker.artworkOptions = options;
     await context.read<TrackerProvider>().updateTracker(widget.tracker);
     return options;
@@ -1553,15 +1595,18 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
 
     // Create rabbits (plus any companions from rules) as peer results
     final tokenDatabase = TokenDatabase();
-    await tokenDatabase.loadTokens();
-    await TokenCreationService.createAllFromResults(
-      results: results,
-      tokenProvider: tokenProvider,
-      summoningSicknessEnabled: settingsProvider.summoningSicknessEnabled,
-      insertionOrder: nextOrder,
-      tokenDatabase: tokenDatabase,
-    );
-    tokenDatabase.dispose();
+    try {
+      await tokenDatabase.loadTokens();
+      await TokenCreationService.createAllFromResults(
+        results: results,
+        tokenProvider: tokenProvider,
+        summoningSicknessEnabled: settingsProvider.summoningSicknessEnabled,
+        insertionOrder: nextOrder,
+        tokenDatabase: tokenDatabase,
+      );
+    } finally {
+      tokenDatabase.dispose();
+    }
   }
 
   Future<void> _performKrenkoMobBossAction(BuildContext context) async {
@@ -1667,15 +1712,18 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
     // Create companion tokens from rules via shared service
     if (results.length > 1) {
       final tokenDatabase = TokenDatabase();
-      await tokenDatabase.loadTokens();
-      await TokenCreationService.createCompanionTokens(
-        results: results,
-        tokenProvider: tokenProvider,
-        summoningSicknessEnabled: settingsProvider.summoningSicknessEnabled,
-        insertionOrder: nextOrder,
-        tokenDatabase: tokenDatabase,
-      );
-      tokenDatabase.dispose();
+      try {
+        await tokenDatabase.loadTokens();
+        await TokenCreationService.createCompanionTokens(
+          results: results,
+          tokenProvider: tokenProvider,
+          summoningSicknessEnabled: settingsProvider.summoningSicknessEnabled,
+          insertionOrder: nextOrder,
+          tokenDatabase: tokenDatabase,
+        );
+      } finally {
+        tokenDatabase.dispose();
+      }
     }
   }
 
@@ -1750,15 +1798,18 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
     // Create companion tokens from rules via shared service
     if (results.length > 1) {
       final tokenDatabase = TokenDatabase();
-      await tokenDatabase.loadTokens();
-      await TokenCreationService.createCompanionTokens(
-        results: results,
-        tokenProvider: tokenProvider,
-        summoningSicknessEnabled: settingsProvider.summoningSicknessEnabled,
-        insertionOrder: nextOrder,
-        tokenDatabase: tokenDatabase,
-      );
-      tokenDatabase.dispose();
+      try {
+        await tokenDatabase.loadTokens();
+        await TokenCreationService.createCompanionTokens(
+          results: results,
+          tokenProvider: tokenProvider,
+          summoningSicknessEnabled: settingsProvider.summoningSicknessEnabled,
+          insertionOrder: nextOrder,
+          tokenDatabase: tokenDatabase,
+        );
+      } finally {
+        tokenDatabase.dispose();
+      }
     }
   }
 
@@ -1928,16 +1979,19 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
     // Create all tokens from rules results via shared service
     // Academy Manufactor has no distinct "primary" — all results are peers
     final tokenDatabase = TokenDatabase();
-    await tokenDatabase.loadTokens();
-    await TokenCreationService.createAllFromResults(
-      results: results,
-      tokenProvider: tokenProvider,
-      summoningSicknessEnabled:
-          false, // Artifact tokens (Food/Treasure/Clue) have no P/T
-      insertionOrder: nextOrder,
-      tokenDatabase: tokenDatabase,
-    );
-    tokenDatabase.dispose();
+    try {
+      await tokenDatabase.loadTokens();
+      await TokenCreationService.createAllFromResults(
+        results: results,
+        tokenProvider: tokenProvider,
+        summoningSicknessEnabled:
+            false, // Artifact tokens (Food/Treasure/Clue) have no P/T
+        insertionOrder: nextOrder,
+        tokenDatabase: tokenDatabase,
+      );
+    } finally {
+      tokenDatabase.dispose();
+    }
   }
 
   Widget _buildGradientLayer(BuildContext context) {

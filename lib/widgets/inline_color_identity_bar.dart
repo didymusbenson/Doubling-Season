@@ -28,50 +28,52 @@ class InlineColorIdentityBar extends StatelessWidget {
     return Semantics(
       container: true,
       label: selected.isEmpty ? 'Colorless identity' : 'Color identity',
-      child: Container(
-        height: 36,
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest,
+      child: Material(
+        color: scheme.surfaceContainerHighest,
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: scheme.outlineVariant),
+          side: BorderSide(color: scheme.outlineVariant),
         ),
         clipBehavior: Clip.antiAlias,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final choice in _choices)
-              Semantics(
-                button: true,
-                toggled: selected.contains(choice.$1),
-                label: '${choice.$2} color identity',
-                child: InkWell(
-                  onTap: () => onToggle(choice.$1),
-                  child: Container(
-                    width: 31,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: selected.contains(choice.$1)
-                          ? ColorUtils.mtgColorMap[choice.$1]
-                          : Colors.transparent,
-                      border: choice.$1 == 'W'
-                          ? null
-                          : Border(
-                              left: BorderSide(color: scheme.outlineVariant),
-                            ),
-                    ),
-                    child: Icon(
-                      choice.$3,
-                      size: 19,
-                      color: selected.contains(choice.$1)
-                          ? _selectedForeground(
-                              ColorUtils.mtgColorMap[choice.$1]!,
-                            )
-                          : scheme.onSurfaceVariant.withValues(alpha: 0.45),
+        child: SizedBox(
+          height: 36,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final choice in _choices)
+                Semantics(
+                  button: true,
+                  toggled: selected.contains(choice.$1),
+                  label: '${choice.$2} color identity',
+                  child: InkWell(
+                    onTap: () => onToggle(choice.$1),
+                    child: Ink(
+                      width: 31,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: selected.contains(choice.$1)
+                            ? ColorUtils.mtgColorMap[choice.$1]
+                            : Colors.transparent,
+                        border: choice.$1 == 'W'
+                            ? null
+                            : Border(
+                                left: BorderSide(color: scheme.outlineVariant),
+                              ),
+                      ),
+                      child: Icon(
+                        choice.$3,
+                        size: 19,
+                        color: selected.contains(choice.$1)
+                            ? _selectedForeground(
+                                ColorUtils.mtgColorMap[choice.$1]!,
+                              )
+                            : scheme.onSurfaceVariant.withValues(alpha: 0.45),
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

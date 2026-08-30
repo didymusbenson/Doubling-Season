@@ -89,7 +89,10 @@ class TokenProvider extends ChangeNotifier {
     return allItems;
   }
 
-  Future<void> insertItem(Item item) async {
+  Future<void> insertItem(
+    Item item, {
+    bool notifyCreatureEntered = true,
+  }) async {
     try {
       // Assign order to new token if not already set
       if (item.order == 0.0) {
@@ -106,7 +109,7 @@ class TokenProvider extends ChangeNotifier {
       await _itemsBox.add(item);
 
       // Fire ETB event for creatures
-      if (item.hasPowerToughness) {
+      if (notifyCreatureEntered && item.hasPowerToughness) {
         GameEvents.instance.notifyCreatureEntered(item, item.amount);
       }
 
@@ -583,14 +586,19 @@ class TokenProvider extends ChangeNotifier {
         return;
       }
 
-      // Find target stack (first Scute Swarm with no counters)
+      // Keep separately selected artwork variants in separate stacks.
       final allItems = items;
       Item? targetStack;
       for (final item in allItems) {
-        if (item.name.toLowerCase().contains(GameConstants.scuteSwarmName) &&
-            item.plusOneCounters == 0 &&
-            item.minusOneCounters == 0 &&
-            item.counters.isEmpty) {
+        if (TokenMergeCompatibility.canMerge(
+          item,
+          name: sourceToken.name,
+          pt: sourceToken.pt,
+          colors: sourceToken.colors,
+          type: sourceToken.type,
+          abilities: sourceToken.abilities,
+          artworkUrl: sourceToken.artworkUrl,
+        )) {
           targetStack = item;
           break;
         }
@@ -732,23 +740,39 @@ class TokenProvider extends ChangeNotifier {
       }
       final goblinDefinition = _basicGoblinCache!;
 
-      // Step 2: Check if matching goblin token WITHOUT counters already exists
+      // Resolve the artwork before looking for a destination stack so a
+      // different selected Goblin illustration is never merged into it.
+      final artworkPrefManager = ArtworkPreferenceManager();
+      final preferredArtwork =
+          artworkPrefManager.getPreferredArtwork(goblinDefinition.id);
+      String? artworkUrl;
+      String? artworkSet;
+      if (preferredArtwork != null) {
+        artworkUrl = preferredArtwork;
+        if (!preferredArtwork.startsWith('file://') &&
+            goblinDefinition.artwork.isNotEmpty) {
+          final matchingArtwork = goblinDefinition.artwork.firstWhere(
+            (art) => art.url == preferredArtwork,
+            orElse: () => goblinDefinition.artwork[0],
+          );
+          artworkSet = matchingArtwork.set;
+        }
+      } else if (goblinDefinition.artwork.isNotEmpty) {
+        artworkUrl = goblinDefinition.artwork.first.url;
+        artworkSet = goblinDefinition.artwork.first.set;
+      }
+
+      // Step 2: Check for an exact, clean, artwork-compatible stack.
       final existingGoblinWithoutCounters = items.firstWhere(
-        (item) {
-          // Check if it matches goblin criteria
-          final isMatchingGoblin = item.name == 'Goblin' &&
-              item.pt == '1/1' &&
-              item.colors == 'R' &&
-              item.type.toLowerCase().contains('goblin') &&
-              item.abilities.isEmpty;
-
-          // Check if it has NO counters (any type)
-          final hasNoCounters = item.plusOneCounters == 0 &&
-              item.minusOneCounters == 0 &&
-              item.counters.isEmpty;
-
-          return isMatchingGoblin && hasNoCounters;
-        },
+        (item) => TokenMergeCompatibility.canMerge(
+          item,
+          name: goblinDefinition.name,
+          pt: goblinDefinition.pt,
+          colors: goblinDefinition.colors,
+          type: goblinDefinition.type,
+          abilities: goblinDefinition.abilities,
+          artworkUrl: artworkUrl,
+        ),
         orElse: () => Item(
             name: '',
             pt: '',
@@ -788,29 +812,6 @@ class TokenProvider extends ChangeNotifier {
         final shouldBeSummoningSick = summoningSicknessEnabled &&
             !goblinDefinition.abilities.toLowerCase().contains('haste');
 
-        // Resolve preferred artwork (same path as normal token creation)
-        final artworkPrefManager = ArtworkPreferenceManager();
-        final tokenIdentity = goblinDefinition.id;
-        final preferredArtwork =
-            artworkPrefManager.getPreferredArtwork(tokenIdentity);
-
-        String? artworkUrl;
-        String? artworkSet;
-        if (preferredArtwork != null) {
-          artworkUrl = preferredArtwork;
-          if (!preferredArtwork.startsWith('file://') &&
-              goblinDefinition.artwork.isNotEmpty) {
-            final matchingArtwork = goblinDefinition.artwork.firstWhere(
-              (art) => art.url == preferredArtwork,
-              orElse: () => goblinDefinition.artwork[0],
-            );
-            artworkSet = matchingArtwork.set;
-          }
-        } else if (goblinDefinition.artwork.isNotEmpty) {
-          artworkUrl = goblinDefinition.artwork.first.url;
-          artworkSet = goblinDefinition.artwork.first.set;
-        }
-
         final newGoblin = Item(
           name: goblinDefinition.name,
           pt: goblinDefinition.pt,
@@ -840,9 +841,7 @@ class TokenProvider extends ChangeNotifier {
           ArtworkManager.downloadArtwork(artworkUrl).then((file) {
             if (file == null) {
               debugPrint(
-                  'TokenProvider.createKrenkoGoblins: Artwork download failed, resetting URL');
-              newGoblin.updateArtwork(
-                  url: null, set: null, options: newGoblin.artworkOptions);
+                  'TokenProvider.createKrenkoGoblins: Artwork download failed; preserving selection for retry');
             } else {
               debugPrint(
                   'TokenProvider.createKrenkoGoblins: Artwork downloaded');

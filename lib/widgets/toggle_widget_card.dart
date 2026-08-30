@@ -10,6 +10,7 @@ import '../providers/settings_provider.dart';
 import '../providers/toggle_provider.dart';
 import '../utils/constants.dart';
 import '../utils/artwork_manager.dart';
+import '../utils/artwork_metadata_enricher.dart';
 import '../utils/color_utils.dart';
 import 'common/background_text.dart';
 // Unused import was causing build warnings
@@ -43,7 +44,7 @@ class ToggleWidgetCard extends StatefulWidget {
 }
 
 class _ToggleWidgetCardState extends State<ToggleWidgetCard>
-    with ArtworkDisplayMixin {
+    with SingleTickerProviderStateMixin, ArtworkDisplayMixin {
   static const double _identityRailWidth = 7;
   final DateTime _createdAt = DateTime.now();
   bool _artworkAnimated = false;
@@ -59,10 +60,22 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
   Future<bool>? _nameCommit;
   Future<bool>? _descriptionCommit;
   bool _editingName = false;
+  double? _artworkRevealHeight;
+  late final AnimationController _artworkCenterController;
+  late final CurvedAnimation _artworkCenterProgress;
 
   @override
   void initState() {
     super.initState();
+    _artworkCenterController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+      value: 1,
+    );
+    _artworkCenterProgress = CurvedAnimation(
+      parent: _artworkCenterController,
+      curve: const Cubic(0.18, 0.89, 0.32, 1.08),
+    );
     _onController = TextEditingController(text: widget.toggle.onDescription);
     _offController = TextEditingController(text: widget.toggle.offDescription);
     _nameController = TextEditingController(text: widget.toggle.name);
@@ -109,6 +122,23 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
       oldWidget.controller?.detach(_requestCollapse);
       widget.controller?.attach(_requestCollapse);
     }
+    if (!oldWidget.isExpanded && widget.isExpanded) {
+      final renderBox = context.findRenderObject();
+      if (renderBox is RenderBox && renderBox.hasSize) {
+        _artworkRevealHeight = renderBox.size.height;
+      }
+      _artworkCenterController
+        ..duration = const Duration(milliseconds: 380)
+        ..forward(from: 0);
+    } else if (oldWidget.isExpanded && !widget.isExpanded) {
+      final renderBox = context.findRenderObject();
+      if (renderBox is RenderBox && renderBox.hasSize) {
+        _artworkRevealHeight = renderBox.size.height;
+      }
+      _artworkCenterController
+        ..duration = const Duration(milliseconds: 240)
+        ..forward(from: 0);
+    }
     // Reset cleanup flag if artwork URL changed
     if (oldWidget.toggle.artworkUrl != widget.toggle.artworkUrl) {
       _artworkCleanupAttempted = false;
@@ -126,6 +156,8 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
 
   @override
   void dispose() {
+    _artworkCenterProgress.dispose();
+    _artworkCenterController.dispose();
     widget.controller?.detach(_requestCollapse);
     _onFocus
       ..removeListener(_handleFocusChange)
@@ -181,6 +213,8 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
                           constraints: constraints,
                           artworkDisplayStyle: artworkDisplayStyle,
                           cornerRadius: 0,
+                          revealViewportHeight: _artworkRevealHeight,
+                          revealProgress: _artworkCenterProgress,
                         ),
 
                       // Content layer
@@ -549,13 +583,21 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
 
   Future<List<ArtworkVariant>> _artworkOptions() async {
     final existing = widget.toggle.artworkOptions;
-    if (existing != null && existing.isNotEmpty) return existing;
     final database = WidgetDatabase();
     final match = database.filteredWidgets.where(
       (definition) => definition.name == widget.toggle.name,
     );
     if (match.isEmpty) return const <ArtworkVariant>[];
-    final options = List<ArtworkVariant>.from(match.first.artwork);
+    final authoritative = List<ArtworkVariant>.from(match.first.artwork);
+    if (existing != null &&
+        existing.isNotEmpty &&
+        !ArtworkMetadataEnricher.needsArtistMetadata(existing)) {
+      return existing;
+    }
+    final options = ArtworkMetadataEnricher.merge(
+      existing: existing ?? const <ArtworkVariant>[],
+      authoritative: authoritative,
+    );
     widget.toggle.artworkOptions = options;
     await context.read<ToggleProvider>().updateToggle(widget.toggle);
     return options;

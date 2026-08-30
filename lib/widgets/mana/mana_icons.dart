@@ -24,6 +24,8 @@ class ManaIcons {
   static const IconData tap = IconData(0xe61a, fontFamily: fontFamily);
   static const IconData untap = IconData(0xe61b, fontFamily: fontFamily);
   static const IconData artistNib = IconData(0xe924, fontFamily: fontFamily);
+  static const IconData power = IconData(0xe921, fontFamily: fontFamily);
+  static const IconData toughness = IconData(0xe922, fontFamily: fontFamily);
   static const IconData summoningSickness =
       IconData(0xe96a, fontFamily: fontFamily);
   static const IconData colorless = IconData(0xe904, fontFamily: fontFamily);

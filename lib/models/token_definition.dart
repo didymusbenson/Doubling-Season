@@ -11,16 +11,28 @@ class ArtworkVariant {
   @HiveField(1)
   final String url;
 
-  ArtworkVariant({required this.set, required this.url});
+  @HiveField(2, defaultValue: '')
+  final String artist;
+
+  ArtworkVariant({
+    required this.set,
+    required this.url,
+    this.artist = '',
+  });
 
   factory ArtworkVariant.fromJson(Map<String, dynamic> json) {
     return ArtworkVariant(
       set: json['set'] as String? ?? '',
       url: json['url'] as String? ?? '',
+      artist: json['artist'] as String? ?? '',
     );
   }
 
-  Map<String, dynamic> toJson() => {'set': set, 'url': url};
+  Map<String, dynamic> toJson() => {
+        'set': set,
+        'url': url,
+        'artist': artist,
+      };
 }
 
 class TokenDefinition {
@@ -57,10 +69,8 @@ class TokenDefinition {
 
     // Parse optional reverse_related array
     final reverseRelatedJson = json['reverse_related'] as List<dynamic>?;
-    final reverseRelatedList = reverseRelatedJson
-            ?.map((name) => name as String)
-            .toList() ??
-        [];
+    final reverseRelatedList =
+        reverseRelatedJson?.map((name) => name as String).toList() ?? [];
 
     return TokenDefinition(
       name: json['name'] as String? ?? '',
@@ -103,7 +113,8 @@ class TokenDefinition {
       type: type,
       amount: amount,
       tapped: createTapped ? amount : 0,
-      summoningSick: 0, // Summoning sickness will be applied by caller based on settings and Haste
+      summoningSick:
+          0, // Summoning sickness will be applied by caller based on settings and Haste
       artworkOptions: artwork.isNotEmpty ? List.from(artwork) : null,
     );
   }

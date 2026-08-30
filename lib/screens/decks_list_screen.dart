@@ -94,7 +94,8 @@ class _DecksListScreenState extends State<DecksListScreen> {
                 child: ElevatedButton.icon(
                   onPressed: () => _bulkDelete(context),
                   icon: const Icon(Icons.delete),
-                  label: Text('Delete ${_selectedIndices.length} deck${_selectedIndices.length == 1 ? '' : 's'}'),
+                  label: Text(
+                      'Delete ${_selectedIndices.length} deck${_selectedIndices.length == 1 ? '' : 's'}'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
                     foregroundColor: Colors.white,
@@ -103,31 +104,31 @@ class _DecksListScreenState extends State<DecksListScreen> {
               ),
             )
           : !_editMode
-            ? SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _showSaveSheet(context),
-                          icon: const Icon(Icons.save),
-                          label: const Text('Save Board'),
+              ? SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _showSaveSheet(context),
+                            icon: const Icon(Icons.save),
+                            label: const Text('Save Board'),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _showNewImportOptions(context),
-                          icon: const Icon(Icons.add),
-                          label: const Text('New / Import'),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _showNewImportOptions(context),
+                            icon: const Icon(Icons.add),
+                            label: const Text('New / Import'),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              )
-            : null,
+                )
+              : null,
     );
   }
 
@@ -176,12 +177,15 @@ class _DecksListScreenState extends State<DecksListScreen> {
     return AnimatedBuilder(
       animation: animation,
       builder: (context, child) {
-        final scale = lerpDouble(1.0, UIConstants.dragScaleFactor, animation.value) ?? 1.0;
+        final scale =
+            lerpDouble(1.0, UIConstants.dragScaleFactor, animation.value) ??
+                1.0;
         return Transform.scale(
           scale: scale,
           child: Material(
             elevation: UIConstants.dragElevation,
-            shadowColor: Colors.black.withValues(alpha: UIConstants.dragShadowOpacity),
+            shadowColor:
+                Colors.black.withValues(alpha: UIConstants.dragShadowOpacity),
             borderRadius: BorderRadius.circular(UIConstants.borderRadius),
             clipBehavior: Clip.antiAlias,
             type: MaterialType.transparency,
@@ -206,7 +210,8 @@ class _DecksListScreenState extends State<DecksListScreen> {
 
     return Padding(
       key: ValueKey('deck_${deck.key}'),
-      padding: const EdgeInsets.symmetric(vertical: UIConstants.verticalSpacing),
+      padding:
+          const EdgeInsets.symmetric(vertical: UIConstants.verticalSpacing),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(UIConstants.borderRadius),
@@ -221,7 +226,8 @@ class _DecksListScreenState extends State<DecksListScreen> {
             color: Colors.transparent,
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final artworkWidth = constraints.maxWidth * UIConstants.artworkFadeoutWidthPercent;
+                final artworkWidth = constraints.maxWidth *
+                    UIConstants.artworkFadeoutWidthPercent;
                 return Stack(
                   children: [
                     // Base background
@@ -231,62 +237,69 @@ class _DecksListScreenState extends State<DecksListScreen> {
 
                     // Artwork layer
                     if (artworkUrl != null && artworkUrl.isNotEmpty && !kIsWeb)
-                      _buildDeckArtwork(artworkUrl, innerBorderRadius, artworkWidth, isFullView),
+                      _buildDeckArtwork(artworkUrl, innerBorderRadius,
+                          artworkWidth, isFullView),
 
                     // Content layer (InkWell + text)
                     InkWell(
-                  onTap: _editMode ? null : () => _showDeckOptions(context, deck),
-                  borderRadius: BorderRadius.circular(innerBorderRadius),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              BackgroundText(
-                                child: Text(
-                                  deck.name,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                      onTap: _editMode
+                          ? null
+                          : () => _showDeckOptions(context, deck),
+                      borderRadius: BorderRadius.circular(innerBorderRadius),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  BackgroundText(
+                                    child: Text(
+                                      deck.name,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              BackgroundText(
-                                child: Text(
-                                  _buildSubtitle(deck),
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Theme.of(context).textTheme.bodySmall?.color,
+                                  const SizedBox(height: 4),
+                                  BackgroundText(
+                                    child: Text(
+                                      _buildSubtitle(deck),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.color,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                ],
                               ),
-                            ],
-                          ),
+                            ),
+                            if (_editMode)
+                              Checkbox(
+                                value: _selectedIndices.contains(index),
+                                onChanged: (value) {
+                                  setState(() {
+                                    if (value == true) {
+                                      _selectedIndices.add(index);
+                                    } else {
+                                      _selectedIndices.remove(index);
+                                    }
+                                  });
+                                },
+                              ),
+                          ],
                         ),
-                        if (_editMode)
-                          Checkbox(
-                            value: _selectedIndices.contains(index),
-                            onChanged: (value) {
-                              setState(() {
-                                if (value == true) {
-                                  _selectedIndices.add(index);
-                                } else {
-                                  _selectedIndices.remove(index);
-                                }
-                              });
-                            },
-                          ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
-              ],
+                  ],
                 ); // Stack
               }, // LayoutBuilder builder
             ), // LayoutBuilder
@@ -296,7 +309,8 @@ class _DecksListScreenState extends State<DecksListScreen> {
     ); // Padding
   }
 
-  Widget _buildDeckArtwork(String artworkUrl, double innerBorderRadius, double artworkWidth, bool isFullView) {
+  Widget _buildDeckArtwork(String artworkUrl, double innerBorderRadius,
+      double artworkWidth, bool isFullView) {
     return isFullView
         ? Positioned.fill(
             child: FutureBuilder<File?>(
@@ -363,7 +377,8 @@ class _DecksListScreenState extends State<DecksListScreen> {
   }
 
   String _buildSubtitle(Deck deck) {
-    final utilityCount = (deck.trackerWidgets?.length ?? 0) + (deck.toggleWidgets?.length ?? 0);
+    final utilityCount =
+        (deck.trackerWidgets?.length ?? 0) + (deck.toggleWidgets?.length ?? 0);
 
     if (deck.templates.isEmpty && utilityCount == 0) {
       return 'Empty deck';
@@ -375,7 +390,8 @@ class _DecksListScreenState extends State<DecksListScreen> {
       if (names.length <= 3) {
         parts.add(names.join(', '));
       } else {
-        parts.add('${names.take(3).join(', ')}, and ${names.length - 3} others');
+        parts
+            .add('${names.take(3).join(', ')}, and ${names.length - 3} others');
       }
     }
     if (utilityCount > 0) {
@@ -560,7 +576,8 @@ class _DecksListScreenState extends State<DecksListScreen> {
     tokenDatabase.loadCustomTokens();
 
     for (final template in deck.templates) {
-      final id = '${template.name}|${template.pt}|${template.colors}|${template.type}|${template.abilities}';
+      final id =
+          '${template.name}|${template.pt}|${template.colors}|${template.type}|${template.abilities}';
       if (tokenDatabase.findTokenById(id) != null) continue;
 
       // Build artwork list from template
@@ -571,6 +588,8 @@ class _DecksListScreenState extends State<DecksListScreen> {
         artwork.add(token_models.ArtworkVariant(
           set: template.artworkSet ?? 'custom',
           url: template.artworkUrl!,
+          artist:
+              template.artworkUrl!.startsWith('file://') ? 'user uploaded' : '',
         ));
       }
 
@@ -596,7 +615,8 @@ class _DecksListScreenState extends State<DecksListScreen> {
     final toggleProvider = context.read<ToggleProvider>();
 
     _ensureCustomTokensFromDeck(deck);
-    await deckProvider.loadDeckClearBoard(deck, tokenProvider, trackerProvider, toggleProvider);
+    await deckProvider.loadDeckClearBoard(
+        deck, tokenProvider, trackerProvider, toggleProvider);
 
     if (context.mounted) {
       Navigator.pop(context); // Pop back to board
@@ -610,7 +630,8 @@ class _DecksListScreenState extends State<DecksListScreen> {
     final toggleProvider = context.read<ToggleProvider>();
 
     _ensureCustomTokensFromDeck(deck);
-    await deckProvider.loadDeckAddToBoard(deck, tokenProvider, trackerProvider, toggleProvider);
+    await deckProvider.loadDeckAddToBoard(
+        deck, tokenProvider, trackerProvider, toggleProvider);
 
     if (context.mounted) {
       Navigator.pop(context); // Pop back to board
@@ -629,11 +650,13 @@ class _DecksListScreenState extends State<DecksListScreen> {
       debugPrint('DeckProvider: Sharing deck "${deck.name}"');
 
       await Share.shareXFiles(
-        [XFile.fromData(
-          utf8.encode(json),
-          name: fileName,
-          mimeType: 'application/json',
-        )],
+        [
+          XFile.fromData(
+            utf8.encode(json),
+            name: fileName,
+            mimeType: 'application/json',
+          )
+        ],
         subject: deck.name,
       );
     } catch (e) {
@@ -679,7 +702,8 @@ class _DecksListScreenState extends State<DecksListScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Decks'),
-        content: Text('Delete $count deck${count == 1 ? '' : 's'}?\n\nThis cannot be undone.'),
+        content: Text(
+            'Delete $count deck${count == 1 ? '' : 's'}?\n\nThis cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
@@ -688,7 +712,8 @@ class _DecksListScreenState extends State<DecksListScreen> {
           TextButton(
             onPressed: () {
               // Collect decks to delete (by index, sorted descending to avoid index shifting)
-              final sorted = _selectedIndices.toList()..sort((a, b) => b.compareTo(a));
+              final sorted = _selectedIndices.toList()
+                ..sort((a, b) => b.compareTo(a));
               for (final idx in sorted) {
                 if (idx < deckList.length) {
                   deckProvider.deleteDeck(deckList[idx]);
@@ -748,7 +773,8 @@ class _DecksListScreenState extends State<DecksListScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (sheetContext) => DeckSaveSheet(suggestedColors: suggestedColors.toString()),
+      builder: (sheetContext) =>
+          DeckSaveSheet(suggestedColors: suggestedColors.toString()),
     ).then((result) {
       if (result == null || result is! DeckSaveResult) return;
 
@@ -777,7 +803,8 @@ class _DecksListScreenState extends State<DecksListScreen> {
       for (final boardItem in allBoardItems) {
         if (boardItem.type == 'token') {
           final item = boardItem.item as Item;
-          final key = '${item.name}|${item.pt}|${item.colors}|${item.type}|${item.abilities}|${item.artworkUrl}';
+          final key =
+              '${item.name}|${item.pt}|${item.colors}|${item.type}|${item.abilities}|${item.artworkUrl}';
           if (!seenTokens.containsKey(key)) {
             seenTokens[key] = true;
             final template = TokenTemplate.fromItem(item);
@@ -801,8 +828,10 @@ class _DecksListScreenState extends State<DecksListScreen> {
       }
 
       final dedupCount = tokenProvider.items.length - templates.length;
-      debugPrint('DeckProvider: Save dedup - ${tokenProvider.items.length} board tokens collapsed into ${templates.length} templates ($dedupCount duplicates removed)');
-      debugPrint('DeckProvider: Save color auto-detection result: ${suggestedColors.toString()}, user selected: ${result.colorIdentity}');
+      debugPrint(
+          'DeckProvider: Save dedup - ${tokenProvider.items.length} board tokens collapsed into ${templates.length} templates ($dedupCount duplicates removed)');
+      debugPrint(
+          'DeckProvider: Save color auto-detection result: ${suggestedColors.toString()}, user selected: ${result.colorIdentity}');
 
       final deck = Deck(
         name: result.name,
@@ -974,4 +1003,3 @@ class _BoardItemForSave {
 
   _BoardItemForSave(this.item, this.order, this.type);
 }
-

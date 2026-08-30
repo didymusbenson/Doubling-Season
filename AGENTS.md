@@ -315,6 +315,16 @@ onPressed: () {
 
 **CRITICAL: TokenCard is the canonical reference for all board items.**
 
+**Board-item parity rule:** Any change to `TokenCard` must trigger an explicit
+review of `TrackerWidgetCard`, `ToggleWidgetCard`, and every other current or
+future item rendered in the unified board list. Check both compact and expanded
+states for matching layout, artwork behavior, animation/easing, interaction and
+collapse semantics, inline editing, accessibility/contrast, ordering/spacing,
+and persistence/error handling. Apply the change wherever the behavior is meant
+to be shared; if a card type intentionally differs, document the reason in the
+feature or bug file. The same review works in reverse when a utility establishes
+a new board-item pattern.
+
 When implementing features for any utility type (TrackerWidget, ToggleWidget, future types):
 1. Check `lib/widgets/token_card.dart` first — copy existing patterns rather than reimplementing
 2. For artwork: follow `docs/activeDevelopment/patterns/artwork_display.md`

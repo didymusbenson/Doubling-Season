@@ -19,17 +19,20 @@ class ArtworkVariantAdapter extends TypeAdapter<ArtworkVariant> {
     return ArtworkVariant(
       set: fields[0] as String,
       url: fields[1] as String,
+      artist: fields[2] == null ? '' : fields[2] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, ArtworkVariant obj) {
     writer
-      ..writeByte(2)
+      ..writeByte(3)
       ..writeByte(0)
       ..write(obj.set)
       ..writeByte(1)
-      ..write(obj.url);
+      ..write(obj.url)
+      ..writeByte(2)
+      ..write(obj.artist);
   }
 
   @override

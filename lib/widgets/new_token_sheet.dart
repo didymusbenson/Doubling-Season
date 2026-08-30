@@ -5,7 +5,6 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
-import '../models/item.dart';
 import '../models/token_definition.dart' as token_models;
 import '../providers/token_provider.dart';
 import '../providers/tracker_provider.dart';
@@ -17,6 +16,7 @@ import '../utils/artwork_manager.dart';
 import '../utils/artwork_preference_manager.dart';
 import 'color_selection_button.dart';
 import '../services/token_creation_service.dart';
+import '../services/token_result_artwork_resolver.dart';
 
 class NewTokenSheet extends StatefulWidget {
   /// When true, pops with a TokenDefinition instead of creating on the board.
@@ -386,8 +386,11 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
       if (_stagedArtwork != null) {
         final artworkUrl = await _commitStagedArtwork();
         if (artworkUrl != null) {
-          artworkList
-              .add(token_models.ArtworkVariant(set: 'custom', url: artworkUrl));
+          artworkList.add(token_models.ArtworkVariant(
+            set: 'custom',
+            url: artworkUrl,
+            artist: 'user uploaded',
+          ));
         }
       }
 
@@ -414,145 +417,190 @@ class _NewTokenSheetState extends State<NewTokenSheet> {
 
     // Prevent multi-tap
     setState(() => _isCreating = true);
+    try {
+      final tokenProvider = context.read<TokenProvider>();
+      final trackerProvider = context.read<TrackerProvider>();
+      final toggleProvider = context.read<ToggleProvider>();
+      final settings = context.read<SettingsProvider>();
+      final rulesProvider = context.read<RulesProvider>();
 
-    final tokenProvider = context.read<TokenProvider>();
-    final trackerProvider = context.read<TrackerProvider>();
-    final toggleProvider = context.read<ToggleProvider>();
-    final settings = context.read<SettingsProvider>();
-    final rulesProvider = context.read<RulesProvider>();
+      final tokenName = _nameController.text;
+      final tokenPt = _ptController.text;
+      final tokenType = _typeController.text.trim();
+      final tokenColors = _getColorString();
+      final tokenAbilities = _abilitiesController.text;
 
-    final tokenName = _nameController.text;
-    final tokenPt = _ptController.text;
-    final tokenType = _typeController.text.trim();
-    final tokenColors = _getColorString();
-    final tokenAbilities = _abilitiesController.text;
-
-    // Evaluate rules to get all tokens to create
-    final results = rulesProvider.evaluateRules(
-      tokenName,
-      tokenPt,
-      tokenColors,
-      tokenType,
-      tokenAbilities,
-      _amount,
-    );
-
-    // Commit staged artwork for the primary token
-    String? stagedArtworkUrl;
-    if (_stagedArtwork != null) {
-      stagedArtworkUrl = await _commitStagedArtwork();
-    }
-
-    // Persist to custom token library
-    {
-      final customArtwork = <token_models.ArtworkVariant>[];
-      if (stagedArtworkUrl != null) {
-        customArtwork.add(token_models.ArtworkVariant(
-          set: 'custom',
-          url: stagedArtworkUrl,
-        ));
-      }
-      final definition = token_models.TokenDefinition(
-        name: tokenName,
-        pt: tokenPt,
-        type: tokenType,
-        colors: tokenColors,
-        abilities: tokenAbilities,
-        popularity: 0,
-        artwork: customArtwork,
+      // Evaluate rules to get all tokens to create
+      final results = rulesProvider.evaluateRules(
+        tokenName,
+        tokenPt,
+        tokenColors,
+        tokenType,
+        tokenAbilities,
+        _amount,
       );
-      final tokenDatabase = TokenDatabase();
-      tokenDatabase.saveCustomToken(definition);
-      tokenDatabase.addToRecent(definition, settings);
-      tokenDatabase.dispose();
-    }
 
-    // Calculate max order across ALL board items (tokens + trackers + toggles)
-    final allOrders = <double>[];
-    allOrders.addAll(tokenProvider.items.map((item) => item.order));
-    allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
-    allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
-    final maxOrder =
-        allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
-    double nextOrder = maxOrder.floor() + 1.0;
-
-    // Create primary token (results.first)
-    final primaryResult = results.first;
-    if (primaryResult.quantity > 0) {
-      String? artworkUrl;
-      if (stagedArtworkUrl != null) {
-        artworkUrl = stagedArtworkUrl;
-      } else {
-        final artworkPrefManager = ArtworkPreferenceManager();
-        final tokenIdentity =
-            '${primaryResult.name}|${primaryResult.pt}|${primaryResult.colors}|${primaryResult.type}|${primaryResult.abilities}';
-        artworkUrl = artworkPrefManager.getPreferredArtwork(tokenIdentity);
+      // Commit staged artwork for the primary token
+      String? stagedArtworkUrl;
+      if (_stagedArtwork != null) {
+        stagedArtworkUrl = await _commitStagedArtwork();
       }
 
-      final newItem = Item(
-        name: primaryResult.name,
-        pt: primaryResult.pt,
-        type: primaryResult.type,
-        colors: primaryResult.colors,
-        abilities: primaryResult.abilities,
-        amount: primaryResult.quantity,
-        tapped: _createTapped ? primaryResult.quantity : 0,
-        summoningSick: 0,
-        order: nextOrder,
-        artworkUrl: artworkUrl,
-      );
-      nextOrder += 1.0;
-
-      await tokenProvider.insertItem(newItem);
-
-      // Apply summoning sickness AFTER insert
-      if (settings.summoningSicknessEnabled &&
-          newItem.hasPowerToughness &&
-          !newItem.hasHaste) {
-        newItem.summoningSick = primaryResult.quantity;
+      // Persist to custom token library
+      {
+        final customArtwork = <token_models.ArtworkVariant>[];
+        if (stagedArtworkUrl != null) {
+          customArtwork.add(token_models.ArtworkVariant(
+            set: 'custom',
+            url: stagedArtworkUrl,
+            artist: 'user uploaded',
+          ));
+        }
+        final definition = token_models.TokenDefinition(
+          name: tokenName,
+          pt: tokenPt,
+          type: tokenType,
+          colors: tokenColors,
+          abilities: tokenAbilities,
+          popularity: 0,
+          artwork: customArtwork,
+        );
+        final tokenDatabase = TokenDatabase();
+        tokenDatabase.saveCustomToken(definition);
+        tokenDatabase.addToRecent(definition, settings);
+        tokenDatabase.dispose();
       }
-    }
 
-    // Create companion tokens via shared service
-    if (results.length > 1) {
-      final tokenDatabase = TokenDatabase();
-      await TokenCreationService.createCompanionTokens(
-        results: results,
-        tokenProvider: tokenProvider,
-        summoningSicknessEnabled: settings.summoningSicknessEnabled,
-        insertionOrder: nextOrder,
-        tokenDatabase: tokenDatabase,
-      );
-      tokenDatabase.dispose();
-    }
+      // Calculate max order across ALL board items (tokens + trackers + toggles)
+      final allOrders = <double>[];
+      allOrders.addAll(tokenProvider.items.map((item) => item.order));
+      allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
+      allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
+      final maxOrder =
+          allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
+      double nextOrder = maxOrder.floor() + 1.0;
 
-    // Check if any results were capped
-    final wasCapped = results.any((r) => r.wasCapped);
+      // Commit the primary as a distinct new stack.
+      final primaryResult = results.first;
+      if (primaryResult.quantity > 0) {
+        String? artworkUrl;
+        if (stagedArtworkUrl != null) {
+          artworkUrl = stagedArtworkUrl;
+        } else {
+          final artworkPrefManager = ArtworkPreferenceManager();
+          final tokenIdentity =
+              '${primaryResult.name}|${primaryResult.pt}|${primaryResult.colors}|${primaryResult.type}|${primaryResult.abilities}';
+          artworkUrl = artworkPrefManager.getPreferredArtwork(tokenIdentity);
+        }
 
-    // Show cap alert before closing (context is still valid)
-    if (wasCapped && mounted) {
-      await showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Woah there!'),
-          content: const Text(
-            'Looks like your deck is popping off. Congrats! '
-            'For performance reasons, tokens have been capped at 999,999. '
-            'Please win the game this turn.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
+        final sourceCompositeId =
+            '$tokenName|$tokenPt|$tokenColors|$tokenType|$tokenAbilities';
+        late final ResolvedTokenArtwork artwork;
+        if (primaryResult.compositeId == sourceCompositeId) {
+          artwork = ResolvedTokenArtwork(
+            url: artworkUrl,
+            set: stagedArtworkUrl == null ? null : 'custom',
+            options: stagedArtworkUrl == null
+                ? null
+                : [
+                    token_models.ArtworkVariant(
+                      set: 'custom',
+                      url: stagedArtworkUrl,
+                      artist: 'user uploaded',
+                    ),
+                  ],
+          );
+        } else {
+          final tokenDatabase = TokenDatabase();
+          try {
+            await tokenDatabase.loadTokens();
+            artwork = TokenResultArtworkResolver.resolve(
+              result: primaryResult,
+              tokenDatabase: tokenDatabase,
+            );
+          } finally {
+            tokenDatabase.dispose();
+          }
+        }
+        await TokenCreationService.commit(
+          requests: [
+            TokenCommitRequest(
+              result: primaryResult,
+              artwork: artwork,
+              order: nextOrder,
+              createTapped: _createTapped,
+              applySummoningSickness: settings.summoningSicknessEnabled,
+              mergePolicy: TokenMergePolicy.never,
             ),
           ],
-        ),
-      );
-    }
+          tokenProvider: tokenProvider,
+        );
+        nextOrder += 1.0;
+      }
 
-    // Close dialog - token is on board and usable
-    if (mounted) {
-      Navigator.pop(context);
+      // Create companion tokens via shared service
+      if (results.length > 1) {
+        final tokenDatabase = TokenDatabase();
+        try {
+          await tokenDatabase.loadTokens();
+          await TokenCreationService.createCompanionTokens(
+            results: results,
+            tokenProvider: tokenProvider,
+            summoningSicknessEnabled: settings.summoningSicknessEnabled,
+            insertionOrder: nextOrder,
+            tokenDatabase: tokenDatabase,
+          );
+        } finally {
+          tokenDatabase.dispose();
+        }
+      }
+
+      // Check if any results were capped
+      final wasCapped = results.any((r) => r.wasCapped);
+
+      // Show cap alert before closing (context is still valid)
+      if (wasCapped && mounted) {
+        await showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Woah there!'),
+            content: const Text(
+              'Looks like your deck is popping off. Congrats! '
+              'For performance reasons, tokens have been capped at 999,999. '
+              'Please win the game this turn.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+
+      // Close dialog - token is on board and usable
+      if (mounted) {
+        setState(() => _isCreating = false);
+        Navigator.pop(context);
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              error is TokenCommitException &&
+                      error.partialOutcome.totalQuantity > 0
+                  ? 'Some tokens were created before the operation failed.'
+                  : 'Unable to create tokens. Please try again.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (_isCreating && mounted) {
+        setState(() => _isCreating = false);
+      }
     }
   }
 }

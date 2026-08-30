@@ -1,21 +1,26 @@
 # Artist Credit
 
-**Status:** Proposed — full feature specification  
-**Priority:** Expected to rank above the existing backlog; compare with the
-second forthcoming feature before selecting implementation order.  
-**Last updated:** 2026-08-29
+**Status:** Implemented for 1.11; pending user acceptance testing  
+**Priority:** Release candidate  
+**Last updated:** 2026-08-30
 
 ## Objective
 
-Show the creator credit for token artwork in the **Select Token Artwork** sheet.
-The credit appears directly beneath the corresponding set code, for example:
+Show the creator credit for token artwork in the **Select Token Artwork** sheet
+in two places:
+
+- the currently-selected summary shows the credit beneath its set code; and
+- the confirmation preview shows the credit beneath the card image and above
+  its set code.
+
+For example:
 
 > [Mana artist-nib icon] Steve Prescott
 
 Official Scryfall/MTG artwork uses the credited artist name from source data.
 User-uploaded artwork always displays the exact lower-case credit:
 
-> [Mana artist-nib icon] custom
+> [Mana artist-nib icon] user uploaded
 
 The value must be treated as an opaque display string. Future collaborating
 artists may be credited by a social handle such as `@artistname` rather than a
@@ -91,7 +96,17 @@ missing options from the token database for legacy items when it can match
 their token identity.
 
 User uploads are distinguishable without metadata because their URLs begin with
-`file://`. Those always resolve to `custom`.
+`file://`. Those always resolve to `user uploaded`.
+
+### Upgrade enrichment
+
+Existing board metadata created before 1.11 may contain valid artwork URLs but
+empty artist fields. Token and utility artwork-selection entry points enrich
+those saved variants by URL from the current authoritative definition before
+showing the sheet, then persist the enriched option list. This does not
+redownload images or alter the selected URL, set, crop, or image cache.
+`Artist unknown` is therefore reserved for genuinely unmatched or uncredited
+images rather than becoming the default experience for upgraded boards.
 
 ## Data Model
 
@@ -170,7 +185,7 @@ class ArtworkCreditResolver {
     required List<ArtworkVariant>? artworkOptions,
   }) {
     if (artworkUrl == null || artworkUrl.isEmpty) return null;
-    if (artworkUrl.startsWith('file://')) return 'custom';
+    if (artworkUrl.startsWith('file://')) return 'user uploaded';
 
     final matching = artworkOptions
         ?.where((variant) => variant.url == artworkUrl)
@@ -186,13 +201,13 @@ Rules:
 | Artwork state | Display credit |
 |---|---|
 | No artwork selected | no caption |
-| User-uploaded `file://` art | `custom` |
+| User-uploaded `file://` art | `user uploaded` |
 | Variant with artist | exact stored value |
 | Non-custom selected URL with missing artist | `Artist unknown` |
 
 Never infer custom status from set code alone; `file://` is the canonical custom
 upload signal. New custom-token creation paths should nevertheless construct
-their temporary variants with `artist: 'custom'` for consistency.
+their temporary variants with `artist: 'user uploaded'` for consistency.
 
 ## Artwork Selection UI
 
@@ -201,26 +216,21 @@ The authoritative MVP surface is the shared **Select Token Artwork** sheet in
 space for legible attribution, so credit does not appear on the expanded or
 compact board card.
 
-Current layout:
+Locked layouts:
 
 ```text
-[ artwork preview ]
-2X2
-```
-
-New layout:
-
-```text
-[ artwork preview ]
-2X2
-[Mana artist-nib icon] Steve Prescott
+Currently Selected:       Confirmation preview:
+[ artwork thumbnail ]     [ full artwork ]
+2X2                       [nib] Steve Prescott
+[nib] Steve Prescott      2X2
 ```
 
 Requirements:
 
-- Credit sits directly beneath the set code for each artwork option.
-- The currently-selected artwork summary also shows the credit beneath its set
-  code when that summary is present.
+- Artwork grid tiles retain their existing set-only labels.
+- The currently-selected summary shows credit beneath its set code.
+- The confirmation preview shows credit beneath the image and above its set
+  code.
 - Use the exact resolved string without changing capitalization or adding “by”.
 - Use a subdued body-small/label style but maintain accessible contrast.
 - Long names and handles wrap to a second line rather than ellipsizing away the
@@ -243,10 +253,11 @@ its pinned mapping and license registration.
 
 ## Artwork Surface Scope
 
-Credit appears only in the shared artwork-selection sheet, directly beneath a
-variant's set code. This includes token and utility flows wherever they use the
-same sheet and variant model. The shared resolver and `ArtworkCreditCaption`
-keep option tiles and the currently-selected summary consistent.
+Credit appears only in the shared artwork-selection sheet. The currently-
+selected summary places it beneath the set code; the confirmation preview
+places it beneath the card image and above the set code. This includes token and
+utility flows wherever they use the same sheet and variant model. Grid tiles
+remain unchanged.
 
 The following are explicitly out of scope:
 
@@ -264,9 +275,9 @@ opening **Select Token Artwork**.
 
 ### User uploads
 
-- Always display the Mana artist nib followed by `custom`.
+- Always display the Mana artist nib followed by `user uploaded`.
 - Do not ask the user for a name or handle in MVP.
-- Do not persist `custom` as personal information in preferences.
+- Do not persist an artist identity as personal information in preferences.
 - Continue deriving it locally from `file://`.
 
 ### Future collaborating artists
@@ -304,11 +315,11 @@ unique images.
 | Utility | Set | Artist from MTGJSON | Status |
 |---|---|---|---|
 | Life Total | KLD | Cliff Childs | derivable |
-| Poison Counters | ONE | — | **manual resolution required** |
+| Poison Counters | ONE | Artist unknown | Scryfall and printed card have no credit |
 | Radiation Counters | PIP | Skinnyelbows | derivable |
 | Energy Counters | PIP | Rafater | derivable |
 | Energy Counters | NA | Liz Leo | derivable |
-| Experience Counters | CM2 | — | **manual resolution required** |
+| Experience Counters | CM2 | Artist unknown | Scryfall and printed card have no credit |
 | Storm Count | 2X2 | Donato Giancola | derivable |
 | Commander Tax | CMM | Mike Bierek | derivable |
 | The Monarch | CN2 | Mike Bierek | derivable |
@@ -341,9 +352,9 @@ Manual gaps, with exact runtime references:
 - Experience Counters — `widget_database.dart`, CM2 image ID
   `1374bfa2-9714-486d-90aa-7a9b8d8ef3a8`
 
-Both images exist in cached MTGJSON but their `artist` values are null. Do not
-guess; resolve them from the printed credit or another authoritative record
-before implementation acceptance.
+Both images exist in cached MTGJSON but their `artist` values are null. Their
+Scryfall records also return an empty artist and neither printed card contains
+an artist credit. They use the visible, non-guessing fallback `Artist unknown`.
 
 ### Manual token definitions — `docs/housekeeping/custom_tokens.json`
 
@@ -422,35 +433,47 @@ schema changes, though examples should include artist when edited in the future.
 | `lib/providers/tracker_provider.dart` | preserve artist in Rhys migration options |
 | `lib/utils/artwork_credit_resolver.dart` | **new** centralized resolution |
 | `lib/widgets/artwork_credit_caption.dart` | **new** shared caption UI |
-| `lib/widgets/artwork_selection_sheet.dart` | captions beneath variant set codes and selected summary |
-| `lib/widgets/new_token_sheet.dart` | label staged custom variants `custom` |
+| `lib/widgets/artwork_selection_sheet.dart` | selected-summary and confirmation-preview captions |
+| `lib/widgets/new_token_sheet.dart` | label staged custom variants `user uploaded` |
 | `lib/providers/deck_provider.dart` | no structural change expected; verify JSON round trip |
 
 ## Open Decisions
 
-1. **Unknown fallback wording?** Proposed `Artist unknown` for unresolved
-   non-custom images so missing attribution is visible during testing.
-2. **Poison Counters artist?** Manual authoritative lookup required.
-3. **Experience Counters artist?** Manual authoritative lookup required.
+1. **Unknown fallback wording:** Resolved as `Artist unknown`.
+2. **Poison Counters artist:** No authoritative or printed credit; use fallback.
+3. **Experience Counters artist:** No authoritative or printed credit; use fallback.
 4. **Future collaborator links?** Deferred. Store/display the requested handle
    now; add URL/profile behavior only with a collaboration-specific feature.
+
+## Locked Display Decision
+
+**Recorded:** 2026-08-29, before implementation
+
+- Do not add artist captions to every artwork grid tile.
+- In **Currently Selected**, render set code first and artist credit beneath it.
+- In the confirmation **Preview**, render artist credit immediately beneath the
+  card image and render the set code beneath the artist.
 
 ## Acceptance Test Checklist
 
 ### Data generation
 
-- [ ] Regeneration emits `artist` on every artwork object with source data.
-- [ ] All 2,992 generated Scryfall URLs have a nonempty artist.
-- [ ] All 26 `custom_tokens.json` URLs retain the audited artist.
-- [ ] All 30 utility variants have a resolved artist before release.
-- [ ] Poison Counters and Experience Counters use manually verified credits.
-- [ ] No per-artwork live Scryfall API request is introduced.
-- [ ] Token database dedup identity remains unchanged.
+- [x] Regeneration emits `artist` on every artwork object with source data.
+- [x] All 2,992 generated Scryfall URLs have a nonempty artist.
+- [x] All 26 `custom_tokens.json` URLs retain the audited artist.
+- [x] All 30 utility variants have a resolved artist before release.
+- [x] Poison Counters and Experience Counters use the verified visible fallback
+      because Scryfall and the printed cards contain no artist credit.
+- [x] No per-artwork live Scryfall API request is introduced.
+- [x] Token database dedup identity remains unchanged.
 
 ### Migration and persistence
 
-- [ ] Existing Hive `ArtworkVariant` records load with empty artist safely.
-- [ ] Existing token/deck data boots without loss.
+- [x] Existing Hive `ArtworkVariant` records load with empty artist safely.
+- [x] Existing token/deck data boots without loss.
+- [ ] Opening artwork selection on a legacy token enriches and persists its
+      artist metadata without downloading or changing the selected image.
+- [ ] Legacy tracker and toggle utility options receive the same enrichment.
 - [ ] New artist values survive token creation, copying, stack splitting,
       Brudiclad transformation, deck save/load, duplicate, export, and import.
 - [ ] Old schema deck JSON imports successfully with unresolved credits handled.
@@ -458,21 +481,22 @@ schema changes, though examples should include artist when edited in the future.
 
 ### Artwork-selection sheet
 
-- [ ] Every concrete database artwork option shows the Mana artist nib and
-      artist name directly beneath its set code.
-- [ ] The currently-selected summary shows the same credit beneath its set
+- [x] The confirmation preview shows the Mana artist nib and artist name beneath
+      the card image and above its set code.
+- [x] The currently-selected summary shows the same credit beneath its set
       code.
 - [ ] Switching variants immediately switches the selected-summary artist.
 - [ ] Long artist names and joint credits wrap without clipping.
 - [ ] Removing artwork removes the selected-summary caption.
 - [ ] Upload/download action tiles show no artist caption.
-- [ ] Missing artist displays the chosen visible fallback.
+- [x] Missing artist displays the chosen visible fallback.
 - [ ] Web and native artwork sheets render the same credit.
 
 ### Custom artwork
 
-- [ ] User-uploaded artwork shows the Mana artist nib and exactly `custom`.
-- [ ] Replacing one custom upload with another remains `custom`.
+- [ ] User-uploaded artwork shows the Mana artist nib and exactly
+      `user uploaded`.
+- [ ] Replacing one custom upload with another remains `user uploaded`.
 - [ ] Switching from custom to Scryfall art restores the official artist.
 - [ ] Deleting a missing/stale custom file removes both preview and caption.
 

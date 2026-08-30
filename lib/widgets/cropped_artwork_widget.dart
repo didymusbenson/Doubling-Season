@@ -1,9 +1,7 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
 /// Widget that displays cropped artwork based on image-relative crop percentages.
 ///
@@ -55,9 +53,10 @@ class CroppedArtworkWidget extends StatefulWidget {
 
 class _CroppedArtworkWidgetState extends State<CroppedArtworkWidget>
     with SingleTickerProviderStateMixin {
-  static const int _maxNetworkBytes = 20 * 1024 * 1024;
-  static const int _maxDecodedWidth = 1536;
-  ui.Image? _cachedImage;
+  static const int _maxDecodedWidth = 768;
+  ImageInfo? _cachedImageInfo;
+  ImageStream? _imageStream;
+  ImageStreamListener? _imageStreamListener;
 
   /// Cache key: file path or URL string
   String? _cachedSource;
@@ -90,8 +89,9 @@ class _CroppedArtworkWidgetState extends State<CroppedArtworkWidget>
         oldWidget.fallbackImageUrl != widget.fallbackImageUrl) {
       _usingFallback = false;
       _isLoading = false;
-      _cachedImage?.dispose();
-      _cachedImage = null;
+      _stopListening();
+      _cachedImageInfo?.dispose();
+      _cachedImageInfo = null;
       _cachedSource = null;
       _fadeController.value = widget.fadeIn ? 0 : 1;
       _loadImageIfNeeded();
@@ -101,37 +101,57 @@ class _CroppedArtworkWidgetState extends State<CroppedArtworkWidget>
   @override
   void dispose() {
     _loadGeneration++;
-    _cachedImage?.dispose();
+    _stopListening();
+    _cachedImageInfo?.dispose();
     _fadeController.dispose();
     super.dispose();
   }
 
+  void _stopListening() {
+    final stream = _imageStream;
+    final listener = _imageStreamListener;
+    if (stream != null && listener != null) {
+      stream.removeListener(listener);
+    }
+    _imageStream = null;
+    _imageStreamListener = null;
+  }
+
   void _loadImageIfNeeded() {
     final source = _activeSource;
-    if (_isLoading || (_cachedImage != null && _cachedSource == source)) {
+    if (_isLoading || (_cachedImageInfo != null && _cachedSource == source)) {
       return;
     }
 
     final generation = ++_loadGeneration;
     _isLoading = true;
-    _loadImage(source).then((image) {
-      if (mounted && generation == _loadGeneration) {
-        setState(() {
-          _cachedImage?.dispose();
-          _cachedImage = image;
-          _cachedSource = source;
-          _isLoading = false;
-        });
-        if (widget.fadeIn) {
-          _fadeController.forward(from: 0);
-        } else {
-          _fadeController.value = 1;
-        }
-      } else {
-        image.dispose();
+    final provider = _providerFor(source);
+    final stream = provider.resolve(ImageConfiguration.empty);
+    late final ImageStreamListener listener;
+    listener = ImageStreamListener((imageInfo, _) {
+      stream.removeListener(listener);
+      if (!mounted || generation != _loadGeneration) {
+        imageInfo.dispose();
+        return;
       }
-    }).catchError((error) {
+      _imageStream = null;
+      _imageStreamListener = null;
+      setState(() {
+        _cachedImageInfo?.dispose();
+        _cachedImageInfo = imageInfo;
+        _cachedSource = source;
+        _isLoading = false;
+      });
+      if (widget.fadeIn) {
+        _fadeController.forward(from: 0);
+      } else {
+        _fadeController.value = 1;
+      }
+    }, onError: (Object error, StackTrace? stackTrace) {
+      stream.removeListener(listener);
       if (!mounted || generation != _loadGeneration) return;
+      _imageStream = null;
+      _imageStreamListener = null;
       if (!_usingFallback && widget.fallbackImageUrl != null) {
         _usingFallback = true;
         _isLoading = false;
@@ -147,68 +167,36 @@ class _CroppedArtworkWidgetState extends State<CroppedArtworkWidget>
         });
       }
     });
+    _imageStream = stream;
+    _imageStreamListener = listener;
+    stream.addListener(listener);
   }
 
-  Future<ui.Image> _loadImage(String? source) async {
-    final Uint8List bytes;
+  ImageProvider<Object> _providerFor(String? source) {
+    if (source == null) throw StateError('No image source available');
 
-    if (widget.imageFile != null && !kIsWeb) {
-      bytes = await widget.imageFile!.readAsBytes();
-    } else if (source != null) {
-      final client = http.Client();
-      try {
-        final request = http.Request('GET', Uri.parse(source));
-        final response =
-            await client.send(request).timeout(const Duration(seconds: 30));
-        if (response.statusCode != 200) {
-          throw Exception('Failed to load image: HTTP ${response.statusCode}');
-        }
-        if ((response.contentLength ?? 0) > _maxNetworkBytes) {
-          throw Exception('Artwork exceeds the supported size');
-        }
-        final contentType = response.headers['content-type'];
-        if (contentType != null && !contentType.startsWith('image/')) {
-          throw Exception('Artwork response is not an image');
-        }
-        final builder = BytesBuilder(copy: false);
-        var received = 0;
-        await for (final chunk
-            in response.stream.timeout(const Duration(seconds: 30))) {
-          received += chunk.length;
-          if (received > _maxNetworkBytes) {
-            throw Exception('Artwork exceeds the supported size');
-          }
-          builder.add(chunk);
-        }
-        bytes = builder.takeBytes();
-      } finally {
-        client.close();
-      }
+    final ImageProvider<Object> provider;
+    if (!_usingFallback && widget.imageFile != null && !kIsWeb) {
+      provider = FileImage(widget.imageFile!);
     } else {
-      throw StateError('No image source available');
+      provider = NetworkImage(source);
     }
 
-    final codec = await ui.instantiateImageCodec(
-      bytes,
-      targetWidth: _maxDecodedWidth,
-      allowUpscaling: false,
-    );
-    try {
-      final frame = await codec.getNextFrame();
-      return frame.image;
-    } finally {
-      codec.dispose();
-    }
+    // ResizeImage participates in Flutter's global ImageCache. Identical card
+    // artwork now shares a pending decode and decoded image instead of every
+    // CroppedArtworkWidget reading and decoding the file independently. The
+    // cap also protects boards containing legacy full-resolution custom art.
+    return ResizeImage.resizeIfNeeded(_maxDecodedWidth, null, provider);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_cachedImage != null) {
+    if (_cachedImageInfo != null) {
       return FadeTransition(
         opacity: _fadeController,
         child: CustomPaint(
           painter: _CroppedArtworkPainter(
-            image: _cachedImage!,
+            image: _cachedImageInfo!.image,
             cropLeft: _usingFallback
                 ? widget.fallbackCropLeft ?? widget.cropLeft
                 : widget.cropLeft,
