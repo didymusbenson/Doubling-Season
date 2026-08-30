@@ -31,7 +31,7 @@ An outdated AGENTS.md leads to repeated mistakes, inconsistent patterns, and mis
 
 **Note:** The app's official name is "Tripling Season" (as of December 2025). Display name, bundle identifiers, and package names reflect this branding.
 
-The app targets iOS, Android, Web, macOS, and Windows platforms using Flutter's single codebase approach.
+The app targets iOS, Android, Web, and Windows platforms using Flutter's single codebase approach. There is no macOS version; do not treat macOS builds or validation as release requirements.
 
 **Current Version:** 1.10.0+18 (as of June 2026)
 
@@ -146,6 +146,17 @@ Use `/shipfortestflight` for automated workflow (auto-increments version, builds
 
 ### Testing
 Manual functional testing only. Do not generate automated test code.
+
+For repeatable pre-release UI validation, Maestro may drive temporary flows
+stored outside the repository (for example under `/tmp`). Do not commit a
+permanent Maestro suite unless the user explicitly changes the testing policy.
+Use bundle IDs `LooseTie.Doubling-Season` on iOS and
+`com.loosetie.doublingseason` on Android. Record objective results in
+`docs/activeDevelopment/new_release/README.md`, then discard the temporary
+flows. Flutter accessibility bounds can be stale or mis-scaled on iOS, and
+Maestro taps can occasionally fail to reach expanded cards on Android; confirm
+rendered state with screenshots/hierarchy and use `simctl` or `adb shell input`
+as a direct-input fallback before reporting an app regression.
 
 ## Architecture
 

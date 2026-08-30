@@ -102,6 +102,76 @@ no game events.
 
 ## Acceptance Testing Required
 
+### Validation ownership
+
+The objective acceptance backlog is Codex-owned unless a checklist item is
+explicitly listed below as requiring the user. Codex may drive deterministic UI
+flows with temporary Maestro scripts, inspect persisted simulator state, seed
+upgrade fixtures, build supported targets, and perform fault-injection work.
+Temporary Maestro flows remain outside the repository; this project does not
+adopt a permanent automated-test suite.
+
+User-required validation is limited to:
+
+- final animation, layout, cropping, readability, and interaction-feel review;
+- listening to VoiceOver/TalkBack output and judging practical accessibility;
+- physical Android hardware coverage and Windows coverage unavailable in the
+  current development environment;
+- real-device custom-art heat, slowdown, memory-warning, and process-termination
+  judgment; and
+- supplying representative legacy/full-resolution custom images if they cannot
+  be reconstructed from available simulator fixtures.
+
+Physical iPhone checks can be driven by Codex when explicitly included in a
+test pass. Everything else below should be completed by Codex before requesting
+feature acceptance.
+
+### Inline Token Details validation
+
+Maestro smoke pass completed 2026-08-29 on iPhone 17 Pro Simulator, iOS 26.2:
+
+- [x] Opened the existing Zombie board card through its accessibility label.
+- [x] Confirmed the expanded card exposes the token name, base P/T, type, empty
+      abilities state, artwork control, and counter control.
+- [ ] Maestro reported its iOS Back command completed, but the card remained
+      expanded. Retest through a direct simulator/system navigation path to
+      distinguish an iOS Maestro limitation from an app regression.
+
+Remaining deterministic inline workflows are Codex-owned. Final animation,
+artwork-crop, dense-board spacing, keyboard feel, and overall discoverability
+remain part of the user's feature review.
+
+### Mana symbol validation
+
+Maestro smoke pass completed 2026-08-29 on an Android 15 emulator:
+
+- [x] Built and installed the current debug APK and launched from cleared app
+      state with the bundled font available offline.
+- [x] Confirmed token-search results render the tap glyph and generic `{2}` pip
+      on Treasure, Clue, and Food definitions.
+- [x] Confirmed accessibility semantics announce **tap** and **two generic mana**
+      in complete token descriptions rather than reading raw braces or
+      announcing the visual glyph twice.
+- [x] Created a database Zombie through token search and confirmed the compact
+      board card exposes the expected identity, quantity, ready/tapped status,
+      type, and P/T semantics on Android.
+- [x] Expanded that card with direct Android input and confirmed its editable
+      name, P/T, type, abilities, color identity, artwork, and counter controls
+      are present in the accessibility tree.
+- [x] Recomputed the bundled Mana 1.18 font SHA-256 and matched the recorded
+      `a23809f7c0af7f9866734216bdd73bce2cfedd67333f5cde86a9ee066fa69819`.
+- [x] Confirmed `pubspec.yaml` bundles both the font and complete OFL text and
+      the app registers that text through `LicenseRegistry`.
+- [x] Completed the current web debug build; Flutter's WebAssembly dry run also
+      succeeded.
+- macOS runtime/font validation is intentionally out of scope because Tripling
+  Season has no macOS version.
+
+Remaining deterministic symbol mappings, fallback parsing, surfaces, license
+registration, and platform builds are Codex-owned. Practical glyph appearance,
+contrast, text scaling, and spoken screen-reader judgment remain part of the
+user's feature review.
+
 ### Undoable board-wipe validation
 
 Objective iPhone 17 Pro Simulator smoke pass completed 2026-08-30:
@@ -117,6 +187,9 @@ Objective iPhone 17 Pro Simulator smoke pass completed 2026-08-30:
 - [x] System Back could not dismiss the completion dialog; scrim dismissal is
       disabled.
 - [x] Analyzer and iOS Simulator debug build completed successfully.
+- [x] On Android 15, **Delete All** showed the non-dismissible completion
+      actions, Undo restored the Zombie stack and quantity, and the restored
+      state remained present after full process restart.
 
 Remaining objective validation:
 
@@ -143,6 +216,17 @@ Objective validation completed 2026-08-30 on iPhone 17 Pro Simulator, iOS 26.2:
       **Currently Selected**.
 - [x] Confirmed confirmation-preview semantics order artist credit before set
       code.
+- [x] Maestro selected the alternate 2X2 Zombie printing, confirmed preview
+      semantics exposed **Anna Steinbauer** before **2X2**, and verified the
+      current-selection credit persisted after full process termination and
+      relaunch.
+- [x] Copied the selected Zombie into a distinct stack and confirmed the copied
+      stack retained **2X2** and **Anna Steinbauer** in its artwork sheet.
+- [x] On an Android 15 emulator, expanded a freshly created database Zombie,
+      opened its artwork sheet, and confirmed **Carl Critchlow** appears beneath
+      the selected **10E** printing.
+- [x] Increased that stack to two, split it into two independent stacks, and
+      confirmed the newly split stack retained **10E** and **Carl Critchlow**.
 - [x] Booted existing Hive data created before the artist field without data
       loss; genuinely unmatched legacy art retains the safe fallback.
 - [x] Confirmed the two source images without printed/source credit use
@@ -158,8 +242,8 @@ Remaining objective validation:
 - [ ] Confirm a user-uploaded image displays exactly `user uploaded` in both
       placements.
 - [ ] Confirm a long or joint artist credit wraps without clipping.
-- [ ] Confirm token and utility artwork selection, deck round trips, split/copy,
-      Rhys, and Brudiclad retain artist metadata.
+- [ ] Confirm utility artwork selection, deck round trips, Rhys, and Brudiclad
+      retain artist metadata. Copy and Split retention passed.
 - [ ] Smoke-test the artwork sheet on physical Android hardware and web.
 
 Final typography, spacing, readability, and interaction-feel judgment is
@@ -167,7 +251,17 @@ deferred to the feature review.
 
 ### Rhys validation
 
-- [ ] Add Rhys from Utilities and confirm the card shows no value or +/- controls.
+Objective Maestro/direct-input smoke pass completed 2026-08-29 on Android 15:
+
+- [x] Added Rhys from Utilities and confirmed the board card exposes **Copy
+      Tokens** without a tracker value or increment/decrement controls.
+- [x] With two clean one-Zombie stacks, the preview listed each source
+      independently and reported exactly **Total: 2 tokens**.
+- [x] Committing produced four Zombies total; both compatible copies merged into
+      the first clean stack, leaving deterministic 3+1 stack quantities.
+- [x] A second activation preview saw the committed 3+1 state and reported
+      exactly **Total: 4 tokens**.
+
 - [ ] Confirm both supplied artwork choices load, crop, and persist correctly.
 - [ ] Press Copy Tokens with no eligible tokens; preview shows none and confirm is a no-op.
 - [ ] Copy a normal creature stack; verify quantity, identity, artwork, untapped state,
@@ -184,7 +278,6 @@ deferred to the feature review.
       preview exactly matches creation and replaced identities use their own artwork.
 - [ ] Verify every created creature quantity, including companions and merged
       quantities, increments Cathar's Crusade correctly.
-- [ ] Activate Rhys twice and confirm the second activation includes prior copies.
 - [ ] Place tracker/toggle utilities between token stacks and confirm new stacks are
       ordered beside their source without collisions.
 - [ ] Save, load, duplicate, export, and import a deck containing Rhys; verify it
@@ -195,6 +288,21 @@ deferred to the feature review.
 - [ ] Smoke-test the complete flow on both iOS and Android.
 
 ### Brudiclad validation
+
+Android 15 Maestro/direct-input pass completed 2026-08-29:
+
+- [x] Added Brudiclad as an action-only utility with **Resolve Trigger** and no
+      tracker controls.
+- [x] With no rules active, the flow skipped creation preview and opened the
+      picker with the new 2/1 Phyrexian Myr plus the existing four-Zombie
+      definition.
+- [x] Resolve began disabled, enabled after selecting the Myr, and Cancel left
+      the exact 3+1 Zombie board unchanged.
+- [x] Resolve produced **Tokens Modified** with Undo/Accept; Undo removed the
+      Step 1 Myr and restored the exact 3+1 Zombie quantities.
+- [x] Repeating and accepting transformed all five tokens into one clean 5×
+      2/1 Phyrexian Myr stack, with every token ready and no Zombie ghost stack.
+- [x] The accepted transformed state persisted through full process restart.
 
 Smoke pass completed 2026-08-27:
 
@@ -213,8 +321,6 @@ Smoke pass completed 2026-08-27:
 
 Remaining validation:
 
-- [ ] Add Brudiclad from Utilities; confirm its card has an intrinsic-width
-      **Resolve Trigger** button and no value or +/- controls.
 - [ ] Confirm the blue/red border and both Brudiclad artwork choices render,
       crop, select, and persist correctly.
 - [ ] With no active rules, press Resolve Trigger; confirm the creation-preview
@@ -223,11 +329,6 @@ Remaining validation:
 - [ ] With Doubling Season, replacement, or companion rules active, confirm the
       creation preview, picker, and committed board show the exact same complete
       result set.
-- [ ] Confirm the picker opens with no active selection and Resolve disabled;
-      selecting a row highlights it, enables Resolve, and does not yet change
-      the board.
-- [ ] Confirm Cancel at the preview or picker leaves the complete board and all
-      utilities unchanged.
 - [ ] Confirm Skip creates only the evaluated Step 1 results, performs no copy
       transformation, clears sickness from creature-token stacks, and shows no
       Tokens Modified dialog.
@@ -241,19 +342,13 @@ Remaining validation:
       the copied definition has no P/T.
 - [ ] Confirm transformed stacks preserve every built-in/custom counter and
       preserve tapped counts. Countered stacks must remain separate.
-- [ ] Transform several clean stacks; confirm amounts and tapped counts sum into
-      the lowest-order clean stack with no zero-amount ghost stacks.
 - [ ] Confirm resulting creature-token stacks have zero summoning sickness;
       transformed noncreature stacks retain their previous sickness counts.
 - [ ] Confirm Cathar's Crusade increments for created/merged Step 1 creatures
       only and never for Step 2 transformations.
-- [ ] Confirm the completion dialog says exactly **Tokens Modified** and presents
-      **Undo** on the left and primary **Accept** on the right, with no complete
-      before/after board preview.
 - [ ] Choose Undo; confirm exact restoration of identities, artwork, quantities,
       counters, tapped/sick counts, order, deleted stacks, Step 1 creations, and
       Cathar's Crusade values. Confirm the restore itself fires no game events.
-- [ ] Choose Accept; confirm the transformed state remains persisted.
 - [ ] Resolve twice in succession; confirm the second activation sees the first
       activation's transformed state.
 - [ ] Save, load, duplicate, export, and import a deck containing Brudiclad;

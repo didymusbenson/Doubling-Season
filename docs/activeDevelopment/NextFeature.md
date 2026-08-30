@@ -19,8 +19,8 @@ priority:
 ## Immediate Implementation Queue
 
 1. **Ordered-board architecture**
-   Current-state specification refreshed; product placement decisions are
-   intentionally pending in `todo_features/orderedListManagement.md`.
+   Placement decisions are locked and implementation is in progress in
+   `in_progress_features/orderedListManagement.md`.
 
 2. **Undoable board wipes**
    Implemented; validation is tracked in

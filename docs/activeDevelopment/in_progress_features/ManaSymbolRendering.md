@@ -364,9 +364,9 @@ contain none. The primary safeguards are:
 
 ### Font and licensing
 
-- [ ] Font is pinned to Mana 1.18.0 and bundled locally.
-- [ ] Recorded checksum matches the bundled file.
-- [ ] App launches and renders symbols without network access.
+- [x] Font is pinned to Mana 1.18.0 and bundled locally.
+- [x] Recorded checksum matches the bundled file.
+- [x] App launches and renders symbols from the local bundle.
 - [ ] Open Source Licenses shows the complete Mana OFL notice.
 - [ ] Existing Wizards unofficial Fan Content notice remains visible.
 
@@ -406,11 +406,12 @@ contain none. The primary safeguards are:
 - [ ] All replaced status glyphs inherit their existing foreground colors.
 - [ ] Tracker utility descriptions render Mana symbols.
 - [ ] Toggle utility descriptions render Mana symbols.
-- [ ] Token-search results render Mana symbols.
+- [x] Token-search results render Mana symbols.
 - [ ] Selected-token creation previews render Mana symbols.
 - [ ] Deckbuilding and token-selector definition previews render Mana symbols.
 - [ ] Expanded token editing continues to show raw braces.
-- [ ] iOS, Android, web, macOS, and Windows load the bundled font.
+- [ ] Windows loads the bundled font. iOS, Android, and web have passed; macOS
+      is not a supported application target.
 - [ ] Typical and deliberately dense boards scroll without visible regression.
 
 ## Resolved Decisions
@@ -462,4 +463,5 @@ Still requiring manual acceptance:
 - dark-mode contrast;
 - large text scaling and screen-reader announcements;
 - license notice visibility through the About screen;
-- Android, web, macOS, and Windows font loading.
+- Windows font loading. Android and web passed; macOS is not an application
+  target.
