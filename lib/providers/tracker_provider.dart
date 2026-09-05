@@ -23,6 +23,17 @@ class TrackerProvider extends ChangeNotifier {
   bool get initialized => _initialized;
   String? get errorMessage => _errorMessage;
 
+  /// Re-resolves a utility captured by delayed UI work after snapshot restore.
+  /// Returns null when the utility was genuinely deleted.
+  TrackerWidget? resolveCurrentTracker(
+    TrackerWidget captured, {
+    dynamic capturedKey,
+  }) {
+    if (captured.isInBox) return captured;
+    final key = capturedKey ?? captured.key;
+    return key == null ? null : _trackersBox.get(key);
+  }
+
   // Expose Hive's listenable for reactive updates
   ValueListenable<Box<TrackerWidget>> get listenable =>
       _trackersBox.listenable();

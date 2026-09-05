@@ -90,6 +90,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
   Future<bool>? _nameCommit;
   Future<bool>? _descriptionCommit;
   Future<bool>? _valueCommit;
+  late final dynamic _trackerKey;
   double? _artworkRevealHeight;
   late final AnimationController _artworkCenterController;
   late final CurvedAnimation _artworkCenterProgress;
@@ -127,6 +128,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
   @override
   void initState() {
     super.initState();
+    _trackerKey = widget.tracker.key;
     _artworkCenterController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 380),
@@ -382,7 +384,13 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
 
   Future<bool> _commitNameOnce() async {
     if (!_editingName) return true;
-    final previous = widget.tracker.name;
+    final trackerProvider = context.read<TrackerProvider>();
+    final tracker = trackerProvider.resolveCurrentTracker(
+      widget.tracker,
+      capturedKey: _trackerKey,
+    );
+    if (tracker == null) return true;
+    final previous = tracker.name;
     final next = _nameController.text.trim();
     if (next.isEmpty) {
       _nameController.text = previous;
@@ -390,14 +398,14 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
       widget.onEditingChanged(false);
       return true;
     }
-    widget.tracker.name = next;
+    tracker.name = next;
     try {
-      await context.read<TrackerProvider>().updateTracker(widget.tracker);
+      await trackerProvider.updateTracker(tracker);
       if (mounted) setState(() => _editingName = false);
       widget.onEditingChanged(false);
       return true;
     } catch (_) {
-      widget.tracker.name = previous;
+      tracker.name = previous;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Utility name could not be saved.')),
@@ -463,15 +471,21 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
 
   Future<bool> _commitDescriptionOnce() async {
     if (!_editingDescription) return true;
-    final previous = widget.tracker.description;
-    widget.tracker.description = _descriptionController.text;
+    final trackerProvider = context.read<TrackerProvider>();
+    final tracker = trackerProvider.resolveCurrentTracker(
+      widget.tracker,
+      capturedKey: _trackerKey,
+    );
+    if (tracker == null) return true;
+    final previous = tracker.description;
+    tracker.description = _descriptionController.text;
     try {
-      await context.read<TrackerProvider>().updateTracker(widget.tracker);
+      await trackerProvider.updateTracker(tracker);
       if (mounted) setState(() => _editingDescription = false);
       widget.onEditingChanged(false);
       return true;
     } catch (_) {
-      widget.tracker.description = previous;
+      tracker.description = previous;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Description could not be saved.')),
@@ -596,11 +610,16 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
                 throw StateError('Artwork download failed');
               }
             }
-            widget.tracker
+            final tracker = trackerProvider.resolveCurrentTracker(
+              widget.tracker,
+              capturedKey: _trackerKey,
+            );
+            if (tracker == null) return;
+            tracker
               ..artworkUrl = url
               ..artworkSet = setCode
               ..artworkOptions = List<ArtworkVariant>.from(options);
-            await trackerProvider.updateTracker(widget.tracker);
+            await trackerProvider.updateTracker(tracker);
             if (mounted) {
               setState(() {
                 _artworkCleanupAttempted = false;
@@ -611,10 +630,15 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
           onRemoveArtwork: widget.tracker.artworkUrl == null
               ? null
               : () async {
-                  widget.tracker
+                  final tracker = trackerProvider.resolveCurrentTracker(
+                    widget.tracker,
+                    capturedKey: _trackerKey,
+                  );
+                  if (tracker == null) return;
+                  tracker
                     ..artworkUrl = null
                     ..artworkSet = null;
-                  await trackerProvider.updateTracker(widget.tracker);
+                  await trackerProvider.updateTracker(tracker);
                   if (mounted) {
                     setState(() {
                       _artworkCleanupAttempted = false;
@@ -628,10 +652,16 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
   }
 
   Future<List<ArtworkVariant>> _artworkOptions() async {
-    final existing = widget.tracker.artworkOptions;
+    final trackerProvider = context.read<TrackerProvider>();
+    final tracker = trackerProvider.resolveCurrentTracker(
+      widget.tracker,
+      capturedKey: _trackerKey,
+    );
+    if (tracker == null) return const <ArtworkVariant>[];
+    final existing = tracker.artworkOptions;
     final database = WidgetDatabase();
     final match = database.filteredWidgets.where(
-      (definition) => definition.name == widget.tracker.name,
+      (definition) => definition.name == tracker.name,
     );
     if (match.isEmpty) return const <ArtworkVariant>[];
     final authoritative = List<ArtworkVariant>.from(match.first.artwork);
@@ -644,8 +674,8 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
       existing: existing ?? const <ArtworkVariant>[],
       authoritative: authoritative,
     );
-    widget.tracker.artworkOptions = options;
-    await context.read<TrackerProvider>().updateTracker(widget.tracker);
+    tracker.artworkOptions = options;
+    await trackerProvider.updateTracker(tracker);
     return options;
   }
 
@@ -844,17 +874,23 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
       _valueBeforeEdit = null;
       return true;
     }
-    final previous = widget.tracker.currentValue;
+    final trackerProvider = context.read<TrackerProvider>();
+    final tracker = trackerProvider.resolveCurrentTracker(
+      widget.tracker,
+      capturedKey: _trackerKey,
+    );
+    if (tracker == null) return true;
+    final previous = tracker.currentValue;
     _committingValue = true;
-    widget.tracker.currentValue = parsed;
+    tracker.currentValue = parsed;
     try {
-      await context.read<TrackerProvider>().updateTracker(widget.tracker);
+      await trackerProvider.updateTracker(tracker);
       if (mounted) setState(() => _editingValue = false);
       widget.onEditingChanged(false);
       _valueBeforeEdit = null;
       return true;
     } catch (_) {
-      widget.tracker.currentValue = previous;
+      tracker.currentValue = previous;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Utility value could not be saved.')),

@@ -28,6 +28,17 @@ class TokenProvider extends ChangeNotifier {
   bool get initialized => _initialized;
   String? get errorMessage => _errorMessage;
 
+  /// Returns the live boxed instance for a delayed operation.
+  ///
+  /// Snapshot restore replaces HiveObjects while preserving their keys. A
+  /// callback that captured the former object must write through the current
+  /// instance instead. A missing key means the token was genuinely deleted.
+  Item? resolveCurrentItem(Item captured, {dynamic capturedKey}) {
+    if (captured.isInBox) return captured;
+    final key = capturedKey ?? captured.key;
+    return key == null ? null : _itemsBox.get(key);
+  }
+
   // Expose Hive's listenable for reactive updates (OPTIMIZATION)
   ValueListenable<Box<Item>> get listenable => _itemsBox.listenable();
 

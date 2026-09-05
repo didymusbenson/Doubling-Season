@@ -412,15 +412,16 @@ operation currently justifies either.
 Expanded mode must define ownership of gestures that currently overlap:
 
 - Child field/action taps always win over card expansion/collapse.
-- Swipe-to-delete is disabled while the card is expanded or a field is active.
+- Swipe-to-delete remains available while a token card is expanded, but is
+  disabled while an inline text field is active.
 - Long-press reorder is disabled for the expanded row while editing.
 - Horizontal gestures inside a text field must select text, not dismiss the row.
 - Tapping blank expanded-card space must not steal focus before the field save
   callback runs.
 
-Recommended behavior is to collapse first, then allow reorder or destructive
-swipe from the compact state. This prevents keyboard/focus state from moving or
-deleting under an active editor.
+Expanded tokens may be swiped directly because physical testing showed that
+removal is a common action while reviewing the open card. Active editors remain
+protected so horizontal text-selection gestures cannot dismiss the row.
 
 ## Reuse and Architecture
 
@@ -498,12 +499,11 @@ generic **More** control:
 | View modified P/T | Existing rendered P/T remains derived from base P/T and counters |
 | Split stack | Existing split action button/sheet |
 | Clone, double, add/remove, ready/tap, +1/+1 | Existing action row |
-| Delete token | Collapse, then use the existing compact-card swipe-delete gesture |
+| Delete token | Swipe the compact or expanded card while no inline field is active |
 
-Deletion intentionally has no control while expanded. Swipe deletion is
-disabled during editing; the user must first collapse the token, making the
-destructive transition deliberate and keeping the expanded action row from
-growing.
+Deletion intentionally has no added button while expanded. The existing swipe
+gesture remains available until an inline field becomes active, keeping the
+expanded action row from growing while protecting unsaved text edits.
 
 ## Files Expected to Change
 
@@ -525,7 +525,8 @@ growing.
 
 - Expand/collapse one card in place.
 - Preserve card artwork and visual anchors.
-- Disable conflicting swipe/reorder while expanded.
+- Keep reorder disabled while expanded; allow token swipe-delete unless an
+  inline field is active.
 - No mutation behavior beyond what is necessary to test board ergonomics.
 
 ### Phase 1: core inline editing

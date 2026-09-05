@@ -231,7 +231,9 @@ After adding fields: run `build_runner build --delete-conflicting-outputs`, test
 **ContentScreen** (`lib/screens/content_screen.dart`) — Main game board
 - `ValueListenableBuilder` on Hive box for reactive token list
 - Owns the single expanded-board-item key and guards collapse through `ExpandableCardController`
-- Expanded/editing tokens and utilities disable swipe deletion and reordering
+- Expanded tokens allow swipe deletion unless an inline text field is active;
+  expanded utilities and active editors disable swipe deletion. Expanded board
+  items still disable reordering
 - FloatingActionMenu: new token, +1/+1 Everything, untap all, clear sickness, save/load deck, board wipe
 
 **TokenCard** (`lib/widgets/token_card.dart`) — Compact and inline-expanded token display

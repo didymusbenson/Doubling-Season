@@ -10,7 +10,8 @@ enum TokenEditableField { name, powerToughness, type, abilities }
 /// The existing [Item] is mutated in place and persisted through
 /// [TokenProvider], so unrelated runtime and artwork fields are preserved.
 class TokenEditSession extends ChangeNotifier {
-  TokenEditSession({required this.item, required this.tokenProvider}) {
+  TokenEditSession({required this.item, required this.tokenProvider})
+      : _itemKey = item.key {
     for (final field in TokenEditableField.values) {
       final node = FocusNode(debugLabel: 'token-${field.name}');
       node.addListener(() {
@@ -27,6 +28,7 @@ class TokenEditSession extends ChangeNotifier {
 
   final Item item;
   final TokenProvider tokenProvider;
+  final dynamic _itemKey;
   final Map<TokenEditableField, TextEditingController> controllers = {};
   final Map<TokenEditableField, FocusNode> focusNodes = {};
 
@@ -88,16 +90,30 @@ class TokenEditSession extends ChangeNotifier {
 
   Future<bool> _performCommit(TokenEditableField target) async {
     final value = controllers[target]!.text;
-    final original = _originalValues[target] ?? valueFor(target);
+    final current = tokenProvider.resolveCurrentItem(
+      item,
+      capturedKey: _itemKey,
+    );
+    // A missing replacement means the user deleted this token. Treat the
+    // delayed edit as cancelled instead of recreating it or surfacing a Hive
+    // "not in a box" error.
+    if (current == null) {
+      activeField = null;
+      _originalValues.remove(target);
+      lastCommitError = null;
+      if (!_disposed) notifyListeners();
+      return true;
+    }
+    final original = _originalValues[target] ?? valueForItem(current, target);
     try {
-      _assign(target, value);
-      await tokenProvider.updateItem(item);
+      _assign(current, target, value);
+      await tokenProvider.updateItem(current);
     } catch (error) {
       // Keep the user's controller text and active editor intact. Restore the
       // in-memory model so failed edits do not leak into provider rebuilds.
       try {
-        _assign(target, original);
-        await item.save();
+        _assign(current, target, original);
+        if (current.isInBox) await current.save();
       } catch (_) {
         // The original persistence failure remains the actionable error.
       }
@@ -113,16 +129,24 @@ class TokenEditSession extends ChangeNotifier {
     return true;
   }
 
-  void _assign(TokenEditableField field, String value) {
+  static String valueForItem(Item item, TokenEditableField field) =>
+      switch (field) {
+        TokenEditableField.name => item.name,
+        TokenEditableField.powerToughness => item.pt,
+        TokenEditableField.type => item.type,
+        TokenEditableField.abilities => item.abilities,
+      };
+
+  void _assign(Item target, TokenEditableField field, String value) {
     switch (field) {
       case TokenEditableField.name:
-        item.name = value;
+        target.name = value;
       case TokenEditableField.powerToughness:
-        item.pt = value;
+        target.pt = value;
       case TokenEditableField.type:
-        item.type = value;
+        target.type = value;
       case TokenEditableField.abilities:
-        item.abilities = value;
+        target.abilities = value;
     }
   }
 

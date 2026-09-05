@@ -7,6 +7,16 @@ ships.
 
 ## Release Log
 
+### Release Smoothing: Expanded Token Removal
+
+**Status:** Implemented for 1.11; pending physical-device acceptance
+
+Expanded token cards now retain the board's swipe-to-remove gesture whenever no
+inline text field is active. Active editing still disables dismissal to protect
+text selection and unsaved changes. Removing an expanded token also clears the
+shared expansion controller so the next board interaction is not consumed by a
+stale expanded-item state. Expanded utilities retain their existing behavior.
+
 ### Rhys the Redeemed Utility
 
 **Status:** Implemented on `codex/rhys-update-1-11`; pending acceptance testing

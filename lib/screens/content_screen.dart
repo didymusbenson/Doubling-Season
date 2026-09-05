@@ -373,11 +373,13 @@ class _ContentScreenState extends State<ContentScreen> {
   }
 
   Widget _buildDismissibleCard(_BoardItem boardItem) {
+    final isExpanded = _isExpandedBoardItem(boardItem);
+    final canSwipeDelete =
+        !isExpanded || (boardItem.isToken && !_expandedBoardItemIsEditing);
     return Dismissible(
       key: ValueKey('dismissible_${boardItem.key}'),
-      direction: _isExpandedBoardItem(boardItem) || _expandedBoardItemIsEditing
-          ? DismissDirection.none
-          : DismissDirection.endToStart,
+      direction:
+          canSwipeDelete ? DismissDirection.endToStart : DismissDirection.none,
       background: Material(
         color: Colors.red,
         borderRadius: BorderRadius.zero,
@@ -406,7 +408,11 @@ class _ContentScreenState extends State<ContentScreen> {
     if (boardItem.isToken) {
       final item = boardItem.item as Item;
       return TokenCard(
-        key: ValueKey('token-card_${item.key}'),
+        // Snapshot restore clears and repopulates Hive with new model objects
+        // under the same persistent keys. Include object identity so Flutter
+        // cannot retain an inline edit session that still points at the old,
+        // now-detached HiveObject.
+        key: ValueKey('token-card_${item.key}_${identityHashCode(item)}'),
         item: item,
         isExpanded: _isExpandedBoardItem(boardItem),
         onExpand: () => _expandBoardItem(boardItem),
@@ -418,8 +424,12 @@ class _ContentScreenState extends State<ContentScreen> {
             : null,
       );
     } else if (boardItem.isTracker) {
+      final tracker = boardItem.item as TrackerWidget;
       return TrackerWidgetCard(
-        tracker: boardItem.item as TrackerWidget,
+        key: ValueKey(
+          'tracker-card_${tracker.widgetId}_${identityHashCode(tracker)}',
+        ),
+        tracker: tracker,
         isExpanded: _isExpandedBoardItem(boardItem),
         onExpand: () => _expandBoardItem(boardItem),
         onCollapse: _completeApprovedCollapse,
@@ -430,8 +440,12 @@ class _ContentScreenState extends State<ContentScreen> {
             : null,
       );
     } else if (boardItem.isToggle) {
+      final toggle = boardItem.item as ToggleWidget;
       return ToggleWidgetCard(
-        toggle: boardItem.item as ToggleWidget,
+        key: ValueKey(
+          'toggle-card_${toggle.widgetId}_${identityHashCode(toggle)}',
+        ),
+        toggle: toggle,
         isExpanded: _isExpandedBoardItem(boardItem),
         onExpand: () => _expandBoardItem(boardItem),
         onCollapse: _completeApprovedCollapse,
@@ -446,6 +460,9 @@ class _ContentScreenState extends State<ContentScreen> {
   }
 
   void _deleteItem(_BoardItem boardItem) {
+    if (_isExpandedBoardItem(boardItem)) {
+      _completeApprovedCollapse();
+    }
     if (boardItem.isToken) {
       context.read<TokenProvider>().deleteItem(boardItem.item as Item);
     } else if (boardItem.isTracker) {

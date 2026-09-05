@@ -1006,7 +1006,14 @@ class _TokenCardState extends State<TokenCard>
   Future<void> _showArtworkSelection() async {
     final saved = await _editSession?.commitActive() ?? true;
     if (!saved || !mounted) return;
-    var artwork = widget.item.artworkOptions ?? const <ArtworkVariant>[];
+    final tokenProvider = context.read<TokenProvider>();
+    final itemKey = widget.item.key;
+    var currentItem = tokenProvider.resolveCurrentItem(
+      widget.item,
+      capturedKey: itemKey,
+    );
+    if (currentItem == null) return;
+    var artwork = currentItem.artworkOptions ?? const <ArtworkVariant>[];
     var databaseLoadError = false;
     if (artwork.isEmpty ||
         ArtworkMetadataEnricher.needsArtistMetadata(artwork)) {
@@ -1019,11 +1026,11 @@ class _TokenCardState extends State<TokenCard>
           ...database.customTokens,
         ].firstWhereOrNull(
           (token) =>
-              token.name == widget.item.name &&
-              token.pt == widget.item.pt &&
-              token.colors == widget.item.colors &&
-              token.type == widget.item.type &&
-              token.abilities == widget.item.abilities,
+              token.name == currentItem!.name &&
+              token.pt == currentItem.pt &&
+              token.colors == currentItem.colors &&
+              token.type == currentItem.type &&
+              token.abilities == currentItem.abilities,
         );
         final authoritative = definition?.artwork ?? const <ArtworkVariant>[];
         artwork = ArtworkMetadataEnricher.merge(
@@ -1031,9 +1038,14 @@ class _TokenCardState extends State<TokenCard>
           authoritative: authoritative,
         );
         if (authoritative.isNotEmpty) {
-          widget.item.updateArtwork(
-            url: widget.item.artworkUrl,
-            set: widget.item.artworkSet,
+          currentItem = tokenProvider.resolveCurrentItem(
+            widget.item,
+            capturedKey: itemKey,
+          );
+          if (currentItem == null) return;
+          currentItem.updateArtwork(
+            url: currentItem.artworkUrl,
+            set: currentItem.artworkSet,
             options: artwork.toList(),
           );
         }
@@ -1044,6 +1056,12 @@ class _TokenCardState extends State<TokenCard>
       }
     }
     if (!mounted) return;
+    currentItem = tokenProvider.resolveCurrentItem(
+      widget.item,
+      capturedKey: itemKey,
+    );
+    final sheetItem = currentItem;
+    if (sheetItem == null) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1052,11 +1070,11 @@ class _TokenCardState extends State<TokenCard>
             BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.85),
         child: ArtworkSelectionSheet(
           artworkVariants: artwork,
-          currentArtworkUrl: widget.item.artworkUrl,
-          currentArtworkSet: widget.item.artworkSet,
-          tokenName: widget.item.name,
+          currentArtworkUrl: sheetItem.artworkUrl,
+          currentArtworkSet: sheetItem.artworkSet,
+          tokenName: sheetItem.name,
           tokenIdentity:
-              '${widget.item.name}|${widget.item.pt}|${widget.item.colors}|${widget.item.type}|${widget.item.abilities}',
+              '${sheetItem.name}|${sheetItem.pt}|${sheetItem.colors}|${sheetItem.type}|${sheetItem.abilities}',
           databaseLoadError: databaseLoadError,
           onArtworkSelected: (url, setCode) async {
             if (!kIsWeb && !url.startsWith('file://')) {
@@ -1065,14 +1083,24 @@ class _TokenCardState extends State<TokenCard>
                 throw StateError('Artwork download failed');
               }
             }
-            widget.item.updateArtwork(
+            final item = tokenProvider.resolveCurrentItem(
+              widget.item,
+              capturedKey: itemKey,
+            );
+            if (item == null) return;
+            item.updateArtwork(
                 url: url, set: setCode, options: artwork.toList());
             if (mounted) setState(() => _artworkCleanupAttempted = false);
           },
-          onRemoveArtwork: widget.item.artworkUrl == null
+          onRemoveArtwork: sheetItem.artworkUrl == null
               ? null
               : () {
-                  widget.item.updateArtwork(
+                  final item = tokenProvider.resolveCurrentItem(
+                    widget.item,
+                    capturedKey: itemKey,
+                  );
+                  if (item == null) return;
+                  item.updateArtwork(
                       url: null, set: null, options: artwork.toList());
                   if (mounted) setState(() {});
                 },

@@ -60,6 +60,7 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
   Future<bool>? _nameCommit;
   Future<bool>? _descriptionCommit;
   bool _editingName = false;
+  late final dynamic _toggleKey;
   double? _artworkRevealHeight;
   late final AnimationController _artworkCenterController;
   late final CurvedAnimation _artworkCenterProgress;
@@ -67,6 +68,7 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
   @override
   void initState() {
     super.initState();
+    _toggleKey = widget.toggle.key;
     _artworkCenterController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 380),
@@ -337,7 +339,13 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
 
   Future<bool> _commitNameOnce() async {
     if (!_editingName) return true;
-    final previous = widget.toggle.name;
+    final toggleProvider = context.read<ToggleProvider>();
+    final toggle = toggleProvider.resolveCurrentToggle(
+      widget.toggle,
+      capturedKey: _toggleKey,
+    );
+    if (toggle == null) return true;
+    final previous = toggle.name;
     final next = _nameController.text.trim();
     if (next.isEmpty) {
       _nameController.text = previous;
@@ -345,14 +353,14 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
       widget.onEditingChanged(false);
       return true;
     }
-    widget.toggle.name = next;
+    toggle.name = next;
     try {
-      await context.read<ToggleProvider>().updateToggle(widget.toggle);
+      await toggleProvider.updateToggle(toggle);
       if (mounted) setState(() => _editingName = false);
       widget.onEditingChanged(false);
       return true;
     } catch (_) {
-      widget.toggle.name = previous;
+      toggle.name = previous;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Utility name could not be saved.')),
@@ -421,13 +429,19 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
 
   Future<bool> _commitDescriptionsOnce() async {
     if (!_editingOn && !_editingOff) return true;
-    final oldOn = widget.toggle.onDescription;
-    final oldOff = widget.toggle.offDescription;
-    widget.toggle
+    final toggleProvider = context.read<ToggleProvider>();
+    final toggle = toggleProvider.resolveCurrentToggle(
+      widget.toggle,
+      capturedKey: _toggleKey,
+    );
+    if (toggle == null) return true;
+    final oldOn = toggle.onDescription;
+    final oldOff = toggle.offDescription;
+    toggle
       ..onDescription = _onController.text
       ..offDescription = _offController.text;
     try {
-      await context.read<ToggleProvider>().updateToggle(widget.toggle);
+      await toggleProvider.updateToggle(toggle);
       if (mounted) {
         setState(() {
           _editingOn = false;
@@ -437,7 +451,7 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
       }
       return true;
     } catch (_) {
-      widget.toggle
+      toggle
         ..onDescription = oldOn
         ..offDescription = oldOff;
       if (mounted) {
@@ -556,11 +570,16 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
                 throw StateError('Artwork download failed');
               }
             }
-            widget.toggle
+            final toggle = toggleProvider.resolveCurrentToggle(
+              widget.toggle,
+              capturedKey: _toggleKey,
+            );
+            if (toggle == null) return;
+            toggle
               ..artworkUrl = url
               ..artworkSet = setCode
               ..artworkOptions = List<ArtworkVariant>.from(options);
-            await toggleProvider.updateToggle(widget.toggle);
+            await toggleProvider.updateToggle(toggle);
             if (mounted) {
               setState(() => _artworkCleanupAttempted = false);
             }
@@ -568,10 +587,15 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
           onRemoveArtwork: widget.toggle.artworkUrl == null
               ? null
               : () async {
-                  widget.toggle
+                  final toggle = toggleProvider.resolveCurrentToggle(
+                    widget.toggle,
+                    capturedKey: _toggleKey,
+                  );
+                  if (toggle == null) return;
+                  toggle
                     ..artworkUrl = null
                     ..artworkSet = null;
-                  await toggleProvider.updateToggle(widget.toggle);
+                  await toggleProvider.updateToggle(toggle);
                   if (mounted) {
                     setState(() => _artworkCleanupAttempted = false);
                   }
@@ -582,10 +606,16 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
   }
 
   Future<List<ArtworkVariant>> _artworkOptions() async {
-    final existing = widget.toggle.artworkOptions;
+    final toggleProvider = context.read<ToggleProvider>();
+    final toggle = toggleProvider.resolveCurrentToggle(
+      widget.toggle,
+      capturedKey: _toggleKey,
+    );
+    if (toggle == null) return const <ArtworkVariant>[];
+    final existing = toggle.artworkOptions;
     final database = WidgetDatabase();
     final match = database.filteredWidgets.where(
-      (definition) => definition.name == widget.toggle.name,
+      (definition) => definition.name == toggle.name,
     );
     if (match.isEmpty) return const <ArtworkVariant>[];
     final authoritative = List<ArtworkVariant>.from(match.first.artwork);
@@ -598,8 +628,8 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
       existing: existing ?? const <ArtworkVariant>[],
       authoritative: authoritative,
     );
-    widget.toggle.artworkOptions = options;
-    await context.read<ToggleProvider>().updateToggle(widget.toggle);
+    toggle.artworkOptions = options;
+    await toggleProvider.updateToggle(toggle);
     return options;
   }
 
