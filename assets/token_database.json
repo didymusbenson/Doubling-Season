@@ -51,6 +51,23 @@
     ]
   },
   {
+    "name": "Ajani Resolute Emblem",
+    "abilities": "Creatures you control get +2/+2.",
+    "pt": "",
+    "colors": "",
+    "type": "Emblem",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "FRA",
+        "url": "https://cards.scryfall.io/large/front/5/9/595a628e-218b-4df2-8bd2-d84ad22d302f.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Ajani Resolute"
+    ]
+  },
+  {
     "name": "Ajani Steadfast Emblem",
     "abilities": "If a source would deal damage to you or a planeswalker you control, prevent all but 1 of that damage.",
     "pt": "",
@@ -77,8 +94,12 @@
     "pt": "2/2",
     "colors": "W",
     "type": "Creature — Cat Soldier",
-    "popularity": 1,
+    "popularity": 2,
     "artwork": [
+      {
+        "set": "FRA",
+        "url": "https://cards.scryfall.io/large/front/7/8/7801c326-d740-4cec-9268-05348ace8302.jpg"
+      },
       {
         "set": "M20",
         "url": "https://cards.scryfall.io/large/front/b/0/b0819e8e-fb7e-43c7-a7cf-d768f43193ac.jpg"
@@ -89,6 +110,7 @@
       }
     ],
     "reverse_related": [
+      "Ajani Resolute",
       "Ajani, Strength of the Pride"
     ]
   },
@@ -440,7 +462,7 @@
     "pt": "4/4",
     "colors": "W",
     "type": "Creature — Angel",
-    "popularity": 18,
+    "popularity": 19,
     "artwork": [
       {
         "set": "2XM",
@@ -493,6 +515,14 @@
       {
         "set": "DSC",
         "url": "https://cards.scryfall.io/large/front/b/b/bb6d0a6a-3007-47fc-a42c-3db311c9c41f.jpg"
+      },
+      {
+        "set": "FDC",
+        "url": "https://cards.scryfall.io/large/front/d/4/d41f6ac8-6aa3-45b8-8ab3-8c6065e842be.jpg"
+      },
+      {
+        "set": "FRC",
+        "url": "https://cards.scryfall.io/large/front/1/1/1159d02c-0291-42de-91e6-e9a49d5ed968.jpg"
       },
       {
         "set": "GN3",
@@ -589,6 +619,7 @@
       "Invocation of Saint Traft",
       "Luminarch Ascension",
       "Moonsilver Spear",
+      "Ob Nixilis, the Ascended",
       "Saint Traft and Rem Karolus",
       "Seraphic Greatsword",
       "Sigil of the Empty Throne",
@@ -607,6 +638,10 @@
       {
         "set": "AFR",
         "url": "https://cards.scryfall.io/large/front/3/2/323dd323-2ca2-4c85-9ef6-34341cd40d96.jpg"
+      },
+      {
+        "set": "FDC",
+        "url": "https://cards.scryfall.io/large/front/e/1/e1e5dbd5-5fba-4d09-aa27-359505042651.jpg"
       },
       {
         "set": "MOC",
@@ -636,6 +671,23 @@
       "Soul of Emancipation",
       "The Book of Exalted Deeds",
       "The Pit"
+    ]
+  },
+  {
+    "name": "Angel",
+    "abilities": "Flying",
+    "pt": "3/3",
+    "colors": "U",
+    "type": "Creature — Angel",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "FRA",
+        "url": "https://cards.scryfall.io/large/front/5/1/5165055a-89e1-471b-ac96-732e593c910b.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Lyra, Tolarian Archangel"
     ]
   },
   {
@@ -1626,6 +1678,10 @@
         "url": "https://cards.scryfall.io/large/front/3/f/3fc3a29a-280d-4f2c-9a01-8cfead75f583.jpg"
       },
       {
+        "set": "FDC",
+        "url": "https://cards.scryfall.io/large/front/c/1/c198b9b4-bde6-45ec-9bc7-ae61adad22b3.jpg"
+      },
+      {
         "set": "FDN",
         "url": "https://cards.scryfall.io/large/front/c/a/ca697323-bdc8-4fa0-a0ba-c2dd4deff68c.jpg"
       },
@@ -1998,6 +2054,27 @@
   },
   {
     "name": "Beast",
+    "abilities": "Trample",
+    "pt": "4/4",
+    "colors": "G",
+    "type": "Creature — Beast",
+    "popularity": 5,
+    "artwork": [
+      {
+        "set": "FRA",
+        "url": "https://cards.scryfall.io/large/front/8/5/859bda9a-fa90-4ad3-b0c1-6fc62e27c12f.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Bestial Incursion",
+      "Garruk, Curse Breaker",
+      "Garruk, Veiled Butcher",
+      "Way of the Deathbringer",
+      "Way of the Wildspeaker"
+    ]
+  },
+  {
+    "name": "Beast",
     "abilities": "Deathtouch",
     "pt": "3/3",
     "colors": "B",
@@ -2161,7 +2238,7 @@
     "pt": "1/1",
     "colors": "W",
     "type": "Creature — Bird",
-    "popularity": 22,
+    "popularity": 23,
     "artwork": [
       {
         "set": "BLC",
@@ -2274,6 +2351,7 @@
       "Battle Screech",
       "Beck // Call",
       "Bird",
+      "Blustering Barnyard",
       "Emeria Angel",
       "Eyes in the Skies",
       "Falcon and Redwing",
@@ -2903,6 +2981,35 @@
     ]
   },
   {
+    "name": "Cadet",
+    "abilities": "",
+    "pt": "2/2",
+    "colors": "",
+    "type": "Creature — Wizard Soldier",
+    "popularity": 13,
+    "artwork": [
+      {
+        "set": "FRA",
+        "url": "https://cards.scryfall.io/large/front/8/f/8f4534d8-2783-484f-8ebf-a47b1cc4c6df.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Ajani Unrelenting",
+      "Command the Stage",
+      "Craftwork Crusher",
+      "Fatehold Chronologist // Peer Review",
+      "Germinate Recruits",
+      "Heartstring Puller",
+      "Hexhaven Battalion",
+      "Ingris Stingerquill",
+      "Prudent Fateseer // Peer Review",
+      "Recursive Recruitment",
+      "Semester Foreseer // Peer Review",
+      "Stingerquill Charm",
+      "Way of the Healer"
+    ]
+  },
+  {
     "name": "Caller of the Pack",
     "abilities": "Trample, Myriad",
     "pt": "8/6",
@@ -3523,6 +3630,23 @@
     ]
   },
   {
+    "name": "Chandra, Chill of Compliance Emblem",
+    "abilities": "Whenever you cast a spell, draw a card.",
+    "pt": "",
+    "colors": "",
+    "type": "Emblem",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "FRA",
+        "url": "https://cards.scryfall.io/large/front/c/e/ce0ece65-ba13-4243-b343-b4da443fceff.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Chandra, Chill of Compliance"
+    ]
+  },
+  {
     "name": "Chandra, Dressed to Kill Emblem",
     "abilities": "Whenever you cast a red spell, this emblem deals X damage to any target, where X is the amount of mana spent to cast that spell.",
     "pt": "",
@@ -3594,6 +3718,10 @@
         "url": "https://cards.scryfall.io/large/front/3/1/3143984b-9798-4062-9a91-8ee139c3448e.jpg"
       },
       {
+        "set": "FRA",
+        "url": "https://cards.scryfall.io/large/front/5/f/5fdc53ba-e023-4ee4-bb14-fd8c52955ee9.jpg"
+      },
+      {
         "set": "KLD",
         "url": "https://cards.scryfall.io/large/front/5/0/50ce1db3-417c-4c22-84e5-c463addde476.jpg"
       }
@@ -3645,6 +3773,10 @@
       {
         "set": "BLC",
         "url": "https://cards.scryfall.io/large/front/f/a/fa605271-03c0-401b-a470-4301898c2124.jpg"
+      },
+      {
+        "set": "FRC",
+        "url": "https://cards.scryfall.io/large/front/b/7/b7171de9-476d-4bfa-8cc0-b4fbc168cf4d.jpg"
       },
       {
         "set": "PLST",
@@ -3888,6 +4020,10 @@
       {
         "set": "EOC",
         "url": "https://cards.scryfall.io/large/front/1/5/15866ed4-1ca3-427f-99ba-ee26ede9ae18.jpg"
+      },
+      {
+        "set": "FDC",
+        "url": "https://cards.scryfall.io/large/front/1/4/1481e938-7763-4109-b313-2a21053a82df.jpg"
       },
       {
         "set": "FIC",
@@ -4613,7 +4749,7 @@
     "pt": "",
     "colors": "",
     "type": "Token",
-    "popularity": 354,
+    "popularity": 359,
     "artwork": [
       {
         "set": "2XM",
@@ -4769,7 +4905,6 @@
       }
     ],
     "reverse_related": [
-      "A-Ochre Jelly",
       "Abyssal Harvester",
       "Adagia, Windswept Bastion",
       "Adrix and Nev, Twincasters",
@@ -4845,6 +4980,7 @@
       "Echo Storm",
       "Echocasting Symposium",
       "Echoing Assault",
+      "Elda, Conjurer of Spectacle",
       "Electroduplicate",
       "Elminster's Simulacrum",
       "Elturel Survivors",
@@ -4860,6 +4996,7 @@
       "Exquisite Huntmaster",
       "Extravagant Replication",
       "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
+      "Face Yourself",
       "Faerie Artisans",
       "Fated Infatuation",
       "Fathom Fleet Swordjack",
@@ -5030,6 +5167,7 @@
       "Sage of the Skies",
       "Saheeli Rai",
       "Saheeli's Artistry",
+      "Saheeli, Radiant Creator",
       "Saheeli, the Gifted",
       "Saheeli, the Sun's Brilliance",
       "Sandstorm Crasher",
@@ -5057,6 +5195,7 @@
       "Soul of Eternity",
       "Spawnwrithe",
       "Specimen Collector",
+      "Sphinx of False Conclusions",
       "Spider-Verse",
       "Spitting Image",
       "Splinter Twin",
@@ -5106,9 +5245,11 @@
       "Twinflame",
       "Uchuulon",
       "Ulalek, Fused Atrocity",
+      "Uldaros Theorix",
       "Urza, Prince of Kroog",
       "Uugguu, the Omniplasm",
       "Vaultborn Tyrant",
+      "Venser, Fervent Forger",
       "Verazol, the Split Current",
       "Vesuvan Duplimancy",
       "Volo, Guide to Monsters",
@@ -6106,7 +6247,7 @@
     "pt": "5/5",
     "colors": "R",
     "type": "Creature — Dragon",
-    "popularity": 16,
+    "popularity": 18,
     "artwork": [
       {
         "set": "10E",
@@ -6145,8 +6286,16 @@
         "url": "https://cards.scryfall.io/large/front/8/e/8e3b2942-d1a4-4d27-9d64-65712497ab2e.jpg"
       },
       {
+        "set": "FDC",
+        "url": "https://cards.scryfall.io/large/front/4/f/4fbb6ef8-cf45-476b-8985-36023b6884ee.jpg"
+      },
+      {
         "set": "FDN",
         "url": "https://cards.scryfall.io/large/front/a/5/a5d4dd3b-0a5f-4d2c-aa6b-3c47e71e8c39.jpg"
+      },
+      {
+        "set": "FRA",
+        "url": "https://cards.scryfall.io/large/front/9/9/991a5840-adc7-45b5-8d5f-b24dae384bab.jpg"
       },
       {
         "set": "GN2",
@@ -6203,9 +6352,11 @@
       "Day of the Dragons",
       "Death by Dragons",
       "Draconic Disciple",
+      "Draconic Visitor",
       "Dragon Roost",
       "Dragonkin Berserker",
       "Dragonmaster Outcast",
+      "Kiora of Fire and Ashes",
       "Lathliss, Dragon Queen",
       "Look Skyward and Despair",
       "Loot Dispute",
@@ -6247,6 +6398,10 @@
       {
         "set": "DTK",
         "url": "https://cards.scryfall.io/large/front/1/e/1ee0725f-8562-49c2-83fa-11a702e5c78d.jpg"
+      },
+      {
+        "set": "FDC",
+        "url": "https://cards.scryfall.io/large/front/7/f/7fc0760c-495a-4737-8d9e-4110344af99e.jpg"
       },
       {
         "set": "FDN",
@@ -6320,6 +6475,10 @@
       {
         "set": "C17",
         "url": "https://cards.scryfall.io/large/front/7/c/7c66280f-287b-4294-9984-32484de2568a.jpg"
+      },
+      {
+        "set": "FDC",
+        "url": "https://cards.scryfall.io/large/front/e/3/e36a8e84-b105-4494-b90a-c12cea553045.jpg"
       },
       {
         "set": "GK2",
@@ -6751,7 +6910,7 @@
     "name": "Dwarf",
     "abilities": "",
     "pt": "2/2",
-    "colors": "",
+    "colors": "R",
     "type": "Creature — Dwarf",
     "popularity": 4,
     "artwork": [
@@ -9627,6 +9786,23 @@
     ]
   },
   {
+    "name": "Forest Tentacle",
+    "abilities": "",
+    "pt": "3/3",
+    "colors": "G",
+    "type": "Land Creature — Forest Tentacle",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "FRA",
+        "url": "https://cards.scryfall.io/large/front/f/c/fc924972-5014-45d1-9676-6a76d862b205.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Verdant Kraken"
+    ]
+  },
+  {
     "name": "Fox",
     "abilities": "Vigilance",
     "pt": "2/2",
@@ -9988,6 +10164,10 @@
         "url": "https://cards.scryfall.io/large/front/5/b/5b2d7144-e2f2-48eb-b899-b4b3521e0159.jpg"
       },
       {
+        "set": "FDC",
+        "url": "https://cards.scryfall.io/large/front/5/3/53c05e53-84c7-4796-ae02-d778faa5afa6.jpg"
+      },
+      {
         "set": "MBS",
         "url": "https://cards.scryfall.io/large/front/7/6/760dcba4-c0f1-4843-9c39-393c629aae8e.jpg"
       },
@@ -10150,6 +10330,23 @@
     ],
     "reverse_related": [
       "Gideon, Ally of Zendikar"
+    ]
+  },
+  {
+    "name": "Gingerbrute",
+    "abilities": "Haste {1}: This token can't be blocked this turn except by creatures with haste. {2}, {T}, Sacrifice this token: You gain 3 life.",
+    "pt": "1/1",
+    "colors": "",
+    "type": "Artifact Creature — Food Golem",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "FRC",
+        "url": "https://cards.scryfall.io/large/front/d/c/dc2dff97-a68b-497f-a004-1e14ba5116ea.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Ginger, Queen of Sweets"
     ]
   },
   {
@@ -10454,6 +10651,10 @@
       {
         "set": "FDN",
         "url": "https://cards.scryfall.io/large/front/7/0/70f8a1de-cd4c-4afa-bf03-0245d375d42e.jpg"
+      },
+      {
+        "set": "FRC",
+        "url": "https://cards.scryfall.io/large/front/0/c/0c7f299e-4774-4e8b-bb0e-db27d57d2621.jpg"
       },
       {
         "set": "GRN",
@@ -11557,6 +11758,28 @@
     ],
     "reverse_related": [
       "Heart-Piercer Manticore"
+    ]
+  },
+  {
+    "name": "Heartwood",
+    "abilities": "{T}: Add {R} or {G}.",
+    "pt": "",
+    "colors": "RG",
+    "type": "Artifact — Heartwood",
+    "popularity": 6,
+    "artwork": [
+      {
+        "set": "FRA",
+        "url": "https://cards.scryfall.io/large/front/e/b/eb4bf635-04d7-4994-9f70-4ff573a767e7.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Aerid Konstrari",
+      "Heartwood Crafter // Soul Tether",
+      "Hungering Puppetbeast",
+      "Konstrari Improviser // Soul Tether",
+      "Tenured Tethermage",
+      "Woodwork Prodigy // Soul Tether"
     ]
   },
   {
@@ -12948,6 +13171,23 @@
   },
   {
     "name": "Illusion",
+    "abilities": "",
+    "pt": "1/1",
+    "colors": "U",
+    "type": "Creature — Illusion",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "FRA",
+        "url": "https://cards.scryfall.io/large/front/7/b/7bda0b63-fd0f-495d-9eb0-20057571c0ee.jpg"
+      }
+    ],
+    "reverse_related": [
+      "The Theorist, Jace Beleren"
+    ]
+  },
+  {
+    "name": "Illusion",
     "abilities": "Whenever this creature blocks a creature, that creature doesn't untap during its controller's next untap step.",
     "pt": "0/2",
     "colors": "U",
@@ -13075,6 +13315,10 @@
         "url": "https://cards.scryfall.io/large/front/c/5/c5229eb0-9356-43a6-9b1b-6366f3c1e405.jpg"
       },
       {
+        "set": "FRC",
+        "url": "https://cards.scryfall.io/large/front/7/b/7b7f2e3a-ec43-4408-affd-a09338566ce3.jpg"
+      },
+      {
         "set": "MOM",
         "url": "https://cards.scryfall.io/large/front/c/c/cca1decc-90fd-4df8-997e-52f8789032f8.jpg"
       },
@@ -13135,6 +13379,10 @@
       {
         "set": "EOC",
         "url": "https://cards.scryfall.io/large/front/c/5/c5229eb0-9356-43a6-9b1b-6366f3c1e405.jpg"
+      },
+      {
+        "set": "FRC",
+        "url": "https://cards.scryfall.io/large/front/7/b/7b7f2e3a-ec43-4408-affd-a09338566ce3.jpg"
       },
       {
         "set": "MOM",
@@ -13570,6 +13818,10 @@
       {
         "set": "DSK",
         "url": "https://cards.scryfall.io/large/front/b/8/b802aea8-0ca3-4d2c-a8ef-a80e16729c9b.jpg"
+      },
+      {
+        "set": "FRC",
+        "url": "https://cards.scryfall.io/large/front/f/5/f5d782a4-6726-4d64-9977-82ea2ab77e0f.jpg"
       }
     ],
     "reverse_related": [
@@ -13699,6 +13951,57 @@
     ],
     "reverse_related": [
       "Iridescent Vinelasher"
+    ]
+  },
+  {
+    "name": "Jace",
+    "abilities": "[−1]: Surveil 1. [−3]: Draw a card.",
+    "pt": "",
+    "colors": "U",
+    "type": "Planeswalker — Jace",
+    "popularity": 35,
+    "artwork": [
+      {
+        "set": "FRA",
+        "url": "https://cards.scryfall.io/large/front/8/d/8d1e424f-6407-4f8c-bed2-eaf148237c81.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Academic Ascent",
+      "Arcane Amphisbaena",
+      "Avatar of Burgeoning Echoes",
+      "Campus Crier",
+      "Countersculpt",
+      "Fatehold Charm",
+      "Hexhaven Battalion",
+      "Inspired Tethermage",
+      "Jace's Machinations",
+      "Jace, Reality Sculptor",
+      "Keeper of the Quiet Hour",
+      "Mindseeker Oculus",
+      "No Admittance",
+      "Overwrite the Multiverse",
+      "Plan for All Outcomes",
+      "Protege's Awakening",
+      "Repurposed Enforcer",
+      "Rewrite Regrets",
+      "Sanctum Lurker",
+      "Solve for Disappointment",
+      "Tam's Resistance",
+      "Theorist's Proxy",
+      "Theorist's Sanctum",
+      "Violent Echoes",
+      "Vraska's Final Mercy",
+      "Way of the Cryomancer",
+      "Way of the Deathbringer",
+      "Way of the Healer",
+      "Way of the Mentor",
+      "Way of the Mind Sculptor",
+      "Way of the Necromancer",
+      "Way of the Paradox",
+      "Way of the Pyromancer",
+      "Way of the Warlord",
+      "Way of the Wildspeaker"
     ]
   },
   {
@@ -14307,6 +14610,10 @@
         "url": "https://cards.scryfall.io/large/front/7/4/74f7dd3d-dbb9-4cbd-8d06-381cb6a0de33.jpg"
       },
       {
+        "set": "FRC",
+        "url": "https://cards.scryfall.io/large/front/d/0/d0d630b2-1e42-4cf7-bfa1-36d5c135877b.jpg"
+      },
+      {
         "set": "MKC",
         "url": "https://cards.scryfall.io/large/front/0/a/0a8bc802-2b33-44eb-b93b-624709790279.jpg"
       },
@@ -14673,6 +14980,23 @@
   {
     "name": "Leviathan",
     "abilities": "Hexproof",
+    "pt": "8/8",
+    "colors": "U",
+    "type": "Creature — Leviathan",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "FRA",
+        "url": "https://cards.scryfall.io/large/front/a/4/a4339d5a-7c07-4326-b0e6-d2519332803d.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Kiora of Salt and Sand"
+    ]
+  },
+  {
+    "name": "Leviathan",
+    "abilities": "Hexproof",
     "pt": "6/5",
     "colors": "U",
     "type": "Creature — Leviathan",
@@ -14870,6 +15194,23 @@
     ]
   },
   {
+    "name": "Lotus",
+    "abilities": "{T}, Sacrifice this token: Add three mana of any one color.",
+    "pt": "",
+    "colors": "",
+    "type": "Artifact",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "FRA",
+        "url": "https://cards.scryfall.io/large/front/c/5/c59b7223-00a9-4c0d-896d-1cd463860c40.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Kwia Vigorbloom"
+    ]
+  },
+  {
     "name": "Lukka, Wayward Bonder Emblem",
     "abilities": "Whenever a creature enters the battlefield under your control, it deals damage equal to its power to any target.",
     "pt": "",
@@ -14918,6 +15259,10 @@
       {
         "set": "BIG",
         "url": "https://cards.scryfall.io/large/front/0/3/03516d49-0613-46f7-8d88-3bf26d2c8659.jpg"
+      },
+      {
+        "set": "FRC",
+        "url": "https://cards.scryfall.io/large/front/9/1/91613970-c25c-4959-b5b0-b6e2a7657634.jpg"
       },
       {
         "set": "LCI",
@@ -15333,7 +15678,7 @@
     "pt": "1/1",
     "colors": "W",
     "type": "Creature — Monk",
-    "popularity": 7,
+    "popularity": 6,
     "artwork": [
       {
         "set": "2X2",
@@ -15361,7 +15706,6 @@
       }
     ],
     "reverse_related": [
-      "A-Cori-Steel Cutter",
       "Aligned Heart",
       "Cori-Steel Cutter",
       "Elsha, Threefold Master",
@@ -15470,6 +15814,23 @@
     "reverse_related": [
       "Enchanted Carriage",
       "Three Blind Mice"
+    ]
+  },
+  {
+    "name": "Mowu",
+    "abilities": "",
+    "pt": "3/3",
+    "colors": "G",
+    "type": "Legendary Creature — Dog",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "FRA",
+        "url": "https://cards.scryfall.io/large/front/5/8/5868190d-18f6-43b6-af83-9e0ef585687d.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Jiang Yanggu, Never Alone"
     ]
   },
   {
@@ -15648,7 +16009,7 @@
     "pt": "1/1",
     "colors": "",
     "type": "Artifact Creature — Myr",
-    "popularity": 10,
+    "popularity": 11,
     "artwork": [
       {
         "set": "2XM",
@@ -15689,6 +16050,14 @@
       {
         "set": "DDU",
         "url": "https://cards.scryfall.io/large/front/f/d/fd2eef3b-9001-477a-8ec4-2a59d906acc6.jpg"
+      },
+      {
+        "set": "FDC",
+        "url": "https://cards.scryfall.io/large/front/3/4/345a3db8-90f4-4574-8040-e0fa4ea6b3e6.jpg"
+      },
+      {
+        "set": "FRC",
+        "url": "https://cards.scryfall.io/large/front/e/4/e41f83c6-c20f-455a-b630-5fad99fa54ad.jpg"
       },
       {
         "set": "M3C",
@@ -15742,6 +16111,7 @@
     "reverse_related": [
       "Genesis Chamber",
       "Master's Call",
+      "Memnarch, the Warden",
       "Mirrodin Besieged",
       "Myr Battlesphere",
       "Myr Incubator",
@@ -16801,6 +17171,10 @@
       {
         "set": "DSC",
         "url": "https://cards.scryfall.io/large/front/c/b/cb06a798-4808-476b-bc0f-1f432b431464.jpg"
+      },
+      {
+        "set": "FDC",
+        "url": "https://cards.scryfall.io/large/front/1/1/11bafc20-499d-42ab-a2d4-8cd656008994.jpg"
       }
     ],
     "reverse_related": [
@@ -17095,6 +17469,10 @@
     "type": "Artifact Creature — Phyrexian Mite",
     "popularity": 14,
     "artwork": [
+      {
+        "set": "FRC",
+        "url": "https://cards.scryfall.io/large/front/e/9/e9c68c64-f3b9-45b7-83d1-bd1439a49942.jpg"
+      },
       {
         "set": "ONE",
         "url": "https://cards.scryfall.io/large/front/9/6/96ec91a9-659a-455f-98e0-cd30b6c6c2a4.jpg"
@@ -18415,6 +18793,10 @@
     "popularity": 5,
     "artwork": [
       {
+        "set": "FRC",
+        "url": "https://cards.scryfall.io/large/front/0/5/0526330e-40eb-4c5f-b0f5-5489839e5f44.jpg"
+      },
+      {
         "set": "MSC",
         "url": "https://cards.scryfall.io/large/front/0/6/064dec90-75ae-4afe-a5d5-a878e9fd9f34.jpg"
       },
@@ -19269,6 +19651,23 @@
     ]
   },
   {
+    "name": "Sculpture Treasure",
+    "abilities": "{T}, Sacrifice this token: Add one mana of any color.",
+    "pt": "1/1",
+    "colors": "",
+    "type": "Artifact Creature — Sculpture Treasure",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "FRA",
+        "url": "https://cards.scryfall.io/large/front/a/0/a0fec445-c6fb-4ca2-b63f-1d608c418a22.jpg"
+      }
+    ],
+    "reverse_related": [
+      "Vraska, Soul of Stone"
+    ]
+  },
+  {
     "name": "Scurry of Squirrels",
     "abilities": "Myriad, myriad, Whenever this creature deals combat damage to a player, put a +1/+1 counter on target creature you control.",
     "pt": "2/2",
@@ -19760,6 +20159,10 @@
       {
         "set": "DSC",
         "url": "https://cards.scryfall.io/large/front/8/b/8b32dec0-a3b6-4f64-9c02-2248ae33647c.jpg"
+      },
+      {
+        "set": "FRC",
+        "url": "https://cards.scryfall.io/large/front/2/1/21a614b0-2e65-4ea0-94c3-9c9afa0bc03c.jpg"
       },
       {
         "set": "IKO",
@@ -20441,6 +20844,10 @@
       {
         "set": "FIC",
         "url": "https://cards.scryfall.io/large/front/c/4/c459f2ec-2aa3-44f6-999f-b1467dd4e27c.jpg"
+      },
+      {
+        "set": "FRC",
+        "url": "https://cards.scryfall.io/large/front/a/5/a58c2fc3-c07f-4f06-a9d5-1d0fe3dbde1f.jpg"
       },
       {
         "set": "GN3",
@@ -21244,6 +21651,10 @@
         "url": "https://cards.scryfall.io/large/front/c/e/ce90c48f-74fb-4e87-9e46-7f8c3d79cbb0.jpg"
       },
       {
+        "set": "FDC",
+        "url": "https://cards.scryfall.io/large/front/5/5/5547973c-b0df-4103-a657-ac20611bd600.jpg"
+      },
+      {
         "set": "INR",
         "url": "https://cards.scryfall.io/large/front/3/6/362fb82b-d1ea-471f-be0a-cc2c0c600fd1.jpg"
       },
@@ -21565,12 +21976,20 @@
         "url": "https://cards.scryfall.io/large/front/f/4/f4b36a9a-7456-4c72-a7b2-478461d886a4.jpg"
       },
       {
+        "set": "FDC",
+        "url": "https://cards.scryfall.io/large/front/9/c/9ca99f61-a1cd-4c61-9e0a-791b5f211f56.jpg"
+      },
+      {
         "set": "FDN",
         "url": "https://cards.scryfall.io/large/front/2/7/278adad2-49a6-4baa-8dbe-93474545eef7.jpg"
       },
       {
         "set": "FIC",
         "url": "https://cards.scryfall.io/large/front/0/0/004f2ea4-0477-49b2-ad06-5aac7991103d.jpg"
+      },
+      {
+        "set": "FRC",
+        "url": "https://cards.scryfall.io/large/front/0/6/06a96ac2-94a4-4b1c-a3c5-add1a3112cb2.jpg"
       },
       {
         "set": "FRF",
@@ -23345,7 +23764,7 @@
     "pt": "1/1",
     "colors": "",
     "type": "Artifact Creature — Thopter",
-    "popularity": 52,
+    "popularity": 55,
     "artwork": [
       {
         "set": "2XM",
@@ -23398,6 +23817,14 @@
       {
         "set": "EOC",
         "url": "https://cards.scryfall.io/large/front/8/a/8a508e59-92e1-47e4-948a-5237df162dbb.jpg"
+      },
+      {
+        "set": "FDC",
+        "url": "https://cards.scryfall.io/large/front/3/5/3597cf76-f0db-4d2c-b01c-d518d7c7a764.jpg"
+      },
+      {
+        "set": "FRA",
+        "url": "https://cards.scryfall.io/large/front/b/f/bfd6132f-c96b-4ce0-ac4d-c46356afc767.jpg"
       },
       {
         "set": "KHC",
@@ -23537,9 +23964,12 @@
       "Pia Nalaar",
       "Pia Nalaar, Consul of Revival",
       "Pia and Kiran Nalaar",
+      "Pia, Determined Rebuilder",
       "Rangers' Aetherhive",
       "Retrofitter Foundry",
+      "Saheeli, Consul of Oversight",
       "Saheeli, Filigree Master",
+      "Saheeli, Jewel of Avishkar",
       "Sai, Master Thopterist",
       "Stridehangar Automaton",
       "Surveillance Monitor",
@@ -23815,7 +24245,7 @@
     "pt": "",
     "colors": "",
     "type": "Artifact — Treasure",
-    "popularity": 374,
+    "popularity": 375,
     "artwork": [
       {
         "set": "2X2",
@@ -23886,6 +24316,10 @@
         "url": "https://cards.scryfall.io/large/front/a/c/ac4384b7-853c-417d-b3b4-f54cd0b5d361.jpg"
       },
       {
+        "set": "FDC",
+        "url": "https://cards.scryfall.io/large/front/3/1/3101b6f5-b3a7-43db-9454-9f42b9c34e53.jpg"
+      },
+      {
         "set": "FDN",
         "url": "https://cards.scryfall.io/large/front/2/1/21210145-8edd-41f5-9a64-9f0b5be79864.jpg"
       },
@@ -23896,6 +24330,10 @@
       {
         "set": "FIN",
         "url": "https://cards.scryfall.io/large/front/e/5/e5f4f810-f95a-41ac-9c3b-47254c03e766.jpg"
+      },
+      {
+        "set": "FRA",
+        "url": "https://cards.scryfall.io/large/front/0/3/03992f88-7a15-4234-9bed-b7617d7ff09c.jpg"
       },
       {
         "set": "GN3",
@@ -24569,6 +25007,7 @@
       "Visions of Ruin",
       "Volatile Fault",
       "Vraska, Relic Seeker",
+      "Vraska, the Cutting Glare",
       "Wanted Scoundrels",
       "Warren Soultrader",
       "Widespread Thieving",
@@ -25817,6 +26256,10 @@
         "url": "https://cards.scryfall.io/large/front/6/7/677a1d9d-86fd-49db-9573-8cd2cbc1a096.jpg"
       },
       {
+        "set": "FRC",
+        "url": "https://cards.scryfall.io/large/front/2/d/2dde64e7-dff3-4495-9649-d4b1e91f1cf3.jpg"
+      },
+      {
         "set": "KTK",
         "url": "https://cards.scryfall.io/large/front/f/4/f46bcc76-181c-4e06-aa04-590a3e651dc7.jpg"
       },
@@ -26992,6 +27435,10 @@
         "url": "https://cards.scryfall.io/large/front/b/8/b8710a30-8314-49ef-b995-bd05454095be.jpg"
       },
       {
+        "set": "FDC",
+        "url": "https://cards.scryfall.io/large/front/f/7/f7a49477-b7b5-4f0e-885f-e1d2b580c52e.jpg"
+      },
+      {
         "set": "FDN",
         "url": "https://cards.scryfall.io/large/front/e/2/e29a360b-11fd-42ba-82ba-de8f7e136c20.jpg"
       },
@@ -27520,6 +27967,10 @@
         "url": "https://cards.scryfall.io/large/front/1/7/177beb03-072c-462c-b816-d706d4d40b5f.jpg"
       },
       {
+        "set": "FRC",
+        "url": "https://cards.scryfall.io/large/front/1/4/14474e29-27a4-475a-9d2c-eb1d6c146421.jpg"
+      },
+      {
         "set": "MH2",
         "url": "https://cards.scryfall.io/large/front/c/4/c46d82e0-ef99-473c-a09c-8f552db759bf.jpg"
       },
@@ -27692,6 +28143,10 @@
       {
         "set": "DOM",
         "url": "https://cards.scryfall.io/large/front/0/b/0b527bcd-0d37-495a-8457-8123388056b9.jpg"
+      },
+      {
+        "set": "FDC",
+        "url": "https://cards.scryfall.io/large/front/a/f/af43624d-90ae-4350-9fce-ca1c5a4cf4ff.jpg"
       },
       {
         "set": "MOC",
