@@ -11,7 +11,13 @@ Use this skill when the user asks to check for new Magic tokens, refresh the tok
 
 1. Read the repository `AGENTS.md` and preserve all unrelated user changes.
 2. Fetch `origin` and run the refresh from current `origin/main`. If the active checkout is not a clean `main`, create a temporary worktree and a `codex/` branch based on `origin/main` rather than disturbing it.
-3. Verify `docs/housekeeping/process_tokens_mtgjson.py` exists.
+3. Verify `docs/housekeeping/process_tokens_mtgjson.py` exists. Before generating,
+   compare its metadata support and `custom_tokens.json` with the active release
+   branch. Preserve artist credits supported by released/release-candidate apps;
+   do not publish an older generator schema simply because main lags app work.
+   Inspect the live manifest and manifests in known shipped/release-candidate
+   branches; publish a version strictly greater than all of them. Main's next
+   integer alone may collide with a database already bundled in a device build.
 4. From `docs/housekeeping/`, run:
 
    ```bash
@@ -27,9 +33,12 @@ Use this skill when the user asks to check for new Magic tokens, refresh the tok
    - Token composite IDs (`name|pt|colors|type|abilities`) are unique.
    - The manifest `size` and `sha256` match `assets/token_database.json`.
    - The token count is plausible and no unexpected generated files are present.
-8. Commit only the generated database, manifest, and this skill when it is being introduced or updated. Use a concise commit message without Codex attribution, such as `Update token database from MTGJSON`.
+   - Artwork retains authoritative artist credits, including custom-token sources.
+     Compare coverage with the release branch; investigate any loss, and never
+     invent missing credits. Review schema/metadata changes as well as identities.
+8. Commit only the generated database, manifest, and directly required generator/custom-source or workflow fixes. Use a concise commit message without Codex attribution, such as `Update token database from MTGJSON`.
 9. Push the commit to `origin/main`. Prefer a fast-forward push from an up-to-date `origin/main`; never force-push. If remote `main` moved, fetch, rebase the focused commit, revalidate, and retry normally.
-10. Report token counts, validation results, commit hash, and push result. Remove a temporary worktree after success when safe.
+10. Verify the exact live app manifest/database URLs serve the published version with matching size/hash after cache propagation. Report token counts, metadata coverage, validation results, commit hash, and push result. Remove a temporary worktree after success when safe.
 
 ## Generator behavior
 

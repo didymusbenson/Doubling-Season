@@ -8,15 +8,18 @@
     "artwork": [
       {
         "set": "DSC",
-        "url": "https://cards.scryfall.io/large/front/e/a/ea630ba1-22f9-4a10-bdc6-0d03128214f4.jpg?1726285123"
+        "url": "https://cards.scryfall.io/large/front/e/a/ea630ba1-22f9-4a10-bdc6-0d03128214f4.jpg?1726285123",
+        "artist": "Alex Konstad"
       },
       {
         "set": "SLD",
-        "url": "https://cards.scryfall.io/large/front/6/2/62c19f87-1bbc-4309-8781-4519db8b91a2.jpg?1763477698"
+        "url": "https://cards.scryfall.io/large/front/6/2/62c19f87-1bbc-4309-8781-4519db8b91a2.jpg?1763477698",
+        "artist": "Jason Loik & Matthew Cohen"
       },
       {
         "set": "ZNR",
-        "url": "https://cards.scryfall.io/large/front/3/0/309b2cb5-b9a8-417d-b5ae-0a7d03ff93f0.jpg?1604202878"
+        "url": "https://cards.scryfall.io/large/front/3/0/309b2cb5-b9a8-417d-b5ae-0a7d03ff93f0.jpg?1604202878",
+        "artist": "Roman Kuteynikov"
       }
     ]
   },
@@ -29,7 +32,8 @@
     "artwork": [
       {
         "set": "CMA",
-        "url": "https://cards.scryfall.io/large/front/b/0/b019f6b5-ce8f-4b95-8fcb-72dc4931b3aa.jpg?1592672586"
+        "url": "https://cards.scryfall.io/large/front/b/0/b019f6b5-ce8f-4b95-8fcb-72dc4931b3aa.jpg?1592672586",
+        "artist": "Anthony Palumbo"
       }
     ]
   },
@@ -42,7 +46,8 @@
     "artwork": [
       {
         "set": "CLB",
-        "url": "https://cards.scryfall.io/large/front/4/c/4c91dbf4-94fa-45d0-b8ed-a778b11d789b.jpg?1674134922"
+        "url": "https://cards.scryfall.io/large/front/4/c/4c91dbf4-94fa-45d0-b8ed-a778b11d789b.jpg?1674134922",
+        "artist": "Fajareka Setiawan"
       }
     ]
   },
@@ -55,7 +60,8 @@
     "artwork": [
       {
         "set": "C15",
-        "url": "https://cards.scryfall.io/large/front/e/b/ebf51c44-aa06-476e-b081-b71c11b1e8ba.jpg?1562711094"
+        "url": "https://cards.scryfall.io/large/front/e/b/ebf51c44-aa06-476e-b081-b71c11b1e8ba.jpg?1562711094",
+        "artist": "Mathias Kollros"
       }
     ]
   },
@@ -68,7 +74,8 @@
     "artwork": [
       {
         "set": "CMA",
-        "url": "https://cards.scryfall.io/large/front/0/8/08620dc9-3a83-4d09-a6d4-b25a7d0ac644.jpg?1592672874"
+        "url": "https://cards.scryfall.io/large/front/0/8/08620dc9-3a83-4d09-a6d4-b25a7d0ac644.jpg?1592672874",
+        "artist": "Ryan Yee"
       }
     ]
   },
@@ -81,7 +88,8 @@
     "artwork": [
       {
         "set": "M3C",
-        "url": "https://cards.scryfall.io/large/front/e/c/ec5fe7d0-b444-4488-b058-f3916e404cac.jpg?1751719937"
+        "url": "https://cards.scryfall.io/large/front/e/c/ec5fe7d0-b444-4488-b058-f3916e404cac.jpg?1751719937",
+        "artist": "Jehan Choo"
       }
     ]
   },
@@ -94,7 +102,8 @@
     "artwork": [
       {
         "set": "CLU",
-        "url": "https://cards.scryfall.io/large/front/0/d/0dcccbd8-2135-45e6-8802-8dcaa382a398.jpg?1706239632"
+        "url": "https://cards.scryfall.io/large/front/0/d/0dcccbd8-2135-45e6-8802-8dcaa382a398.jpg?1706239632",
+        "artist": "John Tedrick"
       }
     ]
   },
@@ -107,7 +116,8 @@
     "artwork": [
       {
         "set": "WHO",
-        "url": "https://cards.scryfall.io/large/front/7/6/76573f9d-f0f2-47b8-88e7-17d58d0d20d3.jpg?1696636600"
+        "url": "https://cards.scryfall.io/large/front/7/6/76573f9d-f0f2-47b8-88e7-17d58d0d20d3.jpg?1696636600",
+        "artist": "Hector Ortiz"
       }
     ]
   },
@@ -120,7 +130,8 @@
     "artwork": [
       {
         "set": "CLB",
-        "url": "https://cards.scryfall.io/large/front/e/3/e376b59a-5702-4706-b713-01cab4e253cc.jpg?1674136527"
+        "url": "https://cards.scryfall.io/large/front/e/3/e376b59a-5702-4706-b713-01cab4e253cc.jpg?1674136527",
+        "artist": "Zoltan Boros"
       }
     ]
   },
@@ -133,7 +144,8 @@
     "artwork": [
       {
         "set": "CLB",
-        "url": "https://cards.scryfall.io/large/front/5/a/5ac424e1-7806-46ee-84a9-ca2f0dd468a4.jpg?1674136572"
+        "url": "https://cards.scryfall.io/large/front/5/a/5ac424e1-7806-46ee-84a9-ca2f0dd468a4.jpg?1674136572",
+        "artist": "Joshua Raphael"
       }
     ]
   },
@@ -146,7 +158,8 @@
     "artwork": [
       {
         "set": "CLB",
-        "url": "https://cards.scryfall.io/large/front/a/c/acfecffd-33af-43a9-b26c-f1ff193c6323.jpg?1674136580"
+        "url": "https://cards.scryfall.io/large/front/a/c/acfecffd-33af-43a9-b26c-f1ff193c6323.jpg?1674136580",
+        "artist": "Ben Wootten"
       }
     ]
   },
@@ -159,7 +172,8 @@
     "artwork": [
       {
         "set": "TDC",
-        "url": "https://cards.scryfall.io/large/front/2/8/2876d57a-a17e-4892-9992-321a32562e13.jpg?1743205804"
+        "url": "https://cards.scryfall.io/large/front/2/8/2876d57a-a17e-4892-9992-321a32562e13.jpg?1743205804",
+        "artist": "Arif Wijaya"
       }
     ]
   },
@@ -172,7 +186,8 @@
     "artwork": [
       {
         "set": "CLB",
-        "url": "https://cards.scryfall.io/large/front/e/7/e7429a5b-5579-4c4e-89ff-ee7f43db37e4.jpg?1674135100"
+        "url": "https://cards.scryfall.io/large/front/e/7/e7429a5b-5579-4c4e-89ff-ee7f43db37e4.jpg?1674135100",
+        "artist": "Justine Cruz"
       }
     ]
   },
@@ -185,7 +200,8 @@
     "artwork": [
       {
         "set": "CMM",
-        "url": "https://cards.scryfall.io/large/front/e/8/e8d57d75-275d-45c8-85f4-aab230af35b2.jpg?1689995738"
+        "url": "https://cards.scryfall.io/large/front/e/8/e8d57d75-275d-45c8-85f4-aab230af35b2.jpg?1689995738",
+        "artist": "Nils Hamm"
       }
     ]
   },
@@ -198,7 +214,8 @@
     "artwork": [
       {
         "set": "M3C",
-        "url": "https://cards.scryfall.io/large/front/0/0/00b4625c-ce91-4b86-8db7-a6c2d4fb9c92.jpg?1717189926"
+        "url": "https://cards.scryfall.io/large/front/0/0/00b4625c-ce91-4b86-8db7-a6c2d4fb9c92.jpg?1717189926",
+        "artist": "Helge C. Balzer"
       }
     ]
   },
@@ -211,7 +228,8 @@
     "artwork": [
       {
         "set": "LCC",
-        "url": "https://cards.scryfall.io/large/front/7/5/75db3c02-7a03-4de5-a70e-220777227dd3.jpg?1698987996"
+        "url": "https://cards.scryfall.io/large/front/7/5/75db3c02-7a03-4de5-a70e-220777227dd3.jpg?1698987996",
+        "artist": "Crystal Sully"
       }
     ]
   },
@@ -224,7 +242,8 @@
     "artwork": [
       {
         "set": "BLC",
-        "url": "https://cards.scryfall.io/large/front/c/3/c343b965-af2b-45c3-babb-9242736cf1e5.jpg?1721428298"
+        "url": "https://cards.scryfall.io/large/front/c/3/c343b965-af2b-45c3-babb-9242736cf1e5.jpg?1721428298",
+        "artist": "Izzy"
       }
     ]
   },
@@ -237,7 +256,8 @@
     "artwork": [
       {
         "set": "CLU",
-        "url": "https://cards.scryfall.io/large/front/3/1/314e1434-61a8-4587-812e-720a92493fb3.jpg?1706239684"
+        "url": "https://cards.scryfall.io/large/front/3/1/314e1434-61a8-4587-812e-720a92493fb3.jpg?1706239684",
+        "artist": "Leon Tukker"
       }
     ]
   },
@@ -250,7 +270,8 @@
     "artwork": [
       {
         "set": "CLB",
-        "url": "https://cards.scryfall.io/large/front/4/3/43e38761-70e0-4f6e-a4c2-7c9a17557d25.jpg?1674135300"
+        "url": "https://cards.scryfall.io/large/front/4/3/43e38761-70e0-4f6e-a4c2-7c9a17557d25.jpg?1674135300",
+        "artist": "Filipe Pagliuso"
       }
     ]
   },
@@ -263,7 +284,8 @@
     "artwork": [
       {
         "set": "WHO",
-        "url": "https://cards.scryfall.io/large/front/7/f/7f734ca0-91bc-4496-9bd7-2d09415e850f.jpg?1696636744"
+        "url": "https://cards.scryfall.io/large/front/7/f/7f734ca0-91bc-4496-9bd7-2d09415e850f.jpg?1696636744",
+        "artist": "Lie Setiawan"
       }
     ]
   },
@@ -276,7 +298,8 @@
     "artwork": [
       {
         "set": "CLB",
-        "url": "https://cards.scryfall.io/large/front/2/7/279c2ec3-abfc-4054-bdd9-3c8fa7d8b426.jpg?1674136801"
+        "url": "https://cards.scryfall.io/large/front/2/7/279c2ec3-abfc-4054-bdd9-3c8fa7d8b426.jpg?1674136801",
+        "artist": "David Auden Nash"
       }
     ]
   },
@@ -289,7 +312,8 @@
     "artwork": [
       {
         "set": "CM2",
-        "url": "https://cards.scryfall.io/large/front/4/9/49b311c5-90f5-4d26-86ce-b9f645c137e4.jpg?1562273850"
+        "url": "https://cards.scryfall.io/large/front/4/9/49b311c5-90f5-4d26-86ce-b9f645c137e4.jpg?1562273850",
+        "artist": "Slawomir Maniak"
       }
     ]
   },
@@ -302,7 +326,8 @@
     "artwork": [
       {
         "set": "CLB",
-        "url": "https://cards.scryfall.io/large/front/9/5/952e4e6b-fe74-4f3c-95d1-8e043f72072c.jpg?1674135888"
+        "url": "https://cards.scryfall.io/large/front/9/5/952e4e6b-fe74-4f3c-95d1-8e043f72072c.jpg?1674135888",
+        "artist": "Josh Hass"
       }
     ]
   },
@@ -315,7 +340,8 @@
     "artwork": [
       {
         "set": "CLB",
-        "url": "https://cards.scryfall.io/large/front/f/0/f00a57fc-b4a6-48fa-a20c-864c10099e4b.jpg?1674135352"
+        "url": "https://cards.scryfall.io/large/front/f/0/f00a57fc-b4a6-48fa-a20c-864c10099e4b.jpg?1674135352",
+        "artist": "Edgar Sánchez Hidalgo"
       }
     ]
   }

@@ -145,6 +145,7 @@ def extract_tokens(all_printings: dict) -> List[Dict]:
             # Build artwork entry
             scryfall_id = card.get('identifiers', {}).get('scryfallId', '')
             artwork_url = build_scryfall_url(scryfall_id) if scryfall_id else ''
+            artist = card.get('artist', '') or ''
 
             # Get reverse related cards (nested under relatedCards)
             related_cards = card.get('relatedCards', {}) or {}
@@ -157,7 +158,11 @@ def extract_tokens(all_printings: dict) -> List[Dict]:
                 'pt': pt,
                 'colors': colors,
                 'reverse_related': reverse_related,
-                'artwork': [{'set': set_code, 'url': artwork_url}] if artwork_url else [],
+                'artwork': [{
+                    'set': set_code,
+                    'url': artwork_url,
+                    'artist': artist,
+                }] if artwork_url else [],
             })
 
     print(f"Found {len(raw_tokens)} raw token entries across all sets")
@@ -203,7 +208,10 @@ def clean_and_dedup(tokens: List[Dict]) -> List[Dict]:
         for art in token.get('artwork', []):
             url = art.get('url', '')
             if url and url not in token_groups[unique_key]['artwork']:
-                token_groups[unique_key]['artwork'][url] = art['set']
+                token_groups[unique_key]['artwork'][url] = {
+                    'set': art['set'],
+                    'artist': art.get('artist', '') or '',
+                }
 
     # Build final list
     cleaned = []
@@ -219,8 +227,12 @@ def clean_and_dedup(tokens: List[Dict]) -> List[Dict]:
 
         popularity = len(data['reverse_related'])
         artwork_array = [
-            {'set': set_code, 'url': url}
-            for url, set_code in data['artwork'].items()
+            {
+                'set': metadata['set'],
+                'url': url,
+                'artist': metadata['artist'],
+            }
+            for url, metadata in data['artwork'].items()
         ]
         reverse_related_list = sorted(data['reverse_related'])
 
