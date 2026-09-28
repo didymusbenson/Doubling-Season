@@ -612,25 +612,27 @@ class _ToggleWidgetCardState extends State<ToggleWidgetCard>
       capturedKey: _toggleKey,
     );
     if (toggle == null) return const <ArtworkVariant>[];
-    final existing = toggle.artworkOptions;
+    final existing = toggle.artworkOptions ?? const <ArtworkVariant>[];
     final database = WidgetDatabase();
-    final match = database.filteredWidgets.where(
-      (definition) => definition.name == toggle.name,
-    );
-    if (match.isEmpty) return const <ArtworkVariant>[];
-    final authoritative = List<ArtworkVariant>.from(match.first.artwork);
-    if (existing != null &&
-        existing.isNotEmpty &&
-        !ArtworkMetadataEnricher.needsArtistMetadata(existing)) {
-      return existing;
+    try {
+      final options = ArtworkMetadataEnricher.merge(
+        existing: existing,
+        authoritative: database.artworkFor(
+          name: toggle.name,
+          existing: existing,
+          selectedUrl: toggle.artworkUrl,
+          isCustom: toggle.isCustom,
+        ),
+        catalog: database.allArtwork,
+        selectedUrl: toggle.artworkUrl,
+        selectedSet: toggle.artworkSet,
+      );
+      toggle.artworkOptions = options;
+      await toggleProvider.updateToggle(toggle);
+      return options;
+    } finally {
+      database.dispose();
     }
-    final options = ArtworkMetadataEnricher.merge(
-      existing: existing ?? const <ArtworkVariant>[],
-      authoritative: authoritative,
-    );
-    toggle.artworkOptions = options;
-    await toggleProvider.updateToggle(toggle);
-    return options;
   }
 
   Widget _buildToggleButton(BuildContext context) {

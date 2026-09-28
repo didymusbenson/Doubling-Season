@@ -3,31 +3,56 @@ import '../models/token_definition.dart';
 class ArtworkMetadataEnricher {
   const ArtworkMetadataEnricher._();
 
-  static bool needsArtistMetadata(List<ArtworkVariant>? variants) {
-    return variants?.any(
-          (variant) =>
-              !variant.url.startsWith('file://') &&
-              variant.artist.trim().isEmpty,
-        ) ??
-        false;
+  /// Metadata identity only. Never rewrite stored URLs or cache keys. Preserve
+  /// the face so the two sides of a card cannot borrow each other's credit.
+  static String identity(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri?.host == 'cards.scryfall.io') {
+      final match = RegExp(
+        r'^/[^/]+/(front|back)/[0-9a-f]/[0-9a-f]/([0-9a-f-]{36})\.(jpg|png)$',
+      ).firstMatch(uri!.path);
+      if (match != null) return 'scryfall:${match[1]}:${match[2]}';
+    }
+    return url;
   }
 
-  /// Preserves saved ordering and custom variants while filling metadata from
-  /// the current bundled definitions. Newly available official variants are
-  /// appended so legacy board items receive the same complete picker as newly
-  /// created items.
+  static bool needsArtistMetadata(List<ArtworkVariant>? variants) =>
+      variants?.any(
+        (variant) =>
+            !variant.url.startsWith('file://') && variant.artist.trim().isEmpty,
+      ) ??
+      false;
+
+  /// Saved variants always win. Only a positively identified definition adds
+  /// alternate art; the broader catalog only fills credits for known images.
   static List<ArtworkVariant> merge({
     required List<ArtworkVariant> existing,
     required List<ArtworkVariant> authoritative,
+    Iterable<ArtworkVariant> catalog = const [],
+    String? selectedUrl,
+    String? selectedSet,
   }) {
-    final authoritativeByUrl = {
-      for (final variant in authoritative) variant.url: variant,
-    };
+    final sources = <String, ArtworkVariant>{};
+    for (final variant in [...authoritative, ...catalog]) {
+      for (final key in [variant.url, identity(variant.url)]) {
+        final previous = sources[key];
+        if (previous == null || previous.artist.trim().isEmpty) {
+          sources[key] = variant;
+        }
+      }
+    }
+    final saved = [...existing];
+    if (selectedUrl != null &&
+        selectedUrl.isNotEmpty &&
+        !saved.any((v) => v.url == selectedUrl)) {
+      saved.add(ArtworkVariant(set: selectedSet ?? '', url: selectedUrl));
+    }
     final merged = <ArtworkVariant>[];
-    final seenUrls = <String>{};
-
-    for (final variant in existing) {
-      final source = authoritativeByUrl[variant.url];
+    final seen = <String>{};
+    for (final variant in saved) {
+      final source = variant.url.startsWith('file://')
+          ? null
+          : sources[variant.url] ?? sources[identity(variant.url)];
       merged.add(
         ArtworkVariant(
           set: variant.set.isEmpty ? source?.set ?? '' : variant.set,
@@ -37,11 +62,10 @@ class ArtworkMetadataEnricher {
               : variant.artist,
         ),
       );
-      seenUrls.add(variant.url);
+      seen.add(identity(variant.url));
     }
-
     for (final variant in authoritative) {
-      if (seenUrls.add(variant.url)) merged.add(variant);
+      if (seen.add(identity(variant.url))) merged.add(variant);
     }
     return merged;
   }

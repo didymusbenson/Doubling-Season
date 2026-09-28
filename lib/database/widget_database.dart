@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/widget_definition.dart';
+import '../utils/artwork_metadata_enricher.dart';
 import '../models/token_definition.dart'; // For ArtworkVariant
 
 class WidgetDatabase extends ChangeNotifier {
@@ -29,6 +30,42 @@ class WidgetDatabase extends ChangeNotifier {
 
   WidgetDatabase() {
     loadWidgets();
+  }
+
+  Iterable<ArtworkVariant> get allArtwork =>
+      _widgets.expand((definition) => definition.artwork);
+
+  /// Instance widgetId is a UUID, not a definition ID. Prefer a unique action
+  /// or known image identity; editable names are only a legacy fallback.
+  List<ArtworkVariant> artworkFor({
+    required String name,
+    required List<ArtworkVariant> existing,
+    String? selectedUrl,
+    String? actionType,
+    bool isCustom = false,
+  }) {
+    if (isCustom) return const [];
+    if (actionType != null && actionType.isNotEmpty) {
+      final matches =
+          _widgets.where((d) => d.actionType == actionType).toList();
+      if (matches.length == 1) return matches.single.artwork;
+    }
+    final identities = {
+      for (final variant in existing)
+        ArtworkMetadataEnricher.identity(variant.url),
+      if (selectedUrl != null) ArtworkMetadataEnricher.identity(selectedUrl),
+    };
+    final matches = _widgets
+        .where(
+          (d) => d.artwork.any(
+            (v) => identities.contains(ArtworkMetadataEnricher.identity(v.url)),
+          ),
+        )
+        .toList();
+    if (matches.length == 1) return matches.single.artwork;
+    if (matches.length > 1) return const []; // Do not guess across definitions.
+    final named = _widgets.where((d) => d.name == name).toList();
+    return named.length == 1 ? named.single.artwork : const [];
   }
 
   /// Load predefined widget definitions

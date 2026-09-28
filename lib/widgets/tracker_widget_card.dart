@@ -658,25 +658,28 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
       capturedKey: _trackerKey,
     );
     if (tracker == null) return const <ArtworkVariant>[];
-    final existing = tracker.artworkOptions;
+    final existing = tracker.artworkOptions ?? const <ArtworkVariant>[];
     final database = WidgetDatabase();
-    final match = database.filteredWidgets.where(
-      (definition) => definition.name == tracker.name,
-    );
-    if (match.isEmpty) return const <ArtworkVariant>[];
-    final authoritative = List<ArtworkVariant>.from(match.first.artwork);
-    if (existing != null &&
-        existing.isNotEmpty &&
-        !ArtworkMetadataEnricher.needsArtistMetadata(existing)) {
-      return existing;
+    try {
+      final options = ArtworkMetadataEnricher.merge(
+        existing: existing,
+        authoritative: database.artworkFor(
+          name: tracker.name,
+          existing: existing,
+          selectedUrl: tracker.artworkUrl,
+          isCustom: tracker.isCustom,
+          actionType: tracker.actionType,
+        ),
+        catalog: database.allArtwork,
+        selectedUrl: tracker.artworkUrl,
+        selectedSet: tracker.artworkSet,
+      );
+      tracker.artworkOptions = options;
+      await trackerProvider.updateTracker(tracker);
+      return options;
+    } finally {
+      database.dispose();
     }
-    final options = ArtworkMetadataEnricher.merge(
-      existing: existing ?? const <ArtworkVariant>[],
-      authoritative: authoritative,
-    );
-    tracker.artworkOptions = options;
-    await trackerProvider.updateTracker(tracker);
-    return options;
   }
 
   Widget _buildActionButtons(BuildContext context) {

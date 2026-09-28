@@ -1021,10 +1021,12 @@ class _TokenCardState extends State<TokenCard>
       try {
         await database.loadTokens();
         database.loadCustomTokens();
-        final definition = [
-          ...database.allTokens,
-          ...database.customTokens,
-        ].firstWhereOrNull(
+        currentItem =
+            tokenProvider.resolveCurrentItem(widget.item, capturedKey: itemKey);
+        if (currentItem == null) return;
+        artwork = currentItem.artworkOptions ?? const <ArtworkVariant>[];
+        final definition =
+            [...database.allTokens, ...database.customTokens].firstWhereOrNull(
           (token) =>
               token.name == currentItem!.name &&
               token.pt == currentItem.pt &&
@@ -1036,18 +1038,24 @@ class _TokenCardState extends State<TokenCard>
         artwork = ArtworkMetadataEnricher.merge(
           existing: artwork.toList(),
           authoritative: authoritative,
+          catalog: database.allTokens.expand((token) => token.artwork),
+          selectedUrl: currentItem.artworkUrl,
+          selectedSet: currentItem.artworkSet,
         );
-        if (authoritative.isNotEmpty) {
+        if (artwork.isNotEmpty) {
           currentItem = tokenProvider.resolveCurrentItem(
             widget.item,
             capturedKey: itemKey,
           );
           if (currentItem == null) return;
-          currentItem.updateArtwork(
-            url: currentItem.artworkUrl,
-            set: currentItem.artworkSet,
-            options: artwork.toList(),
-          );
+          final previousOptions = currentItem.artworkOptions;
+          try {
+            currentItem.artworkOptions = artwork.toList();
+            await currentItem.save();
+          } catch (_) {
+            currentItem.artworkOptions = previousOptions;
+            rethrow;
+          }
         }
       } catch (_) {
         databaseLoadError = true;
