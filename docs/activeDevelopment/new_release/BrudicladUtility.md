@@ -110,8 +110,9 @@ final results = rulesProvider.evaluateRules(
   list. Ordinarily this is only the Myr; replacement or companion rules may
   produce other creature results. Step 2 never fires ETB (see Step 2).
 - Summoning sickness may be assigned normally during creation, then is cleared
-  from every creature-token stack after successful trigger resolution because
-  pressing **Resolve Trigger** affirmatively represents Brudiclad being present.
+  from every token stack after successful trigger resolution. Creature tokens
+  have haste because pressing **Resolve Trigger** affirmatively represents
+  Brudiclad being present, while sickness is inapplicable to noncreature tokens.
   See [Haste Integration](#haste-integration).
 - Quantity capped by the engine at `GameConstants.maxTokenQuantity`.
 
@@ -295,9 +296,9 @@ matching Soldier stacks end as one stack of 9. A characteristic match with
 different artwork is not a no-op and must receive the chosen artwork.
 
 **On merge:** `amount`, `tapped`, and `summoningSick` all **sum**. After the full
-trigger resolves, clear `summoningSick` on every stack whose resulting identity
-has P/T; Brudiclad is necessarily present when the user invokes the ability and
-therefore grants those creature tokens haste.
+trigger resolves, clear `summoningSick` on every token stack. Brudiclad is
+necessarily present when the user invokes the ability and therefore grants
+creature tokens haste; sickness is not applicable to noncreature results.
 
 Summing before the final clear preserves a coherent intermediate state and lets
 Undo restore the exact pre-trigger counts. Rhys merges a batch of brand-new untapped tokens
@@ -354,7 +355,7 @@ them. They differ in mechanics:
 | Cathar's Crusade | ticks per created token | ticks for the Myr only |
 | Counters | not copied; copies are clean | preserved in place on each stack |
 | Tapped | copies enter untapped | preserved |
-| Summoning sickness | new copies are sick | preserved through copying/merge, then cleared from creatures by Brudiclad's haste |
+| Summoning sickness | new copies are sick | preserved through copying/merge, then cleared from every token stack after resolution |
 | Board total | grows | unchanged (+ the Myr) |
 | Stack ordering | new stacks placed adjacent to source | unchanged; stacks stay put |
 | Reversibility | additive | destructive — prior identities are gone |
@@ -697,7 +698,7 @@ Brudiclad-specific logic so board wipe and other destructive actions can adopt
 it later.
 
 **Skip** commits only the evaluated Step 1 creation results, clears sickness
-from all creature-token stacks, and does not show the Tokens Modified modal.
+from all token stacks, and does not show the Tokens Modified modal.
 **Cancel** before commit changes nothing.
 
 ### 6. Provider Method (`lib/providers/token_provider.dart`)
@@ -730,7 +731,7 @@ exactly once — mirroring the `updateArtwork()` batching convention in CLAUDE.m
 2. Fold clean stacks into the anchor, summing `amount` / `tapped` /
    `summoningSick` (set `amount` first so the setter's clamps behave).
 3. Delete the emptied stacks through a silent/batched provider path.
-4. Clear `summoningSick` on every resulting creature-token stack.
+4. Clear `summoningSick` on every resulting token stack.
 5. `notifyListeners()` once.
 
 Do not call the existing public `deleteItem()` inside the loop: it notifies for
@@ -773,24 +774,21 @@ present for that resolution. MVP can therefore model the relevant gameplay
 state without a separate toggle.
 
 After Step 1 creation and any Step 2 transformation/merging complete, clear the
-`summoningSick` count on every `Item` whose resulting identity has P/T. This
-includes existing creature tokens, newly created creature results, the chosen
-creature definition, transformed noncreatures that became creatures, and merged
-creature stacks. If the chosen definition is noncreature, its resulting stacks
-retain their sickness counts because the haste static applies only to creature
-tokens; those counts may matter if the token becomes a creature again later.
+`summoningSick` count on every `Item`. This gives all creature tokens the
+effective haste established by Brudiclad's presence and removes stale state
+from noncreature results, where summoning sickness is not applicable.
 
 Skip still represents a successful trigger resolution with Brudiclad present:
-commit Step 1 and clear sickness from all creature-token stacks even though no
-copy transformation occurs. Cancel represents no resolution and changes
+commit Step 1 and clear sickness from all token stacks even though no copy
+transformation occurs. Cancel represents no resolution and changes
 nothing.
 
 Ruling 6 (a token that already attacked keeps attacking if Brudiclad leaves) is
 below the app's resolution — it does not model attacking — and needs no handling.
 
 **MVP scope:** no haste toggle and no global creation-path integration. Preserve
-and sum sickness counts during transformation/merge, then clear them from the
-resulting creature-token stacks at the end of successful resolution. The undo
+and sum sickness counts during transformation/merge, then clear them from every
+token stack at the end of successful resolution. The undo
 snapshot retains the original counts and restores them if the user chooses Undo.
 
 ## Clarifying Questions
@@ -827,8 +825,8 @@ snapshot retains the original counts and restores them if the user chooses Undo.
 
 8. ~~**Is the haste toggle in scope for the first release?**~~ **RESOLVED:** no.
    Utility presence proves nothing, but invoking Resolve Trigger proves
-   Brudiclad is present. MVP clears sickness from all resulting creature-token
-   stacks after successful resolution.
+   Brudiclad is present. MVP clears sickness from all token stacks after
+   successful resolution.
 10. ~~**The `TokenCreationService` ETB gap.**~~ **RESOLVED:** fix first in a
     focused prerequisite commit, including full counter/artwork merge
     compatibility and companion-token regression coverage.
@@ -853,7 +851,7 @@ Implemented 2026-08-27 with no Hive schema change.
 - Extracted deckbuilding's artwork-backed row into `DefinitionPreviewCard` and
   reused it in the select-then-Resolve bottom sheet.
 - Implemented creation preview, virtual post-creation definitions, Skip,
-  compact impact summary, commit/rollback, global creature-token sickness clear,
+  compact impact summary, commit/rollback, global token sickness clear,
   and the exact `Tokens Modified` Undo/Accept completion modal.
 
 Atomicity means no mutation before commit and complete snapshot rollback on
@@ -941,8 +939,8 @@ has explicitly covered the behavior.
 - [ ] Animated Clue and a plain Clue both on board → collapse to one picker row
 - [ ] Choosing a definition that already matches some stacks → those stacks are
       no-ops and are not double-counted in the compact impact total
-- [ ] Skip → Step 1 results are created and all creature-token stacks have
-      sickness cleared, but no copy transformation occurs
+- [ ] Skip → Step 1 results are created and all token stacks have sickness
+      cleared, but no copy transformation occurs
 - [ ] Cancel at either stage → nothing changes at all, including no Myr
 - [ ] Emblem on the board → never listed in the picker, never transformed
 - [ ] Zero-amount stack → never listed, never transformed
@@ -956,9 +954,9 @@ has explicitly covered the behavior.
 - [ ] Transformed stack has a custom counter → preserved
 - [ ] Transformed stack was tapped → stays tapped, same tapped count
 - [ ] Sickness counts are preserved and summed during merging, then every
-      resulting creature-token stack is cleared to zero after resolution
-- [ ] Choosing a noncreature definition → resulting noncreature stacks retain
-      their sickness counts
+      resulting token stack is cleared to zero after resolution
+- [ ] Choosing a noncreature definition → resulting noncreature stacks have
+      their stale sickness counts cleared to zero
 - [x] Chosen stack is an animated Clue (`Artifact — Clue` with P/T) → others
       become plain Clues with no P/T
 - [ ] Chosen stack has custom artwork → every copy takes that exact artwork
@@ -972,7 +970,7 @@ has explicitly covered the behavior.
       lowest-order clean stack's board position
 - [ ] Partially tapped stacks merge → tapped counts sum and never exceed `amount`
 - [ ] Summoning-sick counts sum and never exceed `amount` before the final
-      creature-token haste clear
+      all-token clear
 - [x] Countered stacks never merge into the clean stack, nor into each other
 - [ ] Merged stack lands at the lowest `order` that held a clean stack
 - [ ] Every stack on the board carries counters → nothing merges, stack count

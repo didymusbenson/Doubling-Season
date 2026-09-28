@@ -1186,7 +1186,7 @@ class _TrackerWidgetCardState extends State<TrackerWidgetCard>
       );
 
       if (selection.skipped) {
-        await tokenProvider.clearCreatureTokenSickness();
+        await tokenProvider.clearSummoningSickness();
       } else {
         final plan = BrudicladTransformPlanner.build(
           items: tokenProvider.items,

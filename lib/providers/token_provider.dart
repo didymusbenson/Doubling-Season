@@ -420,8 +420,7 @@ class TokenProvider extends ChangeNotifier {
     try {
       final itemList = items;
       for (final item in itemList) {
-        item.summoningSick = 0;
-        await item.save(); // Explicitly await save for bulk operations
+        await item.clearSummoningSicknessBatched();
       }
       _errorMessage = null;
       notifyListeners();
@@ -1004,10 +1003,10 @@ class TokenProvider extends ChangeNotifier {
         }
       }
 
+      // Resolving Brudiclad proves its haste effect is active for creatures;
+      // noncreature results must not retain an inapplicable sickness count.
       for (final item in items) {
-        if (item.hasPowerToughness) {
-          await item.clearSummoningSicknessBatched();
-        }
+        await item.clearSummoningSicknessBatched();
       }
 
       _errorMessage = null;
@@ -1026,15 +1025,6 @@ class TokenProvider extends ChangeNotifier {
       notifyListeners();
       rethrow;
     }
-  }
-
-  Future<void> clearCreatureTokenSickness() async {
-    for (final item in items) {
-      if (item.hasPowerToughness) {
-        await item.clearSummoningSicknessBatched();
-      }
-    }
-    notifyListeners();
   }
 
   /// Places each result between its source and the next item on the unified
