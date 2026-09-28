@@ -219,6 +219,118 @@ in this validation pass. Existing broader checklists below remain applicable.
 
 ## Acceptance Testing Required
 
+### Physical-device release checklist — 1.11
+
+Run this against the actual release candidate through TestFlight on iPhone and
+Google Play's internal/closed testing track on Android. Record the installed
+version/build; repeat affected checks if the candidate changes. Simulator
+results above do not check these boxes. Complete each applicable check on both
+platforms, recording platform-specific failures in the table below.
+
+| Device / OS | Version / build | Install path / previous version | Tester / date | Result / issue links |
+|---|---|---|---|---|
+| Physical iPhone | | TestFlight upgrade | | |
+| Physical Android | | Play testing-track upgrade | | |
+| Additional older/smaller or lower-memory device, if available | | | | |
+
+#### Installation, upgrades, and saved data
+
+- [ ] Upgrade an existing production install **without uninstalling first**.
+      Confirm the store offers and installs the candidate, particularly on the
+      Android device previously stuck on 1.8. Record the starting version.
+- [ ] Before/after comparison preserves saved decks, mixed token/utility board,
+      quantities, counters, tapped/sick states, chosen artwork, ordering,
+      favorites, settings, and previously purchased supporter tier.
+- [ ] On a separate clean install, launch successfully, dismiss onboarding or
+      What's New, create a board, and close/reopen without errors or data loss.
+- [ ] Background, lock/unlock, force-close, and relaunch during normal play;
+      repeat after a device reboot. The last completed edits remain saved.
+
+#### Pricing and purchases
+
+Use store sandbox/license-test accounts and test purchases.
+
+- [ ] All three supporter tiers load with the correct localized store price
+      and currency; the store purchase sheet agrees with the displayed price.
+- [ ] Complete test purchases for each tier across suitable test accounts.
+      The correct highest-owned tier/badge appears and survives relaunch.
+- [ ] Cancel a purchase and exercise pending/failed purchase states where the
+      store supports them. No false success, wrong tier, or stuck loading state;
+      a later retry works.
+- [ ] Restore previously owned non-consumable tiers on a fresh test install;
+      no repurchase is needed. Existing ownership survives the 1.11 upgrade.
+- [ ] With the store/network unavailable, gameplay remains usable, cached
+      ownership remains visible, and reconnecting restores product loading.
+
+#### Normal gameplay and utilities
+
+- [ ] Play a representative game: search/add database and custom tokens, change
+      quantities, tap/untap, clear sickness, and edit built-in/custom counters.
+      Check displayed totals and persistence after relaunch.
+- [ ] Copy and split stacks with counters, artwork, and tapped/sick quantities;
+      verify the intended copied/reset fields, totals, and source-adjacent order.
+- [ ] Exercise Rhys and Brudiclad with creature/noncreature stacks and active
+      doubling/replacement/companion rules. Preview and result agree; Brudiclad
+      Resolve/Skip/Undo handle sickness, counters, and tapped counts correctly.
+- [ ] Smoke-test existing Krenko, Scute Swarm, Academy Manufactor, Cathars'
+      Crusade, and ordinary tracker/toggle utilities alongside the new features.
+
+#### Editing, ordering, and Undo
+
+- [ ] Expand/collapse tokens and both utility types, switch between cards, edit
+      inline, and dismiss the keyboard. Android Back and iOS navigation behave
+      predictably; edits save and failed/canceled actions do not lose data.
+- [ ] Drag each board type to the top, middle, and bottom of a mixed board;
+      force-close/relaunch twice and confirm the exact sequence persists.
+- [ ] Swipe away compact and expanded tokens; expanded tokens remain protected
+      while editing. Expanded utilities remain protected. The next card opens
+      on its first tap after deletion.
+- [ ] Exercise all three board-wipe choices with tokens, utilities, counters,
+      and rules. Undo restores the exact board/rules; Accept persists the result.
+      Back/outside taps do not dismiss the completion dialog.
+- [ ] After Brudiclad Undo and board-wipe Undo, edit a restored token, tracker,
+      and toggle, then change artwork. No detached-object errors or lost edits.
+
+#### Artwork, database updates, and decks
+
+- [ ] Check token search, Recent/Favorites, and database update status; where an
+      older database is available, download v9 or later and verify new tokens
+      and artist credits. Cancel/retry a download without losing usable data.
+- [ ] Rename/customize a token, Brudiclad, and Monarch. Their saved artwork
+      choices and credits remain available; a new selection survives relaunch.
+- [ ] Add, replace, and remove uploaded artwork through the device photo/file
+      picker. Cancel or deny access gracefully; uploads show `user uploaded`.
+      Previously cached artwork works offline in Full View and Fadeout modes.
+- [ ] Save a mixed board as a deck; clear/load, add to board, duplicate, and
+      export/import it. Preserve intended order, identity, artwork/credits, and
+      action-only utilities. Loaded token quantities start at zero by design.
+
+#### Performance, readability, and accessibility
+
+- [ ] Use a board of 30–40 custom-art tokens, including repeated images and
+      different large/legacy images. Scroll, reorder, expand/collapse, and
+      background/reopen repeatedly without crashes, blank art, severe slowdown,
+      excessive heat, or OS termination. Record device and session duration.
+- [ ] Check light/dark themes, both artwork styles, larger system text, a small
+      screen, keyboard visibility, safe areas, and long names/artist credits.
+      Controls, mana symbols, counters, and text remain readable and reachable.
+- [ ] Listen with VoiceOver/TalkBack: board status, mana symbols, editing,
+      artwork, purchases, and Undo/Accept are labeled and navigable; focus stays
+      usable as cards expand, dialogs close, and items are removed.
+- [ ] Complete a normal-length gameplay session with interruptions and screen
+      locking. Judge touch targets, animations, accidental gestures, battery/heat,
+      and whether the keep-awake behavior matches expectations.
+
+#### Release sign-off
+
+- [ ] Every check has a recorded iOS/Android result or an explicit, explained
+      exception. Link reproduced failures to bug records and retest fixes on
+      the final candidate; do not silently count unavailable coverage as passed.
+- [ ] Confirm no unresolved release-blocking data-loss, crash, upgrade, purchase,
+      or core-gameplay defects. Record any accepted remaining limitations.
+- [ ] Record final device approval and the exact candidate build approved for
+      submission. This checklist supplements the detailed feature checks below.
+
 ### Validation ownership
 
 The objective acceptance backlog is Codex-owned unless a checklist item is
