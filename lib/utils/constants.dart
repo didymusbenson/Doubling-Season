@@ -132,6 +132,8 @@ class UIConstants {
 /// Database box names
 class DatabaseConstants {
   static const String itemsBox = 'items';
+  // Primitive-string recovery journal; no model adapter or type ID.
+  static const String boardOrderOperationsBox = 'boardOrderOperations';
   static const String countersBox = 'counters';
   static const String decksBox = 'decks';
   static const String templatesBox = 'templates';

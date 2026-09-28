@@ -274,7 +274,7 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
         final newItem = widget.item.createDuplicate();
 
         // Add to box FIRST
-        await tokenProvider.insertItem(newItem);
+        await tokenProvider.insertItem(newItem, appendToBoard: true);
 
         // Apply counters and set properties
         newItem.applyDuplicateCounters(widget.item);
@@ -305,7 +305,7 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
         }
 
         final newItem = widget.item.createDuplicate();
-        await tokenProvider.insertItem(newItem);
+        await tokenProvider.insertItem(newItem, appendToBoard: true);
 
         newItem.applyDuplicateCounters(widget.item);
         newItem.amount = 1;
@@ -338,7 +338,7 @@ class _CounterSearchScreenState extends State<CounterSearchScreen> {
       final newItem = widget.item.createDuplicate();
 
       // Add to box FIRST
-      await tokenProvider.insertItem(newItem);
+      await tokenProvider.insertItem(newItem, appendToBoard: true);
 
       // Now apply counters from original
       newItem.applyDuplicateCounters(widget.item);

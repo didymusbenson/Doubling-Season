@@ -17,6 +17,7 @@ import 'screens/content_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/error_screen.dart';
 import 'services/iap_service.dart';
+import 'services/board_order_persistence.dart';
 import 'services/token_update_service.dart';
 import 'utils/token_update_prompt.dart';
 import 'utils/whats_new_content.dart';
@@ -112,9 +113,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           results[4] as ToggleProvider; // NEW - Widget Cards Feature
       rulesProvider = results[5] as RulesProvider;
 
+      await BoardOrderPersistence.initialize();
+
       stopwatch.stop();
       debugPrint(
-          '═══ App Initialization Complete: ${stopwatch.elapsedMilliseconds}ms ═══');
+        '═══ App Initialization Complete: ${stopwatch.elapsedMilliseconds}ms ═══',
+      );
 
       _providersReady = true;
       _checkReadyToTransition();

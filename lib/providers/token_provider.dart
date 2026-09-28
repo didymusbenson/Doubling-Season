@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -8,6 +7,7 @@ import '../models/token_definition.dart';
 import '../utils/artwork_manager.dart';
 import '../utils/artwork_preference_manager.dart';
 import '../utils/constants.dart';
+import '../services/board_order_persistence.dart';
 import '../utils/game_events.dart';
 import '../services/rhys_copy_planner.dart';
 import '../services/brudiclad_transform_planner.dart';
@@ -47,11 +47,8 @@ class TokenProvider extends ChangeNotifier {
       debugPrint('TokenProvider.init: Opening items box...');
       _itemsBox = await Hive.openBox<Item>(DatabaseConstants.itemsBox);
       debugPrint(
-          'TokenProvider.init: Box opened, has ${_itemsBox.length} items');
-
-      debugPrint('TokenProvider.init: Running migration...');
-      _ensureOrdersAssigned(); // Silent migration for order field
-      debugPrint('TokenProvider.init: Migration complete');
+        'TokenProvider.init: Box opened, has ${_itemsBox.length} items',
+      );
 
       _initialized = true;
       notifyListeners();
@@ -64,58 +61,20 @@ class TokenProvider extends ChangeNotifier {
     }
   }
 
-  void _ensureOrdersAssigned() {
-    try {
-      debugPrint('TokenProvider._ensureOrdersAssigned: Reading items...');
-      final items = _itemsBox.values.toList();
-      debugPrint(
-          'TokenProvider._ensureOrdersAssigned: Got ${items.length} items');
-
-      bool needsReorder = items.any((item) => item.order == 0);
-
-      if (needsReorder) {
-        debugPrint(
-            'TokenProvider._ensureOrdersAssigned: Migrating ${items.length} items with missing order');
-        // Assign sequential orders based on current position
-        for (int i = 0; i < items.length; i++) {
-          items[i].order = i.toDouble();
-          items[i].save();
-        }
-        debugPrint(
-            'TokenProvider: Migrated ${items.length} tokens to use order field');
-      } else {
-        debugPrint(
-            'TokenProvider._ensureOrdersAssigned: All items already have order assigned');
-      }
-    } catch (e, stackTrace) {
-      debugPrint('TokenProvider._ensureOrdersAssigned: ERROR during migration');
-      debugPrint('Error: $e');
-      debugPrint('Stack trace: $stackTrace');
-      rethrow;
-    }
-  }
-
   List<Item> get items {
     final allItems = _itemsBox.values.toList();
-    allItems.sort((a, b) => a.order.compareTo(b.order));
+    allItems.sort(BoardOrderPersistence.compareModels);
     return allItems;
   }
 
   Future<void> insertItem(
     Item item, {
     bool notifyCreatureEntered = true,
+    bool appendToBoard = false,
   }) async {
     try {
-      // Assign order to new token if not already set
-      if (item.order == 0.0) {
-        final items = _itemsBox.values.toList();
-        if (items.isEmpty) {
-          item.order = 0.0;
-        } else {
-          // Find max order and add 1.0 (whole number for new items)
-          final maxOrder = items.map((i) => i.order).reduce(max);
-          item.order = maxOrder.floor() + 1.0;
-        }
+      if (appendToBoard) {
+        item.order = BoardOrderPersistence.appendOrder();
       }
 
       await _itemsBox.add(item);

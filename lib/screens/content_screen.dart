@@ -18,6 +18,7 @@ import '../widgets/floating_action_menu.dart';
 import '../widgets/status_sheet.dart';
 import '../controllers/expandable_card_controller.dart';
 import '../services/board_undo_snapshot.dart';
+import '../services/board_order_persistence.dart';
 import 'token_search_screen.dart';
 import 'widget_selection_screen.dart'; // NEW - Widget Cards Feature
 import 'decks_list_screen.dart';
@@ -52,6 +53,7 @@ class _ContentScreenState extends State<ContentScreen> {
   bool _expandedBoardItemIsEditing = false;
   ExpandableCardController? _expandedBoardItemController;
   bool _collapseInProgress = false;
+  bool _orderWriteInProgress = false;
 
   bool _isExpandedBoardItem(_BoardItem item) =>
       _expandedBoardItemKey == item.key;
@@ -129,9 +131,9 @@ class _ContentScreenState extends State<ContentScreen> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: _expandedBoardItemKey == null,
+      canPop: !_orderWriteInProgress && _expandedBoardItemKey == null,
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
+        if (didPop || _orderWriteInProgress) return;
         final activeFocus = FocusManager.instance.primaryFocus;
         if (activeFocus?.hasFocus ?? false) {
           activeFocus?.unfocus();
@@ -139,57 +141,60 @@ class _ContentScreenState extends State<ContentScreen> {
           _collapseExpandedBoardItem();
         }
       },
-      child: Scaffold(
-        appBar: _buildAppBar(),
-        body: Stack(
-          children: [
-            // Token list
-            _buildTokenList(),
+      child: AbsorbPointer(
+        absorbing: _orderWriteInProgress,
+        child: Scaffold(
+          appBar: _buildAppBar(),
+          body: Stack(
+            children: [
+              // Token list
+              _buildTokenList(),
 
-            // Multiplier view overlay (bottom left)
-            const Positioned(
-              bottom: UIConstants.standardPadding,
-              left: UIConstants.standardPadding,
-              child: MultiplierView(),
-            ),
-
-            // FAB row (bottom right) - + button and menu
-            Positioned(
-              bottom: UIConstants.standardPadding,
-              right: UIConstants.standardPadding,
-              child: Consumer<SettingsProvider>(
-                builder: (context, settings, child) {
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      FloatingActionButton(
-                        heroTag: 'new_token_fab',
-                        onPressed: () => _runAfterCollapse(_showTokenSearch),
-                        child: const Icon(Icons.add, size: 28),
-                      ),
-                      const SizedBox(width: UIConstants.smallPadding),
-                      FloatingActionMenu(
-                        onNewToken: () => _runAfterCollapse(_showTokenSearch),
-                        onWidgets: () =>
-                            _runAfterCollapse(_showWidgetSelection),
-                        onAddCountersToAll: () =>
-                            _runAfterCollapse(_handleAddCountersToAll),
-                        onMinusOneToAll: () =>
-                            _runAfterCollapse(_handleMinusOneToAll),
-                        onUntapAll: () =>
-                            _runAfterCollapse(_showUntapAllDialog),
-                        onClearSickness: () =>
-                            _runAfterCollapse(_handleClearSickness),
-                        onDecks: () => _runAfterCollapse(_showDecksScreen),
-                        onBoardWipe: () =>
-                            _runAfterCollapse(_showBoardWipeDialog),
-                      ),
-                    ],
-                  );
-                },
+              // Multiplier view overlay (bottom left)
+              const Positioned(
+                bottom: UIConstants.standardPadding,
+                left: UIConstants.standardPadding,
+                child: MultiplierView(),
               ),
-            ),
-          ],
+
+              // FAB row (bottom right) - + button and menu
+              Positioned(
+                bottom: UIConstants.standardPadding,
+                right: UIConstants.standardPadding,
+                child: Consumer<SettingsProvider>(
+                  builder: (context, settings, child) {
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FloatingActionButton(
+                          heroTag: 'new_token_fab',
+                          onPressed: () => _runAfterCollapse(_showTokenSearch),
+                          child: const Icon(Icons.add, size: 28),
+                        ),
+                        const SizedBox(width: UIConstants.smallPadding),
+                        FloatingActionMenu(
+                          onNewToken: () => _runAfterCollapse(_showTokenSearch),
+                          onWidgets: () =>
+                              _runAfterCollapse(_showWidgetSelection),
+                          onAddCountersToAll: () =>
+                              _runAfterCollapse(_handleAddCountersToAll),
+                          onMinusOneToAll: () =>
+                              _runAfterCollapse(_handleMinusOneToAll),
+                          onUntapAll: () =>
+                              _runAfterCollapse(_showUntapAllDialog),
+                          onClearSickness: () =>
+                              _runAfterCollapse(_handleClearSickness),
+                          onDecks: () => _runAfterCollapse(_showDecksScreen),
+                          onBoardWipe: () =>
+                              _runAfterCollapse(_showBoardWipeDialog),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -270,18 +275,22 @@ class _ContentScreenState extends State<ContentScreen> {
 
         // Add trackers
         for (final tracker in trackerProvider.trackers) {
-          boardItems.add(_BoardItem(
-              tracker, tracker.order, 'tracker_${tracker.widgetId}'));
+          boardItems.add(
+            _BoardItem(tracker, tracker.order, 'tracker_${tracker.widgetId}'),
+          );
         }
 
         // Add toggles
         for (final toggle in toggleProvider.toggles) {
           boardItems.add(
-              _BoardItem(toggle, toggle.order, 'toggle_${toggle.widgetId}'));
+            _BoardItem(toggle, toggle.order, 'toggle_${toggle.widgetId}'),
+          );
         }
 
         // Sort by order
-        boardItems.sort((a, b) => a.order.compareTo(b.order));
+        boardItems.sort(
+          (a, b) => BoardOrderPersistence.compareModels(a.item, b.item),
+        );
 
         // Prune stale dismiss state notifiers for items no longer on the board
         final activeKeys = boardItems.map((b) => b.key).toSet();
@@ -722,86 +731,35 @@ class _ContentScreenState extends State<ContentScreen> {
     );
   }
 
-  void _handleReorder(List<_BoardItem> boardItems, int oldIndex, int newIndex) {
-    // Track if moving down before adjustment
-    final movingDown = newIndex > oldIndex;
-
-    if (newIndex > oldIndex) {
-      newIndex -= 1;
-    }
-
-    final boardItem = boardItems[oldIndex];
-
-    // Calculate new fractional order
-    double newOrder;
-    if (newIndex == 0) {
-      // Moving to top
-      newOrder = boardItems.first.order - 1.0;
-    } else if (newIndex == boardItems.length - 1) {
-      // Moving to bottom
-      newOrder = boardItems.last.order + 1.0;
-    } else {
-      // Moving between two items
-      if (movingDown) {
-        // Item moves after boardItems[newIndex]
-        final prevOrder = boardItems[newIndex].order;
-        final nextOrder = boardItems[newIndex + 1].order;
-        newOrder = (prevOrder + nextOrder) / 2.0;
-      } else {
-        // Item moves before boardItems[newIndex]
-        final prevOrder = boardItems[newIndex - 1].order;
-        final nextOrder = boardItems[newIndex].order;
-        newOrder = (prevOrder + nextOrder) / 2.0;
-      }
-    }
-
-    // Update order based on item type
-    if (boardItem.isToken) {
-      final item = boardItem.item as Item;
-      item.order = newOrder;
-      item.save();
-    } else if (boardItem.isTracker) {
-      final tracker = boardItem.item as TrackerWidget;
-      tracker.order = newOrder;
-      tracker.save();
-    } else if (boardItem.isToggle) {
-      final toggle = boardItem.item as ToggleWidget;
-      toggle.order = newOrder;
-      toggle.save();
-    }
-
-    // Check if we need compacting (when gap becomes too small)
-    _checkAndCompactOrders(boardItems);
-  }
-
-  void _checkAndCompactOrders(List<_BoardItem> boardItems) {
-    // If any two adjacent items have order difference < 0.001, compact all orders
-    boardItems.sort((a, b) => a.order.compareTo(b.order));
-
-    for (int i = 0; i < boardItems.length - 1; i++) {
-      if ((boardItems[i + 1].order - boardItems[i].order) < 0.001) {
-        _compactOrders(boardItems);
-        return;
-      }
-    }
-  }
-
-  void _compactOrders(List<_BoardItem> boardItems) {
-    boardItems.sort((a, b) => a.order.compareTo(b.order));
-    for (int i = 0; i < boardItems.length; i++) {
-      if (boardItems[i].isToken) {
-        final item = boardItems[i].item as Item;
-        item.order = i.toDouble();
-        item.save();
-      } else if (boardItems[i].isTracker) {
-        final tracker = boardItems[i].item as TrackerWidget;
-        tracker.order = i.toDouble();
-        tracker.save();
-      } else if (boardItems[i].isToggle) {
-        final toggle = boardItems[i].item as ToggleWidget;
-        toggle.order = i.toDouble();
-        toggle.save();
-      }
+  Future<void> _handleReorder(
+    List<_BoardItem> boardItems,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    if (_orderWriteInProgress) return;
+    setState(() => _orderWriteInProgress = true);
+    if (newIndex > oldIndex) newIndex--;
+    try {
+      await BoardOrderPersistence.move(boardItems[oldIndex].item, newIndex);
+    } catch (_) {
+      if (!mounted) return;
+      // Keep a failed retained plan away from later mutations until recovery.
+      // Restart completes that plan before the board is made available.
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const PopScope(
+          canPop: false,
+          child: AlertDialog(
+            title: Text('Board order could not be saved'),
+            content: Text(
+              'Close and reopen the app to recover the saved order before continuing.',
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _orderWriteInProgress = false);
     }
   }
 

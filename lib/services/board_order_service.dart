@@ -6,6 +6,32 @@
 class BoardOrderService {
   BoardOrderService._();
 
+  static bool needsNormalization(Iterable<double> orders) {
+    double? previous;
+    for (final order in orders) {
+      if (!order.isFinite || (previous != null && order - previous < 0.001)) {
+        return true;
+      }
+      previous = order;
+    }
+    return false;
+  }
+
+  /// Input is already in the intended post-move sequence.
+  static List<double> afterMove(List<double> orders, int movedIndex) {
+    final result = List<double>.from(orders);
+    if (result.length < 2) return result;
+    result[movedIndex] = movedIndex == 0
+        ? result[1] - 1.0
+        : movedIndex == result.length - 1
+            ? result[movedIndex - 1] + 1.0
+            : (result[movedIndex - 1] + result[movedIndex + 1]) / 2;
+    if (needsNormalization(result)) {
+      return List.generate(result.length, (i) => i + 1.0);
+    }
+    return result;
+  }
+
   /// Places a new item or contiguous block at the absolute board bottom.
   ///
   /// Empty boards begin at 1.0 so 0.0 is not reused as an insertion sentinel.
