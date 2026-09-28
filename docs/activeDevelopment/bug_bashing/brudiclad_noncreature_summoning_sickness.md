@@ -1,6 +1,6 @@
 # Brudiclad Leaves Summoning Sickness on Noncreature Results
 
-**Reported:** 2026-09-05  
+**Reported:** 2026-09-05
 **Status:** Fix implemented; static analysis and targeted iOS simulator validation passed
 
 ## Symptom

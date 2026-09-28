@@ -40,3 +40,13 @@ the user intentionally deleted.
   destructive board action.
 - Start an artwork download, restore the board before it completes, and confirm
   completion updates the restored model or cancels if that model was deleted.
+
+## Targeted simulator verification — 2026-09-25
+
+On iPhone 17 Pro Max / iOS 26.2, 1.11.0+19:
+- Token name edit after Brudiclad Undo persisted successfully.
+- Tracker and toggle name edits after Delete All → Undo persisted successfully.
+- All three edited names survived app termination/relaunch.
+
+Normal transform-survivor editing and pending artwork download across a restore
+were not exercised in this pass.

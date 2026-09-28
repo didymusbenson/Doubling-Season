@@ -9,7 +9,7 @@ ships.
 
 ### Release Smoothing: Expanded Token Removal
 
-**Status:** Implemented for 1.11; pending physical-device acceptance
+**Status:** Implemented for 1.11; iOS/Android simulator swipe checks pass; pending physical-device acceptance
 
 Expanded token cards now retain the board's swipe-to-remove gesture whenever no
 inline text field is active. Active editing still disables dismissal to protect
@@ -52,8 +52,9 @@ Implemented an action-only Brudiclad utility whose **Resolve Trigger** action:
 - transforms every positive non-emblem token stack using copiable base values;
 - preserves counters, tapped counts, quantities, and board position;
 - merges compatible clean stacks at the lowest existing clean-stack order;
-- clears summoning sickness from resulting creature tokens because resolving
-  the ability establishes that Brudiclad is present;
+- clears summoning sickness from every token stack because resolving the ability
+  establishes that Brudiclad is present and sickness is inapplicable to
+  noncreature results;
 - fires ETB events for Step 1 creations only, never for transformed tokens; and
 - offers an exact **Tokens Modified** completion dialog with **Undo / Accept**.
 
@@ -109,6 +110,102 @@ non-dismissible **Board Wiped** completion dialog with **Undo / Accept**.
 Delete/reset additionally restores every preset count and custom-rule enabled
 state. Failed operations automatically attempt rollback, and restoration emits
 no game events.
+
+## 1.11 recovery and validation follow-up — 2026-09-27
+
+The interrupted September 26 task implemented the three approved fixes. Its
+individual bug records contain the completed checks; the September 25 findings
+below are historical and do not describe the current code/database.
+
+Implemented and verified:
+
+- Published database v9 in main commit `e4867f4` restores artist metadata.
+  The release bundle matches that payload byte-for-byte: 962 definitions,
+  3,079 artwork entries, no empty artist fields, 889,530 bytes, and SHA-256
+  `202cb0492099790a8c7b7181b2ce576e4ba408c4df3075d8a947029896286db8`.
+- Removed per-type startup ordering rewrites. September 26 iOS fixtures verified
+  valid negative/zero/fractional positions, deterministic legacy ties, dense-gap
+  normalization, and partially applied journal recovery across two restarts,
+  with all non-order fields unchanged.
+- Renamed Brudiclad retains 2XM/C18 with Daarken; C18 survives restart. Renamed
+  Monarch retains all four choices. Renamed Zombie recovers Carl Critchlow's
+  10E credit without changing artwork-cache files (September 26 iOS checks).
+- September 27: current source passed `flutter analyze`, iOS Simulator debug
+  build, and Android debug APK build. Both builds installed and launched over
+  existing simulator/emulator data.
+- Android direct-input dragging moved Brudiclad from below Rhys to between the
+  Myr and Rhys; persisted position changed from 4 to 2 and survived restart.
+- Android manual fault injection threw after the first board-row save while
+  moving Rhys. The non-dismissible recovery dialog blocked system Back and
+  background taps; `pendingV1` retained the intended complete move. Reinstalling
+  the normal build recovered Rhys to 1.5, cleared the journal, and preserved
+  every non-order field. A second restart produced identical saved board data.
+  This exercises an interrupted write sequence, not a real disk-full condition.
+  The temporary injection was removed from source and the normal APK restored.
+- iOS Save Board → Clear board and load preserved the interleaved sequence
+  Monarch, Myr, Brudiclad, Zombie, Treasure at positions 0–4, and all artwork
+  URLs/sets/variants/credits. The whole loaded board survived restart unchanged.
+  Add to current board appended the same sequence at positions 5–9; another
+  restart preserved all ten records unchanged. Token amounts reset to zero on
+  deck load as designed; this is not an exact game-state restore.
+
+- September 27: swiping an expanded token with no active editor removed it on
+  both iOS and Android. The next tap immediately
+  expanded Myr on iOS and Rhys on Android, confirming stale expansion state
+  did not consume either interaction.
+
+Remaining acceptance is explicit: the complete top/middle/bottom gesture matrix
+for every board type, custom-upload/offline/unmatched-artwork cases, every
+copy/split/Rhys/Brudiclad/rules combination, real storage failures, full legacy
+upgrade coverage, custom-art memory pressure, signed IPA/TestFlight upgrade,
+physical-device and subjective accessibility/visual review are not implied by
+these targeted passes. Existing detailed checklists remain the source for those
+release gates. No production app release was uploaded by this follow-up.
+
+## iOS 1.11 simulator follow-up — 2026-09-25
+
+Environment: iPhone 17 Pro Max, iOS 26.2; current working tree `1.11.0+19`
+(including the uncommitted Brudiclad sickness fix). Built using
+`flutter build ios --simulator --debug --no-pub`, installed and launched.
+Native Simulator UI was driven directly. Persisted results were inspected from
+read-only copies of simulator Hive files; no automated test suite was added.
+
+Confirmed passes:
+
+- Accepted the in-app v8 token database update on a fresh simulator install.
+- Brudiclad picker included 3 Zombies, 2 tapped Treasures, and the new Myr.
+  Resolving to Treasure saved one 6-token stack, 2 tapped, 0 summoning sick.
+- Brudiclad Undo restored the 3 Zombies (including 3 sickness counts), the
+  original 2 tapped Treasures, and removed the generated Myr.
+- Edited the restored token name successfully; persisted data confirms the edit.
+- Delete All → Undo on a token/tracker/toggle board restored every persisted
+  field exactly, including a +1/+1 counter, artwork, identities, quantities,
+  tapped/sick counts, and ordering.
+- Tracker and toggle name edits after that restore saved successfully and
+  survived termination/relaunch, alongside the token edit.
+- Brudiclad Skip created one Myr, retained the existing identities, quantities,
+  counter and tapped counts, and saved 0 sickness for all three token stacks.
+- Set to 0 cleared token quantities/tapped counts; Undo restored an exact
+  all-field snapshot of the mixed board.
+
+Reproduced failures:
+
+1. **User board order changes after restart.** Move Treasure to the start;
+   restart puts Zombie back first. The valid order 0 triggers per-type startup
+   migration and rewrites token order. See
+   [reproduction](../bug_bashing/board_order_changes_after_restart.md).
+2. **Remote v8 loses artist attribution.** New 10E Zombie shows `Artist unknown`.
+   Published DB has 3,079 artwork entries and zero artist values; 1.11 bundled
+   data has credits on all 3,028 entries. The main-branch generator used for the
+   refresh predates artist-credit support. See
+   [reproduction](../bug_bashing/remote_database_missing_artist_credits.md).
+
+Limits: compact and expanded swipe gestures did not take effect through native
+simulator automation, so expanded swipe removal remains unverified (not an
+established app regression). No physical-device, signed IPA/TestFlight,
+old-install upgrade, memory-pressure, fault-injection, or full rules-matrix
+acceptance is implied. The two reproduced defects were documented, not fixed,
+in this validation pass. Existing broader checklists below remain applicable.
 
 ## Acceptance Testing Required
 
@@ -340,7 +437,7 @@ Remaining validation:
       creation preview, picker, and committed board show the exact same complete
       result set.
 - [ ] Confirm Skip creates only the evaluated Step 1 results, performs no copy
-      transformation, clears sickness from creature-token stacks, and shows no
+      transformation, clears sickness from every token stack, and shows no
       Tokens Modified dialog.
 - [ ] Choose the Myr; confirm every positive non-emblem token—including Food,
       Clue, and Treasure—becomes a 2/1 blue Phyrexian Myr.
@@ -352,8 +449,8 @@ Remaining validation:
       the copied definition has no P/T.
 - [ ] Confirm transformed stacks preserve every built-in/custom counter and
       preserve tapped counts. Countered stacks must remain separate.
-- [ ] Confirm resulting creature-token stacks have zero summoning sickness;
-      transformed noncreature stacks retain their previous sickness counts.
+- [ ] Confirm every resulting token stack has zero summoning sickness,
+      including when the chosen definition is Treasure or another noncreature.
 - [ ] Confirm Cathar's Crusade increments for created/merged Step 1 creatures
       only and never for Step 2 transformations.
 - [ ] Choose Undo; confirm exact restoration of identities, artwork, quantities,
