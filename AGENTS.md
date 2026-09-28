@@ -27,13 +27,13 @@ An outdated AGENTS.md leads to repeated mistakes, inconsistent patterns, and mis
 
 ## Project Overview
 
-**Tripling Season** is a cross-platform Flutter app for tracking Magic: The Gathering tokens during gameplay. It manages token stacks with tapped/untapped states, summoning sickness, counters (+1/+1, -1/-1, and custom counters), token artwork display, and provides a searchable database of 948 token types.
+**Tripling Season** is a cross-platform Flutter app for tracking Magic: The Gathering tokens during gameplay. It manages token stacks with tapped/untapped states, summoning sickness, counters (+1/+1, -1/-1, and custom counters), token artwork display, and provides a searchable database of 962 token types.
 
 **Note:** The app's official name is "Tripling Season" (as of December 2025). Display name, bundle identifiers, and package names reflect this branding.
 
 The app targets iOS, Android, Web, and Windows platforms using Flutter's single codebase approach. There is no macOS version; do not treat macOS builds or validation as release requirements.
 
-**Current Version:** 1.10.0+18 (as of June 2026)
+**Current release candidate:** 1.11.0+19 (September 2026; not yet shipped)
 
 ## Experimental Feature: Utilities (formerly "Widget Cards")
 
@@ -69,7 +69,7 @@ The app targets iOS, Android, Web, and Windows platforms using Flutter's single 
 - Location: `android/app/build.gradle.kts` (also set as `namespace`)
 
 **App Version:**
-- Current: `1.10.0+18` (Version 1.10.0, Build 18)
+- Release candidate: `1.11.0+19` (Version 1.11.0, Build 19)
 - Location: `pubspec.yaml` → `version: X.Y.Z+B`
 - **Tip**: Use `/shipfortestflight` to auto-increment version and build IPA
 
@@ -430,11 +430,19 @@ lib/
 ├── widgets/token_card.dart      # Canonical reference for all board item UI
 └── widgets/split_stack_sheet.dart  # Early-dismiss pattern (critical)
 
-assets/token_database.json       # 948 bundled tokens
+assets/token_database.json       # 962 bundled tokens, database v9
 docs/activeDevelopment/patterns/ # Reusable implementation patterns
 ```
 
 ## Dependencies
+
+The 1.11 release includes the billing update: `in_app_purchase` 3.3.1 and
+`in_app_purchase_android` 0.5.0 (Google Play Billing 8.0.0). These require Dart
+>=3.10.0 and Flutter >=3.38.0; Pages CI uses Flutter 3.38.x. Keep the lockfile
+and CI toolchain consistent. After changing build mode or dependencies, prefer
+normal builds with dependency/plugin regeneration over `--no-pub`; a stale
+registrant can reference a development-only plugin absent from release builds.
+
 
 Key packages: `provider`, `hive`, `hive_flutter`, `shared_preferences`, `gradient_borders`, `wakelock_plus`, `package_info_plus`
 

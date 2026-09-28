@@ -108,5 +108,5 @@ upgrade remains a subsequent release gate, not satisfied by simulator checks.
 
 Targeted acceptance and remaining release gates are reconciled in the release
 README. This checkpoint does not approve a production app upload or claim the
-full acceptance matrix is complete. The pre-existing Android billing/SDK/CI
-changes remain separate from these fixes.
+full acceptance matrix is complete. The user subsequently confirmed that the Android billing/SDK/CI changes ship
+with these fixes in the same 1.11 release. See `../new_release/BillingUpdate.md`.

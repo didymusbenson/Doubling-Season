@@ -7,6 +7,16 @@ ships.
 
 ## Release Log
 
+### Billing update included in 1.11
+
+The pricing/billing fix ships with 1.11.0+19. `in_app_purchase` is locked to
+3.3.1 and its Android implementation to 0.5.0, which declares Google Play
+Billing 8.0.0. The app requires Dart 3.10 or later and the web CI uses Flutter
+3.38.x to satisfy the plugins' minimum supported toolchain. This updates the
+purchase integration; it does not change store product prices or identifiers.
+
+See [BillingUpdate.md](BillingUpdate.md) for combined-release validation.
+
 ### Release Smoothing: Expanded Token Removal
 
 **Status:** Implemented for 1.11; iOS/Android simulator swipe checks pass; pending physical-device acceptance
