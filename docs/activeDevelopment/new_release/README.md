@@ -221,6 +221,13 @@ in this validation pass. Existing broader checklists below remain applicable.
 
 ### Physical-device release checklist — 1.11
 
+Physical-device handoff, 2026-09-27: the signed release-mode build 1.11.0+19
+was installed in place on didym's iPhone 17 Pro Max (iOS 26.6.2) over the
+wireless connection. Apple device tooling confirmed installed version/build
+and successfully launched the app. No uninstall was performed. This is direct
+development-signed installation for hands-on testing, not a TestFlight/store
+upgrade or purchase-acceptance pass; the checks below remain pending.
+
 Run this against the actual release candidate through TestFlight on iPhone and
 Google Play's internal/closed testing track on Android. Record the installed
 version/build; repeat affected checks if the candidate changes. Simulator
