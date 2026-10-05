@@ -5305,7 +5305,7 @@
     "pt": "",
     "colors": "",
     "type": "Token",
-    "popularity": 359,
+    "popularity": 360,
     "artwork": [
       {
         "set": "2XM",
@@ -5769,6 +5769,7 @@
       "Sauron, the Necromancer",
       "Schema Thief",
       "Scion of Calamity",
+      "Scouring Swarm",
       "Scurry of Squirrels",
       "Scute Swarm",
       "Season of Weaving",
@@ -11340,11 +11341,6 @@
       {
         "set": "CMA",
         "url": "https://cards.scryfall.io/large/front/5/b/5b2d7144-e2f2-48eb-b899-b4b3521e0159.jpg",
-        "artist": "Igor Kieryluk"
-      },
-      {
-        "set": "FDC",
-        "url": "https://cards.scryfall.io/large/front/5/3/53c05e53-84c7-4796-ae02-d778faa5afa6.jpg",
         "artist": "Igor Kieryluk"
       },
       {
@@ -19099,11 +19095,16 @@
     "pt": "0/0",
     "colors": "B",
     "type": "Creature — Phyrexian Germ",
-    "popularity": 21,
+    "popularity": 22,
     "artwork": [
       {
         "set": "CMM",
         "url": "https://cards.scryfall.io/large/front/f/c/fc375fe9-e8aa-4b7d-b439-a67c0b61beaf.jpg",
+        "artist": "Igor Kieryluk"
+      },
+      {
+        "set": "FDC",
+        "url": "https://cards.scryfall.io/large/front/5/3/53c05e53-84c7-4796-ae02-d778faa5afa6.jpg",
         "artist": "Igor Kieryluk"
       },
       {
@@ -19150,6 +19151,7 @@
       "Colossal Dreadmask",
       "Cranial Ram",
       "Drossclaw",
+      "Ekthi, Contaminator Priest",
       "Flayer Husk",
       "Germ",
       "Grip of Phyresis",
