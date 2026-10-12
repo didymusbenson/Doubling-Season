@@ -1,7 +1,7 @@
 {
-  "version": 10,
-  "sha256": "1aa5abf9e0617c557aeefc052600b1255bb4364c44d983090cb96258ddc5fe8c",
-  "size": 889590,
-  "updated": "2026-10-05",
+  "version": 11,
+  "sha256": "3d0d2b9bf39bd225871c4d0560ee41713ce31373c6ec0ea6c32ff6be2048ab86",
+  "size": 891056,
+  "updated": "2026-10-12",
   "min_app_version": "1.9.0"
 }

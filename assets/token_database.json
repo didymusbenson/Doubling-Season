@@ -779,6 +779,22 @@
   },
   {
     "name": "Angel",
+    "abilities": "Flying, vigilance",
+    "pt": "3/3",
+    "colors": "W",
+    "type": "Creature — Angel",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MDD",
+        "url": "https://cards.scryfall.io/large/front/4/8/481ff636-8343-4eb2-93cf-48b94c9ecfdb.jpg",
+        "artist": "Tehani Farr"
+      }
+    ],
+    "reverse_related": []
+  },
+  {
+    "name": "Angel",
     "abilities": "",
     "pt": "*/*",
     "colors": "W",
@@ -9700,6 +9716,11 @@
         "artist": "William O'Connor"
       },
       {
+        "set": "MDD",
+        "url": "https://cards.scryfall.io/large/front/7/2/72ac66e9-4b4b-4540-b310-e7b3dc04c305.jpg",
+        "artist": "A.K. Venrinn"
+      },
+      {
         "set": "NCC",
         "url": "https://cards.scryfall.io/large/front/2/d/2dec2e14-9a14-4a33-beb8-f4fbce81d437.jpg",
         "artist": "William O'Connor"
@@ -11385,6 +11406,22 @@
     "reverse_related": [
       "Giant Opportunity"
     ]
+  },
+  {
+    "name": "Giant",
+    "abilities": "",
+    "pt": "4/4",
+    "colors": "UR",
+    "type": "Creature — Giant",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MDD",
+        "url": "https://cards.scryfall.io/large/front/0/6/0689b1b8-84be-4cc8-be4b-4461fefa885b.jpg",
+        "artist": "Tulio Brito"
+      }
+    ],
+    "reverse_related": []
   },
   {
     "name": "Giant",
@@ -17325,6 +17362,22 @@
     "reverse_related": [
       "Roxanne, Starfall Savant"
     ]
+  },
+  {
+    "name": "Mindless-One",
+    "abilities": "",
+    "pt": "3/1",
+    "colors": "B",
+    "type": "Creature — Missing",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MDD",
+        "url": "https://cards.scryfall.io/large/front/2/1/21d44eef-8dbc-4f2f-9be3-d6c43d4b405c.jpg",
+        "artist": "Maxime Minard"
+      }
+    ],
+    "reverse_related": []
   },
   {
     "name": "Minion",
@@ -30514,6 +30567,11 @@
         "set": "MBS",
         "url": "https://cards.scryfall.io/large/front/4/6/46769d11-a7ae-43ac-8c00-e1681955949b.jpg",
         "artist": "Dave Kendall"
+      },
+      {
+        "set": "MDD",
+        "url": "https://cards.scryfall.io/large/front/5/e/5e16386a-d478-475b-8e9b-edef62cae02b.jpg",
+        "artist": "Jasper Dolauta"
       },
       {
         "set": "MED",
