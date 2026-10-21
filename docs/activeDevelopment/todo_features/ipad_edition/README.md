@@ -14,6 +14,8 @@ This is a planning dossier, not a shipped feature specification. **Confirmed** m
 
 **Layout/utility update:** dedicated life regions with attached below-life commander/counter shortcuts; separate curated per-seat utilities with hold-drag order and confirmed corner-X hiding/restoration. Storm and mana are default-visible, not mandatory. Hiding retains values and nonzero hidden state stays discoverable. Shared controls use a central strip/panel between paired seats for three/four players and a thin shortcut divider for two; initial scope remains 2–4, with three-player empty-slot expanded controls preserved. See D07/D27/D37.
 
+**Deck/preset update (D38):** evolve Decks into reusable token lists plus utility preferences. Seat loading initializes selected token entries at zero and configures utilities; optional deck art can supply that seat’s saved life image. Art selections are per-seat, player name stays separate, and commander selection/midgame load/life-history effects are not implicitly approved.
+
 ## Start here
 
 | Document | Purpose |

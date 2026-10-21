@@ -98,17 +98,29 @@ Custom definition creation and “add this definition to my board” are distinc
 
 A player's token controls cannot call existing unqualified provider bulk methods. Explicitly scope +1/+1 all, -1/-1 all, untap, clear sickness, copy-many, delete, replace and planner cleanup.
 
+## Accepted deck/preset evolution — D38
+
+A deck evolves the existing Decks feature into a reusable token list plus utility preferences. Save that setup as a preset; a chosen seat loads it to configure its utilities and initialize its board with the selected token entries at zero/empty gameplay state. This is reusable setup, not a saved live game or archived timeline. Exact preference fields/default resolution still need schema design; do not save transient counter/mana values as setup merely because a utility is visible.
+
+If the deck has an image, it can optionally supply the seat life tracker’s saved image. Art selection is scoped per seat: one seat’s choice must not rewrite another seat’s selected art or a shared global token-art preference. Shared definitions and cached image bytes may be reused without sharing mutable selections. Persistent seat name stays separate from deck/preset name and is not overwritten on load. Existing seat name/color/art persistence remains accepted; explicitly applying a preset image is a supported way to update that seat’s saved art, not an automatic reset of all customization. Exact image opt-in/default behavior and the no-image fallback require design.
+
+Commander selection is not part of the accepted preset contents. Whether it should be added needs a separate decision. Midgame load replacement versus merge/append, handling existing gameplay values, life reset, history/undo entry and pending-input behavior remain open. Do not infer these from the existing phone loader, or treat loading as either a full reset or archive restore. Existing reset/hidden-seat/archive rules remain unchanged.
+
+### Existing implementation evidence, not tablet implementation
+
+Read-only review of the repository baseline: [Deck model](https://github.com/didymusbenson/Doubling-Season/blob/d30050bd7a1067058fcdf7e707d3a223124a79fb/lib/models/deck.dart) stores token templates, tracker/toggle templates and optional customArtworkUrl. [DeckProvider loading](https://github.com/didymusbenson/Doubling-Season/blob/d30050bd7a1067058fcdf7e707d3a223124a79fb/lib/providers/deck_provider.dart#L536-L625) offers clear-and-load and add-to-board, orders mixed template kinds, and creates token Items with amount 0. Its existing providers are single-board, not proof of seat isolation. Its v3 export carries template artwork metadata but not the custom deck image as a portable asset. Reuse these concepts through the new scoped boundary; do not claim the accepted utility preferences, life-image application or seat-scoped artwork are already implemented.
+
 ## Deck library and setup semantics
 
 Current decks are reusable **setups**: save deduplicates token templates; load produces amount-zero stacks and default utility state. They are not live-game saves. Preserve that distinction in labels: “Load setup for Alex” is different from “Resume saved game.” Do not promise a deck load restores life, counters, tapped values, mana, rules or pending triggers.
 
-Proposed player flow:
+The accepted setup-load direction above is settled. The following additional operation variants remain proposals, especially for an already active game:
 
 | Action | Contract |
 |---|---|
 | Browse library | Read shared/profile deck templates; no live board mutation |
-| Load append | Instantiate into named player's two lanes; keep other players and life unchanged |
-| Load replace | Preview the named player's affected content; scoped snapshot/undo; other seats continue |
+| Load append | Candidate midgame variant only; merge/append policy remains open, never retarget another seat |
+| Load replace | Midgame availability, affected content, history/undo and pending-input behavior remain open; do not inherit the phone clear-and-load policy |
 | Save my setup | Capture only that player's templates, with independent token/utility ordering mapped to chosen format |
 | Duplicate for another player | New runtime entity IDs and active state; template may be shared |
 | Change library deck mid-game | Does not retroactively alter instantiated boards unless explicitly applied |

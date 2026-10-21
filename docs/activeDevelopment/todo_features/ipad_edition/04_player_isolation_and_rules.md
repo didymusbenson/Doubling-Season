@@ -45,6 +45,10 @@ Monarch assignment/transfer and day/night changes are explicit table-state comma
 
 Both accepted full-reset modes start the configured game anew, but neither clears persistent seat name/color/art. Reset with board keeps token entries zeroed/no counters and enabled utilities; Complete reset clears tokens/utilities. A 4→2→4 sequence hides then restores seats 3/4 customization without deleting/recreating them. Reset write sets must distinguish game-local state, persistent seat customization and hidden-seat board data. Removed seats clear game-specific tokens/utilities; remaining seats retain reusable custom properties only under explicit keep-board. Archive restoration uses its historical write set, not cleared live setup; validate scope explicitly. A separate settings hard reset is a distinct operation, not a game reset.
 
+## Preset and artwork scope
+
+D38 accepts seat-targeted loading of reusable token/utility setup and per-seat art selection. Capture the target seat before preset selection and retain it across image resolution, utility configuration and zero-state token initialization. Two seats loading one preset get distinct runtime entities and mutable selections; neither choice updates global token-art preferences for all seats. Preset name is not player name. Optional preset-image application targets that seat’s saved life art only. Midgame write-set/merge policy and history effects remain open; enforce whatever explicit contract is chosen rather than treating a preset as a session snapshot.
+
 ## Proposed seat-context command pipeline
 
 ```mermaid

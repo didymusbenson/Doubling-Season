@@ -4,6 +4,8 @@
 
 **Accepted presentation boundary:** dedicated life regions with attached commander-damage/player-counter shortcuts, separate curated utility lists and a separate shared-controls panel. Utility visibility/order is presentation state, distinct from stored values; storm/mana default visible can be hidden and restored. Keep these boundaries in renderer/controller interfaces, not a single draggable/resizable dashboard. Shared controls use a between-paired-seats strip/panel for three/four players and a thin shortcut divider for two. Exact dimensions and reset default provisioning remain open.
 
+**Accepted reusable-setup boundary (D38):** evolve Decks into saved token-list/utility-preference presets loaded into a chosen seat with zero-state token entries. Optional deck art can supply saved life art for that seat. Keep reusable templates, per-seat mutable artwork selections, active runtime entities and full-session archives separate; existing DeckProvider clear/append methods are reference behavior, not approved tablet midgame semantics.
+
 ## Chosen Flutter direction
 
 Retain Flutter. The needs identified here—bounded layouts, rotated subtrees, multiple input surfaces, independent scrollable lists, local panels, semantics and shared Dart domain logic—fit framework capabilities described in the [official research](10_research_sources.md). The existing app already supplies the token catalog, artwork, arithmetic, utilities and storage knowledge.

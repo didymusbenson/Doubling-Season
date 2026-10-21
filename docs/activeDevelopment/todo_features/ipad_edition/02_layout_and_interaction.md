@@ -77,6 +77,10 @@ The four-quadrant sketch is the reference fixture, not a hard-coded player limit
 
 The user’s player/seat keeps its name and color/art presets across games. Two-player setup shows seats 1/2 and hides seats 3/4 rather than deleting them; returning to four players restores their customization. Treat visual slot/orientation separately from persistent seat identity, including the selectable empty control slot in three-player mode. Normal game resets retain customization. Seats removed between games clear their game-specific tokens/utilities even when remaining seats keep boards; returning does not resurrect that live setup. Archived games restore their own historical setup separately.
 
+## Seat preset and saved artwork
+
+The seat’s preset-loading flow configures utilities and selected zero-state token entries. An optional deck image can be applied to that seat’s saved life-tracker art without changing the player name. Per-seat art selection must remain independent even when seats load the same preset. This is not arbitrary layout resizing or automatic commander selection. Exact midgame replacement/merge, life/history effects and art opt-in/default UI remain open under D38.
+
 ## Life-tracker capacity within the accepted layouts
 
 The centerpiece must accommodate the accepted full tracker, not only ± life. Reserve access to player counters, independent city’s blessing, monarch indication and per-source commander damage including self/partners, while day/night remains one game-level state. Use compact summaries and a bounded player-facing detail surface as design candidates; do not clone Lifetap’s grids/tabs or shrink every control into the life tile. Commander-damage and player-counter access is now fixed as attached shortcuts directly below life. Detailed contents, status presentation and dimensions remain open.

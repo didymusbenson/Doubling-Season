@@ -99,6 +99,8 @@ The existing non-dismissible Undo/Accept completion dialog is a phone reference,
 
 A current deck is a **setup template**, not a session save. Save deduplicates token stacks and preserves a mixed template order; load creates tokens at amount zero, trackers at defaults and toggles OFF. It does not preserve life, active counters/status, mana or rules. Current export schema is v3 and contains template artwork URLs/options, but not embedded media or the deck's custom box artwork. Foreign `file://` paths are not portable.
 
+**Accepted tablet evolution (D38):** presets contain a reusable token list and utility preferences; seat load creates zero/empty-state selected token entries and configured utilities. Store this setup separately from active gameplay and archived sessions. Optional deck image application updates only the target seat’s saved life art, never its player name or another seat’s art. Commander selection is not included by this decision. Midgame merge/replace, life/history effects and exact preference/default mappings remain open. Existing v3 is not automatically a lossless format for these additional fields or image assets.
+
 Proposed compatibility contract:
 
 - Continue supporting phone v3 setup import through an adapter; importing to a library does not mutate a player board.
@@ -117,7 +119,7 @@ Persistent seat name/color/art retention is accepted; remaining scopes below are
 
 | Existing value | Proposed scope / open choice |
 |---|---|
-| Seat name / life color and art presets | Persistent per-seat customization; preserved by normal resets and inactive-seat hiding |
+| Seat name / life color and art presets | Persistent per-seat customization; normal resets/hiding preserve it. Optional explicit preset-image application can update that seat’s saved life art; player name stays separate |
 | Summoning sickness enabled | Player session option, optionally copied from profile default |
 | Rules preset counts; active custom-rule enabled/count state | Player session gameplay state |
 | Custom rule definitions | Shared library or profile library; active instances remain player-scoped |
@@ -125,7 +127,7 @@ Persistent seat name/color/art retention is accepted; remaining scopes below are
 | System/manual theme | Device/app |
 | Favorites and recents | Shared library or profile/player view; decide whether one player's activity displaces another's recents |
 | Experimental feature switch | Device capability; disabling it must not silently destroy other players' active rules |
-| Artwork preferences | Shared/profile defaults; active entity selections remain explicit |
+| Artwork preferences | Accepted per-seat selections; shared image bytes/catalog definitions do not imply globally shared mutable choices |
 | Custom token definitions and decks | Shared reusable library initially proposed, with distinct runtime copies |
 | Token database versions/checks/dismissals | Installation-wide data-source management |
 | What's New dismissal | Installation/release |

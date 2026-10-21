@@ -2,6 +2,8 @@
 
 **Status:** confirmed direction plus proposed release boundaries. See [decision status](09_decision_register.md).
 
+**Accepted preset direction:** save/load reusable token lists and utility preferences through an evolution of Decks. Loading targets one seat with empty-state selected token entries and configured utilities. Optional deck image can update that seat’s saved life art; player name and other seats’ art remain independent. Commander selection and midgame load/reset/history policies remain open (D38).
+
 ## Product intent
 
 Place an iPad in the middle of a Magic game and let each player operate their own small Tripling Season board while everyone can see the central life tracker. Players should spend little time navigating and should recognize immediately whose state a control changes.

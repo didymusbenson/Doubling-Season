@@ -448,3 +448,10 @@ All workloads remain **not run**. Hardware results must include a physical iPad;
 - Verify storm/mana default-visible setup in the chosen initialization flow; hold-drag reorders only the seat’s utilities. Corner X opens confirmation: cancel keeps the utility; confirm hides it for this game. Restore from Utilities without duplicating the authoritative value.
 - Set a nonzero value, hide, reload and restore: value survives and remains discoverable while hidden. Separate clearing changes the value deliberately. Other seats and fixed life shortcuts remain unaffected.
 - Test accepted keep-board/complete-reset, removed seats and archive restoration without treating hiding as zeroing or preserving gameplay values through reset. Exact reset/default provisioning, hidden-entry mapping, restored order and presentation-history behavior remain decision gates, not invented passes. No arbitrary panel resizing or automatic storm/mana rules are implied.
+
+## Reusable deck/preset setup — V54
+
+**V54 — preset load and independent seat art. Status: planned / not run.**
+- Save a token-list/utility-preference preset, then load into a chosen seat in the approved setup flow. Selected token entries initialize at zero/empty gameplay state and utilities follow configured preferences, with no fabricated ETB events. Two seats using the same preset retain independent runtime entities, order/visibility and art selections.
+- Apply its optional deck image to A’s saved life art. Verify A’s player name and B’s name/art remain unchanged; A’s later art choice does not rewrite B’s selection or a global token-art preference. Reload preserves the resulting seat customization. Missing/no-image behavior follows a chosen explicit design, not an invented fallback.
+- Do not assume commander selection, live-game restoration, life reset or timeline clearing. Midgame merge/replace, load-history/undo, pending-input and utility-default precedence portions remain blocked until chosen. Test existing full-reset/removed-seat/archive policies separately; preset load cannot substitute for archive restore.

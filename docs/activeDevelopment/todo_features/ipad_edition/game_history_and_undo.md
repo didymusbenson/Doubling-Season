@@ -23,6 +23,8 @@ Central history, wipes and resets use app/game-level context, not a specific pla
 
 Utility hiding is presentation-only: a confirmed corner-X dismissal retains stored values, unlike a separate clear action. Do not log it as counter/mana removal. Exact history/undo inclusion of utility visibility/order changes remains open under D37; accepted gameplay chronology and reset/archive semantics do not change.
 
+Preset loading is distinct from current-game recovery and pre-reset archive loading. D38 accepts reusable tokens at zero plus utility preferences and optional seat life art, but does not settle midgame replacement/merge, life reset, or history/undo handling of preset loads. Resolve the load command’s write set and log behavior explicitly; never silently erase the timeline or replay old gameplay from a preset.
+
 ## Accepted bookkeeping policies
 
 - New commander-damage entry subtracts life as **one undoable action**, including self-source entries. Provide corrections to either ledger or life independently; correcting one must not silently apply the other effect again.
