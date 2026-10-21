@@ -90,7 +90,7 @@ The persistence and concurrency decisions must agree. A single session writer ca
 
 | ID | Question | Accepted direction | Still open | Needed by |
 |---|---|---|---|---|
-| D38 | What does a saved deck/preset provide? | Reusable token list + utility preferences; chosen seat loads configured utilities and selected zero/empty-state token entries. Optional deck image can supply that seat’s saved life art; token-art choices saved in preset and applied per current-game seat (D39); player name separate | Exact preference/default/image application UI and format; midgame replace/merge, life/history/undo effects. Commander selection not specified or approved by this decision | P1–P5; V54 |
+| D38 | What does a saved deck/preset provide? | Reusable token list + utility preferences; chosen seat loads configured utilities and selected zero/empty-state token entries. Optional deck image can supply that seat’s saved life art; token-art choices saved in preset and applied per current-game seat (D39); player name separate | Midgame Replace/Append accepted for target-seat preset-managed fields only, each one undoable action; life/damage/player counters/timeline preserved. Exact preference/default/image UI/format remains design work. Commander selection not approved | P1–P5; V54 |
 
 This evolves the existing Decks feature, not a live-game save. It refines D19/D20 artwork scope and D23 interchange, while preserving accepted reset/archive behavior and independent seat customization.
 
@@ -185,3 +185,7 @@ The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete
 ### D25 accepted follow-up: source ownership versus applicability
 
 Each seat owns its modifiers, while global sources such as Primal Vigor affect the table. Recipient panels cannot remove another seat’s source; disabling the origin removes only that contribution. Linked propagated indication or read-only Other effects are allowed; source-labeled read-only presentation is recommended only. Independent source copies, atomic source/applicability history and reset mapping are documented in the [modifier contract](modifier_ownership_and_applicability.md). Token-control transfer remains separate and unapproved.
+
+### D38 accepted follow-up: midgame Replace and Append
+
+Both are available during play. Replace swaps only the loading seat’s preset-managed token/utility setup; Append adds without clearing existing items. Saved token art and optional deck life artwork apply under the existing preset contract. Neither resets life values, commander damage, player counters, the timeline or unrelated state. Each is one undoable action. See [load semantics and technical baseline](07_utilities_tokens_and_decks.md).

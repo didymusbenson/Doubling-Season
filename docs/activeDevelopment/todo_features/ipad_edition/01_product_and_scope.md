@@ -2,7 +2,7 @@
 
 **Status:** confirmed direction plus proposed release boundaries. See [decision status](09_decision_register.md).
 
-**Accepted preset direction:** save/load reusable token lists and utility preferences through an evolution of Decks. Loading targets one seat with empty-state selected token entries and configured utilities. Optional deck image can update that seat’s saved life art; player name and other seats’ art remain independent. Commander selection and midgame load/reset/history policies remain open (D38).
+**Accepted preset direction:** save/load reusable token lists and utility preferences through an evolution of Decks. Loading targets one seat with empty-state selected token entries and configured utilities. Optional deck image can update that seat’s saved life art; player name and other seats’ art remain independent. D38 accepts midgame replace and append for that seat’s preset-managed fields, each as one undoable action; neither resets life, commander damage, player counters or the timeline. Commander selection remains unapproved.
 
 ## Product intent
 

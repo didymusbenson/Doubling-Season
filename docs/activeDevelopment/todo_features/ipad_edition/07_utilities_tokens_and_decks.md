@@ -104,13 +104,13 @@ A deck evolves the existing Decks feature into a reusable token list plus utilit
 
 If the deck has an image, it can optionally supply the seat life tracker’s saved image. Art selection is scoped per seat: one seat’s choice must not rewrite another seat’s selected art or a shared global token-art preference. Shared definitions and cached image bytes may be reused without sharing mutable selections. Persistent seat name stays separate from deck/preset name and is not overwritten on load. Existing seat name/color/art persistence remains accepted; explicitly applying a preset image is a supported way to update that seat’s saved art, not an automatic reset of all customization. Exact image opt-in/default behavior and the no-image fallback require design.
 
-Commander selection is not part of the accepted preset contents. Whether it should be added needs a separate decision. Midgame load replacement versus merge/append, handling existing gameplay values, life reset, history/undo entry and pending-input behavior remain open. Do not infer these from the existing phone loader, or treat loading as either a full reset or archive restore. Existing reset/hidden-seat/archive rules remain unchanged.
+Commander selection is not part of the accepted preset contents. Whether it should be added needs a separate decision. **Midgame Replace and Append are accepted.** Replace swaps only the loading seat’s preset-managed tokens/utilities for the preset’s zero-state setup. Append adds the preset without clearing existing items. Both touch only preset-managed fields, including loaded token-art preferences and optional deck life artwork under the prior contract; neither resets life value, commander damage, player counters, the existing timeline or unrelated state. Each is one undoable action. Loading is neither a full reset nor archive restore. Existing reset/hidden-seat/archive rules remain unchanged.
 
 ### Token-art preference lifetime — accepted D39
 
 Token-art preferences are scoped to a seat **within the current game only**, not its persistent seat profile. Saving a deck snapshots those choices; loading it applies the saved choices only to the target seat. A fresh game does not inherit the previous game’s token-art preferences. Explicit keep-board preserves chosen artwork as reusable board configuration, not an everlasting seat preference. Archive restore recovers that historical game’s choices, not defaults for future games. Persistent player name and life-tracker color/art customization remain separate and unchanged by this clarification.
 
-Persist current-game choices for ordinary reload/recovery without promoting them to cross-game defaults. Shared catalog/cache data may remain shared; mutable preference lookup must include game and seat context. Exact initial fallback art, custom-file retention and midgame preset replacement details still need design.
+Persist current-game choices for ordinary reload/recovery without promoting them to cross-game defaults. Shared catalog/cache data may remain shared; mutable preference lookup must include game and seat context. Exact initial fallback art and custom-file retention still need technical design; midgame replace/append scope and undo are accepted.
 
 ### Existing implementation evidence, not tablet implementation
 
@@ -131,8 +131,8 @@ The accepted setup-load direction above is settled. The following additional ope
 | Action | Contract |
 |---|---|
 | Browse library | Read shared/profile deck templates; no live board mutation |
-| Load append | Candidate midgame variant only; merge/append policy remains open, never retarget another seat |
-| Load replace | Midgame availability, affected content, history/undo and pending-input behavior remain open; do not inherit the phone clear-and-load policy |
+| Load append | Accepted during play: add zero-state preset entries/configured utilities to the loading seat without clearing existing items; one undoable action, unrelated values/timeline preserved |
+| Load replace | Accepted during play: swap loading seat’s preset-managed tokens/utilities for zero-state setup; one undoable action, life/damage/player counters/timeline and unrelated state preserved |
 | Save my setup | Capture only that player's templates, with independent token/utility ordering mapped to chosen format |
 | Duplicate for another player | New runtime entity IDs and active state; template may be shared |
 | Change library deck mid-game | Does not retroactively alter instantiated boards unless explicitly applied |
@@ -170,3 +170,9 @@ The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete
 ## Modifier scope checkpoint — D25
 
 A global modifier’s recipient indicator is not a removable locally owned utility. Hiding a view cannot disable its source. Accepted preset token/utility contents do not automatically include modifier-source configuration; that mapping remains open. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).
+
+### Midgame load implementation baseline (D38)
+
+Capture the target seat and preset revision before selection/async art work. Plan a complete load write set, commit it coherently with one history action and retain its before-state for latest-global-action undo. A load is setup initialization, not a batch of gameplay token creations/deaths; do not emit false entry/death effects from zero-state templates. Every modal blocks the table, and tapaway consumes the gesture. Async-dismissal recovery follows the established command contract, not a newly queued editor request.
+
+**Technical inference for Append:** preserve existing instances and their selected artwork/values; initialize new instances with the preset’s saved selections and configured utilities, after existing lane order, without automatic identity merging. If a loaded preference shares a catalog identity with an existing entry, keep the existing instance’s explicit selection rather than retroactively repainting it. Store loaded-instance selection/provenance separately as needed; this is a conservative implementation starting point consistent with “not anything else,” not a new permanent seat-art lifetime. Optional deck life artwork can update saved life appearance under the accepted contract; life numeric value is untouched. The whole load’s art/preference write set participates in undo. Do not overwrite persistent player name, another seat, unrelated modifier sources or game state. Dedicated life/player-counter bindings must never become a second authority through a loaded generic utility.

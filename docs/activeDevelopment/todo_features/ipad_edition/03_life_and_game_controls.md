@@ -137,9 +137,9 @@ The two full-reset modes are accepted. Other matrix rows are a recommended vocab
 
 ## Preset art does not imply gameplay reset
 
-D38 permits a saved deck/preset image to supply the chosen seat’s saved life-tracker image. This explicit art application coexists with persistent seat customization and leaves player name separate. Loading the accepted token/utility setup does not decide whether a midgame load resets life or changes history; those policies remain open. It does not select commanders or invoke full-reset/archive behavior by implication.
+D38 permits a saved deck/preset image to supply the chosen seat’s saved life-tracker image. This explicit art application coexists with persistent seat customization and leaves player name separate. Midgame Replace/Append are accepted, each one undoable action affecting only the loading seat’s preset-managed fields. Neither resets life value, commander damage, player counters or the game timeline. It does not select commanders or invoke full-reset/archive behavior by implication.
 
-**Token-art lifetime clarification (D39):** fresh games discard previous-game seat token-art preferences; keep-board retains chosen artwork as part of reusable board setup, and archive restore recovers historical selections. This does not clear persistent player names or saved life-tracker appearance. Deck load explicitly applies saved token-art choices to the chosen seat; exact midgame life/history effects remain open.
+**Token-art lifetime clarification (D39):** fresh games discard previous-game seat token-art preferences; keep-board retains chosen artwork as part of reusable board setup, and archive restore recovers historical selections. This does not clear persistent player names or saved life-tracker appearance. Deck load explicitly applies saved token-art choices to the chosen seat; midgame loads preserve life values and the existing timeline, adding one undoable load action.
 
 ## Fixed life shortcuts versus utilities
 
