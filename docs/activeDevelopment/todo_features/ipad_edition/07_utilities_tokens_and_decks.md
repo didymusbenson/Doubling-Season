@@ -94,7 +94,7 @@ Custom definition creation and “add this definition to my board” are distinc
 - **Split** redistributes one stack. It stays in the source player's token lane, preserves intended status/counters/artwork and does not create spurious entry triggers. Retain the current dismiss-before-mutate safety where applicable, but replace stale delayed-object assumptions with scope/revision checks.
 - **Merge** is allowed only within eligible player/session scope, then existing identity/artwork/counter compatibility. Identical printed cards across players never merge automatically.
 - **Transform** works on explicit local targets and preserves existing Brudiclad event/sickness semantics. In-place transformation is not a new entry event.
-- **Order** defaults are D13: append new distinct search results; keep merges in place; put split/copy outputs beside source; preserve relative source order for multi-result planners. Companion order must be deterministic and documented.
+- **Order** carries the verified D13 baseline: append new distinct search results; keep merges in place; put split/copy outputs beside source; preserve route-specific companion order. Adapt allocation to each seat/lane, not a global mixed list.
 
 A player's token controls cannot call existing unqualified provider bulk methods. Explicitly scope +1/+1 all, -1/-1 all, untap, clear sickness, copy-many, delete, replace and planner cleanup.
 
@@ -145,7 +145,7 @@ Current phone JSON schema is v3. Proposed support: import compatible v3 setups i
 
 Define whole-table save/export separately: session format, participants/identities, CommanderId/recipient ledgers including self/partners, life and typed counters/statuses, shared monarch/day-night, boards, rule states, independent orders, optional history and asset manifest. Cross-device `file://` URLs do not transfer user art. Package uploaded bytes using managed asset references or explicitly report missing media; downloaded art may remain a cacheable reference where appropriate.
 
-Sharing, native file pickers and custom artwork selection are device-wide surfaces; queue them and return to the original player. A reset, source deletion or incompatible session change while away must reject obsolete results without assigning them to a replacement seat. Preserve artist metadata and selected art on download/cache failure.
+Sharing, native file pickers and custom artwork selection are device-wide surfaces; finish/dismiss the current flow before a fresh next request, without queuing another player’s editor. Return results to the captured original player. A reset, source deletion or incompatible session change while away must reject obsolete results without assigning them to a replacement seat. Preserve artist metadata and selected art on download/cache failure.
 
 ## Full-reset token/utility contract
 
@@ -158,3 +158,11 @@ Token additions and removals retain separate chronological history entries even 
 ## Required behavior review before parity is claimed
 
 For each utility/token workflow, record: all reads, every direct model write, rules snapshot, all created results, emitted events, lane allocation, route/panel owner, failure outcome, undo write set and recovery behavior. Run with two players owning identical definitions and differently configured rules. The [validation matrix](08_delivery_validation_and_risks.md) contains the corresponding scenarios; none has been executed for this edition yet.
+
+## Existing-design carryover
+
+Use the [source-backed behavior audit](existing_behavior_audit.md) for search/form cancellation, inline commit, live existing-deck rename, artwork serving and token/utility presentation. Existing snackbars, nondismissible dialogs and unsafe global/cache coupling are expressly not carryover requirements. D41 blocks all background input for any modal; closing consumes its gesture and cannot queue another editor.
+
+## Old-design inference checkpoint
+
+The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.

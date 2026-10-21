@@ -82,7 +82,7 @@ No automatic Food sacrifice → life gain, lifelink, poison from infect, mana bu
 
 ## Game lifecycle
 
-Proposed states: setup → active → ended, with a recoverable active session after restart. A restorable pre-reset game archive is now accepted. Whether global operations pause input remains open; no turn/priority simulation or mandatory pause is implied.
+Proposed states: setup → active → ended, with a recoverable active session after restart. A restorable pre-reset game archive is now accepted. Every modal blocks the whole table under D41. Nonmodal command-in-flight safety is a technical recovery concern, not an open permission for background interaction through modals; no turn/priority simulation is implied.
 
 Setup contains participants, seats, starting-life configuration, commander-source configuration when relevant, and optional selected deck templates. Initialize the accepted counters/status/shared-state model explicitly; defaults and optional visibility do not erase the stored identity of a value. Starting creates a session generation and initial durable state. A rematch can preserve seating/configuration while creating a new game identity or generation; pre-reset archives are restorable under D33, with browsing UI and retention limits still to design.
 
@@ -133,7 +133,7 @@ The two full-reset modes are accepted. Other matrix rows are a recommended vocab
 
 **Safety design requirements:** define the affected write set, take a coherent recovery checkpoint where needed, reject duplicate/stale mutations, and preserve the accepted full-reset/archive and latest-global-undo semantics. Report success only according to the chosen durability contract; recover failures without mixed state. Read-only viewing of history is not a gameplay mutation.
 
-**Still open:** wipe target selection, exact previews/confirmation/finalization UI, resolving pending edits/repeats and whether any global operation pauses input. A table barrier and the current phone app’s non-dismissible Undo/Accept dialog are candidates, not accepted tablet policy. Do not infer automatic cancellation or a mandatory lock from the central placement of a control.
+**Settled by D41:** every modal blocks the entire table and tapaway dismisses without click-through. Existing non-dismissible Undo/Accept must not be copied unchanged. Unconfirmed cancellation makes no requested mutation; dismissal after a completed command does not undo it. Wipe targets and exact impact/confirmation presentation still need design; transaction safety is separate from UI blocking.
 
 ## Preset art does not imply gameplay reset
 
@@ -152,3 +152,7 @@ Required direction: game-level reset controls. In the accepted three-player arra
 Proposed additions for discussion: start/new game, seating/setup, table settings, last-game summary. Dice implementation/options and the exact control inventory remain D28. Monarch and day/night are now confirmed shared tracking capabilities. Initiative, coin, starting-player selection, timer and turn indicator remain candidates, not approved merely because reference icons exist. Exact placement outside three-player mode and control orientation/dimensions still need layout review.
 
 If a turn indicator is added, changing it must not silently untap, clear sickness, or empty mana across all players. “Next player” and “apply beginning-of-turn housekeeping” are different actions. Exceptions, extra turns, skipped turns and manual corrections must be possible before any such automation is marketed.
+
+## Old-design inference checkpoint
+
+The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.

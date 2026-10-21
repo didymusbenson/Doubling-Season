@@ -4,7 +4,7 @@
 
 ## Decision update — 2026-10-21
 
-The user has since selected Flutter with custom player-facing input as the direction, a separate product, Android/iOS/web targets and customizable 2–4 players. This does not turn the source research below into prototype evidence. Any keyboard input must face its initiating player; the subsequent explicit “No simultaneous keyboards.” decision requires one keyboard at a time, with handoff details still open. See the [decision register](09_decision_register.md) and [deferred keyboard options](custom_keyboard_options.md). The research date above remains unchanged.
+The user has since selected Flutter with custom player-facing input as the direction, a separate product, Android/iOS/web targets and customizable 2–4 players. This does not turn the source research below into prototype evidence. Any keyboard input must face its initiating player; the subsequent explicit “No simultaneous keyboards.” decision requires one keyboard at a time, with D41 now requiring all-modal table blocking and tapaway dismissal without click-through; native/IME validation remains. See the [decision register](09_decision_register.md) and [deferred keyboard options](custom_keyboard_options.md). The research date above remains unchanged.
 
 ## Findings and confidence
 
@@ -59,3 +59,5 @@ Rechecked the official [Wizards rules landing page](https://magic.wizards.com/en
 - Flutter documentation supplies capability guidance, not comparative proof that a different framework would perform better or worse.
 - Store entitlement, legal/branding, platform minimums and accessibility conformance claims require separate work if the release choices make them relevant. They are not prerequisites for writing or reviewing this dossier.
 - The physical test matrix, storage experiments and unresolved decision register are deliberately left open rather than populated with invented results.
+
+See the [second-pass granular baseline map](outstanding_behavior_baselines.md) for concrete old-design starting points across the remaining questions and the ranked next genuinely new decision.

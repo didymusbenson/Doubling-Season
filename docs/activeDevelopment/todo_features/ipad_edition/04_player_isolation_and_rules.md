@@ -51,7 +51,7 @@ D38 accepts seat-targeted loading of reusable token/utility setup and per-seat a
 
 D39 narrows token-art preference scope to game + seat, not persistent seat identity. Preset load applies its saved selection snapshot to the target only. Validate game generation on delayed art callbacks; a later fresh game must not acquire old preferences. Keep-board retains explicit reusable art and archive restore uses historical choices; neither establishes permanent token defaults. Persistent player name/life appearance remains separate.
 
-D40 changes presentation, not scope: a central shared workspace can execute a seat-targeted command. Capture target seat independently of rotation/control location, preserve it through search/native returns, and never infer a game-wide mutation from spatial sharing. Background-input blocking and switching policy remain open; single-keyboard and draft-preservation rules remain in force.
+D40 changes presentation, not scope: a central shared workspace can execute a seat-targeted command. Capture target seat independently of rotation/control location, preserve it through search/native returns, and never infer a game-wide mutation from spatial sharing. D41 requires every modal to block background input; dismiss/finish before a fresh editor request, with no queue or takeover. Single-keyboard and operation-specific edit resolution remain in force.
 
 ## Proposed seat-context command pipeline
 
@@ -86,7 +86,7 @@ Per-seat providers are useful read projections and controllers. Constructing fou
 Assume P1 enables a local Manufactor calculation and a local Chatterfang calculation; P2 has matching named stacks. This is an isolation example, not a new claim about replacement-effect math.
 
 1. P1 opens search; the flow records session S, player A, generation 7.
-2. P2 opens a utility panel. P1's captured scope does not change.
+2. P2 cannot open a utility panel through P1's modal barrier. After P1 dismisses, a fresh P2 interaction may open its own panel; any already submitted P1 async command retains A's captured scope.
 3. The quantity preview uses A's rule revision and board reads. Preserve the existing evaluator's ordering and per-event result semantics.
 4. The evaluator returns the primary/peer/companion results with one retained scope and causation chain.
 5. Every merge lookup is limited to A's eligible stacks; P2's Treasure is never considered even if all card fields match.
@@ -148,7 +148,7 @@ Proposed initial model: per-player intent queues feed one authoritative session 
 
 Use current source/rules revisions to reject stale planners, not a whole-table revision that makes P1's preview stale whenever P2 changes life. For rule changes while a preview is open, proposed default is to require a refresh/reconfirmation; D15 may choose a documented snapshot policy instead.
 
-Global-operation input blocking and destructive confirmation/finalization remain open design choices, not accepted segregation rules. Separately, utility corner-X hiding now explicitly requires a confirmation modal (D37); that does not settle wipe/reset confirmation or global input locking. A domain hold or table barrier is only a candidate; the central location of wipes/resets does not itself require pausing all input. Whatever policy is selected must preserve latest-global-action undo, conflict-safe write sets and coherent recovery. Never restore an old aggregate over unrelated work. See [data design](06_data_persistence_and_migration.md).
+**Accepted D41:** any open modal blocks interaction with the entire underlying table. Tapaway dismisses through an app-level overlay and consumes that gesture: no click-through, background mutation, queued second editor, takeover or “busy” notification. One player finishes/dismisses before another opens an editor. This applies to search, editing, confirmations and other modals, not only game-level actions. It does not imply blocking ordinary nonmodal quick controls when no modal is open. No toasts/snackbars for routine feedback, waiting or errors; use in-context status and explicit controls. An exceptional transient notification requires a demonstrated unavoidable need, not convenience. UI blocking does not replace command write sets, revision checks or coherent undo/recovery; pending async work still needs safe completion or rejection. See [data design](06_data_persistence_and_migration.md).
 
 ## Failure cases to design explicitly
 
@@ -160,3 +160,7 @@ Global-operation input blocking and destructive confirmation/finalization remain
 - A stale P1 undo is requested after P2 creates tokens: reject it without mutation because P2’s later action must be undone first. Each eligible global undo still changes only its own write set.
 
 P0/P1 delivery gates and V10–V29 in [validation](08_delivery_validation_and_risks.md) make these contracts reviewable. No isolation guarantee has been validated by this documentation alone.
+
+## Old-design inference checkpoint
+
+The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.

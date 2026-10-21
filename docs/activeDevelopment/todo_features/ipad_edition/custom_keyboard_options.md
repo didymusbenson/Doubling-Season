@@ -5,15 +5,17 @@
 
 Seat-facing keyboard/draft context does not confer ownership of central history/wipes/resets. Game-level input must preserve app/game origin separately from the interaction orientation; exact central-input orientation/handoff UI needs design without weakening the accepted player-facing requirement (D36).
 
-Accepted default-visible mana/storm utilities and fixed life shortcuts do not settle extra keyboard modes or symbol keys. Numeric edits still use the single initiating-player-facing input surface; dismissing a utility must not silently clear its value or discard a draft. Exact pending-draft handling stays open.
+Accepted default-visible mana/storm utilities and fixed life shortcuts do not settle extra keyboard modes or symbol keys. Numeric edits still use the single initiating-player-facing input surface; dismissing a utility must not silently clear its value or discard a draft. Use the operation-specific existing-design audit for commit/cancel; async dismissal recovery remains technical work.
 
-**D40 accepted:** detailed seat-specific search/editing uses the larger shared central workspace. The custom keyboard and field/results face the acting player while a label identifies the target seat. Spatial sharing does not change target scope. One keyboard remains the rule; rotation affordance, switching/handoff and background blocking are open. The generated C image is conceptual, especially its keyboard lettering; it does not approve new symbol keys or alter IME/accessibility requirements.
+**D40 accepted:** detailed seat-specific search/editing uses the larger shared central workspace. The custom keyboard and field/results face the acting player while a label identifies the target seat. Spatial sharing does not change target scope. One keyboard remains the rule; rotation affordance remains open; D41 settles modal blocking and finish/dismiss-before-next-editor, with no queued handoff. The generated C image is conceptual, especially its keyboard lettering; it does not approve new symbol keys or alter IME/accessibility requirements.
+
+**Accepted D41:** any open modal blocks interaction with the entire underlying table. Tapaway dismisses through an app-level overlay and consumes that gesture: no click-through, background mutation, queued second editor, takeover or “busy” notification. One player finishes/dismisses before another opens an editor. This applies to search, editing, confirmations and other modals, not only game-level actions. It does not imply blocking ordinary nonmodal quick controls when no modal is open. No toasts/snackbars for routine feedback, waiting or errors; use in-context status and explicit controls. An exceptional transient notification requires a demonstrated unavoidable need, not convenience.
 
 ## Fixed boundary versus later choices
 
 Any keyboard input must face the initiating player. The chosen Flutter direction is a custom in-app input panel that can rotate with its player-facing entry surface. This covers numeric as well as text input, not just search or rename. System keyboards do not expose arbitrary per-seat rotation. Prototype validation is still required.
 
-This document collects useful options for later review, prompted by the user's suggestion that a custom keyboard could include mana symbols. The subsequent explicit answer “No simultaneous keyboards.” settles one keyboard at a time (D09); request/handoff details remain open (D11). It also does not commit to a complete replacement for every native language-input service.
+This document collects useful options for later review, prompted by the user's suggestion that a custom keyboard could include mana symbols. The subsequent explicit answer “No simultaneous keyboards.” settles one keyboard at a time (D09); modal request handling is now settled by D41: finish/dismiss before a new interaction, no queue. It also does not commit to a complete replacement for every native language-input service.
 
 ## Required tracker inputs versus deferred keyboard extras
 
@@ -36,8 +38,12 @@ D26 now requires typed player counters and per-source commander damage including
 | Localization and IME | Explore translated key layouts, diacritics, right-to-left text, composition/candidate selection and hardware keyboards. A custom Latin keypad is not proof of general multilingual input. Identify a usable fallback without silently abandoning player-facing input. |
 | Accessibility | Evaluate semantic key/symbol labels, focus order, screen readers, switch/hardware navigation, contrast and text scaling. Rotated pixels alone do not establish accessible input. |
 | Numeric/text modes | Decide field-to-mode mapping, signed/decimal constraints where applicable, mode switching and validation error placement. Retain drafts on cancellation/failure according to the field's policy. |
-| Single keyboard / handoff | D09 requires one keyboard at a time, facing its initiating player. Preserve drafts and player/item identity; one player’s editing cannot mutate another’s state. D11 must choose request/handoff details without assuming automatic takeover, cancel or submit. Non-typing quick controls remaining usable is the recommendation. |
+| Single keyboard / handoff | D09 requires one keyboard at a time, facing its initiating player. Preserve drafts and player/item identity; one player’s editing cannot mutate another’s state. D41 blocks all background controls while any modal is open; no queued request/takeover or busy notification. A fresh post-dismissal gesture is required. |
 
 ## Later review outcome
 
 Select a small useful option set and permitted fields only after the core player-facing input prototype is usable. Record each selection as accepted, deferred or rejected, then add appropriate V34 and round-trip cases. Actual cloud interaction review precedes user installation; physical iPad and Android/web behavior require separate evidence. No new dependencies, symbol assets, licensing assumptions, data format or implementation work is authorized by this options list.
+
+## Old-design inference checkpoint
+
+The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.

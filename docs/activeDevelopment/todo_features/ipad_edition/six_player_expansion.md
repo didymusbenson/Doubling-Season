@@ -3,9 +3,11 @@
 **Status:** deferred feature, requested 2026-10-21. Initial scope remains customizable **2–4 players**; five/six-player implementation and release support are not promised now.
 **Related:** [D04](09_decision_register.md), [layout](02_layout_and_interaction.md), [validation](08_delivery_validation_and_risks.md).
 
-The D36 scope distinction also applies to future seats: central controls remain app/game-level regardless of position; affected-seat sets are not human actor identities. Expansion must not introduce strict seat permissions or assume a global input pause.
+The D36 scope distinction also applies to future seats: central controls remain app/game-level regardless of position; affected-seat sets are not human actor identities. Expansion must not introduce strict seat permissions; D41 explicitly requires whole-table blocking whenever any modal is open.
 
 Future capacity reviews must preserve dedicated life plus attached damage/counter shortcuts, separate curated utility lists and shared-control space. Include dismissible default-visible storm/mana and discoverable hidden nonzero values. This is design leeway only, not six-player implementation or one-player scope.
+
+**Accepted D41:** any open modal blocks interaction with the entire underlying table. Tapaway dismisses through an app-level overlay and consumes that gesture: no click-through, background mutation, queued second editor, takeover or “busy” notification. One player finishes/dismisses before another opens an editor. This applies to search, editing, confirmations and other modals, not only game-level actions. It does not imply blocking ordinary nonmodal quick controls when no modal is open. No toasts/snackbars for routine feedback, waiting or errors; use in-context status and explicit controls. An exceptional transient notification requires a demonstrated unavoidable need, not convenience.
 
 ## User direction
 
@@ -35,3 +37,7 @@ Preserve the accepted single chronological game history, player attribution, lat
 Compare five/six-seat arrangements, central life geometry, lane space, touch targets, reach and player-facing keyboards at each orientation. Decide supported screen/window floors and whether any focused-seat fallback is acceptable. Validate the accepted one-keyboard-at-a-time policy and chosen handoff, accessibility traversal, sustained performance and recovery fixtures at the larger count; current 2–4-player evidence cannot substitute.
 
 No team modes, networking, extra mana/rules automation or new distribution target is implied. Reopen this feature when the initial 2–4-player design is validated and the user is ready to choose the expansion scope. Record measured cloud visual/interactive and physical tabletop evidence before promoting it into release scope.
+
+## Old-design inference checkpoint
+
+The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.

@@ -87,13 +87,13 @@ Life, typed player counters/status and commander damage can appear in the centra
 - **Player read projection:** immutable or controlled views of one player's life, tokens, utilities, rules and pending outcomes.
 - **Player command facade:** capture identity and intent, validate targets, build plans, commit through the writer, return a typed scoped result.
 - **Life-tracker command boundary:** local life/counters/blessing, recipient-plus-CommanderId damage and corrections, and explicit shared monarch/day-night operations. Separate tracking from rule enforcement; new damage/life coupling is accepted with independent corrections; warning-only thresholds and manual claims do not imply a rules engine.
-- **Game coordinator:** own reset/rematch/seat administration, shared state changes and explicit multi-player write sets; represent game-level origin separately from affected seats and optional player attribution. Global input pause/barrier and destructive confirmation UI remain open, not required by central placement.
+- **Game coordinator:** own reset/rematch/seat administration, shared state changes and explicit multi-player write sets; represent game-level origin separately from affected seats and optional player attribution. Every modal requires an app-wide input barrier and tapaway consumption (D41), independently of command scope; exact wipe targeting remains open.
 - **Rules configuration:** player-session active values plus optionally shared definitions. The evaluator receives a versioned snapshot, not ambient mutable settings.
 - **Interaction controller:** seat-local quick-control/scroll/drag state plus a shared detailed-editor/search workspace with captured target, orientation and draft state. It does not own game truth.
-- **Player-facing input host:** custom Flutter keyboard and entry surface for any keyboard input, rotated together toward its initiating player. Numeric/text modes and richer options are discussed in [custom keyboard options](custom_keyboard_options.md). D09 now requires one active keyboard at a time. Preserve per-player drafts and origin; D11 still governs explicit request/handoff details, with no automatic takeover or cancellation assumed.
+- **Player-facing input host:** custom Flutter keyboard and entry surface for any keyboard input, rotated together toward its initiating player. Numeric/text modes and richer options are discussed in [custom keyboard options](custom_keyboard_options.md). D09 now requires one active keyboard at a time. Preserve per-player drafts and origin; D41 requires sequential modal use with no queued request/takeover; preserve operation-specific commit/cancel semantics and recoverable failed drafts.
 - **Device interaction coordinator:** native/hardware keyboard fallback and focus, photo picker/cropper, file import/share and other OS-native surfaces. Retain originating seat or app/game context through every return; never manufacture a player actor for a game-level flow. System keyboards cannot be arbitrarily rotated per seat; native fallback needs an explicit policy rather than silently weakening player-facing input.
 
-Per-player queues express ordering of intents and keep local busy/error state isolated. D15 decides whether they feed one serialized session writer initially or independent scoped writers with a table coordinator. A single durable writer can still accept input from multiple seats; sequential storage does not require globally disabling the UI.
+Per-player queues express ordering of intents and keep local busy/error state isolated. D15 decides whether they feed one serialized session writer initially or independent scoped writers with a table coordinator. A single durable writer can still accept input from multiple seats; sequential storage alone does not require disabling the UI. D41 separately blocks every background control while a modal is open; persistence command queues are not queued second-editor interactions.
 
 ## Retiring the list-item architecture in the tablet frontend
 
@@ -130,3 +130,11 @@ Core play should remain offline if D31 approves that boundary. Share immutable c
 Defer catalog-update, What's New, purchase and maintenance prompts while a game is actively accepting input; provide an explicit settings path. A critical storage failure may still require a root recovery surface. No analytics, server, accounts or remote player synchronization is required by this architecture.
 
 Performance, recovery and phone compatibility gates are specified in [delivery](08_delivery_validation_and_risks.md). There is no implementation effort estimate until the interaction and storage spikes resolve their highest-risk decisions.
+
+## Existing-design carryover
+
+Use the [source-backed behavior audit](existing_behavior_audit.md) for search/form cancellation, inline commit, live existing-deck rename, artwork serving and token/utility presentation. Existing snackbars, nondismissible dialogs and unsafe global/cache coupling are expressly not carryover requirements. D41 blocks all background input for any modal; closing consumes its gesture and cannot queue another editor.
+
+## Old-design inference checkpoint
+
+The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.

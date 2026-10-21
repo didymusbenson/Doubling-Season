@@ -18,7 +18,11 @@ This is a planning dossier, not a shipped feature specification. **Confirmed** m
 
 **Token-art lifetime (D39):** preferences are game-and-seat scoped, saved into deck presets and applied only to the loading seat. Fresh games do not inherit them. Keep-board and archive restoration retain explicit board/historical choices, not permanent seat defaults. Persistent player name and life appearance remain unchanged.
 
-**Detailed-editor choice (D40):** C, the larger shared central workspace, is accepted for detailed seat-specific editing/search. Identify the target seat and orient editor/results/one keyboard toward the acting player. Exact blocking, switching and per-editor sizing remain open; quick controls need not become large modals. See the labeled [concept reference](02_layout_and_interaction.md).
+**Detailed-editor choice (D40):** C, the larger shared central workspace, is accepted for detailed seat-specific editing/search. Identify the target seat and orient editor/results/one keyboard toward the acting player. D41 now settles all-modal blocking and tapaway dismissal without click-through or queued switching; per-editor sizing remains open; quick controls need not become large modals. See the labeled [concept reference](02_layout_and_interaction.md).
+
+**Accepted D41:** any open modal blocks interaction with the entire underlying table. Tapaway dismisses through an app-level overlay and consumes that gesture: no click-through, background mutation, queued second editor, takeover or “busy” notification. One player finishes/dismisses before another opens an editor. This applies to search, editing, confirmations and other modals, not only game-level actions. It does not imply blocking ordinary nonmodal quick controls when no modal is open. No toasts/snackbars for routine feedback, waiting or errors; use in-context status and explicit controls. An exceptional transient notification requires a demonstrated unavoidable need, not convenience.
+
+[Existing-design audit and all-decision disposition](existing_behavior_audit.md) distinguishes carryover behavior, multi-seat adaptation, genuine product choices and technical validation.
 
 ## Start here
 
@@ -56,7 +60,7 @@ For a fast design session: read this page, the layout document, and the decision
 
 - **C11:** Initial scope is customizable 2–4 players; expansion to six is deferred, with room in the design for it.
 - **C12:** Product targets are Android, iOS and web. Device/browser floors and release sequencing remain open.
-- **C13:** **Any keyboard input** must face the initiating player, including numeric entry as well as text/search/rename. **One keyboard at a time; no simultaneous keyboards** (D09). Draft-preserving handoff details remain open (D11).
+- **C13:** **Any keyboard input** must face the initiating player, including numeric entry as well as text/search/rename. **One keyboard at a time; no simultaneous keyboards** (D09). D41 requires finish/dismiss before the next editor, with no queued interaction; preserve each field’s existing commit/cancel model.
 - **C14:** Full life-tracker fundamentals: life totals, relevant player counters including energy/poison/experience, city’s blessing, monarch ownership, game-level day/night, and source-specific commander damage **including self and distinct partner sources**. Use [Lifetap’s functional inventory](lifetap_research.md) as research, not a UI to copy. New commander damage subtracts life as one undoable action with independent corrections; thresholds warn without automatic elimination; monarch/day-night changes are manual. Inventory extensions, detailed correction UI and remaining runtime/rule, archive-retention and restore-conflict details remain open; see [life-tracker scope](03_life_and_game_controls.md).
 
 - **C15:** Persistent game-wide chronological history with player attribution, undo walking back the latest action globally, repeated-like-action grouping and separate token add/remove lines. Life taps settle to a net adjustment after roughly 1–2 seconds of inactivity; immediate display is still a recommendation. Any player’s different action closes the active group; exact timeout tuning and pre-reset archive restore is accepted; exact retention/restore details remain open. See [history and undo](game_history_and_undo.md).
@@ -83,7 +87,7 @@ Both original images are retained unedited as user concept evidence, not impleme
 2. Treat the user’s seat as persistent identity/customization, with separate game-local values and visual slot/orientation. Changing player count hides unused seats rather than deleting their customization; moving presentation must not reassign contents.
 3. Enforce player scope at the command and repository boundaries, not only in list filtering.
 4. Keep life separate from board items. Give tokens and utilities independent ordering domains.
-5. Scope ordinary edits and panels to one player. Reserve a table-wide barrier for intentional game-level operations.
+5. Preserve explicit action scope, but block the entire table whenever any modal is open; absorb tapaway dismissal so underlying controls never receive it.
 6. Inspect the actual running UI and interactions in the cloud before asking the user to install anything; then prove physical touch, seated usability, native behavior and recovery on actual iPad hardware before release acceptance or large package extraction.
 
 The offline boundary and detailed implementation choices remain proposals. Separate product, 2–4-player initial scope and Android/iOS/web targets are accepted; six-player support is deferred. Resolve remaining choices through [D01–D35](09_decision_register.md).
@@ -103,7 +107,7 @@ The dossier received separate frontend, isolation/event, and persistence reviews
 
 ## Decision update — 2026-10-21
 
-Recorded separate-product, cross-platform and 2–4-player decisions; retained six-player expansion and custom keyboard options as deferred documents. All keyboard input must face its initiating player. The subsequent explicit answer “No simultaneous keyboards.” settles one keyboard at a time; detailed handoff behavior remains open. No app code, build configuration or acceptance result is changed by this documentation update.
+Recorded separate-product, cross-platform and 2–4-player decisions; retained six-player expansion and custom keyboard options as deferred documents. All keyboard input must face its initiating player. The subsequent explicit answer “No simultaneous keyboards.” settles one keyboard at a time; D41 later settles modal sequential use and tapaway consumption; native/IME details still need validation. No app code, build configuration or acceptance result is changed by this documentation update.
 
 ## Terminology
 
@@ -120,3 +124,5 @@ Recorded separate-product, cross-platform and 2–4-player decisions; retained s
 | Target | Player or object explicitly affected by a command |
 | Owner / controller | Magic concepts reserved for future explicit control-transfer support; do not conflate with a screen coordinate |
 | Companion token | Informal name for an additional generated token, such as a Squirrel; not the Magic companion mechanic |
+
+See the [second-pass granular baseline map](outstanding_behavior_baselines.md) for concrete old-design starting points across the remaining questions and the ranked next genuinely new decision.

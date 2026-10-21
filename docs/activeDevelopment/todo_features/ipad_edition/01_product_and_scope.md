@@ -27,7 +27,7 @@ This is a **separate app / new product** with a different frontend composition (
 ## Primary journeys
 
 1. **Start a table:** choose the supported active seat count (unused persistent seats are hidden, not deleted) and life preset, name/color each participant, set seating/orientation (including the empty control slot for three-player play), optionally load each player's token/utility deck, then start.
-2. **Create while another player acts:** P1 opens their menu and searches for a token while P3 changes life. Creation and any follow-on tokens go to P1. P3 remains responsive.
+2. **Create while another player acts:** P1 opens token search; the whole table waits while the modal is open. Creation and companions retain P1 scope. Tapaway dismisses without changing P3 life or queuing its control; P3 may act with a fresh gesture afterward.
 3. **Resolve a utility:** P2 runs Krenko using P2's token state, tracked non-token count and P2's rules. P4's identically named tokens and utilities remain unaffected.
 4. **Rearrange a busy board:** P4 moves a token within P4's token lane and a utility within P4's utility lane. Other lanes keep their order and scroll position.
 5. **Correct a mistake:** P1 reverses a grouped life/counter change, commander-ledger correction or local clear under the selected policy. P2’s subsequent changes survive. Shared monarch/day-night corrections retain their explicit table scope and cannot undo later unrelated transfers.
@@ -82,7 +82,7 @@ Do not implicitly add networking, cloud synchronization, deck-list import servic
 
 ## Product questions that affect the architecture
 
-- How should a second player request the single keyboard while preserving the first player’s draft? D11. No simultaneous keyboards (D09 accepted); non-typing quick controls staying usable remains the recommendation, not an automatic takeover/cancel policy.
+- D41 settles second-editor interaction: all background input is blocked while any modal is open, no request queue/toast/takeover. Finish/dismiss then open a new editor; keyboard/IME/native accessibility still needs validation.
 - How do customizable 2/3/4-player layouts adapt to each supported viewport, and when is a focused-seat fallback acceptable? D05/D06. Four-seat geometry is a fixture, not the only release layout.
 - Should the existing phone app share live games, only deck files, or no user data with this edition? D18/D23.
 - New commander damage subtracts life as one undoable action; independent corrections are required and thresholds warn without auto-KO. Resolve detailed controls and reset retention, not whether to include this policy. D26/D22.
@@ -95,3 +95,11 @@ Do not implicitly add networking, cloud synchronization, deck-list import servic
 Proposed acceptance means groups of two, three and four can complete a representative game without losing track of whose controls they are using, without accidental cross-player mutations, and without abandoning the tablet when token or utility lists grow. The release must survive interruptions, recover its last acknowledged durable state, preserve local ordering, and expose errors where the affected player can see them.
 
 Measure this in a real tabletop session. Record reach/legibility problems, accidental touches, time to create and adjust a token, menu interruptions, and recovery results. No usability or performance result is claimed by this documentation.
+
+## Existing-design carryover
+
+Use the [source-backed behavior audit](existing_behavior_audit.md) for search/form cancellation, inline commit, live existing-deck rename, artwork serving and token/utility presentation. Existing snackbars, nondismissible dialogs and unsafe global/cache coupling are expressly not carryover requirements. D41 blocks all background input for any modal; closing consumes its gesture and cannot queue another editor.
+
+## Old-design inference checkpoint
+
+The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.
