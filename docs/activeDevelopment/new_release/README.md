@@ -684,3 +684,25 @@ the feature review.
 
 Deck JSON export advances to schema v3 for `actionOnly`. The importer remains
 backward-compatible with schema v1/v2, where the field safely defaults to false.
+
+## Repository integration checkpoint — 2026-10-21
+
+Integrated the current 1.11 implementation, IPAD EDITION dossier and subsequent
+Lifetap research with published `main` at `2799be4`. The integration tree is
+`af51026`; this checkpoint records validation without marking outstanding
+device acceptance or the unimplemented iPad project complete.
+
+- Preserved the exact published token database/manifest v12 pair from
+  2026-10-19: 965 unique definitions and 3,092 artwork entries with artist
+  metadata. Verified manifest size (892,451 bytes) and SHA-256; no regeneration
+  or version bump was needed. Both conflicted asset files use this matched pair.
+- Confirmed the latest 1.11 commit `8894640`, dossier refinements `3ddb425`,
+  Lifetap research `6bb9a20` and published `main` are ancestors of the integration.
+- `flutter analyze`: passed with no issues on Flutter 3.41.2 / Dart 3.11.0.
+- `flutter build web --release --base-href /Doubling-Season/`: passed. The build
+  reported a non-fatal CupertinoIcons font-family warning.
+- Retained the incoming Flutter 3.38.x Pages workflow required by the current
+  dependency floor. The local build above uses the installed SDK; GitHub's
+  workflow validates its configured SDK separately after merging.
+- No new automated test code was added. Physical-device and manual interaction
+  acceptance statuses elsewhere in this document remain as previously recorded.
