@@ -779,6 +779,22 @@
   },
   {
     "name": "Angel",
+    "abilities": "Flying, vigilance",
+    "pt": "3/3",
+    "colors": "W",
+    "type": "Creature — Angel",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MDD",
+        "url": "https://cards.scryfall.io/large/front/4/8/481ff636-8343-4eb2-93cf-48b94c9ecfdb.jpg",
+        "artist": "Tehani Farr"
+      }
+    ],
+    "reverse_related": []
+  },
+  {
+    "name": "Angel",
     "abilities": "",
     "pt": "*/*",
     "colors": "W",
@@ -5305,7 +5321,7 @@
     "pt": "",
     "colors": "",
     "type": "Token",
-    "popularity": 359,
+    "popularity": 360,
     "artwork": [
       {
         "set": "2XM",
@@ -5431,6 +5447,11 @@
         "set": "PLST",
         "url": "https://cards.scryfall.io/large/front/0/0/00560d67-5299-4681-952b-d153d82bedaf.jpg",
         "artist": "Henry Peters"
+      },
+      {
+        "set": "PLST",
+        "url": "https://cards.scryfall.io/large/front/4/b/4b976756-e988-4211-95c2-0e3587118488.jpg",
+        "artist": "David Palumbo"
       },
       {
         "set": "PLST",
@@ -5769,6 +5790,7 @@
       "Sauron, the Necromancer",
       "Schema Thief",
       "Scion of Calamity",
+      "Scouring Swarm",
       "Scurry of Squirrels",
       "Scute Swarm",
       "Season of Weaving",
@@ -9699,6 +9721,11 @@
         "artist": "William O'Connor"
       },
       {
+        "set": "MDD",
+        "url": "https://cards.scryfall.io/large/front/7/2/72ac66e9-4b4b-4540-b310-e7b3dc04c305.jpg",
+        "artist": "A.K. Venrinn"
+      },
+      {
         "set": "NCC",
         "url": "https://cards.scryfall.io/large/front/2/d/2dec2e14-9a14-4a33-beb8-f4fbce81d437.jpg",
         "artist": "William O'Connor"
@@ -11074,6 +11101,11 @@
         "artist": "Jack Wang"
       },
       {
+        "set": "PLST",
+        "url": "https://cards.scryfall.io/large/front/b/1/b14352e0-98c8-4dbe-bee7-569ff5b439e3.jpg",
+        "artist": "Jack Wang"
+      },
+      {
         "set": "RNA",
         "url": "https://cards.scryfall.io/large/front/4/9/495d3391-6311-418e-b55a-10c0af751026.jpg",
         "artist": "Jack Wang"
@@ -11343,11 +11375,6 @@
         "artist": "Igor Kieryluk"
       },
       {
-        "set": "FDC",
-        "url": "https://cards.scryfall.io/large/front/5/3/53c05e53-84c7-4796-ae02-d778faa5afa6.jpg",
-        "artist": "Igor Kieryluk"
-      },
-      {
         "set": "MBS",
         "url": "https://cards.scryfall.io/large/front/7/6/760dcba4-c0f1-4843-9c39-393c629aae8e.jpg",
         "artist": "Igor Kieryluk"
@@ -11389,6 +11416,22 @@
     "reverse_related": [
       "Giant Opportunity"
     ]
+  },
+  {
+    "name": "Giant",
+    "abilities": "",
+    "pt": "4/4",
+    "colors": "UR",
+    "type": "Creature — Giant",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MDD",
+        "url": "https://cards.scryfall.io/large/front/0/6/0689b1b8-84be-4cc8-be4b-4461fefa885b.jpg",
+        "artist": "Tulio Brito"
+      }
+    ],
+    "reverse_related": []
   },
   {
     "name": "Giant",
@@ -13481,6 +13524,11 @@
         "set": "MBS",
         "url": "https://cards.scryfall.io/large/front/5/a/5a4c5954-da2b-498a-9e86-eb4d6dc95cb8.jpg",
         "artist": "Scott Chou"
+      },
+      {
+        "set": "PLST",
+        "url": "https://cards.scryfall.io/large/front/c/6/c6244ae8-5676-4f6c-b488-f47dd4709dac.jpg",
+        "artist": "Scott Chou"
       }
     ],
     "reverse_related": [
@@ -14637,6 +14685,11 @@
         "artist": "Jason A. Engle"
       },
       {
+        "set": "PLST",
+        "url": "https://cards.scryfall.io/large/front/4/f/4f4c6c9f-2cb5-4450-b1be-aeb50cb7cbe0.jpg",
+        "artist": "Jason A. Engle"
+      },
+      {
         "set": "SOC",
         "url": "https://cards.scryfall.io/large/front/f/6/f6469938-5af9-4f0a-9f2e-603c833e48ba.jpg",
         "artist": "Jason A. Engle"
@@ -14990,6 +15043,11 @@
       {
         "set": "OTC",
         "url": "https://cards.scryfall.io/large/front/2/a/2af2f485-ee1c-468f-9854-a9529c38ec55.jpg",
+        "artist": "Scott Murphy"
+      },
+      {
+        "set": "PLST",
+        "url": "https://cards.scryfall.io/large/front/6/b/6bd5937e-115c-411f-b3f0-ab3410726b98.jpg",
         "artist": "Scott Murphy"
       },
       {
@@ -17331,6 +17389,22 @@
     ]
   },
   {
+    "name": "Mindless-One",
+    "abilities": "",
+    "pt": "3/1",
+    "colors": "B",
+    "type": "Creature — Missing",
+    "popularity": 0,
+    "artwork": [
+      {
+        "set": "MDD",
+        "url": "https://cards.scryfall.io/large/front/2/1/21d44eef-8dbc-4f2f-9be3-d6c43d4b405c.jpg",
+        "artist": "Maxime Minard"
+      }
+    ],
+    "reverse_related": []
+  },
+  {
     "name": "Minion",
     "abilities": "",
     "pt": "*/*",
@@ -19099,11 +19173,16 @@
     "pt": "0/0",
     "colors": "B",
     "type": "Creature — Phyrexian Germ",
-    "popularity": 21,
+    "popularity": 22,
     "artwork": [
       {
         "set": "CMM",
         "url": "https://cards.scryfall.io/large/front/f/c/fc375fe9-e8aa-4b7d-b439-a67c0b61beaf.jpg",
+        "artist": "Igor Kieryluk"
+      },
+      {
+        "set": "FDC",
+        "url": "https://cards.scryfall.io/large/front/5/3/53c05e53-84c7-4796-ae02-d778faa5afa6.jpg",
         "artist": "Igor Kieryluk"
       },
       {
@@ -19150,6 +19229,7 @@
       "Colossal Dreadmask",
       "Cranial Ram",
       "Drossclaw",
+      "Ekthi, Contaminator Priest",
       "Flayer Husk",
       "Germ",
       "Grip of Phyresis",
@@ -22674,6 +22754,11 @@
     "popularity": 1,
     "artwork": [
       {
+        "set": "PLST",
+        "url": "https://cards.scryfall.io/large/front/3/8/381c156f-7a9b-45df-b09e-6559c8c36280.jpg",
+        "artist": "Joe Slucher"
+      },
+      {
         "set": "VOW",
         "url": "https://cards.scryfall.io/large/front/6/e/6e2ae34f-4558-46e0-95c5-e00d813fa355.jpg",
         "artist": "Joe Slucher"
@@ -25999,6 +26084,11 @@
         "artist": "Dan Murayama Scott"
       },
       {
+        "set": "PLST",
+        "url": "https://cards.scryfall.io/large/front/a/c/ac0260f4-9d56-4590-b944-66a9171a22d0.jpg",
+        "artist": "Dan Murayama Scott"
+      },
+      {
         "set": "THB",
         "url": "https://cards.scryfall.io/large/front/7/b/7b9f04f7-587e-4774-8aaa-09e8520efacb.jpg",
         "artist": "Dan Murayama Scott"
@@ -27132,6 +27222,11 @@
         "set": "PLST",
         "url": "https://cards.scryfall.io/large/front/b/7/b7644ff8-d3fb-4d67-b9f8-07ed2259b8a9.jpg",
         "artist": "Yeong-Hao Han"
+      },
+      {
+        "set": "PLST",
+        "url": "https://cards.scryfall.io/large/front/a/2/a23b05a9-5476-493d-8de7-7c14e726e9be.jpg",
+        "artist": "Forrest Imel"
       },
       {
         "set": "PLST",
@@ -30512,6 +30607,11 @@
         "set": "MBS",
         "url": "https://cards.scryfall.io/large/front/4/6/46769d11-a7ae-43ac-8c00-e1681955949b.jpg",
         "artist": "Dave Kendall"
+      },
+      {
+        "set": "MDD",
+        "url": "https://cards.scryfall.io/large/front/5/e/5e16386a-d478-475b-8e9b-edef62cae02b.jpg",
+        "artist": "Jasper Dolauta"
       },
       {
         "set": "MED",
