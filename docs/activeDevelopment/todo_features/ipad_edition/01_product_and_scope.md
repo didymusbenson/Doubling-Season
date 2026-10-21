@@ -83,7 +83,7 @@ Do not implicitly add networking, cloud synchronization, deck-list import servic
 ## Product questions that affect the architecture
 
 - D41 settles second-editor interaction: all background input is blocked while any modal is open, no request queue/toast/takeover. Finish/dismiss then open a new editor; keyboard/IME/native accessibility still needs validation.
-- How do customizable 2/3/4-player layouts adapt to each supported viewport, and when is a focused-seat fallback acceptable? D05/D06. Four-seat geometry is a fixture, not the only release layout.
+- D06/D30 require complete 2/3/4-seat tablet layouts from iPad mini through full-size iPads and Android tablets. Measure dimensions/aspect ratios/orientations; no MVP focused-seat or phone fallback. Web remains supported at tablet-suitable sizes.
 - Should the existing phone app share live games, only deck files, or no user data with this edition? D18/D23.
 - New commander damage subtracts life as one undoable action; independent corrections are required and thresholds warn without auto-KO. Resolve detailed controls and reset retention, not whether to include this policy. D26/D22.
 - Any player’s different action ends the active history group. One chronological game timeline, latest-action global undo and current-session persistence are accepted; exact timeout tuning and archive policy remain open. D16/D17/D33.
@@ -103,3 +103,7 @@ Use the [source-backed behavior audit](existing_behavior_audit.md) for search/fo
 ## Old-design inference checkpoint
 
 The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.
+
+## Tablet-first MVP boundary — D06/D30
+
+MVP supports tablets from iPad mini through full-size iPads and Android variants, retaining the complete active 2–4-seat view. Android/iOS/web targets remain; web support uses tablet-suitable viewports. Exact minimum dimensions, model generations, OS/browser floors, aspect ratios and orientations require validation, not guesses. Small-tablet fit is mandatory; no MVP phone or focused-seat mode. The [closed-focus/unfolded-multiplayer foldable concept](foldable_phone_future_version.md) is deferred to another major version and does not add a standalone one-player game.

@@ -51,3 +51,7 @@ The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete
 ## Modifier scope checkpoint — D25
 
 Editing a source modifier count/configuration retains source and owning-seat identity even when the keyboard/workspace is central. A recipient read-only effect display must not become a second editable source. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).
+
+## Tablet-first MVP boundary — D06/D30
+
+MVP supports tablets from iPad mini through full-size iPads and Android variants, retaining the complete active 2–4-seat view. Android/iOS/web targets remain; web support uses tablet-suitable viewports. Exact minimum dimensions, model generations, OS/browser floors, aspect ratios and orientations require validation, not guesses. Small-tablet fit is mandatory; no MVP phone or focused-seat mode. The [closed-focus/unfolded-multiplayer foldable concept](foldable_phone_future_version.md) is deferred to another major version and does not add a standalone one-player game.

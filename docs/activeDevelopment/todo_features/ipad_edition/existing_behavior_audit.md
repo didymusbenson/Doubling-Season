@@ -61,13 +61,13 @@ The current board has one expanded item; tapping another first requests collapse
 | D03 | R Android/iOS/web; U release order; T device/browser capability matrix |
 | D04 | R customizable 2–4, six deferred; A layouts within accepted regions, no one-player inference |
 | D05 | R opposite-facing two-player template; U four-seat orientation options beyond accepted concepts; T rotated hit/semantics |
-| D06 | U minimum-window/focused fallback product promise; T measured usable dimensions; phone behavior cannot prove tablet floor |
+| D06 | R tablet MVP, iPad mini through full-size iPads/Android tablets, complete 2–4-seat view, web at tablet-suitable sizes; no phone/focused fallback; T exact geometry/orientation |
 | D07 | R dedicated life/attached shortcuts/separate lanes/shared controls; T exact geometry and reach |
 | D08 | R conceptual existing workflow baseline; A utility/token parity inventory; U intentional release omissions, not assumed whole feature parity |
 | D09 | R one keyboard, all-modal whole-table blocking, no queued second editor; T nonmodal multi-touch |
 | D10 | R C for detailed work and inline editing for quick fields; A compact expansion state; T capacity/interaction, not four simultaneous modal editors |
 | D11 | R finish/dismiss then fresh interaction; search/form/inline resolution above; T rotation/native/IME/accessibility and safe async dismissal |
-| D12 | R meaningful labels and accessible alternatives as baseline; T multi-orientation traversal/large text; U fallback view if measurements require a product tradeoff |
+| D12 | R meaningful labels/accessible controls and complete tablet multiplayer view; T multi-orientation traversal/large text; no MVP focused-seat fallback inferred |
 | D13 | R append ordinary entries, source-adjacent copy/split, merge retains destination; A independent seat/lane order and companion routes |
 | D14 | T aggregate versus records/journal schema; old Hive layout is evidence, not a mandated tablet store |
 | D15 | T command ordering/revisions/async recovery; R modal UI excludes second-user gestures, but not in-flight async work |
@@ -85,7 +85,7 @@ The current board has one expanded item; tapping another first requests collapse
 | D27 | R dismissible default mana pool; U exact mana mechanics/restrictions; existing token UI does not choose these |
 | D28 | R shared control locations/dice example; U extra tools/dice options; no old/reference icon commits new functionality |
 | D29 | R separate product and safe explicit interchange direction; U shared live-data policy; T storage boundaries |
-| D30 | T actual hardware/workload measurements; U supported floor after evidence; no legacy performance guarantee |
+| D30 | R small-through-full-size tablet scope including iPad mini and Android variants; T actual models/OS/browser/viewport and workload measurements; no legacy performance guarantee |
 | D31 | R preserve offline selections and local state; T web/native cache/resume differences; U formal offline/update release guarantee |
 | D32 | U commercial entitlement/pricing; existing app cannot choose new-product business policy |
 | D33 | R pre-reset archive restore; U retention/browse/current-game-preservation policy; T historical media and restore coherence |

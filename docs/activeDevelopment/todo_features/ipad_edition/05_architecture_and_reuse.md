@@ -121,7 +121,7 @@ Current source locks portrait and the iOS target device family is iPhone. An iPa
 
 Keep existing production identifiers untouched while the separate product receives its own deliberately chosen identity and any explicit D29 interoperability plan. A new install needs new identifiers and product/store configuration; no identifier is proposed here. Current Flutter/Dart dependency floors and lockfile remain the starting point; latest online examples may refer to a newer SDK. Check API availability before adopting drag-boundary/navigation features.
 
-On iPad, orientation locking interacts with multitasking; Android large screens also have orientation restrictions. Design a resize/fallback policy instead of relying on a permanent landscape lock. [Official orientation API](https://api.flutter.dev/flutter/services/SystemChrome/setPreferredOrientations.html). No macOS native build or release requirement is introduced.
+On iPad, orientation locking interacts with multitasking; Android large screens also have orientation restrictions. Design a tablet-size resize policy instead of relying on a permanent landscape lock. MVP must retain the complete active 2–4-seat view; no phone/focused-seat fallback. Exact orientation/aspect-ratio support needs validation. [Official orientation API](https://api.flutter.dev/flutter/services/SystemChrome/setPreferredOrientations.html). No macOS native build or release requirement is introduced.
 
 ## Operational concerns
 
@@ -142,3 +142,7 @@ The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete
 ## Modifier scope checkpoint — D25
 
 Resolve effective modifiers from authoritative seat-owned local/global sources before evaluation. Shared source revisions participate in preview validity and command planning; recipient views are projections, not cloned mutable rule stores. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).
+
+## Tablet-first MVP boundary — D06/D30
+
+MVP supports tablets from iPad mini through full-size iPads and Android variants, retaining the complete active 2–4-seat view. Android/iOS/web targets remain; web support uses tablet-suitable viewports. Exact minimum dimensions, model generations, OS/browser floors, aspect ratios and orientations require validation, not guesses. Small-tablet fit is mandatory; no MVP phone or focused-seat mode. The [closed-focus/unfolded-multiplayer foldable concept](foldable_phone_future_version.md) is deferred to another major version and does not add a standalone one-player game.

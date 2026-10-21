@@ -34,7 +34,7 @@ Preserve the accepted single chronological game history, player attribution, lat
 
 ## Decisions deferred until expansion review
 
-Compare five/six-seat arrangements, central life geometry, lane space, touch targets, reach and player-facing keyboards at each orientation. Decide supported screen/window floors and whether any focused-seat fallback is acceptable. Validate the accepted one-keyboard-at-a-time policy and chosen handoff, accessibility traversal, sustained performance and recovery fixtures at the larger count; current 2–4-player evidence cannot substitute.
+Compare five/six-seat arrangements, central life geometry, lane space, touch targets, reach and player-facing keyboards at each orientation. Decide future six-player screen/window floors; do not import a focused-seat fallback into the accepted 2–4-player tablet MVP. Any future fallback is a separate scope choice. Validate the accepted one-keyboard-at-a-time policy and chosen handoff, accessibility traversal, sustained performance and recovery fixtures at the larger count; current 2–4-player evidence cannot substitute.
 
 No team modes, networking, extra mana/rules automation or new distribution target is implied. Reopen this feature when the initial 2–4-player design is validated and the user is ready to choose the expansion scope. Record measured cloud visual/interactive and physical tabletop evidence before promoting it into release scope.
 
@@ -45,3 +45,7 @@ The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete
 ## Modifier scope checkpoint — D25
 
 Future seats derive applicable global contributions from stable source identities. Expansion must not clone modifiers per seat or multiply an effect by recipient count; source ownership remains separate from applicability. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).
+
+## Tablet-first MVP boundary — D06/D30
+
+MVP supports tablets from iPad mini through full-size iPads and Android variants, retaining the complete active 2–4-seat view. Android/iOS/web targets remain; web support uses tablet-suitable viewports. Exact minimum dimensions, model generations, OS/browser floors, aspect ratios and orientations require validation, not guesses. Small-tablet fit is mandatory; no MVP phone or focused-seat mode. The [closed-focus/unfolded-multiplayer foldable concept](foldable_phone_future_version.md) is deferred to another major version and does not add a standalone one-player game.

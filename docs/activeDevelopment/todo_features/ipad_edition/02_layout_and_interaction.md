@@ -18,7 +18,7 @@ The additional Lifetap reference supplied on 2026-10-21 was visually inspected: 
 
 The user requests matching, mirrored layouts for two players seated opposite one another. In **each player’s own seated perspective**, the token lane is on the left, life is at the top right, and utilities are beneath life. Opposite-facing seats use 0°/180° presentation: rotating the matched composition changes physical screen left/right, not the player-local order. All keyboard input follows its initiating player, with one keyboard at a time.
 
-The upper half of the supplied sketch is only partially illustrated. Populate it with the matching player-local composition; do not interpret the blank area as a missing token/utility lane. Exact lane widths, target sizes, center-control placement and resize fallback still need prototype measurements. This accepted two-player composition supersedes the generic A/B comparison for that count; it does not settle every four-player quadrant’s composition.
+The upper half of the supplied sketch is only partially illustrated. Populate it with the matching player-local composition; do not interpret the blank area as a missing token/utility lane. Exact lane widths, target sizes, center-control placement and resize constraints still need prototype measurements. This accepted two-player composition supersedes the generic A/B comparison for that count; it does not settle every four-player quadrant’s composition.
 
 ## Three-player layout — accepted 2026-10-21
 
@@ -107,13 +107,9 @@ Illustrative starting inputs: token width 280, utility width 200, lane gap 12, p
 
 Do not shrink every card and touch target to fit. Current phone cards have a dense action row; narrow lanes need a purpose-built compact view with primary controls and overflow/expansion for secondary actions. Reuse the behaviors, not their exact row arrangement.
 
-Proposed adaptation ladder:
+Accepted tablet-first scope requires the complete active 2–4-seat layout, including on small tablets such as iPad mini. Adapt the dedicated regions with compact controls, bounded details and independent scrolling; do not replace the multiplayer board with one focused seat or a phone mode in MVP. The larger shared editor may temporarily obscure the board as already accepted; that is not a permanent focused-seat layout.
 
-1. **Roomy table:** full four-seat overview, both lanes visible, central life hub.
-2. **Constrained table:** compact card controls, bounded life detail, optional seat-local lane-width adjustment. Do not hide a whole lane without an obvious selector and count.
-3. **Focused seat fallback:** persistent compact life overview plus one selected player's full workspace; preserve all players' state and label the focused seat. This relaxes simultaneous four-workspace visibility and requires D06 approval.
-
-If fallback is rejected, state the supported minimum and offer a clear “enlarge window / rotate device” state. Never discard game state on resize. Flutter recommends adapting to local/window constraints rather than device type. [Adaptive layout guidance](https://docs.flutter.dev/ui/adaptive-responsive/general).
+Small-tablet fit is required, not an optional fallback test. Exact dimensions, aspect ratios and supported orientations require prototype measurement. The illustrative estimate above is not permission to exclude iPad mini. For a web/window size outside the eventual validated tablet-suitable range, provide explicit resize guidance while preserving state; do not silently add phone/focused-seat support. Never discard game state on resize. Flutter recommends adapting to local/window constraints rather than device type. [Adaptive layout guidance](https://docs.flutter.dev/ui/adaptive-responsive/general).
 
 ## Independent lists
 
@@ -191,3 +187,7 @@ The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete
 ## Modifier scope checkpoint — D25
 
 Modifier panels distinguish owned controls from inherited global contributions. Recipient panels cannot independently remove another seat’s source. Source-labeled read-only Other effects is recommended, not mandated; linked propagated indication is also allowed. Modal blocking and seat context are unchanged. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).
+
+## Tablet-first MVP boundary — D06/D30
+
+MVP supports tablets from iPad mini through full-size iPads and Android variants, retaining the complete active 2–4-seat view. Android/iOS/web targets remain; web support uses tablet-suitable viewports. Exact minimum dimensions, model generations, OS/browser floors, aspect ratios and orientations require validation, not guesses. Small-tablet fit is mandatory; no MVP phone or focused-seat mode. The [closed-focus/unfolded-multiplayer foldable concept](foldable_phone_future_version.md) is deferred to another major version and does not add a standalone one-player game.
