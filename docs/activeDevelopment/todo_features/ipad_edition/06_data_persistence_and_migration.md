@@ -21,19 +21,26 @@ The following names describe responsibilities, not approved classes or adapter a
 | `SessionId` | Stable identity for one saved game; independent of active screen/window |
 | `PlayerId` | Stable participant within a session; not a user account or quadrant number |
 | `SeatId` | Presentation position/orientation mapped to a participant; reseating preserves identity |
+| `CommanderId` | Stable source identity linked to an owning PlayerId; distinct from recipient and seat; separate partner records |
 | `EntityId` | Stable token-stack/utility instance identity; separate from token-definition composite ID |
 | Session generation | Invalidates work from a previous game/reset boundary even if seats are reused |
 | Player generation | Invalidates delayed work after a player-local replacement/reset when appropriate |
 | Revision | Version used to order accepted changes and detect stale commands/undo |
 | `CommandId` | Distinguishes retries from separate intentional identical actions |
 
-A session contains participants, seating, game configuration, table-level state, revision/generation and recovery metadata. Each participant contains life, active token stacks, active utilities, mana if enabled, rules state and relevant gameplay options. Reusable definitions belong in libraries; active values belong in the session.
+A session contains participants, seating, game configuration, table-level state, revision/generation and recovery metadata. Each participant contains life, typed player counters, city’s blessing status, active token stacks, active utilities, mana if enabled, rules state and relevant gameplay options. Source commander records associate CommanderId with owner PlayerId; incoming damage is keyed by recipient PlayerId and CommanderId, including self. Session-level monarch stores one optional holder PlayerId; day/night stores one shared designation including initial neither. These are required state responsibilities; concrete schema/classes remain proposals. Reusable definitions belong in libraries; active values belong in the session.
 
 Each player has **two independent ordered sequences**: token entity IDs and utility entity IDs. Life has its own fixed-purpose state/surface. Model-type IDs do not identify a lane. Enforce one membership per runtime entity, valid references and deterministic order after recovery. Reordering one lane never renumbers another player's lane. Across-lane or across-player dragging requires a separately designed transfer command; it is not implied by reorder support.
 
-Life requires signed integer semantics; current generic tracker decrement clamps at zero. Starting life is configuration, current life is active state. If commander damage is included, reference source commander identity and recipient PlayerId, not only opponent seat. This avoids losing partner-commander distinctions or relabeling damage after reseating. Retain eliminated participants and their references unless D21 explicitly chooses otherwise; elimination must not silently delete history, tokens or cross-player references.
+Life requires signed integer semantics; current generic tracker decrement clamps at zero. Starting life is configuration, current life is active state. Commander damage is required: reference source commander identity and recipient PlayerId, including self, not only opponent seat. This avoids losing partner-commander distinctions or relabeling damage after reseating. Retain eliminated participants and their references unless D21 explicitly chooses otherwise; elimination must not silently delete history, tokens or cross-player references.
 
 Mana is a typed quantity collection rather than an unstructured life counter. Its categories, restrictions and clearing rules are D27 in [utilities](07_utilities_tokens_and_decks.md). Storage must preserve whichever semantics are approved without assuming a turn/phase engine exists.
+
+## Tracker integrity, history and export
+
+Persist accepted tracker values together with their scope and identity, not only visible/nonzero counters. Distinguish disabled/hidden presentation from a zero/false value. Keep typed counter identifiers separate from localized labels and avoid merging same-named sources. Schema/version validation must check that holder/source/recipient references belong to this session; an empty three-player control slot cannot own player state. Source replacement and eliminated-player historical reference retention need explicit policies, not cascading deletion.
+
+Record command actor, target/shared scope, before/after values and operation/group identity for life, counters, blessing, damage and shared state. If damage/life coupling is selected, persistence/recovery/history must treat both effects atomically; correction semantics are not selected yet. Preserve shared-state revisions for safe monarch/day-night undo. Session export, if approved, includes these identities and active values; phone deck/setup v3 cannot represent them and must not be described as a full session backup. Exact history depth, privacy/export fields and reset retention remain D16/D17/D22/D23/D33/D34.
 
 ## Storage alternatives — D14 and D24
 
@@ -73,7 +80,7 @@ Multiple windows are a separate writer-ownership decision: initially one live wr
 
 A local snapshot still has conflicts if the same player's subsequent action depends on the removed state. Define revision checking, allowed undo depth, grouping of rapid life changes and the response to conflicts. Never claim unconditional undo while silently overwriting newer state.
 
-**Game-level proposal:** a reset/new-game operation acquires an intentional table-wide barrier, resolves active edits, captures its complete affected state, invalidates stale work and commits one recoverable transition. The UI previews exactly what resets: life, tokens, utilities, rules, mana, history, seating and setup are separate choices. Resetting gameplay does not delete library decks or custom art implicitly.
+**Game-level proposal:** a reset/new-game operation acquires an intentional table-wide barrier, resolves active edits, captures its complete affected state, invalidates stale work and commits one recoverable transition. The UI previews exactly what resets: life, each typed counter, city’s blessing, self/partner source-damage entries, monarch, day/night, tokens, utilities, rules, mana, history, seating and setup are separate choices. Exact retention is unresolved. A local life/board reset must not silently clear shared state. Recovery/undo checkpoints include every field actually changed, preserving unrelated player and shared revisions. Resetting gameplay does not delete library decks or custom art implicitly.
 
 The existing non-dismissible Undo/Accept completion dialog is a phone reference, not automatically the tablet interaction. A table-wide modal blocks four players. D16/D22 must choose finalization and interruption behavior. Any restore writes state without firing ETB, board-wipe, replacement or utility triggers; commands/history identify it as restoration.
 
@@ -118,4 +125,4 @@ Downloaded art can share a content-addressed/URL-keyed cache without sharing mut
 
 ## Operational completion criteria
 
-Before implementation acceptance, demonstrate restart recovery at each save/reset/import/reorder boundary, disk-full handling, invalid imports, interrupted migration and stale callbacks. Verify local undo preserves other players' later changes and that seat changes preserve ownership/damage references. Measure rapid life input and large boards on actual hardware. Confirm legacy phone decks/data remain unchanged. These are planned manual/device checks, not completed results; the validation plan owns detailed scenarios.
+Before implementation acceptance, demonstrate restart recovery at each save/reset/import/reorder boundary, disk-full handling, invalid imports, interrupted migration and stale callbacks. Verify local undo preserves other players' later changes and that seat changes preserve ownership/damage references. Measure rapid life/counter input, self/partner damage edits, shared-state transitions and large boards on actual hardware. Verify monarch, blessing, day/night and source/recipient ledgers survive restart without duplicate authority or broken references. Confirm legacy phone decks/data remain unchanged. These are planned manual/device checks, not completed results; the validation plan owns detailed scenarios.

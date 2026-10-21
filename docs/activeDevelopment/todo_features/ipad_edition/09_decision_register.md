@@ -1,6 +1,6 @@
 # Decision register
 
-**Last updated:** 2026-10-21. **D01/D03/D04 have accepted product boundaries; D05/D07 have accepted two-player layout and three-player empty-slot decisions**, with implementation details still open; D09 accepts one keyboard at a time; D11 handoff details remain open. Other decisions remain open unless explicitly noted below. Recommended defaults are proposals, not approvals. Confirmed requirements C01–C13 are in [README](README.md). Flutter with player-facing custom keyboards is the chosen direction, subject to prototype validation.
+**Last updated:** 2026-10-21. **D01/D03/D04 have accepted product boundaries; D05/D07 have accepted two-player layout and three-player empty-slot decisions**, with implementation details still open; D26 accepts full tracker fundamentals, with detailed policy gates open; D09 accepts one keyboard at a time; D11 handoff details remain open. Other decisions remain open unless explicitly noted below. Recommended defaults are proposals, not approvals. Confirmed requirements C01–C14 are in [README](README.md). Flutter with player-facing custom keyboards is the chosen direction, subject to prototype validation.
 
 Use stable IDs in later discussions, commits and acceptance notes. Answering one decision does not approve every downstream proposal. In particular, approving the screenshot layout does not choose the storage design, app distribution or release inventory.
 
@@ -10,7 +10,7 @@ Use stable IDs in later discussions, commits and acceptance notes. Answering one
 2. **Safety and technical boundaries:** D09–D25, D29. Settle isolation, concurrency, storage, undo, recovery and interoperability before domain implementation.
 3. **Release cut and evidence:** D08, D30–D35. Choose utility parity, workloads, offline/update behavior, distribution details and final gates after the prototypes expose costs.
 
-With D01/D03/D04 product boundaries settled, the next discussion can focus on D05, D07, D09/D11 and D26. The dossier supports answering the rest incrementally; there is no need to answer 35 questions at once.
+With product boundaries, two/three-player layout direction, single-keyboard concurrency and D26 tracker categories settled, the next discussion can focus on remaining four-player geometry, keyboard handoff and tracker policies (coupling/correction, KO, reset retention and inventory extensions). The dossier supports answering the rest incrementally; there is no need to answer 35 questions at once.
 
 ## Product, layout and interaction choices
 
@@ -55,9 +55,9 @@ The persistence and concurrency decisions must agree. A single session writer ca
 
 | ID | Question | Recommended starting point | Alternatives / consequence | Needed by |
 |---|---|---|---|---|
-| D26 | How complete is the life tracker? | Life presets/direct entry/history grouping; decide commander damage, separate commanders, tax and player counters explicitly | Life-only is smaller; Commander-first expectations may make source-specific damage essential. Choose whether damage entry also changes life | P0/P1 and release cut |
+| D26 | How complete is the life tracker? | **Accepted:** life, relevant player counters (energy/poison/experience explicit), city’s blessing, monarch, shared game-level day/night, commander damage by source including self and distinct partners | Detailed inventory additions, bounds/visibility, damage/life coupling and correction, KO/enforcement, tax and UI remain open; reset retention is D22. [Sourced inventory](03_life_and_game_controls.md) | P0 capacity; P1/P2 scope/state; P4/P5 acceptance |
 | D27 | What does the mana pool support? | Six-type manual pool, explicit clear/undo, no inferred phase or token actions | Tagged restricted/snow buckets or payment assistant need much richer modeling/UI | Before P4 mana |
-| D28 | Which universal tools beyond resets are useful? | Three-player empty slot provides quicker access to game controls, with dice named by the user; exact inventory/behavior remains open | Turn indicator, timer, monarch/initiative remain proposals; dice rules/options are not settled; no implied automatic housekeeping | P0/P4 |
+| D28 | Which universal tools beyond resets are useful? | Three-player empty slot provides quicker access to game controls, with dice named by the user; exact inventory/behavior remains open | Monarch/day-night tracking are confirmed by D26; initiative, turn indicator and timer remain candidates; dice rules/options are not settled; no implied automatic housekeeping | P0/P4 |
 | D29 | Does the separate app share data with the phone app? | Preserve phone behavior; explicit interchange proposal | Shared active data adds migrations, libraries and regression obligations; an existing-app edition is not the selected product shape | P1/P2; within D01 |
 | D30 | What is the supported hardware/workload floor? | Measure proposed normal/heavy/stress workloads on oldest candidate iPad | A larger device floor simplifies layout but narrows audience; unbounded stacks/history are not a performance contract | P0/P5 |
 | D31 | What works offline and when may catalog updates interrupt? | Core play/resume offline; defer noncritical maintenance during play | Online-only artwork/downloads must degrade cleanly; web storage needs separate guarantees | P2/P4/P5 |
@@ -77,6 +77,8 @@ Source: direct user design discussion; quotations preserve the decision boundary
 
 - **D05/D07 two-player layout accepted:** “In two player, we'll have matching layouts mirrored - token lane left, life total top right, utilities under life total.” Apply this in each opposite-facing player’s local perspective. The [two-player image](reference/two-player-concept.png) is concept evidence, not a measured layout.
 - **D04/D07 three-player empty-slot controls accepted:** the user clarified “I meant 3 player yes. In 3 player, the 4th seat has controls.” The [three-player image](reference/three-player-concept.png) and original request establish a setup-selectable empty slot from the four-seat base, with expanded game controls such as dice/full reset. The pictured P4 slot is not mandatory. No empty seat is introduced into four-player play. Detailed control/geometry choices and D22 reset semantics remain open; faster access does not waive destructive-action safeguards.
+
+- **D26 tracker depth accepted:** the user requests “life totals, all relevant counters (energy, poison, experience, etc), monarch, game level night and day, cities blessing, and so on” and “commander damage per source including self.” They explicitly ask to use Lifetap’s fundamentals without copying its interface. This settles categories and named examples, not every reference feature/default. The [inventory](03_life_and_game_controls.md) maps radiation, initiative, tax, Treasure and supporting tools to evidence and remaining decisions. Preserve distinct source/partner identities and intentional shared-state ownership. Damage/life correction policy, KO/enforcement, exact reset retention and detailed UI remain open. Affects layout, command isolation, persistence/history/export, architecture/reuse, V05/V41–V44 and future six-player capacity.
 
 Revisit a settled boundary only through an explicit later decision. A prototype can expose constraints requiring that discussion, but does not silently change product scope. Cloud-first visual/interactive inspection must precede asking the user to install a build; physical iPad and target-platform acceptance remain separate gates in [delivery](08_delivery_validation_and_risks.md).
 

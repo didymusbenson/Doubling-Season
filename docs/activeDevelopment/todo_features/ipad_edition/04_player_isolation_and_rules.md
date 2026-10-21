@@ -16,7 +16,8 @@ The current single-board app uses app-wide providers, fixed Hive boxes, singleto
 | `sessionGeneration` / `playerGeneration` | Invalidate work from before a table reset or a local reset/replacement respectively | Widget mount status alone |
 | `playerId` | Stable participant in the session | Display name, color, list index, quadrant |
 | `seatId` | Current position/orientation | Player ownership |
-| `entityId` | Stable token stack / utility / commander identity | Bare Hive key without namespace |
+| `entityId` | Stable token stack / utility identity | Bare Hive key without namespace |
+| `commanderId` | Stable source commander associated with an owning PlayerId; distinct partners | Owner PlayerId, recipient PlayerId, display name or seat |
 | `commandId` | One submitted intent, used for retries/deduplication | Button label or timestamp alone |
 | `causationId` | Link derived results/events to their initiating command | Last active utility |
 | `revision` | Detect stale source/rules/plan state | Global mutable selection |
@@ -28,6 +29,12 @@ Proposed invalidation policy for D22: clearing/replacing a player's board, repla
 The control that receives a gesture identifies the actor. The software cannot identify the human finger. Default actor and target are the same player. Future gifts, control changes or multi-player life effects must explicitly name different targets; no drag across a seam implies consent or a change of controller.
 
 Magic token ownership and control are distinct concepts from seating: a token's creator owns it and it enters under that player's control. [Rule 111.2](https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt). Proposed first scope can use one board player identity when transfers are unsupported, but must document that simplification and avoid naming it a universal ownership model. D25 decides whether owner/controller fields are needed immediately.
+
+## Life-tracker scope distinctions
+
+D26 now requires player life/counters/city’s blessing, shared monarch/day-night and commander damage including self. Local counter/status commands capture the target PlayerId and typed field, with no token-creation or token-counter-rule side effects. A damage command names recipient PlayerId and source CommanderId separately; the source owner may equal the recipient, and partners never collapse into one player key. Selecting a source does not make its owner the mutation target.
+
+Monarch assignment/transfer and day/night changes are explicit table-state commands, even when invoked from a player’s panel. Preserve actor attribution, shared-state revision and before/after values; one holder update must not create two monarchs. City’s blessing remains independently local to each player. A shared-state undo must detect a later conflicting shared change rather than restore a whole-table snapshot. No tracking command implies automatic combat, ascend, card draws, milling, turn transitions or KO. Coupled damage/life policy and reset retention remain open; if coupling is chosen both effects form one recoverable write set.
 
 ## Proposed command pipeline
 
@@ -78,6 +85,9 @@ Every route below must use the new boundary. Fixing only the new-token button is
 
 | Route | Scope-sensitive reads/writes | Required check |
 |---|---|---|
+| Life / typed player counter / blessing | Target player, field type, before/after and revision | One authoritative local value; no implicit token or shared-state mutation |
+| Commander damage / correction | Recipient PlayerId, source CommanderId (self permitted), ledger revision; life only if selected policy | Separate partners; no source-owner retargeting; coupled writes/undo atomic if approved |
+| Monarch / day-night | Explicit shared-state revision, old/new holder or designation and actor | One coherent shared value; stale undo cannot clobber newer transfer; no local copy drift |
 | Search / custom create | Quantity, rules, custom library selection, artwork, primary and companions | Destination retained across every await |
 | Increment / copy / Scute | Source stack, totals, rules, merge and companions | No other player's identical stack used |
 | Split / counter-on-one | Source status/counters, new stack, order | Same player/lane; redistribution must not emit false creation events |

@@ -46,6 +46,7 @@ For a fast design session: read this page, the layout document, and the decision
 - **C11:** Initial scope is customizable 2–4 players; expansion to six is deferred, with room in the design for it.
 - **C12:** Product targets are Android, iOS and web. Device/browser floors and release sequencing remain open.
 - **C13:** **Any keyboard input** must face the initiating player, including numeric entry as well as text/search/rename. **One keyboard at a time; no simultaneous keyboards** (D09). Draft-preserving handoff details remain open (D11).
+- **C14:** Full life-tracker fundamentals: life totals, relevant player counters including energy/poison/experience, city’s blessing, monarch ownership, game-level day/night, and source-specific commander damage **including self and distinct partner sources**. Use [Lifetap’s functional inventory](lifetap_research.md) as research, not a UI to copy. Exact inventory extensions, damage/life coupling, correction, KO/enforcement and reset retention remain open; see [life-tracker scope](03_life_and_game_controls.md).
 
 The supplied image establishes a four-player reference, not a fixed participant count. Exact seating orientations, package layout, application identifiers, purchase model, release date and remaining feature inventory are open. See the accepted decisions in the register.
 

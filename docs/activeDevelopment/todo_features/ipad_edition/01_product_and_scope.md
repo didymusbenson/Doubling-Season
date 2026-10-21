@@ -28,7 +28,7 @@ This is a **separate app / new product** with a different frontend composition (
 2. **Create while another player acts:** P1 opens their menu and searches for a token while P3 changes life. Creation and any follow-on tokens go to P1. P3 remains responsive.
 3. **Resolve a utility:** P2 runs Krenko using P2's token state, tracked non-token count and P2's rules. P4's identically named tokens and utilities remain unaffected.
 4. **Rearrange a busy board:** P4 moves a token within P4's token lane and a utility within P4's utility lane. Other lanes keep their order and scroll position.
-5. **Correct a mistake:** P1 reverses a grouped life change or local clear. P2's subsequent changes survive.
+5. **Correct a mistake:** P1 reverses a grouped life/counter change, commander-ledger correction or local clear under the selected policy. P2’s subsequent changes survive. Shared monarch/day-night corrections retain their explicit table scope and cannot undo later unrelated transfers.
 6. **Run it back:** the central menu previews what “New game” resets, with an explicit keep-seats / reload-decks choice if supported. The table resumes in one coherent new session generation.
 7. **Resume after interruption:** the app restores participants, life, boards, rules and orders after termination, and explains any incomplete operation that could not be recovered.
 
@@ -39,7 +39,7 @@ The product/platform/player-count boundaries below are accepted; the remaining c
 | Capability | Foundation prototype | Proposed first usable edition | Later / separate decision |
 |---|---|---|---|
 | Table | Four-seat reference plus 2/3-seat layout checks | Customizable 2–4 players (accepted); session resume proposal | [Expansion to six](six_player_expansion.md) deferred; teams unapproved |
-| Life | ±1, direct set, independent input | Starting-life presets, grouped undo, local history | Rich game history and statistics |
+| Life tracker | Life plus representative typed counter/status, shared state and self/partner damage fixtures | **Confirmed:** life, relevant player counters, city’s blessing, monarch, shared day/night, source damage including self; detailed policies open | Rich statistics; optional modes; reference-derived inventory additions require review |
 | Tokens | One creation route and reorder | Search/custom/create, counts, tap, sickness, counters, copy/split, artwork | Explicit cross-player gifting/control transfer |
 | Utilities | One manual tracker and Krenko | Existing utility parity where scoped safely; mana pool candidate | Additional automation / shared global effects |
 | Rules | Per-seat sample presets | Existing supported rule behavior isolated per player | New full-table rules and arbitrary opponent triggers |
@@ -48,7 +48,7 @@ The product/platform/player-count boundaries below are accepted; the remaining c
 | Platforms | Cloud visual/interactive inspection first, then physical iPad gate | Android, iOS and web targets accepted; device/browser floors and release sequence open | Windows/native macOS not added to product scope |
 | Connectivity | Airplane-mode play | Local persistence and cached/bundled content | Sync, multiplayer networking, accounts |
 
-Existing utilities must be inventoried individually before claiming parity. A release may explicitly omit a utility that lacks safe player scoping, but must communicate that omission rather than silently changing its behavior. D08 settles the release inventory; D27 settles the mana pool cut. Rich commander support is D26 and should be resolved before marketing this as a full Commander life tracker.
+Existing utilities must be inventoried individually before claiming parity. A release may explicitly omit a utility that lacks safe player scoping, but must communicate that omission rather than silently changing its behavior. D08 settles the release inventory; D27 settles the mana pool cut. D26 now accepts full tracker fundamentals and commander damage per source including self; detailed coupling/correction, KO/enforcement, exact counter extensions and reset retention remain unresolved. The [sourced inventory](03_life_and_game_controls.md) separates confirmed capabilities from reference-derived candidates without copying Lifetap’s UI.
 
 ## Requirements and traceability
 
@@ -68,6 +68,7 @@ Existing utilities must be inventoried individually before claiming parity. A re
 | R12 | New mana-pool utility | User named direction; details open | [Utilities](07_utilities_tokens_and_decks.md), V37–V39 |
 | R13 | Any keyboard input faces the initiating player | Confirmed; custom Flutter panel direction, one keyboard at a time | [Layout](02_layout_and_interaction.md), V34 |
 | R14 | Separate product; customizable 2–4 players; Android/iOS/web | Confirmed boundaries; detailed support gates open | D01/D03/D04, V30/V34/V35 |
+| R15 | Full life-tracker counters/statuses/shared state and source damage including self/partners | Confirmed categories; detailed policy/inventory extensions open | [Life inventory](03_life_and_game_controls.md), V05/V41–V44 |
 
 ## Boundaries
 
@@ -80,7 +81,7 @@ Do not implicitly add networking, cloud synchronization, deck-list import servic
 - How should a second player request the single keyboard while preserving the first player’s draft? D11. No simultaneous keyboards (D09 accepted); non-typing quick controls staying usable remains the recommendation, not an automatic takeover/cancel policy.
 - How do customizable 2/3/4-player layouts adapt to each supported viewport, and when is a focused-seat fallback acceptable? D05/D06. Four-seat geometry is a fixture, not the only release layout.
 - Should the existing phone app share live games, only deck files, or no user data with this edition? D18/D23.
-- Is commander damage a release requirement, and should its entry also subtract life? D26.
+- Commander damage including self is required; should new damage also subtract life, and how do ledger corrections affect life? D26. Do not inherit Lifetap’s coupled default or auto-KO.
 - Are rules describing global cards intentionally local manual approximations, or must a table-wide effect be modeled? D25.
 - Does “board wipe” mean the invoking player's tokens, all players' tokens, or an explicit participant selection? D22. Labels must settle this before implementation.
 

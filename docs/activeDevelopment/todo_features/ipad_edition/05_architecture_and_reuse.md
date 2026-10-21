@@ -29,6 +29,7 @@ All current-code statements below are supported by the [pinned audit](../../../.
 
 | Existing area | Reuse intent | Adaptation boundary |
 |---|---|---|
+| Life-tracker foundation (new) | Accepted life/counter/status/damage capabilities, not four copies of generic utilities | Typed player values, stable CommanderId/recipient ledger, shared monarch/day-night commands and projections; no copied Lifetap UI |
 | TokenDefinition / bundled and remote catalog | Strong reuse | Shared read-only definitions; independent live entity identity |
 | Search filters/tabs/custom definitions | Reuse data and selection behavior | Make board mutation caller-owned; render in bounded player panels |
 | Rules evaluation/results | Reuse mathematics and per-event semantics | Inject selected player's configuration; add provenance and explicit global applicability |
@@ -70,14 +71,15 @@ flowchart TB
     Rules --> Shared
 ```
 
-Life can appear both in the central visual hub and in a player-focused view; both read the same state. The graph does not require duplicating life state in each visual component. Likewise, a mana utility is a projection of its authoritative per-player value, not six unrelated generic trackers.
+Life, typed player counters/status and commander damage can appear in the central hub and player-focused views; both read the same authoritative state. D26 requires self-source and distinct partner ledgers, independent city’s blessing, a shared monarch holder and shared day/night. The session controller must represent these typed local/shared domains, not a collection of unrelated numeric utilities. UI source evidence from Lifetap does not supply ready-made code or an approved interface. The graph does not require duplicating life state in each visual component. Likewise, a mana utility is a projection of its authoritative per-player value, not six unrelated generic trackers.
 
 ## Proposed contracts
 
 - **Session repository:** load/save/recover sessions and submit validated changes; never expose an unscoped player-UI `clearAll`.
 - **Player read projection:** immutable or controlled views of one player's life, tokens, utilities, rules and pending outcomes.
 - **Player command facade:** capture identity and intent, validate targets, build plans, commit through the writer, return a typed scoped result.
-- **Game coordinator:** own reset/rematch/seat administration and explicit multi-player write sets; acquire the intentional global barrier.
+- **Life-tracker command boundary:** local life/counters/blessing, recipient-plus-CommanderId damage and corrections, and explicit shared monarch/day-night operations. Separate tracking from rule enforcement; damage/life coupling remains a policy gate.
+- **Game coordinator:** own reset/rematch/seat administration, shared state changes and explicit multi-player write sets; acquire the intentional global barrier for operations that require it, not every local edit.
 - **Rules configuration:** player-session active values plus optionally shared definitions. The evaluator receives a versioned snapshot, not ambient mutable settings.
 - **Interaction controller:** per-player expansion, local panel stack, selection, scroll and drag state. It does not own game truth.
 - **Player-facing input host:** custom Flutter keyboard and entry surface for any keyboard input, rotated together toward its initiating player. Numeric/text modes and richer options are discussed in [custom keyboard options](custom_keyboard_options.md). D09 now requires one active keyboard at a time. Preserve per-player drafts and origin; D11 still governs explicit request/handoff details, with no automatic takeover or cancellation assumed.

@@ -9,6 +9,10 @@ Any keyboard input must face the initiating player. The chosen Flutter direction
 
 This document collects useful options for later review, prompted by the user's suggestion that a custom keyboard could include mana symbols. The subsequent explicit answer “No simultaneous keyboards.” settles one keyboard at a time (D09); request/handoff details remain open (D11). It also does not commit to a complete replacement for every native language-input service.
 
+## Required tracker inputs versus deferred keyboard extras
+
+D26 now requires typed player counters and per-source commander damage including self, alongside life. Their numeric fields use the same one-at-a-time, initiating-player-facing keyboard contract. Selecting source CommanderId and recipient PlayerId must remain distinct; focus/handoff cannot redirect a ledger edit. Monarch, day/night and blessing may use non-keyboard controls, whose exact UI remains open. This tracker scope does not approve symbol palettes, automatic damage/life coupling, extra keyboard modes or enforcement defaults.
+
 ## Candidate options to discuss
 
 - **Mana symbols:** an optional palette for W/U/B/R/G/C and generic costs; later discussion may consider X, hybrid, Phyrexian or snow notation. Choose the actual subset and supported fields deliberately. A symbol in a name/description is not mana-pool accounting or automatic payment.

@@ -1,6 +1,6 @@
 # Life tracker and game controls
 
-**Status:** proposed functional specification. Central life and central game controls are confirmed; feature depth and defaults remain open (D22/D26).
+**Status:** D26 accepts a full life-tracker foundation: life totals, relevant player counters (explicitly energy/poison/experience), player statuses including city’s blessing, monarch ownership, shared game-level day/night, and commander damage by source including self. Detailed input, coupling/correction, KO/enforcement, reset retention and UI policies remain open. No implementation is claimed.
 
 ## Dedicated life state
 
@@ -30,27 +30,53 @@ Proposed setup presets: Commander 40, ordinary casual 20, and a custom value. Co
 
 Do not automatically delete a player, clear their board or declare a winner at a threshold. Proposed state is manually controlled active/eliminated, with an optional “check player status” prompt. Losing a game can involve more than the values being tracked. Negative life remains editable to represent corrections and relevant effects.
 
-## Commander damage: candidate detailed design
+## Commander damage: required capability, proposed detailed interaction
 
-If included, a single “commander damage taken” scalar is inadequate. Record damage by **recipient player ID and stable commander identity**. Two commanders belonging to one player must remain distinguishable. Commander identities survive seat moves and label changes; a displayed name is not their key. Independent commanders and commander tax are supported by the official rules. [Rules 702.124d / 903.8](https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt).
+Commander damage is required, including damage from a player’s own commander. A single “commander damage taken” scalar is inadequate. Record damage by **recipient player ID and stable commander identity**. Two commanders belonging to one player must remain distinguishable. Commander identities survive seat moves and label changes; a displayed name is not their key. Independent commanders and commander tax are supported by the official rules. [Rules 702.124d / 903.8](https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt).
 
 Proposed interaction:
 
 1. Recipient opens their commander-damage panel.
-2. Select source commander from named commander slots; show its owner label separately from current seat.
+2. Select source commander from named commander slots **including the recipient’s own commander(s)**; show source owner, recipient and commander label distinctly. Never filter the selector to opponents only.
 3. Enter combat damage amount.
-4. Choose “also subtract life” or “record only,” with a persistent, explicit default if approved.
-5. Commit damage and optional life delta as **one command and undo unit**.
+4. Apply the separately chosen damage/life policy. “Also subtract life” versus “record only,” their defaults and correction semantics remain unresolved; Lifetap’s observed coupled default is evidence, not our decision.
+5. If the chosen policy couples life, commit the damage and life delta as **one command and undo unit**; otherwise change only the damage ledger. Do not settle the policy merely by implementing one branch.
 
 Never subtract life again merely because a recorded commander-damage value is corrected. An edit must distinguish correcting the ledger from applying new damage. Partner commanders, commander changes during setup, and damage from a commander temporarily controlled by someone else require stable source identity. If control-transfer gameplay is outside the release, allow manual source selection without claiming to model the permanent's location.
 
-Commander cast count / calculated tax is a separate per-commander utility or life-detail field. It must not be tied to the damage recipient. Decide whether to display it in the centerpiece, utility lane, or neither in D26. A four-player table with two commanders each creates enough source rows that a secondary panel is preferable to eight tiny center buttons.
+A source is a stable `CommanderId` associated with its owning `PlayerId`, not that PlayerId itself, a seat, a name or a damage recipient. Each recipient’s ledger includes self-source entries, and partner sources remain distinct even with matching labels/artwork. Reseating, renaming or temporarily changed control must not rekey the ledger. Commander replacement after setup and retained historical source records need explicit policies.
 
-## Player counters and shared markers
+Commander cast count / calculated tax is a reference-derived candidate, not automatically settled by source-specific damage support. If included it is per commander, not per recipient or generic player scalar. Exact availability/placement remains D26. At four players with two commanders each, each recipient may need eight source entries **including their own two**: up to 32 recipient/source pairs, not six opponent-only rows or one count per player. This is a capacity fixture, not a requirement to display every row permanently.
 
-Proposed player-detail counters: poison, energy, experience, radiation, and optionally custom counters. Choose one authoritative location per value. A utility may project a value from that store, but must not maintain an unsynchronized duplicate. Counter-on-player mutations must not automatically pass through existing token-counter multipliers; applicability differs.
+## Functional inventory and approval boundary
 
-Shared markers such as monarch or initiative need a single table-level holder if implemented. Do not represent four independent “I am monarch” booleans and hope they remain consistent. Holders refer to stable player IDs; changing holder is an explicit multi-player command with one history record. These are optional D28 features, not part of the initial life requirement.
+The user requested the relevant life-tracker fundamentals, not a life-only minimum and not a direct copy of Lifetap’s interface. The [Lifetap research](lifetap_research.md) is the source inventory; its observations describe that app, not acceptance results for this product. “All relevant counters” is an accepted category; the examples are not a closed whitelist. Complete the inventory during design rather than asking the user to repeat the documented basics.
+
+| Capability / source evidence | This product’s status | Scope and remaining decisions |
+|---|---|---|
+| Life totals; tap/delta and negative totals observed in research “Life adjustment, player panel, and counters” | **Confirmed** | Per player. Detailed gestures, presets, bounds, history grouping and direct-entry UX remain design choices. |
+| Energy, poison, experience (`Exp`) numeric controls observed in COUNTER-01 | **Explicitly confirmed examples** of relevant player counters | Typed values per player; visibility/defaults, bounds and correction controls remain open. Do not confuse poison with an automated infect calculation. |
+| Radiation (`Rad`) observed in COUNTER-01 | **Sourced candidate** within the confirmed relevant-counter category | Carry into the inventory for suitability/default review, not silently omit it; no automated milling, life loss or turn effects implied. |
+| City’s blessing (reference label `Ascend`) observed as a status control | **Explicitly confirmed** | Independent player status, not a numerical counter or exclusive holder. UI naming/placement and manual correction behavior remain open. |
+| Monarch observed as status control; reference exclusivity was not tested | **Explicitly confirmed ownership tracking** | One authoritative table-level holder reference, projected into player views; never independent conflicting booleans. Transfer/correction history and elimination handling need explicit UX. |
+| Day/night control observed adding a central sun indicator | **Explicitly confirmed game-level state** | One shared designation with an initial neither state; no per-player copies and no automatic spell/turn inference. Placement/transition controls remain open. |
+| Source damage and life coupling observed; `me` cell visible; two partner cells observed but independent partner edits untested | **Confirmed per-source damage including self** | Stable recipient/source identities, distinct partner sources. Life coupling, ledger correction and KO policy remain open. Our required support exceeds the reference’s verified source/partner behavior. |
+| Initiative observed as a status control | **Reference-derived candidate**, not an explicit named commitment | Decide whether a simple holder tracker belongs in the relevant-status set. Does not authorize dungeon/Undercity implementation or automatic venture. |
+| `C.Tax` increment observed; partner configuration observed | **Reference-derived candidate** | If selected, use per-commander cast/tax state; exact tax UX/automation and inclusion still need decisions. |
+| `Treasure` increment observed | **Reference-derived candidate / overlap review** | A reference numeric convenience is not proof that Treasure is a player counter. Prefer existing token-lane truth or an explicitly defined projection; do not add a divergent duplicate count. |
+| Custom named counters | **Prior design candidate**, not observed in the reference inventory | Decide extensibility, type identifiers, names and bounds; do not promise arbitrary automation. |
+| `K.O.` and Auto-KO observed (including poison decrement not reviving) | **Unresolved policy**, not adopted | Manual elimination, warning thresholds, automatic enforcement and reversal need explicit decisions. Never inherit Lifetap defaults by implication. |
+| Mana/storm page observed; randomizers/dice and timer modes researched | **Separate decisions** | Mana remains D27, dice/control inventory D28; storm, timers and randomizers are not made mandatory by D26. |
+| Saved players/partner artwork, reset/history/export flows researched | **Supporting candidates with separate policies** | Identity, setup, history, persistence and export inform D17/D19/D20/D22/D23/D33/D34. No account, analytics or full profile/statistics system is implied. |
+| Planechase, Archenemy, Bounty, teams and other advertised modes | **Not approved by this tracker-depth decision** | Reference inventory is not a commitment to optional modes or interface parity. |
+
+### State ownership and manual operation
+
+Choose one authoritative location per player counter. A utility may project it but must not maintain an unsynchronized duplicate. Counter-on-player changes must not automatically pass through existing token-counter multipliers. City’s blessing belongs to each player independently; monarch belongs to the table with an optional stable holder `PlayerId`; day/night belongs to the game. Distinguish a player’s local change from an intentional shared-state command regardless of which seat opens the controls.
+
+Official rules rechecked on 2026-10-21 through the [Wizards rules page](https://magic.wizards.com/en/rules), which links the [2026-09-25 rules](https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt): monarch is exclusive and initially absent (725.1/725.3); city’s blessing can belong to multiple players (702.131); day/night is game-wide and starts neither (731.1); partner damage is separate (702.124d), and the commander-damage rule is source-specific (903.10a). These support data distinctions, not automatic game enforcement. Wizards also explicitly discusses [damage from one’s own commander](https://magic.wizards.com/en/news/feature/commander-masters-release-notes).
+
+Manual changes record actor, target/scope, before/after and operation identity. A monarch transfer changes one shared holder atomically; undo must not restore a stale holder over a later transfer. Day/night correction changes only the shared designation. Blessing/counter corrections are local and cannot clear another player’s state. Exact correction UI, approved undo depth and history retention remain D16/D17/D22.
 
 No automatic Food sacrifice → life gain, lifelink, poison from infect, mana burn, death, or combat damage is implied by editing tokens. A future action combining domains must state every effect and commit them together. Manual tools must remain correct when players resolve the physical game themselves.
 
@@ -58,7 +84,7 @@ No automatic Food sacrifice → life gain, lifelink, poison from infect, mana bu
 
 Proposed states: setup → active → ended/archived, with a recoverable active session after restart. “Paused” may describe blocked input during global operations; do not invent a turn/priority simulation merely to pause a tracker.
 
-Setup contains participants, seats, starting-life configuration, optional commanders and optional selected deck templates. Starting creates a session generation and initial durable state. A rematch can preserve seating/configuration while creating a new game identity or generation; D17 decides whether previous games remain browsable.
+Setup contains participants, seats, starting-life configuration, commander-source configuration when relevant, and optional selected deck templates. Initialize the accepted counters/status/shared-state model explicitly; defaults and optional visibility do not erase the stored identity of a value. Starting creates a session generation and initial durable state. A rematch can preserve seating/configuration while creating a new game identity or generation; D17 decides whether previous games remain browsable.
 
 Seat swap changes presentation only. Replacing a participant creates a new player identity and requires an explicit choice about the old board. Eliminating a participant preserves history and commander references; whether their area collapses, stays visible, or is locked is D21. Do not infer the complete multiplayer leave-game rules from a single “eliminated” flag.
 
@@ -73,18 +99,18 @@ Seat swap changes presentation only. Replacing a participant creates a new playe
 | Reset my board | Player menu / one player | Preview clear or reset-to-setup | Preview reset/clear | Separate named option | Keep by default | Keep |
 | Reset my life | Life detail / one player | Keep | Keep | Keep | Starting life; other counters only if named | Keep |
 | Clear table tokens | Game menu / explicit all/current players | Clear recipients | Keep, except explicitly coupled derived state | Keep by default | Keep | Keep |
-| Restart game | Game menu / entire session | Clear or reload chosen setup | Reset/reload chosen setup | Reset or restore setup, explicitly selected | Reset life/counters/damage/history according to preview | Keep participants/seats; library stays |
+| Restart game | Game menu / entire session | Clear or reload chosen setup | Reset/reload chosen setup | Reset or restore setup, explicitly selected | Explicit preview for life, typed counters, blessing, commander ledgers, monarch, day/night and history; retention unresolved | Keep participants/seats; library stays |
 | New table | Game menu / new session | Fresh | Fresh | Fresh | Fresh | New participants/setup; shared library stays |
 | Erase app data | Device/settings maintenance | Separate maintenance operation | Separate | Separate | Separate | Never disguised as a game reset |
 
-This matrix is a recommended vocabulary, not seven required release buttons. D22 chooses the minimum useful actions and exact effects. A generic “board wipe” from the current app cannot be reused without declaring recipients and rules/utility effects.
+This matrix is a recommended vocabulary, not seven required release buttons. D22 chooses the minimum useful actions and exact effects, including retention/reset of every accepted player counter/status, self/partner damage entry and shared monarch/day-night value. Do not inherit Lifetap reset behavior or assume a local life/board reset clears shared designations. A generic “board wipe” from the current app cannot be reused without declaring recipients and rules/utility effects.
 
 ## Global operation protocol
 
 1. Open a center panel with a plain-language effect preview naming the participants and values affected.
 2. Resolve active editors and pending native flows. Cancel repeated gestures. Reject duplicate submissions.
 3. Acquire the table barrier; drain or invalidate pending commands under a documented policy.
-4. Capture a coherent session checkpoint including life, both lanes, derived utility state, rule configuration, and order domains being changed.
+4. Capture a coherent session checkpoint including life, typed player counters/statuses, source/recipient damage ledgers, monarch/day-night, both lanes, derived utility state, rule configuration, and order domains being changed.
 5. Commit a recoverable operation. Only report success once its required state is durable.
 6. Invalidate old callbacks with a new generation. If undo is allowed, hold the global barrier through the explicit Undo / Accept completion, or use conflict-aware history instead.
 7. Release the barrier after the resulting state is coherent. A failed operation restores/reconciles the captured scope and reports what was recovered.
@@ -95,6 +121,6 @@ The existing non-dismissible destructive completion pattern is a useful starting
 
 Required direction: game-level reset controls. In the accepted three-player arrangement, setup selects any empty one of the four seat slots for expanded, quicker game-control access; the user names dice and complete resets as examples. The control slot is not a player. This augments game-control access, not reset authority: keep explicit affected-scope preview, confirmation and recovery/undo semantics; do not turn a prominent reset control into a one-tap destructive shortcut. D22 still settles exact reset fields and behavior.
 
-Proposed additions for discussion: start/new game, seating/setup, table settings, last-game summary. Dice implementation/options and the exact control inventory remain D28. Coin, starting-player selection, timer, turn indicator and shared markers are not approved just because reference icons exist. Exact placement outside three-player mode and control orientation/dimensions still need layout review.
+Proposed additions for discussion: start/new game, seating/setup, table settings, last-game summary. Dice implementation/options and the exact control inventory remain D28. Monarch and day/night are now confirmed shared tracking capabilities. Initiative, coin, starting-player selection, timer and turn indicator remain candidates, not approved merely because reference icons exist. Exact placement outside three-player mode and control orientation/dimensions still need layout review.
 
 If a turn indicator is added, changing it must not silently untap, clear sickness, or empty mana across all players. “Next player” and “apply beginning-of-turn housekeeping” are different actions. Exceptions, extra turns, skipped turns and manual corrections must be possible before any such automation is marketed.

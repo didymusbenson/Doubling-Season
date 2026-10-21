@@ -15,7 +15,7 @@ Keep recurring actions reachable without opening full detail editors. Narrow car
 | Generic trackers | Name/description/value/step customization | Independent values; signed versus nonnegative constraints chosen by kind |
 | Generic toggles | Name, ON/OFF text, artwork | Separate state per instance/player; no ambient global toggle target |
 | Life Total | Useful quick access | Central life is authoritative; avoid duplicate independent total |
-| Poison / energy / radiation | Convenient numeric tools | Decide authoritative player-counter store versus utility-local value; migration must explain mapping |
+| Poison / energy / radiation | Reusable counter UI/behavior where appropriate | D26 requires relevant player counters, with poison/energy/experience explicit and radiation sourced for review. Use the authoritative typed player-counter store; utility projections must not duplicate values; explain any mapping |
 | Krenko, Mob Boss | Controlled Goblin count plus tracked nontoken count and existing rule behavior | Read only that player's eligible board, and create all results there |
 | Krenko, Tin Street | Tracked action count and Goblin creation | Scope utility count, rules, merge and companions |
 | Hare Apparent | Count-derived Rabbit plan | Scope count, preview, primary and companion outputs |
@@ -26,6 +26,10 @@ Keep recurring actions reachable without opening full detail editors. Narrow car
 | Mana pool | New utility direction | Specialized multi-value UI and clear semantics below |
 
 This is an adaptation list, not a guarantee all utilities ship in release one. Record support explicitly during P4. No feature may be enabled merely because its old action button renders in a quadrant.
+
+## Tracker overlap boundary
+
+The accepted life tracker owns life, typed player counters, city’s blessing and recipient/source damage; monarch/day-night are shared session state. Reused utilities may project these values but cannot create divergent copies. Lifetap’s `Treasure`, `C.Tax`, Initiative and mana/storm controls are inventory evidence, not blanket commitments: review Treasure against the token lane, tax against CommanderId, initiative separately, and mana under D27. No token change automatically applies life, poison, radiation effects, commander damage, monarch transfer or day/night. See the [confirmed/candidate inventory](03_life_and_game_controls.md).
 
 ## Mana pool proposal — D27
 
@@ -107,7 +111,7 @@ Converting existing mixed order to two lanes uses stable partition: keep the rel
 
 Current phone JSON schema is v3. Proposed support: import compatible v3 setups into the tablet library, then explicitly select a player destination. Tablet-only utility/state fields require either a new version or a lossy subset export with a clear omission report. Never put session state into v3 fields older phones interpret differently.
 
-Define whole-table save/export separately: session format, participants/identities, life and counters, boards, rule states, independent orders, optional history and asset manifest. Cross-device `file://` URLs do not transfer user art. Package uploaded bytes using managed asset references or explicitly report missing media; downloaded art may remain a cacheable reference where appropriate.
+Define whole-table save/export separately: session format, participants/identities, CommanderId/recipient ledgers including self/partners, life and typed counters/statuses, shared monarch/day-night, boards, rule states, independent orders, optional history and asset manifest. Cross-device `file://` URLs do not transfer user art. Package uploaded bytes using managed asset references or explicitly report missing media; downloaded art may remain a cacheable reference where appropriate.
 
 Sharing, native file pickers and custom artwork selection are device-wide surfaces; queue them and return to the original player. A reset, source deletion or incompatible session change while away must reject obsolete results without assigning them to a replacement seat. Preserve artist metadata and selected art on download/cache failure.
 

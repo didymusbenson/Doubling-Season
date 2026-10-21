@@ -45,6 +45,12 @@ The current app dependency floor is Dart 3.10 / Flutter 3.38-era packages; onlin
 
 The edition's scope is a tracker and selected calculation tools. These references guide representations; they do not establish a complete rules engine. Specific card semantics should be rechecked against authoritative current text when implementing new automation. Existing rule mathematics is being inventoried for reuse, not independently certified by this document.
 
+## Tracker-depth source reconciliation — 2026-10-21
+
+Re-read [Lifetap’s observed counter/status, commander/partner, reset/history and mana/storm inventory](lifetap_research.md). The user accepts full tracker categories, not the reference UI, Auto-KO, life-coupling default or every optional mode. [Life inventory](03_life_and_game_controls.md) identifies named requirements versus additional candidates and untested reference details.
+
+Rechecked the official [Wizards rules landing page](https://magic.wizards.com/en/rules): its TXT link still resolves to the September 25, 2026 publication above. Relevant representation references are 122 (player versus object counters), 702.131 (city’s blessing), 725 (monarch), 731 (day/night), 702.124d and 903.10a (separate commander sources). [Commander Masters release notes](https://magic.wizards.com/en/news/feature/commander-masters-release-notes) explicitly discuss damage from one’s own commander. This supports source/state modeling, not a claim of automatic rules enforcement or completed app validation.
+
 ## Source limitations
 
 - The screenshot provides spatial intent, not production measurements, rights to reuse another product's assets, or an approved interaction specification.

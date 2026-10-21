@@ -14,6 +14,10 @@
 - Keep seat geometry/orientation composable rather than baking four offsets into every control. This does not require a speculative six-seat UI or general layout editor now.
 - Treat four-player acceptance fixtures as examples, not proof that more players will fit or perform adequately.
 
+## Full tracker capacity carried forward
+
+D26’s required life/counter/status/shared-state and self/partner damage model also constrains expansion. Six players with two commander sources each means twelve selectable sources per recipient, including self, and up to 72 recipient/source ledger pairs. This is a future stress/layout fixture, not approval to implement six-player support now. Preserve one monarch holder, independent player blessing/counters and one game-level day/night; never clone shared state per seat or omit self sources to save room.
+
 ## Decisions deferred until expansion review
 
 Compare five/six-seat arrangements, central life geometry, lane space, touch targets, reach and player-facing keyboards at each orientation. Decide supported screen/window floors and whether any focused-seat fallback is acceptable. Validate the accepted one-keyboard-at-a-time policy and chosen handoff, accessibility traversal, sustained performance and recovery fixtures at the larger count; current 2–4-player evidence cannot substitute.
