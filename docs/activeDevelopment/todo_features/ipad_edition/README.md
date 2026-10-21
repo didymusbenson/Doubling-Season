@@ -12,6 +12,8 @@ This is a planning dossier, not a shipped feature specification. **Confirmed** m
 
 **Control-scope clarification:** token search and seat customization are seat-context actions; history, wipes and resets are central app/game actions. Keep meaningful player attribution separate from affected seats; never infer a human actor from control location. Wipe targeting UI and global-input pause policy remain open (D36).
 
+**Layout/utility update:** dedicated life regions with attached below-life commander/counter shortcuts; separate curated per-seat utilities with hold-drag order and confirmed corner-X hiding/restoration. Storm and mana are default-visible, not mandatory. Hiding retains values and nonzero hidden state stays discoverable. Shared controls use a central strip/panel between paired seats for three/four players and a thin shortcut divider for two; initial scope remains 2–4, with three-player empty-slot expanded controls preserved. See D07/D27/D37.
+
 ## Start here
 
 | Document | Purpose |

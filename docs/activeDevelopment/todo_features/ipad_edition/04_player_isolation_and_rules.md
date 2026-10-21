@@ -140,7 +140,7 @@ Proposed initial model: per-player intent queues feed one authoritative session 
 
 Use current source/rules revisions to reject stale planners, not a whole-table revision that makes P1's preview stale whenever P2 changes life. For rule changes while a preview is open, proposed default is to require a refresh/reconfirmation; D15 may choose a documented snapshot policy instead.
 
-Input blocking and destructive confirmation/finalization are open design choices, not accepted segregation rules. A domain hold or table barrier is only a candidate; the central location of wipes/resets does not itself require pausing all input. Whatever policy is selected must preserve latest-global-action undo, conflict-safe write sets and coherent recovery. Never restore an old aggregate over unrelated work. See [data design](06_data_persistence_and_migration.md).
+Global-operation input blocking and destructive confirmation/finalization remain open design choices, not accepted segregation rules. Separately, utility corner-X hiding now explicitly requires a confirmation modal (D37); that does not settle wipe/reset confirmation or global input locking. A domain hold or table barrier is only a candidate; the central location of wipes/resets does not itself require pausing all input. Whatever policy is selected must preserve latest-global-action undo, conflict-safe write sets and coherent recovery. Never restore an old aggregate over unrelated work. See [data design](06_data_persistence_and_migration.md).
 
 ## Failure cases to design explicitly
 

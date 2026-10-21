@@ -2,6 +2,16 @@
 
 **Status:** D04 accepts customizable 2–4 players. Two-player seat orientation/local lane placement and three-player empty-slot controls are accepted below; other geometry and interaction details remain reviewable (D05–D12).
 
+## Dedicated regions and attached shortcuts — accepted
+
+Each major piece has a dedicated place. Life totals are individual items in their respective corners; in two-player games they occupy opposite corners as in the accepted mockup. Directly beneath each life total, attached quick shortcuts open commander damage and player counters. These shortcuts are part of the fixed life region, not reorderable utility entries. Exact measurements and four-player seat/orientation mapping still need a prototype; “corners” does not authorize moving life into either scrolling list.
+
+Each seat has a separate curated utility list. Hold-and-drag changes utility order; a corner X opens a confirmation modal before hiding that utility for the game. Restore it from the utilities menu. Storm counter and mana pool are **default visible, not mandatory**. Hiding retains stored values, clearing is separate, and nonzero hidden values must remain discoverable. Customization means selecting visibility/order within available kinds, not arbitrary panel resizing or a general-purpose widget authoring system.
+
+Shared controls have their own panel in or around the life layout and retain app/game-level origin (D36). The user clarified that three/four-player games use the central strip/panel between paired seats (between seats 1–2 and 3–4) as in the supplied Lifetap reference. Two-player games use a thin divider between the boards with shortcut buttons. No one-player support is added. The accepted selectable empty control slot in three-player mode remains available for expanded controls alongside the central strip; exact dimensions and integration remain design work.
+
+The additional Lifetap reference supplied on 2026-10-21 was visually inspected: four life panels, attached compact shortcut rows and a thin central control strip. It is contextual reference, not an instruction to copy the interface or evidence of an implemented tablet UI.
+
 ## Two-player layout — accepted 2026-10-21
 
 ![User two-player layout concept](reference/two-player-concept.png)
@@ -24,14 +34,7 @@ Quicker access does **not** mean immediate destructive execution. Full reset sti
 
 The image has four quadrants around a central 2 × 2 life tracker. The top two life panels face the opposite side of the table; the bottom two face the viewer. Lower-left demonstrates tokens toward the outer edge, and utilities below that player's life panel toward the center seam. The thin central strip suggests a location for universal controls. Only that lower-left quadrant illustrates full content.
 
-For the original four-player arrangement, two interpretations still need a deliberate choice:
-
-| Layout | What it means | Tradeoff |
-|---|---|---|
-| A: screenshot-first, proposed starting point | Token lane fills the outer part of each quadrant; life occupies the central end of the inner column; utilities fill the remainder of that inner column | Preserves the strongest visual cues; utilities lose vertical space to life |
-| B: life above both lanes in player-local coordinates | Each quadrant has a life/header band and two lanes beneath | Simpler local layout; reduces token height and makes the life hub less visually compact |
-
-Prototype A and retain B as the first comparison, rather than deciding from artwork alone. “Beneath” must be interpreted from each player's seated perspective. The central hub should be visually unified but must not become an overlapping hit-test surface that covers the lists.
+The earlier A/B composition comparison is superseded by the accepted dedicated-region and attached-shortcut contract above. Preserve the original sketch as historical context; prototype dimensions and orientation within the accepted structure rather than reopening whether life belongs in a utility lane.
 
 ```text
 Physical screen, landscape; text rotation omitted here
@@ -47,7 +50,7 @@ Physical screen, landscape; text rotation omitted here
 └──────────────────────────────┴──────────────────────────────┘
 ```
 
-This is a topology diagram, not an exact wireframe. The center control affordance needs real reserved area; it must not obscure life ± controls. An accessible larger game-control panel may open from a small hub button.
+This is the earlier topology diagram, not an accepted exact wireframe. The center control affordance needs real reserved area; it must not obscure life ± controls. An accessible larger game-control panel may open from a small hub button.
 
 ## Seat geometry and orientation
 
@@ -76,7 +79,7 @@ The user’s player/seat keeps its name and color/art presets across games. Two-
 
 ## Life-tracker capacity within the accepted layouts
 
-The centerpiece must accommodate the accepted full tracker, not only ± life. Reserve access to player counters, independent city’s blessing, monarch indication and per-source commander damage including self/partners, while day/night remains one game-level state. Use compact summaries and a bounded player-facing detail surface as design candidates; do not clone Lifetap’s grids/tabs or shrink every control into the life tile. Exact placement and visibility defaults remain open.
+The centerpiece must accommodate the accepted full tracker, not only ± life. Reserve access to player counters, independent city’s blessing, monarch indication and per-source commander damage including self/partners, while day/night remains one game-level state. Use compact summaries and a bounded player-facing detail surface as design candidates; do not clone Lifetap’s grids/tabs or shrink every control into the life tile. Commander-damage and player-counter access is now fixed as attached shortcuts directly below life. Detailed contents, status presentation and dimensions remain open.
 
 At four players with two commander sources each, each recipient needs access to all eight sources including self (32 ledger pairs across the table). Test long and duplicate names, distinct source labels, counters with large values and simultaneous status indicators. Two-player mirrored composition and all four three-player empty-control-slot choices remain unchanged. An empty control slot is not a player and must never become a counter/damage recipient. Shared controls must remain accessible with four occupied seats too. Numeric/text editors use the one player-facing keyboard and preserve drafts; non-typing controls remaining usable stays the recommendation.
 
@@ -112,7 +115,7 @@ If fallback is rejected, state the supported minimum and offer a clear “enlarg
 - Tokens reorder only among that player's tokens; all supported utility types share that player's utility ordering.
 - Life is fixed in its surface and never consumes a list position.
 - Default drag cannot cross lane or player boundaries. A future “give control” action must be explicit, not an accidental drop target.
-- Use an intentional reorder handle or explicit reorder mode to distinguish scrolling, tap controls, inline editing and drag.
+- Utilities use the accepted hold-and-drag method; distinguish its activation from scrolling, tap controls and inline editing. Accessible alternatives remain necessary; token reorder affordances still need design.
 - During an order write, disable only the affected ordering domain. Another player can continue life or token actions.
 - Define insertion in lane terms: proposed new entries append; split/copy outputs appear next to their source; merged additions retain the target position. See D13.
 - If an expanded entry changes height, retain its stable key and sensible viewport position. Another player's edit must not jump this lane.

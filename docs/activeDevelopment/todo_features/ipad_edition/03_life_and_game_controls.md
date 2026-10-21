@@ -66,7 +66,7 @@ The user requested the relevant life-tracker fundamentals, not a life-only minim
 | `Treasure` increment observed | **Reference-derived candidate / overlap review** | A reference numeric convenience is not proof that Treasure is a player counter. Prefer existing token-lane truth or an explicitly defined projection; do not add a divergent duplicate count. |
 | Custom named counters | **Prior design candidate**, not observed in the reference inventory | Decide extensibility, type identifiers, names and bounds; do not promise arbitrary automation. |
 | `K.O.` and Auto-KO observed (including poison decrement not reviving) | **Warning-only policy accepted**, Auto-KO not adopted | Life/poison/commander thresholds warn without eliminating players or disabling controls. Manual elimination UI remains a separate choice. |
-| Mana/storm page observed; randomizers/dice and timer modes researched | **Separate decisions** | Mana remains D27, dice/control inventory D28; storm, timers and randomizers are not made mandatory by D26. |
+| Mana/storm page observed; randomizers/dice and timer modes researched | **Mana/storm now accepted separately from D26** | Mana pool and storm counter are default-visible but dismissible utilities (D27/D37). Detailed mechanics remain open; timers/randomizers are not blanket commitments. |
 | Saved players/partner artwork, reset/history/export flows researched | **Supporting candidates with separate policies** | Identity, setup, history, persistence and export inform D17/D19/D20/D22/D23/D33/D34. No account, analytics or full profile/statistics system is implied. |
 | Planechase, Archenemy, Bounty, teams and other advertised modes | **Not approved by this tracker-depth decision** | Reference inventory is not a commitment to optional modes or interface parity. |
 
@@ -134,6 +134,10 @@ The two full-reset modes are accepted. Other matrix rows are a recommended vocab
 **Safety design requirements:** define the affected write set, take a coherent recovery checkpoint where needed, reject duplicate/stale mutations, and preserve the accepted full-reset/archive and latest-global-undo semantics. Report success only according to the chosen durability contract; recover failures without mixed state. Read-only viewing of history is not a gameplay mutation.
 
 **Still open:** wipe target selection, exact previews/confirmation/finalization UI, resolving pending edits/repeats and whether any global operation pauses input. A table barrier and the current phone app’s non-dismissible Undo/Accept dialog are candidates, not accepted tablet policy. Do not infer automatic cancellation or a mandatory lock from the central placement of a control.
+
+## Fixed life shortcuts versus utilities
+
+Life is an individual corner-region item (opposite corners for two players). Directly attached below it, quick shortcuts open commander damage and player counters. Neither those shortcuts nor life participates in utility hold-drag order or corner-X hiding. A separate shared-controls panel fits in/around life: a central strip/panel between paired seats for three/four players, and a thin shortcut divider between the two boards for two players (D07). Three-player empty-slot expanded controls remain available alongside it. This does not change D36 app/game origin or approve one-player scope.
 
 ## Game-control placement and candidates
 

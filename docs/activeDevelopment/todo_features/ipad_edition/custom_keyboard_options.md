@@ -5,6 +5,8 @@
 
 Seat-facing keyboard/draft context does not confer ownership of central history/wipes/resets. Game-level input must preserve app/game origin separately from the interaction orientation; exact central-input orientation/handoff UI needs design without weakening the accepted player-facing requirement (D36).
 
+Accepted default-visible mana/storm utilities and fixed life shortcuts do not settle extra keyboard modes or symbol keys. Numeric edits still use the single initiating-player-facing input surface; dismissing a utility must not silently clear its value or discard a draft. Exact pending-draft handling stays open.
+
 ## Fixed boundary versus later choices
 
 Any keyboard input must face the initiating player. The chosen Flutter direction is a custom in-app input panel that can rotate with its player-facing entry surface. This covers numeric as well as text input, not just search or rename. System keyboards do not expose arbitrary per-seat rotation. Prototype validation is still required.

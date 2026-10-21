@@ -81,6 +81,10 @@ Proposed generation backups retain a small bounded set of validated coherent ses
 
 Multiple windows are a separate writer-ownership decision: initially one live writer per session is a plausible proposal. Independent windows must not silently compete through cached preferences or global singletons. Future-friendly IDs do not promise networking or cloud sync.
 
+## Utility visibility versus gameplay state
+
+Persist each seat’s curated utility order and visibility separately from its authoritative runtime values. Corner-X hiding after confirmation does not clear a value; restoration through Utilities must not create a second mana pool/counter. Keep hidden nonzero values discoverable after reload. Storm/mana are default-visible but dismissible for the game. Reset-with-board, complete reset, removed-seat clearing and archive restore retain their accepted semantics; exact initialization of defaults and hidden entries at reset/setup boundaries still needs a field-level mapping. Visibility changes are not gameplay counter changes. Whether visibility/order changes enter the undo timeline requires design; do not silently log hiding as zeroing.
+
 ## Undo and game-level operation policy — D16/D22/D36
 
 **Latest-action undo requirement:** select the global latest action, then restore only its affected participant/entity/shared write set using command inverses or version-checked snapshots. This is not a per-player undo stack or arbitrary selected-entry undo. Include rules/life/mana only when the command changed them. Another player's later actions survive. Existing whole-board snapshot restore cannot be reused unchanged.

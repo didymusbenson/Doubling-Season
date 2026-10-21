@@ -1,12 +1,20 @@
 # Utilities, tokens and decks
 
-**Status:** proposed tablet workflows. Existing behavior is described in the [current-code audit](../../../../ai_docs/research/2026-10-20-ipad-edition-current-architecture.md); initial release inventory is D08.
+**Status:** curated per-seat utility customization, default-visible storm/mana, hold-drag ordering and confirmed corner-X hiding/restoration are accepted; remaining mechanics are proposed tablet workflows. Existing behavior is described in the [current-code audit](../../../../ai_docs/research/2026-10-20-ipad-edition-current-architecture.md); initial release inventory is D08.
 
 ## Utility lane contract
 
 Each player owns one independently ordered lane containing all their supported utility instances. Internal `TrackerWidget` and `ToggleWidget` names may remain; user-facing language remains **Utilities**. Shared utility definitions do not mean shared active counts or toggles. Loading the same definition for P1 and P3 creates separate runtime identities and state.
 
 Keep recurring actions reachable without opening full detail editors. Narrow cards may use a title, relevant value/state and one primary action, with descriptions, artwork and secondary fields revealed inline or through a local editor. Long action labels must wrap or reflow without covering the other lane. Reordering is an explicit utility-lane operation and cannot transfer the utility's owner.
+
+## Accepted curated utility customization
+
+The app offers a curated list of useful utility kinds. Within that list each seat freely customizes visibility and order using hold-and-drag. Each visible utility has a corner X; dismissal requires a confirmation modal and hides it for the game. Restore it through the utilities menu. This is not arbitrary region resizing, an unlimited widget builder, or automatic approval of every legacy/candidate utility.
+
+Storm counter and mana pool are default-visible utilities, not compulsory always-visible panels. Their availability/default visibility is accepted; exact storm behavior and mana mechanics still need design (D27/D37). Do not infer automated spell counting, phase handling, payment or clearing. Hiding is not deletion or zeroing: retain stored values, provide separate clear actions, and keep nonzero hidden values discoverable. The precise discoverability treatment, restored position and hidden-utility interaction with setup formats remain open.
+
+Life and its directly attached commander-damage/player-counter shortcuts are outside this reorderable list. Utilities that project player counters or mana must use the same authoritative values. Existing reset semantics remain unchanged: keep-board retains enabled reusable setup for remaining seats, complete reset clears utilities, removed seats clear game-specific setup, and archived games restore historical setup. Default-visible provisioning at new-game/reset boundaries must be reconciled explicitly with those rules, not silently override a complete reset or restore hidden temporary values.
 
 ## Existing utility adaptation inventory
 
@@ -23,15 +31,15 @@ Keep recurring actions reachable without opening full detail editors. Narrow car
 | Cathars' Crusade | Pending trigger tracking, resolve and direct counter action | Scoped event applicability, counters, rollback and reset; no opponent ETB accumulation |
 | Rhys the Redeemed | Existing copy planner/preview behavior | Local source set and eligible merges; validate source/rules changes before commit |
 | Brudiclad | Existing virtual choice/transform/Skip behavior | Local choices, transforms, sickness cleanup and undo; no global snapshot restoration |
-| Mana pool | New utility direction | Specialized multi-value UI and clear semantics below |
+| Mana pool | Accepted default-visible, dismissible utility | Specialized multi-value UI and clear semantics below |
 
 This is an adaptation list, not a guarantee all utilities ship in release one. Record support explicitly during P4. No feature may be enabled merely because its old action button renders in a quadrant.
 
 ## Tracker overlap boundary
 
-The accepted life tracker owns life, typed player counters, city’s blessing and recipient/source damage; monarch/day-night are shared session state. Reused utilities may project these values but cannot create divergent copies. Lifetap’s `Treasure`, `C.Tax`, Initiative and mana/storm controls are inventory evidence, not blanket commitments: review Treasure against the token lane, tax against CommanderId, initiative separately, and mana under D27. No token change automatically applies life, poison, radiation effects, commander damage, monarch transfer or day/night. See the [confirmed/candidate inventory](03_life_and_game_controls.md).
+The accepted life tracker owns life, typed player counters, city’s blessing and recipient/source damage; monarch/day-night are shared session state. Reused utilities may project these values but cannot create divergent copies. Lifetap’s `Treasure`, `C.Tax` and Initiative are inventory evidence, not blanket commitments: review Treasure against the token lane, tax against CommanderId and initiative separately. Mana pool and storm counter are now explicitly accepted as dismissible default-visible utilities, with detailed mechanics under D27/D37. No token change automatically applies life, poison, radiation effects, commander damage, monarch transfer or day/night. See the [confirmed/candidate inventory](03_life_and_game_controls.md).
 
-## Mana pool proposal — D27
+## Mana pool — accepted utility, proposed mechanics (D27)
 
 ### Purpose and basic model
 

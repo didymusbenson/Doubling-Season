@@ -21,6 +21,8 @@ For life, opposite-direction taps may belong to the same settling adjustment. Th
 
 Central history, wipes and resets use app/game-level context, not a specific player by default. Preserve player attribution where meaningful (for example a seat-context Soldier addition), but store/display affected seat(s) separately from origin and any attributed actor. A game-level wipe affecting A and B can be labeled “Game: wipe; affected A, B” without asserting that A or B performed it. Exact labels and wipe targeting UI remain open. Position in the center or three-player empty slot never supplies a human identity. Viewing history is read-only, not automatically a loggable gameplay action; whether navigation closes a pending group remains a detailed grouping-policy question. Committed game-level mutations participate in the same chronology and latest-action undo, not a separate stack.
 
+Utility hiding is presentation-only: a confirmed corner-X dismissal retains stored values, unlike a separate clear action. Do not log it as counter/mana removal. Exact history/undo inclusion of utility visibility/order changes remains open under D37; accepted gameplay chronology and reset/archive semantics do not change.
+
 ## Accepted bookkeeping policies
 
 - New commander-damage entry subtracts life as **one undoable action**, including self-source entries. Provide corrections to either ledger or life independently; correcting one must not silently apply the other effect again.

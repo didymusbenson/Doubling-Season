@@ -41,7 +41,7 @@ The product/platform/player-count boundaries below are accepted; the remaining c
 | Table | Four-seat reference plus 2/3-seat layout checks | Customizable 2–4 players (accepted); session resume proposal | [Expansion to six](six_player_expansion.md) deferred; teams unapproved |
 | Life tracker | Life plus representative typed counter/status, shared state and self/partner damage fixtures | **Confirmed:** life, relevant player counters, city’s blessing, monarch, shared day/night, source damage including self; detailed policies open | Rich statistics; optional modes; reference-derived inventory additions require review |
 | Tokens | One creation route and reorder | Search/custom/create, counts, tap, sickness, counters, copy/split, artwork | Explicit cross-player gifting/control transfer |
-| Utilities | One manual tracker and Krenko | Existing utility parity where scoped safely; mana pool candidate | Additional automation / shared global effects |
+| Utilities | One manual tracker and Krenko | Existing utility parity where scoped safely; default-visible dismissible mana pool and storm counter; curated visibility/order | Additional automation / shared global effects |
 | Rules | Per-seat sample presets | Existing supported rule behavior isolated per player | New full-table rules and arbitrary opponent triggers |
 | Decks | None required for touch spike | Load/save per player; compatible library reuse | Share an entire table setup / session export |
 | Game controls | Safe sample reset | Clearly scoped reset/new game and recovery | Turn/phase engine, tournament tools |
@@ -65,7 +65,7 @@ Existing utilities must be inventoried individually before claiming parity. A re
 | R09 | Local undo preserves other players' later work | Proposed required safety contract | [Data](06_data_persistence_and_migration.md), V22/V29 |
 | R10 | No phone data loss or accidental legacy reclassification | Proposed required compatibility contract | [Data](06_data_persistence_and_migration.md), V26–V28 |
 | R11 | Core play and resume work without network | Proposed | V26/V36 |
-| R12 | New mana-pool utility | User named direction; details open | [Utilities](07_utilities_tokens_and_decks.md), V37–V39 |
+| R12 | Mana pool and storm utilities | Accepted default-visible, dismissible/restorable; mechanics open | [Utilities](07_utilities_tokens_and_decks.md), V37–V39 |
 | R13 | Any keyboard input faces the initiating player | Confirmed; custom Flutter panel direction, one keyboard at a time | [Layout](02_layout_and_interaction.md), V34 |
 | R14 | Separate product; customizable 2–4 players; Android/iOS/web | Confirmed boundaries; detailed support gates open | D01/D03/D04, V30/V34/V35 |
 | R15 | Full life-tracker counters/statuses/shared state and source damage including self/partners | Confirmed categories and bookkeeping policies; detailed UI/inventory extensions open | [Life inventory](03_life_and_game_controls.md), V05/V41–V44 |

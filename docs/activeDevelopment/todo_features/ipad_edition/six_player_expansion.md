@@ -5,6 +5,8 @@
 
 The D36 scope distinction also applies to future seats: central controls remain app/game-level regardless of position; affected-seat sets are not human actor identities. Expansion must not introduce strict seat permissions or assume a global input pause.
 
+Future capacity reviews must preserve dedicated life plus attached damage/counter shortcuts, separate curated utility lists and shared-control space. Include dismissible default-visible storm/mana and discoverable hidden nonzero values. This is design leeway only, not six-player implementation or one-player scope.
+
 ## User direction
 
 “The flexibility of 2-6 players will make a difference I think. Initial scope should be customizable 2-4 players with a deferred feature doc to expand to 6. The designs should have room and leeway to make 6 players possible.”

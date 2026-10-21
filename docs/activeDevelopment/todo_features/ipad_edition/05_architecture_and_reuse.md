@@ -2,6 +2,8 @@
 
 **Status:** proposed architecture; separate-product and Android/iOS/web targets are accepted; exact packaging, release sequencing and storage choices remain open. No application, package, dependency or build configuration has been changed.
 
+**Accepted presentation boundary:** dedicated life regions with attached commander-damage/player-counter shortcuts, separate curated utility lists and a separate shared-controls panel. Utility visibility/order is presentation state, distinct from stored values; storm/mana default visible can be hidden and restored. Keep these boundaries in renderer/controller interfaces, not a single draggable/resizable dashboard. Shared controls use a between-paired-seats strip/panel for three/four players and a thin shortcut divider for two. Exact dimensions and reset default provisioning remain open.
+
 ## Chosen Flutter direction
 
 Retain Flutter. The needs identified here—bounded layouts, rotated subtrees, multiple input surfaces, independent scrollable lists, local panels, semantics and shared Dart domain logic—fit framework capabilities described in the [official research](10_research_sources.md). The existing app already supplies the token catalog, artwork, arithmetic, utilities and storage knowledge.
