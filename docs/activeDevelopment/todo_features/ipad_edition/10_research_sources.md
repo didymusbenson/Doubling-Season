@@ -4,7 +4,7 @@
 
 ## Decision update — 2026-10-21
 
-The user has since selected Flutter with custom player-facing input as the direction, a separate product, Android/iOS/web targets and customizable 2–4 players. This does not turn the source research below into prototype evidence. Any keyboard input must face its initiating player; one versus simultaneous keyboards remains open. See the [decision register](09_decision_register.md) and [deferred keyboard options](custom_keyboard_options.md). The research date above remains unchanged.
+The user has since selected Flutter with custom player-facing input as the direction, a separate product, Android/iOS/web targets and customizable 2–4 players. This does not turn the source research below into prototype evidence. Any keyboard input must face its initiating player; the subsequent explicit “No simultaneous keyboards.” decision requires one keyboard at a time, with handoff details still open. See the [decision register](09_decision_register.md) and [deferred keyboard options](custom_keyboard_options.md). The research date above remains unchanged.
 
 ## Findings and confidence
 

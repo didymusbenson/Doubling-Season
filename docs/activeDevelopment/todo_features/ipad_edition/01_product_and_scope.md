@@ -66,7 +66,7 @@ Existing utilities must be inventoried individually before claiming parity. A re
 | R10 | No phone data loss or accidental legacy reclassification | Proposed required compatibility contract | [Data](06_data_persistence_and_migration.md), V26–V28 |
 | R11 | Core play and resume work without network | Proposed | V26/V36 |
 | R12 | New mana-pool utility | User named direction; details open | [Utilities](07_utilities_tokens_and_decks.md), V37–V39 |
-| R13 | Any keyboard input faces the initiating player | Confirmed; custom Flutter panel direction, concurrency open | [Layout](02_layout_and_interaction.md), V34 |
+| R13 | Any keyboard input faces the initiating player | Confirmed; custom Flutter panel direction, one keyboard at a time | [Layout](02_layout_and_interaction.md), V34 |
 | R14 | Separate product; customizable 2–4 players; Android/iOS/web | Confirmed boundaries; detailed support gates open | D01/D03/D04, V30/V34/V35 |
 
 ## Boundaries
@@ -77,7 +77,7 @@ Do not implicitly add networking, cloud synchronization, deck-list import servic
 
 ## Product questions that affect the architecture
 
-- Must two people be able to search/edit at the same time, or is one local panel with all other players' quick controls still live sufficient? D09.
+- How should a second player request the single keyboard while preserving the first player’s draft? D11. No simultaneous keyboards (D09 accepted); non-typing quick controls staying usable remains the recommendation, not an automatic takeover/cancel policy.
 - How do customizable 2/3/4-player layouts adapt to each supported viewport, and when is a focused-seat fallback acceptable? D05/D06. Four-seat geometry is a fixture, not the only release layout.
 - Should the existing phone app share live games, only deck files, or no user data with this edition? D18/D23.
 - Is commander damage a release requirement, and should its entry also subtract life? D26.

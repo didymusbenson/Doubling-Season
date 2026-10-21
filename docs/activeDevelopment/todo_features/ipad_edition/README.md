@@ -45,7 +45,7 @@ For a fast design session: read this page, the layout document, and the decision
 
 - **C11:** Initial scope is customizable 2–4 players; expansion to six is deferred, with room in the design for it.
 - **C12:** Product targets are Android, iOS and web. Device/browser floors and release sequencing remain open.
-- **C13:** **Any keyboard input** must face the initiating player, including numeric entry as well as text/search/rename. Keyboard concurrency remains open (D09/D11).
+- **C13:** **Any keyboard input** must face the initiating player, including numeric entry as well as text/search/rename. **One keyboard at a time; no simultaneous keyboards** (D09). Draft-preserving handoff details remain open (D11).
 
 The supplied image establishes a four-player reference, not a fixed participant count. Exact seating orientations, package layout, application identifiers, purchase model, release date and remaining feature inventory are open. See the accepted decisions in the register.
 
@@ -81,7 +81,7 @@ The dossier received separate frontend, isolation/event, and persistence reviews
 
 ## Decision update — 2026-10-21
 
-Recorded separate-product, cross-platform and 2–4-player decisions; retained six-player expansion and custom keyboard options as deferred documents. All keyboard input must face its initiating player. One versus simultaneous keyboards remains explicitly open. No app code, build configuration or acceptance result is changed by this documentation update.
+Recorded separate-product, cross-platform and 2–4-player decisions; retained six-player expansion and custom keyboard options as deferred documents. All keyboard input must face its initiating player. The subsequent explicit answer “No simultaneous keyboards.” settles one keyboard at a time; detailed handoff behavior remains open. No app code, build configuration or acceptance result is changed by this documentation update.
 
 ## Terminology
 

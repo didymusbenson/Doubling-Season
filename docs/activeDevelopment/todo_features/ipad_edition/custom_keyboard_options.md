@@ -7,7 +7,7 @@
 
 Any keyboard input must face the initiating player. The chosen Flutter direction is a custom in-app input panel that can rotate with its player-facing entry surface. This covers numeric as well as text input, not just search or rename. System keyboards do not expose arbitrary per-seat rotation. Prototype validation is still required.
 
-This document collects useful options for later review, prompted by the user's suggestion that a custom keyboard could include mana symbols. It does not choose one versus simultaneous keyboards: that remains D09/D11. It also does not commit to a complete replacement for every native language-input service.
+This document collects useful options for later review, prompted by the user's suggestion that a custom keyboard could include mana symbols. The subsequent explicit answer “No simultaneous keyboards.” settles one keyboard at a time (D09); request/handoff details remain open (D11). It also does not commit to a complete replacement for every native language-input service.
 
 ## Candidate options to discuss
 
@@ -26,7 +26,7 @@ This document collects useful options for later review, prompted by the user's s
 | Localization and IME | Explore translated key layouts, diacritics, right-to-left text, composition/candidate selection and hardware keyboards. A custom Latin keypad is not proof of general multilingual input. Identify a usable fallback without silently abandoning player-facing input. |
 | Accessibility | Evaluate semantic key/symbol labels, focus order, screen readers, switch/hardware navigation, contrast and text scaling. Rotated pixels alone do not establish accessible input. |
 | Numeric/text modes | Decide field-to-mode mapping, signed/decimal constraints where applicable, mode switching and validation error placement. Retain drafts on cancellation/failure according to the field's policy. |
-| Concurrency | D09/D11 must choose one panel with explicit handoff or simultaneous panels. Both need stable player/item identity and draft preservation; neither is approved here. |
+| Single keyboard / handoff | D09 requires one keyboard at a time, facing its initiating player. Preserve drafts and player/item identity; one player’s editing cannot mutate another’s state. D11 must choose request/handoff details without assuming automatic takeover, cancel or submit. Non-typing quick controls remaining usable is the recommendation. |
 
 ## Later review outcome
 
