@@ -17,6 +17,10 @@ Wording above is illustrative, not a fixed interface. Creation and removal must 
 
 For life, opposite-direction taps may belong to the same settling adjustment. This is an explicit exception to treating every direction change as a new action. Token add versus remove remains distinct. Exact equivalence keys for other operations, timeout tuning, and treatment of a zero-net life adjustment need design; **a fixed two-second timeout for every action has not been approved**.
 
+## Origin, player attribution and affected seats
+
+Central history, wipes and resets use app/game-level context, not a specific player by default. Preserve player attribution where meaningful (for example a seat-context Soldier addition), but store/display affected seat(s) separately from origin and any attributed actor. A game-level wipe affecting A and B can be labeled “Game: wipe; affected A, B” without asserting that A or B performed it. Exact labels and wipe targeting UI remain open. Position in the center or three-player empty slot never supplies a human identity. Viewing history is read-only, not automatically a loggable gameplay action; whether navigation closes a pending group remains a detailed grouping-policy question. Committed game-level mutations participate in the same chronology and latest-action undo, not a separate stack.
+
 ## Accepted bookkeeping policies
 
 - New commander-damage entry subtracts life as **one undoable action**, including self-source entries. Provide corrections to either ledger or life independently; correcting one must not silently apply the other effect again.
@@ -47,7 +51,7 @@ A successful full reset begins a new game boundary and leaves a restorable archi
 
 Separate underlying commands, group identity and rendered log entries. A group should retain all constituent commands and before/after/write-set data needed by the chosen undo contract. A grouped “Soldier +2” display must not erase distinct underlying creation outcomes, companions, scoped utility updates or revisions.
 
-Candidate compatibility key: actor/scope, command kind, target entity or commander/recipient pair, and relevant field/type. Do not coalesce different players, partner sources, same-named but distinct stacks, unrelated counters, add/remove operations or rules revisions merely because the display text matches. Final matching rules must accommodate legitimate new-token additions whose runtime entities differ.
+Candidate compatibility key: origin context, optional attributed player, affected scope, command kind, target entity or commander/recipient pair, and relevant field/type. Do not coalesce different players, partner sources, same-named but distinct stacks, unrelated counters, add/remove operations or rules revisions merely because the display text matches. Final matching rules must accommodate legitimate new-token additions whose runtime entities differ.
 
 A different action/time gap settles the current group across the whole game. Reset, replacement, failed/cancelled input, keyboard handoff, backgrounding and session changes need explicit settlement policies. A failed/cancelled command must not appear as a successful game mutation. Retry with one CommandId must not duplicate history or state.
 

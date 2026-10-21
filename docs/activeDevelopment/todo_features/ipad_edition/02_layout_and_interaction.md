@@ -128,7 +128,7 @@ Changing layout, opening game controls, deleting the current object, and startin
 
 ## Player menu and local panels
 
-Every seat has a persistent, reachable menu affordance bearing its player identity. Proposed groups: Add token; Utilities; Rules; Board actions; Decks; Player settings. “Everything” becomes “P1's tokens” or an equivalent named scope.
+Every seat has a persistent, reachable menu affordance bearing its player identity. Proposed seat-context groups: Add token; Utilities; Rules; Decks; Player settings. Wipes, resets and history belong to central app/game controls; this is context, not a restriction on which human may use them. “Everything” becomes “P1's tokens” or an equivalent named scope.
 
 Token/utility search, quantity input, artwork selection, counters and deck selection should render in a bounded panel associated with that player. Record `playerId` when opening; carry it through every return value and callback. A screen-space pointer position may choose the originating surface but may never become the durable identity.
 
@@ -145,7 +145,7 @@ A root modal bottom sheet prevents interaction with the rest of the app. `anchor
 - **Concurrency accepted (D09): one keyboard at a time, facing its initiating player.** The user explicitly answered “No simultaneous keyboards.” Preserve drafts and stable player/item origin; one player’s editing must not mutate another’s state. D11 still needs a deliberate handoff/request policy. Do not infer automatic takeover, cancellation, submission or draft discard when another player requests input. Keeping other players’ non-typing quick controls responsive remains the recommended behavior.
 - Reserve bounded panel space without lifting all lanes into unusable heights. Preserve life access where practical and record the chosen obstruction/resize policy. System/native fallback, hardware keyboard and IME routes need explicit orientation and accessibility review, not an unnoticed escape from the player-facing requirement.
 - [Custom keyboard options](custom_keyboard_options.md), including mana-symbol candidates, are deferred exploration, not approved first-release features.
-- Root game actions acquire an explicit table-operation barrier; resolve editors, stop repeat gestures and suspend new mutations before taking their snapshot.
+- Central actions keep app/game context regardless of placement. A global input pause/barrier, editor resolution and repeat-gesture policy during wipes/resets remain open; do not treat a table-wide lock as accepted.
 
 Flutter distinguishes raw pointers and gesture recognition; nested buttons, drags and repeated controls need deliberate gesture arbitration. [Gesture documentation](https://docs.flutter.dev/ui/interactivity/gestures). Actual multi-seat reliability remains unproven until P0.
 
@@ -159,7 +159,7 @@ Verify light/dark themes, large text, reduced motion, grayscale, external keyboa
 
 ## Game-history access
 
-Provide access to the one game-wide chronological timeline, with clear player attribution and undo walking the latest action globally. Do not present independent per-player undo stacks or silently let filtering change undo order. Grouped rows update only until any player performs a different action or a time gap closes the group; token add/remove remain separate. Exact timeline placement and pending/settled/undone presentation are open. Preserve the accepted life/lane geometry, required shared controls and single player-facing keyboard. See [history](game_history_and_undo.md).
+Provide access to the one game-wide chronological timeline, with meaningful player attribution and distinct game-level origin/affected-seat labels, and undo walking the latest action globally. Do not present independent per-player undo stacks or silently let filtering change undo order. Grouped rows update only until any player performs a different action or a time gap closes the group; token add/remove remain separate. Exact timeline placement and pending/settled/undone presentation are open. Preserve the accepted life/lane geometry, required shared controls and single player-facing keyboard. See [history](game_history_and_undo.md).
 
 ## Empty, busy and failure states
 

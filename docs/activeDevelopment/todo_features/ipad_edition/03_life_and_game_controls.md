@@ -76,13 +76,13 @@ Choose one authoritative location per player counter. A utility may project it b
 
 Official rules rechecked on 2026-10-21 through the [Wizards rules page](https://magic.wizards.com/en/rules), which links the [2026-09-25 rules](https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt): monarch is exclusive and initially absent (725.1/725.3); city’s blessing can belong to multiple players (702.131); day/night is game-wide and starts neither (731.1); partner damage is separate (702.124d), and the commander-damage rule is source-specific (903.10a). These support data distinctions, not automatic game enforcement. Wizards also explicitly discusses [damage from one’s own commander](https://magic.wizards.com/en/news/feature/commander-masters-release-notes).
 
-Monarch is claimed manually by a player, explicitly transferring the shared holder; day/night is manually set, without inferring combat or spells cast. Manual changes record actor, target/scope, before/after and operation identity. A monarch transfer changes one shared holder atomically; undo must not restore a stale holder over a later transfer. Day/night correction changes only the shared designation. Blessing/counter corrections are local and cannot clear another player’s state. Exact correction UI and remaining runtime/rule, archive-retention and restore-conflict details remain open. History is persistent and game-wide chronological; undo walks the latest action globally, with any player’s different action closing the group; exact timeout, archive retention/UI and restore conflict policies still open in [D16/D17/D33](09_decision_register.md).
+Monarch is claimed manually by a player, explicitly transferring the shared holder; day/night is manually set, without inferring combat or spells cast. Manual changes record origin/context, meaningful player attribution when available, affected target/scope, before/after and operation identity. Game-level actions do not invent a player actor from their control location. A monarch transfer changes one shared holder atomically; undo must not restore a stale holder over a later transfer. Day/night correction changes only the shared designation. Blessing/counter corrections are local and cannot clear another player’s state. Exact correction UI and remaining runtime/rule, archive-retention and restore-conflict details remain open. History is persistent and game-wide chronological; undo walks the latest action globally, with any player’s different action closing the group; exact timeout, archive retention/UI and restore conflict policies still open in [D16/D17/D33](09_decision_register.md).
 
 No automatic Food sacrifice → life gain, lifelink, poison from infect, mana burn, death, or combat damage is implied by editing tokens. A future action combining domains must state every effect and commit them together. Manual tools must remain correct when players resolve the physical game themselves.
 
 ## Game lifecycle
 
-Proposed states: setup → active → ended, with a recoverable active session after restart. A restorable pre-reset game archive is now accepted. “Paused” may describe blocked input during global operations; do not invent a turn/priority simulation merely to pause a tracker.
+Proposed states: setup → active → ended, with a recoverable active session after restart. A restorable pre-reset game archive is now accepted. Whether global operations pause input remains open; no turn/priority simulation or mandatory pause is implied.
 
 Setup contains participants, seats, starting-life configuration, commander-source configuration when relevant, and optional selected deck templates. Initialize the accepted counters/status/shared-state model explicitly; defaults and optional visibility do not erase the stored identity of a value. Starting creates a session generation and initial durable state. A rematch can preserve seating/configuration while creating a new game identity or generation; pre-reset archives are restorable under D33, with browsing UI and retention limits still to design.
 
@@ -110,16 +110,16 @@ A full reset starts the game over using the specified player count and game conf
 
 Normal game resets do not erase persistent seat customization. The separate settings hard-reset scope/confirmation and any other retained setup fields still need design. Detailed reset previews and destructive confirmation safeguards remain; quicker three-player control access is not one-tap permission to discard state.
 
-### Other local actions remain proposals
+### Other action vocabulary remains proposed
 
 The following vocabulary is retained for discussion, not a replacement for the two accepted full-reset modes:
 
 | Command | Location / recipients | Tokens | Utilities | Rules | Life / counters | Seating / library |
 |---|---|---|---|---|---|---|
-| Clear my tokens | Player menu / one player | Delete selected player's stacks | Keep | Keep unless explicitly chosen | Keep | Keep |
-| Reset my utilities | Player menu / one player | Keep | Reset documented values; keep definitions/order | Explicit choice, default keep | Keep central values | Keep |
-| Reset my board | Player menu / one player | Preview clear or reset-to-setup | Preview reset/clear | Separate named option | Keep by default | Keep |
-| Reset my life | Life detail / one player | Keep | Keep | Keep | Starting life; other counters only if named | Keep |
+| Clear selected seat tokens | Central game control / target UI open | Delete selected player's stacks | Keep | Keep unless explicitly chosen | Keep | Keep |
+| Reset selected seat utilities | Central game control / target UI open | Keep | Reset documented values; keep definitions/order | Explicit choice, default keep | Keep central values | Keep |
+| Reset selected seat board | Central game control / target UI open | Preview clear or reset-to-setup | Preview reset/clear | Separate named option | Keep by default | Keep |
+| Reset selected seat life | Game-level reset context / target UI open | Keep | Keep | Keep | Starting life; other counters only if named | Keep |
 | Clear table tokens | Game menu / explicit all/current players | Clear recipients | Keep, except explicitly coupled derived state | Keep by default | Keep | Keep |
 | Full reset (two accepted modes above) | Game menu / configured participants; removed seats’ game-specific boards cleared | Keep zeroed/no-counter entries or clear, by mode | Keep enabled selection or clear, by mode | Exact rules/settings retention pending | Starting life; temporary damage/counters and game statuses reset; pre-reset full-state/timeline archive restore accepted | Preserve persistent seat name/color/art; hide unused seats |
 | New game/setup | Game menu / configured session | Follow chosen full-reset mode | Follow chosen mode | Explicit configuration | Defined new-game baseline | Reuse persistent seats; do not delete hidden customization |
@@ -127,17 +127,13 @@ The following vocabulary is retained for discussion, not a replacement for the t
 
 The two full-reset modes are accepted. Other matrix rows are a recommended vocabulary, not required release buttons. D22 now also settles removed-seat board clearing and pre-reset archive restore; exact runtime/rule field mappings, archive retention/UI and restore safeguards remain open. Do not inherit Lifetap reset behavior or assume a local life/board reset clears shared designations. A generic “board wipe” from the current app cannot be reused without declaring recipients and rules/utility effects.
 
-## Global operation protocol
+## Game-level operation contract and open interaction policy
 
-1. Open a center panel with a plain-language effect preview naming the participants and values affected.
-2. Resolve active editors and pending native flows. Cancel repeated gestures. Reject duplicate submissions.
-3. Acquire the table barrier; drain or invalidate pending commands under a documented policy.
-4. Capture a coherent session checkpoint including life, typed player counters/statuses, source/recipient damage ledgers, monarch/day-night, both lanes, derived utility state, rule configuration, and order domains being changed.
-5. Commit a recoverable operation. Only report success once its required state is durable.
-6. Invalidate old callbacks with a new generation. If undo is allowed, hold the global barrier through the explicit Undo / Accept completion, or use conflict-aware history instead.
-7. Release the barrier after the resulting state is coherent. A failed operation restores/reconciles the captured scope and reports what was recovered.
+**Accepted:** history access, wipes and resets default to app/game context. Affected seats are targets, not automatically actors. Seat-context actions such as token search and seat customization keep their seat context. These are not strict human permissions or segregated touch zones.
 
-The existing non-dismissible destructive completion pattern is a useful starting point: Undo left, primary Accept right, system Back blocked while unresolved. Adapt player operations to a local barrier so other seats can continue. Root-level completion must be reserved for true table operations.
+**Safety design requirements:** define the affected write set, take a coherent recovery checkpoint where needed, reject duplicate/stale mutations, and preserve the accepted full-reset/archive and latest-global-undo semantics. Report success only according to the chosen durability contract; recover failures without mixed state. Read-only viewing of history is not a gameplay mutation.
+
+**Still open:** wipe target selection, exact previews/confirmation/finalization UI, resolving pending edits/repeats and whether any global operation pauses input. A table barrier and the current phone app’s non-dismissible Undo/Accept dialog are candidates, not accepted tablet policy. Do not infer automatic cancellation or a mandatory lock from the central placement of a control.
 
 ## Game-control placement and candidates
 

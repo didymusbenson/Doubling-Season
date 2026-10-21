@@ -6,9 +6,11 @@
 **Technical direction:** Flutter with custom, player-facing in-app keyboards; validate in prototypes before treating the solution as proven. **Product targets:** Android, iOS and web.
 **Code baseline:** `8894640543833eaf37bd62b971a0955c26bafa49` on `update-1-11`.
 
-IPAD EDITION turns one shared tablet into a tabletop dashboard: a central life tracker, customizable two-to-four-player spaces, and separate token and utility columns for each player. Each seat has its own actions menu. The center owns game-level controls. Every action must retain its player identity through rules, generated companions, persistence, undo, and delayed work.
+IPAD EDITION turns one shared tablet into a tabletop dashboard: a central life tracker, customizable two-to-four-player spaces, and separate token and utility columns for each player. Each seat has its own actions menu. Central controls use app/game context, not a fabricated player actor. Seat-context actions retain their target identity through rules, generated companions, persistence, undo and delayed work; game-level actions retain explicit affected scope. Context is not a strict touch-permission boundary.
 
 This is a planning dossier, not a shipped feature specification. **Confirmed** means directly requested by the user. **Proposed** means a recommendation for discussion. **Open** means a decision is still needed. File names, class names, numeric layout budgets, release scope, and storage designs below are proposals unless described as existing code. The decision register is the authority for approval status; an implementation phase or acceptance scenario does not itself approve a proposal.
+
+**Control-scope clarification:** token search and seat customization are seat-context actions; history, wipes and resets are central app/game actions. Keep meaningful player attribution separate from affected seats; never infer a human actor from control location. Wipe targeting UI and global-input pause policy remain open (D36).
 
 ## Start here
 

@@ -3,6 +3,8 @@
 **Status:** deferred feature, requested 2026-10-21. Initial scope remains customizable **2–4 players**; five/six-player implementation and release support are not promised now.
 **Related:** [D04](09_decision_register.md), [layout](02_layout_and_interaction.md), [validation](08_delivery_validation_and_risks.md).
 
+The D36 scope distinction also applies to future seats: central controls remain app/game-level regardless of position; affected-seat sets are not human actor identities. Expansion must not introduce strict seat permissions or assume a global input pause.
+
 ## User direction
 
 “The flexibility of 2-6 players will make a difference I think. Initial scope should be customizable 2-4 players with a deferred feature doc to expand to 6. The designs should have room and leeway to make 6 players possible.”

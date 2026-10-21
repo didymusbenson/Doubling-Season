@@ -13,8 +13,8 @@ This is a **separate app / new product** with a different frontend composition (
 | Principle | Observable consequence |
 |---|---|
 | The table is the primary screen | Normal token/life interactions retain the other players' context |
-| Player ownership is visible | Name/seat identity accompanies menus, confirmations, creation and errors |
-| Player ownership is enforced | A stale callback cannot redirect output to whoever used the tablet most recently |
+| Affected scope is visible | Name/seat identity accompanies menus, confirmations, creation and errors |
+| Captured data scope is enforced | A stale callback cannot redirect output to whoever used the tablet most recently |
 | Life stays easy to read | Lists scroll without scrolling the central life display away |
 | Lists serve their content | Utilities and tokens reorder independently; life never participates in either order |
 | Shared device, independent work | P1 changing life does not collapse P3's editor or consume P2's drag |
@@ -86,7 +86,7 @@ Do not implicitly add networking, cloud synchronization, deck-list import servic
 - New commander damage subtracts life as one undoable action; independent corrections are required and thresholds warn without auto-KO. Resolve detailed controls and reset retention, not whether to include this policy. D26/D22.
 - Any player’s different action ends the active history group. One chronological game timeline, latest-action global undo and current-session persistence are accepted; exact timeout tuning and archive policy remain open. D16/D17/D33.
 - Are rules describing global cards intentionally local manual approximations, or must a table-wide effect be modeled? D25.
-- Does “board wipe” mean the invoking player's tokens, all players' tokens, or an explicit participant selection? D22. Labels must settle this before implementation.
+- Wipes are central app/game controls, not owned by an invoking seat. Which seats/boards a wipe affects and how targets are selected remain open under D22/D36; do not assume all players or the last active player.
 
 ## Success criteria
 

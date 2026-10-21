@@ -10,7 +10,7 @@ Use stable IDs in later discussions, commits and acceptance notes. Answering one
 2. **Safety and technical boundaries:** D09–D25, D29. Settle isolation, concurrency, storage, undo, recovery and interoperability before domain implementation.
 3. **Release cut and evidence:** D08, D30–D35. Choose utility parity, workloads, offline/update behavior, distribution details and final gates after the prototypes expose costs.
 
-With product boundaries, two/three-player layout direction, single-keyboard concurrency and D26 tracker categories settled, the next discussion can focus on remaining four-player geometry, keyboard handoff and remaining tracker/history details (correction UI, timeout tuning, reset/archive retention and inventory extensions). The dossier supports answering the rest incrementally; there is no need to answer 35 questions at once.
+With product boundaries, two/three-player layout direction, single-keyboard concurrency and D26 tracker categories settled, the next discussion can focus on remaining four-player geometry, keyboard handoff and remaining tracker/history details (correction UI, timeout tuning, reset/archive retention and inventory extensions). The dossier supports answering the rest incrementally; there is no need to answer every question at once.
 
 ## Product, layout and interaction choices
 
@@ -65,6 +65,14 @@ The persistence and concurrency decisions must agree. A single session writer ca
 | D33 | What happens to completed games? | **Accepted:** restorable archive of full state and timeline immediately before reset; restore historical seat game setup | Retention limits, browsing UI and customization conflicts open. Preserving the current game before archive load is proposed, not accepted; no statistics implied | P2/P5; V50 |
 | D34 | What participant/media information is retained or exported? | Local guest labels; explicit export contents; no analytics/account requirement | Persistent profiles, analytics, custom photos and share bundles need deliberate retention choices | P2/P4 |
 | D35 | What proves readiness and governs format upgrades? | Versioned formats, recorded manual/device acceptance, compatibility and recovery gates | Additional platforms/features each add a gate; current docs alone prove none | All phases, final P5 |
+
+## Control context clarification
+
+| ID | Question | Accepted direction | Still open | Needed by |
+|---|---|---|---|---|
+| D36 | Are seat and central controls strict ownership/permission zones? | **No.** Seat-context actions affect that seat (token search, customization); history, wipes and resets default to app/game context. Separate affected seats from meaningful player attribution; no actor inferred from placement | Wipe targeting UI, global-input pause policy and exact destructive confirmation/finalization. No new permission model or mandatory barrier accepted | P0–P3; V51 |
+
+User clarification: “Central controls, or game level controls default to the app itself not a specific player like viewing the log or handling wipes and resets.” This refines data-scope isolation, not the accepted persistent seats, keyboard orientation, history order or reset semantics.
 
 ## Accepted product decisions — 2026-10-21
 

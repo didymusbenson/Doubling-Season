@@ -3,6 +3,8 @@
 **Status:** deferred design exploration, requested 2026-10-21; no options below are first-release commitments or implemented features.
 **Related:** [input requirement](02_layout_and_interaction.md), [D09/D11](09_decision_register.md), [V34 validation](08_delivery_validation_and_risks.md).
 
+Seat-facing keyboard/draft context does not confer ownership of central history/wipes/resets. Game-level input must preserve app/game origin separately from the interaction orientation; exact central-input orientation/handoff UI needs design without weakening the accepted player-facing requirement (D36).
+
 ## Fixed boundary versus later choices
 
 Any keyboard input must face the initiating player. The chosen Flutter direction is a custom in-app input panel that can rotate with its player-facing entry surface. This covers numeric as well as text input, not just search or rename. System keyboards do not expose arbitrary per-seat rotation. Prototype validation is still required.
