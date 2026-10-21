@@ -71,7 +71,8 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          if (_widgetDatabase.selectedType != null || _searchController.text.isNotEmpty)
+          if (_widgetDatabase.selectedType != null ||
+              _searchController.text.isNotEmpty)
             TextButton(
               onPressed: _clearFilters,
               child: const Text('Clear'),
@@ -126,7 +127,8 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
 
   Widget _buildTypeFilter() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: UIConstants.standardPadding),
+      padding:
+          const EdgeInsets.symmetric(horizontal: UIConstants.standardPadding),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -284,10 +286,12 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
     allOrders.addAll(trackerProvider.trackers.map((t) => t.order));
     allOrders.addAll(toggleProvider.toggles.map((t) => t.order));
 
-    final maxOrder = allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
+    final maxOrder =
+        allOrders.isEmpty ? 0.0 : allOrders.reduce((a, b) => a > b ? a : b);
     final newOrder = maxOrder.floor() + 1.0;
 
-    if (definition.type == WidgetType.tracker || definition.type == WidgetType.special) {
+    if (definition.type == WidgetType.tracker ||
+        definition.type == WidgetType.special) {
       final tracker = definition.toTrackerWidget(order: newOrder);
 
       // Apply first artwork if available (matching token pattern)
@@ -301,21 +305,14 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
 
       // Download artwork in background (non-blocking, fire-and-forget)
       // Skip on web - artwork loads directly from network URL
-      if (!kIsWeb && tracker.artworkUrl != null && !tracker.artworkUrl!.startsWith('file://')) {
+      if (!kIsWeb &&
+          tracker.artworkUrl != null &&
+          !tracker.artworkUrl!.startsWith('file://')) {
         final artworkUrl = tracker.artworkUrl!;
         ArtworkManager.downloadArtwork(artworkUrl).then((file) {
           if (file == null) {
-            debugPrint('Artwork download failed for ${tracker.name}, resetting URL');
-            // Find the tracker again (it might have been deleted/modified)
-            final currentTracker = trackerProvider.trackers.firstWhere(
-              (t) => t.artworkUrl == artworkUrl,
-              orElse: () => tracker,
-            );
-            if (currentTracker.artworkUrl == artworkUrl) {
-              currentTracker.artworkUrl = null;
-              currentTracker.artworkSet = null;
-              currentTracker.save();
-            }
+            debugPrint(
+                'Artwork download failed for ${tracker.name}; preserving selection for retry');
           } else {
             debugPrint('Artwork downloaded and cached for ${tracker.name}');
             // Trigger rebuild so TrackerWidgetCard displays the cached artwork
@@ -324,21 +321,12 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
               orElse: () => tracker,
             );
             if (currentTracker.artworkUrl == artworkUrl) {
-              currentTracker.save(); // Triggers Hive save and notifies listeners
+              currentTracker
+                  .save(); // Triggers Hive save and notifies listeners
             }
           }
         }).catchError((error) {
           debugPrint('Error during background artwork download: $error');
-          // Silent fail - reset artworkUrl on error
-          final currentTracker = trackerProvider.trackers.firstWhere(
-            (t) => t.artworkUrl == artworkUrl,
-            orElse: () => tracker,
-          );
-          if (currentTracker.artworkUrl == artworkUrl) {
-            currentTracker.artworkUrl = null;
-            currentTracker.artworkSet = null;
-            currentTracker.save();
-          }
         });
       }
     } else if (definition.type == WidgetType.toggle) {
@@ -355,21 +343,14 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
 
       // Download artwork in background (non-blocking, fire-and-forget)
       // Skip on web - artwork loads directly from network URL
-      if (!kIsWeb && toggle.artworkUrl != null && !toggle.artworkUrl!.startsWith('file://')) {
+      if (!kIsWeb &&
+          toggle.artworkUrl != null &&
+          !toggle.artworkUrl!.startsWith('file://')) {
         final artworkUrl = toggle.artworkUrl!;
         ArtworkManager.downloadArtwork(artworkUrl).then((file) {
           if (file == null) {
-            debugPrint('Artwork download failed for ${toggle.name}, resetting URL');
-            // Find the toggle again (it might have been deleted/modified)
-            final currentToggle = toggleProvider.toggles.firstWhere(
-              (t) => t.artworkUrl == artworkUrl,
-              orElse: () => toggle,
-            );
-            if (currentToggle.artworkUrl == artworkUrl) {
-              currentToggle.artworkUrl = null;
-              currentToggle.artworkSet = null;
-              currentToggle.save();
-            }
+            debugPrint(
+                'Artwork download failed for ${toggle.name}; preserving selection for retry');
           } else {
             debugPrint('Artwork downloaded and cached for ${toggle.name}');
             // Trigger rebuild so ToggleWidgetCard displays the cached artwork
@@ -383,16 +364,6 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
           }
         }).catchError((error) {
           debugPrint('Error during background artwork download: $error');
-          // Silent fail - reset artworkUrl on error
-          final currentToggle = toggleProvider.toggles.firstWhere(
-            (t) => t.artworkUrl == artworkUrl,
-            orElse: () => toggle,
-          );
-          if (currentToggle.artworkUrl == artworkUrl) {
-            currentToggle.artworkUrl = null;
-            currentToggle.artworkSet = null;
-            currentToggle.save();
-          }
         });
       }
     }
@@ -405,7 +376,8 @@ class _WidgetSelectionScreenState extends State<WidgetSelectionScreen> {
   void _showNewTrackerSheet() async {
     final result = await Navigator.of(context).push<WidgetDefinition>(
       MaterialPageRoute(
-        builder: (context) => NewTrackerSheet(selectorMode: widget.selectorMode),
+        builder: (context) =>
+            NewTrackerSheet(selectorMode: widget.selectorMode),
       ),
     );
 

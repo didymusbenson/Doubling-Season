@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 
@@ -70,18 +71,24 @@ class TokenUpdateService {
       final remoteSha = manifest['sha256'] as String?;
       final remoteUpdated = manifest['updated'] as String?;
       final minAppVersion = manifest['min_app_version'] as String?;
+      final appVersion = (await PackageInfo.fromPlatform()).version;
+      final compatible = minAppVersion == null ||
+          _compareVersions(appVersion, minAppVersion) >= 0;
 
       return TokenUpdateResult(
-        available: remoteVersion > currentVersion,
+        available: remoteVersion > currentVersion && compatible,
         currentVersion: currentVersion,
         remoteVersion: remoteVersion,
         remoteSize: remoteSize,
         remoteSha256: remoteSha,
         remoteUpdatedDate: remoteUpdated,
         minAppVersion: minAppVersion,
+        error:
+            compatible ? null : 'Requires app version $minAppVersion or newer',
       );
     } on SocketException {
-      return TokenUpdateResult.failure(currentVersion, 'No internet connection');
+      return TokenUpdateResult.failure(
+          currentVersion, 'No internet connection');
     } catch (e) {
       return TokenUpdateResult.failure(
           currentVersion, 'Check failed: ${e.toString()}');
@@ -110,19 +117,23 @@ class TokenUpdateService {
       if (response.statusCode != 200) return false;
 
       final bytes = response.bodyBytes;
+      if (expectedSize != null && bytes.length != expectedSize) return false;
       final actualSha = sha256.convert(bytes).toString();
       if (actualSha != expectedSha256) return false;
+      final decoded = jsonDecode(utf8.decode(bytes));
+      if (decoded is! List) return false;
+
+      if (minAppVersion != null) {
+        final appVersion = (await PackageInfo.fromPlatform()).version;
+        if (_compareVersions(appVersion, minAppVersion) < 0) return false;
+      }
 
       final dir = await getApplicationDocumentsDirectory();
       final overrideDir = Directory('${dir.path}/token_db');
-      if (!await overrideDir.exists()) {
-        await overrideDir.create(recursive: true);
-      }
-
-      // Write DB first; only write manifest after DB is durable on disk so a
-      // crash mid-write can't produce a manifest pointing at a missing file.
-      final dbFile = File('${overrideDir.path}/token_database.json');
-      await dbFile.writeAsBytes(bytes, flush: true);
+      final pendingDir = Directory('${dir.path}/token_db.pending');
+      final previousDir = Directory('${dir.path}/token_db.previous');
+      if (await pendingDir.exists()) await pendingDir.delete(recursive: true);
+      await pendingDir.create(recursive: true);
 
       final manifestPayload = {
         'version': remoteVersion,
@@ -131,8 +142,40 @@ class TokenUpdateService {
         'updated': updatedDate,
         'min_app_version': minAppVersion,
       };
-      final manifestFile = File('${overrideDir.path}/manifest.json');
-      await manifestFile.writeAsString(jsonEncode(manifestPayload));
+      final tempDb = File('${pendingDir.path}/token_database.json');
+      final tempManifest = File('${pendingDir.path}/manifest.json');
+
+      await tempDb.writeAsBytes(bytes, flush: true);
+      await tempManifest.writeAsString(
+        jsonEncode(manifestPayload),
+        flush: true,
+      );
+
+      // Promote the verified directory as one unit, retaining the prior
+      // generation. The database and manifest are therefore never split
+      // across generations during a normal update or rollback.
+      if (await previousDir.exists()) {
+        await previousDir.delete(recursive: true);
+      }
+      var currentBackedUp = false;
+      try {
+        if (await overrideDir.exists()) {
+          await overrideDir.rename(previousDir.path);
+          currentBackedUp = true;
+        }
+        await pendingDir.rename(overrideDir.path);
+      } catch (_) {
+        if (await overrideDir.exists()) {
+          await overrideDir.delete(recursive: true);
+        }
+        if (currentBackedUp && await previousDir.exists()) {
+          await previousDir.rename(overrideDir.path);
+        }
+        if (await pendingDir.exists()) {
+          await pendingDir.delete(recursive: true);
+        }
+        return false;
+      }
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(PreferenceKeys.tokenDbVersion, remoteVersion);
@@ -154,6 +197,10 @@ class TokenUpdateService {
       if (await overrideDir.exists()) {
         await overrideDir.delete(recursive: true);
       }
+      for (final suffix in ['pending', 'previous']) {
+        final sibling = Directory('${dir.path}/token_db.$suffix');
+        if (await sibling.exists()) await sibling.delete(recursive: true);
+      }
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(PreferenceKeys.tokenDbVersion, 0);
     } catch (_) {
@@ -172,5 +219,24 @@ class TokenUpdateService {
     } catch (_) {
       return false;
     }
+  }
+
+  static int _compareVersions(String left, String right) {
+    List<int> parts(String value) => value
+        .split('-')
+        .first
+        .split('.')
+        .map((part) => int.tryParse(part) ?? 0)
+        .toList();
+
+    final a = parts(left);
+    final b = parts(right);
+    final length = a.length > b.length ? a.length : b.length;
+    for (var index = 0; index < length; index++) {
+      final aPart = index < a.length ? a[index] : 0;
+      final bPart = index < b.length ? b[index] : 0;
+      if (aPart != bPart) return aPart.compareTo(bPart);
+    }
+    return 0;
   }
 }

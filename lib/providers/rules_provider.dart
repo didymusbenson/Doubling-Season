@@ -94,6 +94,35 @@ class TokenCreationResult {
   }
 }
 
+/// In-memory snapshot used by immediate destructive-action undo. Custom rules
+/// are not deleted by a reset, so their stable Hive keys are sufficient to
+/// restore the enabled state without cloning rule definitions.
+class RulesStateSnapshot {
+  final int tokenDoublerCount;
+  final int doublingSeasonCount;
+  final int primalVigorCount;
+  final int ojerTaqCount;
+  final int academyManufactorCount;
+  final int chatterfangCount;
+  final int plusOneDoublerCount;
+  final int plusOneExtraCount;
+  final int allCounterDoublerCount;
+  final Map<dynamic, bool> customRuleEnabledByKey;
+
+  const RulesStateSnapshot({
+    required this.tokenDoublerCount,
+    required this.doublingSeasonCount,
+    required this.primalVigorCount,
+    required this.ojerTaqCount,
+    required this.academyManufactorCount,
+    required this.chatterfangCount,
+    required this.plusOneDoublerCount,
+    required this.plusOneExtraCount,
+    required this.allCounterDoublerCount,
+    required this.customRuleEnabledByKey,
+  });
+}
+
 /// Internal representation of a rule during evaluation.
 class _EvalRule {
   final String name;
@@ -160,50 +189,42 @@ class RulesProvider extends ChangeNotifier {
   // --- Preset persistence ---
 
   void _loadPresetState() {
-    tokenDoublerCount =
-        _prefs.getInt(PreferenceKeys.presetTokenDoublers) ?? 0;
+    tokenDoublerCount = _prefs.getInt(PreferenceKeys.presetTokenDoublers) ?? 0;
     doublingSeasonCount =
         _prefs.getInt(PreferenceKeys.presetDoublingSeason) ?? 0;
-    primalVigorCount =
-        _prefs.getInt(PreferenceKeys.presetPrimalVigor) ?? 0;
-    ojerTaqCount =
-        _prefs.getInt(PreferenceKeys.presetOjerTaq) ?? 0;
+    primalVigorCount = _prefs.getInt(PreferenceKeys.presetPrimalVigor) ?? 0;
+    ojerTaqCount = _prefs.getInt(PreferenceKeys.presetOjerTaq) ?? 0;
     // Migrate old bool key to int (update-safe)
     final oldBool = _prefs.getBool(PreferenceKeys.presetAcademyManufactor);
     if (oldBool != null) {
       academyManufactorCount = oldBool ? 1 : 0;
       _prefs.remove(PreferenceKeys.presetAcademyManufactor);
-      _prefs.setInt(PreferenceKeys.presetAcademyManufactorCount, academyManufactorCount);
+      _prefs.setInt(
+          PreferenceKeys.presetAcademyManufactorCount, academyManufactorCount);
     } else {
       academyManufactorCount =
           _prefs.getInt(PreferenceKeys.presetAcademyManufactorCount) ?? 0;
     }
-    chatterfangCount =
-        _prefs.getInt(PreferenceKeys.presetChatterfang) ?? 0;
+    chatterfangCount = _prefs.getInt(PreferenceKeys.presetChatterfang) ?? 0;
     plusOneDoublerCount =
         _prefs.getInt(PreferenceKeys.presetPlusOneDoublers) ?? 0;
-    plusOneExtraCount =
-        _prefs.getInt(PreferenceKeys.presetPlusOneExtra) ?? 0;
+    plusOneExtraCount = _prefs.getInt(PreferenceKeys.presetPlusOneExtra) ?? 0;
     allCounterDoublerCount =
         _prefs.getInt(PreferenceKeys.presetAllCounterDoublers) ?? 0;
   }
 
   Future<void> _savePresetState() async {
-    await _prefs.setInt(
-        PreferenceKeys.presetTokenDoublers, tokenDoublerCount);
+    await _prefs.setInt(PreferenceKeys.presetTokenDoublers, tokenDoublerCount);
     await _prefs.setInt(
         PreferenceKeys.presetDoublingSeason, doublingSeasonCount);
-    await _prefs.setInt(
-        PreferenceKeys.presetPrimalVigor, primalVigorCount);
+    await _prefs.setInt(PreferenceKeys.presetPrimalVigor, primalVigorCount);
     await _prefs.setInt(PreferenceKeys.presetOjerTaq, ojerTaqCount);
     await _prefs.setInt(
         PreferenceKeys.presetAcademyManufactorCount, academyManufactorCount);
-    await _prefs.setInt(
-        PreferenceKeys.presetChatterfang, chatterfangCount);
+    await _prefs.setInt(PreferenceKeys.presetChatterfang, chatterfangCount);
     await _prefs.setInt(
         PreferenceKeys.presetPlusOneDoublers, plusOneDoublerCount);
-    await _prefs.setInt(
-        PreferenceKeys.presetPlusOneExtra, plusOneExtraCount);
+    await _prefs.setInt(PreferenceKeys.presetPlusOneExtra, plusOneExtraCount);
     await _prefs.setInt(
         PreferenceKeys.presetAllCounterDoublers, allCounterDoublerCount);
     notifyListeners();
@@ -275,8 +296,7 @@ class RulesProvider extends ChangeNotifier {
   ///   is swallowed so resilient boot is preserved.
   Future<void> _removeOldMultiplier() async {
     try {
-      final done =
-          _prefs.getBool(PreferenceKeys.rulesMigrationDone) ?? false;
+      final done = _prefs.getBool(PreferenceKeys.rulesMigrationDone) ?? false;
       if (done) return;
 
       // getInt returns null if the key is absent OR stored as a different
@@ -289,8 +309,7 @@ class RulesProvider extends ChangeNotifier {
         oldMultiplier = 1;
       }
       try {
-        oldCounterMult =
-            _prefs.getInt(PreferenceKeys.counterMultiplier) ?? 1;
+        oldCounterMult = _prefs.getInt(PreferenceKeys.counterMultiplier) ?? 1;
       } catch (_) {
         oldCounterMult = 1;
       }
@@ -330,9 +349,8 @@ class RulesProvider extends ChangeNotifier {
     // Each copy of the rule is an independent effect (like having multiple copies of a card).
     for (final rule in customRules) {
       if (!rule.enabled) continue;
-      final alsoCreateOutcomes = rule.outcomes
-          .where((o) => o.outcomeType == 'also_create')
-          .toList();
+      final alsoCreateOutcomes =
+          rule.outcomes.where((o) => o.outcomeType == 'also_create').toList();
       if (alsoCreateOutcomes.isNotEmpty) {
         for (int i = 0; i < rule.count; i++) {
           rules.add(_EvalRule(
@@ -381,9 +399,8 @@ class RulesProvider extends ChangeNotifier {
     // 4. Custom "replace" rules (user-reorderable)
     for (final rule in customRules) {
       if (!rule.enabled) continue;
-      final replaceOutcomes = rule.outcomes
-          .where((o) => o.outcomeType == 'replace')
-          .toList();
+      final replaceOutcomes =
+          rule.outcomes.where((o) => o.outcomeType == 'replace').toList();
       if (replaceOutcomes.isNotEmpty) {
         rules.add(_EvalRule(
           name: rule.name,
@@ -569,7 +586,8 @@ class RulesProvider extends ChangeNotifier {
           colors: tokenColors,
           type: tokenType,
           abilities: tokenAbilities,
-          tokenDatabaseId: '$tokenName|$tokenPt|$tokenColors|$tokenType|$tokenAbilities',
+          tokenDatabaseId:
+              '$tokenName|$tokenPt|$tokenColors|$tokenType|$tokenAbilities',
           quantity: quantity,
         ),
       ];
@@ -663,9 +681,8 @@ class RulesProvider extends ChangeNotifier {
 
     // Clamp primary token quantity and track capping
     final bool primaryCapped = currentQuantity > GameConstants.maxTokenQuantity;
-    final int clampedPrimaryQuantity = primaryCapped
-        ? GameConstants.maxTokenQuantity
-        : currentQuantity;
+    final int clampedPrimaryQuantity =
+        primaryCapped ? GameConstants.maxTokenQuantity : currentQuantity;
 
     // Add the primary token with its final quantity
     results.insert(
@@ -846,6 +863,45 @@ class RulesProvider extends ChangeNotifier {
 
     for (final rule in customRules) {
       rule.enabled = false;
+      await rule.save();
+    }
+    notifyListeners();
+  }
+
+  RulesStateSnapshot captureState() => RulesStateSnapshot(
+        tokenDoublerCount: tokenDoublerCount,
+        doublingSeasonCount: doublingSeasonCount,
+        primalVigorCount: primalVigorCount,
+        ojerTaqCount: ojerTaqCount,
+        academyManufactorCount: academyManufactorCount,
+        chatterfangCount: chatterfangCount,
+        plusOneDoublerCount: plusOneDoublerCount,
+        plusOneExtraCount: plusOneExtraCount,
+        allCounterDoublerCount: allCounterDoublerCount,
+        customRuleEnabledByKey: {
+          for (final key in _rulesBox.keys)
+            if (_rulesBox.get(key) != null) key: _rulesBox.get(key)!.enabled,
+        },
+      );
+
+  /// Restores a state captured immediately before a rules reset. This does not
+  /// recreate deleted rules; the reset path only disables existing rules.
+  Future<void> restoreState(RulesStateSnapshot snapshot) async {
+    tokenDoublerCount = snapshot.tokenDoublerCount;
+    doublingSeasonCount = snapshot.doublingSeasonCount;
+    primalVigorCount = snapshot.primalVigorCount;
+    ojerTaqCount = snapshot.ojerTaqCount;
+    academyManufactorCount = snapshot.academyManufactorCount;
+    chatterfangCount = snapshot.chatterfangCount;
+    plusOneDoublerCount = snapshot.plusOneDoublerCount;
+    plusOneExtraCount = snapshot.plusOneExtraCount;
+    allCounterDoublerCount = snapshot.allCounterDoublerCount;
+    await _savePresetState();
+
+    for (final entry in snapshot.customRuleEnabledByKey.entries) {
+      final rule = _rulesBox.get(entry.key);
+      if (rule == null) continue;
+      rule.enabled = entry.value;
       await rule.save();
     }
     notifyListeners();

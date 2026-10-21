@@ -162,6 +162,7 @@ class DeckProvider extends ChangeNotifier {
       hasAction: t.hasAction,
       actionButtonText: t.actionButtonText,
       actionType: t.actionType,
+      actionOnly: t.actionOnly,
       isCustom: t.isCustom,
       order: t.order,
     )).toList();
@@ -305,7 +306,7 @@ class DeckProvider extends ChangeNotifier {
     final packageInfo = await PackageInfo.fromPlatform();
 
     final Map<String, dynamic> exportData = {
-      'schemaVersion': 2,
+      'schemaVersion': 3,
       'appVersion': packageInfo.version,
       'exportDate': DateTime.now().toIso8601String(),
       'deck': {
@@ -332,6 +333,7 @@ class DeckProvider extends ChangeNotifier {
           'hasAction': t.hasAction,
           'actionButtonText': t.actionButtonText,
           'actionType': t.actionType,
+          'actionOnly': t.actionOnly,
           'isCustom': t.isCustom,
           'order': t.order,
           'artworkUrl': t.artworkUrl,
@@ -355,7 +357,7 @@ class DeckProvider extends ChangeNotifier {
     };
 
     final jsonString = const JsonEncoder.withIndent('  ').convert(exportData);
-    debugPrint('DeckProvider: Exported deck "${deck.name}" (${deck.templates.length} tokens, schema v2)');
+    debugPrint('DeckProvider: Exported deck "${deck.name}" (${deck.templates.length} tokens, schema v3)');
     return jsonString;
   }
 
@@ -369,7 +371,7 @@ class DeckProvider extends ChangeNotifier {
       if (schemaVersion == null) {
         throw FormatException('Missing schemaVersion in imported file');
       }
-      if (schemaVersion > 2) {
+      if (schemaVersion > 3) {
         throw FormatException('Unsupported schema version $schemaVersion. Please update the app.');
       }
       debugPrint('DeckProvider: Import - schema version $schemaVersion');
@@ -420,6 +422,7 @@ class DeckProvider extends ChangeNotifier {
             hasAction: map['hasAction'] as bool? ?? false,
             actionButtonText: map['actionButtonText'] as String?,
             actionType: map['actionType'] as String?,
+            actionOnly: map['actionOnly'] as bool? ?? false,
             isCustom: map['isCustom'] as bool? ?? false,
             order: (map['order'] as num?)?.toDouble() ?? 0.0,
             artworkUrl: map['artworkUrl'] as String?,

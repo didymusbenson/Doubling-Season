@@ -128,6 +128,7 @@ class TokenDatabase extends ChangeNotifier {
   /// override is corrupt or its companion DB file is missing: deletes the
   /// stale override and falls back to bundled.
   Future<_TokenSource> _resolveActiveSource() async {
+    await _recoverInterruptedOverridePromotion();
     final bundledManifestStr =
         await rootBundle.loadString(AssetPaths.tokenManifest);
     final bundledManifest =
@@ -139,9 +140,9 @@ class TokenDatabase extends ChangeNotifier {
 
     if (await overrideManifestFile.exists()) {
       try {
-        final overrideManifest = jsonDecode(
-                await overrideManifestFile.readAsString())
-            as Map<String, dynamic>;
+        final overrideManifest =
+            jsonDecode(await overrideManifestFile.readAsString())
+                as Map<String, dynamic>;
         final overrideVersion = overrideManifest['version'] as int;
 
         if (overrideVersion > bundledVersion && await overrideDbFile.exists()) {
@@ -159,9 +160,24 @@ class TokenDatabase extends ChangeNotifier {
       }
     }
 
-    final bundledJson =
-        await rootBundle.loadString(AssetPaths.tokenDatabase);
+    final bundledJson = await rootBundle.loadString(AssetPaths.tokenDatabase);
     return _TokenSource(bundledJson, bundledVersion);
+  }
+
+  /// A directory swap can be interrupted after the active generation is
+  /// renamed but before the verified pending generation is promoted. Restore
+  /// the retained generation before resolving the source in that case.
+  static Future<void> _recoverInterruptedOverridePromotion() async {
+    try {
+      final documents = await getApplicationDocumentsDirectory();
+      final active = Directory('${documents.path}/token_db');
+      final previous = Directory('${documents.path}/token_db.previous');
+      if (!await active.exists() && await previous.exists()) {
+        await previous.rename(active.path);
+      }
+    } catch (_) {
+      // Bundled data remains the final recovery boundary.
+    }
   }
 
   static Future<File> _overrideDbFile() async {
@@ -188,7 +204,8 @@ class TokenDatabase extends ChangeNotifier {
   static List<token_models.TokenDefinition> _parseTokens(String jsonString) {
     final List<dynamic> jsonList = jsonDecode(jsonString);
     return jsonList
-        .map((json) => token_models.TokenDefinition.fromJson(json as Map<String, dynamic>))
+        .map((json) =>
+            token_models.TokenDefinition.fromJson(json as Map<String, dynamic>))
         .toList();
   }
 
@@ -205,20 +222,22 @@ class TokenDatabase extends ChangeNotifier {
   token_models.TokenDefinition? findByCompositeId(String? compositeId) {
     if (compositeId == null) return null;
     return _allTokens.cast<token_models.TokenDefinition?>().firstWhere(
-      (t) => t!.id == compositeId,
-      orElse: () => null,
-    );
+          (t) => t!.id == compositeId,
+          orElse: () => null,
+        );
   }
 
   // Recent and favorites logic - delegates to SettingsProvider for persistence
 
-  void addToRecent(token_models.TokenDefinition token, SettingsProvider settingsProvider) {
+  void addToRecent(
+      token_models.TokenDefinition token, SettingsProvider settingsProvider) {
     settingsProvider.addRecent(token.id); // Persist to SharedPreferences
     notifyListeners(); // Trigger UI update
   }
 
   // Reconstruct recent tokens from IDs stored in SettingsProvider
-  List<token_models.TokenDefinition> getRecentTokens(SettingsProvider settingsProvider) {
+  List<token_models.TokenDefinition> getRecentTokens(
+      SettingsProvider settingsProvider) {
     final recentIds = settingsProvider.recentTokens;
     return recentIds
         .map((id) => findTokenById(id))
@@ -226,11 +245,13 @@ class TokenDatabase extends ChangeNotifier {
         .toList();
   }
 
-  bool isFavorite(token_models.TokenDefinition token, SettingsProvider settingsProvider) {
+  bool isFavorite(
+      token_models.TokenDefinition token, SettingsProvider settingsProvider) {
     return settingsProvider.favoriteTokens.contains(token.id);
   }
 
-  void toggleFavorite(token_models.TokenDefinition token, SettingsProvider settingsProvider) {
+  void toggleFavorite(
+      token_models.TokenDefinition token, SettingsProvider settingsProvider) {
     if (settingsProvider.favoriteTokens.contains(token.id)) {
       settingsProvider.removeFavorite(token.id);
     } else {
@@ -239,7 +260,8 @@ class TokenDatabase extends ChangeNotifier {
     notifyListeners();
   }
 
-  List<token_models.TokenDefinition> getFavoriteTokens(SettingsProvider settingsProvider) {
+  List<token_models.TokenDefinition> getFavoriteTokens(
+      SettingsProvider settingsProvider) {
     final favoriteIds = settingsProvider.favoriteTokens;
     final results = <token_models.TokenDefinition>[];
     for (final t in _allTokens) {
@@ -271,7 +293,8 @@ class TokenDatabase extends ChangeNotifier {
             }
           })
           .whereType<token_models.TokenDefinition>()
-          .where((t) => !databaseIds.contains(t.id)) // DB version wins on collision
+          .where((t) =>
+              !databaseIds.contains(t.id)) // DB version wins on collision
           .toList();
       _cachedFilteredTokens = null;
       notifyListeners();

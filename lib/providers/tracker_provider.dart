@@ -1,40 +1,68 @@
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/tracker_widget.dart';
+import '../models/token_definition.dart';
 import '../models/item.dart';
 import '../utils/constants.dart';
+import '../services/board_order_persistence.dart';
+import '../utils/artwork_manager.dart';
 import '../utils/game_events.dart';
+
+const _rhysOldDefaultArtworkUrl =
+    'https://cards.scryfall.io/large/front/e/b/ebcf9ad6-5c1c-4b12-9778-2b9338bf49aa.jpg?1783904844';
+const _rhysNewDefaultArtworkUrl =
+    'https://cards.scryfall.io/large/front/b/9/b91dadcb-31e9-43b0-b425-c9311af3e9d7.jpg?1783930128';
 
 class TrackerProvider extends ChangeNotifier {
   late Box<TrackerWidget> _trackersBox;
   bool _initialized = false;
   String? _errorMessage;
+  void Function()? _removeCreatureEnteredListener;
+  void Function()? _removeBoardWipedListener;
 
   bool get initialized => _initialized;
   String? get errorMessage => _errorMessage;
 
+  /// Re-resolves a utility captured by delayed UI work after snapshot restore.
+  /// Returns null when the utility was genuinely deleted.
+  TrackerWidget? resolveCurrentTracker(
+    TrackerWidget captured, {
+    dynamic capturedKey,
+  }) {
+    if (captured.isInBox) return captured;
+    final key = capturedKey ?? captured.key;
+    return key == null ? null : _trackersBox.get(key);
+  }
+
   // Expose Hive's listenable for reactive updates
-  ValueListenable<Box<TrackerWidget>> get listenable => _trackersBox.listenable();
+  ValueListenable<Box<TrackerWidget>> get listenable =>
+      _trackersBox.listenable();
 
   Future<void> init() async {
     try {
       debugPrint('TrackerProvider.init: Opening trackers box...');
-      _trackersBox = await Hive.openBox<TrackerWidget>(DatabaseConstants.trackerWidgetsBox);
-      debugPrint('TrackerProvider.init: Box opened, has ${_trackersBox.length} trackers');
+      _trackersBox = await Hive.openBox<TrackerWidget>(
+        DatabaseConstants.trackerWidgetsBox,
+      );
+      debugPrint(
+        'TrackerProvider.init: Box opened, has ${_trackersBox.length} trackers',
+      );
 
-      debugPrint('TrackerProvider.init: Running migration...');
-      _ensureOrdersAssigned(); // Silent migration for order field
-      debugPrint('TrackerProvider.init: Migration complete');
+      await _migrateRhysArtworkPriority();
 
       debugPrint('TrackerProvider.init: Registering event listeners...');
       // Register listener for creature ETBs (Cathar's Crusade)
-      GameEvents.instance.onCreatureEntered((item, count) {
+      _removeCreatureEnteredListener?.call();
+      _removeCreatureEnteredListener = GameEvents.instance.onCreatureEntered((
+        item,
+        count,
+      ) {
         _onCreatureEntered(item, count);
       });
 
       // Register listener for board wipes (Cathar's Crusade reset)
-      GameEvents.instance.onBoardWiped(() {
+      _removeBoardWipedListener?.call();
+      _removeBoardWipedListener = GameEvents.instance.onBoardWiped(() {
         _onBoardWiped();
       });
       debugPrint('TrackerProvider.init: Event listeners registered');
@@ -50,65 +78,77 @@ class TrackerProvider extends ChangeNotifier {
     }
   }
 
-  void _ensureOrdersAssigned() {
-    try {
-      debugPrint('TrackerProvider._ensureOrdersAssigned: Reading trackers...');
-      final trackers = _trackersBox.values.toList();
-      debugPrint('TrackerProvider._ensureOrdersAssigned: Got ${trackers.length} trackers');
+  @override
+  void dispose() {
+    _removeCreatureEnteredListener?.call();
+    _removeBoardWipedListener?.call();
+    _removeCreatureEnteredListener = null;
+    _removeBoardWipedListener = null;
+    super.dispose();
+  }
 
-      bool needsReorder = trackers.any((tracker) => tracker.order == 0);
+  /// Updates the unreleased Rhys default without overriding custom artwork or
+  /// a manually selected variant. This only touches the exact former default.
+  Future<void> _migrateRhysArtworkPriority() async {
+    final rhysTrackers = _trackersBox.values.where(
+      (tracker) =>
+          tracker.actionType == 'rhys_the_redeemed' &&
+          tracker.artworkUrl == _rhysOldDefaultArtworkUrl,
+    );
 
-      if (needsReorder) {
-        debugPrint('TrackerProvider._ensureOrdersAssigned: Migrating ${trackers.length} trackers');
-        // Assign sequential orders based on current position
-        for (int i = 0; i < trackers.length; i++) {
-          trackers[i].order = i.toDouble();
-          trackers[i].save();
-        }
-        debugPrint('TrackerProvider: Migrated ${trackers.length} trackers to use order field');
-      } else {
-        debugPrint('TrackerProvider._ensureOrdersAssigned: All trackers already have order');
+    for (final tracker in rhysTrackers) {
+      if (!kIsWeb) {
+        final artworkFile =
+            await ArtworkManager.downloadArtwork(_rhysNewDefaultArtworkUrl);
+        if (artworkFile == null) continue;
       }
-    } catch (e, stackTrace) {
-      debugPrint('TrackerProvider._ensureOrdersAssigned: ERROR during migration');
-      debugPrint('Error: $e');
-      debugPrint('Stack trace: $stackTrace');
-      rethrow;
+
+      tracker.artworkUrl = _rhysNewDefaultArtworkUrl;
+      tracker.artworkSet = '2XM';
+      tracker.artworkOptions = [
+        ArtworkVariant(
+          set: '2XM',
+          url: _rhysNewDefaultArtworkUrl,
+          artist: 'Steve Prescott',
+        ),
+        ArtworkVariant(
+          set: 'TLE',
+          url: _rhysOldDefaultArtworkUrl,
+          artist: 'Viacom',
+        ),
+      ];
+      await tracker.save();
     }
   }
 
   List<TrackerWidget> get trackers {
     final allTrackers = _trackersBox.values.toList();
-    allTrackers.sort((a, b) => a.order.compareTo(b.order));
+    allTrackers.sort(BoardOrderPersistence.compareModels);
     return allTrackers;
   }
 
   Future<void> insertTracker(TrackerWidget tracker) async {
     try {
-      // Assign order to new tracker if not already set
-      if (tracker.order == 0.0) {
-        final trackers = _trackersBox.values.toList();
-        if (trackers.isEmpty) {
-          tracker.order = 0.0;
-        } else {
-          // Find max order and add 1.0 (whole number for new items)
-          final maxOrder = trackers.map((t) => t.order).reduce(max);
-          tracker.order = maxOrder.floor() + 1.0;
-        }
-      }
-
       await _trackersBox.add(tracker);
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TrackerProvider: Successfully created tracker "${tracker.name}" with value ${tracker.currentValue}');
+      debugPrint(
+        'TrackerProvider: Successfully created tracker "${tracker.name}" with value ${tracker.currentValue}',
+      );
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while creating tracker: Unable to save to storage.';
-      debugPrint('TrackerProvider.insertTracker: HiveError while adding tracker "${tracker.name}". Error: ${e.message}');
+      _errorMessage =
+          'Database error while creating tracker: Unable to save to storage.';
+      debugPrint(
+        'TrackerProvider.insertTracker: HiveError while adding tracker "${tracker.name}". Error: ${e.message}',
+      );
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while creating tracker. Please try again.';
-      debugPrint('TrackerProvider.insertTracker: Unexpected error while adding tracker "${tracker.name}". Error: $e');
+      _errorMessage =
+          'Unexpected error while creating tracker. Please try again.';
+      debugPrint(
+        'TrackerProvider.insertTracker: Unexpected error while adding tracker "${tracker.name}". Error: $e',
+      );
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -127,15 +167,20 @@ class TrackerProvider extends ChangeNotifier {
       await tracker.save();
       _errorMessage = null;
       notifyListeners();
-      debugPrint('TrackerProvider: Successfully updated tracker "${tracker.name}" (value: ${tracker.currentValue})');
+      debugPrint(
+          'TrackerProvider: Successfully updated tracker "${tracker.name}" (value: ${tracker.currentValue})');
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while updating tracker: Changes could not be saved.';
-      debugPrint('TrackerProvider.updateTracker: HiveError while saving tracker "${tracker.name}". Error: ${e.message}');
+      _errorMessage =
+          'Database error while updating tracker: Changes could not be saved.';
+      debugPrint(
+          'TrackerProvider.updateTracker: HiveError while saving tracker "${tracker.name}". Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while updating tracker. Changes may not have been saved.';
-      debugPrint('TrackerProvider.updateTracker: Unexpected error while saving tracker "${tracker.name}". Error: $e');
+      _errorMessage =
+          'Unexpected error while updating tracker. Changes may not have been saved.';
+      debugPrint(
+          'TrackerProvider.updateTracker: Unexpected error while saving tracker "${tracker.name}". Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -150,12 +195,14 @@ class TrackerProvider extends ChangeNotifier {
       debugPrint('TrackerProvider: Deleted tracker "${tracker.name}"');
     } on HiveError catch (e) {
       _errorMessage = 'Database error while deleting tracker.';
-      debugPrint('TrackerProvider.deleteTracker: HiveError while deleting tracker "${tracker.name}". Error: ${e.message}');
+      debugPrint(
+          'TrackerProvider.deleteTracker: HiveError while deleting tracker "${tracker.name}". Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
       _errorMessage = 'Unexpected error while deleting tracker.';
-      debugPrint('TrackerProvider.deleteTracker: Unexpected error while deleting tracker "${tracker.name}". Error: $e');
+      debugPrint(
+          'TrackerProvider.deleteTracker: Unexpected error while deleting tracker "${tracker.name}". Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -179,9 +226,8 @@ class TrackerProvider extends ChangeNotifier {
 
   void _onCreatureEntered(Item item, int count) {
     // Find all Cathar's Crusade utilities on board
-    final catharsUtilities = _trackersBox.values.where((tracker) =>
-      tracker.actionType == 'cathars_crusade'
-    );
+    final catharsUtilities = _trackersBox.values
+        .where((tracker) => tracker.actionType == 'cathars_crusade');
 
     // Increment each Cathar's counter
     for (var cathar in catharsUtilities) {
@@ -192,15 +238,15 @@ class TrackerProvider extends ChangeNotifier {
     // Notify UI to rebuild
     if (catharsUtilities.isNotEmpty) {
       notifyListeners();
-      debugPrint('TrackerProvider: Incremented ${catharsUtilities.length} Cathar\'s Crusade tracker(s) by $count');
+      debugPrint(
+          'TrackerProvider: Incremented ${catharsUtilities.length} Cathar\'s Crusade tracker(s) by $count');
     }
   }
 
   void _onBoardWiped() {
     // Find all Cathar's Crusade utilities on board
-    final catharsUtilities = _trackersBox.values.where((tracker) =>
-      tracker.actionType == 'cathars_crusade'
-    );
+    final catharsUtilities = _trackersBox.values
+        .where((tracker) => tracker.actionType == 'cathars_crusade');
 
     // Reset each Cathar's counter to 0
     for (var cathar in catharsUtilities) {
@@ -211,7 +257,8 @@ class TrackerProvider extends ChangeNotifier {
     // Notify UI to rebuild
     if (catharsUtilities.isNotEmpty) {
       notifyListeners();
-      debugPrint('TrackerProvider: Reset ${catharsUtilities.length} Cathar\'s Crusade tracker(s) to 0');
+      debugPrint(
+          'TrackerProvider: Reset ${catharsUtilities.length} Cathar\'s Crusade tracker(s) to 0');
     }
   }
 }

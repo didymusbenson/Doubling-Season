@@ -1,269 +1,259 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
-import '../models/item.dart';
-import '../models/token_definition.dart' as token_models;
 import '../database/token_database.dart';
-import '../providers/token_provider.dart';
+import '../models/item.dart';
 import '../providers/rules_provider.dart';
+import '../providers/token_provider.dart';
 import '../utils/artwork_manager.dart';
-import '../utils/artwork_preference_manager.dart';
+import '../utils/game_events.dart';
+import 'token_merge_compatibility.dart';
+import 'token_result_artwork_resolver.dart';
 
-/// Shared service for creating tokens from rules engine results.
-/// Eliminates duplication across token search, new token sheet,
-/// token card quick-add, and utility actions.
+enum TokenMergePolicy { never, compatibleCleanStack }
+
+enum TokenCreationEventPolicy { creatureEntered, none }
+
+class TokenCommitRequest {
+  final TokenCreationResult result;
+  final ResolvedTokenArtwork artwork;
+  final double order;
+  final bool createTapped;
+  final bool applySummoningSickness;
+  final TokenMergePolicy mergePolicy;
+  final TokenCreationEventPolicy eventPolicy;
+
+  const TokenCommitRequest({
+    required this.result,
+    required this.artwork,
+    required this.order,
+    required this.applySummoningSickness,
+    this.createTapped = false,
+    this.mergePolicy = TokenMergePolicy.compatibleCleanStack,
+    this.eventPolicy = TokenCreationEventPolicy.creatureEntered,
+  });
+}
+
+class TokenCommitOutcome {
+  final List<Item> createdItems;
+  final int createdQuantity;
+  final Map<Item, int> mergedQuantities;
+
+  const TokenCommitOutcome({
+    required this.createdItems,
+    required this.createdQuantity,
+    required this.mergedQuantities,
+  });
+
+  int get totalQuantity =>
+      createdQuantity +
+      mergedQuantities.values.fold(0, (sum, amount) => sum + amount);
+}
+
+class TokenCommitException implements Exception {
+  final Object cause;
+  final StackTrace stackTrace;
+  final TokenCommitOutcome partialOutcome;
+
+  const TokenCommitException({
+    required this.cause,
+    required this.stackTrace,
+    required this.partialOutcome,
+  });
+
+  @override
+  String toString() => 'Token creation partially failed: $cause';
+}
+
+/// Shared commit boundary for already-evaluated token creation results.
+///
+/// Rules evaluation, artwork choice, and unified-board order stay outside this
+/// service. Every request explicitly selects merge and event behavior.
 class TokenCreationService {
-  /// Create companion tokens (results[1..n]) from rules evaluation.
-  /// The primary token (results[0]) is handled by the caller since
-  /// each call site has different primary token handling (different artwork
-  /// sources, different UI flows).
-  ///
-  /// [results] - Full list from evaluateRules(). Only results.skip(1) are processed.
-  /// [tokenProvider] - For inserting items and finding existing stacks.
-  /// [summoningSicknessEnabled] - Whether to apply sickness to creatures.
-  /// [insertionOrder] - Starting order value for new items. Incremented per item.
-  /// [tokenDatabase] - Optional database for artwork fallback lookup.
-  /// [addToExistingStacks] - If true (default), merges into matching stacks.
-  ///
-  /// Returns the total number of companion tokens created/added.
+  static Future<TokenCommitOutcome> commit({
+    required List<TokenCommitRequest> requests,
+    required TokenProvider tokenProvider,
+  }) async {
+    final createdItems = <Item>[];
+    var createdQuantity = 0;
+    final mergedQuantities = <Item, int>{};
+
+    for (final request in requests) {
+      if (request.result.quantity <= 0) continue;
+
+      try {
+        final mergeTarget =
+            request.mergePolicy == TokenMergePolicy.compatibleCleanStack
+                ? tokenProvider.items.firstWhereOrNull(
+                    (item) => TokenMergeCompatibility.canMerge(
+                      item,
+                      name: request.result.name,
+                      pt: request.result.pt,
+                      colors: request.result.colors,
+                      type: request.result.type,
+                      abilities: request.result.abilities,
+                      artworkUrl: request.artwork.url,
+                    ),
+                  )
+                : null;
+
+        if (mergeTarget != null) {
+          mergeTarget.amount += request.result.quantity;
+          if (request.applySummoningSickness &&
+              mergeTarget.hasPowerToughness &&
+              !mergeTarget.hasHaste) {
+            mergeTarget.summoningSick += request.result.quantity;
+          }
+          await mergeTarget.save();
+          mergedQuantities.update(
+            mergeTarget,
+            (quantity) => quantity + request.result.quantity,
+            ifAbsent: () => request.result.quantity,
+          );
+          _emitEvent(request, mergeTarget);
+          continue;
+        }
+
+        final newItem = Item(
+          name: request.result.name,
+          pt: request.result.pt,
+          abilities: request.result.abilities,
+          colors: request.result.colors,
+          type: request.result.type,
+          amount: request.result.quantity,
+          tapped: request.createTapped ? request.result.quantity : 0,
+          summoningSick: 0,
+          order: request.order,
+          artworkUrl: request.artwork.url,
+          artworkSet: request.artwork.set,
+          artworkOptions: request.artwork.options == null
+              ? null
+              : List.from(request.artwork.options!),
+        );
+
+        await tokenProvider.insertItem(
+          newItem,
+          notifyCreatureEntered: false,
+        );
+        if (request.applySummoningSickness &&
+            newItem.hasPowerToughness &&
+            !newItem.hasHaste) {
+          newItem.summoningSick = request.result.quantity;
+          await newItem.save();
+        }
+        createdItems.add(newItem);
+        createdQuantity += request.result.quantity;
+        _emitEvent(request, newItem);
+        _cacheArtwork(newItem);
+      } catch (error, stackTrace) {
+        throw TokenCommitException(
+          cause: error,
+          stackTrace: stackTrace,
+          partialOutcome: TokenCommitOutcome(
+            createdItems: List.unmodifiable(createdItems),
+            createdQuantity: createdQuantity,
+            mergedQuantities: Map.unmodifiable(mergedQuantities),
+          ),
+        );
+      }
+    }
+
+    return TokenCommitOutcome(
+      createdItems: List.unmodifiable(createdItems),
+      createdQuantity: createdQuantity,
+      mergedQuantities: Map.unmodifiable(mergedQuantities),
+    );
+  }
+
+  static void _emitEvent(TokenCommitRequest request, Item item) {
+    if (request.eventPolicy == TokenCreationEventPolicy.creatureEntered &&
+        item.hasPowerToughness) {
+      GameEvents.instance.notifyCreatureEntered(item, request.result.quantity);
+    }
+  }
+
+  static void _cacheArtwork(Item item) {
+    if (kIsWeb) return;
+    final url = item.artworkUrl;
+    if (url == null || url.startsWith('file://')) return;
+
+    ArtworkManager.downloadArtwork(url).then((file) async {
+      if (file == null || !item.isInBox || item.artworkUrl != url) return;
+      await item.save();
+    }).catchError((error) {
+      debugPrint('Error during background artwork download: $error');
+    });
+  }
+
+  static List<TokenCommitRequest> requestsFromResults({
+    required Iterable<TokenCreationResult> results,
+    required bool summoningSicknessEnabled,
+    required double insertionOrder,
+    List<double>? insertionOrders,
+    TokenDatabase? tokenDatabase,
+    TokenMergePolicy mergePolicy = TokenMergePolicy.compatibleCleanStack,
+    TokenCreationEventPolicy eventPolicy =
+        TokenCreationEventPolicy.creatureEntered,
+  }) {
+    var nextOrder = insertionOrder;
+    var resultIndex = 0;
+    return [
+      for (final result in results)
+        if (result.quantity > 0)
+          TokenCommitRequest(
+            result: result,
+            artwork: TokenResultArtworkResolver.resolve(
+              result: result,
+              tokenDatabase: tokenDatabase,
+            ),
+            order: insertionOrders == null
+                ? nextOrder++
+                : insertionOrders[resultIndex++],
+            applySummoningSickness: summoningSicknessEnabled,
+            mergePolicy: mergePolicy,
+            eventPolicy: eventPolicy,
+          ),
+    ];
+  }
+
   static Future<int> createCompanionTokens({
     required List<TokenCreationResult> results,
     required TokenProvider tokenProvider,
     required bool summoningSicknessEnabled,
     required double insertionOrder,
+    List<double>? insertionOrders,
     TokenDatabase? tokenDatabase,
   }) async {
-    if (results.length <= 1) return 0;
-
-    int companionCount = 0;
-    double nextOrder = insertionOrder;
-
-    for (final companion in results.skip(1)) {
-      if (companion.quantity <= 0) continue;
-      companionCount += companion.quantity;
-
-      // Check for existing matching stack (same identity, no counters)
-      final existingStack = tokenProvider.items.firstWhereOrNull(
-        (item) =>
-            item.name == companion.name &&
-            item.pt == companion.pt &&
-            item.colors == companion.colors &&
-            item.type == companion.type &&
-            item.abilities == companion.abilities &&
-            item.plusOneCounters == 0 &&
-            item.minusOneCounters == 0 &&
-            item.counters.isEmpty,
-      );
-
-      if (existingStack != null) {
-        existingStack.amount += companion.quantity;
-        if (summoningSicknessEnabled &&
-            existingStack.hasPowerToughness &&
-            !existingStack.hasHaste) {
-          existingStack.summoningSick += companion.quantity;
-        }
-        await existingStack.save();
-      } else {
-        // Resolve artwork via preferences → database fallback
-        String? artworkUrl;
-        String? artworkSet;
-        List<token_models.ArtworkVariant>? artworkOptions;
-
-        final artworkPrefManager = ArtworkPreferenceManager();
-        final companionDef = tokenDatabase?.findByCompositeId(companion.tokenDatabaseId);
-
-        if (companionDef != null) {
-          final preferredArtwork = artworkPrefManager.getPreferredArtwork(companionDef.id);
-          if (preferredArtwork != null) {
-            artworkUrl = preferredArtwork;
-            if (!preferredArtwork.startsWith('file://') && companionDef.artwork.isNotEmpty) {
-              final matchingArtwork = companionDef.artwork.firstWhere(
-                (art) => art.url == preferredArtwork,
-                orElse: () => companionDef.artwork[0],
-              );
-              artworkSet = matchingArtwork.set;
-            }
-          } else if (companionDef.artwork.isNotEmpty) {
-            artworkUrl = companionDef.artwork[0].url;
-            artworkSet = companionDef.artwork[0].set;
-          }
-          artworkOptions = companionDef.artwork.isNotEmpty
-              ? List<token_models.ArtworkVariant>.from(companionDef.artwork)
-              : null;
-        } else {
-          // No database entry — try preference by composite ID directly
-          artworkUrl = artworkPrefManager.getPreferredArtwork(companion.compositeId);
-        }
-
-        final newItem = Item(
-          name: companion.name,
-          pt: companion.pt,
-          abilities: companion.abilities,
-          colors: companion.colors,
-          type: companion.type,
-          amount: companion.quantity,
-          tapped: 0,
-          summoningSick: 0,
-          order: nextOrder,
-          artworkUrl: artworkUrl,
-          artworkSet: artworkSet,
-          artworkOptions: artworkOptions,
-        );
-        nextOrder += 1.0;
-
-        await tokenProvider.insertItem(newItem);
-
-        // Apply summoning sickness AFTER insert
-        if (summoningSicknessEnabled &&
-            newItem.hasPowerToughness &&
-            !newItem.hasHaste) {
-          newItem.summoningSick = companion.quantity;
-        }
-
-        // Download artwork in background, then trigger rebuild
-        if (!kIsWeb && newItem.artworkUrl != null && !newItem.artworkUrl!.startsWith('file://')) {
-          final downloadUrl = newItem.artworkUrl!;
-          ArtworkManager.downloadArtwork(downloadUrl).then((file) {
-            final currentItem = tokenProvider.items.firstWhereOrNull(
-              (item) => item.artworkUrl == downloadUrl,
-            );
-            if (currentItem == null) return;
-            if (file != null) {
-              // Trigger rebuild so FutureBuilder picks up the cached file
-              currentItem.save();
-            } else {
-              debugPrint('Artwork download failed for ${companion.name}, resetting URL');
-              currentItem.artworkUrl = null;
-              currentItem.artworkSet = null;
-              currentItem.save();
-            }
-          }).catchError((error) {
-            debugPrint('Error during background artwork download: $error');
-          });
-        }
-      }
-    }
-
-    return companionCount;
+    final outcome = await commit(
+      requests: requestsFromResults(
+        results: results.skip(1),
+        summoningSicknessEnabled: summoningSicknessEnabled,
+        insertionOrder: insertionOrder,
+        insertionOrders: insertionOrders,
+        tokenDatabase: tokenDatabase,
+      ),
+      tokenProvider: tokenProvider,
+    );
+    return outcome.totalQuantity;
   }
 
-  /// Create all tokens from rules results where there is no distinct "primary"
-  /// (e.g., Academy Manufactor action where all results are equal peers).
-  /// Merges into existing matching stacks when possible.
-  ///
-  /// Returns the total number of tokens created/added.
   static Future<int> createAllFromResults({
     required List<TokenCreationResult> results,
     required TokenProvider tokenProvider,
     required bool summoningSicknessEnabled,
     required double insertionOrder,
+    List<double>? insertionOrders,
     TokenDatabase? tokenDatabase,
   }) async {
-    int totalCount = 0;
-    double nextOrder = insertionOrder;
-
-    for (final result in results) {
-      if (result.quantity <= 0) continue;
-      totalCount += result.quantity;
-
-      // Check for existing matching stack (same identity, no counters)
-      final existingStack = tokenProvider.items.firstWhereOrNull(
-        (item) =>
-            item.name == result.name &&
-            item.pt == result.pt &&
-            item.colors == result.colors &&
-            item.type == result.type &&
-            item.abilities == result.abilities &&
-            item.plusOneCounters == 0 &&
-            item.minusOneCounters == 0 &&
-            item.counters.isEmpty,
-      );
-
-      if (existingStack != null) {
-        existingStack.amount += result.quantity;
-        if (summoningSicknessEnabled &&
-            existingStack.hasPowerToughness &&
-            !existingStack.hasHaste) {
-          existingStack.summoningSick += result.quantity;
-        }
-        await existingStack.save();
-      } else {
-        // Resolve artwork
-        String? artworkUrl;
-        String? artworkSet;
-        List<token_models.ArtworkVariant>? artworkOptions;
-
-        final artworkPrefManager = ArtworkPreferenceManager();
-        final def = tokenDatabase?.findByCompositeId(result.tokenDatabaseId);
-
-        if (def != null) {
-          final preferredArtwork = artworkPrefManager.getPreferredArtwork(def.id);
-          if (preferredArtwork != null) {
-            artworkUrl = preferredArtwork;
-            if (!preferredArtwork.startsWith('file://') && def.artwork.isNotEmpty) {
-              final matchingArtwork = def.artwork.firstWhere(
-                (art) => art.url == preferredArtwork,
-                orElse: () => def.artwork[0],
-              );
-              artworkSet = matchingArtwork.set;
-            }
-          } else if (def.artwork.isNotEmpty) {
-            artworkUrl = def.artwork[0].url;
-            artworkSet = def.artwork[0].set;
-          }
-          artworkOptions = def.artwork.isNotEmpty
-              ? List<token_models.ArtworkVariant>.from(def.artwork)
-              : null;
-        } else {
-          artworkUrl = artworkPrefManager.getPreferredArtwork(result.compositeId);
-        }
-
-        final newItem = Item(
-          name: result.name,
-          pt: result.pt,
-          abilities: result.abilities,
-          colors: result.colors,
-          type: result.type,
-          amount: result.quantity,
-          tapped: 0,
-          summoningSick: 0,
-          order: nextOrder,
-          artworkUrl: artworkUrl,
-          artworkSet: artworkSet,
-          artworkOptions: artworkOptions,
-        );
-        nextOrder += 1.0;
-
-        await tokenProvider.insertItem(newItem);
-
-        if (summoningSicknessEnabled &&
-            newItem.hasPowerToughness &&
-            !newItem.hasHaste) {
-          newItem.summoningSick = result.quantity;
-        }
-
-        // Download artwork in background, then trigger rebuild
-        if (!kIsWeb && newItem.artworkUrl != null && !newItem.artworkUrl!.startsWith('file://')) {
-          final downloadUrl = newItem.artworkUrl!;
-          ArtworkManager.downloadArtwork(downloadUrl).then((file) {
-            final currentItem = tokenProvider.items.firstWhereOrNull(
-              (item) => item.artworkUrl == downloadUrl,
-            );
-            if (currentItem == null) return;
-            if (file != null) {
-              // Trigger rebuild so FutureBuilder picks up the cached file
-              currentItem.save();
-            } else {
-              currentItem.artworkUrl = null;
-              currentItem.artworkSet = null;
-              currentItem.save();
-            }
-          }).catchError((error) {
-            debugPrint('Error during background artwork download: $error');
-          });
-        }
-      }
-    }
-
-    return totalCount;
+    final outcome = await commit(
+      requests: requestsFromResults(
+        results: results,
+        summoningSicknessEnabled: summoningSicknessEnabled,
+        insertionOrder: insertionOrder,
+        insertionOrders: insertionOrders,
+        tokenDatabase: tokenDatabase,
+      ),
+      tokenProvider: tokenProvider,
+    );
+    return outcome.totalQuantity;
   }
 }

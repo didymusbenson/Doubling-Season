@@ -1,7 +1,6 @@
 import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:gradient_borders/gradient_borders.dart';
 import '../models/item.dart';
 import '../models/tracker_widget.dart'; // NEW - Widget Cards Feature
 import '../models/toggle_widget.dart'; // NEW - Widget Cards Feature
@@ -11,13 +10,15 @@ import '../providers/tracker_provider.dart'; // NEW - Widget Cards Feature
 import '../providers/toggle_provider.dart'; // NEW - Widget Cards Feature
 import '../providers/rules_provider.dart';
 import '../utils/constants.dart';
-import '../utils/color_utils.dart';
 import '../widgets/token_card.dart';
 import '../widgets/tracker_widget_card.dart'; // NEW - Widget Cards Feature
 import '../widgets/toggle_widget_card.dart'; // NEW - Widget Cards Feature
 import '../widgets/multiplier_view.dart';
 import '../widgets/floating_action_menu.dart';
 import '../widgets/status_sheet.dart';
+import '../controllers/expandable_card_controller.dart';
+import '../services/board_undo_snapshot.dart';
+import '../services/board_order_persistence.dart';
 import 'token_search_screen.dart';
 import 'widget_selection_screen.dart'; // NEW - Widget Cards Feature
 import 'decks_list_screen.dart';
@@ -36,6 +37,8 @@ class _BoardItem {
   bool get isToggle => item is ToggleWidget;
 }
 
+enum _BoardWipeAction { zero, delete, deleteAndResetRules }
+
 class ContentScreen extends StatefulWidget {
   const ContentScreen({super.key});
 
@@ -44,62 +47,167 @@ class ContentScreen extends StatefulWidget {
 }
 
 class _ContentScreenState extends State<ContentScreen> {
-  final Map<String, ValueNotifier<bool>> _dismissStates = {}; // Track dismiss state per item
+  final Map<String, ValueNotifier<bool>> _dismissStates =
+      {}; // Track dismiss state per item
+  String? _expandedBoardItemKey;
+  bool _expandedBoardItemIsEditing = false;
+  ExpandableCardController? _expandedBoardItemController;
+  bool _collapseInProgress = false;
+  bool _orderWriteInProgress = false;
+
+  bool _isExpandedBoardItem(_BoardItem item) =>
+      _expandedBoardItemKey == item.key;
+
+  void _expandBoardItem(_BoardItem item) {
+    if (_expandedBoardItemKey != null) {
+      _collapseExpandedBoardItem();
+      return;
+    }
+
+    setState(() {
+      _expandedBoardItemKey = item.key;
+      _expandedBoardItemIsEditing = false;
+      _expandedBoardItemController = ExpandableCardController();
+    });
+  }
+
+  Future<bool> _collapseExpandedBoardItem() async {
+    if (_expandedBoardItemKey == null) return true;
+    if (_collapseInProgress) return false;
+    _collapseInProgress = true;
+    final requestedItemKey = _expandedBoardItemKey;
+
+    bool canCollapse;
+    try {
+      canCollapse = await (_expandedBoardItemController?.requestCollapse() ??
+          Future<bool>.value(true));
+    } catch (error, stackTrace) {
+      debugPrint('Expanded card collapse failed: $error\n$stackTrace');
+      canCollapse = false;
+    } finally {
+      _collapseInProgress = false;
+    }
+    if (!mounted ||
+        !canCollapse ||
+        _expandedBoardItemKey == null ||
+        _expandedBoardItemKey != requestedItemKey) {
+      return canCollapse;
+    }
+
+    _completeApprovedCollapse();
+    return true;
+  }
+
+  void _completeApprovedCollapse() {
+    if (!mounted || _expandedBoardItemKey == null) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      _expandedBoardItemKey = null;
+      _expandedBoardItemIsEditing = false;
+      _expandedBoardItemController = null;
+    });
+  }
+
+  Future<void> _runAfterCollapse(VoidCallback action) async {
+    if (await _collapseExpandedBoardItem() && mounted) action();
+  }
+
+  void _handleEditingChanged(_BoardItem item, bool isEditing) {
+    if (!_isExpandedBoardItem(item) ||
+        _expandedBoardItemIsEditing == isEditing) {
+      return;
+    }
+    setState(() => _expandedBoardItemIsEditing = isEditing);
+  }
+
+  @override
+  void dispose() {
+    for (final notifier in _dismissStates.values) {
+      notifier.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: _buildAppBar(),
-      body: Stack(
-        children: [
-          // Token list
-          _buildTokenList(),
+    return PopScope(
+      canPop: !_orderWriteInProgress && _expandedBoardItemKey == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || _orderWriteInProgress) return;
+        final activeFocus = FocusManager.instance.primaryFocus;
+        if (activeFocus?.hasFocus ?? false) {
+          activeFocus?.unfocus();
+        } else {
+          _collapseExpandedBoardItem();
+        }
+      },
+      child: AbsorbPointer(
+        absorbing: _orderWriteInProgress,
+        child: Scaffold(
+          appBar: _buildAppBar(),
+          body: Stack(
+            children: [
+              // Token list
+              _buildTokenList(),
 
-          // Multiplier view overlay (bottom left)
-          const Positioned(
-            bottom: UIConstants.standardPadding,
-            left: UIConstants.standardPadding,
-            child: MultiplierView(),
-          ),
+              // Multiplier view overlay (bottom left)
+              const Positioned(
+                bottom: UIConstants.standardPadding,
+                left: UIConstants.standardPadding,
+                child: MultiplierView(),
+              ),
 
-          // FAB row (bottom right) - + button and menu
-          Positioned(
-            bottom: UIConstants.standardPadding,
-            right: UIConstants.standardPadding,
-            child: Consumer<SettingsProvider>(
-              builder: (context, settings, child) {
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FloatingActionButton(
-                      heroTag: 'new_token_fab',
-                      onPressed: _showTokenSearch,
-                      child: const Icon(Icons.add, size: 28),
-                    ),
-                    const SizedBox(width: UIConstants.smallPadding),
-                    FloatingActionMenu(
-                      onNewToken: _showTokenSearch,
-                      onWidgets: _showWidgetSelection,
-                      onAddCountersToAll: _handleAddCountersToAll,
-                      onMinusOneToAll: _handleMinusOneToAll,
-                      onUntapAll: _showUntapAllDialog,
-                      onClearSickness: _handleClearSickness,
-                      onDecks: _showDecksScreen,
-                      onBoardWipe: _showBoardWipeDialog,
-                    ),
-                  ],
-                );
-              },
-            ),
+              // FAB row (bottom right) - + button and menu
+              Positioned(
+                bottom: UIConstants.standardPadding,
+                right: UIConstants.standardPadding,
+                child: Consumer<SettingsProvider>(
+                  builder: (context, settings, child) {
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FloatingActionButton(
+                          heroTag: 'new_token_fab',
+                          onPressed: () => _runAfterCollapse(_showTokenSearch),
+                          child: const Icon(Icons.add, size: 28),
+                        ),
+                        const SizedBox(width: UIConstants.smallPadding),
+                        FloatingActionMenu(
+                          onNewToken: () => _runAfterCollapse(_showTokenSearch),
+                          onWidgets: () =>
+                              _runAfterCollapse(_showWidgetSelection),
+                          onAddCountersToAll: () =>
+                              _runAfterCollapse(_handleAddCountersToAll),
+                          onMinusOneToAll: () =>
+                              _runAfterCollapse(_handleMinusOneToAll),
+                          onUntapAll: () =>
+                              _runAfterCollapse(_showUntapAllDialog),
+                          onClearSickness: () =>
+                              _runAfterCollapse(_handleClearSickness),
+                          onDecks: () => _runAfterCollapse(_showDecksScreen),
+                          onBoardWipe: () =>
+                              _runAfterCollapse(_showBoardWipeDialog),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
   AppBar _buildAppBar() {
     return AppBar(
-      title: const Text('Tripling Season'),
+      title: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap:
+            _expandedBoardItemKey == null ? null : _collapseExpandedBoardItem,
+        child: const Text('Tripling Season'),
+      ),
       centerTitle: true,
       leading: Consumer<SettingsProvider>(
         builder: (context, settings, child) {
@@ -109,13 +217,13 @@ class _ContentScreenState extends State<ContentScreen> {
               // Status button (experimental features only)
               if (settings.experimentalFeaturesEnabled)
                 IconButton(
-                  onPressed: () => _showStatusPlaceholder(),
+                  onPressed: () => _runAfterCollapse(_showStatusPlaceholder),
                   icon: const Icon(Icons.list_alt),
                   tooltip: 'Status',
                 ),
               // Next Turn button
               IconButton(
-                onPressed: () => _showNextTurnDialog(),
+                onPressed: () => _runAfterCollapse(_showNextTurnDialog),
                 icon: const Icon(Icons.av_timer),
                 tooltip: 'Next Turn',
               ),
@@ -127,13 +235,13 @@ class _ContentScreenState extends State<ContentScreen> {
       actions: [
         // Settings (long press on summoning sickness icon)
         IconButton(
-          onPressed: () => _showSummoningSicknessToggle(),
+          onPressed: () => _runAfterCollapse(_showSummoningSicknessToggle),
           icon: const Icon(Icons.settings),
           tooltip: 'Settings',
         ),
         // Help/About
         IconButton(
-          onPressed: () => _showAboutPlaceholder(),
+          onPressed: () => _runAfterCollapse(_showAboutPlaceholder),
           icon: const Icon(Icons.help_outline),
           tooltip: 'About',
         ),
@@ -144,7 +252,8 @@ class _ContentScreenState extends State<ContentScreen> {
   Widget _buildTokenList() {
     // Get all providers
     final tokenProvider = Provider.of<TokenProvider>(context, listen: false);
-    final trackerProvider = Provider.of<TrackerProvider>(context, listen: false);
+    final trackerProvider =
+        Provider.of<TrackerProvider>(context, listen: false);
     final toggleProvider = Provider.of<ToggleProvider>(context, listen: false);
 
     // Combine all listenables into one
@@ -166,122 +275,123 @@ class _ContentScreenState extends State<ContentScreen> {
 
         // Add trackers
         for (final tracker in trackerProvider.trackers) {
-          boardItems.add(_BoardItem(tracker, tracker.order, 'tracker_${tracker.widgetId}'));
+          boardItems.add(
+            _BoardItem(tracker, tracker.order, 'tracker_${tracker.widgetId}'),
+          );
         }
 
         // Add toggles
         for (final toggle in toggleProvider.toggles) {
-          boardItems.add(_BoardItem(toggle, toggle.order, 'toggle_${toggle.widgetId}'));
+          boardItems.add(
+            _BoardItem(toggle, toggle.order, 'toggle_${toggle.widgetId}'),
+          );
         }
 
         // Sort by order
-        boardItems.sort((a, b) => a.order.compareTo(b.order));
+        boardItems.sort(
+          (a, b) => BoardOrderPersistence.compareModels(a.item, b.item),
+        );
 
         // Prune stale dismiss state notifiers for items no longer on the board
         final activeKeys = boardItems.map((b) => b.key).toSet();
-        _dismissStates.keys.where((k) => !activeKeys.contains(k)).toList().forEach((k) {
+        _dismissStates.keys
+            .where((k) => !activeKeys.contains(k))
+            .toList()
+            .forEach((k) {
           _dismissStates.remove(k)?.dispose();
         });
+
+        if (_expandedBoardItemKey != null &&
+            !boardItems.any(
+              (boardItem) => boardItem.key == _expandedBoardItemKey,
+            )) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && _expandedBoardItemKey != null) {
+              _completeApprovedCollapse();
+            }
+          });
+        }
 
         // Check empty state
         if (boardItems.isEmpty) {
           return _buildEmptyState();
         }
 
-        return ReorderableListView.builder(
-          itemCount: boardItems.length,
-          padding: const EdgeInsets.only(
-            top: UIConstants.listTopPadding,
-            left: UIConstants.smallPadding,
-            right: UIConstants.smallPadding,
-            bottom: UIConstants.listBottomPadding,
+        return GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap:
+              _expandedBoardItemKey == null ? null : _collapseExpandedBoardItem,
+          child: ReorderableListView.builder(
+            itemCount: boardItems.length,
+            padding: const EdgeInsets.only(
+              top: UIConstants.listTopPadding,
+              bottom: UIConstants.listBottomPadding,
+            ),
+            buildDefaultDragHandles: false,
+            onReorder: (oldIndex, newIndex) =>
+                _handleReorder(boardItems, oldIndex, newIndex),
+            proxyDecorator: _buildDragProxy,
+            itemBuilder: (context, index) {
+              final boardItem = boardItems[index];
+              return _buildBoardItemCard(boardItem, index);
+            },
           ),
-          onReorder: (oldIndex, newIndex) => _handleReorder(boardItems, oldIndex, newIndex),
-          proxyDecorator: _buildDragProxy,
-          itemBuilder: (context, index) {
-            final boardItem = boardItems[index];
-            return _buildBoardItemCard(boardItem, index);
-          },
         );
       },
     );
   }
 
   Widget _buildBoardItemCard(_BoardItem boardItem, int index) {
-    // final isDarkMode = Theme.of(context).brightness == Brightness.dark; // Unused since boxShadow commented out
-    const borderWidth = 3.0;
-    final innerBorderRadius = UIConstants.borderRadius - borderWidth;
-
-    // Determine colors for border gradient
-    String colorIdentity = '';
-    bool isEmblem = false;
-
-    if (boardItem.isToken) {
-      final item = boardItem.item as Item;
-      colorIdentity = item.colors;
-      isEmblem = item.isEmblem;
-    } else if (boardItem.isTracker) {
-      colorIdentity = (boardItem.item as TrackerWidget).colorIdentity;
-    } else if (boardItem.isToggle) {
-      colorIdentity = (boardItem.item as ToggleWidget).colorIdentity;
-    }
-
     // Ensure ValueNotifier exists for this item
     _dismissStates.putIfAbsent(boardItem.key, () => ValueNotifier<bool>(false));
 
-    return ValueListenableBuilder<bool>(
-      key: ValueKey(boardItem.key), // Key must be on outer widget for ReorderableListView
+    final card = ValueListenableBuilder<bool>(
       valueListenable: _dismissStates[boardItem.key]!,
       builder: (context, isDismissing, child) {
         return AnimatedContainer(
           duration: const Duration(milliseconds: 100),
-          margin: const EdgeInsets.symmetric(vertical: UIConstants.verticalSpacing),
+          margin: EdgeInsets.zero,
           decoration: BoxDecoration(
-            color: isDismissing ? Colors.red : Colors.transparent, // Red only during swipe animation
-            borderRadius: BorderRadius.circular(UIConstants.borderRadius),
+            color: isDismissing
+                ? Colors.red
+                : Colors.transparent, // Red only during swipe animation
+            borderRadius: BorderRadius.zero,
           ),
           // clipBehavior removed - was clipping the drop shadow in light mode
           child: child,
         );
       },
       child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(UIConstants.borderRadius),
-          // boxShadow: isDarkMode ? null : [
-          //   BoxShadow(
-          //     color: Colors.black.withValues(alpha: UIConstants.shadowOpacity),
-          //     blurRadius: UIConstants.shadowBlurRadius,
-          //     offset: const Offset(UIConstants.shadowOffsetX, UIConstants.shadowOffsetY),
-          //   ),
-          //   BoxShadow(
-          //     color: Colors.black.withValues(alpha: UIConstants.lightShadowOpacity),
-          //     blurRadius: UIConstants.lightShadowBlurRadius,
-          //     offset: const Offset(UIConstants.lightShadowOffsetX, UIConstants.lightShadowOffsetY),
-          //   ),
-          // ],
-          border: GradientBoxBorder(
-            gradient: ColorUtils.gradientForColors(colorIdentity, isEmblem: isEmblem),
-            width: borderWidth,
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(innerBorderRadius),
-          child: _buildDismissibleCard(boardItem),
-        ),
+        child: _buildDismissibleCard(boardItem),
+      ),
+    );
+
+    final canReorder =
+        !(_isExpandedBoardItem(boardItem) || _expandedBoardItemIsEditing);
+    return KeyedSubtree(
+      key: ValueKey(boardItem.key),
+      // Keep this wrapper in the tree in both states. Replacing it with the
+      // card when expansion starts discards TokenCard's State and bypasses its
+      // AnimatedSize transition.
+      child: ReorderableDelayedDragStartListener(
+        index: index,
+        enabled: canReorder,
+        child: card,
       ),
     );
   }
 
   Widget _buildDismissibleCard(_BoardItem boardItem) {
-    const borderWidth = 3.0;
-    final innerBorderRadius = UIConstants.borderRadius - borderWidth;
-
+    final isExpanded = _isExpandedBoardItem(boardItem);
+    final canSwipeDelete =
+        !isExpanded || (boardItem.isToken && !_expandedBoardItemIsEditing);
     return Dismissible(
       key: ValueKey('dismissible_${boardItem.key}'),
-      direction: DismissDirection.endToStart,
+      direction:
+          canSwipeDelete ? DismissDirection.endToStart : DismissDirection.none,
       background: Material(
         color: Colors.red,
-        borderRadius: BorderRadius.circular(innerBorderRadius),
+        borderRadius: BorderRadius.zero,
         child: Container(
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.only(right: UIConstants.standardPadding),
@@ -305,22 +415,73 @@ class _ContentScreenState extends State<ContentScreen> {
 
   Widget _buildCardContent(_BoardItem boardItem) {
     if (boardItem.isToken) {
-      return TokenCard(item: boardItem.item as Item);
+      final item = boardItem.item as Item;
+      return TokenCard(
+        // Snapshot restore clears and repopulates Hive with new model objects
+        // under the same persistent keys. Include object identity so Flutter
+        // cannot retain an inline edit session that still points at the old,
+        // now-detached HiveObject.
+        key: ValueKey('token-card_${item.key}_${identityHashCode(item)}'),
+        item: item,
+        isExpanded: _isExpandedBoardItem(boardItem),
+        onExpand: () => _expandBoardItem(boardItem),
+        onCollapse: _completeApprovedCollapse,
+        onEditingChanged: (isEditing) =>
+            _handleEditingChanged(boardItem, isEditing),
+        controller: _isExpandedBoardItem(boardItem)
+            ? _expandedBoardItemController
+            : null,
+      );
     } else if (boardItem.isTracker) {
-      return TrackerWidgetCard(tracker: boardItem.item as TrackerWidget);
+      final tracker = boardItem.item as TrackerWidget;
+      return TrackerWidgetCard(
+        key: ValueKey(
+          'tracker-card_${tracker.widgetId}_${identityHashCode(tracker)}',
+        ),
+        tracker: tracker,
+        isExpanded: _isExpandedBoardItem(boardItem),
+        onExpand: () => _expandBoardItem(boardItem),
+        onCollapse: _completeApprovedCollapse,
+        onEditingChanged: (isEditing) =>
+            _handleEditingChanged(boardItem, isEditing),
+        controller: _isExpandedBoardItem(boardItem)
+            ? _expandedBoardItemController
+            : null,
+      );
     } else if (boardItem.isToggle) {
-      return ToggleWidgetCard(toggle: boardItem.item as ToggleWidget);
+      final toggle = boardItem.item as ToggleWidget;
+      return ToggleWidgetCard(
+        key: ValueKey(
+          'toggle-card_${toggle.widgetId}_${identityHashCode(toggle)}',
+        ),
+        toggle: toggle,
+        isExpanded: _isExpandedBoardItem(boardItem),
+        onExpand: () => _expandBoardItem(boardItem),
+        onCollapse: _completeApprovedCollapse,
+        onEditingChanged: (isEditing) =>
+            _handleEditingChanged(boardItem, isEditing),
+        controller: _isExpandedBoardItem(boardItem)
+            ? _expandedBoardItemController
+            : null,
+      );
     }
     return const SizedBox.shrink();
   }
 
   void _deleteItem(_BoardItem boardItem) {
+    if (_isExpandedBoardItem(boardItem)) {
+      _completeApprovedCollapse();
+    }
     if (boardItem.isToken) {
       context.read<TokenProvider>().deleteItem(boardItem.item as Item);
     } else if (boardItem.isTracker) {
-      context.read<TrackerProvider>().deleteTracker(boardItem.item as TrackerWidget);
+      context
+          .read<TrackerProvider>()
+          .deleteTracker(boardItem.item as TrackerWidget);
     } else if (boardItem.isToggle) {
-      context.read<ToggleProvider>().deleteToggle(boardItem.item as ToggleWidget);
+      context
+          .read<ToggleProvider>()
+          .deleteToggle(boardItem.item as ToggleWidget);
     }
   }
 
@@ -344,8 +505,12 @@ class _ContentScreenState extends State<ContentScreen> {
                 child: Text(
                   'No tokens to display',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Theme.of(context).textTheme.titleLarge?.color?.withValues(alpha: 0.6),
-                  ),
+                        color: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.color
+                            ?.withValues(alpha: 0.6),
+                      ),
                 ),
               ),
               const SizedBox(height: UIConstants.largePadding),
@@ -363,8 +528,8 @@ class _ContentScreenState extends State<ContentScreen> {
                       child: Text(
                         'Create your first token',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                       ),
                     ),
                   ],
@@ -376,15 +541,23 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.menu,
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                    color: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.color
+                        ?.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'Open tools to add tokens, save decks, and more',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
-                      ),
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.color
+                                ?.withValues(alpha: 0.5),
+                          ),
                     ),
                   ),
                 ],
@@ -395,15 +568,23 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.touch_app,
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                    color: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.color
+                        ?.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'Tap a token to edit details, add counters, and more',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
-                      ),
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.color
+                                ?.withValues(alpha: 0.5),
+                          ),
                     ),
                   ),
                 ],
@@ -414,15 +595,23 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.calculate,
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                    color: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.color
+                        ?.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'Configure rules for token doubling effects',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
-                      ),
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.color
+                                ?.withValues(alpha: 0.5),
+                          ),
                     ),
                   ),
                 ],
@@ -433,15 +622,23 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.settings,
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                    color: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.color
+                        ?.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'Adjust settings, theme, etc.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
-                      ),
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.color
+                                ?.withValues(alpha: 0.5),
+                          ),
                     ),
                   ),
                 ],
@@ -452,15 +649,23 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.av_timer,
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                    color: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.color
+                        ?.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'Start next turn - untap all tokens and clear summoning sickness',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
-                      ),
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.color
+                                ?.withValues(alpha: 0.5),
+                          ),
                     ),
                   ),
                 ],
@@ -471,15 +676,23 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.trending_up,
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                    color: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.color
+                        ?.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'Add a +1/+1 counter to your token',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
-                      ),
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.color
+                                ?.withValues(alpha: 0.5),
+                          ),
                     ),
                   ),
                 ],
@@ -490,15 +703,23 @@ class _ContentScreenState extends State<ContentScreen> {
                 children: [
                   Icon(
                     Icons.help_outline,
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                    color: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.color
+                        ?.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: UIConstants.largeSpacing),
                   Flexible(
                     child: Text(
                       'About Tripling Season',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
-                      ),
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.color
+                                ?.withValues(alpha: 0.5),
+                          ),
                     ),
                   ),
                 ],
@@ -510,86 +731,35 @@ class _ContentScreenState extends State<ContentScreen> {
     );
   }
 
-  void _handleReorder(List<_BoardItem> boardItems, int oldIndex, int newIndex) {
-    // Track if moving down before adjustment
-    final movingDown = newIndex > oldIndex;
-
-    if (newIndex > oldIndex) {
-      newIndex -= 1;
-    }
-
-    final boardItem = boardItems[oldIndex];
-
-    // Calculate new fractional order
-    double newOrder;
-    if (newIndex == 0) {
-      // Moving to top
-      newOrder = boardItems.first.order - 1.0;
-    } else if (newIndex == boardItems.length - 1) {
-      // Moving to bottom
-      newOrder = boardItems.last.order + 1.0;
-    } else {
-      // Moving between two items
-      if (movingDown) {
-        // Item moves after boardItems[newIndex]
-        final prevOrder = boardItems[newIndex].order;
-        final nextOrder = boardItems[newIndex + 1].order;
-        newOrder = (prevOrder + nextOrder) / 2.0;
-      } else {
-        // Item moves before boardItems[newIndex]
-        final prevOrder = boardItems[newIndex - 1].order;
-        final nextOrder = boardItems[newIndex].order;
-        newOrder = (prevOrder + nextOrder) / 2.0;
-      }
-    }
-
-    // Update order based on item type
-    if (boardItem.isToken) {
-      final item = boardItem.item as Item;
-      item.order = newOrder;
-      item.save();
-    } else if (boardItem.isTracker) {
-      final tracker = boardItem.item as TrackerWidget;
-      tracker.order = newOrder;
-      tracker.save();
-    } else if (boardItem.isToggle) {
-      final toggle = boardItem.item as ToggleWidget;
-      toggle.order = newOrder;
-      toggle.save();
-    }
-
-    // Check if we need compacting (when gap becomes too small)
-    _checkAndCompactOrders(boardItems);
-  }
-
-  void _checkAndCompactOrders(List<_BoardItem> boardItems) {
-    // If any two adjacent items have order difference < 0.001, compact all orders
-    boardItems.sort((a, b) => a.order.compareTo(b.order));
-
-    for (int i = 0; i < boardItems.length - 1; i++) {
-      if ((boardItems[i + 1].order - boardItems[i].order) < 0.001) {
-        _compactOrders(boardItems);
-        return;
-      }
-    }
-  }
-
-  void _compactOrders(List<_BoardItem> boardItems) {
-    boardItems.sort((a, b) => a.order.compareTo(b.order));
-    for (int i = 0; i < boardItems.length; i++) {
-      if (boardItems[i].isToken) {
-        final item = boardItems[i].item as Item;
-        item.order = i.toDouble();
-        item.save();
-      } else if (boardItems[i].isTracker) {
-        final tracker = boardItems[i].item as TrackerWidget;
-        tracker.order = i.toDouble();
-        tracker.save();
-      } else if (boardItems[i].isToggle) {
-        final toggle = boardItems[i].item as ToggleWidget;
-        toggle.order = i.toDouble();
-        toggle.save();
-      }
+  Future<void> _handleReorder(
+    List<_BoardItem> boardItems,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    if (_orderWriteInProgress) return;
+    setState(() => _orderWriteInProgress = true);
+    if (newIndex > oldIndex) newIndex--;
+    try {
+      await BoardOrderPersistence.move(boardItems[oldIndex].item, newIndex);
+    } catch (_) {
+      if (!mounted) return;
+      // Keep a failed retained plan away from later mutations until recovery.
+      // Restart completes that plan before the board is made available.
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const PopScope(
+          canPop: false,
+          child: AlertDialog(
+            title: Text('Board order could not be saved'),
+            content: Text(
+              'Close and reopen the app to recover the saved order before continuing.',
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _orderWriteInProgress = false);
     }
   }
 
@@ -598,13 +768,16 @@ class _ContentScreenState extends State<ContentScreen> {
       animation: animation,
       builder: (context, child) {
         // Scale from 1.0 to 1.03 during drag (3% growth)
-        final scale = lerpDouble(1.0, UIConstants.dragScaleFactor, animation.value) ?? 1.0;
+        final scale =
+            lerpDouble(1.0, UIConstants.dragScaleFactor, animation.value) ??
+                1.0;
 
         return Transform.scale(
           scale: scale,
           child: Material(
             elevation: UIConstants.dragElevation,
-            shadowColor: Colors.black.withValues(alpha: UIConstants.dragShadowOpacity),
+            shadowColor:
+                Colors.black.withValues(alpha: UIConstants.dragShadowOpacity),
             borderRadius: BorderRadius.circular(UIConstants.borderRadius),
             clipBehavior: Clip.antiAlias,
             type: MaterialType.transparency,
@@ -643,7 +816,6 @@ class _ContentScreenState extends State<ContentScreen> {
       ),
     );
   }
-
 
   void _showWidgetSelection() {
     Navigator.of(context).push(
@@ -685,7 +857,8 @@ class _ContentScreenState extends State<ContentScreen> {
     );
   }
 
-  void _showExperimentalFeaturesConfirmation(BuildContext context, SettingsProvider settings) {
+  void _showExperimentalFeaturesConfirmation(
+      BuildContext context, SettingsProvider settings) {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -780,9 +953,11 @@ class _ContentScreenState extends State<ContentScreen> {
                 SwitchListTile(
                   title: const Text('Dark mode'),
                   value: settings.isDarkMode,
-                  onChanged: settings.useSystemTheme ? null : (value) {
-                    settings.setIsDarkMode(value);
-                  },
+                  onChanged: settings.useSystemTheme
+                      ? null
+                      : (value) {
+                          settings.setIsDarkMode(value);
+                        },
                   contentPadding: EdgeInsets.zero,
                 ),
 
@@ -829,9 +1004,6 @@ class _ContentScreenState extends State<ContentScreen> {
   }
 
   void _showBoardWipeDialog() {
-    final tokenProvider = context.read<TokenProvider>();
-    final rulesProvider = context.read<RulesProvider>();
-
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -843,38 +1015,131 @@ class _ContentScreenState extends State<ContentScreen> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () async {
-              await tokenProvider.boardWipeZero();
-              if (dialogContext.mounted) {
-                Navigator.pop(dialogContext);
-              }
-            },
+            onPressed: () =>
+                _performBoardWipe(dialogContext, _BoardWipeAction.zero),
             child: const Text('Set to 0'),
           ),
           TextButton(
-            onPressed: () async {
-              await tokenProvider.boardWipeDelete();
-              _clearDismissStates();
-              if (dialogContext.mounted) {
-                Navigator.pop(dialogContext);
-              }
-            },
+            onPressed: () =>
+                _performBoardWipe(dialogContext, _BoardWipeAction.delete),
             child: const Text('Delete All'),
           ),
           TextButton(
-            onPressed: () async {
-              await tokenProvider.boardWipeDelete();
-              await rulesProvider.disableAllRules();
-              _clearDismissStates();
-              if (dialogContext.mounted) {
-                Navigator.pop(dialogContext);
-              }
-            },
+            onPressed: () => _performBoardWipe(
+              dialogContext,
+              _BoardWipeAction.deleteAndResetRules,
+            ),
             child: const Text('Delete All & Reset Rules'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _performBoardWipe(
+    BuildContext dialogContext,
+    _BoardWipeAction action,
+  ) async {
+    final tokenProvider = context.read<TokenProvider>();
+    final rulesProvider = context.read<RulesProvider>();
+    final boardSnapshot = BoardUndoSnapshot.capture();
+    final rulesSnapshot = action == _BoardWipeAction.deleteAndResetRules
+        ? rulesProvider.captureState()
+        : null;
+
+    Navigator.pop(dialogContext);
+
+    try {
+      switch (action) {
+        case _BoardWipeAction.zero:
+          await tokenProvider.boardWipeZero();
+        case _BoardWipeAction.delete:
+          await tokenProvider.boardWipeDelete();
+          _clearDismissStates();
+        case _BoardWipeAction.deleteAndResetRules:
+          await tokenProvider.boardWipeDelete();
+          await rulesProvider.disableAllRules();
+          _clearDismissStates();
+      }
+    } catch (error) {
+      var restored = false;
+      try {
+        await _restoreBoardWipe(
+          boardSnapshot: boardSnapshot,
+          rulesSnapshot: rulesSnapshot,
+          rulesProvider: rulesProvider,
+        );
+        restored = true;
+      } catch (restoreError, stackTrace) {
+        debugPrint(
+          'Board wipe rollback failed: $restoreError\n$stackTrace',
+        );
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              restored
+                  ? 'Board wipe failed and was undone.'
+                  : 'Board wipe failed and could not be completely restored.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+    final undo = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (completionContext) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: const Text('Board Wiped'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(completionContext, true),
+              child: const Text('Undo'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(completionContext, false),
+              child: const Text('Accept'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (undo == true) {
+      try {
+        await _restoreBoardWipe(
+          boardSnapshot: boardSnapshot,
+          rulesSnapshot: rulesSnapshot,
+          rulesProvider: rulesProvider,
+        );
+        _clearDismissStates();
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to completely restore the board.'),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _restoreBoardWipe({
+    required BoardUndoSnapshot boardSnapshot,
+    required RulesStateSnapshot? rulesSnapshot,
+    required RulesProvider rulesProvider,
+  }) async {
+    await boardSnapshot.restore();
+    if (rulesSnapshot != null) {
+      await rulesProvider.restoreState(rulesSnapshot);
+    }
   }
 
   void _clearDismissStates() {

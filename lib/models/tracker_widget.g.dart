@@ -34,13 +34,14 @@ class TrackerWidgetAdapter extends TypeAdapter<TrackerWidget> {
       actionType: fields[14] as String?,
       artworkSet: fields[15] as String?,
       artworkOptions: (fields[16] as List?)?.cast<ArtworkVariant>(),
+      actionOnly: fields[17] == null ? false : fields[17] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, TrackerWidget obj) {
     writer
-      ..writeByte(17)
+      ..writeByte(18)
       ..writeByte(0)
       ..write(obj.widgetId)
       ..writeByte(1)
@@ -74,7 +75,9 @@ class TrackerWidgetAdapter extends TypeAdapter<TrackerWidget> {
       ..writeByte(15)
       ..write(obj.artworkSet)
       ..writeByte(16)
-      ..write(obj.artworkOptions);
+      ..write(obj.artworkOptions)
+      ..writeByte(17)
+      ..write(obj.actionOnly);
   }
 
   @override

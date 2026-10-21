@@ -58,6 +58,12 @@ class TrackerWidget extends HiveObject {
   @HiveField(16, defaultValue: null)
   List<ArtworkVariant>? artworkOptions; // Available artwork variants
 
+  /// True if this utility has no tracker value at all — the card renders only
+  /// its name/description plus the action button, with no counter and no +/-
+  /// buttons (e.g. Rhys the Redeemed).
+  @HiveField(17, defaultValue: false)
+  bool actionOnly;
+
   TrackerWidget({
     required this.widgetId,
     required this.name,
@@ -76,6 +82,7 @@ class TrackerWidget extends HiveObject {
     this.actionType,
     this.artworkSet,
     this.artworkOptions,
+    this.actionOnly = false,
   });
 
   /// Increment the current value by the specified amount

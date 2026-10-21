@@ -19,24 +19,21 @@ class ColorFilterButton extends StatelessWidget {
     final colorData = _getColorData(symbol);
 
     // Use full color when selected, desaturated when not
-    final displayColor = isSelected
-        ? colorData.color
-        : colorData.color.withValues(alpha: 0.3);
+    final displayColor =
+        isSelected ? colorData.color : colorData.color.withValues(alpha: 0.3);
 
     final borderColor = isSelected
         ? _darkenColor(colorData.color, 0.3)
         : colorData.color.withValues(alpha: 0.3);
 
-    final textColor = isSelected
-        ? colorData.textColor
-        : Colors.grey.shade400;
+    final textColor = isSelected ? colorData.textColor : Colors.grey.shade400;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         customBorder: const CircleBorder(),
-        child: Container(
+        child: SizedBox(
           width: 48,
           height: 48,
           child: Stack(
@@ -62,13 +59,15 @@ class ColorFilterButton extends StatelessWidget {
                     fontWeight: FontWeight.w900,
                     color: textColor,
                     height: 1.0,
-                    shadows: (symbol == 'W' && isSelected) ? [
-                      Shadow(
-                        offset: Offset.zero,
-                        blurRadius: 6.0,
-                        color: _darkenColor(const Color(0xFFF0E8DC), 0.8),
-                      ),
-                    ] : null,
+                    shadows: (symbol == 'W' && isSelected)
+                        ? [
+                            Shadow(
+                              offset: Offset.zero,
+                              blurRadius: 6.0,
+                              color: _darkenColor(const Color(0xFFF0E8DC), 0.8),
+                            ),
+                          ]
+                        : null,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -136,14 +135,16 @@ class ColorFilterButton extends StatelessWidget {
   Color _darkenColor(Color color, double amount) {
     assert(amount >= 0 && amount <= 1);
     final hsl = HSLColor.fromColor(color);
-    final darkened = hsl.withLightness((hsl.lightness * (1 - amount)).clamp(0.0, 1.0));
+    final darkened =
+        hsl.withLightness((hsl.lightness * (1 - amount)).clamp(0.0, 1.0));
     return darkened.toColor();
   }
 
   Color _lightenColor(Color color, double amount) {
     assert(amount >= 0 && amount <= 1);
     final hsl = HSLColor.fromColor(color);
-    final lightened = hsl.withLightness((hsl.lightness + (1 - hsl.lightness) * amount).clamp(0.0, 1.0));
+    final lightened = hsl.withLightness(
+        (hsl.lightness + (1 - hsl.lightness) * amount).clamp(0.0, 1.0));
     return lightened.toColor();
   }
 }

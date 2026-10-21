@@ -15,6 +15,19 @@ val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
+val requiredSigningKeys = listOf("keyAlias", "keyPassword", "storeFile", "storePassword")
+val missingSigningKeys = requiredSigningKeys.filter {
+    keystoreProperties[it]?.toString()?.isNotBlank() != true
+}
+val isReleaseTask = gradle.startParameter.taskNames.any {
+    it.contains("release", ignoreCase = true)
+}
+if (isReleaseTask && (!keystorePropertiesFile.exists() || missingSigningKeys.isNotEmpty())) {
+    throw GradleException(
+        "Release signing is not configured. Add android/key.properties with: " +
+            requiredSigningKeys.joinToString(", ")
+    )
+}
 
 android {
     namespace = "com.loosetie.doublingseason"

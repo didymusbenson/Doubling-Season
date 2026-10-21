@@ -1,8 +1,8 @@
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/toggle_widget.dart';
 import '../utils/constants.dart';
+import '../services/board_order_persistence.dart';
 
 class ToggleProvider extends ChangeNotifier {
   late Box<ToggleWidget> _togglesBox;
@@ -12,18 +12,29 @@ class ToggleProvider extends ChangeNotifier {
   bool get initialized => _initialized;
   String? get errorMessage => _errorMessage;
 
+  /// Re-resolves a utility captured by delayed UI work after snapshot restore.
+  /// Returns null when the utility was genuinely deleted.
+  ToggleWidget? resolveCurrentToggle(
+    ToggleWidget captured, {
+    dynamic capturedKey,
+  }) {
+    if (captured.isInBox) return captured;
+    final key = capturedKey ?? captured.key;
+    return key == null ? null : _togglesBox.get(key);
+  }
+
   // Expose Hive's listenable for reactive updates
   ValueListenable<Box<ToggleWidget>> get listenable => _togglesBox.listenable();
 
   Future<void> init() async {
     try {
       debugPrint('ToggleProvider.init: Opening toggles box...');
-      _togglesBox = await Hive.openBox<ToggleWidget>(DatabaseConstants.toggleWidgetsBox);
-      debugPrint('ToggleProvider.init: Box opened, has ${_togglesBox.length} toggles');
-
-      debugPrint('ToggleProvider.init: Running migration...');
-      _ensureOrdersAssigned(); // Silent migration for order field
-      debugPrint('ToggleProvider.init: Migration complete');
+      _togglesBox = await Hive.openBox<ToggleWidget>(
+        DatabaseConstants.toggleWidgetsBox,
+      );
+      debugPrint(
+        'ToggleProvider.init: Box opened, has ${_togglesBox.length} toggles',
+      );
 
       _initialized = true;
       notifyListeners();
@@ -36,65 +47,34 @@ class ToggleProvider extends ChangeNotifier {
     }
   }
 
-  void _ensureOrdersAssigned() {
-    try {
-      debugPrint('ToggleProvider._ensureOrdersAssigned: Reading toggles...');
-      final toggles = _togglesBox.values.toList();
-      debugPrint('ToggleProvider._ensureOrdersAssigned: Got ${toggles.length} toggles');
-
-      bool needsReorder = toggles.any((toggle) => toggle.order == 0);
-
-      if (needsReorder) {
-        debugPrint('ToggleProvider._ensureOrdersAssigned: Migrating ${toggles.length} toggles');
-        // Assign sequential orders based on current position
-        for (int i = 0; i < toggles.length; i++) {
-          toggles[i].order = i.toDouble();
-          toggles[i].save();
-        }
-        debugPrint('ToggleProvider: Migrated ${toggles.length} toggles to use order field');
-      } else {
-        debugPrint('ToggleProvider._ensureOrdersAssigned: All toggles already have order');
-      }
-    } catch (e, stackTrace) {
-      debugPrint('ToggleProvider._ensureOrdersAssigned: ERROR during migration');
-      debugPrint('Error: $e');
-      debugPrint('Stack trace: $stackTrace');
-      rethrow;
-    }
-  }
-
   List<ToggleWidget> get toggles {
     final allToggles = _togglesBox.values.toList();
-    allToggles.sort((a, b) => a.order.compareTo(b.order));
+    allToggles.sort(BoardOrderPersistence.compareModels);
     return allToggles;
   }
 
   Future<void> insertToggle(ToggleWidget toggle) async {
     try {
-      // Assign order to new toggle if not already set
-      if (toggle.order == 0.0) {
-        final toggles = _togglesBox.values.toList();
-        if (toggles.isEmpty) {
-          toggle.order = 0.0;
-        } else {
-          // Find max order and add 1.0 (whole number for new items)
-          final maxOrder = toggles.map((t) => t.order).reduce(max);
-          toggle.order = maxOrder.floor() + 1.0;
-        }
-      }
-
       await _togglesBox.add(toggle);
       _errorMessage = null;
       notifyListeners();
-      debugPrint('ToggleProvider: Successfully created toggle "${toggle.name}" (active: ${toggle.isActive})');
+      debugPrint(
+        'ToggleProvider: Successfully created toggle "${toggle.name}" (active: ${toggle.isActive})',
+      );
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while creating toggle: Unable to save to storage.';
-      debugPrint('ToggleProvider.insertToggle: HiveError while adding toggle "${toggle.name}". Error: ${e.message}');
+      _errorMessage =
+          'Database error while creating toggle: Unable to save to storage.';
+      debugPrint(
+        'ToggleProvider.insertToggle: HiveError while adding toggle "${toggle.name}". Error: ${e.message}',
+      );
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while creating toggle. Please try again.';
-      debugPrint('ToggleProvider.insertToggle: Unexpected error while adding toggle "${toggle.name}". Error: $e');
+      _errorMessage =
+          'Unexpected error while creating toggle. Please try again.';
+      debugPrint(
+        'ToggleProvider.insertToggle: Unexpected error while adding toggle "${toggle.name}". Error: $e',
+      );
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -113,15 +93,20 @@ class ToggleProvider extends ChangeNotifier {
       await toggle.save();
       _errorMessage = null;
       notifyListeners();
-      debugPrint('ToggleProvider: Successfully updated toggle "${toggle.name}" (active: ${toggle.isActive})');
+      debugPrint(
+          'ToggleProvider: Successfully updated toggle "${toggle.name}" (active: ${toggle.isActive})');
     } on HiveError catch (e) {
-      _errorMessage = 'Database error while updating toggle: Changes could not be saved.';
-      debugPrint('ToggleProvider.updateToggle: HiveError while saving toggle "${toggle.name}". Error: ${e.message}');
+      _errorMessage =
+          'Database error while updating toggle: Changes could not be saved.';
+      debugPrint(
+          'ToggleProvider.updateToggle: HiveError while saving toggle "${toggle.name}". Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
-      _errorMessage = 'Unexpected error while updating toggle. Changes may not have been saved.';
-      debugPrint('ToggleProvider.updateToggle: Unexpected error while saving toggle "${toggle.name}". Error: $e');
+      _errorMessage =
+          'Unexpected error while updating toggle. Changes may not have been saved.';
+      debugPrint(
+          'ToggleProvider.updateToggle: Unexpected error while saving toggle "${toggle.name}". Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;
@@ -136,12 +121,14 @@ class ToggleProvider extends ChangeNotifier {
       debugPrint('ToggleProvider: Deleted toggle "${toggle.name}"');
     } on HiveError catch (e) {
       _errorMessage = 'Database error while deleting toggle.';
-      debugPrint('ToggleProvider.deleteToggle: HiveError while deleting toggle "${toggle.name}". Error: ${e.message}');
+      debugPrint(
+          'ToggleProvider.deleteToggle: HiveError while deleting toggle "${toggle.name}". Error: ${e.message}');
       notifyListeners();
       rethrow;
     } catch (e, stackTrace) {
       _errorMessage = 'Unexpected error while deleting toggle.';
-      debugPrint('ToggleProvider.deleteToggle: Unexpected error while deleting toggle "${toggle.name}". Error: $e');
+      debugPrint(
+          'ToggleProvider.deleteToggle: Unexpected error while deleting toggle "${toggle.name}". Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();
       rethrow;

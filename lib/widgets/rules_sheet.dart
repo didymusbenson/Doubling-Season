@@ -106,15 +106,13 @@ class RulesSheet extends StatelessWidget {
                     rules.hasActiveRules ? summary : 'No active rules',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color:
-                          Theme.of(context).colorScheme.onPrimaryContainer,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
                     ),
                   ),
                 ),
                 Icon(
                   Icons.chevron_right,
-                  color:
-                      Theme.of(context).colorScheme.onPrimaryContainer,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
                 ),
               ],
             ),
@@ -310,7 +308,6 @@ class _RulesBody extends StatelessWidget {
   }
 }
 
-
 class _PresetStepperRow extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -330,7 +327,9 @@ class _PresetStepperRow extends StatelessWidget {
       color: Theme.of(context).cardColor,
       borderRadius: BorderRadius.circular(UIConstants.borderRadius),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: UIConstants.standardPadding, vertical: UIConstants.smallPadding),
+        padding: const EdgeInsets.symmetric(
+            horizontal: UIConstants.standardPadding,
+            vertical: UIConstants.smallPadding),
         child: Row(
           children: [
             Expanded(
@@ -368,14 +367,13 @@ class _PresetStepperRow extends StatelessWidget {
 }
 
 class _QuantityStepper extends StatelessWidget {
+  static const int _maxValue = 20;
   final int value;
   final ValueChanged<int> onChanged;
-  final int maxValue;
 
   const _QuantityStepper({
     required this.value,
     required this.onChanged,
-    this.maxValue = 20,
   });
 
   @override
@@ -383,7 +381,8 @@ class _QuantityStepper extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(UIConstants.actionButtonBorderRadius),
+        borderRadius:
+            BorderRadius.circular(UIConstants.actionButtonBorderRadius),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -409,7 +408,7 @@ class _QuantityStepper extends StatelessWidget {
           _stepButton(
             context,
             Icons.add,
-            value >= maxValue ? null : () => onChanged(value + 1),
+            value >= _maxValue ? null : () => onChanged(value + 1),
           ),
         ],
       ),
@@ -460,17 +459,18 @@ class _CustomRulesList extends StatelessWidget {
             rule.enabled = enabled;
             rulesProvider.updateRule(rule);
           },
-          onCountChanged: showStepper ? (val) {
-            rule.count = val;
-            rule.enabled = val > 0;
-            rulesProvider.updateRule(rule);
-          } : null,
+          onCountChanged: showStepper
+              ? (val) {
+                  rule.count = val;
+                  rule.enabled = val > 0;
+                  rulesProvider.updateRule(rule);
+                }
+              : null,
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(
                 fullscreenDialog: true,
-                builder: (context) =>
-                    RuleCreatorScreen(existingRule: rule),
+                builder: (context) => RuleCreatorScreen(existingRule: rule),
               ),
             );
           },
@@ -545,15 +545,15 @@ class _CustomRuleRow extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(UIConstants.borderRadius),
             border: Border.all(
-              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+              color:
+                  Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
             ),
           ),
           child: InkWell(
             borderRadius: BorderRadius.circular(UIConstants.borderRadius),
             onTap: onTap,
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               child: Row(
                 children: [
                   if (reorderable) ...[
@@ -569,9 +569,10 @@ class _CustomRuleRow extends StatelessWidget {
                       children: [
                         Text(
                           rule.name,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w500,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                  ),
                         ),
                         const SizedBox(width: 6),
                         Icon(
@@ -592,10 +593,10 @@ class _CustomRuleRow extends StatelessWidget {
                       value: rule.enabled,
                       onChanged: onToggle,
                     ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
         ),
       ),
     );
@@ -633,8 +634,7 @@ class _CustomMultiplyRulesList extends StatelessWidget {
               Navigator.of(context).push(
                 MaterialPageRoute(
                   fullscreenDialog: true,
-                  builder: (context) =>
-                      RuleCreatorScreen(existingRule: rule),
+                  builder: (context) => RuleCreatorScreen(existingRule: rule),
                 ),
               );
             },
