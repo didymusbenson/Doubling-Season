@@ -14,7 +14,7 @@ Each life panel should show player name, current life, accessible increase/decre
 |---|---|---|
 | Tap ± | Apply one signed increment to that player | Serialize increments; no lost updates from two fingers |
 | Hold ± | Repeat with an explicitly measured delay/rate; preview accumulated delta | Bind player/direction at start; cancel on every interruption path |
-| Large change | Enter signed delta or use ±5/±10 controls in a local panel | Distinguish “change by” from “set to” in labels |
+| Large change | Enter signed delta or use ±5/±10 controls in a player-facing editor; compact versus shared workspace mapping remains open | Distinguish “change by” from “set to” in labels |
 | Set total | Direct signed-integer entry | Show old → new; do not interpret entered 20 as +20 |
 | Undo latest game action | Walk backward through the game-wide chronological history; a settled group is one unit | Revert its complete write set, not an arbitrary selected player entry; preserve unaffected state |
 | Game history | One chronological timeline with player attribution, repeated-like-action grouping and latest-action undo | Current-session history/state persist together; any player’s different action closes the group; pre-reset archive restore is required, with exact retention/UI open |

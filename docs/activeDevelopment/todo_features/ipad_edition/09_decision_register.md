@@ -25,7 +25,7 @@ With product boundaries, two/three-player layout direction, single-keyboard conc
 | D07 | Where do life and lanes sit? | **Two-player accepted:** token lane left, life top right, utilities below life in each player’s local perspective | Dedicated life corners and attached below-life commander/counter shortcuts accepted; separate utility list/shared panel. Two-player life uses opposite corners. Shared central strip/panel between paired seats for three/four players; thin shortcut divider for two. No one-player scope. Three-player selectable empty control slot remains accepted; dimensions open | P0 |
 | D08 | Which existing features must reach first-release parity? | Inventory every utility and token workflow; explicitly approve omissions | All parity increases initial scope; a reduced cut needs clear unavailable features and no silent behavioral changes | Before P4 |
 | D09 | How much simultaneous interaction is required? | **Accepted:** one keyboard at a time; no simultaneous keyboards | Other players’ non-typing quick controls remaining usable is the recommendation. Drafts and player ownership must be preserved; detailed request/handoff policy remains D11 | P0 |
-| D10 | What can expand simultaneously? | One token or utility expanded per player | One per lane uses more space; one for whole table conflicts with independent use | P0/P3 |
+| D10 | What can expand simultaneously? | D40 selects shared detailed-editing workspace; compact inline expansion limits remain proposed | One per lane uses more space; one for whole table conflicts with independent use | P0/P3 |
 | D11 | How do keyboard/native flows arbitrate? | **Input direction accepted:** any keyboard faces its initiating player, using a custom Flutter panel; one keyboard at a time accepted, request/handoff and native arbitration open | OS keyboards do not expose arbitrary per-seat rotation. Native fallbacks, drafts, accessibility and IME need validation; see [deferred options](custom_keyboard_options.md) | P0 |
 | D12 | What accessibility view is needed? | Player-named semantics, large-text adaptation, accessible reorder; prototype focused single-orientation view | Four rotated traversal groups alone may be sufficient only after hardware review | P0/P3/P5 |
 | D13 | Where do new/split/copied results go? | Append new distinct stacks; source-adjacent split/copy; deterministic companions; merges stay put | Always append is simpler but changes familiar source relationships; manual sorting mode adds scope | P1/P3 |
@@ -65,6 +65,12 @@ The persistence and concurrency decisions must agree. A single session writer ca
 | D33 | What happens to completed games? | **Accepted:** restorable archive of full state and timeline immediately before reset; restore historical seat game setup | Retention limits, browsing UI and customization conflicts open. Preserving the current game before archive load is proposed, not accepted; no statistics implied | P2/P5; V50 |
 | D34 | What participant/media information is retained or exported? | Local guest labels; explicit export contents; no analytics/account requirement | Persistent profiles, analytics, custom photos and share bundles need deliberate retention choices | P2/P4 |
 | D35 | What proves readiness and governs format upgrades? | Versioned formats, recorded manual/device acceptance, compatibility and recovery gates | Additional platforms/features each add a gate; current docs alone prove none | All phases, final P5 |
+
+## Shared editing workspace
+
+| ID | Question | Accepted direction | Still open | Needed by |
+|---|---|---|---|---|
+| D40 | Where do detailed seat editors/search open? | **C selected:** larger shared central workspace; target seat identified, player-facing editor/results/one keyboard. Replaces mandatory seat containment; central position does not change command scope | Dimensions, editor-by-editor use, rotation control, target switching/handoff, modal background-input policy. Not every quick adjustment requires a large modal; generated styling/board/keyboard details not normative | P0/P3; V56 |
 
 ## Token-art lifetime clarification
 

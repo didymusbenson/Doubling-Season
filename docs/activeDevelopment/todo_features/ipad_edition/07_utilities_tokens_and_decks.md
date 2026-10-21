@@ -6,7 +6,7 @@
 
 Each player owns one independently ordered lane containing all their supported utility instances. Internal `TrackerWidget` and `ToggleWidget` names may remain; user-facing language remains **Utilities**. Shared utility definitions do not mean shared active counts or toggles. Loading the same definition for P1 and P3 creates separate runtime identities and state.
 
-Keep recurring actions reachable without opening full detail editors. Narrow cards may use a title, relevant value/state and one primary action, with descriptions, artwork and secondary fields revealed inline or through a local editor. Long action labels must wrap or reflow without covering the other lane. Reordering is an explicit utility-lane operation and cannot transfer the utility's owner.
+Keep recurring actions reachable without opening full detail editors. Narrow cards may use a title, relevant value/state and one primary action, with descriptions, artwork and secondary fields revealed inline or through the shared player-facing workspace for detailed editing (exact per-editor mapping remains open). Long action labels must wrap or reflow without covering the other lane. Reordering is an explicit utility-lane operation and cannot transfer the utility's owner.
 
 ## Accepted curated utility customization
 

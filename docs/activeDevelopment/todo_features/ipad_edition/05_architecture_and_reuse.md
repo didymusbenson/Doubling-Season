@@ -37,7 +37,7 @@ All current-code statements below are supported by the [pinned audit](../../../.
 |---|---|---|
 | Life-tracker foundation (new) | Accepted life/counter/status/damage capabilities, not four copies of generic utilities | Typed player values, stable CommanderId/recipient ledger, shared monarch/day-night commands and projections; no copied Lifetap UI |
 | TokenDefinition / bundled and remote catalog | Strong reuse | Shared read-only definitions; independent live entity identity |
-| Search filters/tabs/custom definitions | Reuse data and selection behavior | Make board mutation caller-owned; render in bounded player panels |
+| Search filters/tabs/custom definitions | Reuse data and selection behavior | Make board mutation caller-owned; render detailed search in the shared player-facing workspace with explicit target context |
 | Rules evaluation/results | Reuse mathematics and per-event semantics | Inject selected player's configuration; add provenance and explicit global applicability |
 | TokenCreationService / merge predicate | Reuse one creation boundary and identity rules | Required scope, local eligible queries, durable complete-result handling |
 | Item and counter semantics | Reuse domain behavior | DTO/model boundary to prevent direct unscoped Hive writes |
@@ -89,7 +89,7 @@ Life, typed player counters/status and commander damage can appear in the centra
 - **Life-tracker command boundary:** local life/counters/blessing, recipient-plus-CommanderId damage and corrections, and explicit shared monarch/day-night operations. Separate tracking from rule enforcement; new damage/life coupling is accepted with independent corrections; warning-only thresholds and manual claims do not imply a rules engine.
 - **Game coordinator:** own reset/rematch/seat administration, shared state changes and explicit multi-player write sets; represent game-level origin separately from affected seats and optional player attribution. Global input pause/barrier and destructive confirmation UI remain open, not required by central placement.
 - **Rules configuration:** player-session active values plus optionally shared definitions. The evaluator receives a versioned snapshot, not ambient mutable settings.
-- **Interaction controller:** per-player expansion, local panel stack, selection, scroll and drag state. It does not own game truth.
+- **Interaction controller:** seat-local quick-control/scroll/drag state plus a shared detailed-editor/search workspace with captured target, orientation and draft state. It does not own game truth.
 - **Player-facing input host:** custom Flutter keyboard and entry surface for any keyboard input, rotated together toward its initiating player. Numeric/text modes and richer options are discussed in [custom keyboard options](custom_keyboard_options.md). D09 now requires one active keyboard at a time. Preserve per-player drafts and origin; D11 still governs explicit request/handoff details, with no automatic takeover or cancellation assumed.
 - **Device interaction coordinator:** native/hardware keyboard fallback and focus, photo picker/cropper, file import/share and other OS-native surfaces. Retain originating seat or app/game context through every return; never manufacture a player actor for a game-level flow. System keyboards cannot be arbitrarily rotated per seat; native fallback needs an explicit policy rather than silently weakening player-facing input.
 

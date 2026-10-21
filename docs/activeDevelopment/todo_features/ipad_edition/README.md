@@ -18,6 +18,8 @@ This is a planning dossier, not a shipped feature specification. **Confirmed** m
 
 **Token-art lifetime (D39):** preferences are game-and-seat scoped, saved into deck presets and applied only to the loading seat. Fresh games do not inherit them. Keep-board and archive restoration retain explicit board/historical choices, not permanent seat defaults. Persistent player name and life appearance remain unchanged.
 
+**Detailed-editor choice (D40):** C, the larger shared central workspace, is accepted for detailed seat-specific editing/search. Identify the target seat and orient editor/results/one keyboard toward the acting player. Exact blocking, switching and per-editor sizing remain open; quick controls need not become large modals. See the labeled [concept reference](02_layout_and_interaction.md).
+
 ## Start here
 
 | Document | Purpose |

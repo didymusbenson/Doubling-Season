@@ -85,7 +85,7 @@ Token-art selections in this flow last for the current game only (D39), unless e
 
 ## Life-tracker capacity within the accepted layouts
 
-The centerpiece must accommodate the accepted full tracker, not only ± life. Reserve access to player counters, independent city’s blessing, monarch indication and per-source commander damage including self/partners, while day/night remains one game-level state. Use compact summaries and a bounded player-facing detail surface as design candidates; do not clone Lifetap’s grids/tabs or shrink every control into the life tile. Commander-damage and player-counter access is now fixed as attached shortcuts directly below life. Detailed contents, status presentation and dimensions remain open.
+The centerpiece must accommodate the accepted full tracker, not only ± life. Reserve access to player counters, independent city’s blessing, monarch indication and per-source commander damage including self/partners, while day/night remains one game-level state. Use compact summaries and the accepted shared player-facing workspace for detailed editing, with per-editor application still to be chosen; do not clone Lifetap’s grids/tabs or shrink every control into the life tile. Commander-damage and player-counter access is now fixed as attached shortcuts directly below life. Detailed contents, status presentation and dimensions remain open.
 
 At four players with two commander sources each, each recipient needs access to all eight sources including self (32 ledger pairs across the table). Test long and duplicate names, distinct source labels, counters with large values and simultaneous status indicators. Two-player mirrored composition and all four three-player empty-control-slot choices remain unchanged. An empty control slot is not a player and must never become a counter/damage recipient. Shared controls must remain accessible with four occupied seats too. Numeric/text editors use the one player-facing keyboard and preserve drafts; non-typing controls remaining usable stays the recommendation.
 
@@ -129,19 +129,23 @@ If fallback is rejected, state the supported minimum and offer a clear “enlarg
 
 ## Expansion and editing
 
-Proposed: at most one expanded token/utility **per player**, so four seats can inspect different objects concurrently. Whether one token and one utility can both expand for a single player is D10; one across both lanes is the simpler starting point. Preserve failed-save vetoes and pending editor content.
+**Accepted C: a larger shared central workspace for detailed seat-specific editing and search**, rather than requiring complex editors to remain inside a seat. The workspace identifies the target seat and faces the acting player; its field, results/errors and one custom keyboard share the player-facing orientation. Its central position does not turn a seat-targeted edit into a game-level action or establish strict permissions on who can touch it.
 
-Expansion stays in the lane where the item belongs. Do not reintroduce a full-screen phone detail route to avoid the layout work. If a lane cannot contain a complex editor, use a seat-local panel with a clear originating object. Closing P1's panel cannot collapse P2's card.
+![Generated concept C: shared central workspace](reference/shared-central-workspace-concept.png)
+
+The user selected C from A (seat-contained), B (half-table) and C (large central workspace obscuring most of the table). This generated illustration is **concept evidence, not normative styling or implementation**. It shows a target-seat label, rotation affordance, aligned editor/keyboard and dimmed background. Generated board composition, seat rotations, artwork, keyboard lettering and incidental controls are inaccurate/nonbinding; retain the previously accepted board layout. A visible Rotate control is illustrative, not a settled rotation/handoff mechanism.
+
+Exact dimensions, editor-by-editor application, target switching/handoff and modal input-blocking policy remain open. Do not force every quick counter tap or small adjustment into a giant modal. Inline quick controls can remain; detailed search/editor containment is no longer mandatory. Preserve drafts, failed-save handling and immutable target scope. D10’s earlier per-seat expanded-card proposal does not establish four concurrent large workspaces.
 
 Changing layout, opening game controls, deleting the current object, and starting a new game all need an editor-resolution policy: commit and await, ask to discard, or veto. Silent discard is never an acceptable default.
 
-## Player menu and local panels
+## Player menu and shared editing workspace
 
 Every seat has a persistent, reachable menu affordance bearing its player identity. Proposed seat-context groups: Add token; Utilities; Rules; Decks; Player settings. Wipes, resets and history belong to central app/game controls; this is context, not a restriction on which human may use them. “Everything” becomes “P1's tokens” or an equivalent named scope.
 
-Token/utility search, quantity input, artwork selection, counters and deck selection should render in a bounded panel associated with that player. Record `playerId` when opening; carry it through every return value and callback. A screen-space pointer position may choose the originating surface but may never become the durable identity.
+Detailed seat-specific search/editing uses the accepted shared workspace direction. Decide which quantity, artwork, counter and deck flows use it versus compact controls; do not assume every editor has identical size. Record `playerId` when opening; carry it through every return value and callback. A screen-space pointer position may choose the originating surface but may never become the durable identity.
 
-A root modal bottom sheet prevents interaction with the rest of the app. `anchorPoint` relates to display-feature sub-screens, not arbitrary tabletop quadrants. Reusing current sheets unchanged would undermine independent play. [Bottom-sheet API](https://api.flutter.dev/flutter/material/showModalBottomSheet.html). Candidate implementation: bounded per-seat navigator/overlay or an explicit panel host, validated for barriers and focus. A nested navigator alone is not proof of clipping. [Navigator documentation](https://api.flutter.dev/flutter/widgets/Navigator-class.html).
+A shared workspace host must explicitly manage orientation, focus, target context and any input barrier. Flutter modal sheets may block background input; that is an implementation behavior to review, not a settled requirement from the dimmed concept. `anchorPoint` does not provide arbitrary seat rotation. [Bottom-sheet API](https://api.flutter.dev/flutter/material/showModalBottomSheet.html). Prototype the chosen host rather than assume reused phone sheets satisfy C.
 
 ## Simultaneous touch and keyboard
 
@@ -152,7 +156,7 @@ A root modal bottom sheet prevents interaction with the rest of the app. `anchor
 - **Confirmed: any keyboard input faces its initiating player**, not only search or rename. This includes custom token/utility text, labels, counters, life, quantities and mana numeric entry wherever those inputs exist. The entry field, keyboard panel and related results/errors must share the player-facing orientation.
 - **Chosen direction:** render a custom in-app keyboard within the player-facing Flutter surface. OS/system keyboards do not expose arbitrary per-seat rotation; rotating a Flutter field does not rotate the system keyboard. An in-app panel can be rotated with its seat, but touch mapping, focus, editing and accessibility still need prototype evidence.
 - **Concurrency accepted (D09): one keyboard at a time, facing its initiating player.** The user explicitly answered “No simultaneous keyboards.” Preserve drafts and stable player/item origin; one player’s editing must not mutate another’s state. D11 still needs a deliberate handoff/request policy. Do not infer automatic takeover, cancellation, submission or draft discard when another player requests input. Keeping other players’ non-typing quick controls responsive remains the recommended behavior.
-- Reserve bounded panel space without lifting all lanes into unusable heights. Preserve life access where practical and record the chosen obstruction/resize policy. System/native fallback, hardware keyboard and IME routes need explicit orientation and accessibility review, not an unnoticed escape from the player-facing requirement.
+- Reserve appropriate shared-workspace space, accepting that detailed editing may obscure much of the table. Exact background-input blocking and obstruction/resize policy remain open; continued access to every seat while it is open is not promised. System/native fallback, hardware keyboard and IME routes need explicit orientation and accessibility review, not an unnoticed escape from the player-facing requirement.
 - [Custom keyboard options](custom_keyboard_options.md), including mana-symbol candidates, are deferred exploration, not approved first-release features.
 - Central actions keep app/game context regardless of placement. A global input pause/barrier, editor resolution and repeat-gesture policy during wipes/resets remain open; do not treat a table-wide lock as accepted.
 

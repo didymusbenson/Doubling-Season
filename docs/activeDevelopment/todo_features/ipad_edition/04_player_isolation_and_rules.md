@@ -51,6 +51,8 @@ D38 accepts seat-targeted loading of reusable token/utility setup and per-seat a
 
 D39 narrows token-art preference scope to game + seat, not persistent seat identity. Preset load applies its saved selection snapshot to the target only. Validate game generation on delayed art callbacks; a later fresh game must not acquire old preferences. Keep-board retains explicit reusable art and archive restore uses historical choices; neither establishes permanent token defaults. Persistent player name/life appearance remains separate.
 
+D40 changes presentation, not scope: a central shared workspace can execute a seat-targeted command. Capture target seat independently of rotation/control location, preserve it through search/native returns, and never infer a game-wide mutation from spatial sharing. Background-input blocking and switching policy remain open; single-keyboard and draft-preservation rules remain in force.
+
 ## Proposed seat-context command pipeline
 
 ```mermaid
