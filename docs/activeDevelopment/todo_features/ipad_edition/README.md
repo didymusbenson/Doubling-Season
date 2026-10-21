@@ -69,6 +69,10 @@ These are proposals, including the offline and four-seat release boundaries. Res
 - Keep current-code evidence distinct from product proposals. Re-audit source references when the baseline changes.
 - Preserve the existing app's Hive IDs, boxes, user data, and accepted phone behavior. A new project is not authorization to migrate or overwrite the phone app.
 
+## Documentation review checkpoint — 2026-10-20
+
+The dossier received separate frontend, isolation/event, and persistence reviews. Review corrections aligned command-writer proposals, player/session invalidation, immutable event-time data, numeric utility fixtures, format-import coverage, and phase dependencies. Relative file targets, decision/validation IDs and Markdown fence balance were checked; the source audit's baseline paths/line ranges were verified against Git objects. These are documentation checks only. No IPAD EDITION app build, device experiment or acceptance scenario has run, and all product decisions remain open.
+
 ## Terminology
 
 | Term | Meaning |

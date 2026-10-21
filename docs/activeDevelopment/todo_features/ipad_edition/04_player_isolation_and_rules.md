@@ -13,7 +13,7 @@ The current single-board app uses app-wide providers, fixed Hive boxes, singleto
 | Identity | Purpose | Must not be substituted with |
 |---|---|---|
 | `sessionId` | Which game owns the state | Current screen route |
-| `generation` | Invalidate work from before reset/rematch | Widget mount status alone |
+| `sessionGeneration` / `playerGeneration` | Invalidate work from before a table reset or a local reset/replacement respectively | Widget mount status alone |
 | `playerId` | Stable participant in the session | Display name, color, list index, quadrant |
 | `seatId` | Current position/orientation | Player ownership |
 | `entityId` | Stable token stack / utility / commander identity | Bare Hive key without namespace |
@@ -21,7 +21,9 @@ The current single-board app uses app-wide providers, fixed Hive boxes, singleto
 | `causationId` | Link derived results/events to their initiating command | Last active utility |
 | `revision` | Detect stale source/rules/plan state | Global mutable selection |
 
-An ordinary command carries immutable session/generation/player identity, relevant entity IDs/revisions, and a unique command ID. Global commands carry an explicit affected-player set and may only be issued through the game-level controller. These are local correctness capabilities, not security credentials or network authentication.
+An ordinary command carries immutable session/player identity, both session and player generations, relevant entity IDs/revisions, and a unique command ID. A whole-game reset advances the session generation. A local reset/replacement advances only the affected player's generation when its pending work must be invalidated; other players' valid pending commands remain valid. Validate both generations before commit. Global commands carry an explicit affected-player set and may only be issued through the game-level controller. These are local correctness capabilities, not security credentials or network authentication.
+
+Proposed invalidation policy for D22: clearing/replacing a player's board, replacing that participant, or applying a live-board import advances that player's generation and cancels their pending board work. A life-only correction/reset, ordinary reorder, or seat swap uses relevant revisions without invalidating unrelated token creation. Exact generation domains must be settled alongside reset semantics; do not advance the whole session to implement a local reset.
 
 The control that receives a gesture identifies the actor. The software cannot identify the human finger. Default actor and target are the same player. Future gifts, control changes or multi-player life effects must explicitly name different targets; no drag across a seam implies consent or a change of controller.
 
@@ -95,7 +97,7 @@ Every route below must use the new boundary. Fixing only the new-token button is
 
 ## Event contract
 
-Proposed committed event envelope: event ID, command/causation ID, session ID, generation, source player/controller, affected entities/players, event kind and semantic amount. Event consumers must be registered against explicit applicability, not a global active player.
+Proposed committed event envelope: event ID, command/causation ID, session ID, session/player generations, source player/controller, affected entities/players, event kind and semantic amount. Capture immutable event-time token identity/characteristics needed by listeners, or persist the fully evaluated derived effects. A queued listener must not inspect a mutable current Item after it has been transformed, edited or deleted and reinterpret what entered. Event consumers must be registered against explicit applicability, not a global active player.
 
 Separate `PlayerTokensCleared`, `PlayerBoardReset`, and `GameRestarted` semantics; one payload-free “board wipe” event is insufficient. Restoration/recovery events must not masquerade as fresh battlefield entries. Replaying durable commands must not double-count Cathars triggers.
 
@@ -111,7 +113,7 @@ Likewise, life, mana, player counters and token counters are different domains. 
 
 ## Concurrency and undo
 
-Proposed model: a serialized authoritative command queue per player, plus a table coordinator for overlapping multi-player operations. UI remains responsive; queued writes are not global input locks. Acquire multi-player scopes in deterministic order or use one coordinator so two shared actions cannot deadlock.
+Proposed initial model: per-player intent queues feed one authoritative session writer, with a table coordinator for overlapping multi-player operations. UI remains responsive; sequential durable writes are not global input locks. Independent scoped writers are an alternative under D15, not the default established here; that alternative needs deterministic scope acquisition or equivalent coordination to prevent deadlocks.
 
 Use current source/rules revisions to reject stale planners, not a whole-table revision that makes P1's preview stale whenever P2 changes life. For rule changes while a preview is open, proposed default is to require a refresh/reconfirmation; D15 may choose a documented snapshot policy instead.
 
