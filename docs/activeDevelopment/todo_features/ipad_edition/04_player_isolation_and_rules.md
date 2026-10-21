@@ -14,8 +14,9 @@ The current single-board app uses app-wide providers, fixed Hive boxes, singleto
 |---|---|---|
 | `sessionId` | Which game owns the state | Current screen route |
 | `sessionGeneration` / `playerGeneration` | Invalidate work from before a table reset or a local reset/replacement respectively | Widget mount status alone |
-| `playerId` | Stable participant in the session | Display name, color, list index, quadrant |
-| `seatId` | Current position/orientation | Player ownership |
+| `playerId` | Game-local participant/state identity, linked to a persistent seat; exact schema pending | Display name, color, list index, quadrant |
+| Persistent seat identity | Retained player name/color/art customization across games | Visible index or current game’s active-player count |
+| Visual slot/orientation | Current presentation of an active seat; three-player empty slot hosts controls | Persistent seat identity or player-state ownership |
 | `entityId` | Stable token stack / utility identity | Bare Hive key without namespace |
 | `commanderId` | Stable source commander associated with an owning PlayerId; distinct partners | Owner PlayerId, recipient PlayerId, display name or seat |
 | `commandId` | One submitted intent, used for retries/deduplication | Button label or timestamp alone |
@@ -35,6 +36,10 @@ Magic token ownership and control are distinct concepts from seating: a token's 
 D26 now requires player life/counters/city’s blessing, shared monarch/day-night and commander damage including self. Local counter/status commands capture the target PlayerId and typed field, with no token-creation or token-counter-rule side effects. A damage command names recipient PlayerId and source CommanderId separately; the source owner may equal the recipient, and partners never collapse into one player key. Selecting a source does not make its owner the mutation target.
 
 Monarch assignment/transfer and day/night changes are explicit table-state commands, even when invoked from a player’s panel. Preserve actor attribution, shared-state revision and before/after values; one holder update must not create two monarchs. City’s blessing remains independently local to each player. A shared-state undo must detect a later conflicting shared change rather than restore a whole-table snapshot. No tracking command implies automatic combat, ascend, card draws, milling, turn transitions or KO. New damage/life coupling is accepted: both effects form one recoverable write set and undo unit; corrections to either value independently do not reapply coupling. Reset retention remains open. Monarch claims and day/night changes are manual; thresholds warn without auto-elimination.
+
+## Reset and hidden-seat scope
+
+Both accepted full-reset modes start the configured game anew, but neither clears persistent seat name/color/art. Reset with board keeps token entries zeroed/no counters and enabled utilities; Complete reset clears tokens/utilities. A 4→2→4 sequence hides then restores seats 3/4 customization without deleting/recreating them. Reset write sets must distinguish game-local state, persistent seat customization and hidden-seat board data. Removed seats clear game-specific tokens/utilities; remaining seats retain reusable custom properties only under explicit keep-board. Archive restoration uses its historical write set, not cleared live setup; validate scope explicitly. A separate settings hard reset is a distinct operation, not a game reset.
 
 ## Proposed command pipeline
 
@@ -102,7 +107,7 @@ Every route below must use the new boundary. Fixing only the new-token button is
 | Deck append/replace/save | Destination, captured templates, both lane orders | Shared library does not imply shared live board |
 | Wipe / reset / undo | Deleted entities, rules, triggers, order, life as selected | Restore only affected state; never whole-box local restore |
 | Reorder / journal replay | Source/destination, normalization, replay namespace | Same session/player/lane |
-| Seat change/elimination | Participant membership and outstanding callbacks | Seat is not identity; replacement does not inherit stale work |
+| Seat change/elimination | Participant membership and outstanding callbacks | Visual slot is not persistent identity; inactive seats retain customization; replacement does not inherit stale work |
 | Import / native picker | Delayed returned selection, file paths, route closing | Revalidate original scope after OS handoff |
 
 ## Event contract

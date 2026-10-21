@@ -47,9 +47,10 @@ For a fast design session: read this page, the layout document, and the decision
 - **C11:** Initial scope is customizable 2–4 players; expansion to six is deferred, with room in the design for it.
 - **C12:** Product targets are Android, iOS and web. Device/browser floors and release sequencing remain open.
 - **C13:** **Any keyboard input** must face the initiating player, including numeric entry as well as text/search/rename. **One keyboard at a time; no simultaneous keyboards** (D09). Draft-preserving handoff details remain open (D11).
-- **C14:** Full life-tracker fundamentals: life totals, relevant player counters including energy/poison/experience, city’s blessing, monarch ownership, game-level day/night, and source-specific commander damage **including self and distinct partner sources**. Use [Lifetap’s functional inventory](lifetap_research.md) as research, not a UI to copy. New commander damage subtracts life as one undoable action with independent corrections; thresholds warn without automatic elimination; monarch/day-night changes are manual. Inventory extensions, detailed correction UI and reset retention remain open; see [life-tracker scope](03_life_and_game_controls.md).
+- **C14:** Full life-tracker fundamentals: life totals, relevant player counters including energy/poison/experience, city’s blessing, monarch ownership, game-level day/night, and source-specific commander damage **including self and distinct partner sources**. Use [Lifetap’s functional inventory](lifetap_research.md) as research, not a UI to copy. New commander damage subtracts life as one undoable action with independent corrections; thresholds warn without automatic elimination; monarch/day-night changes are manual. Inventory extensions, detailed correction UI and remaining runtime/rule, archive-retention and restore-conflict details remain open; see [life-tracker scope](03_life_and_game_controls.md).
 
-- **C15:** Persistent game-wide chronological history with player attribution, undo walking back the latest action globally, repeated-like-action grouping and separate token add/remove lines. Life taps settle to a net adjustment after roughly 1–2 seconds of inactivity; immediate display is still a recommendation. Any player’s different action closes the active group; exact timeout tuning and past-game archives remain open. See [history and undo](game_history_and_undo.md).
+- **C15:** Persistent game-wide chronological history with player attribution, undo walking back the latest action globally, repeated-like-action grouping and separate token add/remove lines. Life taps settle to a net adjustment after roughly 1–2 seconds of inactivity; immediate display is still a recommendation. Any player’s different action closes the active group; exact timeout tuning and pre-reset archive restore is accepted; exact retention/restore details remain open. See [history and undo](game_history_and_undo.md).
+- **C16:** Two full resets restart with the specified player count/configuration: Reset with board keeps token entries at zero with no counters and keeps enabled utilities; Complete reset clears tokens/utilities. Both reset life and temporary/game statuses. Persistent seats retain player name/color/art across games; unused seats are hidden, not deleted. Keep-board preserves reusable custom properties for remaining seats; removed seats lose game-specific tokens/utilities. Restorable full-state/timeline pre-reset archives are accepted; restore safeguards/customization conflicts remain open. See [reset and seat contract](03_life_and_game_controls.md).
 
 The supplied image establishes a four-player reference, not a fixed participant count. Exact seating orientations, package layout, application identifiers, purchase model, release date and remaining feature inventory are open. See the accepted decisions in the register.
 
@@ -69,7 +70,7 @@ Both original images are retained unedited as user concept evidence, not impleme
 ## Foundational recommendations to review
 
 1. Build a **local, offline, shared-device prototype**, using four seats as one fixture and checking two/three-seat layouts; leave network play outside the initial scope.
-2. Treat a player ID as stable domain identity and a seat as presentation. Swapping seats must not reassign a board's contents.
+2. Treat the user’s seat as persistent identity/customization, with separate game-local values and visual slot/orientation. Changing player count hides unused seats rather than deleting their customization; moving presentation must not reassign contents.
 3. Enforce player scope at the command and repository boundaries, not only in list filtering.
 4. Keep life separate from board items. Give tokens and utilities independent ordering domains.
 5. Scope ordinary edits and panels to one player. Reserve a table-wide barrier for intentional game-level operations.
@@ -100,7 +101,8 @@ Recorded separate-product, cross-platform and 2–4-player decisions; retained s
 |---|---|
 | Table / game session | One shared game containing participants and table-level settings |
 | Player | Stable participant identity within that session; not an authenticated account |
-| Seat / quadrant | Screen placement and orientation, which can change without changing player identity |
+| Persistent seat | User-facing player identity/customization retained between games, including name and color/art presets |
+| Seat slot / quadrant | Screen placement and orientation; distinct from persistent seat and game-local state |
 | Token lane | One player's independently ordered token stacks |
 | Utility lane | One player's independently ordered utilities; existing internal `Widget` names may remain |
 | Life panel | One player's view into central life state; never a draggable token/utility entry |

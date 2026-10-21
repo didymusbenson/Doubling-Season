@@ -115,6 +115,10 @@ Define whole-table save/export separately: session format, participants/identiti
 
 Sharing, native file pickers and custom artwork selection are device-wide surfaces; queue them and return to the original player. A reset, source deletion or incompatible session change while away must reject obsolete results without assigning them to a replacement seat. Preserve artist metadata and selected art on download/cache failure.
 
+## Full-reset token/utility contract
+
+Reset with board retains token entries while setting counts to zero/removing counters and keeps the currently enabled utilities/widgets for each player. Complete reset clears both token entries and utilities. These restart configured gameplay, not the persistent seat name/color/art presets. Keeping a utility selection does not promise keeping every temporary runtime value; rules/default mapping remains explicit design work. Keep-board preserves reusable token custom properties for remaining seats; removed seats’ game-specific token/utility setup is cleared. Restore pre-reset historical setup from its full-state/timeline archive, not current cleared live records. Do not conflate retained board entries with immutable library templates, or use deck loading as a silent substitute reset.
+
 ## History integration
 
 Token additions and removals retain separate chronological history entries even at net zero; compatible repeats may update the current entry until a different action by any player or a time gap closes it. Preserve underlying creation/companion/rule effects for latest-global-action undo rather than reducing everything to a display delta. Removal history supports manual trigger bookkeeping but does not prove death or authorize automated triggers. Utility/counter/shared-state changes join the same persistent game timeline. See [history](game_history_and_undo.md).

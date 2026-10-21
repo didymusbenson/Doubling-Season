@@ -24,12 +24,12 @@ This is a **separate app / new product** with a different frontend composition (
 
 ## Primary journeys
 
-1. **Start a table:** choose the supported participant count and life preset, name/color each participant, set seating/orientation (including the empty control slot for three-player play), optionally load each player's token/utility deck, then start.
+1. **Start a table:** choose the supported active seat count (unused persistent seats are hidden, not deleted) and life preset, name/color each participant, set seating/orientation (including the empty control slot for three-player play), optionally load each player's token/utility deck, then start.
 2. **Create while another player acts:** P1 opens their menu and searches for a token while P3 changes life. Creation and any follow-on tokens go to P1. P3 remains responsive.
 3. **Resolve a utility:** P2 runs Krenko using P2's token state, tracked non-token count and P2's rules. P4's identically named tokens and utilities remain unaffected.
 4. **Rearrange a busy board:** P4 moves a token within P4's token lane and a utility within P4's utility lane. Other lanes keep their order and scroll position.
 5. **Correct a mistake:** P1 reverses a grouped life/counter change, commander-ledger correction or local clear under the selected policy. P2’s subsequent changes survive. Shared monarch/day-night corrections retain their explicit table scope and cannot undo later unrelated transfers.
-6. **Run it back:** the central menu previews what “New game” resets, with an explicit keep-seats / reload-decks choice if supported. The table resumes in one coherent new session generation.
+6. **Run it back:** choose Reset with board (zero token counts/no counters, preserve enabled utilities) or Complete reset (clear tokens/utilities), using the specified count/configuration. Both restore starting life and reset temporary/game statuses while preserving seat name/color/art. Removed seats lose game-specific tokens/utilities, and pre-reset full-state/timeline archives are restorable; exact restore safeguards remain open.
 7. **Resume after interruption:** the app restores participants, life, boards, rules and orders after termination, and explains any incomplete operation that could not be recovered.
 
 ## Candidate first release
@@ -48,7 +48,7 @@ The product/platform/player-count boundaries below are accepted; the remaining c
 | Platforms | Cloud visual/interactive inspection first, then physical iPad gate | Android, iOS and web targets accepted; device/browser floors and release sequence open | Windows/native macOS not added to product scope |
 | Connectivity | Airplane-mode play | Local persistence and cached/bundled content | Sync, multiplayer networking, accounts |
 
-Existing utilities must be inventoried individually before claiming parity. A release may explicitly omit a utility that lacks safe player scoping, but must communicate that omission rather than silently changing its behavior. D08 settles the release inventory; D27 settles the mana pool cut. D26 now accepts full tracker fundamentals and commander damage per source including self; coupled new damage/life with independent corrections, warning-only thresholds and manual shared-state claims are accepted. Detailed correction UI, counter extensions and reset retention remain unresolved. The [sourced inventory](03_life_and_game_controls.md) separates confirmed capabilities from reference-derived candidates without copying Lifetap’s UI.
+Existing utilities must be inventoried individually before claiming parity. A release may explicitly omit a utility that lacks safe player scoping, but must communicate that omission rather than silently changing its behavior. D08 settles the release inventory; D27 settles the mana pool cut. D26 now accepts full tracker fundamentals and commander damage per source including self; coupled new damage/life with independent corrections, warning-only thresholds and manual shared-state claims are accepted. Detailed correction UI, counter extensions and remaining runtime/rule, archive-retention and restore-conflict details remain unresolved. The [sourced inventory](03_life_and_game_controls.md) separates confirmed capabilities from reference-derived candidates without copying Lifetap’s UI.
 
 ## Requirements and traceability
 
@@ -69,7 +69,8 @@ Existing utilities must be inventoried individually before claiming parity. A re
 | R13 | Any keyboard input faces the initiating player | Confirmed; custom Flutter panel direction, one keyboard at a time | [Layout](02_layout_and_interaction.md), V34 |
 | R14 | Separate product; customizable 2–4 players; Android/iOS/web | Confirmed boundaries; detailed support gates open | D01/D03/D04, V30/V34/V35 |
 | R15 | Full life-tracker counters/statuses/shared state and source damage including self/partners | Confirmed categories and bookkeeping policies; detailed UI/inventory extensions open | [Life inventory](03_life_and_game_controls.md), V05/V41–V44 |
-| R16 | Persistent chronological game history and latest-global-action undo | Confirmed; grouping interruption/archive details open | [History](game_history_and_undo.md), V45–V47 |
+| R16 | Persistent chronological game history and latest-global-action undo | Confirmed, including game-wide interruption; archive/reset recovery details open | [History](game_history_and_undo.md), V45–V47 |
+| R17 | Two full-reset modes and persistent seat customization | Confirmed; reusable setup retention, removed-seat clearing and archive restore accepted; detailed runtime/restore policies open | [Reset contract](03_life_and_game_controls.md), V23/V48–V49 |
 
 ## Boundaries
 

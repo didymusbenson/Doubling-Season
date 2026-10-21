@@ -23,7 +23,7 @@ For life, opposite-direction taps may belong to the same settling adjustment. Th
 - Life, poison and commander-damage thresholds give warnings, **not automatic elimination or disabled controls**. This does not attempt full rules enforcement or infer a winner.
 - A player manually claims monarch; the shared holder transfers explicitly. Day/night is changed manually. Do not infer combat, spells cast or other physical-game events.
 
-Detailed correction controls, warning presentation, reset retention and UI remain open. These decisions do not approve new optional modes or alter the one player-facing keyboard policy.
+Detailed correction controls, warning presentation, remaining runtime/rule, archive-retention and restore-conflict details and UI remain open. These decisions do not approve new optional modes or alter the one player-facing keyboard policy.
 
 ## Timeline, undo and recovery decisions
 
@@ -31,9 +31,17 @@ Detailed correction controls, warning presentation, reset retention and UI remai
 - **Accepted:** undo walks back the latest action globally. No arbitrary selected-entry undo or independent per-player undo stack is promised. A settled grouped action is the intended log/undo unit; final group-boundary details must align with the underlying command order.
 - **Accepted:** game state and current-session history are persistent and reload their last saved state. Undo information needed by the accepted contract must be saved coherently with that state; precise write/acknowledgement mechanics still need implementation design and validation.
 - **Accepted clarification:** a different action by **any player** closes the active group. P1 Soldier → P2 life → P1 Soldier yields three chronological entries, never a retroactive P1 +2. The user answered “correct.” to that exact example. Do not maintain independent open per-player groups.
-- **Open:** past-game archive/retention after reset or a new game; current-session persistence does not approve archives or statistics.
+- **Accepted:** a pre-reset game archive can load the full last state and timeline from before reset, including historical seat game setup. Retention limits, archive UI and restore conflict handling remain open; statistics are not implied.
 
-Chronological display, global latest-action undo and persistence are settled. Game-wide interruption is also settled. Exact timeout tuning, detailed settlement/undo UI and past-game archival remain open. New replies should update this document and D16/D17/D33 together.
+Chronological display, global latest-action undo and persistence are settled. Game-wide interruption is also settled. Pre-reset archive restore is accepted. Exact timeout tuning, detailed settlement/undo UI, archive retention and restore safeguards remain open. New replies should update this document and D16/D17/D33 together.
+
+## Full-reset boundary and persistent seats
+
+Two full-reset modes now restart the configured game: Reset with board retains zero-count/no-counter token entries and enabled utilities; Complete reset clears tokens/utilities. Both restore starting life and reset temporary/game statuses. Persistent seat names and color/art survive either mode, including currently hidden seats. See [reset details](03_life_and_game_controls.md).
+
+A successful full reset begins a new game boundary and leaves a restorable archive of the prior full state and chronological timeline. Restore historical seat game setup from that archive, including tokens/utilities cleared from live seats when they were removed; do not reconstruct an old game from cleared current templates. Reusable setup survives only when explicitly kept for remaining seats; removed seats lose live game-specific setup, not persistent name/color/art. Do not infer cross-game undo from latest-action undo: archive loading is distinct. Transactional failure recovery remains required. The group must not absorb post-reset actions into a pre-reset entry; exact pending-draft handling remains design work. Historical attribution must remain stable despite later name/art edits.
+
+**Proposal only:** save/preserve the current game before archive loading so it is not lost. This safeguard has not yet been accepted. Exact historical-versus-current customization conflict handling, retention limits and archive UI also remain open.
 
 ## Proposed implementation boundaries, not settled UX
 
@@ -60,4 +68,4 @@ Reuse proven ideas selectively: capture before mutation, restore typed values wi
 
 ## Acceptance outline
 
-Test repeated additions, add/remove net-zero separation, different-action and timeout boundaries, opposite life taps and the chosen life-settling timing. Exercise same-name/different-ID stacks and partner/self damage sources, retries/failures, shared-state conflicts and reset boundaries. Exact timeout tuning and archive policy must produce explicitly blocked branches, not invented defaults; timeline order, latest-global-action undo and current-session persistence are required. See V45–V47 in the [validation plan](08_delivery_validation_and_risks.md). Preserve the accepted original 2/3/4-player layouts, single keyboard and cloud-first visual/interactive review before device installation.
+Test repeated additions, add/remove net-zero separation, different-action and timeout boundaries, opposite life taps and the chosen life-settling timing. Exercise same-name/different-ID stacks and partner/self damage sources, retries/failures, shared-state conflicts and reset boundaries. Exact timeout tuning and unchosen archive-retention/restore-safeguard details must produce explicitly blocked branches, not invented defaults; timeline order, latest-global-action undo and current-session persistence are required. See V45–V47 in the [validation plan](08_delivery_validation_and_risks.md). Preserve the accepted original 2/3/4-player layouts, single keyboard and cloud-first visual/interactive review before device installation.

@@ -19,8 +19,9 @@ The following names describe responsibilities, not approved classes or adapter a
 | Identity/state | Proposed contract |
 |---|---|
 | `SessionId` | Stable identity for one saved game; independent of active screen/window |
-| `PlayerId` | Stable participant within a session; not a user account or quadrant number |
-| `SeatId` | Presentation position/orientation mapped to a participant; reseating preserves identity |
+| Persistent seat ID (name proposed) | Stable user-facing seat customization across games: player name and color/art presets; not a user account or visible quadrant |
+| `PlayerId` | Game-local participant/value identity linked to its persistent seat; exact ID reuse schema pending |
+| Visual slot ID / orientation | Presentation mapping for active persistent seats; not their customization storage key |
 | `CommanderId` | Stable source identity linked to an owning PlayerId; distinct from recipient and seat; separate partner records |
 | `EntityId` | Stable token-stack/utility instance identity; separate from token-definition composite ID |
 | Session generation | Invalidates work from a previous game/reset boundary even if seats are reused |
@@ -28,7 +29,7 @@ The following names describe responsibilities, not approved classes or adapter a
 | Revision | Version used to order accepted changes and detect stale commands/undo |
 | `CommandId` | Distinguishes retries from separate intentional identical actions |
 
-A session contains participants, seating, game configuration, table-level state, revision/generation and recovery metadata. Each participant contains life, typed player counters, city’s blessing status, active token stacks, active utilities, mana if enabled, rules state and relevant gameplay options. Source commander records associate CommanderId with owner PlayerId; incoming damage is keyed by recipient PlayerId and CommanderId, including self. Session-level monarch stores one optional holder PlayerId; day/night stores one shared designation including initial neither. These are required state responsibilities; concrete schema/classes remain proposals. Reusable definitions belong in libraries; active values belong in the session.
+Keep a persistent seat roster outside destructive game-value clearing. It stores name/color/art customization even when the seat is inactive. A session contains active-seat membership, participant mappings, visual placement, game configuration, table-level state, revision/generation and recovery metadata. Each participant contains life, typed player counters, city’s blessing status, active token stacks, active utilities, mana if enabled, rules state and relevant gameplay options. Source commander records associate CommanderId with owner PlayerId; incoming damage is keyed by recipient PlayerId and CommanderId, including self. Session-level monarch stores one optional holder PlayerId; day/night stores one shared designation including initial neither. These are required state responsibilities; concrete schema/classes remain proposals. Reusable definitions belong in libraries; active values belong in the session.
 
 Each player has **two independent ordered sequences**: token entity IDs and utility entity IDs. Life has its own fixed-purpose state/surface. Model-type IDs do not identify a lane. Enforce one membership per runtime entity, valid references and deterministic order after recovery. Reordering one lane never renumbers another player's lane. Across-lane or across-player dragging requires a separately designed transfer command; it is not implied by reorder support.
 
@@ -41,6 +42,12 @@ Mana is a typed quantity collection rather than an unstructured life counter. It
 Persist accepted tracker values together with their scope and identity, not only visible/nonzero counters. Distinguish disabled/hidden presentation from a zero/false value. Keep typed counter identifiers separate from localized labels and avoid merging same-named sources. Schema/version validation must check that holder/source/recipient references belong to this session; an empty three-player control slot cannot own player state. Source replacement and eliminated-player historical reference retention need explicit policies, not cascading deletion.
 
 Record command actor, target/shared scope, before/after values and operation/group identity for life, counters, blessing, damage and shared state. New commander damage/life is coupled and must be treated atomically by persistence/recovery/history; explicit ledger-only or life-only corrections are independent. Preserve shared-state revisions for safe monarch/day-night undo. Session export, if approved, includes these identities and active values; phone deck/setup v3 cannot represent them and must not be described as a full session backup. One chronological game timeline and global latest-action undo are accepted. Persist current history, undo information and game state coherently; preserve constituent commands beneath grouped rows. Any player’s different action closes the active group. Exact timeout tuning, retention bounds, archive/privacy/export fields and reset retention remain D16/D17/D22/D23/D33/D34. See [history and existing snapshot limits](game_history_and_undo.md).
+
+## Persistent seats and reset boundaries
+
+The accepted 4→2→4 behavior preserves seats 3/4 name/color/art through hiding and later reuse, including restart. Active membership/visibility must not be modeled as deletion of their persistent records. Normal Reset with board and Complete reset preserve that roster; a separate settings hard reset is the intentional customization-clearing route, whose exact scope still needs design. Do not relabel all existing source/recipient/history IDs by visible position.
+
+Reset with board preserves active token entries but zeros counts/removes counters and preserves enabled utility selection. Complete reset clears tokens/utilities. Both restart configured gameplay values. Keep-board retains reusable token custom properties and enabled utility selection for remaining seats while zeroing/clearing temporary state. A removed seat loses live game-specific token/utility setup, even when remaining seats keep boards; a fully new game clears that setup by default unless keep-board is explicit. Persistent customization remains. Capture a coherent full-state/timeline archive before reset and restore historical game setup from it, not cleared live templates. Exact runtime/rule defaults, archive retention and customization-conflict policy remain open. Preserving the current game before archive loading is a proposed safeguard, not an accepted requirement.
 
 ## Storage alternatives — D14 and D24
 
@@ -80,7 +87,7 @@ Multiple windows are a separate writer-ownership decision: initially one live wr
 
 A local snapshot still has conflicts if the same player's subsequent action depends on the removed state. Define revision checking, retained undo depth and conflict handling within the latest-action contract. Repeated-like-action grouping and rapid-life net settling are accepted; any player’s different action interrupts the active group. Never claim unconditional undo while silently overwriting newer state.
 
-**Game-level proposal:** a reset/new-game operation acquires an intentional table-wide barrier, resolves active edits, captures its complete affected state, invalidates stale work and commits one recoverable transition. The UI previews exactly what resets: life, each typed counter, city’s blessing, self/partner source-damage entries, monarch, day/night, tokens, utilities, rules, mana, history, seating and setup are separate choices. Exact retention is unresolved. A local life/board reset must not silently clear shared state. Recovery/undo checkpoints include every field actually changed, preserving unrelated player and shared revisions. Resetting gameplay does not delete library decks or custom art implicitly.
+**Game-level proposal:** a reset/new-game operation acquires an intentional table-wide barrier, resolves active edits, captures its complete affected state, invalidates stale work and commits one recoverable transition. The UI previews exactly what resets: life, each typed counter, city’s blessing, self/partner source-damage entries, monarch, day/night, tokens, utilities, rules, mana, history, seating and setup are separate choices. Apply the two accepted full-reset modes; removed-seat board clearing, reusable setup retention and pre-reset archive restoration are accepted; exact runtime/rule mappings and archive restore/retention details remain unresolved. A local life/board reset must not silently clear shared state. Recovery/undo checkpoints include every field actually changed, preserving unrelated player and shared revisions. Resetting gameplay does not delete library decks or custom art implicitly.
 
 The existing non-dismissible Undo/Accept completion dialog is a phone reference, not automatically the tablet interaction. A table-wide modal blocks four players. D16/D22 must choose finalization and interruption behavior. Any restore writes state without firing ETB, board-wipe, replacement or utility triggers; commands/history identify it as restoration.
 
@@ -102,10 +109,11 @@ No destructive phone migration is authorized. A separate installable app needs d
 
 ## Preference and library scopes — D19/D20
 
-All these scopes are proposals. A profile, participant and seat are different concepts; guests must not need accounts merely to isolate state.
+Persistent seat name/color/art retention is accepted; remaining scopes below are proposals. A persistent seat, optional saved profile, game-local participant and visual slot are distinct responsibilities; guests need no account.
 
 | Existing value | Proposed scope / open choice |
 |---|---|
+| Seat name / life color and art presets | Persistent per-seat customization; preserved by normal resets and inactive-seat hiding |
 | Summoning sickness enabled | Player session option, optionally copied from profile default |
 | Rules preset counts; active custom-rule enabled/count state | Player session gameplay state |
 | Custom rule definitions | Shared library or profile library; active instances remain player-scoped |

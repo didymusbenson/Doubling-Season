@@ -76,6 +76,7 @@ Life, typed player counters/status and commander damage can appear in the centra
 ## Proposed contracts
 
 - **History projection/grouping:** one chronological game log with player attribution, constituent command identities and latest-global-action undo. Repeated-like-action display grouping cannot erase token add/remove distinctions or underlying causal effects. Current history and state must persist coherently; game-wide different-action interruption is accepted; exact timeout tuning and archive policy remain open. See [history audit and design](game_history_and_undo.md).
+- **Persistent seat repository/projection:** retain seat name/color/art across games independently of active membership and visual placement. Normal game reset never clears this customization; removed seats’ game-specific tokens/utilities are cleared while customization survives.
 - **Session repository:** load/save/recover sessions and submit validated changes; never expose an unscoped player-UI `clearAll`.
 - **Player read projection:** immutable or controlled views of one player's life, tokens, utilities, rules and pending outcomes.
 - **Player command facade:** capture identity and intent, validate targets, build plans, commit through the writer, return a typed scoped result.
@@ -106,7 +107,7 @@ Preserve the repository's board-item parity principle deliberately: inspect all 
 6. Recompose tablet views and adapt action controllers from cards; avoid UI methods as the sole owners of domain operations.
 7. Extract a shared package only where dependencies and validation demonstrate a stable boundary. Keep application bootstrap, routes, device settings and distribution code outside the shared core.
 
-This sequence can happen in a prototype branch without changing the current phone UX. Exact repository/package layout follows D01/D24; the numbered list does not preapprove a refactor.
+This sequence can happen in a prototype branch without changing the current phone UX. The reset boundary must distinguish persistent seat customization from game-local boards and shared state. Exact repository/package layout follows D01/D24; the numbered list does not preapprove a refactor.
 
 ## Platform/configuration audit before an iPad prototype
 
