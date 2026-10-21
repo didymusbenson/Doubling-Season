@@ -6,6 +6,8 @@
 
 **Accepted reusable-setup boundary (D38):** evolve Decks into saved token-list/utility-preference presets loaded into a chosen seat with zero-state token entries. Optional deck art can supply saved life art for that seat. Keep reusable templates, per-seat mutable artwork selections, active runtime entities and full-session archives separate; existing DeckProvider clear/append methods are reference behavior, not approved tablet midgame semantics.
 
+**D39 scope refinement:** token-art preference resolution belongs to current-game + seat context, with explicit preset snapshot/load and keep-board/archive retention. It must not use persistent seat-profile defaults or globally mutable token art. Keep persistent name/life appearance separate; shared immutable/cache assets do not imply shared mutable selections.
+
 ## Chosen Flutter direction
 
 Retain Flutter. The needs identified here—bounded layouts, rotated subtrees, multiple input surfaces, independent scrollable lists, local panels, semantics and shared Dart domain logic—fit framework capabilities described in the [official research](10_research_sources.md). The existing app already supplies the token catalog, artwork, arithmetic, utilities and storage knowledge.

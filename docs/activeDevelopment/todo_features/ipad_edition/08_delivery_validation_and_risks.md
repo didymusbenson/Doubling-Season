@@ -455,3 +455,10 @@ All workloads remain **not run**. Hardware results must include a physical iPad;
 - Save a token-list/utility-preference preset, then load into a chosen seat in the approved setup flow. Selected token entries initialize at zero/empty gameplay state and utilities follow configured preferences, with no fabricated ETB events. Two seats using the same preset retain independent runtime entities, order/visibility and art selections.
 - Apply its optional deck image to A’s saved life art. Verify A’s player name and B’s name/art remain unchanged; A’s later art choice does not rewrite B’s selection or a global token-art preference. Reload preserves the resulting seat customization. Missing/no-image behavior follows a chosen explicit design, not an invented fallback.
 - Do not assume commander selection, live-game restoration, life reset or timeline clearing. Midgame merge/replace, load-history/undo, pending-input and utility-default precedence portions remain blocked until chosen. Test existing full-reset/removed-seat/archive policies separately; preset load cannot substitute for archive restore.
+
+## Token-art preference lifetime — V55
+
+**V55 — current-game art, preset snapshot and lifecycle boundaries. Status: planned / not run.**
+- Choose different token art for A and B, save A’s deck, change A’s current choice, then load the saved preset into the chosen seat in an approved load flow. Saved choices apply to that seat only, not B or global defaults. Current-game reload preserves its choices.
+- Start a fresh game without keep-board/preset: previous-game token-art preferences do not leak in. Explicit keep-board retains artwork on reusable token entries; archive restore recovers the historical game’s choices without making them permanent defaults. Persistent seat names/life color/art survive as previously accepted.
+- Use two presets/seats referencing custom art; replacement/removal must not silently rewrite another saved/current/historical selection. Exact asset strategy and fallback remain design gates; existing phone token-identity file references are not proof of safe snapshot isolation. Midgame load/history policy remains D38.

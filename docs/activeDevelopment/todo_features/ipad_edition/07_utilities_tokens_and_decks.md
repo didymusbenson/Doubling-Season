@@ -106,9 +106,21 @@ If the deck has an image, it can optionally supply the seat life tracker’s sav
 
 Commander selection is not part of the accepted preset contents. Whether it should be added needs a separate decision. Midgame load replacement versus merge/append, handling existing gameplay values, life reset, history/undo entry and pending-input behavior remain open. Do not infer these from the existing phone loader, or treat loading as either a full reset or archive restore. Existing reset/hidden-seat/archive rules remain unchanged.
 
+### Token-art preference lifetime — accepted D39
+
+Token-art preferences are scoped to a seat **within the current game only**, not its persistent seat profile. Saving a deck snapshots those choices; loading it applies the saved choices only to the target seat. A fresh game does not inherit the previous game’s token-art preferences. Explicit keep-board preserves chosen artwork as reusable board configuration, not an everlasting seat preference. Archive restore recovers that historical game’s choices, not defaults for future games. Persistent player name and life-tracker color/art customization remain separate and unchanged by this clarification.
+
+Persist current-game choices for ordinary reload/recovery without promoting them to cross-game defaults. Shared catalog/cache data may remain shared; mutable preference lookup must include game and seat context. Exact initial fallback art, custom-file retention and midgame preset replacement details still need design.
+
 ### Existing implementation evidence, not tablet implementation
 
 Read-only review of the repository baseline: [Deck model](https://github.com/didymusbenson/Doubling-Season/blob/d30050bd7a1067058fcdf7e707d3a223124a79fb/lib/models/deck.dart) stores token templates, tracker/toggle templates and optional customArtworkUrl. [DeckProvider loading](https://github.com/didymusbenson/Doubling-Season/blob/d30050bd7a1067058fcdf7e707d3a223124a79fb/lib/providers/deck_provider.dart#L536-L625) offers clear-and-load and add-to-board, orders mixed template kinds, and creates token Items with amount 0. Its existing providers are single-board, not proof of seat isolation. Its v3 export carries template artwork metadata but not the custom deck image as a portable asset. Reuse these concepts through the new scoped boundary; do not claim the accepted utility preferences, life-image application or seat-scoped artwork are already implemented.
+
+### Verified existing artwork save/load behavior
+
+Remote main was reverified at d30050bd7a1067058fcdf7e707d3a223124a79fb on 2026-10-21. [Save deduplication](https://github.com/didymusbenson/Doubling-Season/blob/d30050bd7a1067058fcdf7e707d3a223124a79fb/lib/screens/decks_list_screen.dart#L796-L843) includes artwork URL; [TokenTemplate conversion](https://github.com/didymusbenson/Doubling-Season/blob/d30050bd7a1067058fcdf7e707d3a223124a79fb/lib/models/token_template.dart#L55-L83) snapshots/restores artworkUrl, artworkSet and artworkOptions. Deck load uses those saved fields, not a fresh global-preference lookup. Hive and JSON v3 retain this metadata; older absent fields remain null. This is a real saved selection, not merely global-default persistence.
+
+However, custom art is a **file reference**, not a deck-owned immutable image copy. [Custom upload](https://github.com/didymusbenson/Doubling-Season/blob/d30050bd7a1067058fcdf7e707d3a223124a79fb/lib/widgets/artwork_selection_sheet.dart#L1123-L1147) uses a filename derived from token identity; replacing that file can change old decks referencing it. JSON does not package the bytes. The deck cover is separate from token selections. The new product must deliberately design asset retention/reference isolation so seat choices and archives are not accidentally changed by shared-path overwrite; this audit does not implement a fix or settle a storage strategy.
 
 ## Deck library and setup semantics
 

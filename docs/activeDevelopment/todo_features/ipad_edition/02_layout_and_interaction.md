@@ -81,6 +81,8 @@ The user’s player/seat keeps its name and color/art presets across games. Two-
 
 The seat’s preset-loading flow configures utilities and selected zero-state token entries. An optional deck image can be applied to that seat’s saved life-tracker art without changing the player name. Per-seat art selection must remain independent even when seats load the same preset. This is not arbitrary layout resizing or automatic commander selection. Exact midgame replacement/merge, life/history effects and art opt-in/default UI remain open under D38.
 
+Token-art selections in this flow last for the current game only (D39), unless explicitly carried as keep-board setup or restored from a preset/archive. This does not change the persistent life-tracker appearance or seat name described above; those are different customization domains.
+
 ## Life-tracker capacity within the accepted layouts
 
 The centerpiece must accommodate the accepted full tracker, not only ± life. Reserve access to player counters, independent city’s blessing, monarch indication and per-source commander damage including self/partners, while day/night remains one game-level state. Use compact summaries and a bounded player-facing detail surface as design candidates; do not clone Lifetap’s grids/tabs or shrink every control into the life tile. Commander-damage and player-counter access is now fixed as attached shortcuts directly below life. Detailed contents, status presentation and dimensions remain open.

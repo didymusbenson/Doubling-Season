@@ -66,11 +66,17 @@ The persistence and concurrency decisions must agree. A single session writer ca
 | D34 | What participant/media information is retained or exported? | Local guest labels; explicit export contents; no analytics/account requirement | Persistent profiles, analytics, custom photos and share bundles need deliberate retention choices | P2/P4 |
 | D35 | What proves readiness and governs format upgrades? | Versioned formats, recorded manual/device acceptance, compatibility and recovery gates | Additional platforms/features each add a gate; current docs alone prove none | All phases, final P5 |
 
+## Token-art lifetime clarification
+
+| ID | Question | Accepted direction | Still open | Needed by |
+|---|---|---|---|---|
+| D39 | How long do per-seat token-art preferences persist? | Current game only; save choices in deck preset, load into target seat. Fresh game does not inherit prior preferences. Keep-board retains chosen artwork as reusable board setup; archive restore restores historical choices | Exact fallback and custom-asset retention/reference isolation; midgame load semantics remain D38. Persistent seat name/life appearance is not revoked | P1–P5; V55 |
+
 ## Deck/preset evolution
 
 | ID | Question | Accepted direction | Still open | Needed by |
 |---|---|---|---|---|
-| D38 | What does a saved deck/preset provide? | Reusable token list + utility preferences; chosen seat loads configured utilities and selected zero/empty-state token entries. Optional deck image can supply that seat’s saved life art; art selection per seat; player name separate | Exact preference/default/image application UI and format; midgame replace/merge, life/history/undo effects. Commander selection not specified or approved by this decision | P1–P5; V54 |
+| D38 | What does a saved deck/preset provide? | Reusable token list + utility preferences; chosen seat loads configured utilities and selected zero/empty-state token entries. Optional deck image can supply that seat’s saved life art; token-art choices saved in preset and applied per current-game seat (D39); player name separate | Exact preference/default/image application UI and format; midgame replace/merge, life/history/undo effects. Commander selection not specified or approved by this decision | P1–P5; V54 |
 
 This evolves the existing Decks feature, not a live-game save. It refines D19/D20 artwork scope and D23 interchange, while preserving accepted reset/archive behavior and independent seat customization.
 

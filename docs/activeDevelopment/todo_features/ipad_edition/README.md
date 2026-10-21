@@ -16,6 +16,8 @@ This is a planning dossier, not a shipped feature specification. **Confirmed** m
 
 **Deck/preset update (D38):** evolve Decks into reusable token lists plus utility preferences. Seat loading initializes selected token entries at zero and configures utilities; optional deck art can supply that seat’s saved life image. Art selections are per-seat, player name stays separate, and commander selection/midgame load/life-history effects are not implicitly approved.
 
+**Token-art lifetime (D39):** preferences are game-and-seat scoped, saved into deck presets and applied only to the loading seat. Fresh games do not inherit them. Keep-board and archive restoration retain explicit board/historical choices, not permanent seat defaults. Persistent player name and life appearance remain unchanged.
+
 ## Start here
 
 | Document | Purpose |

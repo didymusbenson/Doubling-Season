@@ -113,6 +113,12 @@ Proposed compatibility contract:
 
 No destructive phone migration is authorized. A separate installable app needs deliberately chosen identifiers/storage and explicit interchange; a new repository alone does not create a new app sandbox. D01 now selects a separate app, not a mode in the existing distributable. Preserve legacy boxes/adapters and isolate the new product’s sessions even when source is shared in this repository. Copy-first conversion verifies destination counts/content before marking completion, is idempotent on retry, retains its source, and emits no gameplay events. Do not invent automatic assignment of an old board to Player 1.
 
+## Token artwork lifetime — D39
+
+Token-art preferences are scoped to a seat **within the current game only**, not its persistent seat profile. Saving a deck snapshots those choices; loading it applies the saved choices only to the target seat. A fresh game does not inherit the previous game’s token-art preferences. Explicit keep-board preserves chosen artwork as reusable board configuration, not an everlasting seat preference. Archive restore recovers that historical game’s choices, not defaults for future games. Persistent player name and life-tracker color/art customization remain separate and unchanged by this clarification.
+
+The durable current-session preference namespace must distinguish SessionId and seat/participant identity; exact schema remains proposed. Deck presets store a snapshot of reusable selections, while archives retain historical choices and referenced media. Do not key mutable token-art defaults only by persistent seat ID or reuse the current global token-identity preference box unchanged. Shared asset caching must not allow one seat’s custom-file replacement to rewrite another seat or saved snapshot. Missing-image/fallback and safe asset lifetime policy still need design.
+
 ## Preference and library scopes — D19/D20
 
 Persistent seat name/color/art retention is accepted; remaining scopes below are proposals. A persistent seat, optional saved profile, game-local participant and visual slot are distinct responsibilities; guests need no account.
@@ -127,7 +133,7 @@ Persistent seat name/color/art retention is accepted; remaining scopes below are
 | System/manual theme | Device/app |
 | Favorites and recents | Shared library or profile/player view; decide whether one player's activity displaces another's recents |
 | Experimental feature switch | Device capability; disabling it must not silently destroy other players' active rules |
-| Artwork preferences | Accepted per-seat selections; shared image bytes/catalog definitions do not imply globally shared mutable choices |
+| Token artwork preferences | Current-game + seat scoped only; saved into deck presets and applied to target seat on load. No prior-game default inheritance; explicit keep-board/archive retention is separate |
 | Custom token definitions and decks | Shared reusable library initially proposed, with distinct runtime copies |
 | Token database versions/checks/dismissals | Installation-wide data-source management |
 | What's New dismissal | Installation/release |

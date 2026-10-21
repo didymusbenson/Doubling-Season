@@ -139,6 +139,8 @@ The two full-reset modes are accepted. Other matrix rows are a recommended vocab
 
 D38 permits a saved deck/preset image to supply the chosen seat’s saved life-tracker image. This explicit art application coexists with persistent seat customization and leaves player name separate. Loading the accepted token/utility setup does not decide whether a midgame load resets life or changes history; those policies remain open. It does not select commanders or invoke full-reset/archive behavior by implication.
 
+**Token-art lifetime clarification (D39):** fresh games discard previous-game seat token-art preferences; keep-board retains chosen artwork as part of reusable board setup, and archive restore recovers historical selections. This does not clear persistent player names or saved life-tracker appearance. Deck load explicitly applies saved token-art choices to the chosen seat; exact midgame life/history effects remain open.
+
 ## Fixed life shortcuts versus utilities
 
 Life is an individual corner-region item (opposite corners for two players). Directly attached below it, quick shortcuts open commander damage and player counters. Neither those shortcuts nor life participates in utility hold-drag order or corner-X hiding. A separate shared-controls panel fits in/around life: a central strip/panel between paired seats for three/four players, and a thin shortcut divider between the two boards for two players (D07). Three-player empty-slot expanded controls remain available alongside it. This does not change D36 app/game origin or approve one-player scope.
