@@ -1,6 +1,6 @@
 # Feature Priority Queue
 
-**Last updated:** 2026-08-30
+**Last updated:** 2026-10-20 (IPAD EDITION discovery link; queue unchanged)
 
 The 1.11 implementation scope is closed aside from acceptance testing. New
 implementation work proceeds through the immediate queue below.
@@ -50,6 +50,15 @@ priority:
    Deferred on 2026-08-29. Optional caching, rollback, and further specialized-
    path reuse live in `todo_features/Optimizations.md`; none is required for
    1.11 acceptance.
+
+## Separate Project Discovery
+
+- **IPAD EDITION** — new Flutter large-screen/tabletop project with a central
+  life tracker and independent per-player token and utility lanes. Detailed
+  product, architecture, isolation, recovery, research, validation and open
+  decisions live in [the planning dossier](todo_features/ipad_edition/README.md).
+  Discovery only; this does not change the 1.11 acceptance or implementation
+  priorities above.
 
 ## Explicitly Descoped
 
