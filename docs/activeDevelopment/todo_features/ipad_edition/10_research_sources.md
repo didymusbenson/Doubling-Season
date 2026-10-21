@@ -2,6 +2,10 @@
 
 **Research date:** 2026-10-20 (America/Phoenix). Sources are primary documentation, plus the repository baseline and the user's screenshot. Live documentation may move; recheck against the selected SDK and rules publication before implementation. No framework benchmark, hardware prototype or native-versus-Flutter comparison was run.
 
+## Decision update — 2026-10-21
+
+The user has since selected Flutter with custom player-facing input as the direction, a separate product, Android/iOS/web targets and customizable 2–4 players. This does not turn the source research below into prototype evidence. Any keyboard input must face its initiating player; one versus simultaneous keyboards remains open. See the [decision register](09_decision_register.md) and [deferred keyboard options](custom_keyboard_options.md). The research date above remains unchanged.
+
 ## Findings and confidence
 
 **Recommendation: keep Flutter.** The official framework APIs cover the required categories. This is an inference from capability and existing code reuse, not measured proof of this particular four-player interface. The unresolved questions concern rotated panels/keyboard, geometry, multi-touch arbitration and persistence. None of the reviewed evidence establishes a reason to pivot frameworks.

@@ -91,7 +91,7 @@ Proposed compatibility contract:
 - Tablet-only utilities cannot pass losslessly through phone v3. Choose explicit subset export with a loss report or a new format that older apps reject.
 - Validate complete imports before commit: types, limits, uniqueness, ownership, references, utilities and asset manifest. Unknown future versions preserve original input and explain incompatibility.
 
-No destructive phone migration is authorized. A separate installable app needs deliberately chosen identifiers/storage and explicit interchange; a new repository alone does not create a new app sandbox. If the edition shares a distributable, keep legacy boxes/adapters intact and isolate tablet sessions. Copy-first conversion verifies destination counts/content before marking completion, is idempotent on retry, retains its source, and emits no gameplay events. Do not invent automatic assignment of an old board to Player 1.
+No destructive phone migration is authorized. A separate installable app needs deliberately chosen identifiers/storage and explicit interchange; a new repository alone does not create a new app sandbox. D01 now selects a separate app, not a mode in the existing distributable. Preserve legacy boxes/adapters and isolate the new product’s sessions even when source is shared in this repository. Copy-first conversion verifies destination counts/content before marking completion, is idempotent on retry, retains its source, and emits no gameplay events. Do not invent automatic assignment of an old board to Player 1.
 
 ## Preference and library scopes — D19/D20
 

@@ -1,27 +1,27 @@
 # Architecture and reuse
 
-**Status:** proposed architecture; source/distribution and storage choices remain open. No application, package, dependency or build configuration has been changed.
+**Status:** proposed architecture; separate-product and Android/iOS/web targets are accepted; exact packaging, release sequencing and storage choices remain open. No application, package, dependency or build configuration has been changed.
 
-## Flutter recommendation
+## Chosen Flutter direction
 
 Retain Flutter. The needs identified here—bounded layouts, rotated subtrees, multiple input surfaces, independent scrollable lists, local panels, semantics and shared Dart domain logic—fit framework capabilities described in the [official research](10_research_sources.md). The existing app already supplies the token catalog, artwork, arithmetic, utilities and storage knowledge.
 
-This is an engineering recommendation, not a claim that four-player touch, rotated text entry or target-device performance have already passed. The hard unknowns are geometry and interaction, followed by state isolation/recovery. A native rewrite would still need the same player model and correctness work.
+Flutter with a custom player-facing in-app keyboard is the chosen direction. This is not a claim that multi-player touch, rotated input or target-device performance have already passed. The hard unknowns are geometry and interaction, followed by state isolation/recovery. A native rewrite would still need the same player model and correctness work.
 
 Reconsider only after a small reproducible hardware prototype establishes a critical unresolved problem: unacceptable touch/semantics behavior, essential platform integration unavailable through a bounded bridge, or unacceptable frame/input behavior after measured remediation. A broken package or awkward current widget is not by itself a reason to replace the UI framework. A local store can also change without changing Flutter.
 
 ## New project versus new distribution
 
-The user's new-project direction is confirmed. Its code-sharing and install/distribution shape are D01/D24:
+D01 accepts a separate app / new product. The same repository is acceptable with properly isolated directories, but no final workspace/package layout is mandated. D24 still governs the shared-core boundary. Alternatives below retain context, not equal approval status:
 
 | Option | Advantages | Costs / unanswered questions |
 |---|---|---|
 | Separate Flutter app in a shared workspace | Independent shell, identifiers, release cadence; one reusable Dart core | Package extraction and two-app validation; tooling/workspace shape to choose |
 | Separate repository consuming a versioned shared package | Clear product ownership and releases | Package publishing/versioning, cross-repository coordination, asset delivery |
-| Distinct edition entry point inside existing distributable | Shared installation/library and fewer release pipelines | Data-mode coexistence, phone regression risk, navigation/purchase expectations |
+| Distinct edition entry point inside existing distributable (not selected) | Shared installation/library and fewer release pipelines | Superseded by the separate-app decision; do not implement an existing-app mode instead |
 | Long-lived copy/fork | Quick prototype independence | Fixes and behavior drift; ongoing duplicated maintenance |
 
-Proposed direction: prototype the tablet shell against explicit domain interfaces, then select an independently runnable Flutter app with shared domain/catalog infrastructure if D01 confirms separate distribution. Do not create a new repository, app identity, or release target merely to document this feature. Do not extract all phone code before proving the interaction concept.
+Implementation proposal within the accepted separate-app boundary: prototype the tablet shell against explicit domain interfaces, then extract only proven shared domain/catalog infrastructure. Do not create a new repository, app identity, or release target merely to document this feature. Do not extract all phone code before proving the interaction concept.
 
 ## Existing reuse map
 
@@ -80,7 +80,8 @@ Life can appear both in the central visual hub and in a player-focused view; bot
 - **Game coordinator:** own reset/rematch/seat administration and explicit multi-player write sets; acquire the intentional global barrier.
 - **Rules configuration:** player-session active values plus optionally shared definitions. The evaluator receives a versioned snapshot, not ambient mutable settings.
 - **Interaction controller:** per-player expansion, local panel stack, selection, scroll and drag state. It does not own game truth.
-- **Device interaction coordinator:** system keyboard focus, photo picker/cropper, file import/share and other OS-native surfaces. Retain originating player identity through every return.
+- **Player-facing input host:** custom Flutter keyboard and entry surface for any keyboard input, rotated together toward its initiating player. Numeric/text modes and richer options are discussed in [custom keyboard options](custom_keyboard_options.md). One versus simultaneous hosts remains D09/D11, not an architectural default.
+- **Device interaction coordinator:** native/hardware keyboard fallback and focus, photo picker/cropper, file import/share and other OS-native surfaces. Retain originating player identity through every return. System keyboards cannot be arbitrarily rotated per seat; native fallback needs an explicit policy rather than silently weakening player-facing input.
 
 Per-player queues express ordering of intents and keep local busy/error state isolated. D15 decides whether they feed one serialized session writer initially or independent scoped writers with a table coordinator. A single durable writer can still accept input from multiple seats; sequential storage does not require globally disabling the UI.
 
@@ -108,7 +109,7 @@ This sequence can happen in a prototype branch without changing the current phon
 
 Current source locks portrait and the iOS target device family is iPhone. An iPad orientations plist entry alone does not establish a native iPad layout target. The prototype must choose its actual device-family/configuration path, then test native pickers/cropping and window sizes. These are future configuration tasks, not changes made in this documentation turn.
 
-Keep existing production identifiers untouched unless D01/D29 explicitly selects a distribution/migration plan. A new install needs new identifiers and product/store configuration; no identifier is proposed here. Current Flutter/Dart dependency floors and lockfile remain the starting point; latest online examples may refer to a newer SDK. Check API availability before adopting drag-boundary/navigation features.
+Keep existing production identifiers untouched while the separate product receives its own deliberately chosen identity and any explicit D29 interoperability plan. A new install needs new identifiers and product/store configuration; no identifier is proposed here. Current Flutter/Dart dependency floors and lockfile remain the starting point; latest online examples may refer to a newer SDK. Check API availability before adopting drag-boundary/navigation features.
 
 On iPad, orientation locking interacts with multitasking; Android large screens also have orientation restrictions. Design a resize/fallback policy instead of relying on a permanent landscape lock. [Official orientation API](https://api.flutter.dev/flutter/services/SystemChrome/setPreferredOrientations.html). No macOS native build or release requirement is introduced.
 

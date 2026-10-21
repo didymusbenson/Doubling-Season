@@ -1,6 +1,6 @@
 # Layout and interaction
 
-**Status:** proposed geometry and behavior derived from the user's sketch. D04–D12 require review.
+**Status:** proposed geometry and behavior derived from the user's sketch. D04 accepts customizable 2–4 players; geometry and D05–D12 still require review.
 
 ## Reading the sketch
 
@@ -48,6 +48,10 @@ These labels are illustrative seat names, never database keys. The screenshot im
 
 Flutter's `RotatedBox` participates in layout for quarter turns. That makes it a candidate for seat-local subtrees; it does not automatically solve overlay placement, keyboard orientation, semantics, or drag proxies. [Official API](https://api.flutter.dev/flutter/widgets/RotatedBox-class.html). See [research](10_research_sources.md) for version/prototype caveats.
 
+## Player-count boundary
+
+The four-quadrant sketch is the reference fixture, not a hard-coded player limit. Initial scope includes customizable two-, three- and four-player tables. Prototype each count deliberately rather than leaving unused quadrants as the final layout. Keep stable player identity separate from seat geometry and avoid fixed-four assumptions in the domain. [Expansion to six](six_player_expansion.md) is deferred; preserve layout leeway without implementing or promising it now.
+
 ## Space budgets and adaptation
 
 Use logical pixels and actual available constraints, not screenshot pixels or a device-name test. Let usable window width/height be `W/H`, central separation `s`, quadrant dimensions approximately `(W-s)/2` and `(H-s)/2`. Safe areas and any permanent hub reservation must be deducted explicitly.
@@ -76,7 +80,7 @@ If fallback is rejected, state the supported minimum and offer a clear “enlarg
 
 ## Independent lists
 
-- Each of the eight lanes owns scroll position, restoration key, reorder state and stable item keys.
+- Each player’s two lanes (eight in the four-player fixture) own scroll position, restoration key, reorder state and stable item keys.
 - Tokens reorder only among that player's tokens; all supported utility types share that player's utility ordering.
 - Life is fixed in its surface and never consumes a list position.
 - Default drag cannot cross lane or player boundaries. A future “give control” action must be explicit, not an accidental drop target.
@@ -108,9 +112,11 @@ A root modal bottom sheet prevents interaction with the rest of the app. `anchor
 - Capture a repeating life/mana gesture's player and direction at gesture start. Crossing a seam must not retarget it.
 - Cancel repeat on pointer cancel/up, backgrounding, focus loss, panel destruction or session-generation change.
 - Two gestures on the same life total must combine deterministically through commands; no read-modify-write lost updates.
-- Default proposal: multiple local non-text panels may coexist; **one text editor owns keyboard focus at a time**. A second request should give a visible “finish editing P2” action or an intentional focus handoff, not steal a draft.
-- Treat the system keyboard as a shared device resource. Top-facing seat text input and floating/split keyboard behavior require a physical iPad experiment. Do not promise four independently rotated system keyboards.
-- Account for keyboard insets without lifting all eight lanes into unusable heights. Preserve life access where practical; use a temporary named input panel if necessary.
+- **Confirmed: any keyboard input faces its initiating player**, not only search or rename. This includes custom token/utility text, labels, counters, life, quantities and mana numeric entry wherever those inputs exist. The entry field, keyboard panel and related results/errors must share the player-facing orientation.
+- **Chosen direction:** render a custom in-app keyboard within the player-facing Flutter surface. OS/system keyboards do not expose arbitrary per-seat rotation; rotating a Flutter field does not rotate the system keyboard. An in-app panel can be rotated with its seat, but touch mapping, focus, editing and accessibility still need prototype evidence.
+- **Concurrency is open (D09/D11):** one keyboard with explicit handoff and simultaneous player-local keyboards remain alternatives. “Any keyboard” broadens the input coverage; it does not approve either concurrency policy. Preserve drafts and origin in either design, and keep other players’ quick controls responsive. Do not silently enforce the earlier one-editor recommendation as an accepted requirement.
+- Reserve bounded panel space without lifting all lanes into unusable heights. Preserve life access where practical and record the chosen obstruction/resize policy. System/native fallback, hardware keyboard and IME routes need explicit orientation and accessibility review, not an unnoticed escape from the player-facing requirement.
+- [Custom keyboard options](custom_keyboard_options.md), including mana-symbol candidates, are deferred exploration, not approved first-release features.
 - Root game actions acquire an explicit table-operation barrier; resolve editors, stop repeat gestures and suspend new mutations before taking their snapshot.
 
 Flutter distinguishes raw pointers and gesture recognition; nested buttons, drags and repeated controls need deliberate gesture arbitration. [Gesture documentation](https://docs.flutter.dev/ui/interactivity/gestures). Actual multi-seat reliability remains unproven until P0.

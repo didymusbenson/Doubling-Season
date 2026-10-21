@@ -1,6 +1,6 @@
 # Decision register
 
-**Last updated:** 2026-10-20. **All D01–D35 are open.** Recommended defaults are proposals, not approvals. Confirmed requirements C01–C10 are in [README](README.md). Flutter is the confirmed starting direction; framework pivot criteria are proposed.
+**Last updated:** 2026-10-21. **D01/D03/D04 have accepted product boundaries**, with implementation details still open; D09/D11 concurrency remains open. Other decisions remain open unless explicitly noted below. Recommended defaults are proposals, not approvals. Confirmed requirements C01–C13 are in [README](README.md). Flutter with player-facing custom keyboards is the chosen direction, subject to prototype validation.
 
 Use stable IDs in later discussions, commits and acceptance notes. Answering one decision does not approve every downstream proposal. In particular, approving the screenshot layout does not choose the storage design, app distribution or release inventory.
 
@@ -10,23 +10,23 @@ Use stable IDs in later discussions, commits and acceptance notes. Answering one
 2. **Safety and technical boundaries:** D09–D25, D29. Settle isolation, concurrency, storage, undo, recovery and interoperability before domain implementation.
 3. **Release cut and evidence:** D08, D30–D35. Choose utility parity, workloads, offline/update behavior, distribution details and final gates after the prototypes expose costs.
 
-An initial discussion can be just D01, D03, D04, D05, D07 and D26. The dossier supports answering the rest incrementally; there is no need to answer 35 questions at once.
+With D01/D03/D04 product boundaries settled, the next discussion can focus on D05, D07, D09/D11 and D26. The dossier supports answering the rest incrementally; there is no need to answer 35 questions at once.
 
 ## Product, layout and interaction choices
 
 | ID | Question | Recommended starting point | Alternatives / consequence | Needed by |
 |---|---|---|---|---|
-| D01 | How is the new project packaged and distributed? | Independently runnable Flutter app sharing selected infrastructure; confirm separate installation intent before assigning IDs | Existing-app edition reduces install friction but adds phone/coexistence risk; separate repository adds package coordination; fork drifts | P0 setup; lock before release config |
+| D01 | Separate product; exact packaging? | **Accepted:** separate app / new product; same repo acceptable with proper directory isolation | Existing-app mode not selected. Exact directories, packages, IDs and distribution mechanics remain open | P0 setup; lock before release config |
 | D02 | Is “IPAD EDITION” a codename or public name? | Codename; continue referring to relationship with Tripling Season | Public branding/store identity needs a deliberate decision; do not copy screenshot names | Before public assets/store work |
-| D03 | Which large-screen platforms ship first? | iPad primary, prove hardware behavior first | Android tablets and web add input/storage/picker/window validation; Windows is separate scope; no macOS release requirement | P0 device matrix |
-| D04 | How many players are required? | Four for initial table prototype | 2/3 players need deliberate space allocation; 5+ makes current quadrant concept insufficient; team modes affect life model | P0 layout and P1 model |
+| D03 | Which product platforms? | **Accepted:** Android, iOS and web | Device/browser floors, release order and platform-specific gates remain open; Windows/native macOS not added | P0 matrix; P5 release evidence |
+| D04 | How many players are required? | **Accepted:** customizable 2–4 initially; **deferred:** expansion to six | Preserve design leeway; exact 2/3/4 layouts remain open. See [six-player expansion](six_player_expansion.md); teams not approved | P0 layout and P1 model |
 | D05 | How do seats face the table? | Two on each long edge; top two 180°, bottom two 0°, as sketch | Four-edge 90°/270° layouts or user-selectable rotations require additional geometry/input work | P0 |
 | D06 | What happens in a narrow/short window? | Constraint-based compact view, then named focused-seat fallback | Strict minimum + resize guidance preserves four-view promise but restricts multitasking/device floor | P0; final floor after P5 |
 | D07 | Where do life and lanes sit? | Prototype layout A: life at inner-center, utilities farther outward in inner column, tokens outer lane | Layout B: life band above both lanes in local coordinates; compare reach and visible row count | P0 |
 | D08 | Which existing features must reach first-release parity? | Inventory every utility and token workflow; explicitly approve omissions | All parity increases initial scope; a reduced cut needs clear unavailable features and no silent behavioral changes | Before P4 |
-| D09 | How much simultaneous interaction is required? | Independent quick controls and local panels; one keyboard owner | One shared search panel is simpler but interrupts players; fully concurrent editors need more focus/overlay work | P0 |
+| D09 | How much simultaneous interaction is required? | **Open:** independent quick controls; compare one keyboard with explicit handoff against simultaneous player-local keyboards | The earlier one-owner proposal is not accepted. “Any keyboard” defines coverage/orientation, not concurrency | P0 |
 | D10 | What can expand simultaneously? | One token or utility expanded per player | One per lane uses more space; one for whole table conflicts with independent use | P0/P3 |
-| D11 | How do keyboard/native flows arbitrate? | Explicit device-level queue/focus handoff retaining origin | Setup-only photo/import could simplify play; silent focus stealing is unacceptable | P0 |
+| D11 | How do keyboard/native flows arbitrate? | **Input direction accepted:** any keyboard faces its initiating player, using a custom Flutter panel; concurrency/arbitration open | OS keyboards do not expose arbitrary per-seat rotation. Native fallbacks, drafts, accessibility and IME need validation; see [deferred options](custom_keyboard_options.md) | P0 |
 | D12 | What accessibility view is needed? | Player-named semantics, large-text adaptation, accessible reorder; prototype focused single-orientation view | Four rotated traversal groups alone may be sufficient only after hardware review | P0/P3/P5 |
 | D13 | Where do new/split/copied results go? | Append new distinct stacks; source-adjacent split/copy; deterministic companions; merges stay put | Always append is simpler but changes familiar source relationships; manual sorting mode adds scope | P1/P3 |
 
@@ -58,7 +58,7 @@ The persistence and concurrency decisions must agree. A single session writer ca
 | D26 | How complete is the life tracker? | Life presets/direct entry/history grouping; decide commander damage, separate commanders, tax and player counters explicitly | Life-only is smaller; Commander-first expectations may make source-specific damage essential. Choose whether damage entry also changes life | P0/P1 and release cut |
 | D27 | What does the mana pool support? | Six-type manual pool, explicit clear/undo, no inferred phase or token actions | Tagged restricted/snow buckets or payment assistant need much richer modeling/UI | Before P4 mana |
 | D28 | Which universal tools beyond resets are useful? | Keep center focused; add tools only after layout evidence | Turn indicator, dice, timer, monarch/initiative all add state or affordances; turn highlight must not imply housekeeping | P0/P4 |
-| D29 | Does the phone app expose this edition or share active data? | Preserve phone behavior; use explicit interchange until product shape chosen | Shared active data/mode switch adds migrations, libraries and regression obligations | P1/P2; depends D01 |
+| D29 | Does the separate app share data with the phone app? | Preserve phone behavior; explicit interchange proposal | Shared active data adds migrations, libraries and regression obligations; an existing-app edition is not the selected product shape | P1/P2; within D01 |
 | D30 | What is the supported hardware/workload floor? | Measure proposed normal/heavy/stress workloads on oldest candidate iPad | A larger device floor simplifies layout but narrows audience; unbounded stacks/history are not a performance contract | P0/P5 |
 | D31 | What works offline and when may catalog updates interrupt? | Core play/resume offline; defer noncritical maintenance during play | Online-only artwork/downloads must degrade cleanly; web storage needs separate guarantees | P2/P4/P5 |
 | D32 | How is the edition priced and entitled? | Defer commercial decision; keep in-game players separate from purchase identity | Separate purchase, existing entitlement, free edition or upgrade each need store policy/product work | Before store implementation |
@@ -66,13 +66,24 @@ The persistence and concurrency decisions must agree. A single session writer ca
 | D34 | What participant/media information is retained or exported? | Local guest labels; explicit export contents; no analytics/account requirement | Persistent profiles, analytics, custom photos and share bundles need deliberate retention choices | P2/P4 |
 | D35 | What proves readiness and governs format upgrades? | Versioned formats, recorded manual/device acceptance, compatibility and recovery gates | Additional platforms/features each add a gate; current docs alone prove none | All phases, final P5 |
 
-## Draft architecture decision records
+## Accepted product decisions — 2026-10-21
 
-These preserve rationale while choices remain reviewable. Their status is **proposed**.
+Source: direct user design discussion; quotations preserve the decision boundary, not an implementation claim.
+
+- **D01 accepted:** “I think we need to build a separate app” and “consider it a new product”; “I'm okay with it living in the same repo if we isolate it properly in its own directories.” Rationale: the evolution warrants its own product. Same-repo isolation is permission, not a mandated packaging scheme. Affects product, architecture and legacy-data gates; identifiers and package extraction remain open.
+- **D03 accepted:** “Cross platform, android, ios, web”. These are product targets, not evidence that all platforms build or ship together. Affects the platform matrix and P0/P5 validation; support floors and sequencing remain open.
+- **D04 accepted / expansion deferred:** “Initial scope should be customizable 2-4 players with a deferred feature doc to expand to 6. The designs should have room and leeway to make 6 players possible.” Affects layout/model assumptions and validation. See [six-player expansion](six_player_expansion.md); six-player implementation awaits later review.
+- **C02/C13 direction accepted; D09/D11 partially unresolved:** following the Flutter custom-panel solution discussion, the user said “document it as ANY keyboard” and requested later exploration of custom keyboard options including mana symbols. Record any keyboard input as player-facing, not merely search/rename. Flutter/custom panel is the chosen direction pending proof. The preceding question about one versus simultaneous keyboards received no explicit choice; **do not resolve concurrency by inference**. Affects layout/input host and V34; option inventory stays [deferred](custom_keyboard_options.md).
+
+Revisit a settled boundary only through an explicit later decision. A prototype can expose constraints requiring that discussion, but does not silently change product scope. Cloud-first visual/interactive inspection must precede asking the user to install a build; physical iPad and target-platform acceptance remain separate gates in [delivery](08_delivery_validation_and_risks.md).
+
+## Architecture decision records
+
+ADR-P01 records the chosen framework direction, pending prototype evidence. ADR-P02–P04 remain **proposed** implementation contracts.
 
 ### ADR-P01: retain Flutter for the first prototype
 
-Context: current infrastructure is Flutter/Dart; requested changes concern presentation and player scope. Proposal: retain Flutter and prove the highest-risk interactions on hardware. Consequence: avoid spending the first iteration replacing reusable domain logic. Revisit on a reproducible critical framework/platform limitation, not merely because current phone widgets need redesign. References: C02, D03/D05/D11/D30, [research](10_research_sources.md).
+Context: current infrastructure is Flutter/Dart; requested changes concern presentation and player scope. Chosen direction: retain Flutter with custom player-facing input panels for any keyboard input. Inspect the running prototype in the cloud first, then prove the highest-risk physical interactions on hardware. Consequence: avoid spending the first iteration replacing reusable domain logic. Revisit on a reproducible critical framework/platform limitation, not merely because current phone widgets need redesign. References: C02, D03/D05/D11/D30, [research](10_research_sources.md).
 
 ### ADR-P02: immutable command scope is a domain invariant
 
@@ -108,7 +119,7 @@ Only the user approves product choices. Technical implementation choices may be 
 | Evidence needed | Resolves | Suggested experiment |
 |---|---|---|
 | Real seated reach/readability at both candidate layouts | D05–D07/D30 | Two physical layouts, identical long/short content, four people |
-| Rotated local overlays plus keyboard/native return | D09–D12 | Two concurrent panels; top-facing input; failed save and picker cancel |
+| Rotated local overlays plus any keyboard/native return | D09–D12 | Numeric and text input at every chosen seat orientation; compare concurrency policies; failed save and picker cancel |
 | Durability under rapid life and multi-result creation | D14–D17 | Acknowledged-value log, controlled interruption points, recovery inspection |
 | Full existing utility scope audit during extraction | D08/D25 | Two identical boards with different rule states; record every read/write/event |
 | Legacy/format/media round trips | D18/D20/D23/D29 | Known phone v3 setup, both lane projections, missing upload bytes |

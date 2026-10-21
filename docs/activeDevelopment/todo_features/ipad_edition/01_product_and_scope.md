@@ -6,7 +6,7 @@
 
 Place an iPad in the middle of a Magic game and let each player operate their own small Tripling Season board while everyone can see the central life tracker. Players should spend little time navigating and should recognize immediately whose state a control changes.
 
-This is a distinct project with a different frontend composition. “New project” does not yet decide whether it ships as a second app, a separate Flutter application in a shared workspace, or an edition exposed through the existing app. That distinction is D01. Likewise, “iPad” is the working name and primary design reference; support for Android tablets or large browser windows is D03.
+This is a **separate app / new product** with a different frontend composition (D01 accepted). The same repository is acceptable with proper directory isolation; exact packaging and shared-core extraction remain open. “iPad” remains the working name and design reference, while **Android, iOS and web** are accepted product targets (D03). Initial scope is **customizable 2–4 players**, with [expansion to six deferred](six_player_expansion.md) (D04).
 
 ## Experience principles
 
@@ -34,18 +34,18 @@ This is a distinct project with a different frontend composition. “New project
 
 ## Candidate first release
 
-The following is a proposed cut, not an approved commitment. “Foundation” means prove the design before release scoping; it is not itself a smaller product release.
+The product/platform/player-count boundaries below are accepted; the remaining capability cut is proposed, not an approved commitment. “Foundation” means prove the design before release scoping; it is not itself a smaller product release.
 
 | Capability | Foundation prototype | Proposed first usable edition | Later / separate decision |
 |---|---|---|---|
-| Table | Four fixed placeholder seats | Four named seats; session resume | 2/3-player layouts, 5+ players, teams |
+| Table | Four-seat reference plus 2/3-seat layout checks | Customizable 2–4 players (accepted); session resume proposal | [Expansion to six](six_player_expansion.md) deferred; teams unapproved |
 | Life | ±1, direct set, independent input | Starting-life presets, grouped undo, local history | Rich game history and statistics |
 | Tokens | One creation route and reorder | Search/custom/create, counts, tap, sickness, counters, copy/split, artwork | Explicit cross-player gifting/control transfer |
 | Utilities | One manual tracker and Krenko | Existing utility parity where scoped safely; mana pool candidate | Additional automation / shared global effects |
 | Rules | Per-seat sample presets | Existing supported rule behavior isolated per player | New full-table rules and arbitrary opponent triggers |
 | Decks | None required for touch spike | Load/save per player; compatible library reuse | Share an entire table setup / session export |
 | Game controls | Safe sample reset | Clearly scoped reset/new game and recovery | Turn/phase engine, tournament tools |
-| Device | Physical iPad prototype | Approved iPad/device floor | Android tablet/web release commitments |
+| Platforms | Cloud visual/interactive inspection first, then physical iPad gate | Android, iOS and web targets accepted; device/browser floors and release sequence open | Windows/native macOS not added to product scope |
 | Connectivity | Airplane-mode play | Local persistence and cached/bundled content | Sync, multiplayer networking, accounts |
 
 Existing utilities must be inventoried individually before claiming parity. A release may explicitly omit a utility that lacks safe player scoping, but must communicate that omission rather than silently changing its behavior. D08 settles the release inventory; D27 settles the mana pool cut. Rich commander support is D26 and should be resolved before marketing this as a full Commander life tracker.
@@ -66,6 +66,8 @@ Existing utilities must be inventoried individually before claiming parity. A re
 | R10 | No phone data loss or accidental legacy reclassification | Proposed required compatibility contract | [Data](06_data_persistence_and_migration.md), V26–V28 |
 | R11 | Core play and resume work without network | Proposed | V26/V36 |
 | R12 | New mana-pool utility | User named direction; details open | [Utilities](07_utilities_tokens_and_decks.md), V37–V39 |
+| R13 | Any keyboard input faces the initiating player | Confirmed; custom Flutter panel direction, concurrency open | [Layout](02_layout_and_interaction.md), V34 |
+| R14 | Separate product; customizable 2–4 players; Android/iOS/web | Confirmed boundaries; detailed support gates open | D01/D03/D04, V30/V34/V35 |
 
 ## Boundaries
 
@@ -76,7 +78,7 @@ Do not implicitly add networking, cloud synchronization, deck-list import servic
 ## Product questions that affect the architecture
 
 - Must two people be able to search/edit at the same time, or is one local panel with all other players' quick controls still live sufficient? D09.
-- Is four-player landscape the release requirement, or must every supported viewport preserve all four spaces? D04/D06.
+- How do customizable 2/3/4-player layouts adapt to each supported viewport, and when is a focused-seat fallback acceptable? D05/D06. Four-seat geometry is a fixture, not the only release layout.
 - Should the existing phone app share live games, only deck files, or no user data with this edition? D18/D23.
 - Is commander damage a release requirement, and should its entry also subtract life? D26.
 - Are rules describing global cards intentionally local manual approximations, or must a table-wide effect be modeled? D25.
@@ -84,6 +86,6 @@ Do not implicitly add networking, cloud synchronization, deck-list import servic
 
 ## Success criteria
 
-Proposed acceptance means four people can complete a representative game without losing track of whose controls they are using, without accidental cross-player mutations, and without abandoning the tablet when token or utility lists grow. The release must survive interruptions, recover its last acknowledged durable state, preserve local ordering, and expose errors where the affected player can see them.
+Proposed acceptance means groups of two, three and four can complete a representative game without losing track of whose controls they are using, without accidental cross-player mutations, and without abandoning the tablet when token or utility lists grow. The release must survive interruptions, recover its last acknowledged durable state, preserve local ordering, and expose errors where the affected player can see them.
 
 Measure this in a real tabletop session. Record reach/legibility problems, accidental touches, time to create and adjust a token, menu interruptions, and recovery results. No usability or performance result is claimed by this documentation.

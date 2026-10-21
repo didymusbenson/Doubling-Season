@@ -1,12 +1,12 @@
 # IPAD EDITION
 
 **Status:** discovery and proposed design; no implementation started.
-**Created / last reviewed:** 2026-10-20 (America/Phoenix).
-**Product relationship:** a new large-screen project that reuses Tripling Season infrastructure.
-**Technical starting point:** Flutter; reconsider only if a focused prototype demonstrates a material blocker.
+**Created:** 2026-10-20 (America/Phoenix). **Decisions updated:** 2026-10-21.
+**Product relationship:** a separate app / new product reusing Tripling Season infrastructure; the same repository is acceptable with properly isolated directories.
+**Technical direction:** Flutter with custom, player-facing in-app keyboards; validate in prototypes before treating the solution as proven. **Product targets:** Android, iOS and web.
 **Code baseline:** `8894640543833eaf37bd62b971a0955c26bafa49` on `update-1-11`.
 
-IPAD EDITION turns one shared tablet into a tabletop dashboard: a central life tracker, four player spaces, and separate token and utility columns for each player. Each seat has its own actions menu. The center owns game-level controls. Every action must retain its player identity through rules, generated companions, persistence, undo, and delayed work.
+IPAD EDITION turns one shared tablet into a tabletop dashboard: a central life tracker, customizable two-to-four-player spaces, and separate token and utility columns for each player. Each seat has its own actions menu. The center owns game-level controls. Every action must retain its player identity through rules, generated companions, persistence, undo, and delayed work.
 
 This is a planning dossier, not a shipped feature specification. **Confirmed** means directly requested by the user. **Proposed** means a recommendation for discussion. **Open** means a decision is still needed. File names, class names, numeric layout budgets, release scope, and storage designs below are proposals unless described as existing code. The decision register is the authority for approval status; an implementation phase or acceptance scenario does not itself approve a proposal.
 
@@ -23,6 +23,8 @@ This is a planning dossier, not a shipped feature specification. **Confirmed** m
 | [Utilities, tokens and decks](07_utilities_tokens_and_decks.md) | Mana pool, existing utilities, token workflows, deck loading and export |
 | [Delivery and validation](08_delivery_validation_and_risks.md) | Dependency-ordered phases, manual acceptance matrix, performance experiments, risks |
 | [Decision register](09_decision_register.md) | Stable question IDs, defaults, alternatives, dependencies and review batches |
+| [Six-player expansion](six_player_expansion.md) | Deferred expansion to six; preserve design leeway without promising release support |
+| [Custom keyboard options](custom_keyboard_options.md) | Deferred mana-symbol and input-option exploration; not a release commitment |
 | [Research and sources](10_research_sources.md) | Official Flutter / Magic references, conclusions and unanswered research questions |
 | [Current-code audit](../../../../ai_docs/research/2026-10-20-ipad-edition-current-architecture.md) | Evidence of what exists today, separate from the proposed edition |
 
@@ -30,8 +32,8 @@ For a fast design session: read this page, the layout document, and the decision
 
 ## Confirmed direction
 
-- **C01:** This is a new large-screen project, rather than a rewrite into a different native UI framework.
-- **C02:** Stay with Flutter unless research supplies a strong reason to change.
+- **C01:** This is a separate app and new product. It may live in this repository if isolated properly in its own directories; exact package structure is not selected.
+- **C02:** Flutter with a custom player-facing keyboard is the chosen direction, subject to prototype validation rather than a claim of implemented behavior.
 - **C03:** Make the life tracker the centerpiece of the app.
 - **C04:** Give each player their own token list and utility list, including room for new utilities such as a mana pool.
 - **C05:** Give each player an actions menu for creation, board actions, and utilities.
@@ -41,7 +43,11 @@ For a fast design session: read this page, the layout document, and the decision
 - **C09:** Carry player context through all actions and prevent unintended changes in another player's space, including generated companion tokens.
 - **C10:** Preserve enough detail, research, options, and outstanding questions to iterate quickly later.
 
-The supplied image establishes a four-player concept. Exact player-count support, orientation, distribution, and first-release feature set are open. No new application identifier, repository, platform target, purchase model, or release date has been chosen.
+- **C11:** Initial scope is customizable 2–4 players; expansion to six is deferred, with room in the design for it.
+- **C12:** Product targets are Android, iOS and web. Device/browser floors and release sequencing remain open.
+- **C13:** **Any keyboard input** must face the initiating player, including numeric entry as well as text/search/rename. Keyboard concurrency remains open (D09/D11).
+
+The supplied image establishes a four-player reference, not a fixed participant count. Exact seating orientations, package layout, application identifiers, purchase model, release date and remaining feature inventory are open. See the accepted decisions in the register.
 
 ## Original concept
 
@@ -51,14 +57,14 @@ The original, unedited 2508 × 1410 image is preserved in [reference/original-co
 
 ## Foundational recommendations to review
 
-1. Build a **local, offline, shared-device four-seat prototype** first; leave network play outside the initial scope.
+1. Build a **local, offline, shared-device prototype**, using four seats as one fixture and checking two/three-seat layouts; leave network play outside the initial scope.
 2. Treat a player ID as stable domain identity and a seat as presentation. Swapping seats must not reassign a board's contents.
 3. Enforce player scope at the command and repository boundaries, not only in list filtering.
 4. Keep life separate from board items. Give tokens and utilities independent ordering domains.
 5. Scope ordinary edits and panels to one player. Reserve a table-wide barrier for intentional game-level operations.
-6. Prove layout, touch routing, keyboard behavior, and recovery on actual iPad hardware before committing to distribution or extracting a large shared package.
+6. Inspect the actual running UI and interactions in the cloud before asking the user to install anything; then prove physical touch, seated usability, native behavior and recovery on actual iPad hardware before release acceptance or large package extraction.
 
-These are proposals, including the offline and four-seat release boundaries. Resolve them through [D01–D35](09_decision_register.md).
+The offline boundary and detailed implementation choices remain proposals. Separate product, 2–4-player initial scope and Android/iOS/web targets are accepted; six-player support is deferred. Resolve remaining choices through [D01–D35](09_decision_register.md).
 
 ## Resume and maintenance rules
 
@@ -71,7 +77,11 @@ These are proposals, including the offline and four-seat release boundaries. Res
 
 ## Documentation review checkpoint — 2026-10-20
 
-The dossier received separate frontend, isolation/event, and persistence reviews. Review corrections aligned command-writer proposals, player/session invalidation, immutable event-time data, numeric utility fixtures, format-import coverage, and phase dependencies. Relative file targets, decision/validation IDs and Markdown fence balance were checked; the source audit's baseline paths/line ranges were verified against Git objects. These are documentation checks only. No IPAD EDITION app build, device experiment or acceptance scenario has run, and all product decisions remain open.
+The dossier received separate frontend, isolation/event, and persistence reviews. Review corrections aligned command-writer proposals, player/session invalidation, immutable event-time data, numeric utility fixtures, format-import coverage, and phase dependencies. Relative file targets, decision/validation IDs and Markdown fence balance were checked; the source audit's baseline paths/line ranges were verified against Git objects. These are documentation checks only. No IPAD EDITION app build, device experiment or acceptance scenario has run, and all product decisions were open at that checkpoint. The 2026-10-21 accepted decisions below supersede that historical status.
+
+## Decision update — 2026-10-21
+
+Recorded separate-product, cross-platform and 2–4-player decisions; retained six-player expansion and custom keyboard options as deferred documents. All keyboard input must face its initiating player. One versus simultaneous keyboards remains explicitly open. No app code, build configuration or acceptance result is changed by this documentation update.
 
 ## Terminology
 
