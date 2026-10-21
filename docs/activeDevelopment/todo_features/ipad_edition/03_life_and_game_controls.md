@@ -156,3 +156,7 @@ If a turn indicator is added, changing it must not silently untap, clear sicknes
 ## Old-design inference checkpoint
 
 The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.
+
+## Modifier scope checkpoint — D25
+
+Global modifier applicability is not blanket multiplication of life/player counters. Keep numeric domains explicit; accepted reset modes remain unchanged while modifier activation/configuration retention still needs its per-field mapping. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).

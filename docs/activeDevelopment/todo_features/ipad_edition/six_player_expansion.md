@@ -41,3 +41,7 @@ No team modes, networking, extra mana/rules automation or new distribution targe
 ## Old-design inference checkpoint
 
 The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.
+
+## Modifier scope checkpoint — D25
+
+Future seats derive applicable global contributions from stable source identities. Expansion must not clone modifiers per seat or multiply an effect by recipient count; source ownership remains separate from applicability. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).

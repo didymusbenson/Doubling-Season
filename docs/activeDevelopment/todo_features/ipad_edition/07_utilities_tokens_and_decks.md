@@ -166,3 +166,7 @@ Use the [source-backed behavior audit](existing_behavior_audit.md) for search/fo
 ## Old-design inference checkpoint
 
 The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.
+
+## Modifier scope checkpoint — D25
+
+A global modifier’s recipient indicator is not a removable locally owned utility. Hiding a view cannot disable its source. Accepted preset token/utility contents do not automatically include modifier-source configuration; that mapping remains open. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).

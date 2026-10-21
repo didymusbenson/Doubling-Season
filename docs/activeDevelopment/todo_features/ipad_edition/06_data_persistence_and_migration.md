@@ -150,3 +150,7 @@ Before implementation acceptance, demonstrate restart recovery at each save/rese
 ## Old-design inference checkpoint
 
 The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.
+
+## Modifier scope checkpoint — D25
+
+Persist source identity, owning seat, enabled/count/configuration, applicability and revision; reconstruct recipient projections. State/history/undo/archive must restore source and applicability coherently. Independent copies retain independent identities. Reset activation retention remains explicitly unresolved. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).

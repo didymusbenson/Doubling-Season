@@ -47,3 +47,7 @@ Select a small useful option set and permitted fields only after the core player
 ## Old-design inference checkpoint
 
 The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.
+
+## Modifier scope checkpoint — D25
+
+Editing a source modifier count/configuration retains source and owning-seat identity even when the keyboard/workspace is central. A recipient read-only effect display must not become a second editable source. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).

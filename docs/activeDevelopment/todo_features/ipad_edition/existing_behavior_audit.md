@@ -80,7 +80,7 @@ The current board has one expanded item; tapping another first requests collapse
 | D22 | R two reset modes/retention and modal dismissal; U wipe target selection, exact utility/rule reset mappings; T atomic checkpoint |
 | D23 | R current v3 is reusable setup, art metadata not packaged bytes; A lane conversion; U export subset/new format and inclusion; T validation/migration |
 | D24 | T reuse boundaries; R reuse domain/rendering semantics, not current global providers unchanged |
-| D25 | R no inferred cross-seat rules effects; A existing local calculators; U genuine shared effects/transfers beyond manual scope |
+| D25 | R seat-owned modifiers with differentiated local/global applicability; global sources affect table and cannot be removed from recipient panels; A source-scoped calculator reuse; U presentation choice, reset activation mapping and token transfers; T stacking/deduplication |
 | D26 | R accepted tracker fundamentals/coupling/manual bookkeeping; A quick-edit conventions; U remaining counter additions/detail visibility; T capacity/source identity |
 | D27 | R dismissible default mana pool; U exact mana mechanics/restrictions; existing token UI does not choose these |
 | D28 | R shared control locations/dice example; U extra tools/dice options; no old/reference icon commits new functionality |
@@ -102,3 +102,7 @@ The current board has one expanded item; tapping another first requests collapse
 Implementers should use the resolved baseline above without reasking whether to retain search drafts forever, stage all rename fields, show a busy toast, queue another seat's editor, or force all editing into a new screen. Still review real multi-seat/new-feature decisions (for example midgame preset replacement and shared-effect targeting) separately. Prototype/test technical questions instead of presenting them as user preferences. Every carryover needs manual validation in the new component; no current-source audit proves tablet behavior passes.
 
 See the [second-pass granular baseline map](outstanding_behavior_baselines.md) for concrete old-design starting points across the remaining questions and the ranked next genuinely new decision.
+
+## Modifier scope checkpoint — D25
+
+D25 subsequently settled local/global source applicability. The old local-only calculator is reuse evidence, not the accepted tablet scope; see the updated contract. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).

@@ -47,7 +47,7 @@ D07 geometry must be validated together with D05 orientation. A fixed local left
 | D22 | Which reset actions exist and exactly what do they change? | **Accepted:** Reset with board keeps entries at zero/no counters and enabled utilities; Complete reset clears tokens/utilities. Both restart configured player count/game config, restore life and clear temporary damage/counters/game statuses | Preserve seat name/color/art and reusable setup only when keep-board is explicit; removed seats lose game-specific tokens/utilities. Pre-reset full-state/timeline archive restore accepted; exact runtime/rule defaults and restore safeguards remain open | P1/P2/P3; V23/V48–V49 |
 | D23 | How do deck/session files interoperate? | Read phone v3 setups; stable-partition lanes; distinct versioned session artifact | Tablet subset export needs omission report; richer setup version needs compatibility/rejection strategy | P2/P4 |
 | D24 | Where is the shared-core boundary? | Extract proven domain/catalog/planner interfaces incrementally after interaction spike | Immediate monorepo/package overhaul delays feedback; copy/fork reduces initial setup but accumulates drift | P1; depends D01 |
-| D25 | Are effect scopes/control transfers fully modeled? | Local manual calculator semantics first; no implicit opponent effects/transfers | True table effects need controller/applicability/lifetime; owner versus controller and transfers require explicit multi-target model | P1 and release claims |
+| D25 | Who owns modifiers and where do they apply? | **Accepted:** each seat owns its modifiers; local versus global applicability is explicit; global sources such as Primal Vigor affect the table | One source record, derived applicability; recipients cannot remove another seat’s source from their panels. Propagated indication versus read-only Other effects UI remains open; reset activation mapping and token control transfers remain separate unresolved details | P1 and release claims |
 
 The persistence and concurrency decisions must agree. A single session writer can serve independent UI; it does not mean a global input lock. Conversely, independent visual quadrants do not make async writes atomic. D16 must name how a pending local undo interacts with the same player's later actions, not only other players' actions.
 
@@ -181,3 +181,7 @@ No experiment in this table has been run for IPAD EDITION.
 ## Old-design inference checkpoint
 
 The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.
+
+### D25 accepted follow-up: source ownership versus applicability
+
+Each seat owns its modifiers, while global sources such as Primal Vigor affect the table. Recipient panels cannot remove another seat’s source; disabling the origin removes only that contribution. Linked propagated indication or read-only Other effects are allowed; source-labeled read-only presentation is recommended only. Independent source copies, atomic source/applicability history and reset mapping are documented in the [modifier contract](modifier_ownership_and_applicability.md). Token-control transfer remains separate and unapproved.

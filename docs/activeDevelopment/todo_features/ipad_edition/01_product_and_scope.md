@@ -43,7 +43,7 @@ The product/platform/player-count boundaries below are accepted; the remaining c
 | Table | Four-seat reference plus 2/3-seat layout checks | Customizable 2–4 players (accepted); session resume proposal | [Expansion to six](six_player_expansion.md) deferred; teams unapproved |
 | Life tracker | Life plus representative typed counter/status, shared state and self/partner damage fixtures | **Confirmed:** life, relevant player counters, city’s blessing, monarch, shared day/night, source damage including self; detailed policies open | Rich statistics; optional modes; reference-derived inventory additions require review |
 | Tokens | One creation route and reorder | Search/custom/create, counts, tap, sickness, counters, copy/split, artwork | Explicit cross-player gifting/control transfer |
-| Utilities | One manual tracker and Krenko | Existing utility parity where scoped safely; default-visible dismissible mana pool and storm counter; curated visibility/order | Additional automation / shared global effects |
+| Utilities | One manual tracker and Krenko | Existing utility parity where scoped safely; default-visible dismissible mana pool and storm counter; curated visibility/order | Additional unapproved automation / token-control transfers |
 | Rules | Per-seat sample presets | Existing supported rule behavior isolated per player | New full-table rules and arbitrary opponent triggers |
 | Decks | None required for touch spike | Load/save per player; compatible library reuse | Share an entire table setup / session export |
 | Game controls | Safe sample reset | Clearly scoped reset/new game and recovery | Turn/phase engine, tournament tools |
@@ -87,7 +87,7 @@ Do not implicitly add networking, cloud synchronization, deck-list import servic
 - Should the existing phone app share live games, only deck files, or no user data with this edition? D18/D23.
 - New commander damage subtracts life as one undoable action; independent corrections are required and thresholds warn without auto-KO. Resolve detailed controls and reset retention, not whether to include this policy. D26/D22.
 - Any player’s different action ends the active history group. One chronological game timeline, latest-action global undo and current-session persistence are accepted; exact timeout tuning and archive policy remain open. D16/D17/D33.
-- Are rules describing global cards intentionally local manual approximations, or must a table-wide effect be modeled? D25.
+- D25 accepts seat-owned local/global modifiers, with global sources affecting the table. Exact applicability/stacking fixtures and reset activation mapping need validation/design; token-control transfers are not implied.
 - Wipes are central app/game controls, not owned by an invoking seat. Which seats/boards a wipe affects and how targets are selected remain open under D22/D36; do not assume all players or the last active player.
 
 ## Success criteria

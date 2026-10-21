@@ -83,3 +83,7 @@ Test repeated additions, add/remove net-zero separation, different-action and ti
 ## Old-design inference checkpoint
 
 The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.
+
+## Modifier scope checkpoint — D25
+
+A source modifier change is one attributable action with potentially multi-seat applicability consequences. Latest-global-action undo restores the source and applicability atomically without deleting independent sources. Previously committed token/counter results are not retroactively recalculated by a toggle; each evaluated operation retains its causal source snapshot. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).

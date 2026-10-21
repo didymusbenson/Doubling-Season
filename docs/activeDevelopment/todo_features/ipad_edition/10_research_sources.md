@@ -61,3 +61,7 @@ Rechecked the official [Wizards rules landing page](https://magic.wizards.com/en
 - The physical test matrix, storage experiments and unresolved decision register are deliberately left open rather than populated with invented results.
 
 See the [second-pass granular baseline map](outstanding_behavior_baselines.md) for concrete old-design starting points across the remaining questions and the ranked next genuinely new decision.
+
+## Modifier scope checkpoint — D25
+
+The latest D25 decision supersedes the audit’s earlier local-only proposal. Calculator source evidence and its limitations are recorded in the modifier contract. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).

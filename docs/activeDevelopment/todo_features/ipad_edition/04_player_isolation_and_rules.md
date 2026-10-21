@@ -33,7 +33,7 @@ Proposed invalidation policy for D22: clearing/replacing a player's board, repla
 
 Keep command origin/context, affected seat(s), and any meaningful player attribution distinct. A seat-context action captures its seat as context/target; it does not identify the human finger. Central actions may have app/game-level origin without an actor PlayerId. Do not infer actor identity from placement, the last active seat, the affected seat, or the person nearest the center. Intentional multi-seat operations name their targets explicitly; exact wipe targeting UI remains open.
 
-Magic token ownership and control are distinct concepts from seating: a token's creator owns it and it enters under that player's control. [Rule 111.2](https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt). Proposed first scope can use one board player identity when transfers are unsupported, but must document that simplification and avoid naming it a universal ownership model. D25 decides whether owner/controller fields are needed immediately.
+Magic token ownership and control are distinct concepts from seating: a token's creator owns it and it enters under that player's control. [Rule 111.2](https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt). Proposed first scope can use one board player identity when transfers are unsupported, but must document that simplification and avoid naming it a universal ownership model. D25 now settles modifier-source ownership and local/global applicability, not token ownership/control transfers; those transfers remain a separate unapproved capability.
 
 ## Life-tracker scope distinctions
 
@@ -134,7 +134,9 @@ Existing per-event versus display-aggregated rule outputs matter: two underlying
 
 Player isolation prevents accidental cross-player mutations. It must not prevent intentional multi-player effects. Some existing preset names represent cards with broader applicability. A new shared table must choose what those controls mean.
 
-Proposed initial behavior is an explicitly local calculation configuration for each player, matching the current personal-board workflow. Label it as such. Do not silently broadcast a locally enabled preset, and do not claim automatic full-table rules accuracy. Future shared effects need separate records describing effect controller, applicability predicate, lifetime, rule ordering and affected players; their result writes remain explicit and traceable. D25 blocks any assertion of general multiplayer rules support.
+**D25 accepted:** each seat owns its modifier sources, with local versus global applicability differentiated. A global source such as Primal Vigor enabled by A contributes to applicable operations across the table. Other seats cannot independently disable/remove A’s source from their modifier panels. Disabling/removing it at its source removes that contribution everywhere without touching B’s independent sources. This is source/context semantics, not physical-user authentication or a prohibition on reaching A’s controls.
+
+Persist one source identity and derive effective applicability, rather than copying independently mutable switches into every seat. Propagated enabled representations or a read-only Other effects section are both allowed; **recommended, not mandated:** source-labeled read-only Other effects to avoid divergent toggles. Multiple seats enabling copies create independent source records. Count each applicable source once in an operation, never once as a local entry and again as a propagated entry. The [modifier contract and calculator evidence](modifier_ownership_and_applicability.md) defines dependencies and remaining validation. This accepted cross-seat scope does not imply a general automatic rules engine or token-control transfers.
 
 Likewise, life, mana, player counters and token counters are different domains. The current token/counter modifiers cannot be applied to all numeric values indiscriminately.
 

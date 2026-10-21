@@ -126,3 +126,7 @@ Recorded separate-product, cross-platform and 2–4-player decisions; retained s
 | Companion token | Informal name for an additional generated token, such as a Squirrel; not the Magic companion mechanic |
 
 See the [second-pass granular baseline map](outstanding_behavior_baselines.md) for concrete old-design starting points across the remaining questions and the ranked next genuinely new decision.
+
+## Modifier scope checkpoint — D25
+
+D25 now accepts seat-owned local/global modifiers; global sources affect the table, recipient panels cannot independently remove them, and independent copies remain independent. Exact inherited-effect representation is still a UI choice. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).
