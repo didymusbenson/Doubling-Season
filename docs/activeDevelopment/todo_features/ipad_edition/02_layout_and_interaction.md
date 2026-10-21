@@ -1,12 +1,30 @@
 # Layout and interaction
 
-**Status:** proposed geometry and behavior derived from the user's sketch. D04 accepts customizable 2–4 players; geometry and D05–D12 still require review.
+**Status:** D04 accepts customizable 2–4 players. Two-player seat orientation/local lane placement and three-player empty-slot controls are accepted below; other geometry and interaction details remain reviewable (D05–D12).
 
-## Reading the sketch
+## Two-player layout — accepted 2026-10-21
+
+![User two-player layout concept](reference/two-player-concept.png)
+
+The user requests matching, mirrored layouts for two players seated opposite one another. In **each player’s own seated perspective**, the token lane is on the left, life is at the top right, and utilities are beneath life. Opposite-facing seats use 0°/180° presentation: rotating the matched composition changes physical screen left/right, not the player-local order. All keyboard input follows its initiating player, with one keyboard at a time.
+
+The upper half of the supplied sketch is only partially illustrated. Populate it with the matching player-local composition; do not interpret the blank area as a missing token/utility lane. Exact lane widths, target sizes, center-control placement and resize fallback still need prototype measurements. This accepted two-player composition supersedes the generic A/B comparison for that count; it does not settle every four-player quadrant’s composition.
+
+## Three-player layout — accepted 2026-10-21
+
+![User three-player layout concept](reference/three-player-concept.png)
+
+Use the four-seat base with three occupied player slots. During setup, users can choose **any one of the four slots to be empty**; that slot provides expanded, quicker access to game-level controls such as dice and complete resets. The pictured empty P4 location is an example, not a fixed choice. The user clarified the initial “In 4 player” wording: “I meant 3 player yes. In 3 player, the 4th seat has controls.”
+
+The control slot is not a fourth player: it has no player board/life state, and selecting its location must not reassign stable player identities. Test every empty-slot choice. Exact dimensions, control orientation/content and the remaining occupied-seat geometry need design/prototype work; the image is concept evidence, not implementation. This does not create an empty seat in a four-player game.
+
+Quicker access does **not** mean immediate destructive execution. Full reset still follows the explicit scope/preview, confirmation and recovery design in [life and game controls](03_life_and_game_controls.md); detailed reset semantics remain D22. Dice details remain D28, not an implied turn engine or automatic game-state mutation.
+
+## Reading the original four-player sketch
 
 The image has four quadrants around a central 2 × 2 life tracker. The top two life panels face the opposite side of the table; the bottom two face the viewer. Lower-left demonstrates tokens toward the outer edge, and utilities below that player's life panel toward the center seam. The thin central strip suggests a location for universal controls. Only that lower-left quadrant illustrates full content.
 
-Two interpretations need a deliberate choice:
+For the original four-player arrangement, two interpretations still need a deliberate choice:
 
 | Layout | What it means | Tradeoff |
 |---|---|---|
@@ -33,7 +51,7 @@ This is a topology diagram, not an exact wireframe. The center control affordanc
 
 ## Seat geometry and orientation
 
-Proposed starting arrangement:
+Proposed four-player starting arrangement (not the accepted two-player template):
 
 | Seat | Physical quadrant | Text faces | Outer token side | Inner life / utility side |
 |---|---|---|---|---|
@@ -50,7 +68,7 @@ Flutter's `RotatedBox` participates in layout for quarter turns. That makes it a
 
 ## Player-count boundary
 
-The four-quadrant sketch is the reference fixture, not a hard-coded player limit. Initial scope includes customizable two-, three- and four-player tables. Prototype each count deliberately rather than leaving unused quadrants as the final layout. Keep stable player identity separate from seat geometry and avoid fixed-four assumptions in the domain. [Expansion to six](six_player_expansion.md) is deferred; preserve layout leeway without implementing or promising it now.
+The four-quadrant sketch is the reference fixture, not a hard-coded player limit. Initial scope includes customizable two-, three- and four-player tables. Prototype each count deliberately: use the accepted matched opposite-facing two-player layout; three-player setup selects any empty one of four slots for expanded game controls. Do not assume unused screen space must remain blank. Keep stable player identity separate from seat geometry and avoid fixed-four assumptions in the domain. [Expansion to six](six_player_expansion.md) is deferred; preserve layout leeway without implementing or promising it now.
 
 ## Space budgets and adaptation
 

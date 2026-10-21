@@ -55,6 +55,13 @@ The supplied image establishes a four-player reference, not a fixed participant 
 
 The original, unedited 2508 × 1410 image is preserved in [reference/original-concept.png](reference/original-concept.png). It was supplied by the user on 2026-10-20. The embedded app imagery is a visual reference; its artwork, icons, small controls, player names, and life totals are not automatically new product requirements. Only the lower-left player has fully illustrated lists. The other three spaces require design, not literal empty replicas.
 
+## Additional seating mockups — 2026-10-21
+
+- [Two-player concept](reference/two-player-concept.png): accepted opposite-facing matched layouts; each player sees tokens left, life top right and utilities below life.
+- [Three-player concept](reference/three-player-concept.png): accepted three-player arrangement uses a four-seat base with any selectable empty slot for expanded game controls (including quicker dice/reset access). The user clarified that the initial “In 4 player” wording meant three-player. Reset safeguards remain unchanged.
+
+Both original images are retained unedited as user concept evidence, not implementation screenshots or measured acceptance. See [layout details](02_layout_and_interaction.md).
+
 ## Foundational recommendations to review
 
 1. Build a **local, offline, shared-device prototype**, using four seats as one fixture and checking two/three-seat layouts; leave network play outside the initial scope.

@@ -40,7 +40,7 @@ Repository policy is **manual functional testing; do not generate automated test
 
 ### Cloud inspection before installation
 
-Before asking the user to install a prototype, run it in an available cloud browser/emulator and actually inspect rendered screens and exercise interactions. Record commit, runtime, viewport, screenshots, actions and failures. Cover 2/3/4-player layout, rotated numeric/text entry, local draft/cancel behavior, and unaffected-player quick controls. If cloud inspection is blocked, report the exact blocker and untested cases rather than treating installation as the first inspection step.
+Before asking the user to install a prototype, run it in an available cloud browser/emulator and actually inspect rendered screens and exercise interactions. Record commit, runtime, viewport, screenshots, actions and failures. Cover the matched opposite-facing two-player layout, all four empty-slot choices in three-player mode, the four-player layout, rotated numeric/text entry, local draft/cancel behavior, and unaffected-player quick controls. If cloud inspection is blocked, report the exact blocker and untested cases rather than treating installation as the first inspection step.
 
 Cloud visual/interactive evidence is an early quality gate, **not physical iPad acceptance**. Real simultaneous touch, seated reach, native keyboard/picker/fallback behavior, VoiceOver and release performance still need actual iPad evidence. Android device/browser testing must cover the corresponding Android and web targets. Product targets are accepted; minimum OS/browser/device floors and release order are not yet settled.
 
@@ -242,8 +242,8 @@ A proposed common fixture is four stable players A/B/C/D in distinct seats. Repe
 
 **V30 — viewport fit and adaptation. Status: planned / not run.**
 - **Preconditions:** Approved support floor plus one below-floor window; populate longest names/abilities, large P/T/counts, many counters, seven/eight-action tokens and long utility action labels.
-- **Action:** Visit smallest/largest supported windows, resize while a panel is open and compare both landscape directions; test the approved constrained/focused mode if any.
-- **Expected:** All four required workspaces and central life meet chosen visibility policy; controls have no overflow/overlap/truncated critical values. Below-floor behavior is explicit and preserves state. No whole-card scaling shrinks touch targets below the chosen floor. Resize retains player IDs/drafts/order.
+- **Action:** Exercise two-, three- and four-player setups. In two-player mode inspect both player-local perspectives: token lane left, life top right, utilities beneath life. In three-player mode choose each of the four possible empty slots and inspect expanded game controls there. Visit smallest/largest supported windows, resize while a panel is open and compare both landscape directions; test the approved constrained/focused mode if any.
+- **Expected:** All occupied workspaces (two, three or four) and life meet the chosen visibility policy. The two-player compositions match from their opposite-facing seated perspectives. Each three-player empty-slot choice hosts game controls without becoming a fourth player, changing stable player identities or exposing an occupied player’s mutations as global controls. Four-player mode has four occupied seats, not an empty control seat. Prominent reset access retains the approved scope/confirmation/recovery flow; exact behavior blocked by D22 is not invented. Controls have no overflow/overlap/truncated critical values. Below-floor behavior is explicit and preserves state. No whole-card scaling shrinks touch targets below the chosen floor. Resize retains player IDs/drafts/order.
 - **Unaffected:** Layout operations alone mutate no player's gameplay values or ownership.
 
 **V31 — target sizing, reach, contrast and identity. Status: planned / not run.**

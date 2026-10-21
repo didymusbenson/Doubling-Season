@@ -6,7 +6,7 @@
 
 Place an iPad in the middle of a Magic game and let each player operate their own small Tripling Season board while everyone can see the central life tracker. Players should spend little time navigating and should recognize immediately whose state a control changes.
 
-This is a **separate app / new product** with a different frontend composition (D01 accepted). The same repository is acceptable with proper directory isolation; exact packaging and shared-core extraction remain open. “iPad” remains the working name and design reference, while **Android, iOS and web** are accepted product targets (D03). Initial scope is **customizable 2–4 players**, with [expansion to six deferred](six_player_expansion.md) (D04).
+This is a **separate app / new product** with a different frontend composition (D01 accepted). The same repository is acceptable with proper directory isolation; exact packaging and shared-core extraction remain open. “iPad” remains the working name and design reference, while **Android, iOS and web** are accepted product targets (D03). Initial scope is **customizable 2–4 players**, with [expansion to six deferred](six_player_expansion.md) (D04). Two players use opposite-facing matched layouts (local token-left, life-upper-right, utilities below life). Three players use a four-seat base with any setup-selectable empty slot for expanded game controls. See the [accepted mockups](02_layout_and_interaction.md); exact dimensions and four-player composition remain open.
 
 ## Experience principles
 
@@ -24,7 +24,7 @@ This is a **separate app / new product** with a different frontend composition (
 
 ## Primary journeys
 
-1. **Start a table:** choose the supported participant count and life preset, name/color each participant, set seating/orientation, optionally load each player's token/utility deck, then start.
+1. **Start a table:** choose the supported participant count and life preset, name/color each participant, set seating/orientation (including the empty control slot for three-player play), optionally load each player's token/utility deck, then start.
 2. **Create while another player acts:** P1 opens their menu and searches for a token while P3 changes life. Creation and any follow-on tokens go to P1. P3 remains responsive.
 3. **Resolve a utility:** P2 runs Krenko using P2's token state, tracked non-token count and P2's rules. P4's identically named tokens and utilities remain unaffected.
 4. **Rearrange a busy board:** P4 moves a token within P4's token lane and a utility within P4's utility lane. Other lanes keep their order and scroll position.

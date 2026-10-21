@@ -91,8 +91,10 @@ This matrix is a recommended vocabulary, not seven required release buttons. D22
 
 The existing non-dismissible destructive completion pattern is a useful starting point: Undo left, primary Accept right, system Back blocked while unresolved. Adapt player operations to a local barrier so other seats can continue. Root-level completion must be reserved for true table operations.
 
-## Candidate center controls
+## Game-control placement and candidates
 
-Required direction: game-level reset controls. Proposed additions for discussion: start/new game, seating/setup, table settings, last-game summary. Dice/coin, starting-player selection, timer, turn indicator, and shared markers are D28; none is required just because the reference tracker includes icons.
+Required direction: game-level reset controls. In the accepted three-player arrangement, setup selects any empty one of the four seat slots for expanded, quicker game-control access; the user names dice and complete resets as examples. The control slot is not a player. This augments game-control access, not reset authority: keep explicit affected-scope preview, confirmation and recovery/undo semantics; do not turn a prominent reset control into a one-tap destructive shortcut. D22 still settles exact reset fields and behavior.
+
+Proposed additions for discussion: start/new game, seating/setup, table settings, last-game summary. Dice implementation/options and the exact control inventory remain D28. Coin, starting-player selection, timer, turn indicator and shared markers are not approved just because reference icons exist. Exact placement outside three-player mode and control orientation/dimensions still need layout review.
 
 If a turn indicator is added, changing it must not silently untap, clear sickness, or empty mana across all players. “Next player” and “apply beginning-of-turn housekeeping” are different actions. Exceptions, extra turns, skipped turns and manual corrections must be possible before any such automation is marketed.
