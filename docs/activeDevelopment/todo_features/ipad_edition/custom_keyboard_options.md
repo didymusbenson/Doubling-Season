@@ -11,7 +11,7 @@ This document collects useful options for later review, prompted by the user's s
 
 ## Required tracker inputs versus deferred keyboard extras
 
-D26 now requires typed player counters and per-source commander damage including self, alongside life. Their numeric fields use the same one-at-a-time, initiating-player-facing keyboard contract. Selecting source CommanderId and recipient PlayerId must remain distinct; focus/handoff cannot redirect a ledger edit. Monarch, day/night and blessing may use non-keyboard controls, whose exact UI remains open. This tracker scope does not approve symbol palettes, automatic damage/life coupling, extra keyboard modes or enforcement defaults.
+D26 now requires typed player counters and per-source commander damage including self, alongside life. Their numeric fields use the same one-at-a-time, initiating-player-facing keyboard contract. Selecting source CommanderId and recipient PlayerId must remain distinct; focus/handoff cannot redirect a ledger edit. Monarch, day/night and blessing may use non-keyboard controls, whose exact UI remains open. New commander damage/life coupling with independent correction is now accepted, but this does not approve symbol palettes, extra keyboard modes or automatic rules enforcement. Keyboard submission/cancel/handoff must integrate with history grouping without silently settling an unrelated player’s draft; any player’s different action closes the current game-wide group, while draft/keyboard lifecycle details still need design.
 
 ## Candidate options to discuss
 

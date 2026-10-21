@@ -18,6 +18,10 @@
 
 D26’s required life/counter/status/shared-state and self/partner damage model also constrains expansion. Six players with two commander sources each means twelve selectable sources per recipient, including self, and up to 72 recipient/source ledger pairs. This is a future stress/layout fixture, not approval to implement six-player support now. Preserve one monarch holder, independent player blessing/counters and one game-level day/night; never clone shared state per seat or omit self sources to save room.
 
+## History at a larger table
+
+Preserve the accepted single chronological game history, player attribution, latest-global-action undo and durable current session. More players do not imply per-player undo stacks; any player’s different action interrupts the active group. Future capacity review must include frequent interleaving and history persistence without weakening token add/remove separation. Past-game archive policy remains separate.
+
 ## Decisions deferred until expansion review
 
 Compare five/six-seat arrangements, central life geometry, lane space, touch targets, reach and player-facing keyboards at each orientation. Decide supported screen/window floors and whether any focused-seat fallback is acceptable. Validate the accepted one-keyboard-at-a-time policy and chosen handoff, accessibility traversal, sustained performance and recovery fixtures at the larger count; current 2–4-player evidence cannot substitute.

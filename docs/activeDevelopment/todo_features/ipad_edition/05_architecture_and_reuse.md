@@ -75,10 +75,11 @@ Life, typed player counters/status and commander damage can appear in the centra
 
 ## Proposed contracts
 
+- **History projection/grouping:** one chronological game log with player attribution, constituent command identities and latest-global-action undo. Repeated-like-action display grouping cannot erase token add/remove distinctions or underlying causal effects. Current history and state must persist coherently; game-wide different-action interruption is accepted; exact timeout tuning and archive policy remain open. See [history audit and design](game_history_and_undo.md).
 - **Session repository:** load/save/recover sessions and submit validated changes; never expose an unscoped player-UI `clearAll`.
 - **Player read projection:** immutable or controlled views of one player's life, tokens, utilities, rules and pending outcomes.
 - **Player command facade:** capture identity and intent, validate targets, build plans, commit through the writer, return a typed scoped result.
-- **Life-tracker command boundary:** local life/counters/blessing, recipient-plus-CommanderId damage and corrections, and explicit shared monarch/day-night operations. Separate tracking from rule enforcement; damage/life coupling remains a policy gate.
+- **Life-tracker command boundary:** local life/counters/blessing, recipient-plus-CommanderId damage and corrections, and explicit shared monarch/day-night operations. Separate tracking from rule enforcement; new damage/life coupling is accepted with independent corrections; warning-only thresholds and manual claims do not imply a rules engine.
 - **Game coordinator:** own reset/rematch/seat administration, shared state changes and explicit multi-player write sets; acquire the intentional global barrier for operations that require it, not every local edit.
 - **Rules configuration:** player-session active values plus optionally shared definitions. The evaluator receives a versioned snapshot, not ambient mutable settings.
 - **Interaction controller:** per-player expansion, local panel stack, selection, scroll and drag state. It does not own game truth.

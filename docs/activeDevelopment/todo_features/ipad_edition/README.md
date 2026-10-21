@@ -16,6 +16,7 @@ This is a planning dossier, not a shipped feature specification. **Confirmed** m
 |---|---|
 | [Product and scope](01_product_and_scope.md) | Confirmed requirements, intended experience, boundaries, candidate first release |
 | [Layout and interaction](02_layout_and_interaction.md) | Interpret the sketch, quadrant geometry, orientation, independent lists, menus and simultaneous use |
+| [Game history and undo](game_history_and_undo.md) | Chronological game history, action grouping, latest-action undo, persistence and existing-undo audit |
 | [Life and game controls](03_life_and_game_controls.md) | Life, commander damage, counters, reset semantics, game lifecycle |
 | [Player isolation and rules](04_player_isolation_and_rules.md) | Command ownership, event routing, generated tokens, explicit cross-player operations |
 | [Architecture and reuse](05_architecture_and_reuse.md) | Flutter recommendation, current reuse map, project structure and frontend boundary |
@@ -46,7 +47,9 @@ For a fast design session: read this page, the layout document, and the decision
 - **C11:** Initial scope is customizable 2–4 players; expansion to six is deferred, with room in the design for it.
 - **C12:** Product targets are Android, iOS and web. Device/browser floors and release sequencing remain open.
 - **C13:** **Any keyboard input** must face the initiating player, including numeric entry as well as text/search/rename. **One keyboard at a time; no simultaneous keyboards** (D09). Draft-preserving handoff details remain open (D11).
-- **C14:** Full life-tracker fundamentals: life totals, relevant player counters including energy/poison/experience, city’s blessing, monarch ownership, game-level day/night, and source-specific commander damage **including self and distinct partner sources**. Use [Lifetap’s functional inventory](lifetap_research.md) as research, not a UI to copy. Exact inventory extensions, damage/life coupling, correction, KO/enforcement and reset retention remain open; see [life-tracker scope](03_life_and_game_controls.md).
+- **C14:** Full life-tracker fundamentals: life totals, relevant player counters including energy/poison/experience, city’s blessing, monarch ownership, game-level day/night, and source-specific commander damage **including self and distinct partner sources**. Use [Lifetap’s functional inventory](lifetap_research.md) as research, not a UI to copy. New commander damage subtracts life as one undoable action with independent corrections; thresholds warn without automatic elimination; monarch/day-night changes are manual. Inventory extensions, detailed correction UI and reset retention remain open; see [life-tracker scope](03_life_and_game_controls.md).
+
+- **C15:** Persistent game-wide chronological history with player attribution, undo walking back the latest action globally, repeated-like-action grouping and separate token add/remove lines. Life taps settle to a net adjustment after roughly 1–2 seconds of inactivity; immediate display is still a recommendation. Any player’s different action closes the active group; exact timeout tuning and past-game archives remain open. See [history and undo](game_history_and_undo.md).
 
 The supplied image establishes a four-player reference, not a fixed participant count. Exact seating orientations, package layout, application identifiers, purchase model, release date and remaining feature inventory are open. See the accepted decisions in the register.
 

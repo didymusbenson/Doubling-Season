@@ -1,6 +1,6 @@
 # Life tracker and game controls
 
-**Status:** D26 accepts a full life-tracker foundation: life totals, relevant player counters (explicitly energy/poison/experience), player statuses including city’s blessing, monarch ownership, shared game-level day/night, and commander damage by source including self. Detailed input, coupling/correction, KO/enforcement, reset retention and UI policies remain open. No implementation is claimed.
+**Status:** D26 accepts a full life-tracker foundation: life totals, relevant player counters (explicitly energy/poison/experience), player statuses including city’s blessing, monarch ownership, shared game-level day/night, and commander damage by source including self. New damage/life coupling with independent corrections, warning-only thresholds and manual monarch/day-night changes are accepted. Detailed input, reset retention and UI remain open; [persistent chronological history and global latest-action undo](game_history_and_undo.md) are required. No implementation is claimed.
 
 ## Dedicated life state
 
@@ -16,19 +16,19 @@ Each life panel should show player name, current life, accessible increase/decre
 | Hold ± | Repeat with an explicitly measured delay/rate; preview accumulated delta | Bind player/direction at start; cancel on every interruption path |
 | Large change | Enter signed delta or use ±5/±10 controls in a local panel | Distinguish “change by” from “set to” in labels |
 | Set total | Direct signed-integer entry | Show old → new; do not interpret entered 20 as +20 |
-| Undo recent change | Reverse one completed gesture/edit group | Revert only its write set; preserve other players and later unrelated events |
-| Local history | Show recent before/after/delta and source labels | Bounded retention and durable history policy are D17 |
+| Undo latest game action | Walk backward through the game-wide chronological history; a settled group is one unit | Revert its complete write set, not an arbitrary selected player entry; preserve unaffected state |
+| Game history | One chronological timeline with player attribution, repeated-like-action grouping and latest-action undo | Current-session history/state persist together; cross-player interruption and archive policy remain open |
 | Reset this life total | Restore configured starting life | Explicit local operation; no token, mana or opponent changes |
 
 Proposed numeric representation is a signed integer with defined storage/export bounds. Life must permit zero and negative values. Choose input/display caps deliberately rather than inheriting the token-quantity limit. Do not parse decimals, exponent notation, malformed signs or locale separators ambiguously; preserve the draft and explain invalid input.
 
-Gesture grouping is a UI/history concept, not permission to keep acknowledged changes only in memory until release. If repeats are acknowledged before durable storage, expose that pending state and define the crash-loss window. Prefer durable incremental commands with a shared history-group ID, or a bounded flush design measured under load. Never wait solely for a background lifecycle callback to save the game.
+Rapid life taps in either direction settle as one net adjustment roughly 1–2 seconds after tapping stops. Immediate display feedback is a recommendation, not a settled rendering/commit-timing choice. See [history grouping](game_history_and_undo.md). Grouping is a UI/history concept, not permission to keep acknowledged changes only in memory until release. If repeats are acknowledged before durable storage, expose that pending state and define the crash-loss window. Prefer durable incremental commands with a shared history-group ID, or a bounded flush design measured under load. Never wait solely for a background lifecycle callback to save the game.
 
 ## Starting-life presets and status
 
-Proposed setup presets: Commander 40, ordinary casual 20, and a custom value. Commander starts at 40; ordinary loss thresholds include life at or below zero, ten poison, and 21 combat damage from one commander. These should be **advisory indicators**, since the tracker does not model exceptions or all game rules. [Comprehensive Rules, 903.7, 704.5a/c, 903.10a](https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt).
+Proposed setup presets: Commander 40, ordinary casual 20, and a custom value. Commander starts at 40; ordinary loss thresholds include life at or below zero, ten poison, and 21 combat damage from one commander. The accepted behavior is **warning indicators only**, since the tracker does not model exceptions or all game rules. [Comprehensive Rules, 903.7, 704.5a/c, 903.10a](https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt).
 
-Do not automatically delete a player, clear their board or declare a winner at a threshold. Proposed state is manually controlled active/eliminated, with an optional “check player status” prompt. Losing a game can involve more than the values being tracked. Negative life remains editable to represent corrections and relevant effects.
+Do not automatically eliminate a player, disable controls, clear their board or declare a winner at a threshold. Proposed state is manually controlled active/eliminated, with an optional “check player status” prompt. Losing a game can involve more than the values being tracked. Negative life remains editable to represent corrections and relevant effects.
 
 ## Commander damage: required capability, proposed detailed interaction
 
@@ -39,8 +39,8 @@ Proposed interaction:
 1. Recipient opens their commander-damage panel.
 2. Select source commander from named commander slots **including the recipient’s own commander(s)**; show source owner, recipient and commander label distinctly. Never filter the selector to opponents only.
 3. Enter combat damage amount.
-4. Apply the separately chosen damage/life policy. “Also subtract life” versus “record only,” their defaults and correction semantics remain unresolved; Lifetap’s observed coupled default is evidence, not our decision.
-5. If the chosen policy couples life, commit the damage and life delta as **one command and undo unit**; otherwise change only the damage ledger. Do not settle the policy merely by implementing one branch.
+4. **Accepted:** entering new commander damage also subtracts life. Provide distinct corrections to either value independently; correction must not silently repeat the coupled effect.
+5. Commit new damage and its life delta as **one command and undo unit** in the chronological game history. Exact correction affordances remain open, not the coupled-entry policy.
 
 Never subtract life again merely because a recorded commander-damage value is corrected. An edit must distinguish correcting the ledger from applying new damage. Partner commanders, commander changes during setup, and damage from a commander temporarily controlled by someone else require stable source identity. If control-transfer gameplay is outside the release, allow manual source selection without claiming to model the permanent's location.
 
@@ -60,12 +60,12 @@ The user requested the relevant life-tracker fundamentals, not a life-only minim
 | City’s blessing (reference label `Ascend`) observed as a status control | **Explicitly confirmed** | Independent player status, not a numerical counter or exclusive holder. UI naming/placement and manual correction behavior remain open. |
 | Monarch observed as status control; reference exclusivity was not tested | **Explicitly confirmed ownership tracking** | One authoritative table-level holder reference, projected into player views; never independent conflicting booleans. Transfer/correction history and elimination handling need explicit UX. |
 | Day/night control observed adding a central sun indicator | **Explicitly confirmed game-level state** | One shared designation with an initial neither state; no per-player copies and no automatic spell/turn inference. Placement/transition controls remain open. |
-| Source damage and life coupling observed; `me` cell visible; two partner cells observed but independent partner edits untested | **Confirmed per-source damage including self** | Stable recipient/source identities, distinct partner sources. Life coupling, ledger correction and KO policy remain open. Our required support exceeds the reference’s verified source/partner behavior. |
+| Source damage and life coupling observed; `me` cell visible; two partner cells observed but independent partner edits untested | **Confirmed per-source damage including self** | Stable recipient/source identities, distinct partner sources. New damage subtracts life as one undoable action; independent corrections are required; thresholds warn without automatic elimination. Detailed UI remains open. Our required support exceeds the reference’s verified source/partner behavior. |
 | Initiative observed as a status control | **Reference-derived candidate**, not an explicit named commitment | Decide whether a simple holder tracker belongs in the relevant-status set. Does not authorize dungeon/Undercity implementation or automatic venture. |
 | `C.Tax` increment observed; partner configuration observed | **Reference-derived candidate** | If selected, use per-commander cast/tax state; exact tax UX/automation and inclusion still need decisions. |
 | `Treasure` increment observed | **Reference-derived candidate / overlap review** | A reference numeric convenience is not proof that Treasure is a player counter. Prefer existing token-lane truth or an explicitly defined projection; do not add a divergent duplicate count. |
 | Custom named counters | **Prior design candidate**, not observed in the reference inventory | Decide extensibility, type identifiers, names and bounds; do not promise arbitrary automation. |
-| `K.O.` and Auto-KO observed (including poison decrement not reviving) | **Unresolved policy**, not adopted | Manual elimination, warning thresholds, automatic enforcement and reversal need explicit decisions. Never inherit Lifetap defaults by implication. |
+| `K.O.` and Auto-KO observed (including poison decrement not reviving) | **Warning-only policy accepted**, Auto-KO not adopted | Life/poison/commander thresholds warn without eliminating players or disabling controls. Manual elimination UI remains a separate choice. |
 | Mana/storm page observed; randomizers/dice and timer modes researched | **Separate decisions** | Mana remains D27, dice/control inventory D28; storm, timers and randomizers are not made mandatory by D26. |
 | Saved players/partner artwork, reset/history/export flows researched | **Supporting candidates with separate policies** | Identity, setup, history, persistence and export inform D17/D19/D20/D22/D23/D33/D34. No account, analytics or full profile/statistics system is implied. |
 | Planechase, Archenemy, Bounty, teams and other advertised modes | **Not approved by this tracker-depth decision** | Reference inventory is not a commitment to optional modes or interface parity. |
@@ -76,7 +76,7 @@ Choose one authoritative location per player counter. A utility may project it b
 
 Official rules rechecked on 2026-10-21 through the [Wizards rules page](https://magic.wizards.com/en/rules), which links the [2026-09-25 rules](https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt): monarch is exclusive and initially absent (725.1/725.3); city’s blessing can belong to multiple players (702.131); day/night is game-wide and starts neither (731.1); partner damage is separate (702.124d), and the commander-damage rule is source-specific (903.10a). These support data distinctions, not automatic game enforcement. Wizards also explicitly discusses [damage from one’s own commander](https://magic.wizards.com/en/news/feature/commander-masters-release-notes).
 
-Manual changes record actor, target/scope, before/after and operation identity. A monarch transfer changes one shared holder atomically; undo must not restore a stale holder over a later transfer. Day/night correction changes only the shared designation. Blessing/counter corrections are local and cannot clear another player’s state. Exact correction UI, approved undo depth and history retention remain D16/D17/D22.
+Monarch is claimed manually by a player, explicitly transferring the shared holder; day/night is manually set, without inferring combat or spells cast. Manual changes record actor, target/scope, before/after and operation identity. A monarch transfer changes one shared holder atomically; undo must not restore a stale holder over a later transfer. Day/night correction changes only the shared designation. Blessing/counter corrections are local and cannot clear another player’s state. Exact correction UI and reset retention remain open. History is persistent and game-wide chronological; undo walks the latest action globally, with grouping interruption/archive policy still open in [D16/D17/D33](09_decision_register.md).
 
 No automatic Food sacrifice → life gain, lifelink, poison from infect, mana burn, death, or combat damage is implied by editing tokens. A future action combining domains must state every effect and commit them together. Manual tools must remain correct when players resolve the physical game themselves.
 

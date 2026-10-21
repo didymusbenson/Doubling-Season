@@ -34,7 +34,7 @@ Magic token ownership and control are distinct concepts from seating: a token's 
 
 D26 now requires player life/counters/city’s blessing, shared monarch/day-night and commander damage including self. Local counter/status commands capture the target PlayerId and typed field, with no token-creation or token-counter-rule side effects. A damage command names recipient PlayerId and source CommanderId separately; the source owner may equal the recipient, and partners never collapse into one player key. Selecting a source does not make its owner the mutation target.
 
-Monarch assignment/transfer and day/night changes are explicit table-state commands, even when invoked from a player’s panel. Preserve actor attribution, shared-state revision and before/after values; one holder update must not create two monarchs. City’s blessing remains independently local to each player. A shared-state undo must detect a later conflicting shared change rather than restore a whole-table snapshot. No tracking command implies automatic combat, ascend, card draws, milling, turn transitions or KO. Coupled damage/life policy and reset retention remain open; if coupling is chosen both effects form one recoverable write set.
+Monarch assignment/transfer and day/night changes are explicit table-state commands, even when invoked from a player’s panel. Preserve actor attribution, shared-state revision and before/after values; one holder update must not create two monarchs. City’s blessing remains independently local to each player. A shared-state undo must detect a later conflicting shared change rather than restore a whole-table snapshot. No tracking command implies automatic combat, ascend, card draws, milling, turn transitions or KO. New damage/life coupling is accepted: both effects form one recoverable write set and undo unit; corrections to either value independently do not reapply coupling. Reset retention remains open. Monarch claims and day/night changes are manual; thresholds warn without auto-elimination.
 
 ## Proposed command pipeline
 
@@ -86,7 +86,7 @@ Every route below must use the new boundary. Fixing only the new-token button is
 | Route | Scope-sensitive reads/writes | Required check |
 |---|---|---|
 | Life / typed player counter / blessing | Target player, field type, before/after and revision | One authoritative local value; no implicit token or shared-state mutation |
-| Commander damage / correction | Recipient PlayerId, source CommanderId (self permitted), ledger revision; life only if selected policy | Separate partners; no source-owner retargeting; coupled writes/undo atomic if approved |
+| Commander damage / correction | Recipient PlayerId, source CommanderId (self permitted), ledger revision; life coupled for new damage, independent for explicit correction | Separate partners; no source-owner retargeting; coupled writes/undo atomic |
 | Monarch / day-night | Explicit shared-state revision, old/new holder or designation and actor | One coherent shared value; stale undo cannot clobber newer transfer; no local copy drift |
 | Search / custom create | Quantity, rules, custom library selection, artwork, primary and companions | Destination retained across every await |
 | Increment / copy / Scute | Source stack, totals, rules, merge and companions | No other player's identical stack used |
@@ -121,6 +121,10 @@ Proposed initial behavior is an explicitly local calculation configuration for e
 
 Likewise, life, mana, player counters and token counters are different domains. The current token/counter modifiers cannot be applied to all numeric values indiscriminately.
 
+## History and undo scope
+
+Use one persistent chronological game timeline with player attribution. Undo walks the globally latest action, not the latest action for a selected player or an arbitrary earlier row. Scope still matters: restoring that action changes only its defined write set. Rendered grouping must retain command identities and causal results, and token additions/removals stay separate even at net zero. A different action by any player closes the active group; see [history](game_history_and_undo.md). Undo restoration must not create new gameplay events or inferred death triggers.
+
 ## Concurrency and undo
 
 Proposed initial model: per-player intent queues feed one authoritative session writer, with a table coordinator for overlapping multi-player operations. UI remains responsive; sequential durable writes are not global input locks. Independent scoped writers are an alternative under D15, not the default established here; that alternative needs deterministic scope acquisition or equivalent coordination to prevent deadlocks.
@@ -136,6 +140,6 @@ Local destructive actions can hold that player's affected domain until Undo/Acce
 - A split callback fires after its source was deleted, transferred, or its session reset: reject it with no new orphan stack.
 - A native artwork picker returns after a seat swap: same player receives the result if still valid; the new occupant of that seat does not.
 - A replay record has no recognized player/lane: quarantine/report the operation; never guess a target.
-- A local undo runs after P2 creates tokens: P2's new entities, rules, life and orders are unchanged.
+- A stale P1 undo is requested after P2 creates tokens: reject it without mutation because P2’s later action must be undone first. Each eligible global undo still changes only its own write set.
 
 P0/P1 delivery gates and V10–V29 in [validation](08_delivery_validation_and_risks.md) make these contracts reviewable. No isolation guarantee has been validated by this documentation alone.

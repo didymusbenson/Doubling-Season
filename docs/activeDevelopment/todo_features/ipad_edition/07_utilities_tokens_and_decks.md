@@ -115,6 +115,10 @@ Define whole-table save/export separately: session format, participants/identiti
 
 Sharing, native file pickers and custom artwork selection are device-wide surfaces; queue them and return to the original player. A reset, source deletion or incompatible session change while away must reject obsolete results without assigning them to a replacement seat. Preserve artist metadata and selected art on download/cache failure.
 
+## History integration
+
+Token additions and removals retain separate chronological history entries even at net zero; compatible repeats may update the current entry until a different action by any player or a time gap closes it. Preserve underlying creation/companion/rule effects for latest-global-action undo rather than reducing everything to a display delta. Removal history supports manual trigger bookkeeping but does not prove death or authorize automated triggers. Utility/counter/shared-state changes join the same persistent game timeline. See [history](game_history_and_undo.md).
+
 ## Required behavior review before parity is claimed
 
 For each utility/token workflow, record: all reads, every direct model write, rules snapshot, all created results, emitted events, lane allocation, route/panel owner, failure outcome, undo write set and recovery behavior. Run with two players owning identical definitions and differently configured rules. The [validation matrix](08_delivery_validation_and_risks.md) contains the corresponding scenarios; none has been executed for this edition yet.
