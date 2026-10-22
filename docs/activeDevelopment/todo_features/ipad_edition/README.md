@@ -138,3 +138,7 @@ MVP supports tablets from iPad mini through full-size iPads and Android variants
 ## Accepted archive safety and retention — D33
 
 Save the current game before archive restore; keep the latest ten archived game-state snapshots, oldest evicted on new saves. Active working state is separate and each retained snapshot keeps its full timeline/undo information. Restore game-specific state without overwriting saved decks or permanent seat customization. Protect the selected archive from eviction during restoration and preserve the old active state on failure. See [transaction contract](game_history_and_undo.md).
+
+## Explicit carryover clarification — 2026-10-22
+
+Follow TS deliberate design principles unless concrete incompatibility requires adaptation. Wipes are token-level; resets clear rule activation per TS. TS decklist import/shared catalog feed, standard dice, iterative Lifetap-informed life UI and per-seat Rules-equivalent applied-effects menu are accepted. Free/no ads with optional FV/TS-style support IAP cosmetics. Working names are listed in the clarification record. See [source-backed decisions and limitations](implementation_carryover_clarifications.md).

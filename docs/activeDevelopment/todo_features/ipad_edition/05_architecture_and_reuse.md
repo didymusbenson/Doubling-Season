@@ -150,3 +150,7 @@ MVP supports tablets from iPad mini through full-size iPads and Android variants
 ## Accepted archive safety and retention — D33
 
 Save the current game before archive restore; keep the latest ten archived game-state snapshots, oldest evicted on new saves. Active working state is separate and each retained snapshot keeps its full timeline/undo information. Restore game-specific state without overwriting saved decks or permanent seat customization. Protect the selected archive from eviction during restoration and preserve the old active state on failure. See [transaction contract](game_history_and_undo.md).
+
+## Explicit carryover clarification — 2026-10-22
+
+Reuse TS design principles and its token DB/feed/update contracts; adapt filesystem promotion to web and verify separate-product manifest compatibility. Existing decklist import is required. Custom player-facing keyboard/system-input suppression is the principal net-new interaction; preserve scoped persistence rather than inherit global stores. See [source-backed decisions and limitations](implementation_carryover_clarifications.md).

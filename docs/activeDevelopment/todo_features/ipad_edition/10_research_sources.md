@@ -69,3 +69,7 @@ The latest D25 decision supersedes the audit’s earlier local-only proposal. Ca
 ## Tablet-first MVP boundary — D06/D30
 
 MVP supports tablets from iPad mini through full-size iPads and Android variants, retaining the complete active 2–4-seat view. Android/iOS/web targets remain; web support uses tablet-suitable viewports. Exact minimum dimensions, model generations, OS/browser floors, aspect ratios and orientations require validation, not guesses. Small-tablet fit is mandatory; no MVP phone or focused-seat mode. The [closed-focus/unfolded-multiplayer foldable concept](foldable_phone_future_version.md) is deferred to another major version and does not add a standalone one-player game.
+
+## Explicit carryover clarification — 2026-10-22
+
+Additional source audit pins TS main d30050bd7a1067058fcdf7e707d3a223124a79fb and Disa bb8f79da12d025de0767a584dabf6cc082566868. Explicit new-product feedback overrides old behavior. Disa ±10 hold step is actual code; stale documentation saying ±5 is not the baseline. See [source-backed decisions and limitations](implementation_carryover_clarifications.md).

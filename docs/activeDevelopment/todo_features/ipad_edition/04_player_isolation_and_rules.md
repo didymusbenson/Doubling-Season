@@ -136,7 +136,7 @@ Player isolation prevents accidental cross-player mutations. It must not prevent
 
 **D25 accepted:** each seat owns its modifier sources, with local versus global applicability differentiated. A global source such as Primal Vigor enabled by A contributes to applicable operations across the table. Other seats cannot independently disable/remove A’s source from their modifier panels. Disabling/removing it at its source removes that contribution everywhere without touching B’s independent sources. This is source/context semantics, not physical-user authentication or a prohibition on reaching A’s controls.
 
-Persist one source identity and derive effective applicability, rather than copying independently mutable switches into every seat. Propagated enabled representations or a read-only Other effects section are both allowed; **recommended, not mandated:** source-labeled read-only Other effects to avoid divergent toggles. Multiple seats enabling copies create independent source records. Count each applicable source once in an operation, never once as a local entry and again as a propagated entry. The [modifier contract and calculator evidence](modifier_ownership_and_applicability.md) defines dependencies and remaining validation. This accepted cross-seat scope does not imply a general automatic rules engine or token-control transfers.
+Persist one source identity and derive effective applicability, rather than copying independently mutable switches into every seat. Local/global applied effects share each seat’s Rules-equivalent panel; source-labeled read-only foreign contributions are a recommended presentation detail to avoid divergent toggles. Multiple seats enabling copies create independent source records. Count each applicable source once in an operation, never once as a local entry and again as a propagated entry. The [modifier contract and calculator evidence](modifier_ownership_and_applicability.md) defines dependencies and remaining validation. This accepted cross-seat scope does not imply a general automatic rules engine or token-control transfers.
 
 Likewise, life, mana, player counters and token counters are different domains. The current token/counter modifiers cannot be applied to all numeric values indiscriminately.
 
@@ -166,3 +166,7 @@ P0/P1 delivery gates and V10–V29 in [validation](08_delivery_validation_and_ri
 ## Old-design inference checkpoint
 
 The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.
+
+## Explicit carryover clarification — 2026-10-22
+
+Game resets reset every affected seat’s modifier activation and derived global contributions coherently, preserving custom-rule definitions. Token-level wipes do not imply modifier reset. Rules-equivalent panels combine local/global applied effects without making inherited entries independently removable. See [source-backed decisions and limitations](implementation_carryover_clarifications.md).

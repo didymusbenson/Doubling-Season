@@ -77,17 +77,17 @@ The current board has one expanded item; tapping another first requests collapse
 | D19 | R persistent seat name/life appearance, game-local token-art; A exact preference domains, existing live rename versus inline commit semantics |
 | D20 | R serving/placeholder/selection baseline; A immutable cache versus scoped choices; T custom-asset references; U optional library/profile sharing beyond accepted presets |
 | D21 | R persistent hidden-seat customization, removed game setup clears; A stable identities; U elimination/replacement not inferred from warnings |
-| D22 | R two reset modes/retention and modal dismissal; U wipe target selection, exact utility/rule reset mappings; T atomic checkpoint |
-| D23 | R current v3 is reusable setup, art metadata not packaged bytes; A lane conversion; U export subset/new format and inclusion; T validation/migration |
+| D22 | R two reset modes/retention and modal dismissal; U wipe target selection, remaining utility runtime mapping; modifier reset per TS; T atomic checkpoint |
+| D23 | R existing TS decklist import bridge and shared token database/update path; A v3 adapter/lane conversion; T validation/media; U richer export scope |
 | D24 | T reuse boundaries; R reuse domain/rendering semantics, not current global providers unchanged |
-| D25 | R seat-owned modifiers with differentiated local/global applicability; global sources affect table and cannot be removed from recipient panels; A source-scoped calculator reuse; U presentation choice, reset activation mapping and token transfers; T stacking/deduplication |
+| D25 | R seat-owned modifiers with differentiated local/global applicability; global sources affect table and cannot be removed from recipient panels; A source-scoped calculator reuse; U presentation choice, reset modifiers per TS baseline; token transfers; T stacking/deduplication |
 | D26 | R accepted tracker fundamentals/coupling/manual bookkeeping; A quick-edit conventions; U remaining counter additions/detail visibility; T capacity/source identity |
-| D27 | R dismissible default mana pool; U exact mana mechanics/restrictions; existing token UI does not choose these |
-| D28 | R shared control locations/dice example; U extra tools/dice options; no old/reference icon commits new functionality |
+| D27 | R dismissible default mana pool; A audited Disa manual pool baseline; T seat/history/persistence adaptation; no unapproved payment/phase mechanics |
+| D28 | R standard dice d4/d6/d8/d10/d12/d20 with chosen quantities, individual results and total; U extra tools beyond accepted scope |
 | D29 | R separate product and safe explicit interchange direction; U shared live-data policy; T storage boundaries |
 | D30 | R small-through-full-size tablet scope including iPad mini and Android variants; T actual models/OS/browser/viewport and workload measurements; no legacy performance guarantee |
 | D31 | R preserve offline selections and local state; T web/native cache/resume differences; U formal offline/update release guarantee |
-| D32 | U commercial entitlement/pricing; existing app cannot choose new-product business policy |
+| D32 | R free/no ads, same FV/TS IAP model; T exact product/store/platform integration; no assumed price or shared entitlement |
 | D33 | R pre-reset archive restore, save current before restore, last ten archived snapshots with full history, active state separate, no saved-deck/permanent-customization overwrite; T transaction/eviction/media coherence and browsing UI |
 | D34 | U export/privacy/retention contents beyond accepted local saved data; T safe format/media handling |
 | D35 | T manual/device evidence and format compatibility; R no documentation-only implementation/QA claims |

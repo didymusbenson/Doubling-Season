@@ -87,7 +87,7 @@ Do not implicitly add networking, cloud synchronization, deck-list import servic
 - Should the existing phone app share live games, only deck files, or no user data with this edition? D18/D23.
 - New commander damage subtracts life as one undoable action; independent corrections are required and thresholds warn without auto-KO. Resolve detailed controls and reset retention, not whether to include this policy. D26/D22.
 - Any player’s different action ends the active history group. One chronological game timeline, latest-action global undo and current-session persistence are accepted; exact timeout tuning remains open; D33 archive safety and ten-snapshot retention are accepted. D16/D17/D33.
-- D25 accepts seat-owned local/global modifiers, with global sources affecting the table. Exact applicability/stacking fixtures and reset activation mapping need validation/design; token-control transfers are not implied.
+- D25 accepts seat-owned local/global modifiers, with global sources affecting the table. Exact applicability/stacking fixtures and reset execution validation need validation/design; token-control transfers are not implied.
 - Wipes are central app/game controls, not owned by an invoking seat. Which seats/boards a wipe affects and how targets are selected remain open under D22/D36; do not assume all players or the last active player.
 
 ## Success criteria
@@ -111,3 +111,7 @@ MVP supports tablets from iPad mini through full-size iPads and Android variants
 ## Accepted archive safety and retention — D33
 
 Save the current game before archive restore; keep the latest ten archived game-state snapshots, oldest evicted on new saves. Active working state is separate and each retained snapshot keeps its full timeline/undo information. Restore game-specific state without overwriting saved decks or permanent seat customization. Protect the selected archive from eviction during restoration and preserve the old active state on failure. See [transaction contract](game_history_and_undo.md).
+
+## Explicit carryover clarification — 2026-10-22
+
+Accepted: token-level creature/all-token wipes are distinct from game resets; both resets clear modifier activation per TS. Existing TS decklist import and the same token database/update feed are in scope. Dice support d4/d6/d8/d10/d12/d20 with chosen counts, individual results and total. Free/no ads, optional FV/TS-style non-consumable supporter cosmetics; working names remain candidates. See [source-backed decisions and limitations](implementation_carryover_clarifications.md).

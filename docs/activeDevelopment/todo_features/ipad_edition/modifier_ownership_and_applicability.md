@@ -8,7 +8,7 @@
 - Local and global effects are differentiated. A seat-owned global modifier such as Primal Vigor impacts applicable operations across the table, rather than remaining a personal-board approximation.
 - Other seats cannot independently remove that source from inside their own modifier panels. Disabling/removing the originating modifier removes its contribution from recipients, not their independently owned modifiers.
 - Two seats enabling copies means independent sources. Do not collapse them by name or manufacture extra copies for recipient panels.
-- The user allows either a propagated enabled representation or an Other effects representation that recipients cannot remove. **Recommendation only:** read-only Other effects with source-seat labels. Exact UI is not settled; a propagated representation must still be linked to the authoritative source rather than independently mutable.
+- Local and global applied effects appear together in each seat’s Rules-equivalent menu, following Tripling Season’s Rules button concept. Foreign source contributions cannot be removed from the recipient panel. Source labels/read-only styling are recommended presentation details, not a separate mandatory Other effects screen. Any propagated representation remains linked to one authoritative source.
 
 ## Proposed source/evaluation contract
 
@@ -31,10 +31,10 @@ Source evidence is pinned to current audited main, `d30050bd7a1067058fcdf7e707d3
 
 ## Reset, presets and archive boundaries
 
-Accepted keep-board/complete-reset behavior for tokens, utilities, life and statuses is unchanged. **Modifier activation/configuration retention for each reset mode remains open** and must be mapped explicitly. Do not infer that a global source survives because some recipient keeps a board, or disappears merely because its UI is hidden. Removed-seat handling must not leave an ownerless active contribution; exact clearing versus retention/reassignment is part of the source lifecycle/reset mapping, not an approved reassignment behavior.
+Accepted keep-board/complete-reset behavior for tokens, utilities, life and statuses is unchanged. **Both game reset modes reset modifiers using the TS baseline:** preset counts become zero and custom rules are disabled; reusable custom-rule definitions are preserved. Do not infer that a global source survives because some recipient keeps a board, or disappears merely because its UI is hidden. Removed-seat handling must not leave an ownerless active contribution; game reset clears active contributions across the new game, not reassigns them to another seat.
 
 Archive snapshots restore historical source ownership, activation, configuration and applicability together with historical state/timeline. Persistent seat name/life art does not imply persistent active modifier sources. Preset contents remain the accepted token list plus utility preferences; whether source modifiers are included in a preset is not silently decided by this document. Before reset/restore, capture sources and affected projections coherently; never serialize propagated views as extra independent copies.
 
 ## Planned validation
 
-V20 covers local-only scope, global application, recipient non-removability, two independently owned copies, source disable/remove, latest-action undo, stale previews, restart and archive restore. Test both source and recipient seats with identical names and matching tokens. Validate no duplicate application through inherited panels, no loss of B's independent source when A disables theirs, and no retroactive mutation of committed values. Add per-reset expectations once activation retention is settled. These are planned manual cases, not passed tests.
+V20 covers local-only scope, global application, recipient non-removability, two independently owned copies, source disable/remove, latest-action undo, stale previews, restart and archive restore. Test both source and recipient seats with identical names and matching tokens. Validate no duplicate application through inherited panels, no loss of B's independent source when A disables theirs, and no retroactive mutation of committed values. Verify both game reset modes zero preset modifier counts and disable custom rules without deleting their definitions. These are planned manual cases, not passed tests.

@@ -1,6 +1,6 @@
 # Life tracker and game controls
 
-**Status:** D26 accepts a full life-tracker foundation: life totals, relevant player counters (explicitly energy/poison/experience), player statuses including city’s blessing, monarch ownership, shared game-level day/night, and commander damage by source including self. New damage/life coupling with independent corrections, warning-only thresholds and manual monarch/day-night changes are accepted. Two full-reset modes and persistent seat customization are now accepted below; reusable setup retention, removed-seat game-data clearing and restorable pre-reset archives are accepted; exact runtime/rule defaults and archive transaction/UI design remain open; D33 safety, non-overwrite and ten-snapshot retention are accepted; [persistent chronological history and global latest-action undo](game_history_and_undo.md) are required. No implementation is claimed.
+**Status:** D26 accepts a full life-tracker foundation: life totals, relevant player counters (explicitly energy/poison/experience), player statuses including city’s blessing, monarch ownership, shared game-level day/night, and commander damage by source including self. New damage/life coupling with independent corrections, warning-only thresholds and manual monarch/day-night changes are accepted. Two full-reset modes and persistent seat customization are now accepted below; reusable setup retention, removed-seat game-data clearing and restorable pre-reset archives are accepted; remaining utility runtime defaults and archive transaction/UI design remain open; D33 safety, non-overwrite and ten-snapshot retention are accepted; [persistent chronological history and global latest-action undo](game_history_and_undo.md) are required. No implementation is claimed.
 
 ## Dedicated life state
 
@@ -121,7 +121,7 @@ The following vocabulary is retained for discussion, not a replacement for the t
 | Reset selected seat board | Central game control / target UI open | Preview clear or reset-to-setup | Preview reset/clear | Separate named option | Keep by default | Keep |
 | Reset selected seat life | Game-level reset context / target UI open | Keep | Keep | Keep | Starting life; other counters only if named | Keep |
 | Clear table tokens | Game menu / explicit all/current players | Clear recipients | Keep, except explicitly coupled derived state | Keep by default | Keep | Keep |
-| Full reset (two accepted modes above) | Game menu / configured participants; removed seats’ game-specific boards cleared | Keep zeroed/no-counter entries or clear, by mode | Keep enabled selection or clear, by mode | Exact rules/settings retention pending | Starting life; temporary damage/counters and game statuses reset; pre-reset full-state/timeline archive restore accepted | Preserve persistent seat name/color/art; hide unused seats |
+| Full reset (two accepted modes above) | Game menu / configured participants; removed seats’ game-specific boards cleared | Keep zeroed/no-counter entries or clear, by mode | Keep enabled selection or clear, by mode | Preset modifiers zero; custom rules disabled, definitions kept | Starting life; temporary damage/counters and game statuses reset; pre-reset full-state/timeline archive restore accepted | Preserve persistent seat name/color/art; hide unused seats |
 | New game/setup | Game menu / configured session | Follow chosen full-reset mode | Follow chosen mode | Explicit configuration | Defined new-game baseline | Reuse persistent seats; do not delete hidden customization |
 | Erase app data | Device/settings maintenance | Separate maintenance operation | Separate | Separate | Separate | Never disguised as a game reset |
 
@@ -159,4 +159,8 @@ The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete
 
 ## Modifier scope checkpoint — D25
 
-Global modifier applicability is not blanket multiplication of life/player counters. Keep numeric domains explicit; accepted reset modes remain unchanged while modifier activation/configuration retention still needs its per-field mapping. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).
+Global modifier applicability is not blanket multiplication of life/player counters. Keep numeric domains explicit; accepted reset modes remain unchanged while modifier reset behavior follows TS: zero preset counts and disable custom rules without deleting definitions. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).
+
+## Explicit carryover clarification — 2026-10-22
+
+Board wipe means token-level destroy creatures/all tokens, not reset life/status/game. Both game resets zero preset modifier counts and disable custom rules while retaining definitions. Reset-menu reload restores historical activation instead of clearing it. Dice selection/results follow the standard six dice types; mana uses the audited Disa manual-pool baseline pending tablet adaptation. See [source-backed decisions and limitations](implementation_carryover_clarifications.md).
