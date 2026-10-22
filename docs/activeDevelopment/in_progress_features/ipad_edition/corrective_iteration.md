@@ -1,6 +1,6 @@
 # Tablet corrective iteration — original token parity
 
-**Status:** the complete follow-up passes 70 automated tests, tablet/root analysis, formatting, web release and iOS simulator builds. Eight native captures predate the newly-active-seat default-utility follow-up. Initial checkpoint CI passed; final follow-up commit/push/CI verification remains with integration. No full release acceptance is claimed.
+**Status:** the complete follow-up passes 70 automated tests, tablet/root analysis, formatting, web release and iOS simulator builds. Eight native captures predate the newly-active-seat default-utility follow-up. Both CI jobs passed for final implementation `62ac03deee02f80ae0e13f1eb137e46084ee5a75`, and origin matches that implementation checkpoint. This documentation-only record follows the verified code. No full release acceptance is claimed.
 **Branch:** `codex/tablet-token-parity-correction`.
 **Reviewed baseline:** `dcac16bf6a988283f135d1a3a2fd5bf663c4ac08`.
 **Corrected planning authority:** `012d9f321108353f40feeaaa5fc2f4560c29bc0e`
@@ -198,10 +198,32 @@ No new native test is claimed after the Mac locked.
 
 ## Final validation record
 
+The final implementation is `62ac03deee02f80ae0e13f1eb137e46084ee5a75`
+on `codex/tablet-token-parity-correction`, confirmed on origin. Review it in
+`/Users/didymusbenson/Documents/Codex/2026-10-21/task-2/tablet-correction`.
+The original checkout remains clean and unchanged at the reviewed baseline.
+Production code is frozen; only this written verification record may follow.
+
+UI testing is finished. The isolated mini simulator is
+`39F53C84-1031-4369-9FF7-612964C1B4B8`; the separate larger QA simulator is
+`77CA7D13-571B-408D-A899-04FA699C606F`. No personal simulator was used.
+The final local artifact is `apps/tablet/build/ios/iphonesimulator/Runner.app`
+(bundle ID `LooseTie.Tripling-Table`). After the Mac is unlocked, an independent
+reviewer can run the final source on the isolated mini with:
+
+```sh
+cd /Users/didymusbenson/Documents/Codex/2026-10-21/task-2/tablet-correction/apps/tablet
+flutter run -d 39F53C84-1031-4369-9FF7-612964C1B4B8
+```
+
+Rebuild without changing simulator state with
+`flutter build ios --simulator --debug`. The existing installed QA app predates
+the reset-default follow-up; the artifact above has been rebuilt for it.
+
 The following results were read from integration logs or reported by the
 integrating owner. Automated/widget checks and native runtime observations are
-separate. Commit/remote-CI evidence remains for the integrating owner to fill
-in before claiming remote checkpoint readiness.
+separate. The final implementation SHA and successful remote CI are verified
+below. The following documentation-only commit does not change the tested code.
 
 | Check | Result / evidence |
 |---|---|
@@ -214,7 +236,7 @@ in before claiming remote checkpoint readiness.
 | Larger tablet; 2/3/4 seats | Passing layout widget checks at 1366×1024 for 2/3/4 seats. Capture 05 shows the larger iPad Pro simulator in four-player landscape; larger native 2/3-seat checks are not claimed. |
 | Rotated input, dismissal/no click-through, repeated flows | Passing keyboard/workspace widget cases. At the captured native checkpoint, Player 2 Name sequence select-all → q → a → cursor-left → s produced `qsa` in both token/keyboard (08). Integration then tapped away on Player 4 life: editor committed/dismissed, all life stayed 40, no new workspace opened. This is one exercised rotated path, not full IME/accessibility acceptance. |
 | Before/after screenshot mapping | Before: source manifest 01–48. After: seven intermediate captures plus the 69-test checkpoint capture 08; all predate the later newly-active-seat defaults correction, with exact file metadata and scope in the [evidence manifest](correction_evidence/evidence_manifest.json). |
-| Remote branch SHA and relevant CI | Initial code checkpoint `dafa5623777b4c402e57c2a45cd3000dfe9346ee`: both CI jobs succeeded ([run 39728578863](https://github.com/didymusbenson/Doubling-Season/actions/runs/39728578863)), verified by integration. The subsequent reset-default correction and documentation require their own final commit/push/remote-CI verification; that follow-up is pending. |
+| Remote branch SHA and relevant CI | Passed: origin implementation SHA `62ac03deee02f80ae0e13f1eb137e46084ee5a75` confirmed with `git ls-remote`; [final run 39729631742](https://github.com/didymusbenson/Doubling-Season/actions/runs/39729631742) reports that exact `headSha` and success for both `android-web` (analysis, 70 tests, web release, release APK and artifact upload) and `ipad-simulator`. Initial checkpoint `dafa5623777b4c402e57c2a45cd3000dfe9346ee` also passed [run 39728578863](https://github.com/didymusbenson/Doubling-Season/actions/runs/39728578863). The commit recording these results changes this document only; production source remains the final CI-tested implementation. |
 
 ## Native screenshot evidence
 
