@@ -1,6 +1,6 @@
 # Focused keyboard selection repair — 2026-10-22
 
-Status: implemented with automated regression evidence; awaiting the independent reviewer’s live-browser retest. This follows the UI batch at `8849514` and changes no token/life/utility layout.
+Status: PASS at `7890c7c393656efcd59da38464484b4e90d5704c` in automated checks, CI and the independent reviewer’s live-browser retest reported by the parent. This follows the UI batch at `8849514` and changes no token/life/utility layout.
 
 The reviewer reproduced Name → Select all → q → a leaving `a` on the release web build. Before changing production code, a platform-focus regression reproduced exactly `Expected: qa; Actual: a` under macOS focus behavior. The fixture models a keyboard button taking focus before its press callback, a transition omitted by the earlier touch-only regression.
 
@@ -12,4 +12,4 @@ Verification: `flutter analyze` clean; focused keyboard suite 13/13; aggregate t
 
 A fresh release web build is served at the existing isolated review endpoint `http://127.0.0.1:8784/Doubling-Season/tablet/`. Reviewer retest should freshly reload this build and verify Name → Select all → q → a produces and commits `qa`, including a repeated-letter and top-facing case. Native computer use remains unavailable while the Mac is locked; no unlock bypass, install, signing change or personal data reset was attempted.
 
-The previous 27-screenshot manifest and green CI at `36f6ffd` remain historical UI-batch evidence. This focused change requires a new CI run and live-browser acceptance; it does not retroactively turn the older web-input failure into a passing result. No main merge or deployment is authorized.
+The previous 27-screenshot manifest and green CI at `36f6ffd` remain historical UI-batch evidence. CI [39820393261](https://github.com/didymusbenson/Doubling-Season/actions/runs/39820393261) completed successfully for Android/web and iOS simulator builds. The parent reports the focused keyboard live retest fully PASS; this does not retroactively turn the older web-input failure into a passing result. No main merge or deployment is authorized.
