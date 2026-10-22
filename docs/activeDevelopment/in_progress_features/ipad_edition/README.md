@@ -24,6 +24,8 @@ This is a planning dossier, not a shipped feature specification. **Confirmed** m
 
 [Existing-design audit and all-decision disposition](existing_behavior_audit.md) distinguishes carryover behavior, multi-seat adaptation, genuine product choices and technical validation.
 
+**Commander capacity follow-up:** [source-enabled layout repair and cross-platform validation](commander_capacity_fix_2026-10-22.md).
+
 ## Start here
 
 | Document | Purpose |

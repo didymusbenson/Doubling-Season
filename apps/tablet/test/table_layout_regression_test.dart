@@ -1,6 +1,9 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tripling_table/domain/table_state.dart';
@@ -8,6 +11,10 @@ import 'package:tripling_table/ui/table_screen.dart';
 import 'package:tripling_table/ui/table_theme.dart';
 
 import 'support/table_fixture.dart';
+
+// Optional evidence uses the Flutter widget renderer, not a release browser.
+final _captureDirectory = Platform.environment['TABLET_CAPTURE_DIR'];
+const _captureKey = ValueKey('capacity-renderer');
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +25,25 @@ void main() {
     );
     Hive.init(isolatedCatalog.path);
     await Hive.openBox<String>('tripling_season_tablet_catalog_v1');
+    if (_captureDirectory != null) {
+      await (FontLoader(
+        'Mana',
+      )..addFont(rootBundle.load('assets/fonts/mana.ttf'))).load();
+      for (final font in {
+        'sans-serif': 'Roboto-Regular.ttf',
+        'MaterialIcons': 'MaterialIcons-Regular.otf',
+      }.entries) {
+        final file = File(
+          '/opt/homebrew/share/flutter/bin/cache/artifacts/material_fonts/${font.value}',
+        );
+        if (await file.exists()) {
+          await (FontLoader(
+            font.key,
+          )..addFont(file.readAsBytes().then(ByteData.sublistView))).load();
+        }
+      }
+      await Directory(_captureDirectory!).create(recursive: true);
+    }
   });
   tearDownAll(() async {
     await Hive.close();
@@ -47,9 +73,12 @@ void main() {
     final fixture = TableFixture(state);
     await fixture.initialize();
     await tester.pumpWidget(
-      MaterialApp(
-        theme: tableTheme(Brightness.dark),
-        home: TableScreen(controller: fixture.controller),
+      RepaintBoundary(
+        key: _captureKey,
+        child: MaterialApp(
+          theme: tableTheme(Brightness.dark),
+          home: TableScreen(controller: fixture.controller),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -100,6 +129,156 @@ void main() {
           }
         },
       );
+    }
+  }
+
+  for (final size in [
+    const Size(1133, 744),
+    const Size(744, 1133),
+    const Size(1366, 1024),
+  ]) {
+    for (final seats in [2, 3, 4]) {
+      for (final partners in [false, true]) {
+        testWidgets(
+          '$seats seats at $size retain default utility capacity with ${partners ? 'partners' : 'one source'}',
+          (tester) async {
+            final state = tableFor(seats);
+            final owners = partners
+                ? state.session.players
+                : [state.session.players.last];
+            state.session.commanders = [
+              for (final owner in owners)
+                for (var n = 0; n < (partners ? 2 : 1); n++)
+                  CommanderSource(
+                    id: '${owner.id}-$n',
+                    ownerPlayerId: owner.id,
+                    name: n == 0 ? 'Partner A' : 'Partner B',
+                  ),
+            ];
+            final fixture = await showTable(tester, size, state);
+            for (final player in fixture.controller.session.players) {
+              final seat = find.byKey(ValueKey(player.id));
+              final life = find.descendant(
+                of: seat,
+                matching: find.byWidgetPredicate(
+                  (w) => w.runtimeType.toString() == '_LifePanel',
+                ),
+              );
+              final lifeText = find.descendant(
+                of: life,
+                matching: find.text('40'),
+              );
+              expect(
+                tester.widget<Text>(lifeText).style!.fontSize,
+                48,
+                reason: 'Commander capacity must preserve life legibility.',
+              );
+              final utilities = tester.widget<ReorderableListView>(
+                find.descendant(
+                  of: seat,
+                  matching: find.byType(ReorderableListView),
+                ),
+              );
+              expect(
+                utilities.scrollController!.position.maxScrollExtent,
+                lessThanOrEqualTo(
+                  1,
+                ), // At most a subpixel decorative border tail.
+                reason:
+                    'Default Storm and all mana controls must fit with sources.',
+              );
+              final trackers = find.byKey(
+                ValueKey('${player.id}-commander-trackers'),
+              );
+              final sourceList = tester.widget<ListView>(
+                find.descendant(of: trackers, matching: find.byType(ListView)),
+              );
+              final compact = tester.getSize(trackers).height == 44;
+              var sourceIndex = 0;
+              Rect screenBounds(Finder finder) {
+                final box = tester.renderObject<RenderBox>(finder);
+                return Rect.fromPoints(
+                  box.localToGlobal(Offset.zero),
+                  box.localToGlobal(box.size.bottomRight(Offset.zero)),
+                );
+              }
+
+              for (final source in fixture.controller.session.commanders) {
+                sourceList.controller!.jumpTo(
+                  (sourceIndex++ * (compact ? 144.0 : 154.0)).clamp(
+                    0,
+                    sourceList.controller!.position.maxScrollExtent,
+                  ),
+                );
+                await tester.pumpAndSettle();
+                final chip = find.byKey(
+                  ValueKey('${player.id}-commander-${source.id}'),
+                );
+                final chipBounds = screenBounds(chip);
+                final viewport = screenBounds(trackers);
+                expect(
+                  chipBounds.left,
+                  greaterThanOrEqualTo(viewport.left - .01),
+                );
+                expect(
+                  chipBounds.right,
+                  lessThanOrEqualTo(viewport.right + .01),
+                );
+                final owner = fixture.controller.session.players.firstWhere(
+                  (p) => p.id == source.ownerPlayerId,
+                );
+                final identity = fixture.controller.profile(owner.seatId);
+                final add = find.byTooltip(
+                  '${fixture.controller.profile(player.seatId).name}, increase damage from ${source.name} (${identity.name})',
+                );
+                expect(add.hitTestable(), findsOneWidget);
+                expect(tester.getSize(add).width, greaterThanOrEqualTo(44));
+                expect(tester.getSize(add).height, greaterThanOrEqualTo(44));
+              }
+              sourceList.controller!.jumpTo(0);
+              await tester.pumpAndSettle();
+              for (final color in PlayerState.manaColors) {
+                for (final action in ['add', 'spend']) {
+                  final control = find.byKey(
+                    ValueKey('${player.id}-mana-$color-$action'),
+                  );
+                  expect(control.hitTestable(), findsOneWidget);
+                  final bounds = tester.getRect(control);
+                  expect(bounds.top, greaterThanOrEqualTo(24));
+                  expect(bounds.bottom, lessThanOrEqualTo(size.height - 20));
+                  expect(
+                    bounds.height,
+                    closeTo(48, .01),
+                    reason: 'Mana targets keep their original height.',
+                  );
+                }
+              }
+            }
+            expect(find.byTooltip('Storm').hitTestable(), findsNWidgets(seats));
+            expect(tester.takeException(), isNull);
+            if (_captureDirectory != null &&
+                partners &&
+                (seats != 3 || size.width == 1133)) {
+              final boundary = tester.renderObject<RenderRepaintBoundary>(
+                find.byKey(_captureKey),
+              );
+              await tester.runAsync(() async {
+                final image = await boundary.toImage(pixelRatio: 1);
+                try {
+                  final png = (await image.toByteData(
+                    format: ui.ImageByteFormat.png,
+                  ))!;
+                  await File(
+                    '$_captureDirectory/flutter-test-renderer-capacity-${seats}p-${size.width.toInt()}x${size.height.toInt()}-partners.png',
+                  ).writeAsBytes(png.buffer.asUint8List());
+                } finally {
+                  image.dispose();
+                }
+              });
+            }
+          },
+        );
+      }
     }
   }
 

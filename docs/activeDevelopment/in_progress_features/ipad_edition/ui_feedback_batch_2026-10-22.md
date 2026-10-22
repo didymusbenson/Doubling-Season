@@ -1,6 +1,6 @@
 # UI feedback batch — 2026-10-22
 
-**Focused follow-up:** the reviewer reproduced the keyboard P1 at `8849514`. The [selection repair](keyboard_focus_fix_2026-10-22.md) now passes 111 automated tests and awaits live-browser retest. The source hashes/build results below describe the earlier UI batch, not the subsequent keyboard code.
+**Focused follow-ups:** the [keyboard selection repair](keyboard_focus_fix_2026-10-22.md) at `7890c7c` passed CI and independent live-browser retest, including real Mana glyphs. The remaining source-enabled mini-landscape capacity issue is repaired in the [commander capacity follow-up](commander_capacity_fix_2026-10-22.md): 129 automated tests pass; independent release-browser retest is pending. Historical hashes/captures below describe the original UI batch.
 
 Status: implemented for independent design review, not native/browser acceptance or release. Feature branch `codex/tablet-ui-feedback-batch` starts at remote main `bbfdbd075e95af1a7bc0017a7f2f2542ac251288`. Checkout: `/Users/didymusbenson/Documents/Codex/2026-10-22/task-2/tablet-ui`.
 

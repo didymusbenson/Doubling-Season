@@ -518,6 +518,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
   String? expandedId;
   String? error;
   final tokenScroll = ScrollController(), utilityScroll = ScrollController();
+  final commanderScroll = ScrollController();
   Future<void> perform(Future<dynamic> Function() action) async {
     try {
       await action();
@@ -533,6 +534,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
   void dispose() {
     tokenScroll.dispose();
     utilityScroll.dispose();
+    commanderScroll.dispose();
     super.dispose();
   }
 
@@ -622,110 +624,143 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
       ],
     );
     final visible = p.utilities.where((u) => u.visible).toList();
-    Widget innerLane = Column(
-      children: [
-        SizedBox(height: widget.gameInset),
-        _LifePanel(
-          player: p,
-          profile: profile,
-          controller: widget.controller,
-          epoch: widget.interactionEpoch,
-          enabledRules: enabled,
-          hiddenUtilities: hidden,
-          onOpen: widget.onOpen,
-          onChange: (d) => perform(() => widget.controller.adjustLife(p.id, d)),
-          onMonarch: () => perform(() => widget.controller.setMonarch(p.id)),
-          onBlessing: () => perform(
-            () => widget.controller.setCitysBlessing(p.id, !p.citysBlessing),
-          ),
-        ),
-        if (widget.controller.session.commanders.isNotEmpty)
-          SizedBox(
-            key: ValueKey('${p.id}-commander-trackers'),
-            height: 70,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-              itemCount: widget.controller.session.commanders.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 4),
-              itemBuilder: (context, index) {
-                final source = widget.controller.session.commanders[index];
-                final owner = widget.controller.session.player(
-                  source.ownerPlayerId,
-                );
-                final identity = widget.controller.profile(owner.seatId);
-                return _CommanderChip(
-                  key: ValueKey('${p.id}-commander-${source.id}'),
-                  source: source,
-                  owner: identity,
-                  recipient: profile.name,
-                  value: p.commanderDamage[source.id] ?? 0,
-                  onChange: (delta) => perform(
-                    () => widget.controller.adjustCommanderDamage(
-                      p.id,
-                      source.id,
-                      delta,
-                    ),
-                  ),
-                  onOpen: () => widget.onOpen(WorkspacePage.commanderDamage),
-                );
-              },
-            ),
-          ),
-
-        Expanded(
-          child: visible.isEmpty
-              ? _EmptyLane(
-                  icon: Icons.widgets_outlined,
-                  text: 'Tools for your game',
-                  action: 'Choose utilities',
-                  onTap: () => widget.onOpen(WorkspacePage.utilities),
-                )
-              : DragBoundary(
-                  child: ReorderableListView.builder(
-                    scrollController: utilityScroll,
-                    buildDefaultDragHandles: false,
-                    itemCount: visible.length,
-                    onReorder: (old, next) => perform(() async {
-                      final ids = visible.map((u) => u.id).toList();
-                      if (next > old) next--;
-                      ids.insert(next, ids.removeAt(old));
-                      await widget.board.reorderVisibleUtilities(p.id, ids);
-                    }),
-                    proxyDecorator: (child, index, animation) =>
-                        Material(elevation: 5, child: child),
-                    itemBuilder: (context, index) {
-                      final u = visible[index];
-                      return ReorderableDelayedDragStartListener(
-                        key: ValueKey(u.id),
-                        index: index,
-                        enabled: expandedId == null,
-                        child: _UtilityRow(
-                          utility: u,
-                          player: p,
-                          board: widget.board,
-                          expanded: expandedId == u.id,
-                          onExpand: () => expand(u.id),
-                          onHide: () => widget.onHide(u),
-                          onOpen: () =>
-                              widget.onOpen(WorkspacePage.utilities, u.id),
-                          onChange: (delta) => perform(
-                            () => widget.board.adjustUtility(p.id, u.id, delta),
-                          ),
-                          onToggle: () => perform(
-                            () => widget.board.toggleUtility(p.id, u.id),
-                          ),
-                          onMana: (mana, delta) => perform(
-                            () =>
-                                widget.controller.adjustMana(p.id, mana, delta),
-                          ),
-                        ),
-                      );
-                    },
+    Widget commanderTrackers({
+      bool compact = false,
+      List<Widget> trailing = const [],
+    }) => SizedBox(
+      key: ValueKey('${p.id}-commander-trackers'),
+      height: compact ? 44 : 70,
+      child: ListView(
+        controller: commanderScroll,
+        scrollDirection: Axis.horizontal,
+        padding: compact
+            ? EdgeInsets.zero
+            : const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+        children: [
+          for (final source in widget.controller.session.commanders)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: _CommanderChip(
+                key: ValueKey('${p.id}-commander-${source.id}'),
+                compact: compact,
+                source: source,
+                owner: widget.controller.profile(
+                  widget.controller.session.player(source.ownerPlayerId).seatId,
+                ),
+                recipient: profile.name,
+                value: p.commanderDamage[source.id] ?? 0,
+                onChange: (delta) => perform(
+                  () => widget.controller.adjustCommanderDamage(
+                    p.id,
+                    source.id,
+                    delta,
                   ),
                 ),
-        ),
-      ],
+                onOpen: () => widget.onOpen(WorkspacePage.commanderDamage),
+              ),
+            ),
+          for (final shortcut in trailing) SizedBox(width: 44, child: shortcut),
+        ],
+      ),
+    );
+    Widget innerLane = LayoutBuilder(
+      builder: (context, lane) {
+        // Integrate sources into the existing attached control row when a second
+        // tracker row would consume default Storm/mana capacity. Targets and the
+        // large life number retain their sizes; only cosmetic row padding changes.
+        final compactCommanders =
+            widget.controller.session.commanders.isNotEmpty &&
+            lane.maxHeight < 420;
+        return Column(
+          children: [
+            SizedBox(height: widget.gameInset),
+            _LifePanel(
+              compactCommanders: compactCommanders
+                  ? (trailing) =>
+                        commanderTrackers(compact: true, trailing: trailing)
+                  : null,
+              player: p,
+              profile: profile,
+              controller: widget.controller,
+              epoch: widget.interactionEpoch,
+              enabledRules: enabled,
+              hiddenUtilities: hidden,
+              onOpen: widget.onOpen,
+              onChange: (d) =>
+                  perform(() => widget.controller.adjustLife(p.id, d)),
+              onMonarch: () =>
+                  perform(() => widget.controller.setMonarch(p.id)),
+              onBlessing: () => perform(
+                () =>
+                    widget.controller.setCitysBlessing(p.id, !p.citysBlessing),
+              ),
+            ),
+            if (widget.controller.session.commanders.isNotEmpty &&
+                !compactCommanders)
+              commanderTrackers(),
+            Expanded(
+              child: visible.isEmpty
+                  ? _EmptyLane(
+                      icon: Icons.widgets_outlined,
+                      text: 'Tools for your game',
+                      action: 'Choose utilities',
+                      onTap: () => widget.onOpen(WorkspacePage.utilities),
+                    )
+                  : DragBoundary(
+                      child: ReorderableListView.builder(
+                        scrollController: utilityScroll,
+                        buildDefaultDragHandles: false,
+                        itemCount: visible.length,
+                        onReorder: (old, next) => perform(() async {
+                          final ids = visible.map((u) => u.id).toList();
+                          if (next > old) next--;
+                          ids.insert(next, ids.removeAt(old));
+                          await widget.board.reorderVisibleUtilities(p.id, ids);
+                        }),
+                        proxyDecorator: (child, index, animation) =>
+                            Material(elevation: 5, child: child),
+                        itemBuilder: (context, index) {
+                          final u = visible[index];
+                          return ReorderableDelayedDragStartListener(
+                            key: ValueKey(u.id),
+                            index: index,
+                            enabled: expandedId == null,
+                            child: _UtilityRow(
+                              compactSpacing: compactCommanders,
+                              utility: u,
+                              player: p,
+                              board: widget.board,
+                              expanded: expandedId == u.id,
+                              onExpand: () => expand(u.id),
+                              onHide: () => widget.onHide(u),
+                              onOpen: () =>
+                                  widget.onOpen(WorkspacePage.utilities, u.id),
+                              onChange: (delta) => perform(
+                                () => widget.board.adjustUtility(
+                                  p.id,
+                                  u.id,
+                                  delta,
+                                ),
+                              ),
+                              onToggle: () => perform(
+                                () => widget.board.toggleUtility(p.id, u.id),
+                              ),
+                              onMana: (mana, delta) => perform(
+                                () => widget.controller.adjustMana(
+                                  p.id,
+                                  mana,
+                                  delta,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+            ),
+          ],
+        );
+      },
     );
     return RotatedBox(
       quarterTurns: widget.turns,
@@ -760,6 +795,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
 }
 
 class _LifePanel extends StatelessWidget {
+  final Widget Function(List<Widget> trailing)? compactCommanders;
   final PlayerState player;
   final SeatProfile profile;
   final TableController controller;
@@ -768,6 +804,7 @@ class _LifePanel extends StatelessWidget {
   final VoidCallback onMonarch, onBlessing;
   final void Function(WorkspacePage, [String?]) onOpen;
   const _LifePanel({
+    this.compactCommanders,
     required this.player,
     required this.profile,
     required this.controller,
@@ -940,20 +977,39 @@ class _LifePanel extends StatelessWidget {
               ],
             ),
           ),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 240 ? 6 : 3;
-              return Wrap(
+          if (compactCommanders != null)
+            SizedBox(
+              height: 44,
+              child: Row(
                 children: [
-                  for (final shortcut in shortcuts)
-                    SizedBox(
-                      width: constraints.maxWidth / columns,
-                      child: shortcut,
-                    ),
+                  SizedBox(width: 40, child: shortcuts[0]),
+                  SizedBox(width: 40, child: shortcuts[5]),
+                  SizedBox(width: 40, child: shortcuts[1]),
+                  Expanded(
+                    child: compactCommanders!([
+                      shortcuts[2],
+                      shortcuts[3],
+                      shortcuts[4],
+                    ]),
+                  ),
                 ],
-              );
-            },
-          ),
+              ),
+            )
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = constraints.maxWidth >= 240 ? 6 : 3;
+                return Wrap(
+                  children: [
+                    for (final shortcut in shortcuts)
+                      SizedBox(
+                        width: constraints.maxWidth / columns,
+                        child: shortcut,
+                      ),
+                  ],
+                );
+              },
+            ),
         ],
       ),
     );
@@ -1004,6 +1060,7 @@ class _StatusBadge extends StatelessWidget {
 }
 
 class _CommanderChip extends StatelessWidget {
+  final bool compact;
   final CommanderSource source;
   final SeatProfile owner;
   final String recipient;
@@ -1012,6 +1069,7 @@ class _CommanderChip extends StatelessWidget {
   final VoidCallback onOpen;
   const _CommanderChip({
     super.key,
+    this.compact = false,
     required this.source,
     required this.owner,
     required this.recipient,
@@ -1022,6 +1080,83 @@ class _CommanderChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = Color(owner.color);
+    if (compact) {
+      Widget adjust(int delta) => IconButton(
+        tooltip:
+            '$recipient, ${delta < 0 ? 'decrease' : 'increase'} damage from ${source.name} (${owner.name})',
+        onPressed: delta < 0 && value == 0 ? null : () => onChange(delta),
+        icon: Icon(delta < 0 ? Icons.remove : Icons.add, size: 18),
+        style: IconButton.styleFrom(
+          minimumSize: const Size(44, 44),
+          maximumSize: const Size(44, 44),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          padding: EdgeInsets.zero,
+        ),
+      );
+      return Container(
+        width: 140,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+        foregroundDecoration: BoxDecoration(
+          border: Border.all(color: color, width: 2),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: _ArtworkSurface(
+          url: owner.artworkUrl,
+          tint: Color.alphaBlend(
+            color.withValues(alpha: .24),
+            Theme.of(context).colorScheme.surface,
+          ),
+          child: Row(
+            children: [
+              adjust(-1),
+              Expanded(
+                child: Tooltip(
+                  message: '${source.name} · ${owner.name}',
+                  child: InkWell(
+                    onTap: onOpen,
+                    child: Semantics(
+                      button: true,
+                      label:
+                          '$recipient, $value damage from ${source.name}, owned by ${owner.name}',
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            source.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: owner.artworkUrl == null
+                                  ? color
+                                  : Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              '$value',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                height: 1,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              adjust(1),
+            ],
+          ),
+        ),
+      );
+    }
     return Container(
       width: 150,
       clipBehavior: Clip.antiAlias,
@@ -1145,6 +1280,7 @@ class _EmptyLane extends StatelessWidget {
 }
 
 class _UtilityRow extends StatelessWidget {
+  final bool compactSpacing;
   final UtilityState utility;
   final PlayerState player;
   final BoardService board;
@@ -1153,6 +1289,7 @@ class _UtilityRow extends StatelessWidget {
   final ValueChanged<int> onChange;
   final void Function(String, int) onMana;
   const _UtilityRow({
+    this.compactSpacing = false,
     required this.utility,
     required this.player,
     required this.board,
@@ -1231,7 +1368,12 @@ class _UtilityRow extends StatelessWidget {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(17, 0, 6, 3),
+                  padding: EdgeInsets.fromLTRB(
+                    17,
+                    0,
+                    6,
+                    compactSpacing ? 0 : 3,
+                  ),
                   child: DefaultTextStyle.merge(
                     style: TextStyle(color: color),
                     child: Column(

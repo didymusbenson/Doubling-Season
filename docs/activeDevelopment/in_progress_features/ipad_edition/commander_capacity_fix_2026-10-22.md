@@ -1,0 +1,22 @@
+# Commander source capacity repair — 2026-10-22
+
+Status: implemented for independent live-browser retest; no merge or deployment. Follows the keyboard fix at `7890c7c`, independently reported live PASS by the parent reviewer (including real Mana sword/shield glyphs).
+
+The reviewer screenshot `libfile_a50c006455348191a5e26bc36b239b04` was materialized through the supported Library known-ID route into this consumer workspace and inspected. At 1133×744 the unconditional 70px commander strip displaced the lower default mana row. A source-enabled regression reproduced 72.5px of default utility overflow before this fix.
+
+For short seats (available life/utility lane height below 420px), sources now occupy a 44px horizontal row integrated with the existing life shortcuts. Monarch, blessing and counters remain pinned; Rules, presets and utility management remain available after the source chips in the same row and through the player workspace. Each source keeps its owner's border color/artwork, a named value and direct 44×44 minus/plus targets. Partners and self sources remain distinct. Horizontal scrolling reaches every source without opening a menu. Taller portrait/larger seats retain the fuller attached source strip. No source row is reserved when there are no sources.
+
+Life remains at its existing 48px font and 48px adjustment row. Mana keeps its original 48px target height. Compact mode removes only cosmetic bottom spacing from utility rows. Every default Storm/mana action is visible at the initial scroll position, including iPad-style 24px/20px safe areas. The list can retain at most a subpixel decorative border tail (0.5px), with no clipped control.
+
+Verification: `flutter analyze` clean; aggregate tablet tests **129/129 PASS**. Eighteen source-enabled layout cases cover 1133×744, 744×1133 and 1366×1024, each with 2/3/4 seats, with either one source or two partners per active player (up to eight sources including self). Every source can scroll fully into view with direct targets at least 44×44; every default mana control remains visible at 48px height; life remains 48px. The direct-source test retains owner color/art, separate partner/self changes, recipient-only life/history coupling and undo. Seven optional real-font widget-renderer captures cover source-enabled 2p/4p at all three sizes plus 3p mini landscape; these are renderer evidence, not browser or native screenshots.
+
+| Platform / evidence | Result | Remaining acceptance |
+|---|---|---|
+| Shared Flutter widget renderer | PASS: source capacity, reachability, controls, coupling/history/undo; real-font pixels inspected | Independent release-runtime validation |
+| Web release build | PASS: `/Doubling-Season/tablet/`; main.dart.js SHA-256 `0fdad92f971d4ed5b8e7a3f996fd8caeb8f5e314fa7a2e60474a0e71ea59ebfb` | Parent reviewer live retest of this capacity fix pending |
+| iOS tablet runtime | NOT RUN: Mac remains locked; no bypass | Unlocked simulator/device visual, touch, keyboard/modal acceptance |
+| Android tablet runtime | NOT RUN: native UI unavailable under lock restriction | Emulator/device visual, touch, keyboard/modal acceptance |
+
+These requirements apply consistently to iOS/Android tablets and web. The fix uses shared Flutter constraints and contains no web-only layout branch. CI compiles Android/web and unsigned iOS simulator targets; successful compilation does not establish native UI acceptance. Root app, font assets, platform configuration and deployment configuration are unchanged.
+
+Independent reviewer should freshly reload the existing isolated release endpoint, enable partners for all four seats at 1133×744, and confirm default Storm plus every mana color remain immediately usable; swipe through all source chips (including each recipient's own partners), verify owner style and direct adjustments, then undo. Repeat top-facing seats and sample 2p/3p, portrait and larger layouts. No installation, signing/security/account change or personal data reset is needed.

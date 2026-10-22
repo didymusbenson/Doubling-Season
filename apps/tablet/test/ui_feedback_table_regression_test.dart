@@ -480,10 +480,14 @@ void main() {
         ),
       );
       expect(
-        bounds(tester, row).top,
+        bounds(tester, row).bottom,
         closeTo(bounds(tester, lifePanel).bottom, .01),
       );
-      expect(tester.getSize(row).height, inInclusiveRange(64, 70));
+      expect(tester.getSize(row).height, 44);
+      final sources = tester.widget<ListView>(
+        find.descendant(of: row, matching: find.byType(ListView)),
+      );
+      var sourceIndex = 0;
       expect(
         bounds(tester, row).overlaps(
           bounds(tester, find.byKey(ValueKey('${recipient.id}-token-lane'))),
@@ -491,6 +495,13 @@ void main() {
         isFalse,
       );
       for (final source in fixture.controller.session.commanders) {
+        sources.controller!.jumpTo(
+          (sourceIndex++ * 144.0).clamp(
+            0,
+            sources.controller!.position.maxScrollExtent,
+          ),
+        );
+        await tester.pumpAndSettle();
         final sourceOwner = fixture.controller.player(source.ownerPlayerId);
         final identity = fixture.controller.profile(sourceOwner.seatId);
         final chip = find.byKey(
@@ -501,7 +512,8 @@ void main() {
           find.descendant(of: chip, matching: find.byType(Container)).first,
         );
         final border =
-            (container.decoration! as BoxDecoration).border! as Border;
+            (container.foregroundDecoration! as BoxDecoration).border!
+                as Border;
         expect(border.top.color, Color(identity.color));
         expect(
           tester
@@ -518,6 +530,15 @@ void main() {
           '$recipientName, increase damage from ${source.name} (${identity.name})',
         );
         expect(add.hitTestable(), findsOneWidget);
+        expect(tester.getSize(add), const Size(44, 44));
+        expect(
+          bounds(tester, chip).left,
+          greaterThanOrEqualTo(bounds(tester, row).left - .01),
+        );
+        expect(
+          bounds(tester, chip).right,
+          lessThanOrEqualTo(bounds(tester, row).right + .01),
+        );
         await tester.tap(add);
         await tester.pumpAndSettle();
         expect(
@@ -550,6 +571,8 @@ void main() {
         fixture.controller.player(recipient.id).commanderDamage['partner-b'],
         1,
       );
+      sources.controller!.jumpTo(0);
+      await tester.pumpAndSettle();
       await tester.tap(
         find.byTooltip(
           '$recipientName, decrease damage from Partner A (${owner.name})',

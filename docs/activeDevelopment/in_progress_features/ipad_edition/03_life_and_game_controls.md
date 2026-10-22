@@ -36,7 +36,7 @@ Commander damage is required, including damage from a player’s own commander. 
 
 Accepted interaction (the latest feedback supersedes the earlier menu-first proposal):
 
-1. Recipient adjusts an individual commander mini-tracker directly in the attached life area, with the source owner’s visual identity. A compact overview remains available for arbitrary amounts and ledger corrections.
+1. Recipient adjusts an individual commander mini-tracker directly in the attached life area, with the source owner’s visual identity. A compact overview remains available for arbitrary amounts and ledger corrections. On short tablet seats, integrate the direct source chips into the attached shortcut row instead of reserving another fixed-height strip; keep default Storm and all six mana controls initially visible with life legibility and touch targets preserved. Taller seats may retain the fuller source row. Test one source and partners for all active seats, including self sources, at 2/3/4 players.
 2. Keep each named commander source distinct **including the recipient’s own commander(s)** and partners. Identify owner, recipient and commander in context/accessibility; never restrict sources to opponents.
 3. Direct ± changes damage and coupled life through the existing command. Enter a larger combat amount or an explicit ledger-only correction in the source’s contextual editor.
 4. **Accepted:** entering new commander damage also subtracts life. Provide distinct corrections to either value independently; correction must not silently repeat the coupled effect.
