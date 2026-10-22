@@ -27,9 +27,9 @@ Expanded source cards are bounded at 200px width. The focused workspace is at mo
 - [x] Token compact inline action ordering, rotated seats, specialized holds, zero clamp/no accidental expand, clean add behavior and expanded last-token FAB clearance.
 - [x] Entire life colored bounds equal the union of its two halves; name and near-border corners adjust life in both orientations; tools do not mutate life or overlap the surface.
 - [x] Crown/Blessing adjacency, Edit last, presets inside Edit, utility manage located in utility content; Monarch transfer/undo and independent Blessings remain tested.
-- [x] Final aggregate suite: **199/199 PASS**; analysis clean; release web build PASS. Both empty-source owner-setup scenarios and eight-source direct adjustments/undo from both facing seats pass in 1133×744 and 744×1133. Source-enabled default Storm/mana capacity and 48px life legibility remain intact.
+- [x] Final aggregate suite: **200/200 PASS**; analysis clean; release web build PASS. Both empty-source owner-setup scenarios and eight-source direct adjustments/undo from both facing seats pass in 1133×744 and 744×1133. Source-enabled default Storm/mana capacity and 48px life legibility remain intact.
 - [x] Commander ledger→expanded source grid, owner setup, partner/self identity/style, coupled adjustment/undo and tapaway/no-clickthrough regressions.
-- [x] Final local analysis, aggregate tests and release web build. Real-font renderer suites: 71/71 plus two eight-source scenarios PASS.
+- [x] Final local analysis, aggregate tests and release web build. Real-font renderer suites: 74/74, including eight-source and large signed-life scenarios PASS.
 - [ ] CI web/Android/iOS simulator builds.
 - [x] Final renderer pixels inspected: 2/3/4 seats, small landscape/portrait, standalone central hub, inline token actions, crown/adjacent Blessing, disjoint colored life/tools, collapsed ledger and expanded source grid, final expanded-token FAB clearance.
 - [ ] Independent parent live-browser/visual review before publication.
@@ -38,4 +38,7 @@ Expanded source cards are bounded at 200px width. The focused workspace is at mo
 Renderer screenshots are Flutter widget-test evidence with real fonts, not release-browser or native acceptance. Shared Flutter changes target web, Android tablets and iPad. Native hands-on validation remains unavailable under the locked-host restriction; no bypass, signing/account changes, installs or data resets are authorized by this correction. The original root app and deployment workflow remain unchanged.
 
 
-Release artifact `apps/tablet/build/web/main.dart.js` SHA-256: `5bd529ad1201f0a9b2d76038e6112ef9f7fe1148ff70d66ed66f8e1ff9715ada`. Screenshots under the task workspace's `central-hub-final-evidence/` are Flutter renderer captures; Library saving is currently pending because the prepared-upload skill resource became unavailable during the run. Root app files and combined Pages workflow are unchanged. Final PR/check/deployment records will supply exact commits.
+Release artifact `apps/tablet/build/web/main.dart.js` SHA-256: `eeb11536830abbae2b6b0e24efd16158c89fbfcd98c4a009b2c94d4bff90f195`. Screenshots under the task workspace's `central-hub-final-evidence/` are Flutter renderer captures; Library saving is currently pending because the prepared-upload skill resource became unavailable during the run. Root app files and combined Pages workflow are unchanged. Final PR/check/deployment records will supply exact commits.
+
+
+Final preservation check: the new life display overlay initially omitted the old fitted-number treatment. A rendered-glyph regression for ±999999 on the narrow portrait surface failed because digits entered the ± icon areas. Restore horizontal display clearance and scale-down fitting for the number only; full colored half hit regions and the 48px default life style stay unchanged. Focused regression, full 200-test suite, analysis, 74 real-font scenarios and separate release build all pass. The earlier port8786 artifact remains stable for independent review; the final fitted-number artifact is built separately in `central-hub-release-200`.

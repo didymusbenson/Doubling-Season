@@ -200,6 +200,40 @@ void main() {
     );
   });
 
+  testWidgets(
+    'large signed life totals keep every glyph inside their colored surface',
+    (tester) async {
+      final state = tableFor(4);
+      for (var i = 0; i < state.session.players.length; i++) {
+        state.session.players[i].life = i.isEven ? 999999 : -999999;
+      }
+      final fixture = await showTable(tester, const Size(744, 1133), state);
+      for (final player in fixture.controller.session.players) {
+        final surface = find.byKey(ValueKey('${player.id}-life-surface'));
+        final text = find.descendant(
+          of: surface,
+          matching: find.text('${player.life}'),
+        );
+        final paragraph = tester.renderObject<RenderParagraph>(text);
+        for (final glyphBox in paragraph.getBoxesForSelection(
+          TextSelection(baseOffset: 0, extentOffset: '${player.life}'.length),
+        )) {
+          final glyphs = Rect.fromPoints(
+            paragraph.localToGlobal(Offset(glyphBox.left, glyphBox.top)),
+            paragraph.localToGlobal(Offset(glyphBox.right, glyphBox.bottom)),
+          );
+          final panel = bounds(tester, surface);
+          expect(glyphs.top, greaterThanOrEqualTo(panel.top));
+          expect(glyphs.bottom, lessThanOrEqualTo(panel.bottom));
+          expect(glyphs.left, greaterThanOrEqualTo(panel.left + 26));
+          expect(glyphs.right, lessThanOrEqualTo(panel.right - 26));
+        }
+      }
+      await capture(tester, '4p-portrait-large-signed-life');
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final size in [
     const Size(1133, 744),
     const Size(744, 1133),

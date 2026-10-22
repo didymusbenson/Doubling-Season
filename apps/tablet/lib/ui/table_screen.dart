@@ -838,13 +838,19 @@ class _LifePanel extends StatelessWidget {
                   ),
                   Expanded(
                     child: Center(
-                      child: Text(
-                        '${player.life}',
-                        style: TextStyle(
-                          fontSize: 48,
-                          fontWeight: FontWeight.w300,
-                          height: 1,
-                          color: artColor,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 27),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '${player.life}',
+                            style: TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.w300,
+                              height: 1,
+                              color: artColor,
+                            ),
+                          ),
                         ),
                       ),
                     ),
