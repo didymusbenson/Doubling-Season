@@ -497,6 +497,7 @@ extension _GamePages on _TableWorkspaceState {
     final sources = c.session.commanders;
     return _GamePageTabs(
       labels: const ['Damage', 'Sources'],
+      onChanged: (index) => _update(() => _commanderSetup = index == 1),
       builder: (index) {
         if (index == 1 || sources.isEmpty) {
           final owner = c.session.players.firstWhere(
@@ -506,11 +507,6 @@ extension _GamePages on _TableWorkspaceState {
           return _playerCommanders(owner, chooseOwner: true);
         }
         return _list([
-          _section(
-            'Damage received by $_seatName · ${player.life} life',
-            detail:
-                '− / + changes damage and life together. Open Edit damage for a larger amount or a ledger-only correction.',
-          ),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -519,8 +515,6 @@ extension _GamePages on _TableWorkspaceState {
                 SizedBox(width: 200, child: _commanderTracker(player, source)),
             ],
           ),
-          const SizedBox(height: 12),
-          _button('Correct life separately', () => _go(WorkspacePage.player)),
         ]);
       },
     );
@@ -609,6 +603,13 @@ extension _GamePages on _TableWorkspaceState {
                     ),
                   ExpansionTile(
                     key: PageStorageKey('commander-editor-${source.id}'),
+                    onExpansionChanged: (open) => _update(() {
+                      if (open) {
+                        _expandedCommanderEditors.add(source.id);
+                      } else {
+                        _expandedCommanderEditors.remove(source.id);
+                      }
+                    }),
                     tilePadding: EdgeInsets.zero,
                     title: const Text('Edit damage'),
                     children: [
@@ -1068,9 +1069,14 @@ extension _GamePages on _TableWorkspaceState {
 
 /// Keeps contextual setup controls visible without making gameplay a long form.
 class _GamePageTabs extends StatefulWidget {
-  const _GamePageTabs({required this.labels, required this.builder});
+  const _GamePageTabs({
+    required this.labels,
+    required this.builder,
+    this.onChanged,
+  });
   final List<String> labels;
   final Widget Function(int index) builder;
+  final ValueChanged<int>? onChanged;
 
   @override
   State<_GamePageTabs> createState() => _GamePageTabsState();
@@ -1092,7 +1098,10 @@ class _GamePageTabsState extends State<_GamePageTabs> {
               ChoiceChip(
                 label: Text(widget.labels[index]),
                 selected: selected == index,
-                onSelected: (_) => setState(() => selected = index),
+                onSelected: (_) {
+                  setState(() => selected = index);
+                  widget.onChanged?.call(index);
+                },
               ),
           ],
         ),

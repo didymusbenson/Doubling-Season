@@ -106,6 +106,8 @@ class _TableWorkspace extends StatefulWidget {
 class _TableWorkspaceState extends State<_TableWorkspace> {
   late WorkspacePage _page;
   String? _commanderOwnerId;
+  bool _commanderSetup = false;
+  final Set<String> _expandedCommanderEditors = {};
   late BoardService _board;
   late PresetService _presets;
   late String _sessionId;
@@ -685,8 +687,16 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       WorkspacePage.tokenArtwork,
     }.contains(_page);
     final focusedCommander = _page == WorkspacePage.commanderDamage;
+    final commanderSetup = _commanderSetup || c.session.commanders.isEmpty;
+    final commanderWidth = commanderSetup
+        ? 680.0
+        : max(400.0, 40 + min(3, c.session.commanders.length) * 208.0 - 8);
     final width = min(
-      focusedToken || focusedCommander ? 680.0 : 1050.0,
+      focusedCommander
+          ? commanderWidth
+          : focusedToken
+          ? 680.0
+          : 1050.0,
       (rotated ? size.height : size.width) - 40,
     );
     final commanderColumns = max(1, ((width - 40 + 8) / 208).floor());
@@ -694,7 +704,11 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         (max(1, c.session.commanders.length) / commanderColumns).ceil();
     final height = min(
       focusedCommander
-          ? min(640.0, max(520.0, 164.0 + commanderRows * 176))
+          ? commanderSetup
+                ? 520.0
+                : _expandedCommanderEditors.isNotEmpty
+                ? 640.0
+                : min(640.0, 168.0 + commanderRows * 176)
           : 940.0,
       (rotated ? size.width : size.height) - 40,
     );
@@ -702,6 +716,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       child: RotatedBox(
         quarterTurns: widget.quarterTurns,
         child: SizedBox(
+          key: focusedCommander ? const ValueKey('commander-workspace') : null,
           width: width,
           height: height,
           child: Material(
@@ -726,7 +741,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _seatName,
+                              focusedCommander
+                                  ? '$_seatName · ${p?.life ?? 0} life'
+                                  : _seatName,
                               style: Theme.of(context).textTheme.labelLarge
                                   ?.copyWith(
                                     color: Theme.of(
@@ -741,6 +758,14 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
                           ],
                         ),
                       ),
+                      if (focusedCommander)
+                        IconButton(
+                          tooltip: 'Correct life separately',
+                          onPressed: _working
+                              ? null
+                              : () => _go(WorkspacePage.player),
+                          icon: const Icon(Icons.edit_note, size: 22),
+                        ),
                       IconButton(
                         tooltip: 'Close workspace',
                         onPressed: _requestClose,

@@ -903,6 +903,19 @@ void main() {
       await tester.tap(ledger);
       await tester.pumpAndSettle();
       expect(fixture.controller.player(recipient.id).life, 40);
+      expect(
+        find.textContaining('− / + changes damage and life together'),
+        findsNothing,
+      );
+      final correctLife = find.byTooltip('Correct life separately');
+      expect(correctLife.hitTestable(), findsOneWidget);
+      expect(tester.getSize(correctLife).width, lessThanOrEqualTo(48));
+      expect(
+        tester
+            .getSize(find.byKey(const ValueKey('commander-workspace')))
+            .height,
+        lessThan(450),
+      );
       await capture(tester, '2p-commander-expanded-source-grid');
       for (final source in fixture.controller.session.commanders) {
         final sourceOwner = fixture.controller.player(source.ownerPlayerId);
