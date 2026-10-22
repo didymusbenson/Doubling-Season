@@ -56,7 +56,7 @@ priority:
 - **IPAD EDITION** — new Flutter large-screen/tabletop project with a central
   life tracker and independent per-player token and utility lanes. Detailed
   product, architecture, isolation, recovery, research, validation and open
-  decisions live in [the planning dossier](todo_features/ipad_edition/README.md).
+  decisions live in [the planning dossier](in_progress_features/ipad_edition/README.md).
   Discovery only; this does not change the 1.11 acceptance or implementation
   priorities above.
 
