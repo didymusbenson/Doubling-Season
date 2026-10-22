@@ -1,6 +1,6 @@
 # IPAD EDITION
 
-**Status:** discovery and proposed design; no implementation started.
+**Status:** first implementation in progress in `apps/tablet`; see [implementation and validation](implementation.md).
 **Created:** 2026-10-20 (America/Phoenix). **Decisions updated:** 2026-10-21.
 **Product relationship:** a separate app / new product reusing Tripling Season infrastructure; the same repository is acceptable with properly isolated directories.
 **Technical direction:** Flutter with custom, player-facing in-app keyboards; validate in prototypes before treating the solution as proven. **Product targets:** Android, iOS and web.
