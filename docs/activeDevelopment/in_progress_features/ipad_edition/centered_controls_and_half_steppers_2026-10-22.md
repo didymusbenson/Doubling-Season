@@ -1,6 +1,6 @@
 # Centered game controls and full-half steppers — 2026-10-22
 
-Status: new correction branch for parent review; do not merge or deploy this body without new approval. Baseline is deployed main `9c3b926c39e70b0a78dc84691579789ddd78e1a2`. The previous batch is preserved on `codex/tablet-ui-feedback-batch` at `49d5e89`. New checkout: `/Users/didymusbenson/Documents/Codex/2026-10-22/task-2/tablet-centered-controls`, branch `codex/tablet-centered-game-controls`.
+Status: independent live review of `2b0b916` passed as reported by the parent. The user subsequently authorized publishing completed work and requested the utility stripe-only adjustment below; publish after its checks pass. Baseline is deployed main `9c3b926c39e70b0a78dc84691579789ddd78e1a2`. The previous batch is preserved on `codex/tablet-ui-feedback-batch` at `49d5e89`. New checkout: `/Users/didymusbenson/Documents/Codex/2026-10-22/task-2/tablet-centered-controls`, branch `codex/tablet-centered-game-controls`.
 
 ## Reproduction and cause
 
@@ -30,10 +30,18 @@ Workspace pairs use 48px full halves: counter and commander cards, mana, utility
 - Re-run 1133×744, 744×1133 and 1366×1024 at 2/3/4 seats, including one source and two partners per active player (up to eight sources including self). Keep all default mana/Storm actions visible with original target heights.
 - Tap full halves near outer edges, center/value and upper/lower corners at 0°/180° across Android/iOS/macOS widget variants. Check visible ink, disabled semantics, clamps, holds, grouping/undo, separate editing and modal cancellation with no leaking life action.
 - Check life net-delta expiry, cold-loaded history, settings opening/canceling and art/orientation. Do not treat the saved Lifetap hold behavior as tested evidence.
-- Flutter analysis, aggregate regressions, real-font renderer captures and web/Android/iOS builds are separate evidence. Independent release-browser retest and unlocked native hands-on acceptance remain pending. No new merge/deployment is authorized by the previous completed batch approval.
+- Flutter analysis, aggregate regressions, real-font renderer captures and web/Android/iOS builds are separate evidence. Independent live release-browser review of `2b0b916` passed for centered layouts, direct life/settings/delta/history/undo and sampled other steppers. The user has explicitly authorized publication after the stripe-only follow-up checks; unlocked native hands-on acceptance remains pending.
 
 ## Implementation checkpoint verification
 
-`flutter analyze`: clean. Aggregate tablet suite: **190/190 PASS**, including the cold-load delta regression that failed before the freshness filter. New-command feedback remains authoritative and saved life/history are unchanged on reopening. Release web build succeeds at `/Doubling-Season/tablet/`; `main.dart.js` SHA-256: `ce9af52b4b85c98eb5f0ad1b1a5a7f75a0c3abc7014f24fa499dde5719ede011`.
+`flutter analyze`: clean. Aggregate tablet suite: **191/191 PASS**, including the cold-load delta regression that failed before the freshness filter. New-command feedback remains authoritative and saved life/history are unchanged on reopening. Release web build succeeds at `/Doubling-Season/tablet/`; `main.dart.js` SHA-256: `ddf94c40a5c405eada195e39c8401ae503675d0fffbc7ee5f59f72e80d66cdce`.
 
 The earlier real-font board matrix passes **54/54**; the final expanded coordinate/delta capture suite passes **61/61**, including the direct-life delta image. Shared/workspace real-font captures pass **12/12** with no fixed-option clipping; actual InkWell pixel changes have a primitive regression. These are widget-renderer evidence only. Independent review receives a separate local release server on port8785; the deployed Pages site and original batch remain unchanged.
+
+## Utility color stripe-only follow-up — authorized 2026-10-22
+
+The user requested no rendered color-indicator stripe in the tablet utility lane, while retaining all utility color metadata for future design work. Before editing, the regression found eight rendered utility gradients where none should remain. Remove only the 7px `_UtilityRow` color decoration and its 7px reserved inset (normal left content padding becomes 10px). No utility color field, serialization/storage, editing control or other color use changes. Tablet token rendering is untouched and retains its 7px color rails.
+
+The regression seeds colored utilities, asserts no utility gradient, verifies all token rails remain 7px, performs a saved game action and reloads the serialized state to check the original utility/token colors remain intact. Final real-font capture shows the stripe-free utility lane alongside unchanged green token rails. This is the requested immediate cleanup, not the deferred broader utility design iteration.
+
+Stripe-only follow-up validation: analysis clean; focused regression and aggregate191tests PASS; real-font screenshot inspected; releasewebbuild PASS. Publication status and exact merge/deployment commits are recorded by [PR40](https://github.com/didymusbenson/Doubling-Season/pull/40) and its linked Actions runs.

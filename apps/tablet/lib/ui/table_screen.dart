@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:doubling_season/utils/color_utils.dart';
 import '../domain/table_state.dart';
 import '../state/table_controller.dart';
 import '../services/tablet_catalog.dart';
@@ -1370,20 +1369,9 @@ class _UtilityRow extends StatelessWidget {
             expanded: expanded,
             child: Stack(
               children: [
-                Positioned(
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: 7,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: ColorUtils.gradientForColors(utility.colors),
-                    ),
-                  ),
-                ),
                 Padding(
                   padding: EdgeInsets.fromLTRB(
-                    17,
+                    10,
                     0,
                     6,
                     compactSpacing ? 0 : 3,

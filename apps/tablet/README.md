@@ -6,9 +6,9 @@ The separate tablet app developed from the Tripling Season iPad specifications.
 **Checkpoint status (2026-10-22): positioning and stepper correction in progress.**
 The previous UI batch is deployed at main `9c3b926`. The new
 [centered-controls/full-half stepper correction](../../docs/activeDevelopment/in_progress_features/ipad_edition/centered_controls_and_half_steppers_2026-10-22.md)
-fixes the reported bottom-seat toolbar anchoring and direct life input. Review
-and independent browser acceptance are required before another merge/deployment;
-native hands-on acceptance remains outstanding.
+fixes the reported bottom-seat toolbar anchoring and direct life input. Independent browser review passed on `2b0b916`; publication is authorized after
+checking the requested utility stripe-only follow-up. Native hands-on acceptance
+remains outstanding.
 
 ## Run
 

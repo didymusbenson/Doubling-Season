@@ -137,6 +137,15 @@ Use `/shipfortestflight` for automated workflow (auto-increments version, builds
 - **`/shipfortestflight`** - Auto-increment version, build IPA, prepare for TestFlight
 - **`/shiptomyphone`** - Build iOS release and permanently install on connected iPhone
 
+### Publishing completed work
+
+User standing direction (2026-10-22): publish completed, verified work through
+this repository's PR and existing combined Pages workflow without asking for
+another publication confirmation. Keep incomplete work isolated and preserve
+later explicit scope/review restrictions; no force pushes or unrelated merges.
+This covers the original-plus-tablet Pages preview, not store/signing/account
+changes.
+
 ### Git Commit Conventions
 
 **CRITICAL: NO Codex ATTRIBUTION**
@@ -334,6 +343,10 @@ identity belongs in the life region; retain target context in shared editors.
 Any modal blocks the entire table, dismisses on tapaway without click-through,
 and preserves recoverable drafts. A single custom keyboard faces the initiating
 player for every input. Routine actions do not generate toast/snackbar feedback.
+Tablet utility rows do not render a color-indicator stripe. Retain their color
+metadata/model/storage and other uses of color; tablet tokens keep their 7px
+color rails. This is a tablet utility presentation exception, not a change to
+the original phone application's board components.
 Numeric steppers use full player-local left/right InkWell halves; the displayed
 value does not intercept adjustment taps. Keep edit/customization controls
 separate, preserve specialized token/mana holds, and cancel repeating holds on

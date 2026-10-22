@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:doubling_season/widgets/mana/mana_icons.dart';
@@ -134,6 +135,52 @@ void main() {
       }
     });
   }
+
+  testWidgets(
+    'utility metadata persists without a color stripe while token color rails remain',
+    (tester) async {
+      final state = tableFor(4, tokens: 1);
+      for (final player in state.session.players) {
+        player.utilities.first.colors = 'RG';
+        player.utilities.last.colors = 'U';
+      }
+      final fixture = await showTable(tester, const Size(1133, 744), state);
+      final gradients = find.byWidgetPredicate(
+        (w) =>
+            w is DecoratedBox &&
+            w.decoration is BoxDecoration &&
+            (w.decoration as BoxDecoration).gradient != null,
+      );
+      final utilities = find.byWidgetPredicate(
+        (w) => w.runtimeType.toString() == '_UtilityRow',
+      );
+      expect(
+        find.descendant(of: utilities, matching: gradients),
+        findsNothing,
+        reason: 'Utility color metadata must not render a stripe.',
+      );
+      final tokenRails = find.descendant(
+        of: find.byType(TabletTokenCard),
+        matching: gradients,
+      );
+      expect(tokenRails, findsNWidgets(4));
+      for (final rail in tokenRails.evaluate()) {
+        expect(bounds(tester, find.byWidget(rail.widget)).width, 7);
+      }
+      await fixture.controller.adjustMana(fixture.playerId, 'W', 1);
+      await tester.pumpAndSettle();
+      final reloaded = TabletState.fromJson(
+        jsonMap(jsonDecode(fixture.repository.encoded)),
+      );
+      for (final player in reloaded.session.players) {
+        expect(player.utilities.first.colors, 'RG');
+        expect(player.utilities.last.colors, 'U');
+        expect(player.tokens.single.colors, 'G');
+      }
+      await capture(tester, '4p-utilities-without-color-stripes');
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   for (final size in [
     const Size(1133, 744),
