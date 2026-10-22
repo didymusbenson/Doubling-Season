@@ -700,8 +700,142 @@ void main() {
     },
   );
 
+  for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
+    testWidgets(
+      'eight source grid adjusts every partner/self from both facing seats at $size',
+      (tester) async {
+        final state = tableFor(4);
+        state.session.commanders = [
+          for (final owner in state.session.players)
+            for (var partner = 0; partner < 2; partner++)
+              CommanderSource(
+                id: '${owner.id}-$partner',
+                ownerPlayerId: owner.id,
+                name:
+                    '${state.profiles.firstWhere((p) => p.id == owner.seatId).name} Partner ${partner + 1}',
+              ),
+        ];
+        final fixture = await showTable(tester, size, state);
+        for (final recipient in fixture.controller.session.players.take(2)) {
+          final before = fixture.controller.session.players
+              .map((p) => p.life)
+              .toList();
+          await tester.tap(
+            find.byKey(ValueKey('${recipient.id}-commander-ledger')),
+          );
+          await tester.pumpAndSettle();
+          if (recipient.id == fixture.playerId) {
+            await capture(
+              tester,
+              '4p-${size.width.toInt()}x${size.height.toInt()}-expanded-eight-source-grid',
+            );
+          }
+          for (final source in fixture.controller.session.commanders) {
+            final card = find.byKey(ValueKey('commander-tracker-${source.id}'));
+            await tester.ensureVisible(card);
+            await tester.pumpAndSettle();
+            final add = find.descendant(
+              of: card,
+              matching: find.byTooltip(
+                'Increase ${source.name} commander damage',
+              ),
+            );
+            expect(add.hitTestable(), findsOneWidget);
+            expect(tester.getSize(add).width, greaterThanOrEqualTo(44));
+            expect(tester.getSize(add).height, 48);
+            await tester.tap(add);
+            await tester.pumpAndSettle();
+            expect(
+              fixture.controller
+                  .player(recipient.id)
+                  .commanderDamage[source.id],
+              1,
+            );
+            expect(fixture.controller.player(recipient.id).life, 39);
+            expect(await fixture.controller.undo(), isTrue);
+            await tester.pumpAndSettle();
+            expect(
+              fixture.controller
+                      .player(recipient.id)
+                      .commanderDamage[source.id] ??
+                  0,
+              0,
+            );
+            expect(
+              fixture.controller.session.players.map((p) => p.life).toList(),
+              before,
+            );
+          }
+          await tester.tap(find.byTooltip('Close workspace'));
+          await tester.pumpAndSettle();
+        }
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets('empty commander ledger opens direct owner setup at $size', (
+      tester,
+    ) async {
+      final fixture = await showTable(tester, size, tableFor(4));
+      final player = fixture.controller.session.players.first;
+      final owner = fixture.controller.session.players.last;
+      final beforeLife = fixture.controller.session.players
+          .map((p) => p.life)
+          .toList();
+      final ledger = find.byKey(ValueKey('${player.id}-commander-ledger'));
+      expect(ledger.hitTestable(), findsOneWidget);
+      await tester.tap(ledger);
+      await tester.pumpAndSettle();
+      expect(find.text('Add commander').hitTestable(), findsOneWidget);
+      await tester.tap(
+        find.widgetWithText(
+          ChoiceChip,
+          fixture.controller.profile(owner.seatId).name,
+        ),
+      );
+      await tester.pumpAndSettle();
+      final input = find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.labelText == 'Commander name',
+      );
+      tester.widget<TextField>(input).controller!.text = 'New partner';
+      await tester.tap(find.text('Add commander'));
+      await tester.pumpAndSettle();
+      expect(
+        fixture.controller.session.commanders.single.ownerPlayerId,
+        owner.id,
+      );
+      expect(fixture.controller.session.commanders.single.name, 'New partner');
+      expect(
+        fixture.controller.session.players.map((p) => p.life).toList(),
+        beforeLife,
+      );
+      expect(
+        find
+            .byKey(
+              ValueKey(
+                'commander-tracker-${fixture.controller.session.commanders.single.id}',
+              ),
+            )
+            .hitTestable(),
+        findsOneWidget,
+      );
+      await capture(
+        tester,
+        '4p-${size.width.toInt()}x${size.height.toInt()}-commander-source-setup',
+      );
+      await tester.tap(find.byTooltip('Close workspace'));
+      await tester.pumpAndSettle();
+      expect(ledger.hitTestable(), findsOneWidget);
+      expect(
+        fixture.controller.session.players.map((p) => p.life).toList(),
+        beforeLife,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets(
-    'direct commander trackers retain source owner identity, partner and self damage with undo',
+    'mini ledger expands source-styled partner and self trackers with coupled damage, dismissal and undo',
     (tester) async {
       final state = tableFor(2);
       final recipient = state.session.players.first;
@@ -727,62 +861,38 @@ void main() {
         ),
       ];
       final fixture = await showTable(tester, const Size(1133, 744), state);
-      final recipientName = fixture.controller.profile(recipient.seatId).name;
       final unchangedOpponent = fixture.controller.player(opponent.id).toJson();
-      final row = find.byKey(ValueKey('${recipient.id}-commander-trackers'));
-      expect(row.hitTestable(), findsOneWidget);
-      final lifePanel = find.descendant(
-        of: find.byKey(ValueKey(recipient.id)),
-        matching: find.byWidgetPredicate(
-          (widget) => widget.runtimeType.toString() == '_LifePanel',
-        ),
-      );
-      expect(
-        bounds(tester, row).bottom,
-        closeTo(bounds(tester, lifePanel).bottom, .01),
-      );
-      expect(tester.getSize(row).height, 44);
-      final sources = tester.widget<ListView>(
-        find.descendant(of: row, matching: find.byType(ListView)),
-      );
-      var sourceIndex = 0;
-      expect(
-        bounds(tester, row).overlaps(
-          bounds(tester, find.byKey(ValueKey('${recipient.id}-token-lane'))),
-        ),
-        isFalse,
-      );
+      final ledger = find.byKey(ValueKey('${recipient.id}-commander-ledger'));
+      expect(ledger.hitTestable(), findsOneWidget);
+      expect(tester.getSize(ledger), const Size(60, 44));
+      await capture(tester, '2p-commander-mini-ledger');
+      await tester.tap(ledger);
+      await tester.pumpAndSettle();
+      expect(fixture.controller.player(recipient.id).life, 40);
+      await capture(tester, '2p-commander-expanded-source-grid');
       for (final source in fixture.controller.session.commanders) {
-        sources.controller!.jumpTo(
-          (sourceIndex++ * 144.0).clamp(
-            0,
-            sources.controller!.position.maxScrollExtent,
-          ),
-        );
-        await tester.pumpAndSettle();
         final sourceOwner = fixture.controller.player(source.ownerPlayerId);
         final identity = fixture.controller.profile(sourceOwner.seatId);
-        final chip = find.byKey(
-          ValueKey('${recipient.id}-commander-${source.id}'),
-        );
+        final chip = find.byKey(ValueKey('commander-tracker-${source.id}'));
+        await tester.ensureVisible(chip);
+        await tester.pumpAndSettle();
         expect(chip.hitTestable(), findsOneWidget);
         final sourceLabel = find.descendant(
           of: chip,
           matching: find.text(source.name),
         );
+        expect(tester.widget<Text>(sourceLabel).data, source.name);
         expect(
-          tester.getSize(sourceLabel).width,
-          greaterThanOrEqualTo(80),
+          bounds(tester, sourceLabel).right,
+          lessThanOrEqualTo(bounds(tester, chip).right - 7),
           reason:
-              'Partner suffixes need a readable label area independent of the value/edit controls.',
+              'Source labels retain their own space above the adjustment halves.',
         );
-        final container = tester.widget<Container>(
-          find.descendant(of: chip, matching: find.byType(Container)).first,
+        final card = tester.widget<Card>(chip);
+        expect(
+          (card.shape! as RoundedRectangleBorder).side.color,
+          Color(identity.color),
         );
-        final border =
-            (container.foregroundDecoration! as BoxDecoration).border!
-                as Border;
-        expect(border.top.color, Color(identity.color));
         expect(
           tester
               .widget<TableArtworkSurface>(
@@ -794,20 +904,10 @@ void main() {
               .url,
           identity.artworkUrl,
         );
-        final add = find.byTooltip(
-          '$recipientName, increase damage from ${source.name} (${identity.name})',
-        );
+        final add = find.byTooltip('Increase ${source.name} commander damage');
         expect(add.hitTestable(), findsOneWidget);
         expect(tester.getSize(add).width, greaterThanOrEqualTo(44));
         expect(tester.getSize(add).height, greaterThanOrEqualTo(44));
-        expect(
-          bounds(tester, chip).left,
-          greaterThanOrEqualTo(bounds(tester, row).left - .01),
-        );
-        expect(
-          bounds(tester, chip).right,
-          lessThanOrEqualTo(bounds(tester, row).right + .01),
-        );
         await tester.tap(add);
         await tester.pumpAndSettle();
         expect(
@@ -840,13 +940,7 @@ void main() {
         fixture.controller.player(recipient.id).commanderDamage['partner-b'],
         1,
       );
-      sources.controller!.jumpTo(0);
-      await tester.pumpAndSettle();
-      await tester.tap(
-        find.byTooltip(
-          '$recipientName, decrease damage from Partner A (${owner.name})',
-        ),
-      );
+      await tester.tap(find.byTooltip('Decrease Partner A commander damage'));
       await tester.pumpAndSettle();
       expect(fixture.controller.player(recipient.id).life, 39);
       expect(
@@ -860,10 +954,22 @@ void main() {
         fixture.controller.player(recipient.id).commanderDamage['partner-a'],
         1,
       );
+      final beforeDismiss = fixture.controller.session.toJson();
+      await tester.tapAt(const Offset(2, 30));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Close workspace'), findsNothing);
+      expect(fixture.controller.session.toJson(), beforeDismiss);
+      final cell = find.byKey(
+        ValueKey('${recipient.id}-ledger-source-partner-a'),
+      );
+      expect(
+        find.descendant(of: cell, matching: find.text('1')),
+        findsOneWidget,
+      );
       expect(find.byType(AlertDialog), findsNothing);
       expect(find.byType(SnackBar), findsNothing);
       expect(tester.takeException(), isNull);
-      await capture(tester, '2p-direct-commander-partner-self-trackers');
+      await capture(tester, '2p-commander-mini-ledger-after-undo');
     },
   );
 }

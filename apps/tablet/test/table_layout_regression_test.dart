@@ -187,56 +187,38 @@ void main() {
                 reason:
                     'Default Storm and all mana controls must fit with sources.',
               );
-              final trackers = find.byKey(
-                ValueKey('${player.id}-commander-trackers'),
+              final ledger = find.byKey(
+                ValueKey('${player.id}-commander-ledger'),
               );
-              final sourceList = tester.widget<ListView>(
-                find.descendant(of: trackers, matching: find.byType(ListView)),
-              );
-              final compact = tester.getSize(trackers).height == 44;
-              var sourceIndex = 0;
-              Rect screenBounds(Finder finder) {
-                final box = tester.renderObject<RenderBox>(finder);
-                return Rect.fromPoints(
-                  box.localToGlobal(Offset.zero),
-                  box.localToGlobal(box.size.bottomRight(Offset.zero)),
-                );
-              }
-
+              expect(ledger.hitTestable(), findsOneWidget);
+              expect(tester.getSize(ledger), const Size(60, 44));
               for (final source in fixture.controller.session.commanders) {
-                sourceList.controller!.jumpTo(
-                  (sourceIndex++ * (compact ? 144.0 : 154.0)).clamp(
-                    0,
-                    sourceList.controller!.position.maxScrollExtent,
-                  ),
-                );
-                await tester.pumpAndSettle();
-                final chip = find.byKey(
-                  ValueKey('${player.id}-commander-${source.id}'),
-                );
-                final chipBounds = screenBounds(chip);
-                final viewport = screenBounds(trackers);
-                expect(
-                  chipBounds.left,
-                  greaterThanOrEqualTo(viewport.left - .01),
+                final cell = find.byKey(
+                  ValueKey('${player.id}-ledger-source-${source.id}'),
                 );
                 expect(
-                  chipBounds.right,
-                  lessThanOrEqualTo(viewport.right + .01),
+                  find.descendant(of: ledger, matching: cell),
+                  findsOneWidget,
                 );
-                final owner = fixture.controller.session.players.firstWhere(
-                  (p) => p.id == source.ownerPlayerId,
-                );
+                final owner = fixture.controller.player(source.ownerPlayerId);
                 final identity = fixture.controller.profile(owner.seatId);
-                final add = find.byTooltip(
-                  '${fixture.controller.profile(player.seatId).name}, increase damage from ${source.name} (${identity.name})',
+                final decoration =
+                    tester
+                            .widget<DecoratedBox>(
+                              find
+                                  .descendant(
+                                    of: cell,
+                                    matching: find.byType(DecoratedBox),
+                                  )
+                                  .first,
+                            )
+                            .decoration
+                        as BoxDecoration;
+                expect(
+                  (decoration.border! as Border).top.color,
+                  Color(identity.color),
                 );
-                expect(add.hitTestable(), findsOneWidget);
-                expect(tester.getSize(add).width, greaterThanOrEqualTo(44));
-                expect(tester.getSize(add).height, greaterThanOrEqualTo(44));
               }
-              sourceList.controller!.jumpTo(0);
-              await tester.pumpAndSettle();
               for (final color in PlayerState.manaColors) {
                 for (final action in ['add', 'spend']) {
                   final control = find.byKey(

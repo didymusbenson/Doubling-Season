@@ -105,6 +105,7 @@ class _TableWorkspace extends StatefulWidget {
 
 class _TableWorkspaceState extends State<_TableWorkspace> {
   late WorkspacePage _page;
+  String? _commanderOwnerId;
   late BoardService _board;
   late PresetService _presets;
   late String _sessionId;
@@ -683,11 +684,20 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       WorkspacePage.tokenSplit,
       WorkspacePage.tokenArtwork,
     }.contains(_page);
+    final focusedCommander = _page == WorkspacePage.commanderDamage;
     final width = min(
-      focusedToken ? 680.0 : 1050.0,
+      focusedToken || focusedCommander ? 680.0 : 1050.0,
       (rotated ? size.height : size.width) - 40,
     );
-    final height = min(940.0, (rotated ? size.width : size.height) - 40);
+    final commanderColumns = max(1, ((width - 40 + 8) / 208).floor());
+    final commanderRows =
+        (max(1, c.session.commanders.length) / commanderColumns).ceil();
+    final height = min(
+      focusedCommander
+          ? min(640.0, max(520.0, 164.0 + commanderRows * 176))
+          : 940.0,
+      (rotated ? size.width : size.height) - 40,
+    );
     final content = Center(
       child: RotatedBox(
         quarterTurns: widget.quarterTurns,
@@ -741,6 +751,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
                 ),
                 if (_playerId != null &&
                     !{
+                      WorkspacePage.commanderDamage,
                       WorkspacePage.tokenStatus,
                       WorkspacePage.tokenCounters,
                       WorkspacePage.tokenSplit,

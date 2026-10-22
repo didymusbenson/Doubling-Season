@@ -423,25 +423,14 @@ void main() {
           final ownerUnchanged = fixture.controller.session.players
               .firstWhere((p) => p.id != player.id)
               .toJson();
+          await tester.tap(
+            find.byKey(ValueKey('${player.id}-commander-ledger')),
+          );
+          await tester.pumpAndSettle();
           for (final source in fixture.controller.session.commanders) {
-            final tracker = find.byKey(
-              ValueKey('${player.id}-commander-trackers'),
-            );
-            final scroll = tester
-                .widget<ListView>(
-                  find.descendant(of: tracker, matching: find.byType(ListView)),
-                )
-                .controller!;
-            final sourceIndex = fixture.controller.session.commanders.indexOf(
-              source,
-            );
-            scroll.jumpTo(
-              (sourceIndex * 144.0).clamp(0, scroll.position.maxScrollExtent),
-            );
+            final chip = find.byKey(ValueKey('commander-tracker-${source.id}'));
+            await tester.ensureVisible(chip);
             await tester.pumpAndSettle();
-            final chip = find.byKey(
-              ValueKey('${player.id}-commander-${source.id}'),
-            );
             final control = find.descendant(
               of: chip,
               matching: find.byType(HalfStepper),
@@ -466,7 +455,7 @@ void main() {
             expect(fixture.controller.player(player.id).life, 37);
             expect(fixture.controller.session.history.last.commands.length, 3);
             expect(fixture.controller.session.history.last.playerId, player.id);
-            expect(find.byTooltip('Close workspace'), findsNothing);
+            expect(find.byTooltip('Close workspace'), findsOneWidget);
             expect(await fixture.controller.undo(), isTrue);
             await tester.pumpAndSettle();
             expect(
@@ -482,6 +471,8 @@ void main() {
               ownerUnchanged,
             );
           }
+          await tester.tap(find.byTooltip('Close workspace'));
+          await tester.pumpAndSettle();
         }
         expect(tester.takeException(), isNull);
       },

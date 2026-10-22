@@ -452,3 +452,8 @@ This checkpoint is reusable research, not a claim of exhaustive exploration. Res
 ## Product-decision reconciliation — 2026-10-21
 
 The user subsequently accepted full life-tracker fundamentals and source-specific commander damage including self, asking that this research inform the design without directly copying Lifetap’s interface. See the [confirmed/candidate inventory](03_life_and_game_controls.md) and [D26](09_decision_register.md). The user later accepted new damage/life coupling with independent corrections, warning-only thresholds, manual shared-state changes, and persistent chronological history/latest-action undo; [history](game_history_and_undo.md) records the new product contract. This does not change any observation or testing limit above: the reference’s Auto-KO, damage/life coupling, reset defaults, optional modes and unverified partner/source behavior are not automatically this product’s requirements.
+
+
+## Targeted commander revisit — 2026-10-22
+
+See [the evidence-labeled mini-ledger/expanded-grid addendum](lifetap_commander_revisit_2026-10-22.md). The supplied new screenshots were inspected in pixels, and the prior Android interaction/expanded Counters evidence was revisited. Fresh native replay was blocked before any UI action by the locked host. The addendum does not promote untested self, partner-correction, source-picker, empty-setup or dismissal behavior to observed fact.

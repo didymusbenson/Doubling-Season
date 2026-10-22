@@ -8,7 +8,8 @@ Published main is `71c1aee` (PR #40). The current
 [compact hub, inline token actions and life-tool correction](../../docs/activeDevelopment/in_progress_features/ipad_edition/compact_hub_life_tools_2026-10-22.md)
 removes the rejected control strip and full-width token quantity band, makes the
 whole colored life surface tappable, and separates/reorders tools. Commander
-mini-tracker expansion is awaiting targeted Lifetap research. Parent visual
+mini-tracker expansion uses the researched source-ledger→expanded-grid pattern,
+with explicit partner/self identity and direct owner setup. Parent visual
 review is required before publishing this branch. Native hands-on validation
 remains outstanding.
 

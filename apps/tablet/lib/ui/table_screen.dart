@@ -9,6 +9,7 @@ import 'table_artwork.dart';
 import 'tablet_token_card.dart';
 import 'half_stepper.dart';
 import 'monarch_crown.dart';
+import 'commander_ledger.dart';
 
 /// The table is composed in seat-local coordinates, then oriented toward each
 /// player. Tokens remain on the physical outer edge in the four-slot layout.
@@ -421,7 +422,6 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
   String? expandedId;
   String? error;
   final tokenScroll = ScrollController(), utilityScroll = ScrollController();
-  final commanderScroll = ScrollController();
   Future<void> perform(Future<dynamic> Function() action) async {
     try {
       await action();
@@ -437,7 +437,6 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
   void dispose() {
     tokenScroll.dispose();
     utilityScroll.dispose();
-    commanderScroll.dispose();
     super.dispose();
   }
 
@@ -526,45 +525,6 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
       ],
     );
     final visible = p.utilities.where((u) => u.visible).toList();
-    Widget commanderTrackers({
-      bool compact = false,
-      List<Widget> trailing = const [],
-    }) => SizedBox(
-      key: ValueKey('${p.id}-commander-trackers'),
-      height: compact ? 44 : 70,
-      child: ListView(
-        controller: commanderScroll,
-        scrollDirection: Axis.horizontal,
-        padding: compact
-            ? EdgeInsets.zero
-            : const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-        children: [
-          for (final source in widget.controller.session.commanders)
-            Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: _CommanderChip(
-                key: ValueKey('${p.id}-commander-${source.id}'),
-                compact: compact,
-                source: source,
-                owner: widget.controller.profile(
-                  widget.controller.session.player(source.ownerPlayerId).seatId,
-                ),
-                recipient: profile.name,
-                value: p.commanderDamage[source.id] ?? 0,
-                onChange: (delta) => perform(
-                  () => widget.controller.adjustCommanderDamage(
-                    p.id,
-                    source.id,
-                    delta,
-                  ),
-                ),
-                onOpen: () => widget.onOpen(WorkspacePage.commanderDamage),
-              ),
-            ),
-          for (final shortcut in trailing) SizedBox(width: 44, child: shortcut),
-        ],
-      ),
-    );
     Widget innerLane = LayoutBuilder(
       builder: (context, lane) {
         // Keep attached source trackers compact on short seats, preserving
@@ -577,10 +537,6 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
             _LifePanel(
               centerNotch: widget.centerNotch,
               centerNotchAtStart: widget.centerNotchAtStart,
-              compactCommanders: compactCommanders
-                  ? (trailing) =>
-                        commanderTrackers(compact: true, trailing: trailing)
-                  : null,
               player: p,
               profile: profile,
               controller: widget.controller,
@@ -596,9 +552,6 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
                     widget.controller.setCitysBlessing(p.id, !p.citysBlessing),
               ),
             ),
-            if (widget.controller.session.commanders.isNotEmpty &&
-                !compactCommanders)
-              commanderTrackers(),
             Expanded(
               key: ValueKey('${p.id}-utility-section'),
               child: visible.isEmpty
@@ -706,7 +659,6 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
 class _LifePanel extends StatelessWidget {
   final double centerNotch;
   final bool centerNotchAtStart;
-  final Widget Function(List<Widget> trailing)? compactCommanders;
   final PlayerState player;
   final SeatProfile profile;
   final TableController controller;
@@ -717,7 +669,6 @@ class _LifePanel extends StatelessWidget {
   const _LifePanel({
     required this.centerNotch,
     required this.centerNotchAtStart,
-    this.compactCommanders,
     required this.player,
     required this.profile,
     required this.controller,
@@ -795,10 +746,11 @@ class _LifePanel extends StatelessWidget {
         WorkspacePage.rules,
         count: enabledRules,
       ),
-      shortcut(
-        Icons.shield_outlined,
-        'commander damage',
-        WorkspacePage.commanderDamage,
+      CommanderLedger(
+        key: ValueKey('${player.id}-commander-ledger'),
+        controller: controller,
+        recipient: player,
+        onOpen: () => onOpen(WorkspacePage.commanderDamage),
       ),
       SizedBox(
         key: ValueKey('${player.id}-player-details'),
@@ -909,20 +861,20 @@ class _LifePanel extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               LayoutBuilder(
-                builder: (context, constraints) {
-                  final columns = constraints.maxWidth >= 240 ? 6 : 3;
-                  return Wrap(
-                    children: [
-                      for (final shortcut in shortcuts)
-                        SizedBox(
-                          width: constraints.maxWidth / columns,
-                          child: shortcut,
-                        ),
-                    ],
-                  );
-                },
+                builder: (context, constraints) => Wrap(
+                  spacing: constraints.maxWidth >= 260
+                      ? ((constraints.maxWidth - 260) / 5).clamp(0, 12)
+                      : 0,
+                  children: [
+                    for (var index = 0; index < shortcuts.length; index++)
+                      SizedBox(
+                        width: index == 4 ? 60 : 40,
+                        height: 44,
+                        child: shortcuts[index],
+                      ),
+                  ],
+                ),
               ),
-              if (compactCommanders != null) compactCommanders!(const []),
             ],
           ),
         ),
@@ -972,159 +924,6 @@ class _StatusBadge extends StatelessWidget {
       ),
     ),
   );
-}
-
-class _CommanderChip extends StatelessWidget {
-  final bool compact;
-  final CommanderSource source;
-  final SeatProfile owner;
-  final String recipient;
-  final int value;
-  final ValueChanged<int> onChange;
-  final VoidCallback onOpen;
-  const _CommanderChip({
-    super.key,
-    this.compact = false,
-    required this.source,
-    required this.owner,
-    required this.recipient,
-    required this.value,
-    required this.onChange,
-    required this.onOpen,
-  });
-  @override
-  Widget build(BuildContext context) {
-    final color = Color(owner.color);
-    if (compact) {
-      return Container(
-        width: 140,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
-        foregroundDecoration: BoxDecoration(
-          border: Border.all(color: color, width: 2),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: _ArtworkSurface(
-          url: owner.artworkUrl,
-          tint: Color.alphaBlend(
-            color.withValues(alpha: .24),
-            Theme.of(context).colorScheme.surface,
-          ),
-          child: Stack(
-            children: [
-              HalfStepper(
-                label: '$recipient, damage from ${source.name} (${owner.name})',
-                value: '$value',
-                height: 44,
-                decreaseLabel:
-                    '$recipient, decrease damage from ${source.name} (${owner.name})',
-                increaseLabel:
-                    '$recipient, increase damage from ${source.name} (${owner.name})',
-                onDecrease: value == 0 ? null : () => onChange(-1),
-                onIncrease: () => onChange(1),
-                onEdit: onOpen,
-                editLabel: 'Edit ${source.name} damage (${owner.name})',
-                foregroundColor: owner.artworkUrl == null
-                    ? color
-                    : Colors.white,
-                valueWidget: SizedBox(
-                  width: 40,
-                  height: 44,
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: FittedBox(
-                        child: Text(
-                          '$value',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            height: 1,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 1,
-                left: 4,
-                right: 48,
-                child: IgnorePointer(
-                  child: ExcludeSemantics(
-                    child: Text(
-                      source.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 11,
-                        height: 1,
-                        fontWeight: FontWeight.w700,
-                        color: owner.artworkUrl == null ? color : Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-    return Container(
-      width: 150,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        border: Border.all(color: color, width: 2),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: _ArtworkSurface(
-        url: owner.artworkUrl,
-        tint: Color.alphaBlend(
-          color.withValues(alpha: .24),
-          Theme.of(context).colorScheme.surface,
-        ),
-        child: Column(
-          children: [
-            Tooltip(
-              message: '${source.name} · ${owner.name}',
-              child: Text(
-                source.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: owner.artworkUrl == null ? color : Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            Expanded(
-              child: HalfStepper(
-                label: '$recipient, damage from ${source.name} (${owner.name})',
-                value: '$value',
-                decreaseLabel:
-                    '$recipient, decrease damage from ${source.name} (${owner.name})',
-                increaseLabel:
-                    '$recipient, increase damage from ${source.name} (${owner.name})',
-                onDecrease: value == 0 ? null : () => onChange(-1),
-                onIncrease: () => onChange(1),
-                onEdit: onOpen,
-                editLabel: 'Edit ${source.name} damage (${owner.name})',
-                valueStyle: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _EmptyLane extends StatelessWidget {
