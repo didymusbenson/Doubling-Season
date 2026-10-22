@@ -19,9 +19,9 @@ extension _TokenPages on _TableWorkspaceState {
         ),
         _section(
           selected.name,
-          detail: '${selected.pt} ${selected.cleanType}\n${selected.abilities}'
-              .trim(),
+          detail: '${selected.pt} ${selected.cleanType}'.trim(),
         ),
+        if (selected.abilities.isNotEmpty) ManaText(selected.abilities),
         if (selected.artwork.isNotEmpty)
           Align(
             alignment: Alignment.centerLeft,
@@ -33,6 +33,7 @@ extension _TokenPages on _TableWorkspaceState {
           initial: '1',
           numeric: true,
         ),
+        _creationQuantityShortcuts(quantity),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Create tapped'),
@@ -70,8 +71,7 @@ extension _TokenPages on _TableWorkspaceState {
               expectedRevision: revision,
               captured: scope,
             ),
-            success: 'Tokens created for $_seatName.',
-            after: () => _selectedDefinition = null,
+            closeOnSuccess: true,
           ),
           icon: Icons.add,
           primary: true,
@@ -91,7 +91,12 @@ extension _TokenPages on _TableWorkspaceState {
                   label: 'Search tokens, abilities, type, or P/T',
                 ),
               ),
-              const SizedBox(width: 12),
+              IconButton(
+                tooltip: 'Clear token search',
+                onPressed: () => _update(query.clear),
+                icon: const Icon(Icons.clear),
+              ),
+              const SizedBox(width: 4),
               _button(
                 'Custom token',
                 () => _update(() => _createCustom = true),
@@ -132,6 +137,49 @@ extension _TokenPages on _TableWorkspaceState {
             ],
           ),
         ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              for (final color in const {
+                'W': 'White',
+                'U': 'Blue',
+                'B': 'Black',
+                'R': 'Red',
+                'G': 'Green',
+                'C': 'Colorless',
+              }.entries)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: FilterChip(
+                    avatar: ManaText('{${color.key}}'),
+                    label: Text(color.value),
+                    selected: _tokenColors.contains(color.key),
+                    onSelected: (selected) => _update(() {
+                      if (color.key == 'C') {
+                        _tokenColors.clear();
+                      } else {
+                        _tokenColors.remove('C');
+                      }
+                      selected
+                          ? _tokenColors.add(color.key)
+                          : _tokenColors.remove(color.key);
+                    }),
+                  ),
+                ),
+              IconButton(
+                tooltip: 'Clear filters',
+                icon: const Icon(Icons.filter_alt_off_outlined),
+                onPressed: () => _update(() {
+                  _tokenColors.clear();
+                  _category = null;
+                  query.clear();
+                }),
+              ),
+            ],
+          ),
+        ),
         if (catalog.error != null)
           Padding(
             padding: const EdgeInsets.all(16),
@@ -145,6 +193,7 @@ extension _TokenPages on _TableWorkspaceState {
                 value.text,
                 tab: _tokenTab,
                 category: _category,
+                colors: _tokenColors,
               );
               if (!catalog.loaded && catalog.error == null) {
                 return const Center(child: CircularProgressIndicator());
@@ -176,7 +225,7 @@ extension _TokenPages on _TableWorkspaceState {
                       title: Text(
                         '${token.name}${token.pt.isEmpty ? '' : ' · ${token.pt}'}',
                       ),
-                      subtitle: Text(
+                      subtitle: ManaText(
                         '${token.cleanType}${token.abilities.isEmpty ? '' : '\n${token.abilities}'}',
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
@@ -192,7 +241,7 @@ extension _TokenPages on _TableWorkspaceState {
                         ),
                         onPressed: () => _run(() => catalog.favorite(token.id)),
                       ),
-                      onTap: () => _update(() => _selectedDefinition = token),
+                      onTap: () => _selectToken(token),
                     ),
                   );
                 },
@@ -219,6 +268,30 @@ extension _TokenPages on _TableWorkspaceState {
       helper: 'W, U, B, R, G, or leave empty for colorless',
     ),
     _input('custom.abilities', 'Abilities', maxLines: 3),
+    if (_field('custom.artwork').text.isNotEmpty)
+      Align(
+        alignment: Alignment.centerLeft,
+        child: _art(_field('custom.artwork').text, width: 180, height: 140),
+      ),
+    Wrap(
+      spacing: 8,
+      children: [
+        _button(
+          'Choose artwork',
+          () => _run(() async {
+            final image = await _pickArtwork();
+            if (image != null) _field('custom.artwork').text = image;
+          }),
+          icon: Icons.add_photo_alternate_outlined,
+        ),
+        if (_field('custom.artwork').text.isNotEmpty)
+          _button(
+            'Remove artwork',
+            () => _update(() => _field('custom.artwork').clear()),
+            icon: Icons.hide_image_outlined,
+          ),
+      ],
+    ),
     Wrap(
       spacing: 10,
       children: [
@@ -257,9 +330,18 @@ extension _TokenPages on _TableWorkspaceState {
               colors: colors,
               abilities: _field('custom.abilities').text.trim(),
               popularity: 0,
+              artwork: _field('custom.artwork').text.isEmpty
+                  ? const []
+                  : [
+                      ArtworkVariant(
+                        set: 'Custom',
+                        url: _field('custom.artwork').text,
+                        artist: 'user uploaded',
+                      ),
+                    ],
             );
             await catalog.saveCustom(definition);
-            _selectedDefinition = definition;
+            _selectToken(definition);
             _createCustom = false;
           }, success: 'Custom token saved.'),
           primary: true,
@@ -267,6 +349,44 @@ extension _TokenPages on _TableWorkspaceState {
       ],
     ),
   ]);
+
+  void _selectToken(TokenDefinition definition) => _update(() {
+    _selectedDefinition = definition;
+    _field('create.quantity', '1').text = '1';
+    _createTapped = false;
+  });
+
+  Widget _creationQuantityShortcuts(TextEditingController quantity) =>
+      ValueListenableBuilder<TextEditingValue>(
+        valueListenable: quantity,
+        builder: (context, value, _) {
+          final amount = int.tryParse(value.text) ?? 1;
+          void setAmount(int next) =>
+              quantity.text = '${next.clamp(1, 999999)}';
+          return Wrap(
+            spacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              IconButton(
+                tooltip: 'Decrease creation quantity',
+                onPressed: amount > 1 ? () => setAmount(amount - 1) : null,
+                icon: const Icon(Icons.remove),
+              ),
+              for (var count = 1; count <= 5; count++)
+                ChoiceChip(
+                  label: Text('$count'),
+                  selected: amount == count,
+                  onSelected: (_) => setAmount(count),
+                ),
+              IconButton(
+                tooltip: 'Increase creation quantity',
+                onPressed: () => setAmount(amount + 1),
+                icon: const Icon(Icons.add),
+              ),
+            ],
+          );
+        },
+      );
 
   Widget _tokenPage() {
     final player = p;
@@ -281,333 +401,409 @@ extension _TokenPages on _TableWorkspaceState {
         _button('Add tokens', () => _go(WorkspacePage.tokens)),
       ]);
     }
-    final t = token;
-    final key = 'token.${t.id}';
+    return switch (_page) {
+      WorkspacePage.tokenStatus => _tokenStatus(token),
+      WorkspacePage.tokenCounters => _tokenCounters(token),
+      WorkspacePage.tokenSplit => _tokenSplit(token),
+      WorkspacePage.tokenArtwork => _list([
+        TabletArtworkSelection(
+          board: _board,
+          catalog: catalog,
+          player: player,
+          token: token,
+          quarterTurns: widget.quarterTurns,
+        ),
+      ]),
+      _ => _tokenDetails(token),
+    };
+  }
+
+  Widget _numberRow({
+    required String id,
+    required String label,
+    required int value,
+    required Future<void> Function(int) set,
+    required Future<void> Function(int) change,
+    int minimum = 0,
+    int maximum = 999999,
+  }) => Column(
+    children: [
+      _stepper(
+        label,
+        value,
+        () => _run(() => change(-1)),
+        () => _run(() => change(1)),
+        edit: () => _update(() {
+          _editingNumber = id;
+          _field(id, '$value').text = '$value';
+        }),
+        holdMinus: () => _run(() => change(-10)),
+        holdPlus: () => _run(() => change(10)),
+      ),
+      if (_editingNumber == id)
+        Row(
+          children: [
+            Expanded(
+              child: _input(
+                id,
+                'Set $label',
+                initial: '$value',
+                numeric: true,
+                onCommit: (text) =>
+                    set(_wholeNumber(text, min: minimum, max: maximum)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            _button(
+              'Set',
+              () => _run(() async {}, after: () => _editingNumber = null),
+              icon: Icons.check,
+            ),
+          ],
+        ),
+    ],
+  );
+
+  Widget _tokenStatus(TokenState t) {
+    final player = p!;
     final scope = _board.scope(player.id);
-    final options = t.artworkOptions.isNotEmpty
-        ? t.artworkOptions
-        : (catalog
-                  .byId(t.definitionId)
-                  ?.artwork
-                  .map((a) => a.toJson())
-                  .toList() ??
-              <Map<String, dynamic>>[]);
     return _list([
-      Row(
-        children: [
-          if (t.artworkUrl != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: _art(t.artworkUrl, width: 100, height: 110),
+      _section(
+        t.name,
+        detail:
+            'Tap a number to set it. New eligible tokens gain summoning sickness when the total increases.',
+      ),
+      _numberRow(
+        id: '${t.id}.status.amount',
+        label: 'Total',
+        value: t.amount,
+        set: (v) =>
+            _board.editToken(player.id, t.id, amount: v, captured: scope),
+        change: (d) => _board.editToken(
+          player.id,
+          t.id,
+          amount: (t.amount + d).clamp(0, 999999),
+          captured: scope,
+        ),
+      ),
+      if (!t.isEmblem)
+        _numberRow(
+          id: '${t.id}.status.tapped',
+          label: 'Tapped',
+          value: t.tapped,
+          maximum: t.amount,
+          set: (v) =>
+              _board.editToken(player.id, t.id, tapped: v, captured: scope),
+          change: (d) => _board.tapTokens(player.id, t.id, d),
+        ),
+      if (t.hasPowerToughness)
+        _numberRow(
+          id: '${t.id}.status.sick',
+          label: 'Summoning sick',
+          value: t.summoningSick,
+          maximum: t.amount,
+          set: (v) => _board.editToken(
+            player.id,
+            t.id,
+            summoningSick: v,
+            captured: scope,
+          ),
+          change: (d) => _board.editToken(
+            player.id,
+            t.id,
+            summoningSick: (t.summoningSick + d).clamp(0, t.amount),
+            captured: scope,
+          ),
+        ),
+    ]);
+  }
+
+  Widget _tokenCounters(TokenState t) {
+    final player = p!;
+    final scope = _board.scope(player.id);
+    final key = '${t.id}.counters';
+    final selected = _selectedCounter;
+    if (selected != null) {
+      final quantity = _field('$key.quantity', '1');
+      return _list([
+        _button(
+          'Back to counters',
+          () => _update(() => _selectedCounter = null),
+          icon: Icons.arrow_back,
+        ),
+        _section('Add $selected', detail: t.name),
+        _input(
+          '$key.quantity',
+          'Counter quantity (applied exactly)',
+          initial: '1',
+          numeric: true,
+        ),
+        _creationQuantityShortcuts(quantity),
+        _button(
+          'Add to All',
+          () => _run(
+            () => _board.addSelectedCounter(
+              player.id,
+              t.id,
+              selected,
+              _integer('$key.quantity', min: 1, max: 999999),
             ),
-          Expanded(
-            child: _section(
-              t.name,
-              detail:
-                  '${t.amount} total · ${t.tapped} tapped · ${t.summoningSick} summoning sick',
+            after: () => _selectedCounter = null,
+          ),
+          icon: Icons.add_circle_outline,
+          primary: true,
+        ),
+        if (t.amount > 1) ...[
+          const SizedBox(height: 10),
+          const Text(
+            'Split one untapped token with its existing counters, then add this exact quantity. The remaining stack keeps its status; the new token is not summoning sick.',
+          ),
+          _button(
+            'Split & Add to One',
+            () => _run(
+              () => _board.splitAndAddCounter(
+                player.id,
+                t.id,
+                selected,
+                _integer('$key.quantity', min: 1, max: 999999),
+                captured: scope,
+              ),
+              closeOnSuccess: true,
             ),
+            icon: Icons.call_split,
           ),
         ],
+      ]);
+    }
+    final query = _field('$key.search');
+    return _list([
+      _section(
+        t.name,
+        detail: 'Tap any counter number to Set an exact value, including zero.',
       ),
-      _stepper(
-        'Quantity',
-        t.amount,
-        () => _run(() => _board.changeQuantity(player.id, t.id, -1)),
-        () => _run(() => _board.changeQuantity(player.id, t.id, 1)),
+      for (final entry in <String, int>{
+        '+1/+1': t.plusOneCounters,
+        '-1/-1': t.minusOneCounters,
+        ...t.counters,
+      }.entries)
+        _numberRow(
+          id: '$key.set.${entry.key}',
+          label: entry.key,
+          value: entry.value,
+          set: (value) => _board.setCounter(
+            player.id,
+            t.id,
+            entry.key,
+            value,
+            captured: scope,
+          ),
+          change: (delta) => _board.counter(player.id, t.id, entry.key, delta),
+        ),
+      _section('Add counter'),
+      PlayerField(
+        controller: query,
+        label: 'Search counters or enter a custom name',
+      ),
+      ValueListenableBuilder<TextEditingValue>(
+        valueListenable: query,
+        builder: (context, value, _) {
+          final search = value.text.trim();
+          final names = CounterDatabase.predefinedCounters
+              .where(
+                (name) => name.toLowerCase().contains(search.toLowerCase()),
+              )
+              .toList();
+          void choose(String name) => _update(() {
+            _selectedCounter = name;
+            _field('$key.quantity', '1').text = '1';
+          });
+          return Column(
+            children: [
+              if (search.isNotEmpty &&
+                  !names.any(
+                    (name) => name.toLowerCase() == search.toLowerCase(),
+                  ))
+                ListTile(
+                  leading: const Icon(Icons.add),
+                  title: Text('Create “$search” counter'),
+                  onTap: () => choose(search),
+                ),
+              for (final name in names)
+                ListTile(
+                  title: Text(name),
+                  trailing: const Icon(Icons.add_circle_outline),
+                  onTap: () => choose(name),
+                ),
+            ],
+          );
+        },
+      ),
+    ]);
+  }
+
+  Widget _tokenSplit(TokenState t) {
+    final player = p!;
+    final scope = _board.scope(player.id);
+    final key = '${t.id}.split';
+    final quantity = _field('$key.quantity', '1');
+    final tappedFirst = _field('$key.tappedFirst', 'false').text == 'true';
+    return _list([
+      _section(
+        t.name,
+        detail:
+            'Counters and artwork stay on both stacks. Splitting clears summoning sickness on both.',
+      ),
+      if (t.amount < 2)
+        const Text('At least two tokens are needed to split this stack.'),
+      if (t.amount >= 2) ...[
+        _input(
+          '$key.quantity',
+          'Quantity to split',
+          initial: '1',
+          numeric: true,
+        ),
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: quantity,
+          builder: (context, value, _) {
+            final count = int.tryParse(value.text) ?? 0;
+            if (count < 1 || count >= t.amount) {
+              return Text('Choose from 1 to ${t.amount - 1}.');
+            }
+            final movedTapped = tappedFirst
+                ? min(t.tapped, count)
+                : count - min(count, t.amount - t.tapped);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _stepper(
+                  'Split quantity',
+                  count,
+                  () => quantity.text = '${max(1, count - 1)}',
+                  () => quantity.text = '${min(t.amount - 1, count + 1)}',
+                ),
+                _section(
+                  'Result preview',
+                  detail:
+                      'Original: ${t.amount - count} total · ${t.tapped - movedTapped} tapped\nNew stack: $count total · $movedTapped tapped',
+                ),
+              ],
+            );
+          },
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Move tapped tokens first'),
+          subtitle: const Text('Off moves untapped tokens first.'),
+          value: tappedFirst,
+          onChanged: (value) =>
+              _update(() => _field('$key.tappedFirst').text = '$value'),
+        ),
+        _button(
+          'Split stack',
+          () => _run(
+            () => _board.splitToken(
+              player.id,
+              t.id,
+              _integer('$key.quantity', min: 1, max: t.amount - 1),
+              tappedFirst: tappedFirst,
+              captured: scope,
+            ),
+            closeOnSuccess: true,
+          ),
+          icon: Icons.call_split,
+          primary: true,
+        ),
+      ],
+    ]);
+  }
+
+  Widget _tokenDetails(TokenState t) {
+    final player = p!;
+    final key = 'token.${t.id}';
+    final scope = _board.scope(player.id);
+    return _list([
+      _section(
+        t.name,
+        detail:
+            '${t.amount} total · ${t.tapped} tapped · ${t.summoningSick} summoning sick',
       ),
       Wrap(
         spacing: 8,
         runSpacing: 8,
         children: [
           _button(
-            'Tap all',
-            () =>
-                _run(() => _board.editToken(player.id, t.id, tapped: t.amount)),
+            'Status',
+            () => _go(WorkspacePage.tokenStatus, itemId: t.id),
+            icon: Icons.tune,
           ),
           _button(
-            'Untap all',
-            () => _run(() => _board.editToken(player.id, t.id, tapped: 0)),
+            'Counters',
+            () => _go(WorkspacePage.tokenCounters, itemId: t.id),
+            icon: Icons.add_circle_outline,
           ),
           _button(
-            'Clear sickness',
-            () =>
-                _run(() => _board.editToken(player.id, t.id, summoningSick: 0)),
+            'Split',
+            () => _go(WorkspacePage.tokenSplit, itemId: t.id),
+            icon: Icons.call_split,
           ),
           _button(
-            'Copy 1 token',
+            'Artwork',
+            () => _go(WorkspacePage.tokenArtwork, itemId: t.id),
+            icon: Icons.image_outlined,
+          ),
+          _button(
+            'Copy one',
             () => _run(
               () => _board.copyToken(player.id, t.id),
-              success: 'One token copied with applicable modifiers.',
+              closeOnSuccess: true,
             ),
+            icon: Icons.copy,
           ),
         ],
       ),
-      ExpansionTile(
-        title: const Text('Edit token properties'),
-        controller: _tokenPropertiesController,
-        onExpansionChanged: (expanded) async {
-          if (!expanded && !await _flushInline() && mounted) {
-            _tokenPropertiesController.expand();
-          }
-        },
-        childrenPadding: const EdgeInsets.symmetric(horizontal: 12),
-        children: [
-          const Text(
-            'Changes save when you leave a field, tap Done, or close this workspace.',
-          ),
-          _input(
-            '$key.name',
-            'Name',
-            initial: t.name,
-            onCommit: (value) => _board.editToken(
-              player.id,
-              t.id,
-              name: value.trim(),
-              captured: scope,
-            ),
-          ),
-          _input(
-            '$key.pt',
-            'Base power / toughness',
-            initial: t.pt,
-            onCommit: (value) => _board.editToken(
-              player.id,
-              t.id,
-              pt: value.trim(),
-              captured: scope,
-            ),
-          ),
-          _input(
-            '$key.type',
-            'Type',
-            initial: t.type,
-            onCommit: (value) => _board.editToken(
-              player.id,
-              t.id,
-              type: value.trim(),
-              captured: scope,
-            ),
-          ),
-          _input(
-            '$key.colors',
-            'Color identity',
-            initial: t.colors,
-            onCommit: (value) => _board.editToken(
-              player.id,
-              t.id,
-              colors: value.trim().toUpperCase(),
-              captured: scope,
-            ),
-          ),
-          _input(
-            '$key.abilities',
-            'Abilities',
-            initial: t.abilities,
-            maxLines: 3,
-            onCommit: (value) => _board.editToken(
-              player.id,
-              t.id,
-              abilities: value,
-              captured: scope,
-            ),
-          ),
-          _input(
-            '$key.amount',
-            'Set quantity',
-            initial: '${t.amount}',
-            numeric: true,
-            onCommit: (value) => _board.editToken(
-              player.id,
-              t.id,
-              amount: _wholeNumber(value, min: 0, max: 999999),
-              captured: scope,
-            ),
-          ),
-          _input(
-            '$key.tapped',
-            'Set tapped',
-            initial: '${t.tapped}',
-            numeric: true,
-            onCommit: (value) => _board.editToken(
-              player.id,
-              t.id,
-              tapped: _wholeNumber(value, min: 0, max: 999999),
-              captured: scope,
-            ),
-          ),
-          _input(
-            '$key.sick',
-            'Set summoning sick',
-            initial: '${t.summoningSick}',
-            numeric: true,
-            onCommit: (value) => _board.editToken(
-              player.id,
-              t.id,
-              summoningSick: _wholeNumber(value, min: 0, max: 999999),
-              captured: scope,
-            ),
-          ),
-        ],
+      const SizedBox(height: 12),
+      const Text(
+        'These properties also edit directly on the expanded token. Changes save on focus loss, Done, or dismissal.',
       ),
-      _section('Counters'),
-      for (final entry in {
-        '+1/+1': t.plusOneCounters,
-        '-1/-1': t.minusOneCounters,
-        '+1/+0': 0,
-        '+0/+1': 0,
-        ...t.counters,
-      }.entries)
-        _stepper(
-          entry.key,
-          entry.value,
-          () => _run(() => _board.counter(player.id, t.id, entry.key, -1)),
-          () => _run(() => _board.counter(player.id, t.id, entry.key, 1)),
+      _input(
+        '$key.name',
+        'Name',
+        initial: t.name,
+        onCommit: (v) =>
+            _board.editToken(player.id, t.id, name: v, captured: scope),
+      ),
+      _input(
+        '$key.pt',
+        'Base power / toughness',
+        initial: t.pt,
+        onCommit: (v) =>
+            _board.editToken(player.id, t.id, pt: v, captured: scope),
+      ),
+      _input(
+        '$key.type',
+        'Type',
+        initial: t.type,
+        onCommit: (v) =>
+            _board.editToken(player.id, t.id, type: v, captured: scope),
+      ),
+      _input(
+        '$key.colors',
+        'Color identity',
+        initial: t.colors,
+        onCommit: (v) => _board.editToken(
+          player.id,
+          t.id,
+          colors: v.toUpperCase(),
+          captured: scope,
         ),
-      Row(
-        children: [
-          Expanded(child: _input('$key.counterName', 'Counter name')),
-          const SizedBox(width: 8),
-          _button(
-            'Add counter',
-            () => _run(() async {
-              final name = _field('$key.counterName').text.trim();
-              if (name.isEmpty) {
-                throw const FormatException('Enter a counter name.');
-              }
-              await _board.counter(player.id, t.id, name, 1);
-            }),
-            icon: Icons.add,
-          ),
-        ],
       ),
-      ExpansionTile(
-        title: const Text('Split & merge'),
-        children: [
-          const Text(
-            'Both resulting stacks clear summoning sickness. Token counters and reusable properties are retained.',
-          ),
-          SwitchListTile(
-            title: const Text('Move tapped tokens first'),
-            subtitle: const Text('Off moves untapped tokens first.'),
-            value: _field('$key.tappedFirst', 'false').text == 'true',
-            onChanged: (value) =>
-                _update(() => _field('$key.tappedFirst').text = '$value'),
-          ),
-          _input(
-            '$key.split',
-            'Quantity to split into a new stack',
-            initial: '1',
-            numeric: true,
-          ),
-          _button(
-            'Split stack',
-            () => _run(
-              () => _board.splitToken(
-                player.id,
-                t.id,
-                _integer('$key.split', min: 1, max: t.amount - 1),
-                tappedFirst: _field('$key.tappedFirst').text == 'true',
-                captured: scope,
-              ),
-              success: 'Stack split.',
-            ),
-          ),
-          for (final other in player.tokens.where(
-            (v) => v.id != t.id && v.definitionId == t.definitionId,
-          ))
-            ListTile(
-              title: Text('Merge into ${other.name} (${other.amount})'),
-              subtitle: const Text('Only compatible stacks can merge.'),
-              trailing: const Icon(Icons.merge),
-              onTap: () => _confirm(
-                'Merge ${t.name}?',
-                'Combine this stack with the selected stack for $_seatName. The source stack will be removed. Latest-action undo restores both.',
-                () => _board.mergeTokens(player.id, t.id, other.id),
-              ),
-            ),
-        ],
-      ),
-      ExpansionTile(
-        title: const Text('Artwork for this game'),
-        subtitle: const Text('Selections belong to this player and this game.'),
-        children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              for (final art in options)
-                SizedBox(
-                  width: 150,
-                  child: InkWell(
-                    onTap: () => _run(
-                      () => _board.setArtwork(
-                        player.id,
-                        t.id,
-                        art['url'] as String,
-                        set: art['set'] as String?,
-                        artist: art['artist'] as String?,
-                        captured: scope,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        _art(art['url'] as String?, width: 150, height: 130),
-                        Text(
-                          '${art['set'] ?? ''}\n${art['artist'] ?? ''}',
-                          maxLines: 2,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (t.artworkUrl != null)
-            _button(
-              'Remove artwork',
-              () => _run(
-                () => _board.setArtwork(player.id, t.id, null, captured: scope),
-              ),
-              icon: Icons.hide_image_outlined,
-            ),
-          _button(
-            'Upload artwork',
-            () => _run(() async {
-              final url = await _pickArtwork();
-              if (url != null) {
-                await _board.setArtwork(
-                  player.id,
-                  t.id,
-                  url,
-                  artist: 'user uploaded',
-                  captured: scope,
-                );
-              }
-            }),
-            icon: Icons.upload,
-          ),
-          _input(
-            '$key.artUrl',
-            'Artwork image URL',
-            initial: t.artworkUrl?.startsWith('http') == true
-                ? t.artworkUrl!
-                : '',
-          ),
-          _button(
-            'Use image URL',
-            () => _run(
-              () => _board.setArtwork(
-                player.id,
-                t.id,
-                _field('$key.artUrl').text.trim(),
-                captured: scope,
-              ),
-            ),
-            icon: Icons.image,
-          ),
-        ],
+      _input(
+        '$key.abilities',
+        'Abilities',
+        initial: t.abilities,
+        maxLines: 3,
+        onCommit: (v) =>
+            _board.editToken(player.id, t.id, abilities: v, captured: scope),
       ),
       const SizedBox(height: 20),
       _button(
@@ -617,6 +813,7 @@ extension _TokenPages on _TableWorkspaceState {
           'Remove this stack of ${t.amount} from $_seatName’s board. Undo is available in game history.',
           () => _board.deleteToken(player.id, t.id),
           button: 'Delete stack',
+          closeOnSuccess: true,
         ),
         icon: Icons.delete_outline,
       ),

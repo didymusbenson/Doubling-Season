@@ -113,6 +113,8 @@ class TableController extends ChangeNotifier {
     int? expectedPlayerGeneration,
     List<String>? affectedPlayerIds,
     int? delta,
+    int Function(GameSession before, GameSession after)? effectiveDelta,
+    String Function(int delta)? describeDelta,
     required void Function(GameSession) mutate,
   }) {
     final scopeId = expectedSessionId ?? session.id;
@@ -124,15 +126,22 @@ class TableController extends ChangeNotifier {
       final draft = _state.copy();
       mutate(draft.session);
       _validateCommandScope(draft, playerId, affectedPlayerIds);
+      // Calculate clamped/rules-adjusted changes inside the serialized command.
+      // Reading the current value before enqueueing would race rapid actions.
+      final recordedDelta =
+          effectiveDelta?.call(session, draft.session) ?? delta;
+      final recordedLabel = recordedDelta != null && describeDelta != null
+          ? describeDelta(recordedDelta)
+          : label;
       final entryId = _record(
         _state,
         draft,
-        label,
+        recordedLabel,
         playerId: playerId,
         affectedPlayerIds: affectedPlayerIds,
         groupKey: groupKey,
         commandId: id,
-        delta: delta,
+        delta: recordedDelta,
       );
       if (entryId == null) {
         // Acknowledged no-ops are also idempotent if a caller retries later.
@@ -451,6 +460,10 @@ class TableController extends ChangeNotifier {
         playerId: playerId,
         groupKey: 'player-counter:$playerId:$key:${delta.sign}',
         delta: delta,
+        effectiveDelta: (before, after) =>
+            (after.player(playerId).counters[key] ?? 0) -
+            (before.player(playerId).counters[key] ?? 0),
+        describeDelta: (actual) => '$key ${actual >= 0 ? '+' : ''}$actual',
         mutate: (game) {
           final counters = game.player(playerId).counters;
           counters[key] = math.max(0, (counters[key] ?? 0) + delta);
@@ -529,6 +542,12 @@ class TableController extends ChangeNotifier {
     playerId: recipientId,
     groupKey: 'commander:$recipientId:$sourceId:$adjustLife:${delta.sign}',
     delta: delta,
+    effectiveDelta: (before, after) =>
+        (after.player(recipientId).commanderDamage[sourceId] ?? 0) -
+        (before.player(recipientId).commanderDamage[sourceId] ?? 0),
+    describeDelta: (actual) =>
+        '${adjustLife ? '' : 'Correct '}${_commanderName(sourceId)} damage '
+        '${actual >= 0 ? '+' : ''}$actual',
     mutate: (game) {
       if (!game.commanders.any((value) => value.id == sourceId)) {
         throw StateError('This commander source no longer exists.');
@@ -562,6 +581,10 @@ class TableController extends ChangeNotifier {
     playerId: playerId,
     groupKey: 'mana:$playerId:$color:${delta.sign}',
     delta: delta,
+    effectiveDelta: (before, after) =>
+        after.player(playerId).mana[color]! -
+        before.player(playerId).mana[color]!,
+    describeDelta: (actual) => '$color mana ${actual >= 0 ? '+' : ''}$actual',
     mutate: (game) {
       _manaColor(color);
       final mana = game.player(playerId).mana;

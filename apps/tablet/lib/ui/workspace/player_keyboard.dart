@@ -2,6 +2,213 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
+bool _playerKeyboardEditorOpen = false;
+
+/// Edit the field on its board object while the single player-facing keyboard
+/// intercepts the whole table. A false result leaves the caller's mirrored draft
+/// intact so a failed save can be resumed from the same inline field. A supplied
+/// controller belongs to the inline field; its text and selection are preserved
+/// on opening, and this route never disposes it.
+Future<bool> showPlayerKeyboardEditor(
+  BuildContext context, {
+  required String title,
+  required String value,
+  TextEditingController? controller,
+  bool numeric = false,
+  bool multiline = false,
+  int quarterTurns = 0,
+  required ValueChanged<String> onChanged,
+  required Future<void> Function(String) onCommit,
+}) async {
+  if (_playerKeyboardEditorOpen) return false;
+  _playerKeyboardEditorOpen = true;
+  try {
+    return await showDialog<bool>(
+          context: context,
+          useRootNavigator: true,
+          barrierDismissible: false,
+          barrierColor: Colors.black.withValues(alpha: .16),
+          builder: (_) => _PlayerKeyboardEditor(
+            title: title,
+            value: value,
+            controller: controller,
+            numeric: numeric,
+            multiline: multiline,
+            quarterTurns: quarterTurns,
+            onChanged: onChanged,
+            onCommit: onCommit,
+          ),
+        ) ??
+        false;
+  } finally {
+    _playerKeyboardEditorOpen = false;
+  }
+}
+
+class _PlayerKeyboardEditor extends StatefulWidget {
+  const _PlayerKeyboardEditor({
+    required this.title,
+    required this.value,
+    this.controller,
+    required this.numeric,
+    required this.multiline,
+    required this.quarterTurns,
+    required this.onChanged,
+    required this.onCommit,
+  });
+
+  final String title, value;
+  final TextEditingController? controller;
+  final bool numeric, multiline;
+  final int quarterTurns;
+  final ValueChanged<String> onChanged;
+  final Future<void> Function(String) onCommit;
+
+  @override
+  State<_PlayerKeyboardEditor> createState() => _PlayerKeyboardEditorState();
+}
+
+class _PlayerKeyboardEditorState extends State<_PlayerKeyboardEditor> {
+  late final TextEditingController _controller;
+  final _keyboard = GlobalKey<_PlayerKeyboardHostState>();
+  bool _saving = false;
+  bool _allowPop = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller =
+        widget.controller ?? TextEditingController(text: widget.value);
+    if (!_controller.selection.isValid) {
+      _controller.selection = TextSelection.collapsed(
+        offset: _controller.text.length,
+      );
+    }
+    _controller.addListener(_changed);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _keyboard.currentState?.activateField(
+        _controller,
+        widget.title,
+        widget.numeric,
+        widget.multiline,
+        _commit,
+      );
+    });
+  }
+
+  void _changed() => widget.onChanged(_controller.text);
+
+  void _close(bool committed) {
+    if (!mounted || _allowPop) return;
+    setState(() => _allowPop = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).pop(committed);
+    });
+  }
+
+  Future<bool> _commit() async {
+    if (_saving || _allowPop) return false;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await widget.onCommit(_controller.text);
+      _close(true);
+      return true;
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _error = error.toString().replaceFirst('Bad state: ', ''),
+        );
+      }
+      return false;
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  void _tapAway() {
+    if (_saving || _allowPop) return;
+    if (_error != null) {
+      _close(false);
+    } else {
+      _commit();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_changed);
+    if (widget.controller == null) _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => PopScope<bool>(
+    canPop: _allowPop,
+    onPopInvokedWithResult: (didPop, result) {
+      if (!didPop) _tapAway();
+    },
+    child: RotatedBox(
+      quarterTurns: widget.quarterTurns,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: PlayerKeyboardHost(
+                key: _keyboard,
+                enabled: !_saving && !_allowPop,
+                canEdit: () => !_saving && !_allowPop,
+                showValue: true,
+                child: Semantics(
+                  label: 'Finish editing ${widget.title}',
+                  button: true,
+                  onTap: _tapAway,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _tapAway,
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ),
+            ),
+            if (_saving) const LinearProgressIndicator(minHeight: 2),
+            if (_error != null)
+              Material(
+                color: Theme.of(context).colorScheme.errorContainer,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '$_error\nYour draft is kept on the token. Retry or close and resume it later.',
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => _commit(),
+                        child: const Text('Retry'),
+                      ),
+                      TextButton(
+                        onPressed: () => _close(false),
+                        child: const Text('Close'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 /// One input surface, contained in and rotated with the active workspace.
 class PlayerKeyboardHost extends StatefulWidget {
   const PlayerKeyboardHost({
@@ -9,9 +216,11 @@ class PlayerKeyboardHost extends StatefulWidget {
     required this.child,
     this.enabled = true,
     this.canEdit,
+    this.showValue = false,
   });
   final Widget child;
   final bool enabled;
+  final bool showValue;
   final bool Function()? canEdit;
 
   @override
@@ -20,9 +229,12 @@ class PlayerKeyboardHost extends StatefulWidget {
 
 class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
   final FocusNode _hardwareFocus = FocusNode(debugLabel: 'Player keyboard');
+  final FocusNode _draftFocus = FocusNode(debugLabel: 'Inline token draft');
+  final _draftEditable = GlobalKey<EditableTextState>();
   TextEditingController? _controller;
   Future<bool> Function()? _onExit;
   bool _numeric = false;
+  bool _multiline = false;
   bool _shift = false;
   bool _symbols = false;
   String _label = '';
@@ -43,6 +255,7 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
     TextEditingController controller,
     String label,
     bool numeric,
+    bool multiline,
     Future<bool> Function()? onExit,
   ) async {
     if (!_editable) return false;
@@ -50,13 +263,26 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
       return false;
     }
     if (!mounted) return false;
+    if (_controller != controller) {
+      _controller?.removeListener(_revealDraft);
+      controller.addListener(_revealDraft);
+    }
     setState(() {
       _controller = controller;
       _onExit = onExit;
       _label = label;
       _numeric = numeric;
+      _multiline = multiline;
     });
     _hardwareFocus.requestFocus();
+    if (widget.showValue) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _controller == controller) {
+          _draftFocus.requestFocus();
+          _revealDraft();
+        }
+      });
+    }
     return true;
   }
 
@@ -65,14 +291,31 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
     final captured = _controller;
     if (await _onExit?.call() == false) return;
     if (!mounted || captured != _controller) return;
+    _controller?.removeListener(_revealDraft);
     setState(() {
       _controller = null;
       _onExit = null;
     });
   }
 
+  void _revealDraft() {
+    if (!widget.showValue) return;
+    final controller = _controller;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || controller == null || controller != _controller) return;
+      final offset = controller.selection.extentOffset;
+      if (offset < 0 || offset > controller.text.length) return;
+      _draftEditable.currentState?.bringIntoView(TextPosition(offset: offset));
+    });
+  }
+
+  void _focusDraft() {
+    if (widget.showValue) _draftFocus.requestFocus();
+  }
+
   void _replace(String value) {
     if (!_editable) return;
+    _focusDraft();
     final c = _controller;
     if (c == null) return;
     final selection = c.selection;
@@ -104,6 +347,8 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
   }
 
   void _delete({bool forward = false}) {
+    if (!_editable) return;
+    _focusDraft();
     final c = _controller;
     if (c == null || c.text.isEmpty) return;
     if (c.selection.isValid && !c.selection.isCollapsed) {
@@ -122,6 +367,8 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
   }
 
   void _move(bool forward, {bool extend = false}) {
+    if (!_editable) return;
+    _focusDraft();
     final c = _controller;
     if (c == null) return;
     final selection = c.selection;
@@ -154,10 +401,35 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
   }
 
   void _selectAll() {
+    _focusDraft();
     final c = _controller;
     if (c != null) {
       c.selection = TextSelection(baseOffset: 0, extentOffset: c.text.length);
     }
+  }
+
+  bool _isEditingKey(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
+    final key = event.logicalKey;
+    if (HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.isMetaPressed) {
+      return {
+        LogicalKeyboardKey.keyA,
+        LogicalKeyboardKey.keyC,
+        LogicalKeyboardKey.keyX,
+        LogicalKeyboardKey.keyV,
+      }.contains(key);
+    }
+    return {
+          LogicalKeyboardKey.backspace,
+          LogicalKeyboardKey.delete,
+          LogicalKeyboardKey.arrowLeft,
+          LogicalKeyboardKey.arrowRight,
+          LogicalKeyboardKey.enter,
+          LogicalKeyboardKey.numpadEnter,
+          LogicalKeyboardKey.escape,
+        }.contains(key) ||
+        (event.character?.runes.every((c) => c >= 32) ?? false);
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
@@ -192,7 +464,13 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
         extend: HardwareKeyboard.instance.isShiftPressed,
       );
     } else if (key == LogicalKeyboardKey.enter ||
-        key == LogicalKeyboardKey.escape) {
+        key == LogicalKeyboardKey.numpadEnter) {
+      if (_multiline) {
+        _replace('\n');
+      } else {
+        finishField();
+      }
+    } else if (key == LogicalKeyboardKey.escape) {
       finishField();
     } else if (event.character != null &&
         event.character!.runes.every((c) => c >= 32)) {
@@ -206,7 +484,9 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_hardwareHandler);
+    _controller?.removeListener(_revealDraft);
     _hardwareFocus.dispose();
+    _draftFocus.dispose();
     super.dispose();
   }
 
@@ -225,8 +505,8 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
         child: Semantics(
           label: semantics ?? text,
           button: true,
-          enabled: true,
-          onTap: perform,
+          enabled: _editable,
+          onTap: _editable ? perform : null,
           child: ExcludeSemantics(
             child: FilledButton.tonal(
               style: FilledButton.styleFrom(
@@ -236,7 +516,7 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              onPressed: perform,
+              onPressed: _editable ? perform : null,
               child: Text(_shift ? text.toUpperCase() : text, maxLines: 1),
             ),
           ),
@@ -258,6 +538,12 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
       canEdit: () => _editable,
       child: Focus(
         focusNode: _hardwareFocus,
+        // The global handler is also reached when a read-only field owns focus.
+        // Consume its editing keys here so EditableText's ancestor shortcuts do
+        // not apply the same cursor/selection operation for a second time.
+        onKeyEvent: (_, event) => _controller != null && _isEditingKey(event)
+            ? KeyEventResult.handled
+            : KeyEventResult.ignored,
         child: Column(
           children: [
             Expanded(child: widget.child),
@@ -281,25 +567,64 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
                             ),
                             IconButton(
                               tooltip: 'Select all',
-                              onPressed: _selectAll,
+                              onPressed: _editable ? _selectAll : null,
                               icon: const Icon(Icons.select_all),
                             ),
                             IconButton(
                               tooltip: 'Copy selected text',
-                              onPressed: _copy,
+                              onPressed: _editable ? _copy : null,
                               icon: const Icon(Icons.copy, size: 20),
                             ),
                             IconButton(
                               tooltip: 'Paste',
-                              onPressed: _paste,
+                              onPressed: _editable ? _paste : null,
                               icon: const Icon(Icons.content_paste, size: 20),
                             ),
                             TextButton(
-                              onPressed: finishField,
+                              onPressed: _editable ? finishField : null,
                               child: const Text('Done'),
                             ),
                           ],
                         ),
+                        if (widget.showValue)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Theme.of(context).colorScheme.outline,
+                                ),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                child: EditableText(
+                                  key: _draftEditable,
+                                  controller: _controller!,
+                                  focusNode: _draftFocus,
+                                  readOnly: true,
+                                  showCursor: true,
+                                  keyboardType: TextInputType.none,
+                                  maxLines: _multiline ? 2 : 1,
+                                  style: Theme.of(context).textTheme.bodyLarge!,
+                                  cursorColor: Theme.of(
+                                    context,
+                                  ).colorScheme.primary,
+                                  backgroundCursorColor: Colors.grey,
+                                  selectionColor: Theme.of(
+                                    context,
+                                  ).colorScheme.primary.withValues(alpha: .3),
+                                  selectionControls:
+                                      materialTextSelectionControls,
+                                  contextMenuBuilder: (_, _) =>
+                                      const SizedBox.shrink(),
+                                ),
+                              ),
+                            ),
+                          ),
                         for (final row in rows)
                           Row(
                             children: row.characters
@@ -336,6 +661,12 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
                               ),
                             if (_numeric)
                               _key('/', action: () => _replace('/')),
+                            if (_multiline)
+                              _key(
+                                '↵',
+                                semantics: 'Return',
+                                action: () => _replace('\n'),
+                              ),
                             _key(
                               '→',
                               semantics: 'Move cursor right',
@@ -372,6 +703,7 @@ class _InputScope extends InheritedWidget {
     TextEditingController,
     String,
     bool,
+    bool,
     Future<bool> Function()?,
   )
   activate;
@@ -407,7 +739,14 @@ class PlayerField extends StatelessWidget {
   Widget build(BuildContext context) {
     final input = context.dependOnInheritedWidgetOfExactType<_InputScope>();
     Future<void> activate() async {
-      if (await input?.activate(controller, label, numeric, onExit) != true) {
+      if (await input?.activate(
+            controller,
+            label,
+            numeric,
+            maxLines > 1,
+            onExit,
+          ) !=
+          true) {
         return;
       }
       WidgetsBinding.instance.addPostFrameCallback((_) {

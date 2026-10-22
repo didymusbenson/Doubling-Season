@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "corrective_branch": "codex/tablet-token-parity-correction",
+  "reviewed_baseline_sha": "dcac16bf6a988283f135d1a3a2fd5bf663c4ac08",
+  "review_library_ids": {
+    "editable_v4": "libfile_497a756d03a8819199b55f5fa9c183f0",
+    "illustrated_v4": "libfile_0441d6cfedcc8191b5ae1981742059a2",
+    "original_evidence_manifest": "libfile_be45c054dd588191b60c90049007bffb"
+  },
+  "scope": "Native simulator screenshots of isolated synthetic game state; no physical-device or full native acceptance is claimed.",
+  "capture_stage": "Mixed: 01–07 are intermediate native-build observations; 08 is the final integrated native build after the 69-test run. See each capture stage.",
+  "metadata_notes": [
+    "File modification timestamps are read from the local filesystem and normalized to UTC; they are not independently recorded action timestamps.",
+    "Dimensions are raw PNG pixel dimensions, not an assumed Flutter logical viewport. Landscape content remains in the original capture pixel orientation.",
+    "Device names and exercised flow descriptions are attributed to the integrating owner; visible state was separately inspected by the documentation reviewer.",
+    "Images are unmodified; SHA-256 identifies the exact local evidence file."
+  ],
+  "captures": [
+    {
+      "id": "01",
+      "file": "01-native-mini-landscape-clean-add.png",
+      "device_reported": "iPad mini simulator",
+      "app_orientation": "landscape",
+      "seat_count": 4,
+      "pixel_dimensions": {
+        "width": 1488,
+        "height": 2266
+      },
+      "bytes": 776464,
+      "file_modified_utc": "2026-10-22T05:16:13+00:00",
+      "sha256": "fb0914db869208858d87c6776141ae06488b6afad2c5ff9e0a31dc88b4f7d9c3",
+      "related_review_ids": [
+        "07",
+        "09",
+        "F01",
+        "F07",
+        "Compact chrome"
+      ],
+      "visually_inspected": true,
+      "visible_state": "Modified Saproling retains its counter; a separate clean Saproling is visible. Source has partially tapped status; all four seats and default Mana/Storm remain visible.",
+      "integration_reported_flow": "Integration reports clean quick-add and partial tap exercised.",
+      "limits": "Image alone does not prove the preceding command, action delta, undo or physical reach.",
+      "capture_stage": "Intermediate native build before final shared-inline-controller and crop-rotation follow-ups."
+    },
+    {
+      "id": "02",
+      "file": "02-native-status-set-sickness.png",
+      "device_reported": "iPad mini simulator",
+      "app_orientation": "landscape",
+      "seat_count": 4,
+      "pixel_dimensions": {
+        "width": 1488,
+        "height": 2266
+      },
+      "bytes": 492280,
+      "file_modified_utc": "2026-10-22T05:18:18+00:00",
+      "sha256": "083da6feefc2c97199b4e31697599dcfb209b17eb152200ca879e92af64d2902",
+      "related_review_ids": [
+        "11",
+        "12"
+      ],
+      "visually_inspected": true,
+      "visible_state": "Player 1 focused status shows Total 10, Tapped 1 and Summoning sick 10, with explicit target context.",
+      "integration_reported_flow": "Integration reports an absolute-total edit.",
+      "limits": "Image alone does not prove the prior value or full sickness boundary behavior.",
+      "capture_stage": "Intermediate native build before final shared-inline-controller and crop-rotation follow-ups."
+    },
+    {
+      "id": "03",
+      "file": "03-native-two-seat-reset.png",
+      "device_reported": "iPad mini simulator",
+      "app_orientation": "landscape",
+      "seat_count": 2,
+      "pixel_dimensions": {
+        "width": 1488,
+        "height": 2266
+      },
+      "bytes": 836875,
+      "file_modified_utc": "2026-10-22T05:19:14+00:00",
+      "sha256": "55767f3d18cfbe5cae1948ff04852a499ee547998c79d4a847e0d433f7f8febc",
+      "related_review_ids": [
+        "F04",
+        "D01"
+      ],
+      "visually_inspected": true,
+      "visible_state": "Usable two-seat board with mirrored player-local-left lanes, retained zero-count tokens and life 40. No stale-game blocker is visible.",
+      "integration_reported_flow": "Integration reports successful keep-board reset and automatic workspace completion.",
+      "limits": "Does not cover all reset options or removed-seat cleanup fields.",
+      "capture_stage": "Intermediate native build before final shared-inline-controller and crop-rotation follow-ups."
+    },
+    {
+      "id": "04",
+      "file": "04-native-three-seat-reset.png",
+      "device_reported": "iPad mini simulator",
+      "app_orientation": "landscape",
+      "seat_count": 3,
+      "pixel_dimensions": {
+        "width": 1488,
+        "height": 2266
+      },
+      "bytes": 646992,
+      "file_modified_utc": "2026-10-22T05:23:42+00:00",
+      "sha256": "9d3aa20030291e5dfca84f3752f1e9f5ae433e3ccdd9d057a4f1797b4903cf03",
+      "related_review_ids": [
+        "F04",
+        "D01"
+      ],
+      "visually_inspected": true,
+      "visible_state": "Usable three-seat board with empty-slot shared controls. Player 1/2 retain Mana/Storm; newly active Player 3 shows utility discovery.",
+      "integration_reported_flow": "Integration reports successful three-seat reset.",
+      "limits": "Does not establish default utility initialization for reactivated seats or every empty-slot choice. Reactivated-seat default provisioning is an existing open reset-policy question, not a new correction regression.",
+      "capture_stage": "Intermediate native build before final shared-inline-controller and crop-rotation follow-ups."
+    },
+    {
+      "id": "05",
+      "file": "05-native-large-four-seat.png",
+      "device_reported": "iPad Pro simulator",
+      "app_orientation": "landscape",
+      "seat_count": 4,
+      "pixel_dimensions": {
+        "width": 2064,
+        "height": 2752
+      },
+      "bytes": 346730,
+      "file_modified_utc": "2026-10-22T05:25:05+00:00",
+      "sha256": "c64090673e520918e7c0a808338d3301015766966ec83f56f4bf3085cb40d7b5",
+      "related_review_ids": [
+        "F01",
+        "F07",
+        "Compact chrome"
+      ],
+      "visually_inspected": true,
+      "visible_state": "Four empty token lanes, all life totals 40 and all four default Mana/Storm sections fit in the larger-tablet board.",
+      "integration_reported_flow": "Integration reports isolated large iPad Pro simulator.",
+      "limits": "This is a distinct empty synthetic state; no populated-token, picker, accessibility or physical-device acceptance.",
+      "capture_stage": "Intermediate native build before final shared-inline-controller and crop-rotation follow-ups."
+    },
+    {
+      "id": "06",
+      "file": "06-native-mini-three-seat-portrait.png",
+      "device_reported": "iPad mini simulator",
+      "app_orientation": "portrait",
+      "seat_count": 3,
+      "pixel_dimensions": {
+        "width": 1488,
+        "height": 2266
+      },
+      "bytes": 826156,
+      "file_modified_utc": "2026-10-22T05:25:40+00:00",
+      "sha256": "766cd9e7c474abc3444c0f1c047d6d001b196c83d658c2b56265e3b7ce1710a6",
+      "related_review_ids": [
+        "F01",
+        "F07",
+        "F04",
+        "D01"
+      ],
+      "visually_inspected": true,
+      "visible_state": "Three seats and empty-slot controls fit portrait. Player 1 has two retained zero-count token entries. Player 1/2 Mana/Storm are visible; Player 3 shows utility discovery.",
+      "integration_reported_flow": "Integration reports portrait rotation after three-seat reset.",
+      "limits": "Does not establish all four empty-slot layouts or default utility initialization for reactivated seats. Reactivated-seat default provisioning is an existing open reset-policy question, not a new correction regression.",
+      "capture_stage": "Intermediate native build before final shared-inline-controller and crop-rotation follow-ups."
+    },
+    {
+      "id": "07",
+      "file": "07-native-mini-portrait-restored.png",
+      "device_reported": "iPad mini simulator",
+      "app_orientation": "portrait",
+      "seat_count": 4,
+      "pixel_dimensions": {
+        "width": 1488,
+        "height": 2266
+      },
+      "bytes": 892383,
+      "file_modified_utc": "2026-10-22T05:26:14+00:00",
+      "sha256": "8d2cea4ad725c123ba6a7086211ae481bc8b4de909c06a29bad59f5c119cf188",
+      "related_review_ids": [
+        "07",
+        "09",
+        "11",
+        "F01",
+        "F04"
+      ],
+      "visually_inspected": true,
+      "visible_state": "Four-player portrait board with life 40. Player 1 has a 10-count modified stack (one tapped, ten sick, +1/+1 and 2/2) plus a separate clean 1-count 1/1 stack; all seats and default utilities remain visible.",
+      "integration_reported_flow": "Integration reports restore of the archived synthetic state, automatic workspace dismissal and usable board.",
+      "limits": "Image alone does not establish full archive byte equality, timeline restoration or all restore failure paths.",
+      "capture_stage": "Intermediate native build before final shared-inline-controller and crop-rotation follow-ups."
+    },
+    {
+      "id": "08",
+      "file": "08-native-rotated-inline-keyboard.png",
+      "device_reported": "iPad mini simulator",
+      "app_orientation": "portrait",
+      "editor_quarter_turns_reported": 2,
+      "seat_count": 4,
+      "capture_stage": "Final integrated native build after 69 passing tests, tablet/root analysis, web release and iOS simulator builds.",
+      "pixel_dimensions": {
+        "width": 1488,
+        "height": 2266
+      },
+      "bytes": 1029527,
+      "file_modified_utc": "2026-10-22T05:29:08+00:00",
+      "sha256": "fa0169efb3fb54d2c0da61ead64b887c261435d212d8b583d636dc597f914d8c",
+      "related_review_ids": [
+        "28",
+        "31",
+        "48",
+        "F02",
+        "F07"
+      ],
+      "visually_inspected": true,
+      "visible_state": "Player 2 Name editor shows qsa in both the actual token field and custom keyboard value, with the keyboard caret between s and a. Target context is visible, and the keyboard faces the initiating player.",
+      "integration_reported_flow": "On the final native build: Player 2 select-all, q, a, cursor-left, s produced qsa; tapaway on Player 4 life committed and dismissed without changing any life total (all 40) or opening another workspace. Then Player 1 direct mana plus, plus, minus stayed on board and ended at 1.",
+      "limits": "Screenshot captures the active editor, not subsequent tapaway or mana steps. Those outcomes are separately attributed to integration. Native picker/crop, VoiceOver, physical keyboard/IME and all low-position fields remain unverified."
+    }
+  ]
+}

@@ -115,6 +115,7 @@ class TabletCatalog extends ChangeNotifier {
     String query, {
     String tab = 'all',
     Category? category,
+    Set<String> colors = const {},
   }) {
     final recent = _ids('recent');
     final result = tokens
@@ -122,6 +123,7 @@ class TabletCatalog extends ChangeNotifier {
           (t) =>
               t.matches(searchQuery: query) &&
               (category == null || t.category == category) &&
+              _matchesColors(t, colors) &&
               (tab != 'favorites' || isFavorite(t.id)) &&
               (tab != 'recent' || recent.contains(t.id)) &&
               (tab != 'custom' || customTokens.any((c) => c.id == t.id)),
@@ -135,6 +137,14 @@ class TabletCatalog extends ChangeNotifier {
       result.sort((a, b) => b.popularity.compareTo(a.popularity));
     }
     return result;
+  }
+
+  // Match the original catalog's exact color-identity filter, including C.
+  bool _matchesColors(TokenDefinition token, Set<String> colors) {
+    if (colors.isEmpty) return true;
+    if (colors.contains('C')) return token.colors.isEmpty;
+    final identity = token.colors.split('').toSet();
+    return identity.length == colors.length && identity.containsAll(colors);
   }
 
   TokenDefinition? byId(String id) {

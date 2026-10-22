@@ -75,7 +75,7 @@ Treasure editing must not automatically add mana, decrement life or pay costs. A
 
 ## Token lane and creation
 
-Retain core token identity, quantity, tapped/untapped state, summoning sickness, counters, P/T, emblems, copy/split, artwork, credits and rules previews. Redesign compact controls for available width rather than scaling down the phone card.
+Carry over the original TS token object’s **entire functionality**, including identity, quantity, status, counters, P/T, emblems, copy/split, artwork/credits and rule-aware actions. Reuse its implementation where practical and fit it into the token lane without stripping direct controls or deliberately tight density. Adapt constraints and seat/session command plumbing; do not mandate a compact-control redesign. See the [full parity inventory](token_functional_parity.md).
 
 Proposed creation flow:
 
@@ -180,3 +180,9 @@ Capture the target seat and preset revision before selection/async art work. Pla
 ## Explicit carryover clarification — 2026-10-22
 
 Dice: d4/d6/d8/d10/d12/d20, selectable types/quantities, all individual results and sum. Mana: use audited Disa manual six-color pool/Empty/lock/convert behavior as the starting point, not a payment or phase engine. TS decklist import and same token database/update path are accepted. See [source-backed decisions and limitations](implementation_carryover_clarifications.md).
+
+## Full token parity correction — 2026-10-22
+
+The entire original TS token functionality, deliberate density and direct controls must carry over. Reuse the existing token implementation where practical and adapt lane constraints/seat-session integration; a new board container is not a mandate to rebuild or simplify tokens. Any parity-reducing exception requires explicit justification and approval. Review [the source-backed token inventory and acceptance method](token_functional_parity.md), not just row aesthetics or generated mockup styling. No specific runtime mismatch is claimed without implementation evidence.
+
+**Accepted compact-control direction (2026-10-22):** familiar controls are compact and icon-led, not large labeled toolbar rows; TS FAB patterns are precedent, not mandatory. Seat name appears in its life counter without redundant board “Seat N” labels. Preserve meaningful text, accessible semantic names and necessary shared-editor target identification. See [layout guidance](02_layout_and_interaction.md#compact-controls-and-restrained-chrome--accepted-2026-10-22).

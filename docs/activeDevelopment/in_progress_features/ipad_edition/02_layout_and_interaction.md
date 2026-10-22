@@ -105,7 +105,7 @@ tableMinHeight    = 2*quadrantMinHeight + centerSeparation
 
 Illustrative starting inputs: token width 280, utility width 200, lane gap 12, padding 12, life height 140, utility height 200, token height 288, center separation 8. This yields roughly **1040 × 760** before additional safe areas or hub deductions. These are prototype inputs, not a supported minimum or an Apple device specification. At an illustrative 1024 × 768 viewport the width already fails this estimate; at 1366 × 1024 there is much more room. Increased text size can fail either size.
 
-Do not shrink every card and touch target to fit. Current phone cards have a dense action row; narrow lanes need a purpose-built compact view with primary controls and overflow/expansion for secondary actions. Reuse the behaviors, not their exact row arrangement.
+Do not shrink every card and touch target to fit. The original dense token action row is deliberate. Fit the existing token implementation into its lane first, retaining direct controls and full functionality. Only a demonstrated fit/accessibility issue justifies an adapted arrangement, with parity evidence; moving actions behind overflow is not the default. Do not confuse adapting the board container with redesigning the token object.
 
 Accepted tablet-first scope requires the complete active 2–4-seat layout, including on small tablets such as iPad mini. Adapt the dedicated regions with compact controls, bounded details and independent scrolling; do not replace the multiplayer board with one focused seat or a phone mode in MVP. The larger shared editor may temporarily obscure the board as already accepted; that is not a permanent focused-seat layout.
 
@@ -166,7 +166,7 @@ Flutter distinguishes raw pointers and gesture recognition; nested buttons, drag
 
 Proposed shared target floor: 48 × 48 logical pixels for primary touch targets, with visible separation, readable text, and no color-only seat identification. Seat name + icon/label should supplement color. Retain contrast over bright artwork with solid backing or an optional plain background. [Flutter accessibility guidance](https://docs.flutter.dev/ui/accessibility).
 
-Give semantics labels such as “Alex, life 37, decrease life by one” and “Sam, Treasure, increase quantity.” Define reading order by player, then life/menu/tokens/utilities, rather than relying on rotated visual position. Offer a single-orientation accessibility/focused view if VoiceOver traversal around four rotations is confusing; D12 settles that behavior.
+Give semantics labels such as “Alex, life 37, decrease life by one” and “Sam, Treasure, increase quantity.” Define reading order by player, then life/menu/tokens/utilities, rather than relying on rotated visual position. Validate accessible traversal and controls within the complete tablet multiplayer view; the later MVP scope excludes a focused-seat fallback.
 
 Verify light/dark themes, large text, reduced motion, grayscale, external keyboard navigation, and life legibility from seated distance. Keep global destructive actions away from routine ± taps. Decide haptics/sound at device scope because the same tablet serves every player.
 
@@ -195,3 +195,21 @@ MVP supports tablets from iPad mini through full-size iPads and Android variants
 ## Explicit carryover clarification — 2026-10-22
 
 Use Lifetap to inform iterative life-tracker arrangement, not as a literal clone. Each seat’s Rules-equivalent panel lists local and global applied effects together; foreign sources stay non-removable there. The Reset menu offers reset with current configuration, complete reset and reload previous game state, mapped to the existing reset/archive contracts. See [source-backed decisions and limitations](implementation_carryover_clarifications.md).
+
+## Full token parity correction — 2026-10-22
+
+The entire original TS token functionality, deliberate density and direct controls must carry over. Reuse the existing token implementation where practical and adapt lane constraints/seat-session integration; a new board container is not a mandate to rebuild or simplify tokens. Any parity-reducing exception requires explicit justification and approval. Review [the source-backed token inventory and acceptance method](token_functional_parity.md), not just row aesthetics or generated mockup styling. No specific runtime mismatch is claimed without implementation evidence.
+
+## Compact controls and restrained chrome — accepted 2026-10-22
+
+The corrective review treats four-player token-lane side as an open consistency
+question, not a confirmed defect. Two-player mirrored player-local-left remains
+settled. Retain the current four-player composition during this correction and
+preserve three-player empty-slot shared controls; illustrative image generation
+does not settle a new four-seat geometry.
+
+Use compact, icon-led controls for familiar actions. Avoid allocating rows or large chunks of the board to labeled toolbar furniture when smaller controls provide the same access. Original TS compact/FAB patterns are a precedent, not a mandate to use FABs everywhere. Preserve touch-target usability, direct access and full token functionality rather than achieving density by hiding essential operations.
+
+The player's seat name belongs in that seat's life counter. Do not repeat redundant seat names or “Seat N” labels across the token lane, utility lane and control groups. A shared editor still identifies its target where needed to disambiguate the affected seat; concise contextual identification is not redundant board chrome.
+
+This direction concerns UI chrome and familiar controls, not a ban on meaningful text: token names, rules, values, consequential confirmation wording and necessary disambiguation remain. Icon-led visual controls must retain accessible semantic names and understandable affordances. Do not substitute unlabeled accessibility nodes for visible text labels. Review real layouts for density and control reachability; no unverified implementation defect is asserted here.

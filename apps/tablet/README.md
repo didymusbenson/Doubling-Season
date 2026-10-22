@@ -34,8 +34,13 @@ The authoritative specification is in
 [the iPad dossier](../../docs/activeDevelopment/in_progress_features/ipad_edition/README.md).
 Implementation details and measured validation are recorded beside it.
 
-Repository policy requires manual functional validation; do not add an automated
-test suite. Temporary external UI-driving flows may be used and discarded.
+The user authorized tablet regression tests for the 2026-10-22 corrective
+iteration. From this directory, run `flutter analyze` and `flutter test`.
+Manual visual and functional validation remains required, including actual
+small-tablet native checks. Browser-only evidence does not establish native
+acceptance. Temporary external UI-driving flows may be used and discarded.
+See the [corrective review tracker](../../docs/activeDevelopment/in_progress_features/ipad_edition/corrective_iteration.md)
+for the source-backed token inventory, measured checks and remaining gaps.
 
 ## Release configuration
 

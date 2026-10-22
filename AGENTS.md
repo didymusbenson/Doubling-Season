@@ -145,7 +145,13 @@ Use `/shipfortestflight` for automated workflow (auto-increments version, builds
 - Commits belong to the user, not to Codex
 
 ### Testing
-Manual functional testing only. Do not generate automated test code.
+The phone app follows manual functional testing. For the tablet corrective
+iteration (`apps/tablet`), the user explicitly authorized automated regression
+tests on 2026-10-22. Keep meaningful scoped state/interaction regressions in
+`apps/tablet/test` and run `flutter test` with `flutter analyze` from that app.
+This exception does not establish a new phone-app automated testing policy.
+Automated and browser checks do not replace native/small-tablet visual and
+functional acceptance; record each kind of evidence separately.
 
 For repeatable pre-release UI validation, Maestro may drive temporary flows
 stored outside the repository (for example under `/tmp`). Do not commit a
@@ -291,7 +297,32 @@ assets/token_database.json → TokenDatabase.loadTokens() (compute isolate)
 
 ### Summoning Sickness
 Applied only when ALL: setting enabled AND `hasPowerToughness` AND `!hasHaste`.
-Copied tokens inherit parent's sickness state. Toggle setting via long-press on sickness button.
+Copy creates one fresh, untapped, counter-free token and recomputes sickness
+from the enabled setting and token eligibility; it does not inherit the
+source's sickness count. Normal Split clears sickness on both resulting stacks.
+Counter search's separate Split & Add to One appends an untapped/nonsick token
+with inherited counters/art and retains the source's bounded remaining status;
+it applies the explicitly entered counter quantity without placement modifiers.
+Use the actual provider/status paths as the behavioral authority, including
+eligible sickness added by a positive absolute-total edit.
+
+### Separate tablet app
+
+`apps/tablet` adapts the original token object to stable seat/session commands
+and chronological history. Reuse `TokenCard` and supporting implementation
+where practical; separate token/utility lanes do not authorize a reduced token
+component. Preserve direct compact actions, inline editing and full functional
+parity. Use [the corrected dossier](docs/activeDevelopment/in_progress_features/ipad_edition/token_functional_parity.md)
+and [the corrective review tracker](docs/activeDevelopment/in_progress_features/ipad_edition/corrective_iteration.md).
+The original phone Hive providers must not be initialized by the tablet app.
+
+Tablet board controls are compact and icon-led with accessible names. Seat
+identity belongs in the life region; retain target context in shared editors.
+Any modal blocks the entire table, dismisses on tapaway without click-through,
+and preserves recoverable drafts. A single custom keyboard faces the initiating
+player for every input. Routine actions do not generate toast/snackbar feedback.
+The original collapse-first behavior remains deliberate: tapping a second
+item first collapses the open item, rather than opening the second immediately.
 
 ### Artwork Display
 Two styles stored in SharedPreferences (`artworkDisplayStyle`):

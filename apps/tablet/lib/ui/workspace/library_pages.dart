@@ -82,55 +82,6 @@ extension _LibraryPages on _TableWorkspaceState {
           ],
         ),
       ),
-      ExpansionTile(
-        title: const Text('Custom tracker or toggle'),
-        children: [
-          _input('utility.custom.name', 'Utility name'),
-          _input('utility.custom.description', 'Description', maxLines: 2),
-          _input(
-            'utility.custom.default',
-            'Starting value',
-            initial: '0',
-            numeric: true,
-          ),
-          _input(
-            'utility.custom.step',
-            'Tap increment',
-            initial: '1',
-            numeric: true,
-          ),
-          Wrap(
-            spacing: 8,
-            children: [
-              _button(
-                'Create tracker',
-                () => _run(
-                  () => _board.createCustomUtility(
-                    player.id,
-                    name: _field('utility.custom.name').text.trim(),
-                    description: _field('utility.custom.description').text,
-                    defaultValue: _integer('utility.custom.default', min: 0),
-                    step: _integer('utility.custom.step', min: 1, max: 999),
-                  ),
-                  success: 'Custom tracker created.',
-                ),
-              ),
-              _button(
-                'Create toggle',
-                () => _run(
-                  () => _board.createCustomUtility(
-                    player.id,
-                    name: _field('utility.custom.name').text.trim(),
-                    description: _field('utility.custom.description').text,
-                    toggle: true,
-                  ),
-                  success: 'Custom toggle created.',
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     ]);
   }
 

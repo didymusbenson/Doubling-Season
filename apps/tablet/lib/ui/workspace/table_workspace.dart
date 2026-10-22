@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:doubling_season/models/token_definition.dart';
+import 'package:doubling_season/database/counter_database.dart';
+import 'package:doubling_season/widgets/mana/mana_text.dart';
 import 'package:doubling_season/providers/rules_provider.dart'
     show TokenCreationResult;
 import 'package:flutter/material.dart';
@@ -15,8 +17,9 @@ import '../../features/board_service.dart';
 import '../../features/preset_service.dart';
 import '../../services/tablet_catalog.dart';
 import 'player_keyboard.dart';
-import '../../services/tablet_media_store.dart';
 import '../table_artwork.dart';
+import '../artwork_selection.dart';
+import '../token_board_summary.dart';
 import '../support_sheet.dart';
 
 part 'token_pages.dart';
@@ -26,6 +29,11 @@ part 'library_pages.dart';
 enum WorkspacePage {
   tokens,
   token,
+  tokenStatus,
+  tokenCounters,
+  tokenSplit,
+  tokenArtwork,
+  tokenSummary,
   utilities,
   rules,
   presets,
@@ -103,7 +111,6 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   String? _itemId;
   final _fields = <String, TextEditingController>{};
   final _inlineEdits = <String, _InlineEdit>{};
-  final _tokenPropertiesController = ExpansibleController();
   final _utilityPropertiesController = ExpansibleController();
   bool _allowPop = false;
   bool _closing = false;
@@ -116,6 +123,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   bool _applyPresetImage = false;
   String _tokenTab = 'all';
   Category? _category;
+  final Set<String> _tokenColors = {};
+  String? _selectedCounter;
+  String? _editingNumber;
   TokenDefinition? _selectedDefinition;
   _Confirmation? _confirmation;
   final _navigation = <(WorkspacePage, String?)>[];
@@ -285,7 +295,17 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     await WidgetsBinding.instance.endOfFrame;
     await _flushInline();
     if (!mounted) return;
-    setState(() => _allowPop = true);
+    _finishClose();
+  }
+
+  // Completion can replace the session; do not revalidate the old target or
+  // replay its inline fields after a successful reset/restore.
+  void _finishClose() {
+    if (!mounted) return;
+    setState(() {
+      _closing = true;
+      _allowPop = true;
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) Navigator.of(context).pop();
     });
@@ -311,6 +331,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     Future<dynamic> Function() action, {
     String? success,
     VoidCallback? after,
+    bool closeOnSuccess = false,
   }) async {
     if (_working || _closing || _navigating || !_validScope) return;
     setState(() {
@@ -330,6 +351,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
           if (success != null) _status = success;
           after?.call();
         });
+        if (closeOnSuccess) _finishClose();
       }
     } catch (error) {
       _retainDrafts();
@@ -386,10 +408,17 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     String detail,
     Future<dynamic> Function() action, {
     String button = 'Confirm',
+    bool closeOnSuccess = false,
   }) {
     if (!mounted || !_validScope || _closing || _navigating) return;
     setState(
-      () => _confirmation = _Confirmation(title, detail, action, button),
+      () => _confirmation = _Confirmation(
+        title,
+        detail,
+        action,
+        button,
+        closeOnSuccess,
+      ),
     );
   }
 
@@ -492,23 +521,10 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   );
 
   Future<String?> _pickArtwork() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      withData: true,
+    final reference = await pickTabletArtwork(
+      context,
+      quarterTurns: widget.quarterTurns,
     );
-    if (!mounted || !_validScope) return null;
-    if (result == null || result.files.isEmpty) return null;
-    final file = result.files.single;
-    final bytes = file.bytes;
-    if (bytes == null) {
-      throw StateError(
-        'This image could not be read. Please choose another image.',
-      );
-    }
-    if (bytes.length > 8 * 1024 * 1024) {
-      throw const FormatException('Choose an image smaller than 8 MB.');
-    }
-    final reference = await TabletMediaStore.save(bytes);
     if (!mounted || !_validScope) return null;
     return reference;
   }
@@ -570,7 +586,6 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   void dispose() {
     c.removeListener(_refresh);
     catalog.removeListener(_refresh);
-    _tokenPropertiesController.dispose();
     _utilityPropertiesController.dispose();
     for (final edit in _inlineEdits.values) {
       edit.timer?.cancel();
@@ -584,6 +599,11 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   String get _title => switch (_page) {
     WorkspacePage.tokens => 'Add tokens',
     WorkspacePage.token => 'Token details',
+    WorkspacePage.tokenStatus => 'Token status',
+    WorkspacePage.tokenCounters => 'Token counters',
+    WorkspacePage.tokenSplit => 'Split stack',
+    WorkspacePage.tokenArtwork => 'Token artwork',
+    WorkspacePage.tokenSummary => 'Board summary',
     WorkspacePage.utilities => 'Utilities',
     WorkspacePage.rules => 'Rules',
     WorkspacePage.presets => 'Saved setups',
@@ -624,8 +644,8 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
               confirmation.button,
               () => _run(
                 confirmation.action,
-                success: 'Saved.',
                 after: () => _confirmation = null,
+                closeOnSuccess: confirmation.closeOnSuccess,
               ),
               primary: true,
             ),
@@ -635,7 +655,15 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     }
     return switch (_page) {
       WorkspacePage.tokens => _tokensPage(),
-      WorkspacePage.token => _tokenPage(),
+      WorkspacePage.token ||
+      WorkspacePage.tokenStatus ||
+      WorkspacePage.tokenCounters ||
+      WorkspacePage.tokenSplit ||
+      WorkspacePage.tokenArtwork => _tokenPage(),
+      WorkspacePage.tokenSummary =>
+        p == null
+            ? const SizedBox.shrink()
+            : _list([TokenBoardSummary(player: p!)]),
       WorkspacePage.utilities => _utilitiesPage(),
       WorkspacePage.rules => _rulesPage(),
       WorkspacePage.presets => _presetsPage(),
@@ -653,7 +681,16 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
     final rotated = widget.quarterTurns.isOdd;
-    final width = min(1050.0, (rotated ? size.height : size.width) - 40);
+    final focusedToken = {
+      WorkspacePage.tokenStatus,
+      WorkspacePage.tokenCounters,
+      WorkspacePage.tokenSplit,
+      WorkspacePage.tokenArtwork,
+    }.contains(_page);
+    final width = min(
+      focusedToken ? 680.0 : 1050.0,
+      (rotated ? size.height : size.width) - 40,
+    );
     final height = min(940.0, (rotated ? size.width : size.height) - 40);
     final content = Center(
       child: RotatedBox(
@@ -706,7 +743,14 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
                     ],
                   ),
                 ),
-                if (_playerId != null)
+                if (_playerId != null &&
+                    !{
+                      WorkspacePage.tokenStatus,
+                      WorkspacePage.tokenCounters,
+                      WorkspacePage.tokenSplit,
+                      WorkspacePage.tokenArtwork,
+                      WorkspacePage.tokenSummary,
+                    }.contains(_page))
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -825,11 +869,18 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
 }
 
 class _Confirmation {
-  const _Confirmation(this.title, this.detail, this.action, this.button);
+  const _Confirmation(
+    this.title,
+    this.detail,
+    this.action,
+    this.button,
+    this.closeOnSuccess,
+  );
   final String title;
   final String detail;
   final Future<dynamic> Function() action;
   final String button;
+  final bool closeOnSuccess;
 }
 
 class _WorkspaceDraft {

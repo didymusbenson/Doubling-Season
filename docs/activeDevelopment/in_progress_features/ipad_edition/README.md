@@ -1,7 +1,7 @@
 # IPAD EDITION
 
-**Status:** first implementation in progress in `apps/tablet`; see [implementation and validation](implementation.md).
-**Created:** 2026-10-20 (America/Phoenix). **Decisions updated:** 2026-10-21.
+**Status:** corrective implementation in progress in `apps/tablet`; see [the corrective review tracker](corrective_iteration.md) and [first-pass implementation evidence](implementation.md).
+**Created:** 2026-10-20 (America/Phoenix). **Decisions updated:** 2026-10-22.
 **Product relationship:** a separate app / new product reusing Tripling Season infrastructure; the same repository is acceptable with properly isolated directories.
 **Technical direction:** Flutter with custom, player-facing in-app keyboards; validate in prototypes before treating the solution as proven. **Product targets:** Android, iOS and web.
 **Code baseline:** `8894640543833eaf37bd62b971a0955c26bafa49` on `update-1-11`.
@@ -28,6 +28,8 @@ This is a planning dossier, not a shipped feature specification. **Confirmed** m
 
 | Document | Purpose |
 |---|---|
+| [Corrective review tracker](corrective_iteration.md) | All 50 original-token inventory rows, review findings, source mapping, test evidence and remaining gaps |
+| [Full token functional parity](token_functional_parity.md) | Accepted reuse-first correction and original source inventory; no token feature is silently omitted |
 | [Product and scope](01_product_and_scope.md) | Confirmed requirements, intended experience, boundaries, candidate first release |
 | [Layout and interaction](02_layout_and_interaction.md) | Interpret the sketch, quadrant geometry, orientation, independent lists, menus and simultaneous use |
 | [Game history and undo](game_history_and_undo.md) | Chronological game history, action grouping, latest-action undo, persistence and existing-undo audit |
@@ -53,7 +55,7 @@ For a fast design session: read this page, the layout document, and the decision
 - **C04:** Give each player their own token list and utility list, including room for new utilities such as a mana pool.
 - **C05:** Give each player an actions menu for creation, board actions, and utilities.
 - **C06:** Put universal game-level controls, including resets, in the center.
-- **C07:** Reuse existing infrastructure heavily while redesigning the frontend around separate surfaces instead of the current unified board-item list.
+- **C07:** Reuse existing infrastructure heavily while adapting the board container to separate surfaces instead of the current unified board-item list. Preserve the original token object's full functionality and deliberate compact design; this container change is not a token-rewrite mandate.
 - **C08:** Preserve reordering separately within each player's token and utility lists.
 - **C09:** Carry player context through all actions and prevent unintended changes in another player's space, including generated companion tokens.
 - **C10:** Preserve enough detail, research, options, and outstanding questions to iterate quickly later.
@@ -142,3 +144,9 @@ Save the current game before archive restore; keep the latest ten archived game-
 ## Explicit carryover clarification — 2026-10-22
 
 Follow TS deliberate design principles unless concrete incompatibility requires adaptation. Wipes are token-level; resets clear rule activation per TS. TS decklist import/shared catalog feed, standard dice, iterative Lifetap-informed life UI and per-seat Rules-equivalent applied-effects menu are accepted. Free/no ads with optional FV/TS-style support IAP cosmetics. Working names are listed in the clarification record. See [source-backed decisions and limitations](implementation_carryover_clarifications.md).
+
+## Full token parity correction — 2026-10-22
+
+The entire original TS token functionality, deliberate density and direct controls must carry over. Reuse the existing token implementation where practical and adapt lane constraints/seat-session integration; a new board container is not a mandate to rebuild or simplify tokens. Any parity-reducing exception requires explicit justification and approval. Review [the source-backed token inventory and acceptance method](token_functional_parity.md), not just row aesthetics or generated mockup styling. No specific runtime mismatch is claimed without implementation evidence.
+
+**Accepted compact-control direction (2026-10-22):** familiar controls are compact and icon-led, not large labeled toolbar rows; TS FAB patterns are precedent, not mandatory. Seat name appears in its life counter without redundant board “Seat N” labels. Preserve meaningful text, accessible semantic names and necessary shared-editor target identification. See [layout guidance](02_layout_and_interaction.md#compact-controls-and-restrained-chrome--accepted-2026-10-22).

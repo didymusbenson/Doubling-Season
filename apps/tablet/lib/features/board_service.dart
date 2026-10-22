@@ -64,6 +64,8 @@ class BoardService {
     int? delta,
     int? expectedRevision,
     bool gameOrigin = false,
+    int Function(GameSession before, GameSession after)? effectiveDelta,
+    String Function(int delta)? describeDelta,
   }) async {
     final c = captured ?? scope(playerId);
     final ok = await controller.commit(
@@ -72,6 +74,8 @@ class BoardService {
       affectedPlayerIds: gameOrigin ? [playerId] : null,
       groupKey: groupKey,
       delta: delta,
+      effectiveDelta: effectiveDelta,
+      describeDelta: describeDelta,
       expectedSessionId: c.sessionId,
       expectedGeneration: c.generation,
       expectedPlayerGeneration: c.playerGeneration,
@@ -131,15 +135,17 @@ class BoardService {
   }
 
   bool _creature(TokenState t) => t.pt.trim().isNotEmpty;
-  bool _emblem(TokenState t) =>
-      t.name.toLowerCase().contains('emblem') ||
-      t.abilities.toLowerCase().contains('emblem');
+  bool _emblem(TokenState t) => t.isEmblem;
   bool _clean(TokenState t) =>
       t.plusOneCounters == 0 &&
       t.minusOneCounters == 0 &&
       t.counters.values.every((n) => n == 0);
   bool _compatible(TokenState a, TokenState b) =>
-      a.definitionId == b.definitionId &&
+      a.name == b.name &&
+      a.pt == b.pt &&
+      a.colors == b.colors &&
+      a.type == b.type &&
+      a.abilities == b.abilities &&
       a.artworkUrl == b.artworkUrl &&
       _clean(a) &&
       _clean(b);
@@ -223,12 +229,25 @@ class BoardService {
     var next = insertionIndex ?? p.tokens.length;
     for (final result in results) {
       if (result.quantity <= 0) continue;
+      // Results already carry the full identity. Do not split a composite ID:
+      // raw inline abilities/name may themselves contain the separator.
       final d =
-          catalog.byId(result.compositeId) ?? _definitionId(result.compositeId);
+          catalog.byId(result.compositeId) ??
+          TokenDefinition(
+            name: result.name,
+            pt: result.pt,
+            colors: result.colors,
+            type: result.type,
+            abilities: result.abilities,
+            popularity: 0,
+          );
       final sameSource =
           source != null &&
-          '${source.name}|${source.type.toLowerCase().contains('creature') ? source.pt : ''}|${source.colors}|${source.type}|${source.abilities}' ==
-              result.compositeId;
+          source.name == result.name &&
+          source.pt == result.pt &&
+          source.colors == result.colors &&
+          source.type == result.type &&
+          source.abilities == result.abilities;
       final art = sameSource
           ? source.artworkUrl
           : (selectedDefinition?.id == result.compositeId
@@ -245,6 +264,9 @@ class BoardService {
       if (sameSource) {
         t.artworkUrl = source.artworkUrl;
         t.artworkSet = source.artworkSet;
+        if (source.extra.containsKey('artworkDisplayStyle')) {
+          t.extra['artworkDisplayStyle'] = source.extra['artworkDisplayStyle'];
+        }
         t.artworkOptions = source.artworkOptions
             .map((a) => Map<String, dynamic>.from(a))
             .toList();
@@ -307,14 +329,19 @@ class BoardService {
             _fromDefinition(def, 0, artworkUrl: artworkUrl, sickness: false),
           );
         } else {
+          // Explicit Create keeps its primary as a distinct object. Only
+          // rule companions use compatible clean-stack merging (as in the
+          // original search and custom-token creation paths).
           _addResults(
             s,
             p,
-            result,
+            result.take(1).toList(),
             tapped: tapped,
+            merge: false,
             selectedArtwork: artworkUrl,
             selectedDefinition: def,
           );
+          _addResults(s, p, result.skip(1).toList());
         }
       },
       captured: captured,
@@ -335,13 +362,29 @@ class BoardService {
     (s, p) {
       final t = _token(p, tokenId);
       if (delta > 0) {
+        // Emblems are not token-creation events; the original object adds the
+        // requested amount directly without token multiplication or companions.
+        if (_emblem(t)) {
+          _quantity(t.amount + delta);
+          t.amount += delta;
+          return;
+        }
         final r = _rules(
           s,
           playerId,
         ).evaluateRules(t.name, t.pt, t.colors, t.type, t.abilities, delta);
-        // Increments retain the source's counters; companions still use clean merges.
+        // Match the original TokenCard._addTokensViaRules decision: only a
+        // clean unchanged source grows in place. A modified source remains
+        // intact and creation resolves to a compatible clean stack or an
+        // adjacent fresh stack, retaining its selected artwork.
         final first = r.first;
-        if (first.compositeId == t.definitionId) {
+        final unchanged =
+            first.name == t.name &&
+            first.pt == t.pt &&
+            first.colors == t.colors &&
+            first.type == t.type &&
+            first.abilities == t.abilities;
+        if (unchanged && _clean(t)) {
           _quantity(t.amount + first.quantity);
           t.amount += first.quantity;
           if (p.summoningSicknessEnabled &&
@@ -381,18 +424,36 @@ class BoardService {
     },
     groupKey: 'token-${delta >= 0 ? 'add' : 'remove'}:$tokenId',
     delta: delta,
+    effectiveDelta: (before, after) =>
+        _player(after, playerId).tokens.fold(0, (n, t) => n + t.amount) -
+        _player(before, playerId).tokens.fold(0, (n, t) => n + t.amount),
+    describeDelta: (actual) =>
+        '${actual >= 0 ? 'Add tokens' : 'Remove tokens'} ${actual >= 0 ? '+' : ''}$actual',
   );
+
+  /// Positive values tap; negative values untap. Each count is bounded by the
+  /// current stack, so tap-one and hold-all share exactly the same operation.
+  Future<void> tapTokens(String playerId, String tokenId, int delta) =>
+      _commit(playerId, delta >= 0 ? 'Tap tokens' : 'Untap tokens', (s, p) {
+        final t = _token(p, tokenId);
+        if (_emblem(t)) throw StateError('Emblems do not tap.');
+        t.tapped = (t.tapped + delta).clamp(0, t.amount);
+      });
+
   Future<void> toggleAllTapped(String playerId, String tokenId) =>
       _commit(playerId, 'Toggle tapped tokens', (s, p) {
         final token = _token(p, tokenId);
         if (_emblem(token)) throw StateError('Emblems do not tap.');
         token.tapped = token.tapped == token.amount ? 0 : token.amount;
       });
-  Future<void> deleteToken(String playerId, String tokenId) =>
-      _commit(playerId, 'Remove token stack', (s, p) {
-        _token(p, tokenId);
-        p.tokens.removeWhere((t) => t.id == tokenId);
-      });
+  Future<void> deleteToken(
+    String playerId,
+    String tokenId, {
+    BoardScope? captured,
+  }) => _commit(playerId, 'Remove token stack', (s, p) {
+    _token(p, tokenId);
+    p.tokens.removeWhere((t) => t.id == tokenId);
+  }, captured: captured);
   Future<void> editToken(
     String playerId,
     String tokenId, {
@@ -407,18 +468,22 @@ class BoardService {
     BoardScope? captured,
   }) => _commit(playerId, 'Edit token', (s, p) {
     final t = _token(p, tokenId);
-    if (name != null) {
-      if (name.trim().isEmpty) {
-        throw const FormatException('A token needs a name');
-      }
-      t.name = name.trim();
-    }
+    // Inline editing preserves the original raw text, including empty fields.
+    if (name != null) t.name = name;
     if (pt != null) t.pt = pt;
     if (abilities != null) t.abilities = abilities;
     if (colors != null) t.colors = colors;
     if (type != null) t.type = type;
     if (amount != null) {
       _quantity(amount);
+      final added = amount - t.amount;
+      if (added > 0 &&
+          p.summoningSicknessEnabled &&
+          _creature(t) &&
+          !t.hasHaste &&
+          !_emblem(t)) {
+        t.summoningSick += added;
+      }
       t.amount = amount;
     }
     if (tapped != null) {
@@ -443,6 +508,9 @@ class BoardService {
     '$counterName ${delta >= 0 ? '+' : ''}$delta',
     (s, p) {
       final t = _token(p, tokenId);
+      if (counterName.trim().isEmpty) {
+        throw const FormatException('Name the counter');
+      }
       _applyCounter(
         t,
         counterName,
@@ -456,14 +524,111 @@ class BoardService {
     },
     groupKey: 'counter:$tokenId:$counterName:${delta.sign}',
     delta: delta,
+    effectiveDelta: (before, after) =>
+        _counterBalance(
+          _token(_player(after, playerId), tokenId),
+          counterName,
+        ) -
+        _counterBalance(
+          _token(_player(before, playerId), tokenId),
+          counterName,
+        ),
+    describeDelta: (actual) => '$counterName ${actual >= 0 ? '+' : ''}$actual',
   );
+
+  int _counterBalance(TokenState token, String name) => switch (name) {
+    '+1/+1' => token.plusOneCounters - token.minusOneCounters,
+    '-1/-1' => token.minusOneCounters - token.plusOneCounters,
+    _ => token.counters[name] ?? 0,
+  };
+
+  /// An absolute correction is not a counter-placement event: no modifiers.
+  Future<void> setCounter(
+    String playerId,
+    String tokenId,
+    String name,
+    int value, {
+    BoardScope? captured,
+  }) => _commit(playerId, 'Set $name counters to $value', (s, p) {
+    _quantity(value);
+    if (name.trim().isEmpty) throw const FormatException('Name the counter');
+    final t = _token(p, tokenId);
+    switch (name) {
+      case '+1/+1':
+        t.plusOneCounters = value;
+        break;
+      case '-1/-1':
+        t.minusOneCounters = value;
+        break;
+      default:
+        if (value == 0) {
+          t.counters.remove(name);
+        } else {
+          t.counters[name] = value;
+        }
+    }
+    final cancelled = min(t.plusOneCounters, t.minusOneCounters);
+    t.plusOneCounters -= cancelled;
+    t.minusOneCounters -= cancelled;
+  }, captured: captured);
+
+  /// Counter-search quantities are explicit placement counts in the original
+  /// app. Unlike the quick/management increment buttons, they are applied raw.
+  Future<void> addSelectedCounter(
+    String playerId,
+    String tokenId,
+    String name,
+    int quantity, {
+    BoardScope? captured,
+  }) => _commit(playerId, 'Add $quantity $name counters to stack', (s, p) {
+    _quantity(quantity);
+    if (name.trim().isEmpty) throw const FormatException('Name the counter');
+    _applyCounter(_token(p, tokenId), name, quantity);
+  }, captured: captured);
+
+  /// Counter search's “Split & Add to One” is distinct from normal Split:
+  /// append an untapped, nonsick token with inherited counters/art, retain the
+  /// source's bounded status, and apply exactly the entered counter quantity.
+  /// The entire operation is one scoped transaction and one undo entry.
+  Future<void> splitAndAddCounter(
+    String playerId,
+    String tokenId,
+    String name,
+    int quantity, {
+    BoardScope? captured,
+  }) => _commit(playerId, 'Split and add $quantity $name to one token', (s, p) {
+    _quantity(quantity);
+    if (name.trim().isEmpty) throw const FormatException('Name the counter');
+    final source = _token(p, tokenId);
+    if (_emblem(source)) throw StateError('Emblems do not split.');
+    if (source.amount < 2) {
+      throw StateError('At least two tokens are needed to split');
+    }
+    final copy = source.copy();
+    copy.id = newEntityId();
+    copy.amount = 1;
+    copy.tapped = 0;
+    copy.summoningSick = 0;
+    _applyCounter(copy, name, quantity);
+    source.amount--;
+    source.tapped = min(source.tapped, source.amount);
+    source.summoningSick = min(source.summoningSick, source.amount);
+    p.tokens.add(copy);
+  }, captured: captured);
+
   void _applyCounter(TokenState t, String name, int amount) {
     if (name == '+1/+1') {
       t.plusOneCounters = max(0, t.plusOneCounters + amount);
     } else if (name == '-1/-1') {
       t.minusOneCounters = max(0, t.minusOneCounters + amount);
     } else {
-      t.counters[name] = max(0, (t.counters[name] ?? 0) + amount);
+      final value = max(0, (t.counters[name] ?? 0) + amount);
+      if (value == 0) {
+        t.counters.remove(name);
+      } else {
+        _quantity(value);
+        t.counters[name] = value;
+      }
     }
     final cancelled = min(t.plusOneCounters, t.minusOneCounters);
     t.plusOneCounters -= cancelled;
@@ -475,6 +640,7 @@ class BoardService {
     String tokenId,
   ) => _commit(playerId, 'Copy token', (s, p) {
     final t = _token(p, tokenId);
+    if (_emblem(t)) throw StateError('Emblems do not copy.');
     // Phone Copy creates one fresh untapped stack, without counters or multipliers.
     final copy = _fromDefinition(
       definition(t),
@@ -485,6 +651,9 @@ class BoardService {
     );
     copy.artworkUrl = t.artworkUrl;
     copy.artworkSet = t.artworkSet;
+    if (t.extra.containsKey('artworkDisplayStyle')) {
+      copy.extra['artworkDisplayStyle'] = t.extra['artworkDisplayStyle'];
+    }
     p.tokens.insert(p.tokens.indexOf(t) + 1, copy);
     _entered(p, copy, 1);
   });
@@ -496,6 +665,16 @@ class BoardService {
     BoardScope? captured,
   }) => _commit(playerId, 'Split token stack', (s, p) {
     final t = _token(p, tokenId);
+    if (_emblem(t)) throw StateError('Emblems do not split.');
+    _splitOne(p, t, quantity, tappedFirst: tappedFirst);
+  }, captured: captured);
+
+  TokenState _splitOne(
+    PlayerState p,
+    TokenState t,
+    int quantity, {
+    required bool tappedFirst,
+  }) {
     if (quantity <= 0 || quantity >= t.amount) {
       throw RangeError('Split quantity must leave tokens in both stacks');
     }
@@ -505,14 +684,110 @@ class BoardService {
     copy.tapped = tappedFirst
         ? min(t.tapped, quantity)
         : quantity - min(quantity, t.amount - t.tapped);
-    // Preserve the explicitly described phone split workflow: splitting
-    // clears sickness on both stacks and deep-copies all counters/artwork.
     copy.summoningSick = 0;
     t.amount -= quantity;
     t.tapped -= copy.tapped;
     t.summoningSick = 0;
     p.tokens.insert(p.tokens.indexOf(t) + 1, copy);
-  }, captured: captured);
+    return copy;
+  }
+
+  /// The original Scute action counts every live Scute stack on this seat,
+  /// evaluates rules once, and commits the primary and companions together.
+  Future<void> scuteSwarm(String playerId, String tokenId) =>
+      _commit(playerId, 'Scute Swarm token creation', (s, p) {
+        final source = _token(p, tokenId);
+        if (!source.name.toLowerCase().contains(GameConstants.scuteSwarmName)) {
+          throw StateError('This action needs a Scute Swarm');
+        }
+        final count = p.tokens
+            .where(
+              (t) =>
+                  t.name.toLowerCase().contains(GameConstants.scuteSwarmName),
+            )
+            .fold(0, (total, t) => total + t.amount);
+        if (count == 0) return;
+        final results = _rules(s, playerId).evaluateRules(
+          source.name,
+          source.pt,
+          source.colors,
+          source.type,
+          source.abilities,
+          count,
+        );
+        final quantity = results.first.quantity;
+        var next = p.tokens.indexOf(source) + 1;
+        if (quantity > 0) {
+          // Original Scute uses the evaluated primary quantity, then its
+          // dedicated Scute creation policy. It does not turn the source into
+          // a replacement-rule identity. A compatible clean source identity
+          // merges; a new stack uses the catalog Scute and source artwork.
+          TokenState? existing;
+          for (final candidate in p.tokens) {
+            if (_clean(candidate) &&
+                candidate.name == source.name &&
+                candidate.pt == source.pt &&
+                candidate.colors == source.colors &&
+                candidate.type == source.type &&
+                candidate.abilities == source.abilities &&
+                candidate.artworkUrl == source.artworkUrl) {
+              existing = candidate;
+              break;
+            }
+          }
+          late final TokenState result;
+          if (existing != null) {
+            _quantity(existing.amount + quantity);
+            existing.amount += quantity;
+            if (p.summoningSicknessEnabled &&
+                existing.hasPowerToughness &&
+                !existing.hasHaste) {
+              existing.summoningSick += quantity;
+            }
+            result = existing;
+          } else {
+            final scute =
+                catalog.tokens
+                    .where(
+                      (t) => t.name.toLowerCase().contains(
+                        GameConstants.scuteSwarmName,
+                      ),
+                    )
+                    .firstOrNull ??
+                definition(source);
+            result = _fromDefinition(
+              scute,
+              quantity,
+              artworkUrl: source.artworkUrl,
+              artworkSet: source.artworkSet,
+              sickness: p.summoningSicknessEnabled,
+            );
+            result.artworkUrl = source.artworkUrl;
+            result.artworkSet = source.artworkSet;
+            if (source.artworkOptions.isNotEmpty) {
+              result.artworkOptions = source.artworkOptions
+                  .map((a) => Map<String, dynamic>.from(a))
+                  .toList();
+            }
+            if (source.extra.containsKey('artworkDisplayStyle')) {
+              result.extra['artworkDisplayStyle'] =
+                  source.extra['artworkDisplayStyle'];
+            }
+            p.tokens.insert(next++, result);
+          }
+          result.extra['lastCreation'] = {
+            'eventId': newEntityId(),
+            'quantity': quantity,
+            'sources': _sources(s, p.id)
+                .where((r) => r.enabled && r.count > 0)
+                .map((r) => r.toJson())
+                .toList(),
+          };
+          _entered(p, result, quantity);
+        }
+        _addResults(s, p, results.skip(1).toList(), insertionIndex: next);
+      });
+
   Future<void> mergeTokens(String playerId, String sourceId, String targetId) =>
       _commit(playerId, 'Merge token stacks', (s, p) {
         if (sourceId == targetId) throw StateError('Choose a different stack');
@@ -570,52 +845,77 @@ class BoardService {
       }
     }
   }, captured: captured);
+  Future<void> setArtworkStyle(
+    String playerId,
+    String tokenId,
+    String style, {
+    BoardScope? captured,
+  }) => _commit(playerId, 'Change token artwork display', (s, p) {
+    if (!{'full', 'fadeout'}.contains(style)) {
+      throw const FormatException('Choose full or fadeout artwork');
+    }
+    _token(p, tokenId).extra['artworkDisplayStyle'] = style;
+  }, captured: captured);
+
   Future<void> bulk(
     String playerId,
     String action, {
     bool gameOrigin = false,
-  }) => _commit(playerId, action, (s, p) {
-    if (action == 'wipe_all') {
-      p.tokens.clear();
-      p.generation++;
-      return;
-    }
-    if (action == 'wipe_creatures') {
-      p.tokens.removeWhere(_creature);
-      p.generation++;
-      return;
-    }
-    for (final t in p.tokens) {
-      switch (action) {
-        case 'untap':
-          t.tapped = 0;
-          break;
-        case 'clear_sickness':
-          t.summoningSick = 0;
-          break;
-        case 'plus_one':
-          if (_creature(t)) {
-            _applyCounter(
-              t,
-              '+1/+1',
-              _rules(s, playerId).calculateCounterAmount(1),
-            );
-          }
-          break;
-        case 'minus_one':
-          if (_creature(t)) {
-            _applyCounter(
-              t,
-              '-1/-1',
-              _rules(s, playerId).calculateCounterAmount(1, isPlusOne: false),
-            );
-          }
-          break;
-        default:
-          throw ArgumentError('Unknown board action');
+  }) => _commit(
+    playerId,
+    const {
+          'wipe_all': 'Wipe all tokens',
+          'wipe_creatures': 'Wipe creature tokens',
+          'untap': 'Untap all tokens',
+          'clear_sickness': 'Clear summoning sickness',
+          'plus_one': 'Add +1/+1 to all creatures',
+          'minus_one': 'Add -1/-1 to all creatures',
+        }[action] ??
+        action,
+    (s, p) {
+      if (action == 'wipe_all') {
+        p.tokens.clear();
+        p.generation++;
+        return;
       }
-    }
-  }, gameOrigin: gameOrigin);
+      if (action == 'wipe_creatures') {
+        p.tokens.removeWhere(_creature);
+        p.generation++;
+        return;
+      }
+      for (final t in p.tokens) {
+        switch (action) {
+          case 'untap':
+            t.tapped = 0;
+            break;
+          case 'clear_sickness':
+            t.summoningSick = 0;
+            break;
+          case 'plus_one':
+            if (_creature(t)) {
+              _applyCounter(
+                t,
+                '+1/+1',
+                _rules(s, playerId).calculateCounterAmount(1),
+              );
+            }
+            break;
+          case 'minus_one':
+            if (_creature(t)) {
+              _applyCounter(
+                t,
+                '-1/-1',
+                _rules(s, playerId).calculateCounterAmount(1, isPlusOne: false),
+              );
+            }
+            break;
+          default:
+            throw ArgumentError('Unknown board action');
+        }
+      }
+    },
+    gameOrigin: gameOrigin,
+  );
   Future<void> reorder(
     String playerId,
     String lane,

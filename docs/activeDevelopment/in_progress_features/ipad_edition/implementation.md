@@ -1,5 +1,12 @@
 # First implementation
 
+This is the historical first-pass record at `dcac16b`. The independent review
+and 2026-10-22 correction supersede any broad parity implication below; see
+[the corrective tracker](corrective_iteration.md). In particular, planning
+commits `012d9f3` and `c986e53` require full original token functionality,
+reuse-first lane adaptation and compact icon-led chrome. They have been
+reconciled into the moved dossier without reverting implementation additions.
+
 **Implemented:** 2026-10-21 (America/Phoenix). **Status:** first implementation built and exercised; physical-device/release acceptance remains open.
 
 The user authorized a complete first implementation of the updated tablet app,
@@ -35,7 +42,9 @@ are not silently promoted to accepted product requirements.
 Parallel tracks cover the session engine, scoped catalog/rules/board/preset
 behavior, and shared editor/custom input. The integrating track owns the native
 projects, main board, independent lanes, fixed life regions and validation.
-No permanent automated test suite is added, following repository policy.
+No permanent automated test suite was added in the first pass. The user later
+explicitly authorized tablet regression tests for the corrective iteration;
+that scoped exception is recorded in `AGENTS.md` and the tablet README.
 
 ## Validation during integration
 

@@ -476,6 +476,8 @@ extension _GamePages on _TableWorkspaceState {
           subtitle: Text(
             [
               '${entry.playerLabel ?? 'Table'} · ${_date(entry.updatedAt)}',
+              if (entry.affectedPlayerIds.isNotEmpty)
+                'Affected: ${entry.affectedPlayerIds.map(_nameForPlayer).join(', ')}',
               if (entry.tokenSummary.isNotEmpty &&
                   entry.tokenSummary != entry.summary)
                 entry.tokenSummary,
@@ -550,6 +552,7 @@ extension _GamePages on _TableWorkspaceState {
           emptySlot: _emptySlot,
         ),
         button: 'Archive & reset with board',
+        closeOnSuccess: true,
       ),
       icon: Icons.restart_alt,
     ),
@@ -566,6 +569,7 @@ extension _GamePages on _TableWorkspaceState {
           emptySlot: _emptySlot,
         ),
         button: 'Archive & complete reset',
+        closeOnSuccess: true,
       ),
       icon: Icons.delete_sweep_outlined,
     ),
@@ -588,6 +592,7 @@ extension _GamePages on _TableWorkspaceState {
             'Save the current game first, then restore this archive’s board, life, damage, rules and full timeline. Saved setups and permanent player customization will not be overwritten.',
             () => c.restoreArchive(archive.id),
             button: 'Save current & restore',
+            closeOnSuccess: true,
           ),
         ),
       ),
