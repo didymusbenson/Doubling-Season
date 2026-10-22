@@ -13,6 +13,7 @@ import 'package:tripling_table/ui/table_artwork.dart';
 import 'package:tripling_table/ui/table_screen.dart';
 import 'package:tripling_table/ui/table_theme.dart';
 import 'package:tripling_table/ui/tablet_token_card.dart';
+import 'package:tripling_table/ui/monarch_crown.dart';
 
 import 'support/table_fixture.dart';
 
@@ -182,6 +183,57 @@ void main() {
     },
   );
 
+  testWidgets('game controls are a standalone compact central component', (
+    tester,
+  ) async {
+    await showTable(tester, const Size(1133, 744), tableFor(4));
+    final hub = find.byKey(const ValueKey('central-game-controls'));
+    expect(hub, findsOneWidget);
+    expect(bounds(tester, hub).size, const Size(52, 52));
+    expect(
+      bounds(tester, hub).center,
+      bounds(tester, find.byKey(const ValueKey('table-surface'))).center,
+    );
+    expect(
+      find.byWidgetPredicate((w) => w.runtimeType.toString() == '_GameStrip'),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
+    'large signed life totals keep every glyph inside their colored surface',
+    (tester) async {
+      final state = tableFor(4);
+      for (var i = 0; i < state.session.players.length; i++) {
+        state.session.players[i].life = i.isEven ? 999999 : -999999;
+      }
+      final fixture = await showTable(tester, const Size(744, 1133), state);
+      for (final player in fixture.controller.session.players) {
+        final surface = find.byKey(ValueKey('${player.id}-life-surface'));
+        final text = find.descendant(
+          of: surface,
+          matching: find.text('${player.life}'),
+        );
+        final paragraph = tester.renderObject<RenderParagraph>(text);
+        for (final glyphBox in paragraph.getBoxesForSelection(
+          TextSelection(baseOffset: 0, extentOffset: '${player.life}'.length),
+        )) {
+          final glyphs = Rect.fromPoints(
+            paragraph.localToGlobal(Offset(glyphBox.left, glyphBox.top)),
+            paragraph.localToGlobal(Offset(glyphBox.right, glyphBox.bottom)),
+          );
+          final panel = bounds(tester, surface);
+          expect(glyphs.top, greaterThanOrEqualTo(panel.top));
+          expect(glyphs.bottom, lessThanOrEqualTo(panel.bottom));
+          expect(glyphs.left, greaterThanOrEqualTo(panel.left + 26));
+          expect(glyphs.right, lessThanOrEqualTo(panel.right - 26));
+        }
+      }
+      await capture(tester, '4p-portrait-large-signed-life');
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final size in [
     const Size(1133, 744),
     const Size(744, 1133),
@@ -208,7 +260,7 @@ void main() {
             expect(bounds(tester, find.byWidget(element.widget)).width, 3);
           }
           final strip = find.byWidgetPredicate(
-            (widget) => widget.runtimeType.toString() == '_GameStrip',
+            (widget) => widget.runtimeType.toString() == '_GameHub',
           );
           final stripBounds = bounds(tester, strip);
           expect(
@@ -228,38 +280,90 @@ void main() {
             find.byKey(const ValueKey('table-surface')),
           );
           expect(stripBounds.center, tableBounds.center);
-          if (seats != 2) {
-            final shell = tester.widget<Container>(
-              find
-                  .descendant(of: strip, matching: find.byType(Container))
-                  .first,
-            );
-            final border =
-                (shell.decoration! as BoxDecoration).border! as Border;
-            expect(border.top.width, 3);
-            expect(border.bottom.width, 3);
-            expect(
-              bounds(
-                tester,
-                find.byKey(const ValueKey('game-strip-player-divider')),
-              ).center.dx,
-              tableBounds.center.dx,
-            );
-          }
+          expect(stripBounds.size, const Size(52, 52));
+          final shell = tester.widget<Material>(
+            find.descendant(of: strip, matching: find.byType(Material)).first,
+          );
+          expect(shell.shape, isA<CircleBorder>());
+          expect(
+            find.byKey(const ValueKey('game-strip-player-divider')),
+            findsNothing,
+          );
           final tableHeight = size.height - 44;
           for (final player in fixture.controller.session.players) {
             final name = fixture.controller.profile(player.seatId).name;
-            final life = find.descendant(
-              of: find.byKey(ValueKey(player.id)),
-              matching: find.byWidgetPredicate(
-                (w) => w.runtimeType.toString() == '_LifePanel',
-              ),
+            final life = find.byKey(ValueKey('${player.id}-life-surface'));
+            expect(bounds(tester, life).overlaps(stripBounds), isFalse);
+            final decrease = find.byKey(ValueKey('${player.id}-life-decrease'));
+            final increase = find.byKey(ValueKey('${player.id}-life-increase'));
+            final hitBounds = bounds(
+              tester,
+              decrease,
+            ).expandToInclude(bounds(tester, increase));
+            final surfaceBounds = bounds(tester, life);
+            for (final edges in [
+              [hitBounds.left, surfaceBounds.left],
+              [hitBounds.right, surfaceBounds.right],
+              [hitBounds.top, surfaceBounds.top],
+              [hitBounds.bottom, surfaceBounds.bottom],
+            ]) {
+              expect(
+                edges[0],
+                closeTo(edges[1], .001),
+                reason: 'Every part of the colored surface belongs to a half.',
+              );
+            }
+            final tools = find.byKey(ValueKey('${player.id}-life-tools'));
+            expect(bounds(tester, tools).overlaps(stripBounds), isFalse);
+            expect(
+              bounds(tester, tools).overlaps(bounds(tester, life)),
+              isFalse,
             );
             expect(
-              bounds(tester, life).overlaps(stripBounds),
-              isFalse,
-              reason:
-                  'Life ${bounds(tester, life)} vs controls $stripBounds must reserve space.',
+              find.descendant(of: tools, matching: find.byType(MonarchCrown)),
+              findsOneWidget,
+            );
+            final monarch = find.byTooltip('$name, Monarch, disabled');
+            final blessing = find.byTooltip('$name, City’s blessing, disabled');
+            final crownPosition = bounds(tester, monarch, within: tools).center;
+            final blessingPosition = bounds(
+              tester,
+              blessing,
+              within: tools,
+            ).center;
+            expect(crownPosition.dy, blessingPosition.dy);
+            expect(crownPosition.dx, lessThan(blessingPosition.dx));
+            final editPosition = bounds(
+              tester,
+              find.byKey(ValueKey('${player.id}-player-details')),
+              within: tools,
+            ).center;
+            for (final label in [
+              '$name, player counters',
+              '$name, rules',
+              '$name, commander damage',
+            ]) {
+              final button = find.byTooltip(label);
+              expect(button.hitTestable(), findsOneWidget);
+              final point = bounds(tester, button, within: tools).center;
+              expect(
+                point.dy < editPosition.dy || point.dx < editPosition.dx,
+                isTrue,
+                reason: 'Edit is last in player-local tool order.',
+              );
+            }
+            expect(find.byTooltip('$name, saved presets'), findsNothing);
+            final manage = find.byKey(
+              ValueKey('${player.id}-manage-utilities'),
+            );
+            expect(manage.hitTestable(), findsOneWidget);
+            expect(find.descendant(of: tools, matching: manage), findsNothing);
+            expect(
+              find.descendant(
+                of: find.byKey(ValueKey('${player.id}-utility-section')),
+                matching: manage,
+              ),
+              findsOneWidget,
             );
             final lane = find.byKey(ValueKey('${player.id}-token-lane'));
             final fab = find.byKey(ValueKey('${player.id}-add-token'));
@@ -320,22 +424,7 @@ void main() {
               );
             }
           }
-          if (seats == 2) {
-            expect(
-              find.byTooltip('Game controls').hitTestable(),
-              findsOneWidget,
-            );
-          } else {
-            for (final label in [
-              'History',
-              'Dice',
-              'Day / night',
-              'Reset',
-              'Table',
-            ]) {
-              expect(find.byTooltip(label).hitTestable(), findsOneWidget);
-            }
-          }
+          expect(find.byTooltip('Game controls').hitTestable(), findsOneWidget);
           expect(tester.takeException(), isNull);
           await capture(
             tester,
@@ -355,7 +444,7 @@ void main() {
           tester.view.padding = const FakeViewPadding();
           await tester.pumpAndSettle();
           final strip = find.byWidgetPredicate(
-            (w) => w.runtimeType.toString() == '_GameStrip',
+            (w) => w.runtimeType.toString() == '_GameHub',
           );
           expect(bounds(tester, strip).center.dx, closeTo(size.width / 2, .01));
           expect(
@@ -400,7 +489,7 @@ void main() {
           state.session.players.removeWhere((p) => p.slot == empty);
           await showTable(tester, size, state);
           final strip = find.byWidgetPredicate(
-            (w) => w.runtimeType.toString() == '_GameStrip',
+            (w) => w.runtimeType.toString() == '_GameHub',
           );
           final table = find.byKey(const ValueKey('table-surface'));
           expect(bounds(tester, strip).center, bounds(tester, table).center);
@@ -421,7 +510,7 @@ void main() {
       );
     }
     testWidgets(
-      '2p centered hub at $size keeps every game action available without changing either player',
+      'centered hub at $size keeps every game action available without changing players',
       (tester) async {
         final fixture = await showTable(tester, size, tableFor(2));
         final before = fixture.controller.session.toJson();
@@ -645,8 +734,142 @@ void main() {
     },
   );
 
+  for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
+    testWidgets(
+      'eight source grid adjusts every partner/self from both facing seats at $size',
+      (tester) async {
+        final state = tableFor(4);
+        state.session.commanders = [
+          for (final owner in state.session.players)
+            for (var partner = 0; partner < 2; partner++)
+              CommanderSource(
+                id: '${owner.id}-$partner',
+                ownerPlayerId: owner.id,
+                name:
+                    '${state.profiles.firstWhere((p) => p.id == owner.seatId).name} Partner ${partner + 1}',
+              ),
+        ];
+        final fixture = await showTable(tester, size, state);
+        for (final recipient in fixture.controller.session.players.take(2)) {
+          final before = fixture.controller.session.players
+              .map((p) => p.life)
+              .toList();
+          await tester.tap(
+            find.byKey(ValueKey('${recipient.id}-commander-ledger')),
+          );
+          await tester.pumpAndSettle();
+          if (recipient.id == fixture.playerId) {
+            await capture(
+              tester,
+              '4p-${size.width.toInt()}x${size.height.toInt()}-expanded-eight-source-grid',
+            );
+          }
+          for (final source in fixture.controller.session.commanders) {
+            final card = find.byKey(ValueKey('commander-tracker-${source.id}'));
+            await tester.ensureVisible(card);
+            await tester.pumpAndSettle();
+            final add = find.descendant(
+              of: card,
+              matching: find.byTooltip(
+                'Increase ${source.name} commander damage',
+              ),
+            );
+            expect(add.hitTestable(), findsOneWidget);
+            expect(tester.getSize(add).width, greaterThanOrEqualTo(44));
+            expect(tester.getSize(add).height, 48);
+            await tester.tap(add);
+            await tester.pumpAndSettle();
+            expect(
+              fixture.controller
+                  .player(recipient.id)
+                  .commanderDamage[source.id],
+              1,
+            );
+            expect(fixture.controller.player(recipient.id).life, 39);
+            expect(await fixture.controller.undo(), isTrue);
+            await tester.pumpAndSettle();
+            expect(
+              fixture.controller
+                      .player(recipient.id)
+                      .commanderDamage[source.id] ??
+                  0,
+              0,
+            );
+            expect(
+              fixture.controller.session.players.map((p) => p.life).toList(),
+              before,
+            );
+          }
+          await tester.tap(find.byTooltip('Close workspace'));
+          await tester.pumpAndSettle();
+        }
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets('empty commander ledger opens direct owner setup at $size', (
+      tester,
+    ) async {
+      final fixture = await showTable(tester, size, tableFor(4));
+      final player = fixture.controller.session.players.first;
+      final owner = fixture.controller.session.players.last;
+      final beforeLife = fixture.controller.session.players
+          .map((p) => p.life)
+          .toList();
+      final ledger = find.byKey(ValueKey('${player.id}-commander-ledger'));
+      expect(ledger.hitTestable(), findsOneWidget);
+      await tester.tap(ledger);
+      await tester.pumpAndSettle();
+      expect(find.text('Add commander').hitTestable(), findsOneWidget);
+      await tester.tap(
+        find.widgetWithText(
+          ChoiceChip,
+          fixture.controller.profile(owner.seatId).name,
+        ),
+      );
+      await tester.pumpAndSettle();
+      final input = find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.labelText == 'Commander name',
+      );
+      tester.widget<TextField>(input).controller!.text = 'New partner';
+      await tester.tap(find.text('Add commander'));
+      await tester.pumpAndSettle();
+      expect(
+        fixture.controller.session.commanders.single.ownerPlayerId,
+        owner.id,
+      );
+      expect(fixture.controller.session.commanders.single.name, 'New partner');
+      expect(
+        fixture.controller.session.players.map((p) => p.life).toList(),
+        beforeLife,
+      );
+      expect(
+        find
+            .byKey(
+              ValueKey(
+                'commander-tracker-${fixture.controller.session.commanders.single.id}',
+              ),
+            )
+            .hitTestable(),
+        findsOneWidget,
+      );
+      await capture(
+        tester,
+        '4p-${size.width.toInt()}x${size.height.toInt()}-commander-source-setup',
+      );
+      await tester.tap(find.byTooltip('Close workspace'));
+      await tester.pumpAndSettle();
+      expect(ledger.hitTestable(), findsOneWidget);
+      expect(
+        fixture.controller.session.players.map((p) => p.life).toList(),
+        beforeLife,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets(
-    'direct commander trackers retain source owner identity, partner and self damage with undo',
+    'mini ledger expands source-styled partner and self trackers with coupled damage, dismissal and undo',
     (tester) async {
       final state = tableFor(2);
       final recipient = state.session.players.first;
@@ -672,62 +895,51 @@ void main() {
         ),
       ];
       final fixture = await showTable(tester, const Size(1133, 744), state);
-      final recipientName = fixture.controller.profile(recipient.seatId).name;
       final unchangedOpponent = fixture.controller.player(opponent.id).toJson();
-      final row = find.byKey(ValueKey('${recipient.id}-commander-trackers'));
-      expect(row.hitTestable(), findsOneWidget);
-      final lifePanel = find.descendant(
-        of: find.byKey(ValueKey(recipient.id)),
-        matching: find.byWidgetPredicate(
-          (widget) => widget.runtimeType.toString() == '_LifePanel',
-        ),
-      );
+      final ledger = find.byKey(ValueKey('${recipient.id}-commander-ledger'));
+      expect(ledger.hitTestable(), findsOneWidget);
+      expect(tester.getSize(ledger), const Size(60, 44));
+      await capture(tester, '2p-commander-mini-ledger');
+      await tester.tap(ledger);
+      await tester.pumpAndSettle();
+      expect(fixture.controller.player(recipient.id).life, 40);
       expect(
-        bounds(tester, row).bottom,
-        closeTo(bounds(tester, lifePanel).bottom, .01),
+        find.textContaining('− / + changes damage and life together'),
+        findsNothing,
       );
-      expect(tester.getSize(row).height, 44);
-      final sources = tester.widget<ListView>(
-        find.descendant(of: row, matching: find.byType(ListView)),
-      );
-      var sourceIndex = 0;
+      final correctLife = find.byTooltip('Correct life separately');
+      expect(correctLife.hitTestable(), findsOneWidget);
+      expect(tester.getSize(correctLife).width, lessThanOrEqualTo(48));
       expect(
-        bounds(tester, row).overlaps(
-          bounds(tester, find.byKey(ValueKey('${recipient.id}-token-lane'))),
-        ),
-        isFalse,
+        tester
+            .getSize(find.byKey(const ValueKey('commander-workspace')))
+            .height,
+        lessThan(450),
       );
+      await capture(tester, '2p-commander-expanded-source-grid');
       for (final source in fixture.controller.session.commanders) {
-        sources.controller!.jumpTo(
-          (sourceIndex++ * 144.0).clamp(
-            0,
-            sources.controller!.position.maxScrollExtent,
-          ),
-        );
-        await tester.pumpAndSettle();
         final sourceOwner = fixture.controller.player(source.ownerPlayerId);
         final identity = fixture.controller.profile(sourceOwner.seatId);
-        final chip = find.byKey(
-          ValueKey('${recipient.id}-commander-${source.id}'),
-        );
+        final chip = find.byKey(ValueKey('commander-tracker-${source.id}'));
+        await tester.ensureVisible(chip);
+        await tester.pumpAndSettle();
         expect(chip.hitTestable(), findsOneWidget);
         final sourceLabel = find.descendant(
           of: chip,
           matching: find.text(source.name),
         );
+        expect(tester.widget<Text>(sourceLabel).data, source.name);
         expect(
-          tester.getSize(sourceLabel).width,
-          greaterThanOrEqualTo(80),
+          bounds(tester, sourceLabel).right,
+          lessThanOrEqualTo(bounds(tester, chip).right - 7),
           reason:
-              'Partner suffixes need a readable label area independent of the value/edit controls.',
+              'Source labels retain their own space above the adjustment halves.',
         );
-        final container = tester.widget<Container>(
-          find.descendant(of: chip, matching: find.byType(Container)).first,
+        final card = tester.widget<Card>(chip);
+        expect(
+          (card.shape! as RoundedRectangleBorder).side.color,
+          Color(identity.color),
         );
-        final border =
-            (container.foregroundDecoration! as BoxDecoration).border!
-                as Border;
-        expect(border.top.color, Color(identity.color));
         expect(
           tester
               .widget<TableArtworkSurface>(
@@ -739,20 +951,10 @@ void main() {
               .url,
           identity.artworkUrl,
         );
-        final add = find.byTooltip(
-          '$recipientName, increase damage from ${source.name} (${identity.name})',
-        );
+        final add = find.byTooltip('Increase ${source.name} commander damage');
         expect(add.hitTestable(), findsOneWidget);
         expect(tester.getSize(add).width, greaterThanOrEqualTo(44));
         expect(tester.getSize(add).height, greaterThanOrEqualTo(44));
-        expect(
-          bounds(tester, chip).left,
-          greaterThanOrEqualTo(bounds(tester, row).left - .01),
-        );
-        expect(
-          bounds(tester, chip).right,
-          lessThanOrEqualTo(bounds(tester, row).right + .01),
-        );
         await tester.tap(add);
         await tester.pumpAndSettle();
         expect(
@@ -785,13 +987,7 @@ void main() {
         fixture.controller.player(recipient.id).commanderDamage['partner-b'],
         1,
       );
-      sources.controller!.jumpTo(0);
-      await tester.pumpAndSettle();
-      await tester.tap(
-        find.byTooltip(
-          '$recipientName, decrease damage from Partner A (${owner.name})',
-        ),
-      );
+      await tester.tap(find.byTooltip('Decrease Partner A commander damage'));
       await tester.pumpAndSettle();
       expect(fixture.controller.player(recipient.id).life, 39);
       expect(
@@ -805,10 +1001,22 @@ void main() {
         fixture.controller.player(recipient.id).commanderDamage['partner-a'],
         1,
       );
+      final beforeDismiss = fixture.controller.session.toJson();
+      await tester.tapAt(const Offset(2, 30));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Close workspace'), findsNothing);
+      expect(fixture.controller.session.toJson(), beforeDismiss);
+      final cell = find.byKey(
+        ValueKey('${recipient.id}-ledger-source-partner-a'),
+      );
+      expect(
+        find.descendant(of: cell, matching: find.text('1')),
+        findsOneWidget,
+      );
       expect(find.byType(AlertDialog), findsNothing);
       expect(find.byType(SnackBar), findsNothing);
       expect(tester.takeException(), isNull);
-      await capture(tester, '2p-direct-commander-partner-self-trackers');
+      await capture(tester, '2p-commander-mini-ledger-after-undo');
     },
   );
 }

@@ -14,6 +14,9 @@ class HalfStepper extends StatelessWidget {
   final Color? foregroundColor;
   final TextStyle? valueStyle;
   final Widget? valueWidget;
+
+  /// A read-only full-surface display, used for the life name/total overlay.
+  final Widget? displayOverlay;
   final Key? decreaseKey, increaseKey, editKey;
   final String? decreaseLabel, increaseLabel;
   final String? decreaseTooltip, increaseTooltip, editLabel, editTooltip;
@@ -33,6 +36,7 @@ class HalfStepper extends StatelessWidget {
     this.foregroundColor,
     this.valueStyle,
     this.valueWidget,
+    this.displayOverlay,
     this.decreaseKey,
     this.increaseKey,
     this.decreaseLabel,
@@ -99,23 +103,27 @@ class HalfStepper extends StatelessWidget {
                   ),
                   IgnorePointer(
                     child: ExcludeSemantics(
-                      child: Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 27),
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child:
-                                valueWidget ??
-                                Text(
-                                  value,
-                                  style:
-                                      valueStyle ??
-                                      Theme.of(context).textTheme.titleLarge
-                                          ?.copyWith(color: color),
-                                ),
+                      child:
+                          displayOverlay ??
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 27,
+                              ),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child:
+                                    valueWidget ??
+                                    Text(
+                                      value,
+                                      style:
+                                          valueStyle ??
+                                          Theme.of(context).textTheme.titleLarge
+                                              ?.copyWith(color: color),
+                                    ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
                     ),
                   ),
                 ],

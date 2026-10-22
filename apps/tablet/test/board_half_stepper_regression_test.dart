@@ -166,21 +166,7 @@ void main() {
     'life row interior changes life instead of opening the player editor',
     (tester) async {
       final fixture = await showTable(tester);
-      final seat = find.byKey(ValueKey(fixture.playerId));
-      final life = find.descendant(
-        of: seat,
-        matching: find.byWidgetPredicate(
-          (widget) => widget.runtimeType.toString() == '_LifePanel',
-        ),
-      );
-      final row = find
-          .descendant(
-            of: life,
-            matching: find.byWidgetPredicate(
-              (widget) => widget is SizedBox && widget.height == 48,
-            ),
-          )
-          .first;
+      final row = find.byKey(ValueKey('${fixture.playerId}-life-surface'));
       await tapAtFraction(tester, row, const Offset(.25, .5));
       expect(fixture.player.life, 39);
       expect(find.byTooltip('Close workspace'), findsNothing);
@@ -194,6 +180,85 @@ void main() {
     TargetPlatform.macOS,
   ]) {
     testWidgets(
+      '$platform colored life surface includes names and border-inset corners; tools are disjoint',
+      (tester) async {
+        final fixture = await showTable(tester);
+        for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
+          tester.view.physicalSize = size;
+          await tester.pumpAndSettle();
+          for (final player in fixture.controller.session.players) {
+            final surface = find.byKey(ValueKey('${player.id}-life-surface'));
+            final box = tester.renderObject<RenderBox>(surface);
+            final before = fixture.controller.session.players
+                .map((p) => p.life)
+                .toList();
+            var expected = player.life;
+            for (final point in [
+              const Offset(1, 1),
+              Offset(box.size.width / 2 - 1, 1),
+              Offset(box.size.width / 2 + 1, 1),
+              Offset(box.size.width - 1, 1),
+              Offset(1, box.size.height - 1),
+              Offset(box.size.width / 2 - 1, box.size.height - 1),
+              Offset(box.size.width / 2 + 1, box.size.height - 1),
+              Offset(box.size.width - 1, box.size.height - 1),
+            ]) {
+              expected += point.dx < box.size.width / 2 ? -1 : 1;
+              await tester.tapAt(box.localToGlobal(point));
+              await tester.pumpAndSettle();
+              expect(fixture.controller.player(player.id).life, expected);
+              expect(find.byTooltip('Close workspace'), findsNothing);
+            }
+            final name = find.descendant(
+              of: surface,
+              matching: find.text(
+                fixture.controller.profile(player.seatId).name,
+              ),
+            );
+            final namePoint = tester.getCenter(name);
+            final localName = box.globalToLocal(namePoint);
+            expected += localName.dx < box.size.width / 2 ? -1 : 1;
+            await tester.tapAt(namePoint);
+            await tester.pumpAndSettle();
+            expect(fixture.controller.player(player.id).life, expected);
+            expect(find.byTooltip('Close workspace'), findsNothing);
+            expect(await fixture.controller.undo(), isTrue);
+            await tester.pumpAndSettle();
+            expect(
+              fixture.controller.session.players.map((p) => p.life).toList(),
+              before,
+            );
+            for (final label in [
+              'player counters',
+              'rules',
+              'commander damage',
+              'player details',
+            ]) {
+              final snapshot = fixture.controller.session.players
+                  .map((p) => p.life)
+                  .toList();
+              await tester.tap(
+                find.byTooltip(
+                  '${fixture.controller.profile(player.seatId).name}, $label',
+                ),
+              );
+              await tester.pumpAndSettle();
+              expect(find.byTooltip('Close workspace'), findsOneWidget);
+              expect(
+                fixture.controller.session.players.map((p) => p.life).toList(),
+                snapshot,
+              );
+              await tester.tap(find.byTooltip('Close workspace'));
+              await tester.pumpAndSettle();
+            }
+          }
+        }
+        expect(tester.takeException(), isNull);
+      },
+      variant: TargetPlatformVariant({platform}),
+    );
+
+    testWidgets(
       '$platform life entire local halves step through center text and preserve separate details',
       (tester) async {
         final fixture = await showTable(tester);
@@ -206,7 +271,7 @@ void main() {
             tester.getSize(decrease).width,
             closeTo(tester.getSize(increase).width, .01),
           );
-          expect(tester.getSize(decrease).height, 48);
+          expect(tester.getSize(decrease).height, 66);
           await tapEntireHalf(tester, decrease);
           expect(fixture.controller.player(player.id).life, 37);
           expectLifeDelta(tester, player.id, '-3');
@@ -358,25 +423,14 @@ void main() {
           final ownerUnchanged = fixture.controller.session.players
               .firstWhere((p) => p.id != player.id)
               .toJson();
+          await tester.tap(
+            find.byKey(ValueKey('${player.id}-commander-ledger')),
+          );
+          await tester.pumpAndSettle();
           for (final source in fixture.controller.session.commanders) {
-            final tracker = find.byKey(
-              ValueKey('${player.id}-commander-trackers'),
-            );
-            final scroll = tester
-                .widget<ListView>(
-                  find.descendant(of: tracker, matching: find.byType(ListView)),
-                )
-                .controller!;
-            final sourceIndex = fixture.controller.session.commanders.indexOf(
-              source,
-            );
-            scroll.jumpTo(
-              (sourceIndex * 144.0).clamp(0, scroll.position.maxScrollExtent),
-            );
+            final chip = find.byKey(ValueKey('commander-tracker-${source.id}'));
+            await tester.ensureVisible(chip);
             await tester.pumpAndSettle();
-            final chip = find.byKey(
-              ValueKey('${player.id}-commander-${source.id}'),
-            );
             final control = find.descendant(
               of: chip,
               matching: find.byType(HalfStepper),
@@ -401,7 +455,7 @@ void main() {
             expect(fixture.controller.player(player.id).life, 37);
             expect(fixture.controller.session.history.last.commands.length, 3);
             expect(fixture.controller.session.history.last.playerId, player.id);
-            expect(find.byTooltip('Close workspace'), findsNothing);
+            expect(find.byTooltip('Close workspace'), findsOneWidget);
             expect(await fixture.controller.undo(), isTrue);
             await tester.pumpAndSettle();
             expect(
@@ -417,6 +471,8 @@ void main() {
               ownerUnchanged,
             );
           }
+          await tester.tap(find.byTooltip('Close workspace'));
+          await tester.pumpAndSettle();
         }
         expect(tester.takeException(), isNull);
       },

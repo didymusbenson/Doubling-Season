@@ -12,7 +12,7 @@ This is a planning dossier, not a shipped feature specification. **Confirmed** m
 
 **Control-scope clarification:** token search and seat customization are seat-context actions; history, wipes and resets are central app/game actions. Keep meaningful player attribution separate from affected seats; never infer a human actor from control location. Wipe targeting UI and global-input pause policy remain open (D36).
 
-**Layout/utility update:** dedicated life regions with attached below-life commander/counter shortcuts; separate curated per-seat utilities with hold-drag order and confirmed corner-X hiding/restoration. Storm and mana are default-visible, not mandatory. Hiding retains values and nonzero hidden state stays discoverable. Shared controls use a central strip/panel between paired seats for three/four players and a thin shortcut divider for two; initial scope remains 2–4, with three-player empty-slot expanded controls preserved. See D07/D27/D37.
+**Layout/utility update:** dedicated life regions with tools outside the entire colored life stepper; separate curated per-seat utilities with hold-drag order and confirmed hiding/restoration. Storm and mana are default-visible, not mandatory. Shared controls are a compact standalone central component in every layout, not a control-bearing middle divider. Thin player-space borders remain separate. Initial scope is 2–4 players; three-player empty-slot controls remain. Latest explicit feedback supersedes the earlier strip suggestions.
 
 **Deck/preset update (D38):** evolve Decks into reusable token lists plus utility preferences. Seat loading initializes selected token entries at zero and configures utilities; optional deck art can supply that seat’s saved life image. Art selections are per-seat, player name stays separate, and commander selection is not approved. Midgame Replace/Append are now accepted: only the loading seat’s preset-managed fields change, each as one undoable action; life values, damage, player counters and the existing timeline remain intact.
 
@@ -26,7 +26,7 @@ This is a planning dossier, not a shipped feature specification. **Confirmed** m
 
 **Commander capacity follow-up:** [source-enabled layout repair and cross-platform validation](commander_capacity_fix_2026-10-22.md).
 
-**Current correction:** [true-center game controls and full-half steppers](centered_controls_and_half_steppers_2026-10-22.md), including direct life input and transient grouped delta; awaiting review on its own feature branch.
+**Current correction:** [compact central component, inline token quantity and whole-surface life/tools](compact_hub_life_tools_2026-10-22.md). PR #40’s earlier centered-strip correction is deployed at `71c1aee`; the latest user feedback supersedes that geometry.
 
 ## Start here
 
