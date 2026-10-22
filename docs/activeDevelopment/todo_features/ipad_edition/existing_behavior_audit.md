@@ -88,7 +88,7 @@ The current board has one expanded item; tapping another first requests collapse
 | D30 | R small-through-full-size tablet scope including iPad mini and Android variants; T actual models/OS/browser/viewport and workload measurements; no legacy performance guarantee |
 | D31 | R preserve offline selections and local state; T web/native cache/resume differences; U formal offline/update release guarantee |
 | D32 | U commercial entitlement/pricing; existing app cannot choose new-product business policy |
-| D33 | R pre-reset archive restore; U retention/browse/current-game-preservation policy; T historical media and restore coherence |
+| D33 | R pre-reset archive restore, save current before restore, last ten archived snapshots with full history, active state separate, no saved-deck/permanent-customization overwrite; T transaction/eviction/media coherence and browsing UI |
 | D34 | U export/privacy/retention contents beyond accepted local saved data; T safe format/media handling |
 | D35 | T manual/device evidence and format compatibility; R no documentation-only implementation/QA claims |
 | D36 | R seat versus game context, not permissions; modal blocking now D41; U wipe targeting only, not whether neighbors can keep tapping |

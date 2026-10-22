@@ -33,7 +33,7 @@ D39 keeps token-art choices durable with the current game and its restorable arc
 - Life, poison and commander-damage thresholds give warnings, **not automatic elimination or disabled controls**. This does not attempt full rules enforcement or infer a winner.
 - A player manually claims monarch; the shared holder transfers explicitly. Day/night is changed manually. Do not infer combat, spells cast or other physical-game events.
 
-Detailed correction controls, warning presentation, remaining runtime/rule, archive-retention and restore-conflict details and UI remain open. These decisions do not approve new optional modes or alter the one player-facing keyboard policy.
+Detailed correction controls, warning presentation, remaining runtime/rule mappings and archive presentation/transaction details and UI remain open. These decisions do not approve new optional modes or alter the one player-facing keyboard policy.
 
 ## Timeline, undo and recovery decisions
 
@@ -41,9 +41,9 @@ Detailed correction controls, warning presentation, remaining runtime/rule, arch
 - **Accepted:** undo walks back the latest action globally. No arbitrary selected-entry undo or independent per-player undo stack is promised. A settled grouped action is the intended log/undo unit; final group-boundary details must align with the underlying command order.
 - **Accepted:** game state and current-session history are persistent and reload their last saved state. Undo information needed by the accepted contract must be saved coherently with that state; precise write/acknowledgement mechanics still need implementation design and validation.
 - **Accepted clarification:** a different action by **any player** closes the active group. P1 Soldier → P2 life → P1 Soldier yields three chronological entries, never a retroactive P1 +2. The user answered “correct.” to that exact example. Do not maintain independent open per-player groups.
-- **Accepted:** a pre-reset game archive can load the full last state and timeline from before reset, including historical seat game setup. Retention limits, archive UI and restore conflict handling remain open; statistics are not implied.
+- **Accepted:** a pre-reset game archive can load the full last state and timeline from before reset, including historical seat game setup. Retain the last ten archived game states, separate from the active working game. Each keeps its full timeline and undo information. Save the current game before restoring another; saved decks and permanent seat customization are not overwritten. Archive UI/transaction mechanics remain design work; statistics are not implied.
 
-Chronological display, global latest-action undo and persistence are settled. Game-wide interruption is also settled. Pre-reset archive restore is accepted. Exact timeout tuning, detailed settlement/undo UI, archive retention and restore safeguards remain open. New replies should update this document and D16/D17/D33 together.
+Chronological display, global latest-action undo and persistence are settled. Game-wide interruption is also settled. Pre-reset archive restore is accepted. Ten-snapshot retention and restore safeguards are accepted; exact timeout tuning, detailed settlement/undo UI and transaction design remain open. New replies should update this document and D16/D17/D33 together.
 
 ## Full-reset boundary and persistent seats
 
@@ -51,7 +51,7 @@ Two full-reset modes now restart the configured game: Reset with board retains z
 
 A successful full reset begins a new game boundary and leaves a restorable archive of the prior full state and chronological timeline. Restore historical seat game setup from that archive, including tokens/utilities cleared from live seats when they were removed; do not reconstruct an old game from cleared current templates. Reusable setup survives only when explicitly kept for remaining seats; removed seats lose live game-specific setup, not persistent name/color/art. Do not infer cross-game undo from latest-action undo: archive loading is distinct. Transactional failure recovery remains required. The group must not absorb post-reset actions into a pre-reset entry; pending inline/form/search state follows the existing-design audit; async save/recovery mechanics remain technical work. Historical attribution must remain stable despite later name/art edits.
 
-**Proposal only:** save/preserve the current game before archive loading so it is not lost. This safeguard has not yet been accepted. Exact historical-versus-current customization conflict handling, retention limits and archive UI also remain open.
+**Accepted D33:** save the current game before loading an archive. Restore historical game state and timeline without overwriting saved deck presets or permanent seat customization. Keep the last **10 archived game-state snapshots**, evicting the oldest as new snapshots are saved. The active game is a separate working state; ordinary taps are not ten separate archive slots, and ten snapshots does not mean ten history entries or undo actions. Each retained snapshot preserves its complete timeline and required undo information.
 
 ## Proposed implementation boundaries, not settled UX
 
@@ -78,7 +78,7 @@ Reuse proven ideas selectively: capture before mutation, restore typed values wi
 
 ## Acceptance outline
 
-Test repeated additions, add/remove net-zero separation, different-action and timeout boundaries, opposite life taps and the chosen life-settling timing. Exercise same-name/different-ID stacks and partner/self damage sources, retries/failures, shared-state conflicts and reset boundaries. Exact timeout tuning and unchosen archive-retention/restore-safeguard details must produce explicitly blocked branches, not invented defaults; timeline order, latest-global-action undo and current-session persistence are required. See V45–V47 in the [validation plan](08_delivery_validation_and_risks.md). Preserve the accepted original 2/3/4-player layouts, single keyboard and cloud-first visual/interactive review before device installation.
+Test repeated additions, add/remove net-zero separation, different-action and timeout boundaries, opposite life taps and the chosen life-settling timing. Exercise same-name/different-ID stacks and partner/self damage sources, retries/failures, shared-state conflicts and reset boundaries. Exact timeout tuning and unimplemented transaction/UI details must be identified honestly; accepted ten-snapshot retention and save-current-before-restore must be tested, not marked undecided; timeline order, latest-global-action undo and current-session persistence are required. See V45–V47 in the [validation plan](08_delivery_validation_and_risks.md). Preserve the accepted original 2/3/4-player layouts, single keyboard and cloud-first visual/interactive review before device installation.
 
 ## Old-design inference checkpoint
 
@@ -87,3 +87,9 @@ The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete
 ## Modifier scope checkpoint — D25
 
 A source modifier change is one attributable action with potentially multi-seat applicability consequences. Latest-global-action undo restores the source and applicability atomically without deleting independent sources. Previously committed token/counter results are not retroactively recalculated by a toggle; each evaluated operation retains its causal source snapshot. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).
+
+## Archive transaction and retention contract — D33
+
+Capture the selected archive snapshot before saving the outgoing current game or performing eviction, so choosing the oldest of ten still restores the intended snapshot. Save-current, restore and oldest-snapshot eviction form one recoverable transition: a failure must leave the previous active game intact/recoverable, with no partially restored state/history or premature archive loss. Exact transaction ordering, snapshot identity/deduplication and storage mechanism are implementation decisions, not additional user approvals. At a successful boundary retain at most the latest ten archived snapshots plus the separate active working game. Ordinary edits do not consume archive slots.
+
+Restore historical game-specific setup, source identities, token-art choices and full timeline/undo data, while preserving the saved deck library and permanent seat name/life-appearance customization. Historical attribution may use snapshot labels without rewriting persistent seat records. Keep references needed by active state, retained archives and saved presets before reclaiming media; eviction is not authorization to remove still-referenced artwork. This document specifies future application behavior, not deletion of any current user archive.

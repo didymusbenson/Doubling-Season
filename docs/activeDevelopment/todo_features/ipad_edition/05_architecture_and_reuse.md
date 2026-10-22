@@ -81,7 +81,7 @@ Life, typed player counters/status and commander damage can appear in the centra
 
 ## Proposed contracts
 
-- **History projection/grouping:** one chronological game log with meaningful player attribution and separate game-level origin/affected-seat fields, constituent command identities and latest-global-action undo. Repeated-like-action display grouping cannot erase token add/remove distinctions or underlying causal effects. Current history and state must persist coherently; game-wide different-action interruption is accepted; exact timeout tuning and archive policy remain open. See [history audit and design](game_history_and_undo.md).
+- **History projection/grouping:** one chronological game log with meaningful player attribution and separate game-level origin/affected-seat fields, constituent command identities and latest-global-action undo. Repeated-like-action display grouping cannot erase token add/remove distinctions or underlying causal effects. Current history and state must persist coherently; game-wide different-action interruption is accepted; exact timeout tuning remains open; D33 archive safety and ten-snapshot retention are accepted. See [history audit and design](game_history_and_undo.md).
 - **Persistent seat repository/projection:** retain seat name/color/art across games independently of active membership and visual placement. Normal game reset never clears this customization; removed seats’ game-specific tokens/utilities are cleared while customization survives.
 - **Session repository:** load/save/recover sessions and submit validated changes; never expose an unscoped player-UI `clearAll`.
 - **Player read projection:** immutable or controlled views of one player's life, tokens, utilities, rules and pending outcomes.
@@ -146,3 +146,7 @@ Resolve effective modifiers from authoritative seat-owned local/global sources b
 ## Tablet-first MVP boundary — D06/D30
 
 MVP supports tablets from iPad mini through full-size iPads and Android variants, retaining the complete active 2–4-seat view. Android/iOS/web targets remain; web support uses tablet-suitable viewports. Exact minimum dimensions, model generations, OS/browser floors, aspect ratios and orientations require validation, not guesses. Small-tablet fit is mandatory; no MVP phone or focused-seat mode. The [closed-focus/unfolded-multiplayer foldable concept](foldable_phone_future_version.md) is deferred to another major version and does not add a standalone one-player game.
+
+## Accepted archive safety and retention — D33
+
+Save the current game before archive restore; keep the latest ten archived game-state snapshots, oldest evicted on new saves. Active working state is separate and each retained snapshot keeps its full timeline/undo information. Restore game-specific state without overwriting saved decks or permanent seat customization. Protect the selected archive from eviction during restoration and preserve the old active state on failure. See [transaction contract](game_history_and_undo.md).

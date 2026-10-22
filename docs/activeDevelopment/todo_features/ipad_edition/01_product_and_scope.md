@@ -31,7 +31,7 @@ This is a **separate app / new product** with a different frontend composition (
 3. **Resolve a utility:** P2 runs Krenko using P2's token state, tracked non-token count and P2's rules. P4's identically named tokens and utilities remain unaffected.
 4. **Rearrange a busy board:** P4 moves a token within P4's token lane and a utility within P4's utility lane. Other lanes keep their order and scroll position.
 5. **Correct a mistake:** P1 reverses a grouped life/counter change, commander-ledger correction or local clear under the selected policy. P2’s subsequent changes survive. Shared monarch/day-night corrections retain their explicit table scope and cannot undo later unrelated transfers.
-6. **Run it back:** choose Reset with board (zero token counts/no counters, preserve enabled utilities) or Complete reset (clear tokens/utilities), using the specified count/configuration. Both restore starting life and reset temporary/game statuses while preserving seat name/color/art. Removed seats lose game-specific tokens/utilities, and pre-reset full-state/timeline archives are restorable; exact restore safeguards remain open.
+6. **Run it back:** choose Reset with board (zero token counts/no counters, preserve enabled utilities) or Complete reset (clear tokens/utilities), using the specified count/configuration. Both restore starting life and reset temporary/game statuses while preserving seat name/color/art. Removed seats lose game-specific tokens/utilities, and pre-reset full-state/timeline archives are restorable; save-current-before-restore and ten-snapshot retention are accepted under D33.
 7. **Resume after interruption:** the app restores participants, life, boards, rules and orders after termination, and explains any incomplete operation that could not be recovered.
 
 ## Candidate first release
@@ -50,7 +50,7 @@ The product/platform/player-count boundaries below are accepted; the remaining c
 | Platforms | Cloud visual/interactive inspection first, then physical iPad gate | Android, iOS and web targets accepted; device/browser floors and release sequence open | Windows/native macOS not added to product scope |
 | Connectivity | Airplane-mode play | Local persistence and cached/bundled content | Sync, multiplayer networking, accounts |
 
-Existing utilities must be inventoried individually before claiming parity. A release may explicitly omit a utility that lacks safe player scoping, but must communicate that omission rather than silently changing its behavior. D08 settles the release inventory; D27 settles the mana pool cut. D26 now accepts full tracker fundamentals and commander damage per source including self; coupled new damage/life with independent corrections, warning-only thresholds and manual shared-state claims are accepted. Detailed correction UI, counter extensions and remaining runtime/rule, archive-retention and restore-conflict details remain unresolved. The [sourced inventory](03_life_and_game_controls.md) separates confirmed capabilities from reference-derived candidates without copying Lifetap’s UI.
+Existing utilities must be inventoried individually before claiming parity. A release may explicitly omit a utility that lacks safe player scoping, but must communicate that omission rather than silently changing its behavior. D08 settles the release inventory; D27 settles the mana pool cut. D26 now accepts full tracker fundamentals and commander damage per source including self; coupled new damage/life with independent corrections, warning-only thresholds and manual shared-state claims are accepted. Detailed correction UI, counter extensions and remaining runtime/rule mappings and archive presentation/transaction details remain unresolved. The [sourced inventory](03_life_and_game_controls.md) separates confirmed capabilities from reference-derived candidates without copying Lifetap’s UI.
 
 ## Requirements and traceability
 
@@ -71,7 +71,7 @@ Existing utilities must be inventoried individually before claiming parity. A re
 | R13 | Any keyboard input faces the initiating player | Confirmed; custom Flutter panel direction, one keyboard at a time | [Layout](02_layout_and_interaction.md), V34 |
 | R14 | Separate product; customizable 2–4 players; Android/iOS/web | Confirmed boundaries; detailed support gates open | D01/D03/D04, V30/V34/V35 |
 | R15 | Full life-tracker counters/statuses/shared state and source damage including self/partners | Confirmed categories and bookkeeping policies; detailed UI/inventory extensions open | [Life inventory](03_life_and_game_controls.md), V05/V41–V44 |
-| R16 | Persistent chronological game history and latest-global-action undo | Confirmed, including game-wide interruption; archive/reset recovery details open | [History](game_history_and_undo.md), V45–V47 |
+| R16 | Persistent chronological game history and latest-global-action undo | Confirmed, including game-wide interruption; archive safety/ten-snapshot retention accepted; recovery implementation open | [History](game_history_and_undo.md), V45–V47 |
 | R17 | Two full-reset modes and persistent seat customization | Confirmed; reusable setup retention, removed-seat clearing and archive restore accepted; detailed runtime/restore policies open | [Reset contract](03_life_and_game_controls.md), V23/V48–V49 |
 
 ## Boundaries
@@ -86,7 +86,7 @@ Do not implicitly add networking, cloud synchronization, deck-list import servic
 - D06/D30 require complete 2/3/4-seat tablet layouts from iPad mini through full-size iPads and Android tablets. Measure dimensions/aspect ratios/orientations; no MVP focused-seat or phone fallback. Web remains supported at tablet-suitable sizes.
 - Should the existing phone app share live games, only deck files, or no user data with this edition? D18/D23.
 - New commander damage subtracts life as one undoable action; independent corrections are required and thresholds warn without auto-KO. Resolve detailed controls and reset retention, not whether to include this policy. D26/D22.
-- Any player’s different action ends the active history group. One chronological game timeline, latest-action global undo and current-session persistence are accepted; exact timeout tuning and archive policy remain open. D16/D17/D33.
+- Any player’s different action ends the active history group. One chronological game timeline, latest-action global undo and current-session persistence are accepted; exact timeout tuning remains open; D33 archive safety and ten-snapshot retention are accepted. D16/D17/D33.
 - D25 accepts seat-owned local/global modifiers, with global sources affecting the table. Exact applicability/stacking fixtures and reset activation mapping need validation/design; token-control transfers are not implied.
 - Wipes are central app/game controls, not owned by an invoking seat. Which seats/boards a wipe affects and how targets are selected remain open under D22/D36; do not assume all players or the last active player.
 
@@ -107,3 +107,7 @@ The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete
 ## Tablet-first MVP boundary — D06/D30
 
 MVP supports tablets from iPad mini through full-size iPads and Android variants, retaining the complete active 2–4-seat view. Android/iOS/web targets remain; web support uses tablet-suitable viewports. Exact minimum dimensions, model generations, OS/browser floors, aspect ratios and orientations require validation, not guesses. Small-tablet fit is mandatory; no MVP phone or focused-seat mode. The [closed-focus/unfolded-multiplayer foldable concept](foldable_phone_future_version.md) is deferred to another major version and does not add a standalone one-player game.
+
+## Accepted archive safety and retention — D33
+
+Save the current game before archive restore; keep the latest ten archived game-state snapshots, oldest evicted on new saves. Active working state is separate and each retained snapshot keeps its full timeline/undo information. Restore game-specific state without overwriting saved decks or permanent seat customization. Protect the selected archive from eviction during restoration and preserve the old active state on failure. See [transaction contract](game_history_and_undo.md).
