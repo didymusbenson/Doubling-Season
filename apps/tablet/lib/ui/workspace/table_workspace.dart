@@ -18,6 +18,7 @@ import '../../features/preset_service.dart';
 import '../../services/tablet_catalog.dart';
 import 'player_keyboard.dart';
 import '../table_artwork.dart';
+import '../half_stepper.dart';
 import '../artwork_selection.dart';
 import '../token_board_summary.dart';
 import '../support_sheet.dart';
@@ -537,49 +538,41 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     VoidCallback? edit,
     VoidCallback? holdMinus,
     VoidCallback? holdPlus,
+    int? minimum = 0,
+    int? maximum,
   }) => Card(
     margin: const EdgeInsets.symmetric(vertical: 4),
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          HalfStepper(
+            height: 48,
+            label: label,
+            value: '$value',
+            decreaseLabel: 'Decrease $label',
+            increaseLabel: 'Increase $label',
+            onDecrease: _working || (minimum != null && value <= minimum)
+                ? null
+                : minus,
+            onIncrease: _working || (maximum != null && value >= maximum)
+                ? null
+                : plus,
+            onDecreaseHold: _working ? null : holdMinus,
+            onIncreaseHold: _working ? null : holdPlus,
+            holdRepeatInterval: null,
+            onEdit: _working ? null : edit,
+            valueWidget: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(label),
-                if (detail != null)
-                  Text(detail, style: Theme.of(context).textTheme.bodySmall),
+                Text(label, style: Theme.of(context).textTheme.labelMedium),
+                Text('$value', style: Theme.of(context).textTheme.titleLarge),
               ],
             ),
           ),
-          Tooltip(
-            message: 'Decrease $label',
-            child: GestureDetector(
-              onLongPress: _working ? null : holdMinus,
-              child: IconButton(
-                onPressed: _working ? null : minus,
-                icon: const Icon(Icons.remove),
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: edit,
-            child: Text(
-              '$value',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-          ),
-          Tooltip(
-            message: 'Increase $label',
-            child: GestureDetector(
-              onLongPress: _working ? null : holdPlus,
-              child: IconButton(
-                onPressed: _working ? null : plus,
-                icon: const Icon(Icons.add),
-              ),
-            ),
-          ),
+          if (detail != null)
+            Text(detail, style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
     ),

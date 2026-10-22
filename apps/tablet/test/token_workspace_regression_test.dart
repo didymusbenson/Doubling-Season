@@ -91,7 +91,7 @@ void main() {
   testWidgets('Counter number opens exact Set including zero', (tester) async {
     await initialize();
     await openWorkspace(tester, WorkspacePage.tokenCounters);
-    await tester.tap(find.widgetWithText(TextButton, '2'));
+    await tester.tap(find.byTooltip('Edit +1/+1'));
     await tester.pumpAndSettle();
     final field = tester.widget<PlayerField>(
       find.byWidgetPredicate(

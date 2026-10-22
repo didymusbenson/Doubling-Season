@@ -213,6 +213,7 @@ extension _LibraryPages on _TableWorkspaceState {
                 () => _run(
                   () => _board.adjustUtility(player.id, utility.id, step),
                 ),
+                minimum: utility.kind == 'life_total' ? null : 0,
                 holdMinus: () => _run(
                   () => _board.adjustUtility(
                     player.id,
@@ -529,20 +530,6 @@ extension _LibraryPages on _TableWorkspaceState {
       'C': 'Colorless',
     }[color]!;
     final locked = player.manaLocks.contains(color);
-    Widget adjust(int amount) => Tooltip(
-      message: '${amount < 0 ? 'Decrease' : 'Increase'} $name mana',
-      child: GestureDetector(
-        onLongPress: _working
-            ? null
-            : () => _run(() => c.adjustMana(player.id, color, amount * 10)),
-        child: IconButton(
-          onPressed: _working
-              ? null
-              : () => _run(() => c.adjustMana(player.id, color, amount)),
-          icon: Icon(amount < 0 ? Icons.remove : Icons.add),
-        ),
-      ),
-    );
     return Card(
       key: ValueKey('utility-mana-$color'),
       margin: EdgeInsets.zero,
@@ -550,44 +537,50 @@ extension _LibraryPages on _TableWorkspaceState {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Column(
           children: [
-            Row(
-              children: [
-                Expanded(child: Text(name)),
-                adjust(-1),
-                SizedBox(
-                  width: 52,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      '${player.mana[color] ?? 0}',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
+            HalfStepper(
+              height: 48,
+              label: '$name mana',
+              value: '${player.mana[color] ?? 0}',
+              decreaseLabel: 'Decrease $name mana',
+              increaseLabel: 'Increase $name mana',
+              onDecrease: _working || (player.mana[color] ?? 0) == 0
+                  ? null
+                  : () => _run(() => c.adjustMana(player.id, color, -1)),
+              onIncrease: _working
+                  ? null
+                  : () => _run(() => c.adjustMana(player.id, color, 1)),
+              onDecreaseHold: () =>
+                  _run(() => c.adjustMana(player.id, color, -10)),
+              onIncreaseHold: () =>
+                  _run(() => c.adjustMana(player.id, color, 10)),
+              holdRepeatInterval: null,
+              valueWidget: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(name, style: Theme.of(context).textTheme.labelMedium),
+                  Text(
+                    '${player.mana[color] ?? 0}',
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
-                ),
-                adjust(1),
-              ],
+                ],
+              ),
             ),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                TextButton(
-                  style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-                  onPressed: _working
-                      ? null
-                      : () => _run(() => c.adjustMana(player.id, color, -10)),
-                  child: Text(
-                    '−10',
-                    semanticsLabel: 'Decrease $name mana by ten',
-                  ),
-                ),
-                TextButton(
-                  style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-                  onPressed: _working
-                      ? null
-                      : () => _run(() => c.adjustMana(player.id, color, 10)),
-                  child: Text(
-                    '+10',
-                    semanticsLabel: 'Increase $name mana by ten',
+                Expanded(
+                  child: HalfStepper(
+                    height: 48,
+                    label: '$name mana by ten',
+                    value: '10',
+                    decreaseLabel: 'Decrease $name mana by ten',
+                    increaseLabel: 'Increase $name mana by ten',
+                    onDecrease: _working || (player.mana[color] ?? 0) == 0
+                        ? null
+                        : () => _run(() => c.adjustMana(player.id, color, -10)),
+                    onIncrease: _working
+                        ? null
+                        : () => _run(() => c.adjustMana(player.id, color, 10)),
+                    valueStyle: Theme.of(context).textTheme.labelLarge,
                   ),
                 ),
                 IconButton(

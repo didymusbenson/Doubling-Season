@@ -1,0 +1,47 @@
+# Centered game controls and full-half steppers — 2026-10-22
+
+Status: independent live review of `2b0b916` passed as reported by the parent. The user subsequently authorized publishing completed work and requested the utility stripe-only adjustment below; publish after its checks pass. Baseline is deployed main `9c3b926c39e70b0a78dc84691579789ddd78e1a2`. The previous batch is preserved on `codex/tablet-ui-feedback-batch` at `49d5e89`. New checkout: `/Users/didymusbenson/Documents/Codex/2026-10-22/task-2/tablet-centered-controls`, branch `codex/tablet-centered-game-controls`.
+
+## Reproduction and cause
+
+The user's report is confirmed. The deployed source anchors the 40px strip at `tableHeight / 2 + 1.5`, entirely below the center seam, and reserves 40px only in bottom seats 1/4. At 1133×744 with 24px top and 20px bottom safe areas, the actual table center is `(566.5, 374.0)`; the strip center is `(566.5, 395.5)`. The new assertion failed before edits with expected `374.0`, actual `395.5`. Old tests asserted life-zone containment and no divider overlap, which allowed the wrong global placement and even discouraged a centered strip.
+
+Two-player placement also used only the lower-right life zone, so its center was approximately `(863.24, 395.5)` in that fixture. Two-player life zones are diagonal, as the accepted sketch shows; a wide horizontal bar across the center would cover the opposing token lanes. A compact centered 52×44 game-control hub now opens the existing global workspace with History/Reset/Dice/Settings. A 56px shared life gutter provides clearance; token lists retain their complete height and player-local left side. Two-player token width is `(availableWidth - 56) / 2`; settings never mutate a player on opening/dismissing.
+
+For 3/4 players, the 50px strip is centered at `(tableWidth / 2, tableHeight / 2)` and spans only the paired life zones. Each life region reserves 24.5px: half the strip minus half the 3px player seam plus a 1px content gap. The bar's independent 3px upper/lower edges define the reserved shared gap; hard player lines remain exposed across uninterrupted token lanes, and the vertical player border continues through the bar. With no safe areas, the strip's global center equals the physical view center. With safe areas, it equals the actual safe table center; it is never anchored to a particular bottom seat.
+
+The original four-player concept, accepted two/three-player sketches, and saved Lifetap board image were inspected in pixels. They show a shared central control location, not a toolbar assigned to a player. Their illustration is reference evidence, not a literal styling specification. Supported browser inspection is unavailable in this execution environment; source/renderer reproduction is explicitly separate from a live-browser run. No native lock bypass was attempted.
+
+## Direct half surfaces
+
+The additional life report was also reproduced before editing: a tap 25% across the life row, away from the minus icon, expected 39 but left 40 and opened the player editor. The new shared `HalfStepper` gives each player-local left/right half its own InkWell, accessible action/value and visible ink feedback. The displayed number ignores pointer events and belongs to these halves. A separate visible edit target, when present, sits outside them. Zero/disabled halves consume their own gesture without activating a parent expansion action.
+
+Life remains legible at 48px, with its name/art/status/commander/counter shortcuts retained. Life taps adjust directly and never open a modal. Existing holds apply ±5 initially and every 300ms after Flutter's long-press recognition; release, modal/input lock, lifecycle interruption and disposal cancel repetition. The existing controller's 1500ms history grouping and undo remain authoritative. A read-only signed net delta appears beside the seat name while the latest life group is active, clears on expiry/another action/undo, and is not persisted as a second counter. Customization is a separate compact pencil control; opening/canceling it changes no life.
+
+The Lifetap research actually observed ±1 taps, transient delta, a center-left decrement, and player-name settings. Hold acceleration and complete target bounds were not verified in the reference. Whole halves, separate pencil and the existing hold/grouping policy are chosen adaptations requested for this app, not claims about untested Lifetap behavior or a visual clone.
+
+Commander chips retain owner art/color, separate partner/self sources, 44px-or-larger full halves, distinct explicit editing, coupled life/history and undo. Compact source labels have an independent 88px read-only line at 11px: Partner A/B remain distinguishable after adding the separate edit control. Pixel review found that putting the label inside the numeric display reduced it to 40px; a regression reproduced that loss before moving the label. Long names can still ellipsize with full source/owner accessibility labels. Generic board utility numeric controls use full halves; their independent name expansion and expanded details remain available for manual editing. Board mana already used full 48px halves with one-shot ±10 holds, so that behavior is preserved and edge-tested. The token quantity row replaces only the two quantity action cells with a 44px full-width pair; total remains on the first row, add-ten/remove-all holds remain one-shot, and specialized partial-tap/status/copy/counter/split actions remain intact. Final expanded-token scrolling still clears every action above the FAB.
+
+Workspace pairs use 48px full halves: counter and commander cards, mana, utility/rule/dice/token/split helpers, and token creation quantity. Life modal amount shortcuts remain explicit ±1/5/10 choices paired into full-half rows. Creation chips, precise entry, mana lock/conversion and unrelated add/create actions are preserved.
+
+## Acceptance and evidence boundary
+
+- Assert global X/Y center, including zero-inset view center and asymmetric safe-area table center; assert no life/token/control overlap, full-height lists, separate hard borders and 3p empty-seat controls for every selectable slot.
+- Re-run 1133×744, 744×1133 and 1366×1024 at 2/3/4 seats, including one source and two partners per active player (up to eight sources including self). Keep all default mana/Storm actions visible with original target heights.
+- Tap full halves near outer edges, center/value and upper/lower corners at 0°/180° across Android/iOS/macOS widget variants. Check visible ink, disabled semantics, clamps, holds, grouping/undo, separate editing and modal cancellation with no leaking life action.
+- Check life net-delta expiry, cold-loaded history, settings opening/canceling and art/orientation. Do not treat the saved Lifetap hold behavior as tested evidence.
+- Flutter analysis, aggregate regressions, real-font renderer captures and web/Android/iOS builds are separate evidence. Independent live release-browser review of `2b0b916` passed for centered layouts, direct life/settings/delta/history/undo and sampled other steppers. The user has explicitly authorized publication after the stripe-only follow-up checks; unlocked native hands-on acceptance remains pending.
+
+## Implementation checkpoint verification
+
+`flutter analyze`: clean. Aggregate tablet suite: **191/191 PASS**, including the cold-load delta regression that failed before the freshness filter. New-command feedback remains authoritative and saved life/history are unchanged on reopening. Release web build succeeds at `/Doubling-Season/tablet/`; `main.dart.js` SHA-256: `ddf94c40a5c405eada195e39c8401ae503675d0fffbc7ee5f59f72e80d66cdce`.
+
+The earlier real-font board matrix passes **54/54**; the final expanded coordinate/delta capture suite passes **61/61**, including the direct-life delta image. Shared/workspace real-font captures pass **12/12** with no fixed-option clipping; actual InkWell pixel changes have a primitive regression. These are widget-renderer evidence only. Independent review receives a separate local release server on port8785; the deployed Pages site and original batch remain unchanged.
+
+## Utility color stripe-only follow-up — authorized 2026-10-22
+
+The user requested no rendered color-indicator stripe in the tablet utility lane, while retaining all utility color metadata for future design work. Before editing, the regression found eight rendered utility gradients where none should remain. Remove only the 7px `_UtilityRow` color decoration and its 7px reserved inset (normal left content padding becomes 10px). No utility color field, serialization/storage, editing control or other color use changes. Tablet token rendering is untouched and retains its 7px color rails.
+
+The regression seeds colored utilities, asserts no utility gradient, verifies all token rails remain 7px, performs a saved game action and reloads the serialized state to check the original utility/token colors remain intact. Final real-font capture shows the stripe-free utility lane alongside unchanged green token rails. This is the requested immediate cleanup, not the deferred broader utility design iteration.
+
+Stripe-only follow-up validation: analysis clean; focused regression and aggregate191tests PASS; real-font screenshot inspected; releasewebbuild PASS. Publication status and exact merge/deployment commits are recorded by [PR40](https://github.com/didymusbenson/Doubling-Season/pull/40) and its linked Actions runs.

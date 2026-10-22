@@ -367,10 +367,21 @@ extension _TokenPages on _TableWorkspaceState {
             spacing: 6,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              IconButton(
-                tooltip: 'Decrease creation quantity',
-                onPressed: amount > 1 ? () => setAmount(amount - 1) : null,
-                icon: const Icon(Icons.remove),
+              SizedBox(
+                width: 156,
+                child: HalfStepper(
+                  height: 48,
+                  label: 'Creation quantity',
+                  value: '$amount',
+                  decreaseLabel: 'Decrease creation quantity',
+                  increaseLabel: 'Increase creation quantity',
+                  onDecrease: _working || amount <= 1
+                      ? null
+                      : () => setAmount(amount - 1),
+                  onIncrease: _working || amount >= 999999
+                      ? null
+                      : () => setAmount(amount + 1),
+                ),
               ),
               for (var count = 1; count <= 5; count++)
                 ChoiceChip(
@@ -378,11 +389,6 @@ extension _TokenPages on _TableWorkspaceState {
                   selected: amount == count,
                   onSelected: (_) => setAmount(count),
                 ),
-              IconButton(
-                tooltip: 'Increase creation quantity',
-                onPressed: () => setAmount(amount + 1),
-                icon: const Icon(Icons.add),
-              ),
             ],
           );
         },
@@ -433,6 +439,8 @@ extension _TokenPages on _TableWorkspaceState {
         value,
         () => _run(() => change(-1)),
         () => _run(() => change(1)),
+        minimum: minimum,
+        maximum: maximum,
         edit: () => _update(() {
           _editingNumber = id;
           _field(id, '$value').text = '$value';
@@ -680,6 +688,8 @@ extension _TokenPages on _TableWorkspaceState {
                   count,
                   () => quantity.text = '${max(1, count - 1)}',
                   () => quantity.text = '${min(t.amount - 1, count + 1)}',
+                  minimum: 1,
+                  maximum: t.amount - 1,
                 ),
                 _section(
                   'Result preview',
