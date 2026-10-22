@@ -3,6 +3,10 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [ main ]
+  pull_request:
+    paths:
+      - '.github/workflows/deploy.yml'
+      - '.github/workflows/tablet-build.yml'
   workflow_dispatch:  # Allow manual trigger
 
 permissions:
@@ -22,7 +26,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Flutter
+      - name: Setup Flutter for original app
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.38.x'
@@ -31,8 +35,34 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build web app
+      - name: Build original web app
         run: flutter build web --release --base-href "/Doubling-Season/"
+
+      - name: Setup Flutter for tablet app
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.2'
+          channel: 'stable'
+
+      - name: Build tablet web preview
+        working-directory: apps/tablet
+        # Do not introduce a second service worker/cache on the original origin.
+        run: flutter build web --release --base-href "/Doubling-Season/tablet/" --pwa-strategy=none
+
+      - name: Assemble and verify combined Pages site
+        run: |
+          test ! -e build/web/tablet
+          cp -R apps/tablet/build/web build/web/tablet
+          grep -F '<base href="/Doubling-Season/">' build/web/index.html
+          grep -F '<base href="/Doubling-Season/tablet/">' build/web/tablet/index.html
+          for app in build/web build/web/tablet; do
+            test -s "$app/flutter_bootstrap.js"
+            test -s "$app/main.dart.js"
+            test -s "$app/manifest.json"
+          done
+          test -s build/web/tablet/assets/packages/doubling_season/assets/token_database.json
+          test ! -s build/web/tablet/flutter_service_worker.js
+          printf '{"commit":"%s"}\n' "$GITHUB_SHA" > build/web/deployment.json
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
@@ -40,6 +70,7 @@ jobs:
           path: 'build/web'
 
   deploy:
+    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
 

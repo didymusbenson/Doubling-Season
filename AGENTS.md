@@ -315,6 +315,11 @@ component. Preserve direct compact actions, inline editing and full functional
 parity. Use [the corrected dossier](docs/activeDevelopment/in_progress_features/ipad_edition/token_functional_parity.md)
 and [the corrective review tracker](docs/activeDevelopment/in_progress_features/ipad_edition/corrective_iteration.md).
 The original phone Hive providers must not be initialized by the tablet app.
+The Pages workflow deploys both apps in one artifact: original at
+`/Doubling-Season/` (Flutter 3.38.x), tablet at `/Doubling-Season/tablet/`
+(Flutter 3.41.2, `--pwa-strategy=none`). Never publish the tablet output alone
+or clear origin storage to switch apps. See `apps/tablet/README.md` for build
+and storage isolation details. Browser preview is not native acceptance.
 
 Tablet board controls are compact and icon-led with accessible names. Seat
 identity belongs in the life region; retain target context in shared editors.
@@ -469,7 +474,8 @@ docs/activeDevelopment/patterns/ # Reusable implementation patterns
 
 The 1.11 release includes the billing update: `in_app_purchase` 3.3.1 and
 `in_app_purchase_android` 0.5.0 (Google Play Billing 8.0.0). These require Dart
->=3.10.0 and Flutter >=3.38.0; Pages CI uses Flutter 3.38.x. Keep the lockfile
+>=3.10.0 and Flutter >=3.38.0; Pages CI uses Flutter 3.38.x for the original
+app and 3.41.2 for the separate tablet app. Keep the lockfile
 and CI toolchain consistent. After changing build mode or dependencies, prefer
 normal builds with dependency/plugin regeneration over `--no-pub`; a stale
 registrant can reference a development-only plugin absent from release builds.
