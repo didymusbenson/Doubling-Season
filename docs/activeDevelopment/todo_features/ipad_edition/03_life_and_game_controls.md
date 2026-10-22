@@ -164,3 +164,5 @@ Global modifier applicability is not blanket multiplication of life/player count
 ## Explicit carryover clarification — 2026-10-22
 
 Board wipe means token-level destroy creatures/all tokens, not reset life/status/game. Both game resets zero preset modifier counts and disable custom rules while retaining definitions. Reset-menu reload restores historical activation instead of clearing it. Dice selection/results follow the standard six dice types; mana uses the audited Disa manual-pool baseline pending tablet adaptation. See [source-backed decisions and limitations](implementation_carryover_clarifications.md).
+
+**Accepted compact-control direction (2026-10-22):** familiar controls are compact and icon-led, not large labeled toolbar rows; TS FAB patterns are precedent, not mandatory. Seat name appears in its life counter without redundant board “Seat N” labels. Preserve meaningful text, accessible semantic names and necessary shared-editor target identification. See [layout guidance](02_layout_and_interaction.md#compact-controls-and-restrained-chrome--accepted-2026-10-22).

@@ -37,3 +37,11 @@ For any changed arrangement or behavior record: original operation, source/runti
 Use Pass / Partial / Fail / Not implemented / Not tested for every inventory row, with separate source evidence and runtime steps/screenshots. Test compact and expanded views, long content, zero/one/many quantities, emblems, mixed counter types, custom/missing art, rule companions, same-name stacks and two seats with matching tokens. Include direct-control reachability and action count, not only visual resemblance. Verify old behavior against actual original implementation before alleging a mismatch.
 
 No current runtime defect is asserted in this document. Independent implementation review findings belong in its evidence appendix; a missing first-pass feature is distinguished from a contradictory implemented behavior. Full parity is required for completed token implementation. Cloud visual/interactive inspection and small-tablet physical gates remain distinct.
+
+## Compact controls and restrained chrome — accepted 2026-10-22
+
+Use compact, icon-led controls for familiar actions. Avoid allocating rows or large chunks of the board to labeled toolbar furniture when smaller controls provide the same access. Original TS compact/FAB patterns are a precedent, not a mandate to use FABs everywhere. Preserve touch-target usability, direct access and full token functionality rather than achieving density by hiding essential operations.
+
+The player's seat name belongs in that seat's life counter. Do not repeat redundant seat names or “Seat N” labels across the token lane, utility lane and control groups. A shared editor still identifies its target where needed to disambiguate the affected seat; concise contextual identification is not redundant board chrome.
+
+This direction concerns UI chrome and familiar controls, not a ban on meaningful text: token names, rules, values, consequential confirmation wording and necessary disambiguation remain. Icon-led visual controls must retain accessible semantic names and understandable affordances. Do not substitute unlabeled accessibility nodes for visible text labels. Review real layouts for density and control reachability; no unverified implementation defect is asserted here.

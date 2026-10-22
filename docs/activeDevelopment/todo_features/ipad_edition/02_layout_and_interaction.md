@@ -199,3 +199,11 @@ Use Lifetap to inform iterative life-tracker arrangement, not as a literal clone
 ## Full token parity correction — 2026-10-22
 
 The entire original TS token functionality, deliberate density and direct controls must carry over. Reuse the existing token implementation where practical and adapt lane constraints/seat-session integration; a new board container is not a mandate to rebuild or simplify tokens. Any parity-reducing exception requires explicit justification and approval. Review [the source-backed token inventory and acceptance method](token_functional_parity.md), not just row aesthetics or generated mockup styling. No specific runtime mismatch is claimed without implementation evidence.
+
+## Compact controls and restrained chrome — accepted 2026-10-22
+
+Use compact, icon-led controls for familiar actions. Avoid allocating rows or large chunks of the board to labeled toolbar furniture when smaller controls provide the same access. Original TS compact/FAB patterns are a precedent, not a mandate to use FABs everywhere. Preserve touch-target usability, direct access and full token functionality rather than achieving density by hiding essential operations.
+
+The player's seat name belongs in that seat's life counter. Do not repeat redundant seat names or “Seat N” labels across the token lane, utility lane and control groups. A shared editor still identifies its target where needed to disambiguate the affected seat; concise contextual identification is not redundant board chrome.
+
+This direction concerns UI chrome and familiar controls, not a ban on meaningful text: token names, rules, values, consequential confirmation wording and necessary disambiguation remain. Icon-led visual controls must retain accessible semantic names and understandable affordances. Do not substitute unlabeled accessibility nodes for visible text labels. Review real layouts for density and control reachability; no unverified implementation defect is asserted here.

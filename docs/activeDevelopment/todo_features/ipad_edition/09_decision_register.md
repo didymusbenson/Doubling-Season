@@ -205,3 +205,7 @@ D22 now maps game reset to TS disableAllRules: zero preset counts, custom rules 
 ## Full token parity correction — 2026-10-22
 
 The entire original TS token functionality, deliberate density and direct controls must carry over. Reuse the existing token implementation where practical and adapt lane constraints/seat-session integration; a new board container is not a mandate to rebuild or simplify tokens. Any parity-reducing exception requires explicit justification and approval. Review [the source-backed token inventory and acceptance method](token_functional_parity.md), not just row aesthetics or generated mockup styling. No specific runtime mismatch is claimed without implementation evidence.
+
+## Accepted presentation refinement — compact controls (2026-10-22)
+
+D07/D08/D12/D37/D40 are refined by the user: compact icon-led familiar controls, avoid oversized labeled toolbar rows, and place seat name in the life counter rather than repeating identity around the board. Original TS FAB/compact patterns are precedent, not a required FAB implementation. Meaningful token/rules text, accessible semantic labels and necessary target identification in a shared editor remain required. This settles the direction, not exact icon sizes/placement or untested runtime defects. See [layout guidance](02_layout_and_interaction.md#compact-controls-and-restrained-chrome--accepted-2026-10-22).

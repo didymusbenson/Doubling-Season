@@ -505,3 +505,7 @@ Add manual cases for creature versus all-token wipe without life/status reset; b
 ## Full token parity correction — 2026-10-22
 
 The entire original TS token functionality, deliberate density and direct controls must carry over. Reuse the existing token implementation where practical and adapt lane constraints/seat-session integration; a new board container is not a mandate to rebuild or simplify tokens. Any parity-reducing exception requires explicit justification and approval. Review [the source-backed token inventory and acceptance method](token_functional_parity.md), not just row aesthetics or generated mockup styling. No specific runtime mismatch is claimed without implementation evidence.
+
+## Compact-control acceptance check — 2026-10-22
+
+Compare real 2/3/4-seat layouts at the smallest supported tablet: familiar actions should be compact and icon-led, not consume dedicated chunks of labeled toolbar furniture. Seat name belongs in its life counter; no redundant repeated board seat labels. Necessary target-seat context in shared editors and meaningful token/rules text remain. Verify semantic names, understandable icons, usable touch targets and direct control reachability, with no token parity reduction. FABs are an available TS precedent, not a pass/fail requirement. Report screenshots and measured interaction evidence separately from these accepted requirements; no implementation failure is inferred from this checklist alone.

@@ -110,3 +110,5 @@ D25 subsequently settled local/global source applicability. The old local-only c
 ## Full token parity correction — 2026-10-22
 
 The entire original TS token functionality, deliberate density and direct controls must carry over. Reuse the existing token implementation where practical and adapt lane constraints/seat-session integration; a new board container is not a mandate to rebuild or simplify tokens. Any parity-reducing exception requires explicit justification and approval. Review [the source-backed token inventory and acceptance method](token_functional_parity.md), not just row aesthetics or generated mockup styling. No specific runtime mismatch is claimed without implementation evidence.
+
+**Accepted compact-control direction (2026-10-22):** familiar controls are compact and icon-led, not large labeled toolbar rows; TS FAB patterns are precedent, not mandatory. Seat name appears in its life counter without redundant board “Seat N” labels. Preserve meaningful text, accessible semantic names and necessary shared-editor target identification. See [layout guidance](02_layout_and_interaction.md#compact-controls-and-restrained-chrome--accepted-2026-10-22).
