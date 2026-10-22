@@ -13,6 +13,7 @@ import 'package:tripling_table/ui/table_artwork.dart';
 import 'package:tripling_table/ui/table_screen.dart';
 import 'package:tripling_table/ui/table_theme.dart';
 import 'package:tripling_table/ui/tablet_token_card.dart';
+import 'package:tripling_table/ui/monarch_crown.dart';
 
 import 'support/table_fixture.dart';
 
@@ -182,6 +183,23 @@ void main() {
     },
   );
 
+  testWidgets('game controls are a standalone compact central component', (
+    tester,
+  ) async {
+    await showTable(tester, const Size(1133, 744), tableFor(4));
+    final hub = find.byKey(const ValueKey('central-game-controls'));
+    expect(hub, findsOneWidget);
+    expect(bounds(tester, hub).size, const Size(52, 52));
+    expect(
+      bounds(tester, hub).center,
+      bounds(tester, find.byKey(const ValueKey('table-surface'))).center,
+    );
+    expect(
+      find.byWidgetPredicate((w) => w.runtimeType.toString() == '_GameStrip'),
+      findsNothing,
+    );
+  });
+
   for (final size in [
     const Size(1133, 744),
     const Size(744, 1133),
@@ -208,7 +226,7 @@ void main() {
             expect(bounds(tester, find.byWidget(element.widget)).width, 3);
           }
           final strip = find.byWidgetPredicate(
-            (widget) => widget.runtimeType.toString() == '_GameStrip',
+            (widget) => widget.runtimeType.toString() == '_GameHub',
           );
           final stripBounds = bounds(tester, strip);
           expect(
@@ -228,38 +246,90 @@ void main() {
             find.byKey(const ValueKey('table-surface')),
           );
           expect(stripBounds.center, tableBounds.center);
-          if (seats != 2) {
-            final shell = tester.widget<Container>(
-              find
-                  .descendant(of: strip, matching: find.byType(Container))
-                  .first,
-            );
-            final border =
-                (shell.decoration! as BoxDecoration).border! as Border;
-            expect(border.top.width, 3);
-            expect(border.bottom.width, 3);
-            expect(
-              bounds(
-                tester,
-                find.byKey(const ValueKey('game-strip-player-divider')),
-              ).center.dx,
-              tableBounds.center.dx,
-            );
-          }
+          expect(stripBounds.size, const Size(52, 52));
+          final shell = tester.widget<Material>(
+            find.descendant(of: strip, matching: find.byType(Material)).first,
+          );
+          expect(shell.shape, isA<CircleBorder>());
+          expect(
+            find.byKey(const ValueKey('game-strip-player-divider')),
+            findsNothing,
+          );
           final tableHeight = size.height - 44;
           for (final player in fixture.controller.session.players) {
             final name = fixture.controller.profile(player.seatId).name;
-            final life = find.descendant(
-              of: find.byKey(ValueKey(player.id)),
-              matching: find.byWidgetPredicate(
-                (w) => w.runtimeType.toString() == '_LifePanel',
-              ),
+            final life = find.byKey(ValueKey('${player.id}-life-surface'));
+            expect(bounds(tester, life).overlaps(stripBounds), isFalse);
+            final decrease = find.byKey(ValueKey('${player.id}-life-decrease'));
+            final increase = find.byKey(ValueKey('${player.id}-life-increase'));
+            final hitBounds = bounds(
+              tester,
+              decrease,
+            ).expandToInclude(bounds(tester, increase));
+            final surfaceBounds = bounds(tester, life);
+            for (final edges in [
+              [hitBounds.left, surfaceBounds.left],
+              [hitBounds.right, surfaceBounds.right],
+              [hitBounds.top, surfaceBounds.top],
+              [hitBounds.bottom, surfaceBounds.bottom],
+            ]) {
+              expect(
+                edges[0],
+                closeTo(edges[1], .001),
+                reason: 'Every part of the colored surface belongs to a half.',
+              );
+            }
+            final tools = find.byKey(ValueKey('${player.id}-life-tools'));
+            expect(bounds(tester, tools).overlaps(stripBounds), isFalse);
+            expect(
+              bounds(tester, tools).overlaps(bounds(tester, life)),
+              isFalse,
             );
             expect(
-              bounds(tester, life).overlaps(stripBounds),
-              isFalse,
-              reason:
-                  'Life ${bounds(tester, life)} vs controls $stripBounds must reserve space.',
+              find.descendant(of: tools, matching: find.byType(MonarchCrown)),
+              findsOneWidget,
+            );
+            final monarch = find.byTooltip('$name, Monarch, disabled');
+            final blessing = find.byTooltip('$name, City’s blessing, disabled');
+            final crownPosition = bounds(tester, monarch, within: tools).center;
+            final blessingPosition = bounds(
+              tester,
+              blessing,
+              within: tools,
+            ).center;
+            expect(crownPosition.dy, blessingPosition.dy);
+            expect(crownPosition.dx, lessThan(blessingPosition.dx));
+            final editPosition = bounds(
+              tester,
+              find.byKey(ValueKey('${player.id}-player-details')),
+              within: tools,
+            ).center;
+            for (final label in [
+              '$name, player counters',
+              '$name, rules',
+              '$name, commander damage',
+            ]) {
+              final button = find.byTooltip(label);
+              expect(button.hitTestable(), findsOneWidget);
+              final point = bounds(tester, button, within: tools).center;
+              expect(
+                point.dy < editPosition.dy || point.dx < editPosition.dx,
+                isTrue,
+                reason: 'Edit is last in player-local tool order.',
+              );
+            }
+            expect(find.byTooltip('$name, saved presets'), findsNothing);
+            final manage = find.byKey(
+              ValueKey('${player.id}-manage-utilities'),
+            );
+            expect(manage.hitTestable(), findsOneWidget);
+            expect(find.descendant(of: tools, matching: manage), findsNothing);
+            expect(
+              find.descendant(
+                of: find.byKey(ValueKey('${player.id}-utility-section')),
+                matching: manage,
+              ),
+              findsOneWidget,
             );
             final lane = find.byKey(ValueKey('${player.id}-token-lane'));
             final fab = find.byKey(ValueKey('${player.id}-add-token'));
@@ -320,22 +390,7 @@ void main() {
               );
             }
           }
-          if (seats == 2) {
-            expect(
-              find.byTooltip('Game controls').hitTestable(),
-              findsOneWidget,
-            );
-          } else {
-            for (final label in [
-              'History',
-              'Dice',
-              'Day / night',
-              'Reset',
-              'Table',
-            ]) {
-              expect(find.byTooltip(label).hitTestable(), findsOneWidget);
-            }
-          }
+          expect(find.byTooltip('Game controls').hitTestable(), findsOneWidget);
           expect(tester.takeException(), isNull);
           await capture(
             tester,
@@ -355,7 +410,7 @@ void main() {
           tester.view.padding = const FakeViewPadding();
           await tester.pumpAndSettle();
           final strip = find.byWidgetPredicate(
-            (w) => w.runtimeType.toString() == '_GameStrip',
+            (w) => w.runtimeType.toString() == '_GameHub',
           );
           expect(bounds(tester, strip).center.dx, closeTo(size.width / 2, .01));
           expect(
@@ -400,7 +455,7 @@ void main() {
           state.session.players.removeWhere((p) => p.slot == empty);
           await showTable(tester, size, state);
           final strip = find.byWidgetPredicate(
-            (w) => w.runtimeType.toString() == '_GameStrip',
+            (w) => w.runtimeType.toString() == '_GameHub',
           );
           final table = find.byKey(const ValueKey('table-surface'));
           expect(bounds(tester, strip).center, bounds(tester, table).center);
@@ -421,7 +476,7 @@ void main() {
       );
     }
     testWidgets(
-      '2p centered hub at $size keeps every game action available without changing either player',
+      'centered hub at $size keeps every game action available without changing players',
       (tester) async {
         final fixture = await showTable(tester, size, tableFor(2));
         final before = fixture.controller.session.toJson();

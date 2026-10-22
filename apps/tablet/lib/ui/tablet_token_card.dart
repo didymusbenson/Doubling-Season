@@ -11,7 +11,6 @@ import 'package:doubling_season/widgets/mana/mana_text.dart';
 import '../domain/table_state.dart';
 import '../features/board_service.dart';
 import 'table_artwork.dart';
-import 'half_stepper.dart';
 import 'workspace/player_keyboard.dart';
 import 'workspace/table_workspace.dart';
 
@@ -385,7 +384,10 @@ class _TabletTokenCardState extends State<TabletTokenCard>
     String label,
     VoidCallback? onTap, {
     VoidCallback? onHold,
+    Key? key,
+    bool consumeDisabled = false,
   }) => Semantics(
+    key: key,
     button: true,
     enabled: onTap != null && !_inputOpen,
     label: '$_target, $label',
@@ -398,7 +400,9 @@ class _TabletTokenCardState extends State<TabletTokenCard>
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(5),
-            onTap: _inputOpen ? null : onTap,
+            onTap: _inputOpen
+                ? null
+                : onTap ?? (consumeDisabled ? () {} : null),
             onLongPress: _inputOpen ? null : onHold,
             child: SizedBox(
               width: 38,
@@ -764,76 +768,60 @@ class _TabletTokenCardState extends State<TabletTokenCard>
                                   ],
                                 ),
                               ],
-                              // Quantity is the actual stepper; the other compact
-                              // token actions keep their specialized gestures below.
-                              // The header already displays the total, so it is not
-                              // repeated in this full-width pair of tap regions.
-                              SizedBox(
-                                width: double.infinity,
-                                child: HalfStepper(
-                                  key: ValueKey('${token.id}-quantity-stepper'),
-                                  label: '$_target, quantity',
-                                  value: '',
-                                  foregroundColor: color,
-                                  decreaseKey: ValueKey(
-                                    '${token.id}-quantity-decrease',
-                                  ),
-                                  increaseKey: ValueKey(
-                                    '${token.id}-quantity-increase',
-                                  ),
-                                  decreaseLabel:
-                                      '$_target, remove one token, ${token.amount} total; hold to remove all',
-                                  decreaseTooltip:
-                                      'Remove one; hold to remove all',
-                                  increaseLabel:
-                                      '$_target, add one token, ${token.amount} total; hold to add ten',
-                                  increaseTooltip: 'Add one; hold to add ten',
-                                  onDecrease: _inputOpen || token.amount == 0
-                                      ? null
-                                      : () => _perform(
-                                          () => widget.board.changeQuantity(
-                                            widget.player.id,
-                                            token.id,
-                                            -1,
-                                          ),
-                                        ),
-                                  onIncrease: _inputOpen
-                                      ? null
-                                      : () => _perform(
-                                          () => widget.board.changeQuantity(
-                                            widget.player.id,
-                                            token.id,
-                                            1,
-                                          ),
-                                        ),
-                                  onDecreaseHold:
-                                      _inputOpen || token.amount == 0
-                                      ? null
-                                      : () => _perform(
-                                          () => widget.board.changeQuantity(
-                                            widget.player.id,
-                                            token.id,
-                                            -token.amount,
-                                          ),
-                                        ),
-                                  onIncreaseHold: _inputOpen
-                                      ? null
-                                      : () => _perform(
-                                          () => widget.board.changeQuantity(
-                                            widget.player.id,
-                                            token.id,
-                                            10,
-                                          ),
-                                        ),
-                                  // TS token holds are one-shot remove-all/add-ten,
-                                  // not the repeating life-tracker hold behavior.
-                                  holdRepeatInterval: null,
-                                ),
-                              ),
+                              // Tokens keep the original dense action row. Quantity
+                              // is inline here; life and other trackers use halves.
                               Wrap(
+                                key: ValueKey('${token.id}-actions'),
                                 spacing: 0,
                                 runSpacing: 0,
                                 children: [
+                                  _action(
+                                    Icons.remove,
+                                    'Remove one; hold to remove all',
+                                    token.amount == 0
+                                        ? null
+                                        : () => _perform(
+                                            () => widget.board.changeQuantity(
+                                              widget.player.id,
+                                              token.id,
+                                              -1,
+                                            ),
+                                          ),
+                                    key: ValueKey(
+                                      '${token.id}-quantity-decrease',
+                                    ),
+                                    consumeDisabled: true,
+                                    onHold: token.amount == 0
+                                        ? null
+                                        : () => _perform(
+                                            () => widget.board.changeQuantity(
+                                              widget.player.id,
+                                              token.id,
+                                              -token.amount,
+                                            ),
+                                          ),
+                                  ),
+                                  _action(
+                                    Icons.add,
+                                    'Add one; hold to add ten',
+                                    () => _perform(
+                                      () => widget.board.changeQuantity(
+                                        widget.player.id,
+                                        token.id,
+                                        1,
+                                      ),
+                                    ),
+                                    key: ValueKey(
+                                      '${token.id}-quantity-increase',
+                                    ),
+                                    onHold: () => _perform(
+                                      () => widget.board.changeQuantity(
+                                        widget.player.id,
+                                        token.id,
+                                        10,
+                                      ),
+                                    ),
+                                  ),
                                   if (!token.isEmblem) ...[
                                     _action(
                                       Icons.mobile_friendly,

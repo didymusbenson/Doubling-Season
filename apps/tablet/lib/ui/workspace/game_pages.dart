@@ -9,10 +9,16 @@ extension _GamePages on _TableWorkspaceState {
       ]);
     }
     return _GamePageTabs(
-      labels: const ['Life & status', 'Appearance', 'Commanders'],
+      labels: const [
+        'Life & status',
+        'Appearance',
+        'Commanders',
+        'Saved setups',
+      ],
       builder: (index) => switch (index) {
         1 => _playerAppearance(player),
         2 => _playerCommanders(player),
+        3 => _presetsPage(),
         _ => _list([
           if (player.warnings.isNotEmpty)
             Padding(
@@ -151,7 +157,7 @@ extension _GamePages on _TableWorkspaceState {
                   : (value) => _run(() => c.setCitysBlessing(player.id, value)),
             ),
             FilterChip(
-              avatar: const Icon(Icons.workspace_premium_outlined, size: 18),
+              avatar: const MonarchCrown(),
               label: Text('Monarch · ${monarch ? 'On' : 'Off'}'),
               selected: monarch,
               onSelected: _working
@@ -474,28 +480,24 @@ extension _GamePages on _TableWorkspaceState {
       return _list([const Text('Select the player receiving damage first.')]);
     }
     final sources = c.session.commanders;
-    if (sources.isEmpty) {
-      return _list([
-        _section(
-          'No commander sources yet',
-          detail:
-              'Add each player’s commander or partners in that player’s Commanders tab. Renaming preserves damage and identity.',
-        ),
-        _button('Player settings', () => _go(WorkspacePage.player)),
-      ]);
-    }
-    return _list([
-      _section(
-        'Damage received by $_seatName · ${player.life} life',
-        detail:
-            '− / + changes damage and life together. Open Edit damage for a larger amount or a ledger-only correction.',
-      ),
-      _gameGrid([
-        for (final source in sources) _commanderTracker(player, source),
-      ]),
-      const SizedBox(height: 12),
-      _button('Correct life separately', () => _go(WorkspacePage.player)),
-    ]);
+    return _GamePageTabs(
+      labels: const ['Damage', 'Sources'],
+      builder: (index) {
+        if (index == 1 || sources.isEmpty) return _playerCommanders(player);
+        return _list([
+          _section(
+            'Damage received by $_seatName · ${player.life} life',
+            detail:
+                '− / + changes damage and life together. Open Edit damage for a larger amount or a ledger-only correction.',
+          ),
+          _gameGrid([
+            for (final source in sources) _commanderTracker(player, source),
+          ]),
+          const SizedBox(height: 12),
+          _button('Correct life separately', () => _go(WorkspacePage.player)),
+        ]);
+      },
+    );
   }
 
   Widget _commanderTracker(PlayerState player, CommanderSource source) {

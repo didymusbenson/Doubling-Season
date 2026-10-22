@@ -138,6 +138,13 @@ void main() {
         await tester.tap(find.text('Commanders'));
         await tester.pumpAndSettle();
         expect(find.text('Add commander').hitTestable(), findsOneWidget);
+        await tester.tap(find.text('Saved setups'));
+        await tester.pumpAndSettle();
+        expect(
+          find.text('Save this player’s setup').hitTestable(),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Loading preserves life'), findsOneWidget);
         await tester.tap(find.text('Life & status'));
         await tester.pumpAndSettle();
         await tester.tap(find.byTooltip('Increase life by 1'));

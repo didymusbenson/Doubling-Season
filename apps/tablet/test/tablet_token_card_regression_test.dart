@@ -237,7 +237,7 @@ void main() {
     for (final turns in [0, 2]) {
       for (final expanded in [false, true]) {
         testWidgets(
-          'token quantity full halves preserve local direction and distinct actions ($platform, $turns, expanded $expanded)',
+          'token quantity buttons stay inline with distinct compact actions ($platform, $turns, expanded $expanded)',
           (tester) async {
             final fixture = TableFixture(
               stateWithTokens([sampleToken(amount: 20, tapped: 0, sick: 0)]),
@@ -253,23 +253,30 @@ void main() {
               onOpenDetailed: (page) => opened = page,
             );
             final otherSeat = fixture.controller.session.players[1].toJson();
-            final row = find.byKey(const ValueKey('source-quantity-stepper'));
+            final row = find.byKey(const ValueKey('source-actions'));
+            expect(
+              find.byKey(const ValueKey('source-quantity-stepper')),
+              findsNothing,
+            );
             final decrease = find.byKey(
               const ValueKey('source-quantity-decrease'),
             );
             final increase = find.byKey(
               const ValueKey('source-quantity-increase'),
             );
-            expect(tester.getSize(row).width, closeTo(290 - 18, .01));
+            expect(tester.getSize(decrease), const Size(38, 40));
+            expect(tester.getSize(increase), const Size(38, 40));
             expect(
-              tester.getSize(decrease).width,
-              closeTo(tester.getSize(row).width / 2, .01),
+              find.descendant(of: row, matching: decrease),
+              findsOneWidget,
             );
             expect(
-              tester.getSize(increase).width,
-              closeTo(tester.getSize(row).width / 2, .01),
+              find.descendant(of: row, matching: increase),
+              findsOneWidget,
             );
-            expect(tester.getSize(decrease).height, greaterThanOrEqualTo(44));
+            final untap = find.byTooltip('Untap one; hold to untap all');
+            expect(tester.getCenter(decrease).dy, tester.getCenter(untap).dy);
+            expect(tester.getCenter(increase).dy, tester.getCenter(untap).dy);
             for (final target in [decrease, increase]) {
               final delta = target == decrease ? -1 : 1;
               final size = tester.getSize(target);

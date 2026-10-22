@@ -347,13 +347,20 @@ Tablet utility rows do not render a color-indicator stripe. Retain their color
 metadata/model/storage and other uses of color; tablet tokens keep their 7px
 color rails. This is a tablet utility presentation exception, not a change to
 the original phone application's board components.
-Numeric steppers use full player-local left/right InkWell halves; the displayed
+Numeric steppers use full player-local left/right InkWell halves, except token
+quantity: its compact minus/plus buttons are first in the existing token action
+row, with no dedicated full-width quantity band. The displayed
 value does not intercept adjustment taps. Keep edit/customization controls
 separate, preserve specialized token/mana holds, and cancel repeating holds on
 input lock/lifecycle interruption. Life uses direct halves and a transient net
-delta from the existing 1500ms history group. Shared game controls are anchored
-to the global table center with reserved life-space clearance, never only to
-bottom seats. Assert global coordinates and content separation in regressions.
+delta from the existing 1500ms history group. The entire colored life surface,
+including the name and all inner padding, belongs to its two hit regions. Life
+tools are disjoint below it: crown Monarch beside City's Blessing, then counters,
+rules, commander access, and Edit last. Presets are inside Edit; Manage Utilities
+belongs in the utility section. Shared game controls are one compact standalone
+component at the global table center, never a control-bearing divider/strip.
+Keep thin player borders distinct and token lanes full height. Assert global
+coordinates, compact bounds and content/hit-region separation in regressions.
 The original collapse-first behavior remains deliberate: tapping a second
 item first collapses the open item, rather than opening the second immediately.
 

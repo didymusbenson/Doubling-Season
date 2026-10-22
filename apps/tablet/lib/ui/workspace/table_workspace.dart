@@ -19,6 +19,7 @@ import '../../services/tablet_catalog.dart';
 import 'player_keyboard.dart';
 import '../table_artwork.dart';
 import '../half_stepper.dart';
+import '../monarch_crown.dart';
 import '../artwork_selection.dart';
 import '../token_board_summary.dart';
 import '../support_sheet.dart';
