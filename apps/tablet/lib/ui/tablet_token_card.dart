@@ -468,12 +468,18 @@ class _TabletTokenCardState extends State<TabletTokenCard>
         children: [
           Icon(icon, size: prominent ? 17 : 15, color: color),
           const SizedBox(width: 2),
-          Text(
-            '$value',
-            style: TextStyle(
-              fontSize: prominent ? 18 : 14,
-              fontWeight: FontWeight.w700,
-              color: color,
+          Flexible(
+            fit: FlexFit.loose,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '$value',
+                style: TextStyle(
+                  fontSize: prominent ? 18 : 14,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
             ),
           ),
         ],

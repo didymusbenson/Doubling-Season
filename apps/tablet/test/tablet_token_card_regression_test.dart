@@ -159,6 +159,29 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('large totals fit the narrow lane with wide fallback glyphs', (
+    tester,
+  ) async {
+    final fixture = TableFixture(
+      stateWithTokens([
+        sampleToken(amount: 1000000000, tapped: 888888888, sick: 777777777),
+      ]),
+    );
+    await showCard(tester, fixture, width: 176);
+    final total = find.text('1000000000');
+    expect(total, findsOneWidget);
+    final numberBox = tester.getRect(
+      find.ancestor(of: total, matching: find.byType(FittedBox)).first,
+    );
+    final cardBox = tester.getRect(find.byType(TabletTokenCard));
+    expect(numberBox.right, lessThanOrEqualTo(cardBox.right));
+    expect(
+      find.byTooltip('Add one; hold to add ten').hitTestable(),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'compact direct controls retain holds and clean quick additions',
     (tester) async {
