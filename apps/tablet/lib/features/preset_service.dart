@@ -229,6 +229,10 @@ class PresetService {
       };
       _validatePreset(preset);
     }
+    preset['warnings'] = [
+      if (jsonEncode(preset).contains('file://'))
+        'Local artwork files were referenced by this setup but are not included. Upload those images on this device.',
+    ];
     preset['id'] = newEntityId();
     preset['revision'] = 1;
     preset['createdAt'] = DateTime.now().toUtc().toIso8601String();

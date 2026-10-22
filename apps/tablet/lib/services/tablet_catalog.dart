@@ -159,12 +159,22 @@ class TabletCatalog extends ChangeNotifier {
     ids.contains(id) ? ids.remove(id) : ids.add(id);
     lib['favorites'] = ids;
   });
-  Future<void> recordRecent(String id) => _library((lib) {
-    final ids = _ids('recent')
-      ..remove(id)
-      ..insert(0, id);
-    lib['recent'] = ids.take(40).toList();
-  });
+  Future<void> recordRecent(String id) async {
+    try {
+      await _library((lib) {
+        final ids = _ids('recent')
+          ..remove(id)
+          ..insert(0, id);
+        lib['recent'] = ids.take(40).toList();
+      });
+    } catch (failure) {
+      // Gameplay already committed. Do not report a failed creation or invite a
+      // duplicate retry merely because its incidental recent-search preference failed.
+      error = 'Tokens were saved, but Recent could not be updated: $failure';
+      notifyListeners();
+    }
+  }
+
   Future<void> saveCustom(TokenDefinition definition) => _library((lib) {
     if (definition.name.trim().isEmpty) {
       throw const FormatException('A token needs a name');

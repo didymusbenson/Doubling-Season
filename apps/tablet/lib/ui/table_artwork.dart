@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:doubling_season/utils/artwork_manager.dart';
@@ -6,17 +5,35 @@ import '../services/tablet_media_store.dart';
 
 class TableArtwork extends StatelessWidget {
   static final Map<String, Future<Uint8List?>> _downloads = {};
-  static Future<Uint8List?> _cached(String source) =>
-      _downloads.putIfAbsent(source, () async {
-        try {
-          final file =
-              await ArtworkManager.getCachedArtworkFile(source) ??
-              await ArtworkManager.downloadArtwork(source);
-          return await file?.readAsBytes();
-        } catch (_) {
-          return null;
-        }
-      });
+  static final Map<String, DateTime> _retryAfter = {};
+  static Future<Uint8List?> _cached(String source) {
+    final retry = _retryAfter[source];
+    if (retry != null && DateTime.now().isAfter(retry)) {
+      _downloads.remove(source);
+      _retryAfter.remove(source);
+    }
+    if (!_downloads.containsKey(source) && _downloads.length >= 64) {
+      final oldest = _downloads.keys.first;
+      _downloads.remove(oldest);
+      _retryAfter.remove(oldest);
+    }
+    return _downloads.putIfAbsent(source, () async {
+      Uint8List? bytes;
+      try {
+        final file =
+            await ArtworkManager.getCachedArtworkFile(source) ??
+            await ArtworkManager.downloadArtwork(source);
+        bytes = await file?.readAsBytes();
+      } catch (_) {
+        // A later render can retry a temporary network failure.
+      }
+      if (bytes == null) {
+        _retryAfter[source] = DateTime.now().add(const Duration(seconds: 30));
+      }
+      return bytes;
+    });
+  }
+
   final String? url;
   final BoxFit fit;
   final Widget? placeholder;
@@ -47,8 +64,9 @@ class TableArtwork extends StatelessWidget {
       );
     }
     try {
-      if (source.startsWith('data:image/'))
+      if (source.startsWith('data:image/')) {
         return memory(Uri.parse(source).data!.contentAsBytes());
+      }
       if (source.startsWith('http://') || source.startsWith('https://')) {
         final display = crop
             ? (ArtworkManager.deriveScryfallArtCropUrl(source) ?? source)

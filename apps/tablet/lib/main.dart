@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'state/table_controller.dart';
+import 'services/table_support_service.dart';
 import 'ui/table_screen.dart';
 import 'ui/table_theme.dart';
 
@@ -35,18 +36,21 @@ class _TriplingTableAppState extends State<TriplingTableApp>
     });
     try {
       await controller.initialize();
-      if (!controller.ready)
+      if (!controller.ready) {
         throw StateError(controller.error ?? 'Could not open the saved game.');
+      }
       if (!mounted) return;
       setState(() {
         ready = true;
       });
       unawaited(WakelockPlus.enable().catchError((Object _) {}));
+      unawaited(TableSupportService.instance.initialize());
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           startupError = e.toString();
         });
+      }
     }
   }
 

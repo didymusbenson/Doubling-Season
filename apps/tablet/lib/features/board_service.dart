@@ -63,11 +63,13 @@ class BoardService {
     String? groupKey,
     int? delta,
     int? expectedRevision,
+    bool gameOrigin = false,
   }) async {
     final c = captured ?? scope(playerId);
     final ok = await controller.commit(
       label,
-      playerId: playerId,
+      playerId: gameOrigin ? null : playerId,
+      affectedPlayerIds: gameOrigin ? [playerId] : null,
       groupKey: groupKey,
       delta: delta,
       expectedSessionId: c.sessionId,
@@ -79,7 +81,13 @@ class BoardService {
             'The board or rules changed. Review the updated preview before continuing.',
           );
         }
-        mutate(s, _player(s, playerId));
+        final target = _player(s, playerId);
+        if (target.generation != c.playerGeneration) {
+          throw StateError(
+            'This player’s board changed. Reopen the action to continue.',
+          );
+        }
+        mutate(s, target);
       },
     );
     if (!ok) {
@@ -202,6 +210,7 @@ class BoardService {
   }
 
   void _addResults(
+    GameSession session,
     PlayerState p,
     List<TokenCreationResult> results, {
     TokenState? source,
@@ -234,6 +243,8 @@ class BoardService {
         sickness: p.summoningSicknessEnabled,
       );
       if (sameSource) {
+        t.artworkUrl = source.artworkUrl;
+        t.artworkSet = source.artworkSet;
         t.artworkOptions = source.artworkOptions
             .map((a) => Map<String, dynamic>.from(a))
             .toList();
@@ -256,6 +267,14 @@ class BoardService {
         p.tokens.insert(next.clamp(0, p.tokens.length), t);
         next++;
       }
+      (existing ?? t).extra['lastCreation'] = {
+        'eventId': newEntityId(),
+        'quantity': result.quantity,
+        'sources': _sources(session, p.id)
+            .where((r) => r.enabled && r.count > 0)
+            .map((r) => r.toJson())
+            .toList(),
+      };
       _entered(p, t, result.quantity);
     }
   }
@@ -289,6 +308,7 @@ class BoardService {
           );
         } else {
           _addResults(
+            s,
             p,
             result,
             tapped: tapped,
@@ -329,14 +349,29 @@ class BoardService {
               !t.abilities.toLowerCase().contains('haste')) {
             t.summoningSick += first.quantity;
           }
+          t.extra['lastCreation'] = {
+            'eventId': newEntityId(),
+            'quantity': first.quantity,
+            'sources': _sources(s, p.id)
+                .where((r) => r.enabled && r.count > 0)
+                .map((r) => r.toJson())
+                .toList(),
+          };
           _entered(p, t, first.quantity);
           _addResults(
+            s,
             p,
             r.skip(1).toList(),
             insertionIndex: p.tokens.indexOf(t) + 1,
           );
         } else {
-          _addResults(p, r, source: t, insertionIndex: p.tokens.indexOf(t) + 1);
+          _addResults(
+            s,
+            p,
+            r,
+            source: t,
+            insertionIndex: p.tokens.indexOf(t) + 1,
+          );
         }
       } else {
         t.amount = max(0, t.amount + delta);
@@ -347,6 +382,12 @@ class BoardService {
     groupKey: 'token-${delta >= 0 ? 'add' : 'remove'}:$tokenId',
     delta: delta,
   );
+  Future<void> toggleAllTapped(String playerId, String tokenId) =>
+      _commit(playerId, 'Toggle tapped tokens', (s, p) {
+        final token = _token(p, tokenId);
+        if (_emblem(token)) throw StateError('Emblems do not tap.');
+        token.tapped = token.tapped == token.amount ? 0 : token.amount;
+      });
   Future<void> deleteToken(String playerId, String tokenId) =>
       _commit(playerId, 'Remove token stack', (s, p) {
         _token(p, tokenId);
@@ -442,25 +483,36 @@ class BoardService {
       artworkSet: t.artworkSet,
       sickness: p.summoningSicknessEnabled,
     );
+    copy.artworkUrl = t.artworkUrl;
+    copy.artworkSet = t.artworkSet;
     p.tokens.insert(p.tokens.indexOf(t) + 1, copy);
     _entered(p, copy, 1);
   });
-  Future<void> splitToken(String playerId, String tokenId, int quantity) =>
-      _commit(playerId, 'Split token stack', (s, p) {
-        final t = _token(p, tokenId);
-        if (quantity <= 0 || quantity >= t.amount) {
-          throw RangeError('Split quantity must leave tokens in both stacks');
-        }
-        final copy = t.copy();
-        copy.id = newEntityId();
-        copy.amount = quantity;
-        copy.tapped = min(t.tapped, quantity);
-        copy.summoningSick = min(t.summoningSick, quantity);
-        t.amount -= quantity;
-        t.tapped -= copy.tapped;
-        t.summoningSick -= copy.summoningSick;
-        p.tokens.insert(p.tokens.indexOf(t) + 1, copy);
-      });
+  Future<void> splitToken(
+    String playerId,
+    String tokenId,
+    int quantity, {
+    bool tappedFirst = false,
+    BoardScope? captured,
+  }) => _commit(playerId, 'Split token stack', (s, p) {
+    final t = _token(p, tokenId);
+    if (quantity <= 0 || quantity >= t.amount) {
+      throw RangeError('Split quantity must leave tokens in both stacks');
+    }
+    final copy = t.copy();
+    copy.id = newEntityId();
+    copy.amount = quantity;
+    copy.tapped = tappedFirst
+        ? min(t.tapped, quantity)
+        : quantity - min(quantity, t.amount - t.tapped);
+    // Preserve the explicitly described phone split workflow: splitting
+    // clears sickness on both stacks and deep-copies all counters/artwork.
+    copy.summoningSick = 0;
+    t.amount -= quantity;
+    t.tapped -= copy.tapped;
+    t.summoningSick = 0;
+    p.tokens.insert(p.tokens.indexOf(t) + 1, copy);
+  }, captured: captured);
   Future<void> mergeTokens(String playerId, String sourceId, String targetId) =>
       _commit(playerId, 'Merge token stacks', (s, p) {
         if (sourceId == targetId) throw StateError('Choose a different stack');
@@ -476,6 +528,19 @@ class BoardService {
         b.summoningSick += a.summoningSick;
         p.tokens.remove(a);
       });
+  void _validateArtwork(String? url) {
+    if (url == null) return;
+    if (url.startsWith('tablet-art:') || url.startsWith('data:image/')) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null ||
+        !{'http', 'https'}.contains(uri.scheme) ||
+        uri.host.isEmpty) {
+      throw const FormatException(
+        'Enter a complete http or https image URL, or upload an image.',
+      );
+    }
+  }
+
   Future<void> setArtwork(
     String playerId,
     String tokenId,
@@ -485,6 +550,7 @@ class BoardService {
     BoardScope? captured,
   }) => _commit(playerId, 'Change token artwork', (s, p) {
     final t = _token(p, tokenId);
+    _validateArtwork(url);
     t.artworkUrl = url;
     t.artworkSet = set;
     if (url == null) {
@@ -495,57 +561,61 @@ class BoardService {
         t.artworkOptions.add({
           'url': url,
           'set': set ?? 'Custom',
-          'artist': artist ?? 'user uploaded',
+          'artist':
+              artist ??
+              ((url.startsWith('tablet-art:') || url.startsWith('data:image/'))
+                  ? 'user uploaded'
+                  : ''),
         });
       }
     }
   }, captured: captured);
-  Future<void> bulk(String playerId, String action) => _commit(
-    playerId,
-    action,
-    (s, p) {
-      if (action == 'wipe_all') {
-        p.tokens.clear();
-        p.generation++;
-        return;
+  Future<void> bulk(
+    String playerId,
+    String action, {
+    bool gameOrigin = false,
+  }) => _commit(playerId, action, (s, p) {
+    if (action == 'wipe_all') {
+      p.tokens.clear();
+      p.generation++;
+      return;
+    }
+    if (action == 'wipe_creatures') {
+      p.tokens.removeWhere(_creature);
+      p.generation++;
+      return;
+    }
+    for (final t in p.tokens) {
+      switch (action) {
+        case 'untap':
+          t.tapped = 0;
+          break;
+        case 'clear_sickness':
+          t.summoningSick = 0;
+          break;
+        case 'plus_one':
+          if (_creature(t)) {
+            _applyCounter(
+              t,
+              '+1/+1',
+              _rules(s, playerId).calculateCounterAmount(1),
+            );
+          }
+          break;
+        case 'minus_one':
+          if (_creature(t)) {
+            _applyCounter(
+              t,
+              '-1/-1',
+              _rules(s, playerId).calculateCounterAmount(1, isPlusOne: false),
+            );
+          }
+          break;
+        default:
+          throw ArgumentError('Unknown board action');
       }
-      if (action == 'wipe_creatures') {
-        p.tokens.removeWhere(_creature);
-        p.generation++;
-        return;
-      }
-      for (final t in p.tokens) {
-        switch (action) {
-          case 'untap':
-            t.tapped = 0;
-            break;
-          case 'clear_sickness':
-            t.summoningSick = 0;
-            break;
-          case 'plus_one':
-            if (_creature(t)) {
-              _applyCounter(
-                t,
-                '+1/+1',
-                _rules(s, playerId).calculateCounterAmount(1),
-              );
-            }
-            break;
-          case 'minus_one':
-            if (_creature(t)) {
-              _applyCounter(
-                t,
-                '-1/-1',
-                _rules(s, playerId).calculateCounterAmount(1, isPlusOne: false),
-              );
-            }
-            break;
-          default:
-            throw ArgumentError('Unknown board action');
-        }
-      }
-    },
-  );
+    }
+  }, gameOrigin: gameOrigin);
   Future<void> reorder(
     String playerId,
     String lane,
@@ -597,8 +667,9 @@ class BoardService {
     final p = _player(controller.session, playerId),
         u = _utility(_player(controller.session, playerId), utilityId);
     if (u.kind == 'citys_blessing') return p.citysBlessing;
-    if (u.kind == 'monarch')
+    if (u.kind == 'monarch') {
       return controller.session.monarchPlayerId == playerId;
+    }
     if (u.kind == 'day_night') return controller.session.dayNight == 'day';
     return u.isActive;
   }
@@ -687,7 +758,25 @@ class BoardService {
       if (clearArtwork) {
         u.artworkUrl = null;
       } else if (artworkUrl != null) {
+        _validateArtwork(artworkUrl);
         u.artworkUrl = artworkUrl;
+        final options = List<Map<String, dynamic>>.from(
+          (u.configuration['artworkOptions'] as List? ?? []).map(
+            (a) => Map<String, dynamic>.from(a as Map),
+          ),
+        );
+        if (!options.any((a) => a['url'] == artworkUrl)) {
+          options.add({
+            'url': artworkUrl,
+            'set': 'Custom',
+            'artist':
+                artworkUrl.startsWith('tablet-art:') ||
+                    artworkUrl.startsWith('data:image/')
+                ? 'user uploaded'
+                : '',
+          });
+          u.configuration['artworkOptions'] = options;
+        }
       }
       if (visible != null) u.visible = visible;
       if (configuration != null) u.configuration.addAll(configuration);
@@ -710,8 +799,9 @@ class BoardService {
         } else if (u.kind == 'monarch') {
           if (isActive) {
             s.monarchPlayerId = playerId;
-          } else if (s.monarchPlayerId == playerId)
+          } else if (s.monarchPlayerId == playerId) {
             s.monarchPlayerId = null;
+          }
         } else if (u.kind == 'day_night') {
           s.dayNight = isActive ? 'day' : 'night';
         } else {
@@ -722,6 +812,60 @@ class BoardService {
     groupKey: value == null ? null : 'utility:$id',
     captured: captured,
   );
+
+  /// Relative gestures resolve values inside the serialized writer, so a burst
+  /// of taps cannot repeatedly overwrite the same rendered absolute value.
+  Future<void> adjustUtility(String playerId, String id, int delta) => _commit(
+    playerId,
+    'Adjust utility ${delta >= 0 ? '+' : ''}$delta',
+    (s, p) {
+      final u = _utility(p, id);
+      if (u.kind == 'life_total') {
+        p.life += delta;
+      } else {
+        final key = _boundCounter(u.kind);
+        if (key != null) {
+          final next = max(0, (p.counters[key] ?? 0) + delta);
+          _quantity(next);
+          p.counters[key] = next;
+        } else {
+          final next = max(0, u.value + delta);
+          _quantity(next);
+          u.value = next;
+        }
+      }
+    },
+    groupKey: 'utility:$id:${delta.sign}',
+    delta: delta,
+  );
+  Future<void> toggleUtility(String playerId, String id) =>
+      _commit(playerId, 'Toggle utility', (s, p) {
+        final u = _utility(p, id);
+        if (u.kind == 'citys_blessing') {
+          p.citysBlessing = !p.citysBlessing;
+        } else if (u.kind == 'monarch') {
+          s.monarchPlayerId = s.monarchPlayerId == playerId ? null : playerId;
+        } else if (u.kind == 'day_night') {
+          s.dayNight = s.dayNight == 'day' ? 'night' : 'day';
+        } else {
+          u.isActive = !u.isActive;
+        }
+      });
+  Future<void> reorderVisibleUtilities(String playerId, List<String> ids) =>
+      _commit(playerId, 'Reorder utilities', (s, p) {
+        final visible = p.utilities.where((u) => u.visible).toList();
+        if (ids.length != visible.length ||
+            ids.toSet().length != ids.length ||
+            !visible.every((u) => ids.contains(u.id))) {
+          throw StateError('Utilities changed while dragging. Try again.');
+        }
+        final byId = {for (final u in visible) u.id: u};
+        var i = 0;
+        p.utilities = [
+          for (final u in p.utilities) u.visible ? byId[ids[i++]]! : u,
+        ];
+      });
+
   Future<void> createCustomUtility(
     String playerId, {
     required String name,
@@ -876,7 +1020,7 @@ class BoardService {
             source.amount,
           );
           final index = p.tokens.indexWhere((t) => t.id == source.id);
-          _addResults(p, results, source: source, insertionIndex: index + 1);
+          _addResults(s, p, results, source: source, insertionIndex: index + 1);
         }
         return;
       }
@@ -899,7 +1043,12 @@ class BoardService {
         if (!skip && chosen == null) {
           throw StateError('Choose a token to copy or Skip transformation');
         }
-        _addResults(p, results);
+        if (!skip && (chosen!.amount <= 0 || _emblem(chosen))) {
+          throw StateError(
+            'Choose a nonempty token stack; emblems cannot be copied by Brudiclad.',
+          );
+        }
+        _addResults(s, p, results);
         if (!skip) {
           final target = chosen!;
           final copiedPt = target.type.toLowerCase().contains('creature')
@@ -942,7 +1091,7 @@ class BoardService {
           'No tokens would be created. Adjust this utility’s count first.',
         );
       }
-      _addResults(p, results);
+      _addResults(s, p, results);
     },
     captured: captured,
     expectedRevision: expectedRevision,
@@ -1011,8 +1160,8 @@ class BoardService {
         final name = rule['name']?.toString().trim() ?? '';
         if (name.isEmpty) throw const FormatException('Give this rule a name');
         final count = (rule['count'] as num?)?.toInt() ?? 1;
-        if (count < 1 || count > 20) {
-          throw RangeError('Rule count must be from 1 to 20');
+        if (count < 0 || count > 20) {
+          throw RangeError('Rule count must be from 0 to 20');
         }
         final triggerType = rule['triggerType'] as String? ?? 'any_token';
         if (!{
@@ -1021,16 +1170,20 @@ class BoardService {
           'token_type',
           'color',
           'specific_token',
-        }.contains(triggerType))
+        }.contains(triggerType)) {
           throw const FormatException('Unknown rule trigger');
-        if (triggerType == 'specific_token')
+        }
+        if (triggerType == 'specific_token') {
           _definitionId(rule['targetTokenId'] as String? ?? '');
+        }
         if (triggerType == 'token_type' &&
-            (rule['targetType'] as String? ?? '').trim().isEmpty)
+            (rule['targetType'] as String? ?? '').trim().isEmpty) {
           throw const FormatException('Choose a token type');
+        }
         if (triggerType == 'color' &&
-            !{'W', 'U', 'B', 'R', 'G', 'C'}.contains(rule['targetColor']))
+            !{'W', 'U', 'B', 'R', 'G'}.contains(rule['targetColor'])) {
           throw const FormatException('Choose a token color');
+        }
         final outcomes = rule['outcomes'];
         if (outcomes is! List || outcomes.isEmpty) {
           throw const FormatException('Choose at least one rule outcome');
@@ -1072,6 +1225,25 @@ class BoardService {
         } else {
           source.revision = p.rules[index].revision + 1;
           p.rules[index] = source;
+        }
+      });
+  Future<void> moveRule(String playerId, String sourceId, int offset) =>
+      _commit(playerId, 'Reorder custom rules', (s, p) {
+        final custom = p.rules
+            .where((r) => r.definitionId == 'custom')
+            .toList();
+        final old = custom.indexWhere((r) => r.id == sourceId);
+        if (old < 0) throw StateError('This custom rule no longer exists');
+        final next = (old + offset).clamp(0, custom.length - 1);
+        if (old == next) return;
+        final moved = custom.removeAt(old);
+        custom.insert(next, moved);
+        var i = 0;
+        p.rules = [
+          for (final r in p.rules) r.definitionId == 'custom' ? custom[i++] : r,
+        ];
+        for (final r in custom) {
+          r.revision++;
         }
       });
   Future<void> removeModifier(String playerId, String id) =>

@@ -23,41 +23,91 @@ class UnsupportedTableFormat implements Exception {
 class TableRepository {
   static const boxName = 'tripling_season_tablet_aggregate_v1';
   Box<String>? _box;
+  Box<String>? _backup;
   String? _lastGood;
+  int _sequence = 0;
 
   Future<TableLoadResult> open() async {
     await Hive.initFlutter('tripling_season_tablet');
-    _box = await Hive.openBox<String>(boxName);
-    final current = _box!.get('current');
-    final previous = _box!.get('previous');
-    if (current == null && previous == null) {
+    final boxes = <String, Box<String>>{};
+    final openErrors = <String, Object>{};
+    for (final name in [
+      boxName,
+      '${boxName}_previous',
+      '${boxName}_recovery',
+    ]) {
+      try {
+        boxes[name] = await Hive.openBox<String>(name);
+      } catch (error) {
+        // Never delete/recreate an unreadable Hive container to obtain a clean boot.
+        openErrors[name] = error;
+      }
+    }
+    _backup = boxes['${boxName}_previous'];
+    final main = boxes[boxName];
+    final recovery = boxes['${boxName}_recovery'];
+    final current = <({String encoded, Box<String> box})>[
+      if (main?.get('current') case final String value)
+        (encoded: value, box: main!),
+      if (recovery?.get('current') case final String value)
+        (encoded: value, box: recovery!),
+    ];
+    final previous = <({String encoded, Box<String>? box})>[
+      if (_backup?.get('current') case final String value)
+        (encoded: value, box: _backup),
+      // Read the original same-container backup for first-pass v1 compatibility.
+      if (main?.get('previous') case final String value)
+        (encoded: value, box: main),
+      if (recovery?.get('previous') case final String value)
+        (encoded: value, box: recovery),
+    ];
+    current.sort(
+      (a, b) =>
+          _encodedSequence(b.encoded).compareTo(_encodedSequence(a.encoded)),
+    );
+    previous.sort(
+      (a, b) =>
+          _encodedSequence(b.encoded).compareTo(_encodedSequence(a.encoded)),
+    );
+    if (current.isEmpty && previous.isEmpty && openErrors.isEmpty) {
+      _box = main;
       final state = TabletState.initial();
       await save(state);
       return TableLoadResult(state);
     }
-    Object? currentError;
-    if (current != null) {
+    final failures = <String>[];
+    var recovered = openErrors.isNotEmpty;
+    for (final candidate in current) {
       try {
-        final state = _decode(current);
-        _lastGood = current;
-        return TableLoadResult(state);
+        final state = _decode(candidate.encoded);
+        _box = candidate.box;
+        _lastGood = candidate.encoded;
+        _sequence = _encodedSequence(candidate.encoded);
+        return TableLoadResult(
+          state,
+          recoveryMessage: recovered
+              ? 'The latest storage generation could not be read. A complete saved '
+                    'generation was recovered; the original data has been preserved.'
+              : null,
+        );
       } catch (error) {
         if (error is UnsupportedTableFormat) rethrow;
-        currentError = error;
+        failures.add(error.toString());
+        recovered = true;
+        await _quarantine(candidate.box, candidate.encoded);
       }
     }
-    if (previous != null) {
+    for (final candidate in previous) {
       try {
-        final state = _decode(previous);
-        // Preserve the original damaged/newer-format input for explicit recovery.
-        if (current != null) {
-          await _box!.put(
-            'quarantine_${DateTime.now().microsecondsSinceEpoch}',
-            current,
+        final state = _decode(candidate.encoded);
+        _box = main ?? recovery;
+        if (_box == null) {
+          throw StateError(
+            'The backup is intact but writable storage is unavailable.',
           );
-          await _box!.flush();
         }
-        _lastGood = previous;
+        _lastGood = candidate.encoded;
+        _sequence = _encodedSequence(candidate.encoded);
         return TableLoadResult(
           state,
           recoveryMessage:
@@ -65,16 +115,35 @@ class TableRepository {
               'recovered; the original data has been preserved.',
         );
       } catch (error) {
-        throw StateError(
-          'Neither saved generation could be read. Your data has '
-          'been preserved. Latest: $currentError; previous: $error',
-        );
+        if (error is UnsupportedTableFormat) rethrow;
+        failures.add(error.toString());
       }
     }
     throw StateError(
-      'The saved game could not be read and has been preserved. '
-      '$currentError',
+      'No complete saved generation could be opened. All original '
+      'data has been preserved. ${[...openErrors.values, ...failures].join('; ')}',
     );
+  }
+
+  int _encodedSequence(String encoded) {
+    try {
+      return jsonMap(jsonDecode(encoded))['sequence'] as int? ?? 0;
+    } catch (_) {
+      // Unknown/damaged envelopes must be inspected before a valid older backup.
+      return 0x1fffffffffffff;
+    }
+  }
+
+  Future<void> _quarantine(Box<String> box, String encoded) async {
+    try {
+      await box.put(
+        'quarantine_${DateTime.now().microsecondsSinceEpoch}',
+        encoded,
+      );
+      await box.flush();
+    } catch (_) {
+      // The original unreadable record remains in place if storage cannot write.
+    }
   }
 
   Future<void> save(TabletState state) async {
@@ -85,18 +154,26 @@ class TableRepository {
     final encoded = jsonEncode({
       'format': 'tripling-season-tablet',
       'version': 1,
+      'sequence': _sequence + 1,
       'sha256': sha256.convert(utf8.encode(payload)).toString(),
       'payload': payload,
     });
     final old = _lastGood;
     if (old != null) {
-      await box.put('previous', old);
-      await box.flush();
+      final backup = _backup;
+      if (backup != null) {
+        await backup.put('current', old);
+        await backup.flush();
+      } else {
+        await box.put('previous', old);
+        await box.flush();
+      }
     }
     try {
       await box.put('current', encoded);
       await box.flush();
       _lastGood = encoded;
+      _sequence++;
     } catch (error) {
       // A failed acknowledgement never deliberately replaces the prior game.
       // If rollback itself cannot write, open() still has the preceding generation.
@@ -187,6 +264,11 @@ void validateTabletState(TabletState state) {
     require(
       game.generation > 0 && game.revision >= 0,
       'Invalid game revision.',
+    );
+    require(
+      game.profileUndoProtectedThroughRevision >= 0 &&
+          game.profileUndoProtectedThroughRevision <= game.revision,
+      'Invalid historical appearance boundary.',
     );
     bounded(game.startingLife, 'Starting life');
     unique(game.players.map((value) => value.id), 'Players');

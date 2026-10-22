@@ -37,11 +37,41 @@ behavior, and shared editor/custom input. The integrating track owns the native
 projects, main board, independent lanes, fixed life regions and validation.
 No permanent automated test suite is added, following repository policy.
 
-## Validation at this checkpoint
+## Validation during integration
 
-Platform projects and dependencies are created; source integration is underway.
-No build, simulator, browser, recovery or physical-device acceptance is claimed
-at this checkpoint. The first complete builds and actual UI exercises will be
-recorded here with their failures and repairs. Physical seated/multitouch,
-VoiceOver, native picker, battery/thermal and store purchase gates require
-separate evidence and will not be inferred from a compiler result.
+Initial complete builds passed for web release, Android release APK and iOS
+simulator on Flutter 3.41.2/Dart 3.11.0. Root repository analysis also passed with
+no issues. Final source refinements after those builds require another build.
+
+Actual browser interaction at 1133 × 744 (iPad mini landscape logical size):
+
+- Four complete player spaces, independent token/utility lanes and fixed life
+  regions render. Three rapid opposing life taps changed only Player 1 from 40
+  to 39, grouped as one net -1 action; latest-action undo returned life to 40.
+- Onscreen keyboard keys searched for Goblin. Creation added one Goblin only to
+  Player 1 with appropriate sickness and loaded artwork. The top player's entire
+  editor, results and keyboard render facing the opposite direction.
+- Tapping a background player control through the modal margin dismissed the
+  editor without opening that control. This will be repeated after the final
+  commit-on-exit editor refinement.
+- Keep-board reset 4→2 kept the Goblin at zero, cleared sickness, and preserved
+  life/utility layout. Reset 2→3 accepted top-right as the empty game-tools slot.
+  Restoring the four-player archive returned the count-one Goblin and the prior
+  timeline, and both survived a full browser reload.
+- Adding an own-commander source, recording one damage, and correcting the ledger
+  to zero demonstrated coupled life loss (40→39) and independent correction
+  (life remained 39).
+
+The app also launched successfully on an iPad mini A17 Pro simulator (iOS 26.2).
+Its complete four-player portrait board rendered without clipping. This is
+simulator evidence, not physical seated usability or multitouch validation.
+
+Integration review corrected queued utility increments, bound toggles, split
+status policy, custom-rule order, retryable image/store failures, profile-art
+undo conflicts, and effective token-history summaries. Browser input uncovered
+a hardware-text/focus problem and reset-slot initialization issue; repairs are
+being integrated and must be re-exercised before calling those cases passed.
+
+Physical seated/multitouch, VoiceOver, native picker, interruption/container
+corruption, multi-window writers, battery/thermal and store purchase gates
+remain unverified. No release acceptance or store readiness is claimed.

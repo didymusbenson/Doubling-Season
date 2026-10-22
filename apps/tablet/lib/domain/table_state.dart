@@ -128,6 +128,7 @@ class GameSession {
   String dayNight;
   List<HistoryEntry> history;
   List<String> completedCommandIds;
+  int profileUndoProtectedThroughRevision;
   GameSession({
     required this.id,
     this.generation = 1,
@@ -140,6 +141,7 @@ class GameSession {
     this.dayNight = 'neither',
     List<HistoryEntry>? history,
     List<String>? completedCommandIds,
+    this.profileUndoProtectedThroughRevision = 0,
   }) : startedAt = startedAt ?? DateTime.now().toUtc(),
        commanders = commanders ?? [],
        history = history ?? [],
@@ -161,6 +163,8 @@ class GameSession {
     history: _objects(json['history'], HistoryEntry.fromJson),
     completedCommandIds: (json['completedCommandIds'] as List? ?? [])
         .cast<String>(),
+    profileUndoProtectedThroughRevision:
+        json['profileUndoProtectedThroughRevision'] as int? ?? 0,
   );
   Map<String, dynamic> toJson({bool includeHistory = true}) => {
     'id': id,
@@ -175,6 +179,7 @@ class GameSession {
     if (includeHistory)
       'history': history.map((value) => value.toJson()).toList(),
     'completedCommandIds': completedCommandIds,
+    'profileUndoProtectedThroughRevision': profileUndoProtectedThroughRevision,
   };
   GameSession copy() => GameSession.fromJson(cloneJson(toJson()));
 }
@@ -304,10 +309,11 @@ class TokenState {
   }) : counters = counters ?? {},
        artworkOptions = artworkOptions ?? [],
        extra = extra ?? {};
-  bool get hasPowerToughness => pt.contains('/');
+  bool get hasPowerToughness => pt.trim().isNotEmpty;
   bool get isEmblem =>
       name.toLowerCase().contains('emblem') ||
-      type.toLowerCase().contains('emblem');
+      type.toLowerCase().contains('emblem') ||
+      abilities.toLowerCase().contains('emblem');
   bool get hasHaste =>
       RegExp(r'\bhaste\b', caseSensitive: false).hasMatch(abilities);
   int get untapped => amount - tapped;
@@ -518,6 +524,7 @@ class HistoryCommand {
   int revision;
   int? delta;
   List<HistoryChange> changes;
+  List<TokenQuantityChange> tokenChanges;
   HistoryCommand({
     required this.id,
     required this.label,
@@ -525,7 +532,8 @@ class HistoryCommand {
     required this.revision,
     this.delta,
     required this.changes,
-  });
+    List<TokenQuantityChange>? tokenChanges,
+  }) : tokenChanges = tokenChanges ?? [];
   factory HistoryCommand.fromJson(Map<String, dynamic> json) => HistoryCommand(
     id: json['id'] as String,
     label: json['label'] as String,
@@ -533,6 +541,7 @@ class HistoryCommand {
     revision: json['revision'] as int,
     delta: json['delta'] as int?,
     changes: _objects(json['changes'], HistoryChange.fromJson),
+    tokenChanges: _objects(json['tokenChanges'], TokenQuantityChange.fromJson),
   );
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -541,6 +550,38 @@ class HistoryCommand {
     'revision': revision,
     'delta': delta,
     'changes': changes.map((value) => value.toJson()).toList(),
+    'tokenChanges': tokenChanges.map((value) => value.toJson()).toList(),
+  };
+}
+
+/// Effective results, distinct from the requested amount and from inferred deaths.
+class TokenQuantityChange {
+  final String playerId;
+  final String entityId;
+  final String definitionId;
+  final String name;
+  final int delta;
+  const TokenQuantityChange({
+    required this.playerId,
+    required this.entityId,
+    required this.definitionId,
+    required this.name,
+    required this.delta,
+  });
+  factory TokenQuantityChange.fromJson(Map<String, dynamic> json) =>
+      TokenQuantityChange(
+        playerId: json['playerId'] as String,
+        entityId: json['entityId'] as String,
+        definitionId: json['definitionId'] as String,
+        name: json['name'] as String,
+        delta: json['delta'] as int,
+      );
+  Map<String, dynamic> toJson() => {
+    'playerId': playerId,
+    'entityId': entityId,
+    'definitionId': definitionId,
+    'name': name,
+    'delta': delta,
   };
 }
 
@@ -555,6 +596,7 @@ class HistoryEntry {
   List<String> affectedPlayerIds;
   List<HistoryCommand> commands;
   bool undone;
+  String? undoNote;
   HistoryEntry({
     required this.id,
     required this.label,
@@ -566,10 +608,35 @@ class HistoryEntry {
     required this.affectedPlayerIds,
     required this.commands,
     this.undone = false,
+    this.undoNote,
   });
   int get totalDelta =>
       commands.fold(0, (total, command) => total + (command.delta ?? 0));
+  String get tokenSummary {
+    final totals = <String, int>{};
+    final labels = <String, String>{};
+    for (final command in commands) {
+      for (final change in command.tokenChanges) {
+        final key =
+            '${change.playerId}:${change.entityId}:${change.delta.sign}';
+        totals[key] = (totals[key] ?? 0) + change.delta;
+        labels[key] = change.name;
+      }
+    }
+    return totals.entries
+        .map(
+          (entry) =>
+              '${labels[entry.key]} ${entry.value >= 0 ? '+' : ''}${entry.value}',
+        )
+        .join(' · ');
+  }
+
   String get summary {
+    if ((groupKey?.startsWith('token-add:') == true ||
+            groupKey?.startsWith('token-remove:') == true) &&
+        tokenSummary.isNotEmpty) {
+      return tokenSummary;
+    }
     if (groupKey?.startsWith('life:') == true) {
       final value = totalDelta;
       return 'Life ${value >= 0 ? '+' : ''}$value';
@@ -593,6 +660,7 @@ class HistoryEntry {
     affectedPlayerIds: (json['affectedPlayerIds'] as List).cast<String>(),
     commands: _objects(json['commands'], HistoryCommand.fromJson),
     undone: json['undone'] as bool? ?? false,
+    undoNote: json['undoNote'] as String?,
   );
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -605,6 +673,7 @@ class HistoryEntry {
     'affectedPlayerIds': affectedPlayerIds,
     'commands': commands.map((value) => value.toJson()).toList(),
     'undone': undone,
+    'undoNote': undoNote,
   };
 }
 

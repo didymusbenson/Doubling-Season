@@ -73,10 +73,12 @@ class ScopedRulesCalculator {
     var result = 1;
     for (var i = 0; i < exponent; i++) {
       result = _multiply(result, base);
+      if (result > GameConstants.maxTokenQuantity) return result;
     }
     return result;
   }
 
+  int _remainingEvents = 10000;
   final List<ModifierSource> sources;
   ScopedRulesCalculator(Iterable<ModifierSource> sources)
     : sources = List.unmodifiable(
@@ -341,6 +343,7 @@ class ScopedRulesCalculator {
     int quantity, {
     int forceAcademyManufactorCount = 0,
   }) {
+    _remainingEvents = 10000;
     final rules = _buildEvaluationOrder(
       forceAcademyManufactorCount: forceAcademyManufactorCount,
     );
@@ -388,6 +391,11 @@ class ScopedRulesCalculator {
     int startIndex, {
     String? skipGroupId,
   }) {
+    if (--_remainingEvents < 0) {
+      throw StateError(
+        'These custom rules generate too many separate creation events. Reduce the active rule copies. No tokens were changed.',
+      );
+    }
     final results = <TokenCreationResult>[];
     int currentQuantity = quantity;
 

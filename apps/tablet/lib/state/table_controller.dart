@@ -14,6 +14,7 @@ class TableController extends ChangeNotifier {
   final TableRepository _repository;
   TabletState _state = TabletState.initial();
   Future<void> _tail = Future<void>.value();
+  Future<void>? _initializing;
   int _pending = 0;
   bool _ready = false;
   bool _disposed = false;
@@ -35,8 +36,14 @@ class TableController extends ChangeNotifier {
     orElse: () => throw StateError('That seat does not exist.'),
   );
 
-  Future<void> initialize() async {
-    if (_ready) return;
+  Future<void> initialize() {
+    if (_ready) return Future<void>.value();
+    return _initializing ??= _initialize().whenComplete(
+      () => _initializing = null,
+    );
+  }
+
+  Future<void> _initialize() async {
     _pending++;
     _notify();
     try {
@@ -269,6 +276,7 @@ class TableController extends ChangeNotifier {
       revision: draft.session.revision,
       delta: delta,
       changes: changes,
+      tokenChanges: _tokenQuantityChanges(before.session, draft.session),
     );
     final last = draft.session.history.lastOrNull;
     final canGroup =
@@ -333,6 +341,35 @@ class TableController extends ChangeNotifier {
     return result;
   }
 
+  List<TokenQuantityChange> _tokenQuantityChanges(
+    GameSession before,
+    GameSession after,
+  ) {
+    final result = <TokenQuantityChange>[];
+    for (final player in after.players) {
+      final prior = before.player(player.id);
+      final oldTokens = {for (final token in prior.tokens) token.id: token};
+      final newTokens = {for (final token in player.tokens) token.id: token};
+      for (final id in {...oldTokens.keys, ...newTokens.keys}) {
+        final oldToken = oldTokens[id];
+        final newToken = newTokens[id];
+        final delta = (newToken?.amount ?? 0) - (oldToken?.amount ?? 0);
+        if (delta == 0) continue;
+        final token = newToken ?? oldToken!;
+        result.add(
+          TokenQuantityChange(
+            playerId: player.id,
+            entityId: token.id,
+            definitionId: token.definitionId,
+            name: token.name,
+            delta: delta,
+          ),
+        );
+      }
+    }
+    return result;
+  }
+
   Map<String, dynamic> _historyProjection(
     TabletState state, {
     bool includeProfiles = false,
@@ -340,6 +377,7 @@ class TableController extends ChangeNotifier {
     final game = cloneJson(state.session.toJson(includeHistory: false))
       ..remove('revision')
       ..remove('generation')
+      ..remove('profileUndoProtectedThroughRevision')
       ..remove('completedCommandIds');
     // Epochs invalidate delayed work and must never rewind with gameplay undo.
     for (final player in game['players'] as List) {
@@ -358,8 +396,23 @@ class TableController extends ChangeNotifier {
       throw StateError('There are no actions to undo in this game.');
     }
     final json = cloneJson(_state.toJson());
+    var preservedAppearance = false;
     for (final command in entry.commands.reversed) {
       for (final change in command.changes.reversed) {
+        if (change.path.first == 'profiles') {
+          // Permanent customization is independent of archived game state.
+          // A later profile choice wins over historical preset appearance.
+          if (command.revision <= session.profileUndoProtectedThroughRevision) {
+            preservedAppearance = true;
+            continue;
+          }
+          try {
+            _applyInverse(json, change);
+          } on StateError {
+            preservedAppearance = true;
+          }
+          continue;
+        }
         _applyInverse(json, change);
       }
     }
@@ -370,8 +423,11 @@ class TableController extends ChangeNotifier {
         player.generation = math.max(player.generation, current.generation) + 1;
       }
     }
-    draft.session.history.firstWhere((value) => value.id == entry.id).undone =
-        true;
+    draft.session.history.firstWhere((value) => value.id == entry.id)
+      ..undone = true
+      ..undoNote = preservedAppearance
+          ? 'Game action undone. Current saved player appearance was kept.'
+          : null;
     draft.session.revision = session.revision + 1;
     await _publish(draft);
     _openGroupId = null;
@@ -495,8 +551,11 @@ class TableController extends ChangeNotifier {
         game.player(recipientId).commanderDamage[sourceId] = value,
   );
 
-  String _commanderName(String sourceId) => session.commanders
-      .firstWhereOrNull((value) => value.id == sourceId)?.name ?? 'Commander';
+  String _commanderName(String sourceId) =>
+      session.commanders
+          .firstWhereOrNull((value) => value.id == sourceId)
+          ?.name ??
+      'Commander';
 
   Future<bool> adjustMana(String playerId, String color, int delta) => commit(
     '$color mana ${delta >= 0 ? '+' : ''}$delta',
@@ -576,7 +635,7 @@ class TableController extends ChangeNotifier {
           .map(
             (rule) => rule.copy()
               ..enabled = false
-              ..count = 0,
+              ..count = rule.definitionId == 'custom' ? rule.count : 0,
           )
           .map((rule) => rule.toJson())
           .toList();
@@ -638,7 +697,7 @@ class TableController extends ChangeNotifier {
               (value) => value.copy()
                 ..ownerPlayerId = id
                 ..enabled = false
-                ..count = 0
+                ..count = value.definitionId == 'custom' ? value.count : 0
                 ..revision = value.revision + 1,
             )
             .toList();
@@ -681,6 +740,7 @@ class TableController extends ChangeNotifier {
     final draft = _state.copy();
     _archiveCurrent(draft, 'Before restoring ${selected.label}');
     restored.generation = math.max(session.generation, restored.generation) + 1;
+    restored.profileUndoProtectedThroughRevision = restored.revision;
     draft.session = restored;
     await _publish(draft);
     _openGroupId = null;

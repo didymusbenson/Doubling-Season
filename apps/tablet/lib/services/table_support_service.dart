@@ -23,15 +23,26 @@ class TableSupportService extends ChangeNotifier {
   Future<void>? _initialization;
   int get tier {
     for (var i = productIds.length - 1; i >= 0; i--) {
-      if (productIds[i].isNotEmpty && owned.contains(productIds[i]))
+      if (productIds[i].isNotEmpty && owned.contains(productIds[i])) {
         return i + 1;
+      }
     }
     return 0;
   }
 
-  Future<void> initialize() => _initialization ??= _initialize();
+  Future<void> initialize() {
+    if (_initialization != null) return _initialization!;
+    if (available && products.length == productIds.length) {
+      return Future<void>.value();
+    }
+    return _initialization = _initialize().whenComplete(() {
+      _initialization = null;
+    });
+  }
+
   Future<void> _initialize() async {
     loading = true;
+    message = null;
     notifyListeners();
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -120,8 +131,9 @@ class TableSupportService extends ChangeNotifier {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setStringList('tablet_support_owned_v1', owned.toList());
           message = 'Thank you for supporting Tripling Table.';
-          if (purchase.pendingCompletePurchase)
+          if (purchase.pendingCompletePurchase) {
             await InAppPurchase.instance.completePurchase(purchase);
+          }
         } catch (_) {
           message =
               'Your purchase was received, but its badge could not be saved. Use Restore purchases to retry.';

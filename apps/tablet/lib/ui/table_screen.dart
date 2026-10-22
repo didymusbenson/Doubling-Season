@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:doubling_season/utils/color_utils.dart';
 import '../domain/table_state.dart';
 import '../state/table_controller.dart';
 import '../services/tablet_catalog.dart';
+import '../services/table_support_service.dart';
 import '../features/board_service.dart';
 import 'workspace/table_workspace.dart';
 import 'table_artwork.dart';
@@ -56,11 +56,12 @@ class _TableScreenState extends State<TableScreen> {
       initialPage: page,
       itemId: itemId,
     );
-    if (mounted)
+    if (mounted) {
       setState(() {
         modalOpen = false;
         interactionEpoch++;
       });
+    }
   }
 
   Future<void> hideUtility(
@@ -110,11 +111,12 @@ class _TableScreenState extends State<TableScreen> {
         playerId: player.id,
       );
     }
-    if (mounted)
+    if (mounted) {
       setState(() {
         modalOpen = false;
         interactionEpoch++;
       });
+    }
   }
 
   @override
@@ -265,9 +267,30 @@ class _GameStrip extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12),
-            child: Icon(Icons.spa_outlined, size: 22),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: ListenableBuilder(
+              listenable: TableSupportService.instance,
+              builder: (context, _) {
+                final support = TableSupportService.instance;
+                return Icon(
+                  support.tier == 0 ? Icons.spa_outlined : Icons.favorite,
+                  size: 22,
+                  semanticLabel: support.tier == 0
+                      ? 'Tripling Table'
+                      : '${TableSupportService.tierNames[support.tier - 1]} supporter',
+                  color: support.tier == 0
+                      ? null
+                      : Color(
+                          support.tier == 1
+                              ? 0xffdf7474
+                              : support.tier == 2
+                              ? 0xff83b7ce
+                              : support.heartColor,
+                        ),
+                );
+              },
+            ),
           ),
           if (MediaQuery.sizeOf(context).width > 900)
             const Text(
@@ -432,8 +455,9 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
       await action();
       if (mounted && error != null) setState(() => error = null);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() => error = e.toString().replaceFirst('Bad state: ', ''));
+      }
     }
   }
 
@@ -502,11 +526,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
                                 widget.board.changeQuantity(p.id, t.id, delta),
                           ),
                           onTapToken: () => perform(
-                            () => widget.board.editToken(
-                              p.id,
-                              t.id,
-                              tapped: t.tapped == t.amount ? 0 : t.amount,
-                            ),
+                            () => widget.board.toggleAllTapped(p.id, t.id),
                           ),
                           onReady: () => perform(
                             () => widget.board.editToken(
@@ -563,19 +583,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
                       final ids = visible.map((u) => u.id).toList();
                       if (next > old) next--;
                       ids.insert(next, ids.removeAt(old));
-                      await widget.controller.updateState('Reorder utilities', (
-                        state,
-                      ) {
-                        final target = state.session.player(p.id);
-                        final byId = {
-                          for (final u in target.utilities) u.id: u,
-                        };
-                        final available = ids
-                            .where(byId.containsKey)
-                            .map((id) => byId.remove(id)!)
-                            .toList();
-                        target.utilities = [...available, ...byId.values];
-                      });
+                      await widget.board.reorderVisibleUtilities(p.id, ids);
                     }),
                     proxyDecorator: (child, index, animation) =>
                         Material(elevation: 5, child: child),
@@ -595,18 +603,10 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
                           onOpen: () =>
                               widget.onOpen(WorkspacePage.utilities, u.id),
                           onChange: (delta) => perform(
-                            () => widget.board.setUtility(
-                              p.id,
-                              u.id,
-                              value: math.max(0, u.value + delta),
-                            ),
+                            () => widget.board.adjustUtility(p.id, u.id, delta),
                           ),
                           onToggle: () => perform(
-                            () => widget.board.setUtility(
-                              p.id,
-                              u.id,
-                              isActive: !u.isActive,
-                            ),
+                            () => widget.board.toggleUtility(p.id, u.id),
                           ),
                           onMana: (mana, delta) => perform(
                             () =>
@@ -1244,10 +1244,14 @@ class _UtilityRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mana = utility.kind == 'mana_pool' || utility.kind == 'mana';
+    final step = (utility.configuration['tapIncrement'] as num?)?.toInt() ?? 1;
+    final actionOnly = utility.configuration['actionOnly'] == true;
     final toggle =
         utility.configuration['isToggle'] == true ||
+        utility.configuration['type'] == 'toggle' ||
         utility.kind == 'citys_blessing' ||
         [
+          'monarch',
           'the_monarch',
           'day_night',
           'the_initiative',
@@ -1376,20 +1380,20 @@ class _UtilityRow extends StatelessWidget {
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text(
-                          utility.isActive ? 'Active' : 'Inactive',
+                          board.utilityActive(player.id, utility.id)
+                              ? 'Active'
+                              : 'Inactive',
                           style: TextStyle(color: color, fontSize: 13),
                         ),
-                        value: utility.kind == 'citys_blessing'
-                            ? player.citysBlessing
-                            : utility.isActive,
-                        onChanged: (_) => onToggle,
+                        value: board.utilityActive(player.id, utility.id),
+                        onChanged: (_) => onToggle(),
                       )
-                    else
+                    else if (!actionOnly)
                       Row(
                         children: [
                           IconButton(
                             tooltip: 'Decrease ${utility.name}',
-                            onPressed: () => onChange(-1),
+                            onPressed: () => onChange(-step),
                             icon: Icon(Icons.remove, color: color),
                           ),
                           Expanded(
@@ -1407,7 +1411,7 @@ class _UtilityRow extends StatelessWidget {
                           ),
                           IconButton(
                             tooltip: 'Increase ${utility.name}',
-                            onPressed: () => onChange(1),
+                            onPressed: () => onChange(step),
                             icon: Icon(Icons.add, color: color),
                           ),
                         ],
@@ -1554,6 +1558,7 @@ class _HoldControlState extends State<_HoldControl>
   Widget build(BuildContext context) => Semantics(
     label: widget.label,
     button: true,
+    excludeSemantics: true,
     onTap: widget.onTap,
     child: GestureDetector(
       onLongPressStart: (_) {
