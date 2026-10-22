@@ -165,16 +165,70 @@ void main() {
           );
           final stripBounds = bounds(tester, strip);
           expect(
-            stripBounds.overlaps(bounds(tester, divider)),
-            isFalse,
-            reason: 'Shared controls must preserve the full player divider.',
+            stripBounds.center.dx,
+            closeTo(size.width / 2, .01),
+            reason:
+                'Game controls must be centered in global table coordinates.',
           );
+          expect(
+            stripBounds.center.dy,
+            closeTo(bounds(tester, divider).center.dy, .01),
+            reason:
+                'Game controls must straddle the center seam, not sit in bottom seats.',
+          );
+          final tableBounds = bounds(
+            tester,
+            find.byKey(const ValueKey('table-surface')),
+          );
+          expect(stripBounds.center, tableBounds.center);
+          if (seats != 2) {
+            final shell = tester.widget<Container>(
+              find
+                  .descendant(of: strip, matching: find.byType(Container))
+                  .first,
+            );
+            final border =
+                (shell.decoration! as BoxDecoration).border! as Border;
+            expect(border.top.width, 3);
+            expect(border.bottom.width, 3);
+            expect(
+              bounds(
+                tester,
+                find.byKey(const ValueKey('game-strip-player-divider')),
+              ).center.dx,
+              tableBounds.center.dx,
+            );
+          }
           final tableHeight = size.height - 44;
           for (final player in fixture.controller.session.players) {
             final name = fixture.controller.profile(player.seatId).name;
+            final life = find.descendant(
+              of: find.byKey(ValueKey(player.id)),
+              matching: find.byWidgetPredicate(
+                (w) => w.runtimeType.toString() == '_LifePanel',
+              ),
+            );
+            expect(
+              bounds(tester, life).overlaps(stripBounds),
+              isFalse,
+              reason:
+                  'Life ${bounds(tester, life)} vs controls $stripBounds must reserve space.',
+            );
             final lane = find.byKey(ValueKey('${player.id}-token-lane'));
             final fab = find.byKey(ValueKey('${player.id}-add-token'));
             final laneSize = tester.getSize(lane);
+            final firstName = find.descendant(
+              of: lane,
+              matching: find.text('Saproling 1'),
+            );
+            expect(firstName.hitTestable(), findsOneWidget);
+            final nameBounds = bounds(tester, firstName);
+            final laneBounds = bounds(tester, lane);
+            expect(
+              nameBounds.left,
+              greaterThanOrEqualTo(laneBounds.left - .01),
+            );
+            expect(nameBounds.right, lessThanOrEqualTo(laneBounds.right + .01));
             final localFab = bounds(tester, fab, within: lane);
             expect(fab.hitTestable(), findsOneWidget);
             expect(localFab.right, closeTo(laneSize.width - 12, .01));
@@ -219,14 +273,21 @@ void main() {
               );
             }
           }
-          for (final label in [
-            'History',
-            'Dice',
-            'Day / night',
-            'Reset',
-            'Table',
-          ]) {
-            expect(find.byTooltip(label).hitTestable(), findsOneWidget);
+          if (seats == 2) {
+            expect(
+              find.byTooltip('Game controls').hitTestable(),
+              findsOneWidget,
+            );
+          } else {
+            for (final label in [
+              'History',
+              'Dice',
+              'Day / night',
+              'Reset',
+              'Table',
+            ]) {
+              expect(find.byTooltip(label).hitTestable(), findsOneWidget);
+            }
           }
           expect(tester.takeException(), isNull);
           await capture(
@@ -236,6 +297,101 @@ void main() {
         },
       );
     }
+  }
+
+  for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
+    for (final seats in [2, 3, 4]) {
+      testWidgets(
+        '$seats seats at $size center game controls in the physical view when safe insets are zero',
+        (tester) async {
+          await showTable(tester, size, tableFor(seats));
+          tester.view.padding = const FakeViewPadding();
+          await tester.pumpAndSettle();
+          final strip = find.byWidgetPredicate(
+            (w) => w.runtimeType.toString() == '_GameStrip',
+          );
+          expect(bounds(tester, strip).center.dx, closeTo(size.width / 2, .01));
+          expect(
+            bounds(tester, strip).center.dy,
+            closeTo(size.height / 2, .01),
+          );
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+  testWidgets(
+    'direct life change shows a readable delta beside the seat name',
+    (tester) async {
+      final fixture = await showTable(
+        tester,
+        const Size(1133, 744),
+        tableFor(4),
+      );
+      final id = fixture.playerId;
+      await tester.tap(find.byKey(ValueKey('$id-life-decrease')));
+      await tester.tap(find.byKey(ValueKey('$id-life-decrease')));
+      await tester.pumpAndSettle();
+      expect(fixture.player.life, 38);
+      expect(
+        find.descendant(
+          of: find.byKey(ValueKey('$id-life-delta')),
+          matching: find.text('-2'),
+        ),
+        findsOneWidget,
+      );
+      await capture(tester, '4p-direct-life-running-delta');
+    },
+  );
+
+  for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
+    for (var empty = 0; empty < 4; empty++) {
+      testWidgets(
+        '3p empty slot $empty at $size retains clear direct shared controls',
+        (tester) async {
+          final state = tableFor(4);
+          state.session.players.removeWhere((p) => p.slot == empty);
+          await showTable(tester, size, state);
+          final strip = find.byWidgetPredicate(
+            (w) => w.runtimeType.toString() == '_GameStrip',
+          );
+          final table = find.byKey(const ValueKey('table-surface'));
+          expect(bounds(tester, strip).center, bounds(tester, table).center);
+          for (final label in [
+            'Roll dice',
+            'History & undo',
+            'Reset / reload',
+          ]) {
+            final button = find.widgetWithText(OutlinedButton, label);
+            expect(button.hitTestable(), findsOneWidget);
+            expect(
+              bounds(tester, button).overlaps(bounds(tester, strip)),
+              isFalse,
+            );
+          }
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+    testWidgets(
+      '2p centered hub at $size keeps every game action available without changing either player',
+      (tester) async {
+        final fixture = await showTable(tester, size, tableFor(2));
+        final before = fixture.controller.session.toJson();
+        await tester.tap(find.byTooltip('Game controls'));
+        await tester.pumpAndSettle();
+        for (final label in ['History', 'Reset', 'Dice', 'Settings']) {
+          expect(
+            find.widgetWithText(ChoiceChip, label).hitTestable(),
+            findsOneWidget,
+          );
+        }
+        await tester.tapAt(const Offset(2, 30));
+        await tester.pumpAndSettle();
+        expect(fixture.controller.session.toJson(), before);
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
   for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
@@ -530,7 +686,8 @@ void main() {
           '$recipientName, increase damage from ${source.name} (${identity.name})',
         );
         expect(add.hitTestable(), findsOneWidget);
-        expect(tester.getSize(add), const Size(44, 44));
+        expect(tester.getSize(add).width, greaterThanOrEqualTo(44));
+        expect(tester.getSize(add).height, greaterThanOrEqualTo(44));
         expect(
           bounds(tester, chip).left,
           greaterThanOrEqualTo(bounds(tester, row).left - .01),

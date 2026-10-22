@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:doubling_season/widgets/mana/mana_icons.dart';
 import 'package:tripling_table/ui/tablet_token_card.dart';
 import 'package:tripling_table/ui/workspace/player_keyboard.dart';
+import 'package:tripling_table/ui/workspace/table_workspace.dart';
 
 import 'support/table_fixture.dart';
 
@@ -13,6 +14,8 @@ void main() {
     bool expanded = false,
     double width = 290,
     VoidCallback? onExpand,
+    ValueChanged<WorkspacePage>? onOpenDetailed,
+    int quarterTurns = 0,
   }) async {
     await tester.binding.setSurfaceSize(const Size(1133, 744));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -28,19 +31,22 @@ void main() {
               child: StatefulBuilder(
                 builder: (context, setState) => ListenableBuilder(
                   listenable: fixture.controller,
-                  builder: (context, _) => TabletTokenCard(
-                    token: fixture.token('source'),
-                    player: fixture.player,
-                    board: fixture.board,
-                    playerName: 'Player 1',
-                    quarterTurns: 0,
-                    expanded: currentExpanded,
-                    onExpand: () {
-                      onExpand?.call();
-                      setState(() => currentExpanded = !currentExpanded);
-                    },
-                    onOpenDetailed: (_) {},
-                    onInputLock: (_) {},
+                  builder: (context, _) => RotatedBox(
+                    quarterTurns: quarterTurns,
+                    child: TabletTokenCard(
+                      token: fixture.token('source'),
+                      player: fixture.player,
+                      board: fixture.board,
+                      playerName: 'Player 1',
+                      quarterTurns: quarterTurns,
+                      expanded: currentExpanded,
+                      onExpand: () {
+                        onExpand?.call();
+                        setState(() => currentExpanded = !currentExpanded);
+                      },
+                      onOpenDetailed: onOpenDetailed ?? (_) {},
+                      onInputLock: (_) {},
+                    ),
                   ),
                 ),
               ),
@@ -99,7 +105,12 @@ void main() {
         '888888 tapped',
         '777777 summoning sick',
       ]) {
-        final status = find.bySemanticsLabel(RegExp(RegExp.escape(label)));
+        final status = find.descendant(
+          of: find.byTooltip(
+            'Player 1, A very long creature token name with many words, edit total, tapped and summoning sickness',
+          ),
+          matching: find.bySemanticsLabel(RegExp(RegExp.escape(label))),
+        );
         expect(status, findsOneWidget);
         expect(tester.getRect(status).right, lessThanOrEqualTo(220));
       }
@@ -214,6 +225,127 @@ void main() {
       expect(fixture.controller.session.players[1].toJson(), otherPlayer);
       expect(expansions, 0);
       expect(find.byType(SnackBar), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final platform in [
+    TargetPlatform.android,
+    TargetPlatform.iOS,
+    TargetPlatform.macOS,
+  ]) {
+    for (final turns in [0, 2]) {
+      for (final expanded in [false, true]) {
+        testWidgets(
+          'token quantity full halves preserve local direction and distinct actions ($platform, $turns, expanded $expanded)',
+          (tester) async {
+            final fixture = TableFixture(
+              stateWithTokens([sampleToken(amount: 20, tapped: 0, sick: 0)]),
+            );
+            var expansions = 0;
+            WorkspacePage? opened;
+            await showCard(
+              tester,
+              fixture,
+              expanded: expanded,
+              quarterTurns: turns,
+              onExpand: () => expansions++,
+              onOpenDetailed: (page) => opened = page,
+            );
+            final otherSeat = fixture.controller.session.players[1].toJson();
+            final row = find.byKey(const ValueKey('source-quantity-stepper'));
+            final decrease = find.byKey(
+              const ValueKey('source-quantity-decrease'),
+            );
+            final increase = find.byKey(
+              const ValueKey('source-quantity-increase'),
+            );
+            expect(tester.getSize(row).width, closeTo(290 - 18, .01));
+            expect(
+              tester.getSize(decrease).width,
+              closeTo(tester.getSize(row).width / 2, .01),
+            );
+            expect(
+              tester.getSize(increase).width,
+              closeTo(tester.getSize(row).width / 2, .01),
+            );
+            expect(tester.getSize(decrease).height, greaterThanOrEqualTo(44));
+            for (final target in [decrease, increase]) {
+              final delta = target == decrease ? -1 : 1;
+              final size = tester.getSize(target);
+              for (final point in [
+                const Offset(2, 2),
+                Offset(size.width / 2, size.height / 2),
+                Offset(size.width - 2, size.height - 2),
+              ]) {
+                final before = fixture.token('source').amount;
+                final box = tester.renderObject<RenderBox>(target);
+                await tester.tapAt(box.localToGlobal(point));
+                await tester.pumpAndSettle();
+                expect(fixture.token('source').amount, before + delta);
+              }
+            }
+            expect(fixture.token('source').amount, 20);
+            expect(expansions, 0);
+            expect(opened, isNull);
+            await tester.tap(find.byTooltip('Tap one; hold to tap all'));
+            await tester.pumpAndSettle();
+            expect(fixture.token('source').tapped, 1);
+            expect(fixture.token('source').amount, 20);
+            await tester.tap(
+              find.byTooltip(
+                'Player 1, Saproling, edit total, tapped and summoning sickness',
+              ),
+            );
+            await tester.pumpAndSettle();
+            expect(opened, WorkspacePage.tokenStatus);
+            expect(fixture.token('source').amount, 20);
+            expect(expansions, 0);
+            expect(fixture.controller.session.players[1].toJson(), otherSeat);
+            expect(tester.takeException(), isNull);
+          },
+          variant: TargetPlatformVariant({platform}),
+        );
+      }
+    }
+  }
+
+  testWidgets(
+    'token quantity holds remain one-shot and zero taps do not expand',
+    (tester) async {
+      final fixture = TableFixture(
+        stateWithTokens([sampleToken(amount: 3, tapped: 0, sick: 0)]),
+      );
+      var expansions = 0;
+      await showCard(tester, fixture, onExpand: () => expansions++);
+      final increase = find.byKey(const ValueKey('source-quantity-increase'));
+      final decrease = find.byKey(const ValueKey('source-quantity-decrease'));
+      final addBox = tester.renderObject<RenderBox>(increase);
+      final addGesture = await tester.startGesture(
+        addBox.localToGlobal(const Offset(4, 4)),
+      );
+      await tester.pump(const Duration(seconds: 2));
+      await addGesture.up();
+      await tester.pumpAndSettle();
+      expect(fixture.token('source').amount, 13);
+      final removeBox = tester.renderObject<RenderBox>(decrease);
+      final removeGesture = await tester.startGesture(
+        removeBox.localToGlobal(const Offset(4, 4)),
+      );
+      await tester.pump(const Duration(seconds: 2));
+      await removeGesture.up();
+      await tester.pumpAndSettle();
+      expect(fixture.token('source').amount, 0);
+      final historyAtZero = fixture.controller.session.history.length;
+      await tester.tapAt(
+        tester
+            .renderObject<RenderBox>(decrease)
+            .localToGlobal(const Offset(4, 4)),
+      );
+      await tester.pumpAndSettle();
+      expect(fixture.token('source').amount, 0);
+      expect(fixture.controller.session.history.length, historyAtZero);
+      expect(expansions, 0);
       expect(tester.takeException(), isNull);
     },
   );

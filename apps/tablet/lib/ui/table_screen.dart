@@ -9,6 +9,7 @@ import '../features/board_service.dart';
 import 'workspace/table_workspace.dart';
 import 'table_artwork.dart';
 import 'tablet_token_card.dart';
+import 'half_stepper.dart';
 
 /// The table is composed in seat-local coordinates, then oriented toward each
 /// player. Tokens remain on the physical outer edge in the four-slot layout.
@@ -178,11 +179,9 @@ class _TableScreenState extends State<TableScreen> {
                   player: player,
                   turns: turns,
                   tokenLeft: tokenLeft,
-                  gameInset: two
-                      ? (controller.session.players.indexOf(player) == 0
-                            ? 40
-                            : 0)
-                      : (player.slot == 0 || player.slot == 3 ? 40 : 0),
+                  gameInset: two ? 0 : 24.5,
+                  centerHubGutter: two ? 56 : 0,
+                  tokenWidth: two ? (constraints.maxWidth - 56) / 2 : null,
                   interactionEpoch: interactionEpoch,
                   onInputLock: setInputLock,
                   onOpen: (page, [itemId]) =>
@@ -252,6 +251,7 @@ class _TableScreenState extends State<TableScreen> {
                           ],
                         );
                         return Stack(
+                          key: const ValueKey('table-surface'),
                           children: [
                             Positioned.fill(
                               child: Column(
@@ -279,11 +279,14 @@ class _TableScreenState extends State<TableScreen> {
                             ),
                             Positioned(
                               left: two
-                                  ? table.maxWidth * 11 / 21
+                                  ? (table.maxWidth - 52) / 2
                                   : table.maxWidth * 11 / 42,
-                              right: two ? 0 : table.maxWidth * 11 / 42,
-                              top: table.maxHeight / 2 + 1.5,
+                              right: two
+                                  ? (table.maxWidth - 52) / 2
+                                  : table.maxWidth * 11 / 42,
+                              top: (table.maxHeight - (two ? 44 : 50)) / 2,
                               child: _GameStrip(
+                                compact: two,
                                 divided: !two,
                                 controller: controller,
                                 onOpen: (page) => open(page),
@@ -307,14 +310,41 @@ class _TableScreenState extends State<TableScreen> {
 class _GameStrip extends StatelessWidget {
   final TableController controller;
   final ValueChanged<WorkspacePage> onOpen;
-  final bool divided;
+  final bool divided, compact;
   const _GameStrip({
     required this.controller,
     required this.onOpen,
     required this.divided,
+    this.compact = false,
   });
   @override
   Widget build(BuildContext context) {
+    if (compact) {
+      return Material(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(
+            color: Theme.of(context).colorScheme.outline,
+            width: 3,
+          ),
+        ),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        clipBehavior: Clip.antiAlias,
+        child: Semantics(
+          label: controller.busy ? 'Saving game' : 'Game saved',
+          child: IconButton(
+            tooltip: 'Game controls',
+            onPressed: () => onOpen(WorkspacePage.settings),
+            icon: const Icon(Icons.tune),
+            style: IconButton.styleFrom(
+              minimumSize: const Size(52, 44),
+              maximumSize: const Size(52, 44),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+        ),
+      );
+    }
     final left = <Widget>[
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -388,8 +418,16 @@ class _GameStrip extends StatelessWidget {
     ];
     return Material(
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: SizedBox(
-        height: 40,
+      child: Container(
+        height: 50,
+        decoration: BoxDecoration(
+          border: Border.symmetric(
+            horizontal: BorderSide(
+              color: Theme.of(context).colorScheme.outline,
+              width: 3,
+            ),
+          ),
+        ),
         child: Row(
           children: divided
               ? [
@@ -397,7 +435,7 @@ class _GameStrip extends StatelessWidget {
                   SizedBox(
                     key: const ValueKey('game-strip-player-divider'),
                     width: 3,
-                    height: 40,
+                    height: 44,
                     child: ColoredBox(
                       color: Theme.of(context).colorScheme.outline,
                     ),
@@ -427,7 +465,7 @@ class _StripButton extends StatelessWidget {
     icon: Icon(icon, size: 20),
     style: IconButton.styleFrom(
       foregroundColor: Theme.of(context).colorScheme.onSurface,
-      minimumSize: const Size(44, 40),
+      minimumSize: const Size(44, 44),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       padding: const EdgeInsets.symmetric(horizontal: 4),
     ),
@@ -493,7 +531,8 @@ class _PlayerSpace extends StatefulWidget {
   final PlayerState player;
   final int turns, interactionEpoch;
   final bool tokenLeft;
-  final double gameInset;
+  final double gameInset, centerHubGutter;
+  final double? tokenWidth;
   final void Function(WorkspacePage, [String?]) onOpen;
   final ValueChanged<UtilityState> onHide;
   final ValueChanged<bool> onInputLock;
@@ -505,6 +544,8 @@ class _PlayerSpace extends StatefulWidget {
     required this.turns,
     required this.tokenLeft,
     required this.gameInset,
+    this.centerHubGutter = 0,
+    this.tokenWidth,
     required this.interactionEpoch,
     required this.onOpen,
     required this.onHide,
@@ -779,9 +820,19 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (widget.tokenLeft) Expanded(flex: 11, child: tokenLane),
+                  if (widget.tokenLeft)
+                    if (widget.centerHubGutter > 0)
+                      SizedBox(width: widget.tokenWidth!, child: tokenLane)
+                    else
+                      Expanded(flex: 11, child: tokenLane),
                   if (widget.tokenLeft) const VerticalDivider(width: 1),
-                  Expanded(flex: 10, child: innerLane),
+                  Expanded(
+                    flex: 10,
+                    child: Padding(
+                      padding: EdgeInsets.only(left: widget.centerHubGutter),
+                      child: innerLane,
+                    ),
+                  ),
                   if (!widget.tokenLeft) const VerticalDivider(width: 1),
                   if (!widget.tokenLeft) Expanded(flex: 11, child: tokenLane),
                 ],
@@ -921,6 +972,16 @@ class _LifePanel extends StatelessWidget {
                     ),
                   ),
                 ),
+                _LifeDelta(
+                  key: ValueKey('${player.id}-life-delta'),
+                  entry:
+                      controller.session.history.isNotEmpty &&
+                          !controller.session.history.last.undone &&
+                          controller.session.history.last.groupKey ==
+                              'life:${player.id}'
+                      ? controller.session.history.last
+                      : null,
+                ),
                 if (player.warnings.isNotEmpty)
                   Tooltip(
                     message: player.warnings.join('\n'),
@@ -933,49 +994,29 @@ class _LifePanel extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(
+          HalfStepper(
+            label: '${profile.name}, life',
+            value: '${player.life}',
             height: 48,
-            child: Row(
-              children: [
-                _HoldControl(
-                  epoch: epoch,
-                  label: '${profile.name}, decrease life by one',
-                  icon: Icons.remove,
-                  onTap: () => onChange(-1),
-                  onRepeat: () => onChange(-5),
-                ),
-                Expanded(
-                  child: Semantics(
-                    label: '${profile.name}, life ${player.life}',
-                    button: true,
-                    child: InkWell(
-                      onTap: () => onOpen(WorkspacePage.player),
-                      child: Center(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            '${player.life}',
-                            style: TextStyle(
-                              fontSize: 48,
-                              fontWeight: FontWeight.w300,
-                              height: 1,
-                              color: artColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                _HoldControl(
-                  epoch: epoch,
-                  label: '${profile.name}, increase life by one',
-                  icon: Icons.add,
-                  onTap: () => onChange(1),
-                  onRepeat: () => onChange(5),
-                ),
-              ],
+            decreaseKey: ValueKey('${player.id}-life-decrease'),
+            increaseKey: ValueKey('${player.id}-life-increase'),
+            decreaseLabel: '${profile.name}, decrease life by one',
+            increaseLabel: '${profile.name}, increase life by one',
+            onDecrease: () => onChange(-1),
+            onIncrease: () => onChange(1),
+            onDecreaseHold: () => onChange(-5),
+            onIncreaseHold: () => onChange(5),
+            interactionEpoch: epoch,
+            foregroundColor: artColor,
+            valueStyle: TextStyle(
+              fontSize: 48,
+              fontWeight: FontWeight.w300,
+              height: 1,
+              color: artColor,
             ),
+            onEdit: () => onOpen(WorkspacePage.player),
+            editKey: ValueKey('${player.id}-player-details'),
+            editLabel: '${profile.name}, player details',
           ),
           if (compactCommanders != null)
             SizedBox(
@@ -1081,18 +1122,6 @@ class _CommanderChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = Color(owner.color);
     if (compact) {
-      Widget adjust(int delta) => IconButton(
-        tooltip:
-            '$recipient, ${delta < 0 ? 'decrease' : 'increase'} damage from ${source.name} (${owner.name})',
-        onPressed: delta < 0 && value == 0 ? null : () => onChange(delta),
-        icon: Icon(delta < 0 ? Icons.remove : Icons.add, size: 18),
-        style: IconButton.styleFrom(
-          minimumSize: const Size(44, 44),
-          maximumSize: const Size(44, 44),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          padding: EdgeInsets.zero,
-        ),
-      );
       return Container(
         width: 140,
         clipBehavior: Clip.antiAlias,
@@ -1107,52 +1136,46 @@ class _CommanderChip extends StatelessWidget {
             color.withValues(alpha: .24),
             Theme.of(context).colorScheme.surface,
           ),
-          child: Row(
-            children: [
-              adjust(-1),
-              Expanded(
-                child: Tooltip(
-                  message: '${source.name} · ${owner.name}',
-                  child: InkWell(
-                    onTap: onOpen,
-                    child: Semantics(
-                      button: true,
-                      label:
-                          '$recipient, $value damage from ${source.name}, owned by ${owner.name}',
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            source.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: owner.artworkUrl == null
-                                  ? color
-                                  : Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              '$value',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                height: 1,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
+          child: HalfStepper(
+            label: '$recipient, damage from ${source.name} (${owner.name})',
+            value: '$value',
+            height: 44,
+            decreaseLabel:
+                '$recipient, decrease damage from ${source.name} (${owner.name})',
+            increaseLabel:
+                '$recipient, increase damage from ${source.name} (${owner.name})',
+            onDecrease: value == 0 ? null : () => onChange(-1),
+            onIncrease: () => onChange(1),
+            onEdit: onOpen,
+            editLabel: 'Edit ${source.name} damage (${owner.name})',
+            foregroundColor: owner.artworkUrl == null ? color : Colors.white,
+            valueWidget: SizedBox(
+              width: 40,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    source.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  FittedBox(
+                    child: Text(
+                      '$value',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        height: 1,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
-              adjust(1),
-            ],
+            ),
           ),
         ),
       );
@@ -1186,50 +1209,21 @@ class _CommanderChip extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: Row(
-                children: [
-                  IconButton(
-                    tooltip:
-                        '$recipient, decrease damage from ${source.name} (${owner.name})',
-                    onPressed: value == 0 ? null : () => onChange(-1),
-                    icon: const Icon(Icons.remove, size: 18),
-                    constraints: const BoxConstraints(
-                      minWidth: 44,
-                      minHeight: 44,
-                    ),
-                    padding: EdgeInsets.zero,
-                  ),
-                  Expanded(
-                    child: InkWell(
-                      onTap: onOpen,
-                      child: Semantics(
-                        button: true,
-                        label:
-                            '$recipient, $value damage from ${source.name}, owned by ${owner.name}',
-                        child: Center(
-                          child: Text(
-                            '$value',
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip:
-                        '$recipient, increase damage from ${source.name} (${owner.name})',
-                    onPressed: () => onChange(1),
-                    icon: const Icon(Icons.add, size: 18),
-                    constraints: const BoxConstraints(
-                      minWidth: 44,
-                      minHeight: 44,
-                    ),
-                    padding: EdgeInsets.zero,
-                  ),
-                ],
+              child: HalfStepper(
+                label: '$recipient, damage from ${source.name} (${owner.name})',
+                value: '$value',
+                decreaseLabel:
+                    '$recipient, decrease damage from ${source.name} (${owner.name})',
+                increaseLabel:
+                    '$recipient, increase damage from ${source.name} (${owner.name})',
+                onDecrease: value == 0 ? null : () => onChange(-1),
+                onIncrease: () => onChange(1),
+                onEdit: onOpen,
+                editLabel: 'Edit ${source.name} damage (${owner.name})',
+                valueStyle: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -1427,42 +1421,26 @@ class _UtilityRow extends StatelessWidget {
                                 ),
                                 onChanged: (_) => onToggle(),
                               )
-                            else if (!actionOnly) ...[
-                              icon(
-                                Icons.remove,
-                                'Decrease ${utility.name}',
-                                () => onChange(-step),
-                              ),
-                              Semantics(
-                                label:
-                                    '${utility.name}, ${board.utilityValue(player.id, utility.id)}, set value',
-                                button: true,
-                                child: InkWell(
-                                  onTap: onOpen,
-                                  child: SizedBox(
-                                    width: 36,
-                                    height: 44,
-                                    child: Center(
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        child: Text(
-                                          '${board.utilityValue(player.id, utility.id)}',
-                                          style: const TextStyle(
-                                            fontSize: 24,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
+                            else if (!actionOnly)
+                              Expanded(
+                                flex: 2,
+                                child: HalfStepper(
+                                  label: utility.name,
+                                  value:
+                                      '${board.utilityValue(player.id, utility.id)}',
+                                  decreaseLabel: 'Decrease ${utility.name}',
+                                  increaseLabel: 'Increase ${utility.name}',
+                                  onDecrease: () => onChange(-step),
+                                  onIncrease: () => onChange(step),
+                                  foregroundColor: color,
+                                  valueStyle: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w600,
+                                    color: color,
                                   ),
                                 ),
-                              ),
-                              icon(
-                                Icons.add,
-                                'Increase ${utility.name}',
-                                () => onChange(step),
-                              ),
-                            ] else
+                              )
+                            else
                               icon(
                                 Icons.play_arrow_outlined,
                                 'Resolve ${utility.name}',
@@ -1696,76 +1674,70 @@ class _ArtworkSurface extends StatelessWidget {
   );
 }
 
-class _HoldControl extends StatefulWidget {
-  final int epoch;
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap, onRepeat;
-  const _HoldControl({
-    required this.epoch,
-    required this.label,
-    required this.icon,
-    required this.onTap,
-    required this.onRepeat,
-  });
+class _LifeDelta extends StatefulWidget {
+  final HistoryEntry? entry;
+  const _LifeDelta({super.key, this.entry});
   @override
-  State<_HoldControl> createState() => _HoldControlState();
+  State<_LifeDelta> createState() => _LifeDeltaState();
 }
 
-class _HoldControlState extends State<_HoldControl>
-    with WidgetsBindingObserver {
-  Timer? repeat;
-  void stop() {
-    repeat?.cancel();
-    repeat = null;
+class _LifeDeltaState extends State<_LifeDelta> {
+  Timer? expiry;
+  int? delta;
+  String? version;
+  void refresh() {
+    final entry = widget.entry;
+    final nextVersion = entry == null
+        ? null
+        : '${entry.id}:${entry.commands.length}';
+    if (nextVersion == version) return;
+    version = nextVersion;
+    expiry?.cancel();
+    // A persisted history row is not an active gesture after reopening a game.
+    final fresh =
+        entry != null &&
+        DateTime.now().toUtc().difference(entry.updatedAt) <=
+            TableController.groupingWindow;
+    delta = fresh ? entry.totalDelta : null;
+    if (fresh) {
+      expiry = Timer(TableController.groupingWindow, () {
+        if (mounted) setState(() => delta = null);
+      });
+    }
   }
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    refresh();
   }
 
   @override
-  void didUpdateWidget(covariant _HoldControl old) {
-    super.didUpdateWidget(old);
-    if (old.epoch != widget.epoch) stop();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed) stop();
+  void didUpdateWidget(covariant _LifeDelta oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    refresh();
   }
 
   @override
   void dispose() {
-    stop();
-    WidgetsBinding.instance.removeObserver(this);
+    expiry?.cancel();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: widget.label,
-    button: true,
-    excludeSemantics: true,
-    onTap: widget.onTap,
-    child: GestureDetector(
-      onLongPressStart: (_) {
-        widget.onRepeat();
-        repeat = Timer.periodic(
-          const Duration(milliseconds: 300),
-          (_) => widget.onRepeat(),
+  Widget build(BuildContext context) => delta == null
+      ? const SizedBox.shrink()
+      : Semantics(
+          label: 'Life change ${delta! >= 0 ? '+' : ''}$delta',
+          liveRegion: true,
+          child: Text(
+            '${delta! >= 0 ? '+' : ''}$delta',
+            style: TextStyle(
+              fontSize: 14,
+              height: 1,
+              fontWeight: FontWeight.w700,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
         );
-      },
-      onLongPressEnd: (_) => stop(),
-      onLongPressCancel: stop,
-      child: IconButton(
-        tooltip: widget.label,
-        onPressed: widget.onTap,
-        icon: Icon(widget.icon),
-        style: IconButton.styleFrom(minimumSize: const Size(48, 64)),
-      ),
-    ),
-  );
 }

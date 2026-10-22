@@ -334,6 +334,13 @@ identity belongs in the life region; retain target context in shared editors.
 Any modal blocks the entire table, dismisses on tapaway without click-through,
 and preserves recoverable drafts. A single custom keyboard faces the initiating
 player for every input. Routine actions do not generate toast/snackbar feedback.
+Numeric steppers use full player-local left/right InkWell halves; the displayed
+value does not intercept adjustment taps. Keep edit/customization controls
+separate, preserve specialized token/mana holds, and cancel repeating holds on
+input lock/lifecycle interruption. Life uses direct halves and a transient net
+delta from the existing 1500ms history group. Shared game controls are anchored
+to the global table center with reserved life-space clearance, never only to
+bottom seats. Assert global coordinates and content separation in regressions.
 The original collapse-first behavior remains deliberate: tapping a second
 item first collapses the open item, rather than opening the second immediately.
 

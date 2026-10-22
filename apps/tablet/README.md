@@ -3,11 +3,12 @@
 The separate tablet app developed from the Tripling Season iPad specifications.
 “Tripling Table” is a development name, not a selected store name.
 
-**Checkpoint status (2026-10-22): independent review in progress.** The
-reviewer reproduced the carried web Name → Select all → q → a replacement on
-`8849514`. A focused shared-preview selection repair now has a red-before /
-green-after regression and 111 passing tablet tests. Live-browser retest remains
-required; see the [focus repair](../../docs/activeDevelopment/in_progress_features/ipad_edition/keyboard_focus_fix_2026-10-22.md).
+**Checkpoint status (2026-10-22): positioning and stepper correction in progress.**
+The previous UI batch is deployed at main `9c3b926`. The new
+[centered-controls/full-half stepper correction](../../docs/activeDevelopment/in_progress_features/ipad_edition/centered_controls_and_half_steppers_2026-10-22.md)
+fixes the reported bottom-seat toolbar anchoring and direct life input. Review
+and independent browser acceptance are required before another merge/deployment;
+native hands-on acceptance remains outstanding.
 
 ## Run
 

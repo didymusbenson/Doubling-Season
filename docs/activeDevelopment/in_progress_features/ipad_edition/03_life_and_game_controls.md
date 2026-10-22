@@ -30,6 +30,10 @@ Proposed setup presets: Commander 40, ordinary casual 20, and a custom value. Co
 
 Do not automatically eliminate a player, disable controls, clear their board or declare a winner at a threshold. Proposed state is manually controlled active/eliminated, with an optional “check player status” prompt. Losing a game can involve more than the values being tracked. Negative life remains editable to represent corrections and relevant effects.
 
+## Direct life input — correction accepted 2026-10-22
+
+The whole local left/right life surface adjusts directly, including the large number; it must not be an invisible entry to a full modal. Use visible InkWell feedback, preserve the existing ±5 repeating hold and 1500ms history group, and show the signed running net delta. Name/art and attached source/counter shortcuts and statuses remain. A visible separate pencil opens customization/exact entry without also changing life. Old persisted history does not display as an active delta after reopening. See [center geometry and full-half acceptance](centered_controls_and_half_steppers_2026-10-22.md) for evidence and platform limits.
+
 ## Commander damage: required direct trackers — accepted 2026-10-22
 
 Commander damage is required, including damage from a player’s own commander. A single “commander damage taken” scalar is inadequate. Record damage by **recipient player ID and stable commander identity**. Two commanders belonging to one player must remain distinguishable. Commander identities survive seat moves and label changes; a displayed name is not their key. Independent commanders and commander tax are supported by the official rules. [Rules 702.124d / 903.8](https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt).

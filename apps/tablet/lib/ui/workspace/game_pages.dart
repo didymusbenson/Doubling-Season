@@ -21,17 +21,30 @@ extension _GamePages on _TableWorkspaceState {
             ),
           _gameGrid([
             _gamePanel('Life · ${player.life}', [
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final delta in [-10, -5, -1, 1, 5, 10])
-                    _button(
-                      '${delta > 0 ? '+' : ''}$delta',
-                      () => _run(() => c.adjustLife(player.id, delta)),
-                      icon: delta < 0 ? Icons.remove : Icons.add,
-                    ),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) => Row(
+                  children: [
+                    for (final delta in [1, 5, 10])
+                      Expanded(
+                        child: HalfStepper(
+                          height: 48,
+                          label: 'Life by $delta',
+                          value: '$delta',
+                          decreaseLabel: 'Decrease life by $delta',
+                          increaseLabel: 'Increase life by $delta',
+                          onDecrease: _working
+                              ? null
+                              : () =>
+                                    _run(() => c.adjustLife(player.id, -delta)),
+                          onIncrease: _working
+                              ? null
+                              : () =>
+                                    _run(() => c.adjustLife(player.id, delta)),
+                          valueStyle: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: 8),
               _gameFieldAction(
@@ -409,42 +422,23 @@ extension _GamePages on _TableWorkspaceState {
           _gamePanel(
             '${counter.key[0].toUpperCase()}${counter.key.substring(1)}',
             [
-              Row(
-                children: [
-                  IconButton(
-                    tooltip: 'Decrease ${counter.key}',
-                    onPressed: _working
-                        ? null
-                        : () => _run(
-                            () => c.adjustPlayerCounter(
-                              player.id,
-                              counter.key,
-                              -1,
-                            ),
-                          ),
-                    icon: const Icon(Icons.remove),
-                  ),
-                  Expanded(
-                    child: Text(
-                      '${counter.value}',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Increase ${counter.key}',
-                    onPressed: _working
-                        ? null
-                        : () => _run(
-                            () => c.adjustPlayerCounter(
-                              player.id,
-                              counter.key,
-                              1,
-                            ),
-                          ),
-                    icon: const Icon(Icons.add),
-                  ),
-                ],
+              HalfStepper(
+                height: 48,
+                label: counter.key,
+                value: '${counter.value}',
+                decreaseLabel: 'Decrease ${counter.key}',
+                increaseLabel: 'Increase ${counter.key}',
+                onDecrease: _working || counter.value == 0
+                    ? null
+                    : () => _run(
+                        () => c.adjustPlayerCounter(player.id, counter.key, -1),
+                      ),
+                onIncrease: _working
+                    ? null
+                    : () => _run(
+                        () => c.adjustPlayerCounter(player.id, counter.key, 1),
+                      ),
+                valueStyle: Theme.of(context).textTheme.headlineSmall,
               ),
               if (counter.key == 'poison' && counter.value >= 10)
                 const Text('Poison threshold reached.'),
@@ -531,45 +525,23 @@ extension _GamePages on _TableWorkspaceState {
                 color: color.withValues(alpha: .16),
                 borderRadius: BorderRadius.circular(28),
               ),
-              child: Row(
-                children: [
-                  IconButton(
-                    tooltip: 'Decrease ${source.name} commander damage',
-                    onPressed: _working || damage == 0
-                        ? null
-                        : () => _run(
-                            () => c.adjustCommanderDamage(
-                              player.id,
-                              source.id,
-                              -1,
-                            ),
-                          ),
-                    icon: const Icon(Icons.remove),
-                  ),
-                  Expanded(
-                    child: Semantics(
-                      label: '${source.name} recorded damage $damage',
-                      child: Text(
-                        '$damage',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineSmall,
+              child: HalfStepper(
+                height: 48,
+                label: '${source.name} commander damage',
+                value: '$damage',
+                decreaseLabel: 'Decrease ${source.name} commander damage',
+                increaseLabel: 'Increase ${source.name} commander damage',
+                onDecrease: _working || damage == 0
+                    ? null
+                    : () => _run(
+                        () => c.adjustCommanderDamage(player.id, source.id, -1),
                       ),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Increase ${source.name} commander damage',
-                    onPressed: _working
-                        ? null
-                        : () => _run(
-                            () => c.adjustCommanderDamage(
-                              player.id,
-                              source.id,
-                              1,
-                            ),
-                          ),
-                    icon: const Icon(Icons.add),
-                  ),
-                ],
+                onIncrease: _working
+                    ? null
+                    : () => _run(
+                        () => c.adjustCommanderDamage(player.id, source.id, 1),
+                      ),
+                valueStyle: Theme.of(context).textTheme.headlineSmall,
               ),
             ),
             if (damage >= 21)
@@ -869,6 +841,7 @@ extension _GamePages on _TableWorkspaceState {
                             _diceCounts[entry.key]! + 1,
                           ),
                         ),
+                        maximum: 20,
                       ),
                     ),
                   ),

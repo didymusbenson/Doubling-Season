@@ -140,7 +140,7 @@ void main() {
         expect(find.text('Add commander').hitTestable(), findsOneWidget);
         await tester.tap(find.text('Life & status'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('+1'));
+        await tester.tap(find.byTooltip('Increase life by 1'));
         await tester.pumpAndSettle();
         expect(f.player.life, 41);
         expect(find.byType(SnackBar), findsNothing);
@@ -263,20 +263,11 @@ void main() {
         addTearDown(f.dispose);
         await open(tester, f, page: WorkspacePage.dice, size: size);
         for (final die in [4, 6, 8, 10, 12, 20]) {
-          expect(find.text('d$die').hitTestable(), findsOneWidget);
+          expect(find.text('d$die'), findsOneWidget);
           final increase = find.byTooltip('Increase d$die');
           expect(increase.hitTestable(), findsOneWidget);
-          expect(
-            tester
-                .getSize(
-                  find.descendant(
-                    of: increase,
-                    matching: find.byType(IconButton),
-                  ),
-                )
-                .width,
-            greaterThanOrEqualTo(48),
-          );
+          expect(tester.getSize(increase).width, greaterThanOrEqualTo(48));
+          expect(tester.getSize(increase).height, greaterThanOrEqualTo(48));
         }
         expect(find.text('Roll selected dice').hitTestable(), findsOneWidget);
         expect(find.byType(ListView), findsNothing);

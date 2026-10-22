@@ -26,6 +26,8 @@ This is a planning dossier, not a shipped feature specification. **Confirmed** m
 
 **Commander capacity follow-up:** [source-enabled layout repair and cross-platform validation](commander_capacity_fix_2026-10-22.md).
 
+**Current correction:** [true-center game controls and full-half steppers](centered_controls_and_half_steppers_2026-10-22.md), including direct life input and transient grouped delta; awaiting review on its own feature branch.
+
 ## Start here
 
 | Document | Purpose |
