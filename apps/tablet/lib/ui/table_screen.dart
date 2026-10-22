@@ -1136,46 +1136,66 @@ class _CommanderChip extends StatelessWidget {
             color.withValues(alpha: .24),
             Theme.of(context).colorScheme.surface,
           ),
-          child: HalfStepper(
-            label: '$recipient, damage from ${source.name} (${owner.name})',
-            value: '$value',
-            height: 44,
-            decreaseLabel:
-                '$recipient, decrease damage from ${source.name} (${owner.name})',
-            increaseLabel:
-                '$recipient, increase damage from ${source.name} (${owner.name})',
-            onDecrease: value == 0 ? null : () => onChange(-1),
-            onIncrease: () => onChange(1),
-            onEdit: onOpen,
-            editLabel: 'Edit ${source.name} damage (${owner.name})',
-            foregroundColor: owner.artworkUrl == null ? color : Colors.white,
-            valueWidget: SizedBox(
-              width: 40,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    source.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  FittedBox(
-                    child: Text(
-                      '$value',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        height: 1,
-                        fontWeight: FontWeight.w600,
+          child: Stack(
+            children: [
+              HalfStepper(
+                label: '$recipient, damage from ${source.name} (${owner.name})',
+                value: '$value',
+                height: 44,
+                decreaseLabel:
+                    '$recipient, decrease damage from ${source.name} (${owner.name})',
+                increaseLabel:
+                    '$recipient, increase damage from ${source.name} (${owner.name})',
+                onDecrease: value == 0 ? null : () => onChange(-1),
+                onIncrease: () => onChange(1),
+                onEdit: onOpen,
+                editLabel: 'Edit ${source.name} damage (${owner.name})',
+                foregroundColor: owner.artworkUrl == null
+                    ? color
+                    : Colors.white,
+                valueWidget: SizedBox(
+                  width: 40,
+                  height: 44,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: FittedBox(
+                        child: Text(
+                          '$value',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            height: 1,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
+              Positioned(
+                top: 1,
+                left: 4,
+                right: 48,
+                child: IgnorePointer(
+                  child: ExcludeSemantics(
+                    child: Text(
+                      source.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11,
+                        height: 1,
+                        fontWeight: FontWeight.w700,
+                        color: owner.artworkUrl == null ? color : Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       );

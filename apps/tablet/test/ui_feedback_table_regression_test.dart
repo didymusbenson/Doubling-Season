@@ -664,6 +664,16 @@ void main() {
           ValueKey('${recipient.id}-commander-${source.id}'),
         );
         expect(chip.hitTestable(), findsOneWidget);
+        final sourceLabel = find.descendant(
+          of: chip,
+          matching: find.text(source.name),
+        );
+        expect(
+          tester.getSize(sourceLabel).width,
+          greaterThanOrEqualTo(80),
+          reason:
+              'Partner suffixes need a readable label area independent of the value/edit controls.',
+        );
         final container = tester.widget<Container>(
           find.descendant(of: chip, matching: find.byType(Container)).first,
         );
