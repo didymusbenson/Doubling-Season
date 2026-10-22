@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// One input surface, contained in and rotated with the active workspace.
 class PlayerKeyboardHost extends StatefulWidget {
-  const PlayerKeyboardHost({super.key, required this.child});
+  const PlayerKeyboardHost({
+    super.key,
+    required this.child,
+    this.enabled = true,
+    this.canEdit,
+  });
   final Widget child;
+  final bool enabled;
+  final bool Function()? canEdit;
 
   @override
   State<PlayerKeyboardHost> createState() => _PlayerKeyboardHostState();
@@ -18,6 +26,7 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
   bool _shift = false;
   bool _symbols = false;
   String _label = '';
+  bool get _editable => widget.enabled && (widget.canEdit?.call() ?? true);
 
   @override
   void initState() {
@@ -26,17 +35,21 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
   }
 
   bool _hardwareHandler(KeyEvent event) =>
+      _editable &&
       _controller != null &&
       _onKey(_hardwareFocus, event) == KeyEventResult.handled;
 
-  Future<void> activateField(
+  Future<bool> activateField(
     TextEditingController controller,
     String label,
     bool numeric,
     Future<bool> Function()? onExit,
   ) async {
-    if (_controller != controller) await _onExit?.call();
-    if (!mounted) return;
+    if (!_editable) return false;
+    if (_controller != controller && await _onExit?.call() == false) {
+      return false;
+    }
+    if (!mounted) return false;
     setState(() {
       _controller = controller;
       _onExit = onExit;
@@ -44,12 +57,13 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
       _numeric = numeric;
     });
     _hardwareFocus.requestFocus();
+    return true;
   }
 
   Future<void> finishField([TextEditingController? expected]) async {
     if (expected != null && expected != _controller) return;
     final captured = _controller;
-    await _onExit?.call();
+    if (await _onExit?.call() == false) return;
     if (!mounted || captured != _controller) return;
     setState(() {
       _controller = null;
@@ -58,6 +72,7 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
   }
 
   void _replace(String value) {
+    if (!_editable) return;
     final c = _controller;
     if (c == null) return;
     final selection = c.selection;
@@ -240,6 +255,7 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
     return _InputScope(
       activate: activateField,
       finish: finishField,
+      canEdit: () => _editable,
       child: Focus(
         focusNode: _hardwareFocus,
         child: Column(
@@ -349,9 +365,10 @@ class _InputScope extends InheritedWidget {
   const _InputScope({
     required this.activate,
     required this.finish,
+    required this.canEdit,
     required super.child,
   });
-  final Future<void> Function(
+  final Future<bool> Function(
     TextEditingController,
     String,
     bool,
@@ -359,8 +376,11 @@ class _InputScope extends InheritedWidget {
   )
   activate;
   final Future<void> Function([TextEditingController?]) finish;
+  final bool Function() canEdit;
+  bool get enabled => canEdit();
   @override
-  bool updateShouldNotify(_InputScope oldWidget) => false;
+  bool updateShouldNotify(_InputScope oldWidget) =>
+      oldWidget.canEdit != canEdit;
 }
 
 /// Read-only to the system IME, editable through the player-facing keyboard.
@@ -385,22 +405,45 @@ class PlayerField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    void activate() => context
-        .getInheritedWidgetOfExactType<_InputScope>()
-        ?.activate(controller, label, numeric, onExit);
+    final input = context.dependOnInheritedWidgetOfExactType<_InputScope>();
+    Future<void> activate() async {
+      if (await input?.activate(controller, label, numeric, onExit) != true) {
+        return;
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          Scrollable.ensureVisible(
+            context,
+            alignment: .15,
+            duration: const Duration(milliseconds: 200),
+          );
+        }
+      });
+    }
+
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: controller,
       builder: (context, value, _) => Semantics(
-        label: label,
-        value: value.text,
+        label: kIsWeb
+            ? '$label. Current value: ${value.text.isEmpty ? 'empty' : value.text}'
+            : label,
+        value: kIsWeb ? null : value.text,
         hint: 'Opens the player-facing keyboard',
-        textField: true,
+        textField: !kIsWeb,
+        button: kIsWeb,
+        enabled: input?.enabled ?? true,
+        focusable: true,
         readOnly: false,
         onTap: activate,
-        onSetText: (text) => controller.value = TextEditingValue(
-          text: text,
-          selection: TextSelection.collapsed(offset: text.length),
-        ),
+        onSetText: kIsWeb
+            ? null
+            : (text) {
+                if (input?.enabled == false) return;
+                controller.value = TextEditingValue(
+                  text: text,
+                  selection: TextSelection.collapsed(offset: text.length),
+                );
+              },
         onSetSelection: (selection) {
           if (selection.start >= 0 && selection.end <= controller.text.length) {
             controller.selection = selection;
@@ -408,6 +451,7 @@ class PlayerField extends StatelessWidget {
         },
         child: ExcludeSemantics(
           child: TextField(
+            enabled: input?.enabled ?? true,
             controller: controller,
             readOnly: true,
             showCursor: true,

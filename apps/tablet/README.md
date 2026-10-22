@@ -36,3 +36,22 @@ Implementation details and measured validation are recorded beside it.
 
 Repository policy requires manual functional validation; do not add an automated
 test suite. Temporary external UI-driving flows may be used and discarded.
+
+## Release configuration
+
+All gameplay is free and works without a store connection. Optional supporter
+cosmetics use this product's own three non-consumable store products. Supply
+`TABLE_SUPPORT_THANKS_ID`, `TABLE_SUPPORT_PLAY_ID`, and
+`TABLE_SUPPORT_COLLECTOR_ID` through Flutter `--dart-define` build arguments after
+creating the products in the store accounts. The app reads prices from the store;
+it does not reuse phone-app purchase IDs or claim cross-app entitlements. Without
+those definitions, the support page clearly reports purchases unavailable.
+
+Android release builds currently use development signing for installation and
+validation. Configure a private release keystore outside source control before
+store submission. The iPad target uses the existing Apple development team with
+its separate bundle identifier; provisioning and store metadata still require
+the product owner's account setup.
+
+The tablet CI workflow analyzes the app and builds web, Android and the iPad
+simulator for relevant pull requests. It does not deploy or publish either app.

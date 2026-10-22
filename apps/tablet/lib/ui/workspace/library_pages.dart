@@ -141,6 +141,7 @@ extension _LibraryPages on _TableWorkspaceState {
     final revision = c.session.revision;
     final currentValue = _board.utilityValue(player.id, utility.id);
     final toggle = utility.configuration['type'] == 'toggle';
+    final active = _board.utilityActive(player.id, utility.id);
     final action =
         utility.configuration['actionType'] as String? ?? utility.kind;
     final hasAction = utility.configuration['hasAction'] == true;
@@ -166,9 +167,9 @@ extension _LibraryPages on _TableWorkspaceState {
       else if (toggle)
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: Text(utility.isActive ? 'Active' : 'Inactive'),
+          title: Text(active ? 'Active' : 'Inactive'),
           subtitle: Text(
-            utility.isActive
+            active
                 ? utility.description
                 : utility.configuration['offDescription'] as String? ?? '',
           ),
@@ -182,6 +183,20 @@ extension _LibraryPages on _TableWorkspaceState {
           currentValue,
           () => _run(() => _board.adjustUtility(player.id, utility.id, -step)),
           () => _run(() => _board.adjustUtility(player.id, utility.id, step)),
+          holdMinus: () => _run(
+            () => _board.adjustUtility(
+              player.id,
+              utility.id,
+              -(utility.configuration['longPressIncrement'] as int? ?? 10),
+            ),
+          ),
+          holdPlus: () => _run(
+            () => _board.adjustUtility(
+              player.id,
+              utility.id,
+              utility.configuration['longPressIncrement'] as int? ?? 10,
+            ),
+          ),
         ),
         _input(
           '$key.value',
@@ -420,7 +435,7 @@ extension _LibraryPages on _TableWorkspaceState {
 
   List<Widget> _manaControls(PlayerState player) => [
     const Text(
-      'Locks protect against Empty only. Conversion moves all mana, including locked colors, into the chosen color.',
+      'Tap ± for one; hold for ten. Locks protect against Empty only. Conversion moves all mana, including locked colors, into the chosen color.',
     ),
     for (final color in PlayerState.manaColors)
       Card(
@@ -440,6 +455,9 @@ extension _LibraryPages on _TableWorkspaceState {
                 player.mana[color] ?? 0,
                 () => _run(() => c.adjustMana(player.id, color, -1)),
                 () => _run(() => c.adjustMana(player.id, color, 1)),
+                holdMinus: () =>
+                    _run(() => c.adjustMana(player.id, color, -10)),
+                holdPlus: () => _run(() => c.adjustMana(player.id, color, 10)),
               ),
               Wrap(
                 spacing: 8,

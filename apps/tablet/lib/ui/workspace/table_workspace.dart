@@ -107,6 +107,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   final _utilityPropertiesController = ExpansibleController();
   bool _allowPop = false;
   bool _closing = false;
+  bool _navigating = false;
   String? _error;
   String? _status;
   bool _working = false;
@@ -142,7 +143,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
 
   String get _seatName => p == null ? 'Table' : c.profile(p!.seatId).name;
   String get _draftKey =>
-      '$_sessionId:${_playerId ?? 'table'}:$_page:${_itemId ?? ''}';
+      '$_sessionId:$_sessionGeneration:${_playerId ?? 'table'}:$_page:${_itemId ?? ''}';
   bool get _validScope =>
       c.session.id == _sessionId &&
       c.session.generation == _sessionGeneration &&
@@ -196,7 +197,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     if (!catalog.loaded) catalog.load();
   }
 
-  void _update(VoidCallback callback) => setState(callback);
+  void _update(VoidCallback callback) {
+    if (mounted && !_closing && !_navigating) setState(callback);
+  }
 
   void _refresh() {
     if (mounted) setState(() {});
@@ -278,7 +281,8 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
 
   Future<void> _requestClose() async {
     if (_closing) return;
-    _closing = true;
+    setState(() => _closing = true);
+    await WidgetsBinding.instance.endOfFrame;
     await _flushInline();
     if (!mounted) return;
     setState(() => _allowPop = true);
@@ -288,13 +292,19 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   }
 
   Future<void> _back() async {
-    if (_working || !await _flushInline() || !mounted) return;
-    setState(() {
-      final destination = _navigation.removeLast();
-      _page = destination.$1;
-      _itemId = destination.$2;
-      _confirmation = null;
-    });
+    if (_working || _closing || _navigating) return;
+    setState(() => _navigating = true);
+    try {
+      if (!await _flushInline() || !mounted || _closing) return;
+      setState(() {
+        final destination = _navigation.removeLast();
+        _page = destination.$1;
+        _itemId = destination.$2;
+        _confirmation = null;
+      });
+    } finally {
+      if (mounted) setState(() => _navigating = false);
+    }
   }
 
   Future<void> _run(
@@ -302,13 +312,14 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     String? success,
     VoidCallback? after,
   }) async {
-    if (_working || !_validScope || !await _flushInline() || !mounted) return;
+    if (_working || _closing || _navigating || !_validScope) return;
     setState(() {
       _working = true;
       _error = null;
       _status = null;
     });
     try {
+      if (!await _flushInline() || !mounted || !_validScope || _closing) return;
       final result = await action();
       if (result == false) {
         throw StateError(c.error ?? 'The change could not be saved.');
@@ -351,17 +362,23 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   }
 
   Future<void> _go(WorkspacePage page, {String? itemId}) async {
-    if (_working || !await _flushInline() || !mounted) return;
-    setState(() {
-      _navigation.add((_page, _itemId));
-      _page = page;
-      _itemId = itemId;
-      _confirmation = null;
-      _error = null;
-      _status = null;
-      _selectedDefinition = null;
-      _createCustom = false;
-    });
+    if (_working || _closing || _navigating) return;
+    setState(() => _navigating = true);
+    try {
+      if (!await _flushInline() || !mounted || _closing) return;
+      setState(() {
+        _navigation.add((_page, _itemId));
+        _page = page;
+        _itemId = itemId;
+        _confirmation = null;
+        _error = null;
+        _status = null;
+        _selectedDefinition = null;
+        _createCustom = false;
+      });
+    } finally {
+      if (mounted) setState(() => _navigating = false);
+    }
   }
 
   void _confirm(
@@ -370,7 +387,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     Future<dynamic> Function() action, {
     String button = 'Confirm',
   }) {
-    if (!mounted || !_validScope) return;
+    if (!mounted || !_validScope || _closing || _navigating) return;
     setState(
       () => _confirmation = _Confirmation(title, detail, action, button),
     );
@@ -503,6 +520,8 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     VoidCallback plus, {
     String? detail,
     VoidCallback? edit,
+    VoidCallback? holdMinus,
+    VoidCallback? holdPlus,
   }) => Card(
     margin: const EdgeInsets.symmetric(vertical: 4),
     child: Padding(
@@ -519,10 +538,13 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
               ],
             ),
           ),
-          IconButton(
-            tooltip: 'Decrease $label',
-            onPressed: _working ? null : minus,
-            icon: const Icon(Icons.remove),
+          GestureDetector(
+            onLongPress: _working ? null : holdMinus,
+            child: IconButton(
+              tooltip: 'Decrease $label',
+              onPressed: _working ? null : minus,
+              icon: const Icon(Icons.remove),
+            ),
           ),
           TextButton(
             onPressed: edit,
@@ -531,10 +553,13 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
           ),
-          IconButton(
-            tooltip: 'Increase $label',
-            onPressed: _working ? null : plus,
-            icon: const Icon(Icons.add),
+          GestureDetector(
+            onLongPress: _working ? null : holdPlus,
+            child: IconButton(
+              tooltip: 'Increase $label',
+              onPressed: _working ? null : plus,
+              icon: const Icon(Icons.add),
+            ),
           ),
         ],
       ),
@@ -759,6 +784,8 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
                 const Divider(height: 12),
                 Expanded(
                   child: PlayerKeyboardHost(
+                    enabled: !_closing && !_working && !_navigating,
+                    canEdit: () => !_closing && !_working && !_navigating,
                     key: ValueKey(
                       '$_page:$_itemId:${_selectedDefinition?.id}:$_createCustom:${_confirmation?.title}',
                     ),
@@ -790,7 +817,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
               ),
             ),
           ),
-          content,
+          AbsorbPointer(absorbing: _closing, child: content),
         ],
       ),
     );

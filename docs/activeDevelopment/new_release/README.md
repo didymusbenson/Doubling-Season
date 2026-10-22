@@ -7,6 +7,17 @@ ships.
 
 ## Release Log
 
+### Separate tablet app validation (not part of phone 1.11)
+
+2026-10-21: the independent `apps/tablet` first implementation builds for web,
+Android and iPad simulator, and passes static analysis. Temporary external
+Maestro flows on iPad mini A17 Pro / iOS 26.2 verified launch, token selection,
+Treasure creation, and modal dismissal back to that player's board. Browser
+interaction covered 2/3/4-seat layouts, life/history undo, archive restoration,
+scoped rules, commander damage/correction and zero-state setup loading. See the
+[measured results and remaining gates](../in_progress_features/ipad_edition/implementation.md).
+Physical acceptance remains pending; the tablet dossier is not release staged.
+
 ### Billing update included in 1.11
 
 The pricing/billing fix ships with 1.11.0+19. `in_app_purchase` is locked to
