@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tripling_table/domain/table_state.dart';
 import 'package:tripling_table/state/table_controller.dart';
 
 import 'support/table_fixture.dart';
@@ -171,6 +172,75 @@ void main() {
       expect(await f.controller.undo(), isTrue);
       expect(f.controller.player(originalPlayer).life, 40);
       expect(f.controller.state.profiles.first.name, 'Current name');
+    },
+  );
+
+  test(
+    'keep-board reactivates fresh default utilities without resurrecting removed setup',
+    () async {
+      await f.controller.modifyLibrary((state) {
+        final remaining = state.session.players.first;
+        remaining.utilities = remaining.utilities.reversed.toList();
+        remaining.utilities.last
+          ..visible = false
+          ..value = 7;
+        final removed = state.session.players[2];
+        removed.tokens = [sampleToken(id: 'removed-token')];
+        removed.mana['W'] = 9;
+        removed.utilities = [
+          UtilityState(
+            id: 'removed-storm',
+            kind: 'storm_count',
+            name: 'Old storm',
+            visible: false,
+            value: 9,
+          ),
+          UtilityState(
+            id: 'removed-custom',
+            kind: 'cathars_crusade',
+            name: 'Old setup',
+            value: 8,
+          ),
+        ];
+        state.profiles[2].name = 'Returning player';
+      });
+      final retainedIds = f.player.utilities.map((u) => u.id).toList();
+      await f.controller.resetGame(keepBoard: true, playerCount: 2);
+      await f.controller.resetGame(keepBoard: true, playerCount: 3);
+
+      final returning = f.controller.session.players[2];
+      expect(returning.tokens, isEmpty);
+      expect(returning.mana.values, everyElement(0));
+      expect(returning.utilities.map((u) => u.kind), [
+        'storm_count',
+        'mana_pool',
+      ]);
+      expect(returning.utilities.map((u) => u.visible), everyElement(isTrue));
+      expect(returning.utilities.map((u) => u.value), everyElement(0));
+      expect(returning.utilities.map((u) => u.isActive), everyElement(isFalse));
+      expect(
+        returning.utilities.map((u) => u.id),
+        isNot(contains('removed-storm')),
+      );
+      expect(
+        returning.utilities.map((u) => u.id),
+        isNot(contains('removed-custom')),
+      );
+      expect(f.controller.profile(returning.seatId).name, 'Returning player');
+      expect(f.player.utilities.map((u) => u.id), retainedIds);
+      expect(f.player.utilities.map((u) => u.kind), [
+        'mana_pool',
+        'storm_count',
+      ]);
+      expect(f.player.utilities.last.visible, isFalse);
+      expect(f.player.utilities.last.value, 0);
+
+      // Default provisioning is limited to keep-board's newly active seats.
+      await f.controller.resetGame(keepBoard: false, playerCount: 3);
+      expect(
+        f.controller.session.players.every((p) => p.utilities.isEmpty),
+        isTrue,
+      );
     },
   );
 

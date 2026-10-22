@@ -1,6 +1,6 @@
 # Tablet corrective iteration — original token parity
 
-**Status:** corrective code integrated; 69 automated tests, tablet/root analysis, web and iOS simulator builds pass. Eight native captures and the limited exercised flows are recorded below. Commit/push/remote-CI verification remains with integration. No full release acceptance is claimed.
+**Status:** the complete follow-up passes 70 automated tests, tablet/root analysis, formatting, web release and iOS simulator builds. Eight native captures predate the newly-active-seat default-utility follow-up. Initial checkpoint CI passed; final follow-up commit/push/CI verification remains with integration. No full release acceptance is claimed.
 **Branch:** `codex/tablet-token-parity-correction`.
 **Reviewed baseline:** `dcac16bf6a988283f135d1a3a2fd5bf663c4ac08`.
 **Corrected planning authority:** `012d9f321108353f40feeaaa5fc2f4560c29bc0e`
@@ -99,7 +99,7 @@ Original source anchors below are the review's pinned anchors at `dcac16b`.
 | ID | Original behavior / acceptance obligation | Original source | Corrective disposition and evidence |
 |---|---|---|---|
 | 01 | Identity, amount, tapped/sick, counters, art and order persist as one token object. | OItem:10–175 | Source retained: `TokenState.toJson/fromJson` includes identity/status/counters/art/options/extra; seat token-list order persists. Full serialization/failure matrix remains unverified. |
-| 02 | Nonnegative quantity; tapped/sick bounded by total; zero entries remain dimmed. | OItem:34–74; OCard:281–282 | Source implemented/retained: quantity bounds, tap/sick clamps and zero dimming; regressions added in `board_service_regression_test.dart`. Included in passing 69-test integrated suite; broad native boundary matrix remains unverified. |
+| 02 | Nonnegative quantity; tapped/sick bounded by total; zero entries remain dimmed. | OItem:34–74; OCard:281–282 | Source implemented/retained: quantity bounds, tap/sick clamps and zero dimming; regressions added in `board_service_regression_test.dart`. Included in passing 70-test integrated suite; broad native boundary matrix remains unverified. |
 | 03 | Full-width square joined rows, left7px identity rail, art behind readable content. | OBoard:348–365; OCard:288–325,383–400 | Source implemented: joined `TabletTokenCard` surfaces, 7px identity rail and shared `TableArtworkSurface`; final visual/contrast review pending. |
 | 04 | Name, type and P/T form a compact hierarchy; long P/T gets stacked layout. | OCard:344–370,433–466,1639–1768 | Source implemented: expanded name/type wrap; P/T constrained to 88px and wraps. Long-text and text-scale acceptance pending. |
 | 05 | Prominent ready/tapped/sick icon counts; expanded status target opens focused controls. | OCard:481–531 | Source implemented: amount/ready/tapped/sick icon strip opens focused token status editor (`tablet_token_card.dart`, `token_pages.dart`). |
@@ -171,9 +171,9 @@ nondismissible error dialogs and snackbars.
 | F02 | True inline quick token edits; reserve central workspace for detailed work | 04–06; token rows 28–31 | Source implemented: displayed token field owns the shared editing controller; single player-facing keyboard operates it directly. Component regression passes, and native capture 08 plus the reported tapaway exercise verify one rotated name-edit flow. Modal focus/caret stays in the keyboard preview, which can cover lower fields; broad reach/selection acceptance remains open. |
 | F03 | Successful Create completes search/quantity journey and returns to board | 02; token row 39 | Source implemented; widget regression passes. Integration reports repeated native Create success/exit, including opposite-facing Player 2. Full catalog/multitap matrix remains unverified. |
 | F04 | Successful reset/restore returns to a usable board, no stale-game blocker | 18 | Source implemented; widget regression passes. Native captures 03/04/07 show usable boards after reset/restore; integration reports automatic workspace completion. Full restore failure matrix remains unverified. |
-| F05 | History/undo labels describe actual clamped/rule-adjusted change | 10–13 | Source implemented: serialized effective delta and separate affected-seat history labels; meaningful regression coverage added. Included in passing 69-test integrated suite; broad native boundary matrix remains unverified. |
-| F06 | Wipe history identifies affected seats and meaningful action names | 16 | Source implemented: serialized effective delta and separate affected-seat history labels; meaningful regression coverage added. Included in passing 69-test integrated suite; broad native boundary matrix remains unverified. |
-| F07 | Compact mana supports spending without compulsory full-table form | 09, 07 | Source implemented; widget regression passes. On the final native build, integration exercised Player 1 plus/plus/minus: final mana 1 and the board remained visible. |
+| F05 | History/undo labels describe actual clamped/rule-adjusted change | 10–13 | Source implemented: serialized effective delta and separate affected-seat history labels; meaningful regression coverage added. Included in passing 70-test integrated suite; broad native boundary matrix remains unverified. |
+| F06 | Wipe history identifies affected seats and meaningful action names | 16 | Source implemented: serialized effective delta and separate affected-seat history labels; meaningful regression coverage added. Included in passing 70-test integrated suite; broad native boundary matrix remains unverified. |
+| F07 | Compact mana supports spending without compulsory full-table form | 09, 07 | Source implemented; widget regression passes. On the captured native checkpoint, integration exercised Player 1 plus/plus/minus: final mana 1 and the board remained visible. |
 | F08 | Reconcile extra custom utility authoring with curated D37 scope | 27 | Source corrected: custom tracker/toggle authoring entry removed from utility UI; curated utility discovery/visibility retained. |
 | C01 | Fresh token selection starts quantity at one | Source only; row 37 | Source implemented with result-selection reset and direct quantity controls; automated subset passes; final native flow evidence pending. |
 | C02 | Long expanded utility names remain readable | Source only | Source implemented: expanded utility name has no max-line truncation. Native long-name/text-scale review pending. |
@@ -182,14 +182,19 @@ nondismissible error dialogs and snackbars.
 | D01 | Four-seat token side remains open; preserve two-seat local-left and three-seat empty controls | 01, 19, 20, 22 | Preserved decision boundary; no new four-seat geometry mandated. |
 | Compact chrome | Familiar actions icon-led with semantics; seat name only in life counter; meaningful text/shared target context retained | 01, 05, 14, 19, 22, 46, 48 | Source implemented: compact life-attached tools, single-row Storm and two/three-column Mana. Component layout tests and the linked native views support the observed fit; VoiceOver and physical touch acceptance remain unverified. |
 
-Reactivated-seat utility defaults remain a separate open reset question, not a
-new regression introduced here. Native captures 04/06 show Player 3 returning
-with an empty utility lane after removal and keep-board reset. The behavior
-owner compared `dcac16b` and confirmed this predates the correction. The
-[existing reset/utility contract](07_utilities_tokens_and_decks.md#accepted-curated-utility-customization)
-retains enabled setup for remaining seats, clears removed-seat gameplay, and
-explicitly leaves default provisioning at reset boundaries for reconciliation.
-This iteration does not silently resurrect removed setup or change that policy.
+D22/D37 default provisioning is now explicitly reconciled: under keep-board,
+a newly active seat absent from the prior game receives fresh visible Mana and
+Storm utilities with new IDs and zeroed values. Remaining seats keep their
+chosen reusable utility setup; complete reset still clears utilities, removed
+setup is not resurrected, and archive restoration remains exact. The
+[reset/utility contract](07_utilities_tokens_and_decks.md#accepted-curated-utility-customization)
+and scoped controller branch implement this narrow rule. A new 4 → 2 → 3
+regression checks removed custom/hidden setup does not return, fresh defaults
+are zeroed, and a subsequent complete reset stays empty; the targeted history
+suite passes 9 tests and the final combined rerun passes 70 tests.
+Captures 04/06 show the preceding empty-lane behavior, which is now corrected;
+they are before evidence for this follow-up, not acceptance of the new defaults.
+No new native test is claimed after the Mac locked.
 
 ## Final validation record
 
@@ -202,20 +207,21 @@ in before claiming remote checkpoint readiness.
 |---|---|
 | Corrected planning diff mapped safely | Passed: read diff; current files compared to pre-correction baseline; mapped `git apply --check` passed before application; implementation additions retained. |
 | Complete 50-row inventory | Present: source implementations/partials/open concerns recorded for all 50; no full runtime parity claim. |
-| Source lint/analysis and meaningful regressions | Passed final combined run: 69 tests. Tablet and root `flutter analyze` both report no issues; formatter checked 33 files with 0 changes. Logs: `/tmp/tablet-correction-tests-final.log`, `/tmp/tablet-correction-analyze-final.log`, `/tmp/tripling-root-analyze-final.log`, `/tmp/tablet-correction-format-final.log`. |
+| Source lint/analysis and meaningful regressions | Passed final combined run including the reset-default correction: 70 tests; tablet/root `flutter analyze` and formatting checks pass, confirmed by integration. Logs: `/tmp/tablet-correction-tests-final.log`, `/tmp/tablet-correction-analyze-final.log`, `/tmp/tripling-root-analyze-final.log`, `/tmp/tablet-correction-format-final.log`. |
 | Web build/runtime | Passed final build: `flutter build web --release` produced `build/web`; `/tmp/tablet-correction-web-build-final.log`. Browser runtime on latest build pending in this record. |
-| Native simulator build/runtime | Passed final simulator build: `flutter build ios --simulator` produced `Runner.app`; `/tmp/tablet-correction-ios-build-final.log`. Integration reports mini clean quick-add, partial tap, absolute-total sickness, repeated Create including opposite-facing Player 2, reset and archive-restore completion. Captures 01–07 show intermediate-build states; 08 shows final-build rotated input. Native picker/crop remains unverified. |
+| Native simulator build/runtime | Passed final simulator build: `flutter build ios --simulator` produced `Runner.app`; `/tmp/tablet-correction-ios-build-final.log`. Integration reports mini clean quick-add, partial tap, absolute-total sickness, repeated Create including opposite-facing Player 2, reset and archive-restore completion. Captures 01–07 show intermediate-build states; 08 shows rotated input at the 69-test native checkpoint. The rebuilt `Runner.app` includes the reset-default correction but was not installed after the Mac locked; no native rerun is claimed. Picker/crop remains unverified. |
 | Small tablet 1133×744 and 744×1133 | Passing layout widget checks for 2/3/4 seats, safe-area and large-number stress. Native mini landscape/portrait captures show 2/3/4-seat states; not every seat-count/orientation/input combination was exercised natively. |
 | Larger tablet; 2/3/4 seats | Passing layout widget checks at 1366×1024 for 2/3/4 seats. Capture 05 shows the larger iPad Pro simulator in four-player landscape; larger native 2/3-seat checks are not claimed. |
-| Rotated input, dismissal/no click-through, repeated flows | Passing keyboard/workspace widget cases. Final native Player 2 Name sequence select-all → q → a → cursor-left → s produced `qsa` in both token/keyboard (08). Integration then tapped away on Player 4 life: editor committed/dismissed, all life stayed 40, no new workspace opened. This is one exercised rotated path, not full IME/accessibility acceptance. |
-| Before/after screenshot mapping | Before: source manifest 01–48. After: seven intermediate captures plus final-build 08, with exact file metadata and scope in the [evidence manifest](correction_evidence/evidence_manifest.json). |
-| Remote branch SHA and relevant CI | Pending checkpoint/push/remote verification. |
+| Rotated input, dismissal/no click-through, repeated flows | Passing keyboard/workspace widget cases. At the captured native checkpoint, Player 2 Name sequence select-all → q → a → cursor-left → s produced `qsa` in both token/keyboard (08). Integration then tapped away on Player 4 life: editor committed/dismissed, all life stayed 40, no new workspace opened. This is one exercised rotated path, not full IME/accessibility acceptance. |
+| Before/after screenshot mapping | Before: source manifest 01–48. After: seven intermediate captures plus the 69-test checkpoint capture 08; all predate the later newly-active-seat defaults correction, with exact file metadata and scope in the [evidence manifest](correction_evidence/evidence_manifest.json). |
+| Remote branch SHA and relevant CI | Initial code checkpoint `dafa5623777b4c402e57c2a45cd3000dfe9346ee`: both CI jobs succeeded ([run 39728578863](https://github.com/didymusbenson/Doubling-Season/actions/runs/39728578863)), verified by integration. The subsequent reset-default correction and documentation require their own final commit/push/remote-CI verification; that follow-up is pending. |
 
 ## Native screenshot evidence
 
 These screenshots were opened and visually inspected. Captures 01–07 come from
 the integrated simulator run before the final inline-controller/crop-rotation
-follow-ups; capture 08 uses the final build after the 69-test run. They establish
+follow-ups; capture 08 uses the build after the 69-test run. All eight precede
+the later newly-active-seat utility-default correction. They establish
 the narrow visible states below. The simulator files preserve their capture
 orientation; landscape content may appear sideways in a generic image viewer.
 The [manifest](correction_evidence/evidence_manifest.json) records raw PNG
@@ -229,15 +235,15 @@ These are capture pixels, not a claim that the large simulator equals the
 | [01 — mini landscape clean add](correction_evidence/01-native-mini-landscape-clean-add.png) | 07, 09; F01, F07; compact chrome | Four seats remain on the board. The modified Saproling source retains its counter and a separate clean Saproling exists; source shows partially tapped status. Default Mana/Storm are visible. The image alone does not prove the preceding command or undo. |
 | [02 — focused status](correction_evidence/02-native-status-set-sickness.png) | 11, 12 | Player 1's focused token status shows Total 10, Tapped 1 and Summoning sick 10, with explicit target context. The preceding total edit is reported by the integrating owner; full boundary coverage is automated, not inferred from the image. |
 | [03 — two-seat keep-board reset](correction_evidence/03-native-two-seat-reset.png) | F04; D01 | Usable two-seat board, mirrored player-local-left lanes, retained zero-count token entries and life 40; no stale-game workspace blocker is visible. |
-| [04 — three-seat reset](correction_evidence/04-native-three-seat-reset.png) | F04; D01 | Usable three-seat board and the empty-slot shared-control region. Player 1/2 retain utilities; newly active Player 3 shows utility discovery. This does not establish default utility initialization for reactivated seats. |
+| [04 — three-seat reset](correction_evidence/04-native-three-seat-reset.png) | F04; D01 | Usable three-seat board and the empty-slot shared-control region. Player 1/2 retain utilities; newly active Player 3 shows utility discovery. This is before evidence for the subsequently corrected fresh-default provisioning, not the final reset behavior. |
 | [05 — larger four-seat board](correction_evidence/05-native-large-four-seat.png) | F01, F07; compact chrome | Four empty token lanes, life 40 and all four default Mana/Storm sections fit in the isolated larger-tablet simulator. This is a separate empty synthetic state, not populated-token acceptance. |
-| [06 — mini three-seat portrait](correction_evidence/06-native-mini-three-seat-portrait.png) | F01, F07, F04; D01 | Three seats plus empty-slot controls fit portrait. Player 1 retains two zero-count token entries; Player 1/2 Mana/Storm remain visible. Player 3 still shows utility discovery. |
+| [06 — mini three-seat portrait](correction_evidence/06-native-mini-three-seat-portrait.png) | F01, F07, F04; D01 | Three seats plus empty-slot controls fit portrait. Player 1 retains two zero-count token entries; Player 1/2 Mana/Storm remain visible. Player 3 still shows utility discovery; this predates the fresh-default correction and is not evidence of its final behavior. |
 | [07 — mini four-seat restored portrait](correction_evidence/07-native-mini-portrait-restored.png) | 07, 09, 11; F01, F04 | Restored synthetic board shows life 40, Player 1's modified ten-count stack plus a separate clean one-count stack, and visible default utilities. Integration reports successful archive restore with automatic workspace dismissal; image alone does not establish complete archive/timeline equality. |
-| [08 — final rotated inline keyboard](correction_evidence/08-native-rotated-inline-keyboard.png) | 28, 31, 48; F02 | Player 2 Name shows `qsa` in both actual token field and custom-keyboard value, with the caret between `s` and `a`. Integration reports 180-degree player-facing input. The subsequent tapaway and direct-mana checks are reported flow evidence, not states captured in this image. |
+| [08 — rotated inline keyboard checkpoint](correction_evidence/08-native-rotated-inline-keyboard.png) | 28, 31, 48; F02 | Player 2 Name shows `qsa` in both actual token field and custom-keyboard value, with the caret between `s` and `a`. Integration reports 180-degree player-facing input. The subsequent tapaway and direct-mana checks are reported flow evidence, not states captured in this image. |
 
 ## Passing automated subset
 
-The final combined run passed 69 tests in nine files under `apps/tablet/test`:
+The final combined run passed 70 tests in nine files under `apps/tablet/test`:
 `board_service_regression_test.dart`, `table_history_regression_test.dart`,
 `workspace_regression_test.dart`, `player_keyboard_regression_test.dart`,
 `token_workspace_regression_test.dart`, `table_layout_regression_test.dart`,
@@ -248,7 +254,9 @@ It checks clean quick-add/source identity/rules/companions and undo; fresh Copy;
 normal Split and distinct counter-search Split & Add to One; exact counter Set,
 zero removal and placement modifiers; sickness and partial tap; emblem/Scute
 paths; actual clamped history deltas and affected-seat labels; failed-save
-rollback; reset/restore/archive limits and stale scope; Create completion;
+rollback; reset/restore/archive limits and stale scope; fresh default utilities
+for newly active seats under keep-board without resurrecting removed setup;
+Create completion;
 keyboard newline/tapaway/retry and rotated overlay; actual shared-controller
 inline token editing; summary arithmetic/exclusions and long artwork/summary
 scrolling; invalid-image selection preservation; 90/180/270-degree crop pixels
@@ -285,6 +293,19 @@ native-failure claims or runtime acceptance.
   remains unverified.
 
 ## Remaining risk and handoff
+
+Additional native counter-management exercise stopped when Computer Use reported
+that the Mac was locked and could not be unlocked automatically. The attempted
+action was a read of the isolated mini simulator's controls before opening
+Player 1's token counter manager; no counter mutation was issued. This coverage
+is pending a manual unlock, not denied by approval review. The earlier native
+flows and eight screenshots were already completed. A preceding automated drag
+attempt did not trigger swipe deletion, so it does not establish native gesture
+acceptance. Source and automated counter coverage are recorded above.
+
+The later newly-active-seat default-utility correction has source/regression
+evidence only. No additional native UI run was attempted after the lock; this
+coverage limit is carried into the independent parent review.
 
 Beyond the exercised native flows above, untested input/picker paths,
 accessibility/scaling, original art workflows, concurrent failure recovery and

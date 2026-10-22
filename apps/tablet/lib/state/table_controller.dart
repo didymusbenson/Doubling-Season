@@ -707,6 +707,10 @@ class TableController extends ChangeNotifier {
             )
             .toList();
         next.artPreferences = Map.from(prior.artPreferences);
+      } else if (keepBoard) {
+        // A newly active seat gets fresh default utilities, never its removed
+        // game's setup. Complete reset still clears every utility selection.
+        next.utilities = defaultUtilities();
       }
       // Reusable definitions survive; activation never carries into a new game.
       final definitions =
