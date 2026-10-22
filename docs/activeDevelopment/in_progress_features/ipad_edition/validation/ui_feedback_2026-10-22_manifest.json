@@ -19,7 +19,7 @@
     "apps/tablet/lib/ui/table_artwork.dart": "8c621e0d1b71b935b1ca33a4a3a3fa0ee066355a96047b03cfa9b19d18f0c81e",
     "apps/tablet/lib/ui/table_screen.dart": "b963202a32858333a282d394f3f8e694d3d846a19e2f4e46bbcc59eed724c27f",
     "apps/tablet/lib/ui/table_theme.dart": "1881db4a950b9ed22e011c4000cdfa168e7a192e2b8b2eb379e7a0bbed80a08c",
-    "apps/tablet/lib/ui/tablet_token_card.dart": "2e728564ae389d2e4031a949974db414ec2e1585e042afedea403d870bb34bf2",
+    "apps/tablet/lib/ui/tablet_token_card.dart": "52bde0c25c9499320a726f795280afb53746a69dc4805f7660425cd0762daadc",
     "apps/tablet/lib/ui/token_board_summary.dart": "bede00b692eb810ee42df9f87f379c69ef3855ca6b26c42fc3cb94df8f252992",
     "apps/tablet/lib/ui/workspace/game_pages.dart": "82c2558ea51fcb417c7b1ac2072e63b9eaf967980c6d1750a5b68afe3ee5e574",
     "apps/tablet/lib/ui/workspace/library_pages.dart": "f83e4b4623465de48e20cb5efdd25300e13d7b8473223ee3df15f5a6c12872b9",
@@ -30,7 +30,7 @@
   "library_upload": {
     "status": "succeeded",
     "count": 27,
-    "route": "documented host-file create-only batches",
+    "route": "documented host-file create-only batches; two final owned-file replacements preserve their Library IDs",
     "prepared_helper": "unavailable before any operation; no write occurred",
     "denied": false,
     "uncertain": false,
@@ -191,20 +191,20 @@
       "file_name": "flutter-test-renderer-dice-1133x744.png",
       "width": 1133,
       "height": 744,
-      "sha256": "a57f82c5848b42362ec880416974957a33f46e1f8c6d15ed2e89a1a4c4c0d58c",
+      "sha256": "69bb0ebb43dcadbb8fc423cd4fc84a826525943e27cf48342f133c4f3bec464b",
       "library_file_id": "libfile_4eedb86703d88191acc99c24c2e79d41",
-      "file_id": "file_00000000fee481f591ad83a64f310ca9",
-      "version": 0,
+      "file_id": "file_000000002be081f595cebc89a05036ab",
+      "version": 1,
       "library_path": "/flutter-test-renderer-dice-1133x744.png"
     },
     {
       "file_name": "flutter-test-renderer-dice-744x1133.png",
       "width": 744,
       "height": 1133,
-      "sha256": "08724abf57cf4f82872e5b3f73db9650772fe04e40997bff6558b7813894fd50",
+      "sha256": "4f4278ff4a2b711eba198c2f6cf305c8dc7d7f75510ec8b162c3b47a13693d5f",
       "library_file_id": "libfile_4c72375172648191aec4ac51e09bd667",
-      "file_id": "file_000000001c10820c99d7f7c98fd7e28a",
-      "version": 0,
+      "file_id": "file_00000000e67881f4a72a86cddaad0b89",
+      "version": 1,
       "library_path": "/flutter-test-renderer-dice-744x1133.png"
     },
     {
@@ -308,5 +308,16 @@
       "library_path": "/flutter-test-renderer-utility-storm_count-744x1133.png"
     }
   ],
-  "source_implementation_commit": "859cb5dc1bc716d163175596f2a02397cd63febb"
+  "source_implementation_commit": "36f6ffd1e1694614bb0f1c3d6a9b24b41007c639",
+  "recapture_verification": "25 deterministic screenshots byte-identical after count-width correction; two final random dice result captures replaced under their existing Library IDs (version 1).",
+  "ci": {
+    "run_id": 39816870560,
+    "url": "https://github.com/didymusbenson/Doubling-Season/actions/runs/39816870560",
+    "implementation_commit": "36f6ffd1e1694614bb0f1c3d6a9b24b41007c639",
+    "conclusion": "success",
+    "jobs": {
+      "android-web": "success",
+      "ipad-simulator": "success"
+    }
+  }
 }

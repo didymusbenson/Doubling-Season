@@ -30,15 +30,15 @@ Proposed setup presets: Commander 40, ordinary casual 20, and a custom value. Co
 
 Do not automatically eliminate a player, disable controls, clear their board or declare a winner at a threshold. Proposed state is manually controlled active/eliminated, with an optional “check player status” prompt. Losing a game can involve more than the values being tracked. Negative life remains editable to represent corrections and relevant effects.
 
-## Commander damage: required capability, proposed detailed interaction
+## Commander damage: required direct trackers — accepted 2026-10-22
 
 Commander damage is required, including damage from a player’s own commander. A single “commander damage taken” scalar is inadequate. Record damage by **recipient player ID and stable commander identity**. Two commanders belonging to one player must remain distinguishable. Commander identities survive seat moves and label changes; a displayed name is not their key. Independent commanders and commander tax are supported by the official rules. [Rules 702.124d / 903.8](https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt).
 
-Proposed interaction:
+Accepted interaction (the latest feedback supersedes the earlier menu-first proposal):
 
-1. Recipient opens their commander-damage panel.
-2. Select source commander from named commander slots **including the recipient’s own commander(s)**; show source owner, recipient and commander label distinctly. Never filter the selector to opponents only.
-3. Enter combat damage amount.
+1. Recipient adjusts an individual commander mini-tracker directly in the attached life area, with the source owner’s visual identity. A compact overview remains available for arbitrary amounts and ledger corrections.
+2. Keep each named commander source distinct **including the recipient’s own commander(s)** and partners. Identify owner, recipient and commander in context/accessibility; never restrict sources to opponents.
+3. Direct ± changes damage and coupled life through the existing command. Enter a larger combat amount or an explicit ledger-only correction in the source’s contextual editor.
 4. **Accepted:** entering new commander damage also subtracts life. Provide distinct corrections to either value independently; correction must not silently repeat the coupled effect.
 5. Commit new damage and its life delta as **one command and undo unit** in the chronological game history. Exact correction affordances remain open, not the coupled-entry policy.
 
@@ -57,7 +57,7 @@ The user requested the relevant life-tracker fundamentals, not a life-only minim
 | Life totals; tap/delta and negative totals observed in research “Life adjustment, player panel, and counters” | **Confirmed** | Per player. Detailed gestures, presets, bounds, history grouping and direct-entry UX remain design choices. |
 | Energy, poison, experience (`Exp`) numeric controls observed in COUNTER-01 | **Explicitly confirmed examples** of relevant player counters | Typed values per player; visibility/defaults, bounds and correction controls remain open. Do not confuse poison with an automated infect calculation. |
 | Radiation (`Rad`) observed in COUNTER-01 | **Sourced candidate** within the confirmed relevant-counter category | Carry into the inventory for suitability/default review, not silently omit it; no automated milling, life loss or turn effects implied. |
-| City’s blessing (reference label `Ascend`) observed as a status control | **Explicitly confirmed** | Independent player status, not a numerical counter or exclusive holder. UI naming/placement and manual correction behavior remain open. |
+| City’s blessing (reference label `Ascend`) observed as a status control | **Explicitly confirmed** | Independent player status, not a numerical counter or exclusive holder. Compact enabled/disabled badges are accepted; independent manual corrections stay local. |
 | Monarch observed as status control; reference exclusivity was not tested | **Explicitly confirmed ownership tracking** | One authoritative table-level holder reference, projected into player views; never independent conflicting booleans. Transfer/correction history and elimination handling need explicit UX. |
 | Day/night control observed adding a central sun indicator | **Explicitly confirmed game-level state** | One shared designation with an initial neither state; no per-player copies and no automatic spell/turn inference. Placement/transition controls remain open. |
 | Source damage and life coupling observed; `me` cell visible; two partner cells observed but independent partner edits untested | **Confirmed per-source damage including self** | Stable recipient/source identities, distinct partner sources. New damage subtracts life as one undoable action; independent corrections are required; thresholds warn without automatic elimination. Detailed UI remains open. Our required support exceeds the reference’s verified source/partner behavior. |

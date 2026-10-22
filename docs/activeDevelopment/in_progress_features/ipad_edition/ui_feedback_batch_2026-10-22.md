@@ -17,7 +17,7 @@ These are **cross-platform requirements for iOS tablets, Android tablets and web
 | Game control placement | Shared strip lives entirely within life zones, below the hard horizontal border. Token lanes retain full region height. Two/three/four-seat layout and empty-seat controls retained. | Nine size/count combinations; no token-lane/control overlap; independent divider bounds. |
 | Earlier token corrections | Compact direct controls, clean quick-add, partial tap, exact Set, Split & Add to One, sickness and scoped undo remain. | Existing corrective regressions plus new focused token checks pass. |
 
-Implementation checkpoint: `859cb5dc1bc716d163175596f2a02397cd63febb`, pushed and remote SHA verified. Later documentation-only commits may update validation/Library evidence.
+Final implementation checkpoint: `36f6ffd1e1694614bb0f1c3d6a9b24b41007c639`, pushed and remote SHA verified. Initial checkpoint: `859cb5d`. Later documentation-only commits may update validation/Library evidence.
 
 The original root app's code, assets, entry points, platform projects, dependency files and Pages deployment workflow remain unchanged. Documentation updates reflect the new accepted directions. No merge, deployment, installation, signing/store/account/security change or personal game-data reset was performed.
 
@@ -28,9 +28,9 @@ Flutter 3.41.2 / Dart 3.11.0. `flutter analyze`: no issues. Aggregate `flutter t
 | Target/evidence | Build | Visual/interaction result | Acceptance |
 |---|---|---|---|
 | Shared Flutter widget renderer | PASS | PASS: 1133×744, 744×1133 and 1366×1024, each with 2/3/4 seats; actual Mana font loaded, default mana controls bounded, long names/large totals, all fixed utility kinds, player/status/commander/dice captures. | Supports implementation review; not a browser or native run. |
-| Web release | PASS: Pages-compatible build, 3.41.2 | NOT RUN in browser: supported Chrome and in-app browser surfaces unavailable. Known independent q→a replacement issue remains open. | Pending browser input/touch/modal acceptance on final build. |
-| iOS tablet | PASS locally: unsigned simulator build, Mana font bundled; CI pending | NOT RUN: selecting Simulator reports the Mac locked. No unlock bypass or native mutation attempted. | Pending unlocked simulator/device checks, including actual small tablet, font rendering, touch, keyboard/modal orientation and tapaway. |
-| Android tablet | PASS locally: release APK, Mana font bundled; CI pending | NOT RUN: native computer use blocked by the locked Mac; no Android UI session opened. | Pending emulator/device visual, font, touch and keyboard/modal checks. |
+| Web release | PASS locally and CI: Pages-compatible build, 3.41.2 | NOT RUN in browser: supported Chrome and in-app browser surfaces unavailable. Known independent q→a replacement issue remains open. | Pending browser input/touch/modal acceptance on final build. |
+| iOS tablet | PASS locally: unsigned simulator build, Mana font bundled; CI PASS | NOT RUN: selecting Simulator reports the Mac locked. No unlock bypass or native mutation attempted. | Pending unlocked simulator/device checks, including actual small tablet, font rendering, touch, keyboard/modal orientation and tapaway. |
+| Android tablet | PASS locally: release APK, Mana font bundled; CI PASS | NOT RUN: native computer use blocked by the locked Mac; no Android UI session opened. | Pending emulator/device visual, font, touch and keyboard/modal checks. |
 
 Release web command: `flutter build web --release --base-href /Doubling-Season/tablet/ --pwa-strategy=none`.
 
@@ -38,7 +38,7 @@ Local Android `flutter build apk --release` and unsigned iOS `flutter build ios 
 
 The release font manifest includes the local `Mana` font at `assets/fonts/mana.ttf`; the tree-shaken font is present in build output. The tablet source font SHA-256 matches the original TS source font: `a23809f7c0af7f9866734216bdd73bce2cfedd67333f5cde86a9ee066fa69819`. Renderer images show the actual power/sword and toughness/shield glyphs, not merely text labels or icon code references. Platform-specific native bundling is additionally checked by CI compilation; final native pixel acceptance remains pending.
 
-Final web `main.dart.js` SHA-256: `b690654e4ac290187fc9271d55386ef979fbf19762221d06e9746b3a0de9e745` (recheck after any source change).
+Final web `main.dart.js` SHA-256: `cb4acbcd3fe4e490a8edbae75858b4f1a507a4f83e013b01f29522d263d93c0c` (recheck after any source change).
 
 ## Evidence and rerun
 
@@ -57,6 +57,8 @@ From `apps/tablet`, ordinary checks are `flutter analyze` and `flutter test`. To
 
 ## CI fallback-font correction
 
-The first dispatched validation run (`39815612856`, implementation `859cb5d`) passed analysis and 101 tests, then found a 14px overflow in the narrow portrait large-total fixture under the test fallback font. The count renderer now bounds each numeric label with loose flex/scale-down while preserving its full semantic value. A new 1,000,000,000-total narrow-lane regression passes. Normal local tests pass 103/103; the real-font screenshot suite passes 26/26. Twenty-five deterministic captures are byte-identical after the correction; only random dice results differ. CI is rerun on the pushed correction rather than treating the earlier failure as acceptance.
+The first dispatched validation run (`39815612856`, implementation `859cb5d`) passed analysis and 101 tests, then found a 14px overflow in the narrow portrait large-total fixture under the test fallback font. The count renderer now bounds each numeric label with loose flex/scale-down while preserving its full semantic value. A new 1,000,000,000-total narrow-lane regression passes. Normal local tests pass 103/103; the real-font screenshot suite passes 26/26. Twenty-five deterministic captures are byte-identical after the correction; the two final random dice result captures replaced their existing Library items at version 1. Corrected [CI run 39816870560](https://github.com/didymusbenson/Doubling-Season/actions/runs/39816870560) succeeded on implementation `36f6ffd1e1694614bb0f1c3d6a9b24b41007c639`: analysis, tests, web/APK builds and iPad simulator build. The earlier failed run is retained as history, not acceptance.
 
 A local-only review server serves the release build at `http://127.0.0.1:8784/Doubling-Season/tablet/` (HTTP 200 verified). No browser session was available here, so this is a handoff endpoint, not browser evidence.
+
+The final evidence commit changes documentation only; app source/tests match the green-CI implementation `36f6ffd` exactly. The remote feature branch SHA is checked again after that documentation push. No main merge or deployment is part of this handoff.
