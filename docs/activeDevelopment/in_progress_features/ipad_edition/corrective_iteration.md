@@ -1,5 +1,16 @@
 # Tablet corrective iteration — original token parity
 
+> **Current cross-machine checkpoint: not production-ready.** The later independent
+> review reproduced P1 Q01 on the web keyboard: Select all → q → a yields `a`
+> instead of `qa`. The historical passing checks below do not establish that
+> flow. No interrupted tracked fix was present when consolidation resumed.
+> Remaining source findings Q02–Q05 cover symbolic P/T keys, effective utility
+> history deltas, Ready/clear-sickness status access, and historical seat naming.
+> They remain outstanding; this merge publishes current work without claiming
+> those fixes. See the [readable review](independent_review/correction_review_2026-10-22.txt)
+> and [self-contained illustrated report](independent_review/correction_review_2026-10-22.html).
+
+
 **Status:** the complete follow-up passes 70 automated tests, tablet/root analysis, formatting, web release and iOS simulator builds. Eight native captures predate the newly-active-seat default-utility follow-up. Both CI jobs passed for final implementation `62ac03deee02f80ae0e13f1eb137e46084ee5a75`, and origin matches that implementation checkpoint. This documentation-only record follows the verified code. No full release acceptance is claimed.
 **Branch:** `codex/tablet-token-parity-correction`.
 **Reviewed baseline:** `dcac16bf6a988283f135d1a3a2fd5bf663c4ac08`.

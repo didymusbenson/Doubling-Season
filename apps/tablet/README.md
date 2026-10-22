@@ -3,6 +3,13 @@
 The separate tablet app developed from the Tripling Season iPad specifications.
 “Tripling Table” is a development name, not a selected store name.
 
+**Checkpoint status (2026-10-22): not production-ready.** Independent web review
+confirmed that inline Name → Select all → q → a can replace the first letter
+(`a` instead of `qa`). This cross-machine consolidation preserves the current
+implementation; no completed follow-up fix was found in the clean checkouts.
+See the [independent review](../../docs/activeDevelopment/in_progress_features/ipad_edition/independent_review/correction_review_2026-10-22.txt)
+and [illustrated evidence](../../docs/activeDevelopment/in_progress_features/ipad_edition/independent_review/correction_review_2026-10-22.html).
+
 ## Run
 
 From this directory, use Flutter 3.41 or later:

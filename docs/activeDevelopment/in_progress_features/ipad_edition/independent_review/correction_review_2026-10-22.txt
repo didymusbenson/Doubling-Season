@@ -1,0 +1,114 @@
+TRIPLING SEASON TABLET — INDEPENDENT CORRECTION REVIEW
+2026-10-22 UTC · Read-only follow-up · c350990 / implementation62ac03d
+
+READINESS
+
+The correction is a substantial improvement and is ready for another user design review. It is not yet ready for web acceptance: the shared keyboard reproducibly loses the first character after Select all in the exercised inline Name flow. The counter-inheritance defect is fixed in the final web build. Compact token controls, useful counter workflows, default utility capacity, mana spending and reset/restore completion are materially better.
+
+This is a bounded retest of priority failures, not a new claim of full 50-row parity. The earlier 2.6/5 remains the historical first-pass score. No aggregate replacement score is calculated from this smaller follow-up. Source-only gaps and native limits remain open. No source fixes, builds, tests, installs, signing or publication were performed by this reviewer.
+
+IDENTITY AND EVIDENCE
+
+Correction checkout: /Users/didymusbenson/Documents/Codex/2026-10-21/task-2/tablet-correction
+Branch: codex/tablet-token-parity-correction
+HEAD: c3509901eab59010bff01e9c0c135a71d62ab820
+Implementation: 62ac03deee02f80ae0e13f1eb137e46084ee5a75; the following commit changes corrective_iteration.md only. Checkout clean before and after review. Original reviewed checkout was not altered.
+App: apps/tablet, Tripling Table, Flutter web/iOS/Android target.
+Runtime: existing final release web build served read-only at a fresh isolated http://127.0.0.1:8771 origin in Codex in-app browser. main.dart.js SHA-256: 187d93cdc959dc291503e11e54261054b322fe879f3bba67a5e3e8253e39e173. No source injection or storage seeding was used; all test data was created through UI. Browser tab/server closed and viewport reset after testing.
+Logical viewports: 1133×744 landscape for four/two/three seats and input/gameplay; 744×1133 portrait for three seats, complete reset, and restored four seats. These are browser tablet dimensions, not a new iPad simulator/device run.
+
+Read AGENTS.md, relevant skill inventory, corrective_iteration.md, the correction evidence manifest and focused source paths. Original50-row inventory and original review evidence remain intact. The supplied 70-test/analysis/build/CI results are integration evidence, not independently rerun acceptance. Internal read-only audits checked targeted token and state paths; no implementation agent was contacted.
+
+Native access was blocked: cua.getApp('Simulator') returned cgWindowNotFound; the subsequent available-surface inventory explicitly reported the Mac locked with no native apps available. No unlock attempt or native mutation followed. Supplied native captures01 and08 were visually inspected here; an internal source reviewer inspected04. They support visible earlier states only. All eight supplied captures predate the newest default-utility correction. Their earlier reported native keyboard success does not disprove a web-specific input failure.
+
+Evidence classes: R = independent runtime/rendered evidence; C = code only; S = supplied capture/reported integration; U = untested. Severity: P1 frequent core use blocked or unreliable; P2 meaningful correctness/workflow gap; P3 narrower efficiency/presentation issue. A screenshot proves a state; the recorded action sequence establishes a transition.
+
+BOUNDED SCORECARD
+
+Scale unchanged: 0 absent in exercised path; 1 largely unusable; 2 substantial rework needed; 3 usable core with material limitations; 4 strong observed subset with smaller gaps; 5 thoroughly accepted scenarios. These are provisional scores for the observed subset only, without an overall mean.
+
+| Area retested | Score | Evidence and limits |
+|---|---|---|
+| Mini layout / compact controls | 4/5 | R: all default mana colors and Storm fit; repeated name footer removed; compact token actions visible; 2/3/4-seat layouts inspected. Portrait controls wrap. Physical reach/text-scale/native acceptance U. |
+| Token gameplay / counter workflows | 3/5 | R: clean quick-add, partial tap, exact Counter Set, Split & Add to One, eligible absolute-total sickness work. Broad rules/art/gesture parity U; narrow source-only input/status gaps below. |
+| Inline/shared text input | 2/5 | R: actual inline field shares controller with one correctly rotated keyboard; commit/tapaway isolation work. Initial character replacement remains a P1 web defect. |
+| Mana / visible history | 3/5 | R: direct plus/plus/minus stays on board; requested −10 from1 records actual −1. C: utility clamp labels still wrong; generic Edit token remains visible. |
+| Reset / archive completion | 4/5 | R: 4→2→3, new-seat default utilities, complete-clear, archive restore return to board. U: hidden/custom removed-seat setups, fresh ID equality, failure/eviction and final native matrix. |
+
+CONFIRMED CORRECTIONS
+
+R01 — Clean quick-add and compact partial tap (original TP01/TP02, inventory07/09).
+Steps: fresh Player1 Add → Saproling → quantity3 → Create. The creation workspace closes. Tap compact Tap one: 3total/2ready/1tapped. Tap compact +1/+1: source becomes2/2 with visible pill/highlight. Tap quantity+: source stays3 at2/2 with its counters/status; a separate clean1/1 token appears, amount1/untapped/sick1. No rules enabled. This directly resolves the original counter-inheritance failure. Evidence c02; board_service.dart:381–417. Counter/type/art edge combinations are not inferred from this case.
+
+R02 — Exact counter Set and integrated one-token split (TP03, inventory20–22).
+Steps: source counter pill → focused Token counters → number1 → Set input → shared keyboard5 → Done/Set. Existing counter shows5 and source P/T becomes6/6. Choose predefined +1/+0 → Split & Add to One. Workspace closes automatically. Source3 becomes2, keeps +1/+1=5 and tapped1, bounded sickness2. A new appended token has amount1, tapped0/sick0, inherited +1/+1=5 plus +1/+0=1, P/T7/6. Existing clean1/1 remains separate. The new row values were verified in accessibility state; c03 captures the preceding choice, not every offscreen result. Counter Set/search are real interactions now, not inert form values. Source: token_pages.dart:521–642; board_service.dart:545–617.
+
+R03 — Absolute Total adds eligible sickness (TP05, inventory11).
+From source amount2/tapped1/sick2, open focused Token status and Set Total10. Result is amount10/tapped1/sick10. Counter state stays +1/+1=5. c04 captures the committed numbers. This resolves the tested absolute-increase mismatch. Haste/disabled sickness and all bounds remain U. Source: board_service.dart:457–500; token_pages.dart:467–518.
+
+R04 — Actual inline editor, rotation and tapaway barrier (F02, inventory28/31).
+Create one Treasure for opposite-facing Player2; Create again exits to board. Compact abilities now render the tap symbol and rules text. Tap Name once to expand, again to edit in place. One custom keyboard faces Player2, and its text is reflected in the actual token field. After the input failure below, tap away over Player4 life: editing commits/dismisses, all four lives remain40, and no underlying workspace opens. c05–c07 capture editing; c09/c13 show the saved name. This accepts the architecture and barrier subset, not reliable text entry.
+
+R05 — Mini capacity and direct mana spending (F01/F07/VD01–VD03).
+In fresh four-seat1133×744, every seat displays Storm plus all six mana colors without utility scrolling (c01). Names appear in life, without the old repeated seat footer. Central controls are compact icons. P1 White plus, plus, minus ends1 with the board still visible. Manage pool → White −10 clamps1→0; History says W mana −1, not−10 (c08). Actor and Affected: Player1 are visible. No blanket history pass: residuals below remain.
+
+R06 — Keep-board, fresh defaults and completion (F04 and final62ac03d follow-up).
+Reset4→2 with current configuration: workspace closes; both mirrored token lanes are player-local-left; zero token entries persist; counters clear and default utilities remain visible (c09). Reset2→3 using Top left empty slot: workspace closes; new Player3 has visible zeroed Mana and Storm, while remaining seats keep their reusable token entries (c10). The selected empty slot provides expanded game controls. At744×1133 those defaults still fit (c11). Complete reset then leaves all three token/utility lanes empty (c12), so fresh-default provisioning does not override complete-clear. Removed hidden/custom setup nonresurrection and new utility IDs were inspected in source/tests only, not manufactured in this runtime.
+
+R07 — Archive restore returns to populated board.
+From the completely cleared three-seat state, restore the earlier four-seat archive. Workspace closes automatically; Player1 returns with its three stacks, first amount10/tapped1/sick10/+1/+1=5 and6/6; Player2 returns with renamed Treasure; four lives40 and defaults visible (c13). The restore action confirmed saving current state first; full archive byte/timeline equality and outgoing snapshot contents were not exhaustively compared. One immediate frame during three-seat reset briefly exposed stale-game text before closing; the original persistent stranded workspace did not recur.
+
+REMAINING ISSUES
+
+Q01 — P1 — R + C — Web keyboard loses the initial character after Select all.
+Repro at1133×744: Player2 Treasure → expand → Name; Select all → q → a. The first key visibly yields q; the next key yields a instead of qa. Both the actual inline field and shared keyboard show the replacement. Repeated using accessibility-targeted clicks and actual pointer coordinates with a fresh state observation between actions: Select all(174,251), q(1077,160), a(1077,117). Same result. Earlier longer q/a/left/s sequences also lost text (c05,c06). c07 captures the isolated result; the step observations establish q→a. Subsequent characters sometimes append normally, so this is scoped to the initial focus/selection transition, not every keypress. Tapaway commits the shortened value.
+Impact: routine rename/text input cannot be trusted on this supported web target. This blocks web acceptance despite useful inline UI restoration. Native behavior is not independently retested.
+Plausible mechanism, not a fully proven root cause: player_keyboard.dart:604–624 omits selectAllOnFocus on its single-line EditableText preview; _replace calls _focusDraft before insertion at312–327. Installed Flutter defaults select-all-on-focus true on web/desktop and false on mobile, and can reselect on focus regain (SDK editable_text.dart:2106–2117,4752–4788). This matches the platform distinction. No fix made.
+
+Q02 — P2 — C/U — Inline P/T keyboard lacks variable-stat characters.
+tablet_token_card.dart:716–720 requests numeric:true; player_keyboard.dart:530–534,636–663 supplies digits/minus/slash without '*' or '+' or an ABC/symbol switch. Touchscreen inline entry of */* or1+*/1+* therefore has no key path. Detailed editor, hardware or paste remain workarounds; storage/calculation of variable P/T is not claimed absent. This was source-reviewed, not runtime exercised in the bounded pass.
+
+Q03 — P2 — C/U — Utility history still records requested rather than effective clamped change.
+The corrected mana route passed. Separate utility route board_service.dart:1118–1139 retains raw delta/label before clamping. Candidate: Storm2, hold detail minus10 → actual0, History Adjust utility−10 instead of−2. Reachable hold callback: library_pages.dart:132–149. No hold execution was performed here. Do not label every numeric history path fixed from the mana success.
+
+Q04 — P3 — R visible absence + C — Focused status is less informative than original.
+Token status has Total, Tapped and Summoning sick (c04), but lacks original Ready summary and one-action Clear summoning sickness. Set0 still works as a path; this is an efficiency loss, not missing sickness state. Original token_status_sheet.dart:97–117 versus tablet token_pages.dart:467–518.
+
+Q05 — P3 — C/U — Historical affected-seat names resolve from current profiles.
+game_pages.dart:480 calls _nameForPlayer at290–294; renaming a seat can relabel old Affected lines while the actor label remains snapshotted. IDs still preserve identity. Also R: rename remains generic Edit token in History(c08), without old/new text. No historical-rename experiment was run.
+
+VISUAL JUDGMENT
+
+The board now looks and behaves much closer to the deliberate original token object: compact icon actions, status counts, counter pills, modified-P/T emphasis and compact ability symbols coexist in the lane. c02 versus original47/48 makes the change concrete. Default utilities are visible in both inspected mini orientations, instead of occupying an unusably short scroller. Portrait action rows wrap to two lines and remain dense; physical touch and text scaling must still be checked. Large detailed dialogs still contain unused space, but their operations are focused and ordinary actions no longer require them. Further geometry refinement is a design iteration, not a mandate to shrink controls or force FABs.
+
+Four-player token-side choice remains the earlier D01 open consistency question. Two-player local-left is correct in c09. No new lane-side failure is asserted. Repeated idle-board player naming was removed; captured player/token context remains correctly present in editors.
+
+COVERAGE LIMITS AND BLOCKERS
+
+Native interaction: blocked/pending manual unlock, not an approval rejection. Target was the isolated Simulator UI; available-surface inventory explicitly reported the Mac locked. No attempt to bypass lock or install/relaunch the native artifact. The supplied native01/08 screenshots were inspected as S evidence; supplied04 was checked by an internal reviewer. They predate the fresh-default correction. Independent web now covers that narrow correction; native does not.
+Local web server: initial bind was sandbox-denied; exact read-only loopback escalation succeeded. No remaining browser runtime blocker. The server and tab were closed afterward.
+Artifacts: report HTML statically checked with embedded JPEG evidence. No new browser-preview workaround was attempted following the earlier report file-URL policy denial.
+Not exercised: native picker/crop, hold/drag/swipe reliability, physical multitouch/reach, VoiceOver/focus order, IME, text scaling, Android/Safari, complete art/preset/import/rule matrices, storage failures/concurrency/crash recovery, archive eviction/equality, every3p empty slot, larger viewport retest. The70 automated tests/CI remain attributed integration evidence. No new tests were added or rerun.
+Operator note: a semantic Close-workspace target during the mana check activated the underlying Lock-for-Empty control inside the same modal. The visible lock/history entry is a QA interaction artifact, not attributed to spontaneous application behavior. Visible X then closed the modal. All such changes were confined to the fresh synthetic browser origin.
+
+NEXT ACCEPTANCE GATE
+
+Correct Q01, then rerun the same single-line pointer input sequence and tapaway in both opposite seats. Address Q02/Q03 and the smaller status/history gaps without reopening the full50-row research scope. After manual unlock, run the final build on the isolated mini for the same corrected flows, especially fresh-default reset and real touch/hold/counter input. Preserve current clean-add, counter split, inline ownership, compact density and reset-completion behavior. This review authorizes no source changes by this reviewer.
+
+NOTES FOR THE USER'S NEXT PASS
+
+Compact-control density / icon recognition:
+
+Token information and gestures still missing in play:
+
+Keyboard / field placement notes:
+
+Four-player lane geometry decision:
+
+Accept / revise the remaining priorities:
+
+SOURCE MAP AND ARTIFACTS
+
+Unless prefixed original/SDK, source names refer to apps/tablet/lib at c350990. board_service.dart = features/board_service.dart; table_controller.dart = state/table_controller.dart; tablet_token_card.dart and table_screen.dart = ui/; token_pages.dart, game_pages.dart, library_pages.dart, table_workspace.dart and player_keyboard.dart = ui/workspace/. Original phone paths remain under lib/. Exact correction tracker: docs/activeDevelopment/in_progress_features/ipad_edition/corrective_iteration.md.
+Independent new screenshots c01–c13 are under /Users/didymusbenson/Documents/Codex/2026-10-21/task/correction-qa-evidence. The HTML embeds all13. c05/c06 preserve failed exploratory text sequences; c07 is the isolated reproduction. c03 proves the available choice; offscreen split-result values are from the recorded accessibility state, not inferred from that screenshot.
+This is a clearly separate correction review. Original Library reports and their48 screenshots remain unchanged at version4 for before/after comparison.
