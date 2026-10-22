@@ -67,3 +67,35 @@ the product owner's account setup.
 
 The tablet CI workflow analyzes the app and builds web, Android and the iPad
 simulator for relevant pull requests. It does not deploy or publish either app.
+
+## Web preview on GitHub Pages
+
+The existing Pages site serves both apps from one deployment artifact:
+
+- Original app: https://didymusbenson.github.io/Doubling-Season/
+- Tablet preview: https://didymusbenson.github.io/Doubling-Season/tablet/
+
+On pushes to `main`, `.github/workflows/deploy.yml` builds the original app
+with Flutter 3.38.x and `/Doubling-Season/`, then the tablet app with Flutter
+3.41.2 and `/Doubling-Season/tablet/`. It copies the tablet output into the
+original build's `tablet/` directory and uploads the combined site once. Never
+deploy the tablet artifact alone: Pages replaces the entire site on deployment.
+`/Doubling-Season/deployment.json` records the deployed source commit.
+
+To reproduce the tablet Pages build from this directory:
+
+```sh
+flutter build web --release --base-href /Doubling-Season/tablet/ --pwa-strategy=none
+```
+
+The tablet preview does not register a service worker or create Flutter offline
+caches; the original app's service worker and build settings are unchanged.
+Paths on the same origin share browser storage, so isolation depends on distinct
+names, not the URL alone. Tablet Hive boxes use `tripling_season_tablet_*` and
+`tripling_table_media_v1`; its preferences use `tablet_support_*`. The tablet
+entry point does not initialize the original app's Hive providers or settings.
+No storage migration or reset is part of publishing this preview. Do not clear
+site data to switch between apps, since that would delete both apps' saved state.
+
+This is a browser inspection build with the known inline keyboard P1 unresolved.
+It does not establish native iPad/Android acceptance or store readiness.

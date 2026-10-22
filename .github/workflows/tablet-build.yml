@@ -8,6 +8,7 @@ on:
       - 'assets/**'
       - 'pubspec.*'
       - '.github/workflows/tablet-build.yml'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
 permissions:
@@ -37,7 +38,7 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
-      - run: flutter build web --release
+      - run: flutter build web --release --base-href "/Doubling-Season/tablet/" --pwa-strategy=none
       - run: flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
