@@ -178,6 +178,11 @@ class _TableScreenState extends State<TableScreen> {
                   player: player,
                   turns: turns,
                   tokenLeft: tokenLeft,
+                  gameInset: two
+                      ? (controller.session.players.indexOf(player) == 0
+                            ? 40
+                            : 0)
+                      : (player.slot == 0 || player.slot == 3 ? 40 : 0),
                   interactionEpoch: interactionEpoch,
                   onInputLock: setInputLock,
                   onOpen: (page, [itemId]) =>
@@ -230,30 +235,64 @@ class _TableScreenState extends State<TableScreen> {
                       ),
                     ),
                   Expanded(
-                    child: two
-                        ? seat(controller.session.players[1])
-                        : Row(
-                            children: [
-                              Expanded(child: slot(1)),
-                              const VerticalDivider(width: 2),
-                              Expanded(child: slot(2)),
-                            ],
-                          ),
-                  ),
-                  _GameStrip(
-                    controller: controller,
-                    onOpen: (page) => open(page),
-                  ),
-                  Expanded(
-                    child: two
-                        ? seat(controller.session.players[0])
-                        : Row(
-                            children: [
-                              Expanded(child: slot(0)),
-                              const VerticalDivider(width: 2),
-                              Expanded(child: slot(3)),
-                            ],
-                          ),
+                    child: LayoutBuilder(
+                      builder: (context, table) {
+                        final dividerColor = Theme.of(
+                          context,
+                        ).colorScheme.outline;
+                        Widget row(int left, int right) => Row(
+                          children: [
+                            Expanded(child: slot(left)),
+                            VerticalDivider(
+                              width: 3,
+                              thickness: 3,
+                              color: dividerColor,
+                            ),
+                            Expanded(child: slot(right)),
+                          ],
+                        );
+                        return Stack(
+                          children: [
+                            Positioned.fill(
+                              child: Column(
+                                children: [
+                                  Expanded(
+                                    child: two
+                                        ? seat(controller.session.players[1])
+                                        : row(1, 2),
+                                  ),
+                                  Divider(
+                                    key: const ValueKey(
+                                      'player-horizontal-divider',
+                                    ),
+                                    height: 3,
+                                    thickness: 3,
+                                    color: dividerColor,
+                                  ),
+                                  Expanded(
+                                    child: two
+                                        ? seat(controller.session.players[0])
+                                        : row(0, 3),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Positioned(
+                              left: two
+                                  ? table.maxWidth * 11 / 21
+                                  : table.maxWidth * 11 / 42,
+                              right: two ? 0 : table.maxWidth * 11 / 42,
+                              top: table.maxHeight / 2 + 1.5,
+                              child: _GameStrip(
+                                divided: !two,
+                                controller: controller,
+                                onOpen: (page) => open(page),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
                 ],
               );
@@ -268,86 +307,108 @@ class _TableScreenState extends State<TableScreen> {
 class _GameStrip extends StatelessWidget {
   final TableController controller;
   final ValueChanged<WorkspacePage> onOpen;
-  const _GameStrip({required this.controller, required this.onOpen});
+  final bool divided;
+  const _GameStrip({
+    required this.controller,
+    required this.onOpen,
+    required this.divided,
+  });
   @override
-  Widget build(BuildContext context) => Material(
-    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-    child: SizedBox(
-      height: 40,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: ListenableBuilder(
-              listenable: TableSupportService.instance,
-              builder: (context, _) {
-                final support = TableSupportService.instance;
-                return Icon(
-                  support.tier == 0 ? Icons.spa_outlined : Icons.favorite,
-                  size: 22,
-                  semanticLabel: support.tier == 0
-                      ? 'Tripling Table'
-                      : '${TableSupportService.tierNames[support.tier - 1]} supporter',
-                  color: support.tier == 0
-                      ? null
-                      : Color(
-                          support.tier == 1
-                              ? 0xffdf7474
-                              : support.tier == 2
-                              ? 0xff83b7ce
-                              : support.heartColor,
-                        ),
-                );
-              },
-            ),
-          ),
-          const Spacer(),
-          _StripButton(
-            icon: Icons.history,
-            label: 'History',
-            onTap: () => onOpen(WorkspacePage.history),
-          ),
-          _StripButton(
-            icon: Icons.casino_outlined,
-            label: 'Dice',
-            onTap: () => onOpen(WorkspacePage.dice),
-          ),
-          _StripButton(
-            icon: controller.session.dayNight == 'night'
-                ? Icons.dark_mode_outlined
-                : Icons.light_mode_outlined,
-            label: controller.session.dayNight == 'neither'
-                ? 'Day / night'
-                : controller.session.dayNight,
-            onTap: () => onOpen(WorkspacePage.settings),
-          ),
-          _StripButton(
-            icon: Icons.restart_alt,
-            label: 'Reset',
-            onTap: () => onOpen(WorkspacePage.reset),
-          ),
-          _StripButton(
-            icon: Icons.tune,
-            label: 'Table',
-            onTap: () => onOpen(WorkspacePage.settings),
-          ),
-          const Spacer(),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Semantics(
-              label: controller.busy ? 'Saving game' : 'Game saved',
-              child: Icon(
-                controller.busy ? Icons.sync : Icons.check_circle_outline,
-                size: 17,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-          ),
-        ],
+  Widget build(BuildContext context) {
+    final left = <Widget>[
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: ListenableBuilder(
+          listenable: TableSupportService.instance,
+          builder: (context, _) {
+            final support = TableSupportService.instance;
+            return Icon(
+              support.tier == 0 ? Icons.spa_outlined : Icons.favorite,
+              size: 22,
+              semanticLabel: support.tier == 0
+                  ? 'Tripling Table'
+                  : '${TableSupportService.tierNames[support.tier - 1]} supporter',
+              color: support.tier == 0
+                  ? null
+                  : Color(
+                      support.tier == 1
+                          ? 0xffdf7474
+                          : support.tier == 2
+                          ? 0xff83b7ce
+                          : support.heartColor,
+                    ),
+            );
+          },
+        ),
       ),
-    ),
-  );
+      const Spacer(),
+      _StripButton(
+        icon: Icons.history,
+        label: 'History',
+        onTap: () => onOpen(WorkspacePage.history),
+      ),
+      _StripButton(
+        icon: Icons.casino_outlined,
+        label: 'Dice',
+        onTap: () => onOpen(WorkspacePage.dice),
+      ),
+      _StripButton(
+        icon: controller.session.dayNight == 'night'
+            ? Icons.dark_mode_outlined
+            : Icons.light_mode_outlined,
+        label: controller.session.dayNight == 'neither'
+            ? 'Day / night'
+            : controller.session.dayNight,
+        onTap: () => onOpen(WorkspacePage.settings),
+      ),
+    ];
+    final right = <Widget>[
+      _StripButton(
+        icon: Icons.restart_alt,
+        label: 'Reset',
+        onTap: () => onOpen(WorkspacePage.reset),
+      ),
+      _StripButton(
+        icon: Icons.tune,
+        label: 'Table',
+        onTap: () => onOpen(WorkspacePage.settings),
+      ),
+      const Spacer(),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Semantics(
+          label: controller.busy ? 'Saving game' : 'Game saved',
+          child: Icon(
+            controller.busy ? Icons.sync : Icons.check_circle_outline,
+            size: 17,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      ),
+    ];
+    return Material(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: SizedBox(
+        height: 40,
+        child: Row(
+          children: divided
+              ? [
+                  Expanded(child: Row(children: left)),
+                  SizedBox(
+                    key: const ValueKey('game-strip-player-divider'),
+                    width: 3,
+                    height: 40,
+                    child: ColoredBox(
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                  ),
+                  Expanded(child: Row(children: right)),
+                ]
+              : [...left, ...right],
+        ),
+      ),
+    );
+  }
 }
 
 class _StripButton extends StatelessWidget {
@@ -367,7 +428,8 @@ class _StripButton extends StatelessWidget {
     style: IconButton.styleFrom(
       foregroundColor: Theme.of(context).colorScheme.onSurface,
       minimumSize: const Size(44, 40),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
     ),
   );
 }
@@ -431,6 +493,7 @@ class _PlayerSpace extends StatefulWidget {
   final PlayerState player;
   final int turns, interactionEpoch;
   final bool tokenLeft;
+  final double gameInset;
   final void Function(WorkspacePage, [String?]) onOpen;
   final ValueChanged<UtilityState> onHide;
   final ValueChanged<bool> onInputLock;
@@ -441,6 +504,7 @@ class _PlayerSpace extends StatefulWidget {
     required this.player,
     required this.turns,
     required this.tokenLeft,
+    required this.gameInset,
     required this.interactionEpoch,
     required this.onOpen,
     required this.onHide,
@@ -454,6 +518,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
   String? expandedId;
   String? error;
   final tokenScroll = ScrollController(), utilityScroll = ScrollController();
+  final commanderScroll = ScrollController();
   Future<void> perform(Future<dynamic> Function() action) async {
     try {
       await action();
@@ -469,6 +534,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
   void dispose() {
     tokenScroll.dispose();
     utilityScroll.dispose();
+    commanderScroll.dispose();
     super.dispose();
   }
 
@@ -485,16 +551,10 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
         .effectiveSources(p.id)
         .where((s) => s.enabled && s.count > 0)
         .length;
-    Widget tokenLane = Column(
+    Widget tokenLane = Stack(
+      key: ValueKey('${p.id}-token-lane'),
       children: [
-        _LaneHeading(
-          count: p.tokens.length,
-          tooltip: '${profile.name}, add token',
-          onAdd: () => widget.onOpen(WorkspacePage.tokens),
-          summaryTooltip: '${profile.name}, board summary',
-          onSummary: () => widget.onOpen(WorkspacePage.tokenSummary),
-        ),
-        Expanded(
+        Positioned.fill(
           child: p.tokens.isEmpty
               ? _EmptyLane(
                   icon: Icons.style_outlined,
@@ -505,6 +565,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
               : DragBoundary(
                   child: ReorderableListView.builder(
                     scrollController: tokenScroll,
+                    padding: const EdgeInsets.only(bottom: 88),
                     buildDefaultDragHandles: false,
                     itemCount: p.tokens.length,
                     onReorder: (old, next) => perform(
@@ -534,75 +595,172 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
                   ),
                 ),
         ),
+        Positioned(
+          right: 68,
+          bottom: 12,
+          child: Material(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            elevation: 3,
+            shape: const CircleBorder(),
+            child: IconButton(
+              key: ValueKey('${p.id}-board-summary'),
+              tooltip: '${profile.name}, board summary',
+              onPressed: () => widget.onOpen(WorkspacePage.tokenSummary),
+              icon: const Icon(Icons.style_outlined, size: 20),
+            ),
+          ),
+        ),
+        Positioned(
+          right: 12,
+          bottom: 12,
+          child: FloatingActionButton.small(
+            key: ValueKey('${p.id}-add-token'),
+            heroTag: '${p.id}-add-token',
+            tooltip: '${profile.name}, add token',
+            onPressed: () => widget.onOpen(WorkspacePage.tokens),
+            child: const Icon(Icons.add),
+          ),
+        ),
       ],
     );
     final visible = p.utilities.where((u) => u.visible).toList();
-    Widget innerLane = Column(
-      children: [
-        _LifePanel(
-          player: p,
-          profile: profile,
-          controller: widget.controller,
-          epoch: widget.interactionEpoch,
-          enabledRules: enabled,
-          hiddenUtilities: hidden,
-          onOpen: widget.onOpen,
-          onChange: (d) => perform(() => widget.controller.adjustLife(p.id, d)),
-        ),
-
-        Expanded(
-          child: visible.isEmpty
-              ? _EmptyLane(
-                  icon: Icons.widgets_outlined,
-                  text: 'Tools for your game',
-                  action: 'Choose utilities',
-                  onTap: () => widget.onOpen(WorkspacePage.utilities),
-                )
-              : DragBoundary(
-                  child: ReorderableListView.builder(
-                    scrollController: utilityScroll,
-                    buildDefaultDragHandles: false,
-                    itemCount: visible.length,
-                    onReorder: (old, next) => perform(() async {
-                      final ids = visible.map((u) => u.id).toList();
-                      if (next > old) next--;
-                      ids.insert(next, ids.removeAt(old));
-                      await widget.board.reorderVisibleUtilities(p.id, ids);
-                    }),
-                    proxyDecorator: (child, index, animation) =>
-                        Material(elevation: 5, child: child),
-                    itemBuilder: (context, index) {
-                      final u = visible[index];
-                      return ReorderableDelayedDragStartListener(
-                        key: ValueKey(u.id),
-                        index: index,
-                        enabled: expandedId == null,
-                        child: _UtilityRow(
-                          utility: u,
-                          player: p,
-                          board: widget.board,
-                          expanded: expandedId == u.id,
-                          onExpand: () => expand(u.id),
-                          onHide: () => widget.onHide(u),
-                          onOpen: () =>
-                              widget.onOpen(WorkspacePage.utilities, u.id),
-                          onChange: (delta) => perform(
-                            () => widget.board.adjustUtility(p.id, u.id, delta),
-                          ),
-                          onToggle: () => perform(
-                            () => widget.board.toggleUtility(p.id, u.id),
-                          ),
-                          onMana: (mana, delta) => perform(
-                            () =>
-                                widget.controller.adjustMana(p.id, mana, delta),
-                          ),
-                        ),
-                      );
-                    },
+    Widget commanderTrackers({
+      bool compact = false,
+      List<Widget> trailing = const [],
+    }) => SizedBox(
+      key: ValueKey('${p.id}-commander-trackers'),
+      height: compact ? 44 : 70,
+      child: ListView(
+        controller: commanderScroll,
+        scrollDirection: Axis.horizontal,
+        padding: compact
+            ? EdgeInsets.zero
+            : const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+        children: [
+          for (final source in widget.controller.session.commanders)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: _CommanderChip(
+                key: ValueKey('${p.id}-commander-${source.id}'),
+                compact: compact,
+                source: source,
+                owner: widget.controller.profile(
+                  widget.controller.session.player(source.ownerPlayerId).seatId,
+                ),
+                recipient: profile.name,
+                value: p.commanderDamage[source.id] ?? 0,
+                onChange: (delta) => perform(
+                  () => widget.controller.adjustCommanderDamage(
+                    p.id,
+                    source.id,
+                    delta,
                   ),
                 ),
-        ),
-      ],
+                onOpen: () => widget.onOpen(WorkspacePage.commanderDamage),
+              ),
+            ),
+          for (final shortcut in trailing) SizedBox(width: 44, child: shortcut),
+        ],
+      ),
+    );
+    Widget innerLane = LayoutBuilder(
+      builder: (context, lane) {
+        // Integrate sources into the existing attached control row when a second
+        // tracker row would consume default Storm/mana capacity. Targets and the
+        // large life number retain their sizes; only cosmetic row padding changes.
+        final compactCommanders =
+            widget.controller.session.commanders.isNotEmpty &&
+            lane.maxHeight < 420;
+        return Column(
+          children: [
+            SizedBox(height: widget.gameInset),
+            _LifePanel(
+              compactCommanders: compactCommanders
+                  ? (trailing) =>
+                        commanderTrackers(compact: true, trailing: trailing)
+                  : null,
+              player: p,
+              profile: profile,
+              controller: widget.controller,
+              epoch: widget.interactionEpoch,
+              enabledRules: enabled,
+              hiddenUtilities: hidden,
+              onOpen: widget.onOpen,
+              onChange: (d) =>
+                  perform(() => widget.controller.adjustLife(p.id, d)),
+              onMonarch: () =>
+                  perform(() => widget.controller.setMonarch(p.id)),
+              onBlessing: () => perform(
+                () =>
+                    widget.controller.setCitysBlessing(p.id, !p.citysBlessing),
+              ),
+            ),
+            if (widget.controller.session.commanders.isNotEmpty &&
+                !compactCommanders)
+              commanderTrackers(),
+            Expanded(
+              child: visible.isEmpty
+                  ? _EmptyLane(
+                      icon: Icons.widgets_outlined,
+                      text: 'Tools for your game',
+                      action: 'Choose utilities',
+                      onTap: () => widget.onOpen(WorkspacePage.utilities),
+                    )
+                  : DragBoundary(
+                      child: ReorderableListView.builder(
+                        scrollController: utilityScroll,
+                        buildDefaultDragHandles: false,
+                        itemCount: visible.length,
+                        onReorder: (old, next) => perform(() async {
+                          final ids = visible.map((u) => u.id).toList();
+                          if (next > old) next--;
+                          ids.insert(next, ids.removeAt(old));
+                          await widget.board.reorderVisibleUtilities(p.id, ids);
+                        }),
+                        proxyDecorator: (child, index, animation) =>
+                            Material(elevation: 5, child: child),
+                        itemBuilder: (context, index) {
+                          final u = visible[index];
+                          return ReorderableDelayedDragStartListener(
+                            key: ValueKey(u.id),
+                            index: index,
+                            enabled: expandedId == null,
+                            child: _UtilityRow(
+                              compactSpacing: compactCommanders,
+                              utility: u,
+                              player: p,
+                              board: widget.board,
+                              expanded: expandedId == u.id,
+                              onExpand: () => expand(u.id),
+                              onHide: () => widget.onHide(u),
+                              onOpen: () =>
+                                  widget.onOpen(WorkspacePage.utilities, u.id),
+                              onChange: (delta) => perform(
+                                () => widget.board.adjustUtility(
+                                  p.id,
+                                  u.id,
+                                  delta,
+                                ),
+                              ),
+                              onToggle: () => perform(
+                                () => widget.board.toggleUtility(p.id, u.id),
+                              ),
+                              onMana: (mana, delta) => perform(
+                                () => widget.controller.adjustMana(
+                                  p.id,
+                                  mana,
+                                  delta,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+            ),
+          ],
+        );
+      },
     );
     return RotatedBox(
       quarterTurns: widget.turns,
@@ -637,13 +795,16 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
 }
 
 class _LifePanel extends StatelessWidget {
+  final Widget Function(List<Widget> trailing)? compactCommanders;
   final PlayerState player;
   final SeatProfile profile;
   final TableController controller;
   final int epoch, enabledRules, hiddenUtilities;
   final ValueChanged<int> onChange;
+  final VoidCallback onMonarch, onBlessing;
   final void Function(WorkspacePage, [String?]) onOpen;
   const _LifePanel({
+    this.compactCommanders,
     required this.player,
     required this.profile,
     required this.controller,
@@ -651,6 +812,8 @@ class _LifePanel extends StatelessWidget {
     required this.enabledRules,
     required this.hiddenUtilities,
     required this.onChange,
+    required this.onMonarch,
+    required this.onBlessing,
     required this.onOpen,
   });
   @override
@@ -696,11 +859,11 @@ class _LifePanel extends StatelessWidget {
       ),
     );
     final shortcuts = [
-      shortcut(
-        Icons.shield_outlined,
-        'commander damage',
-        WorkspacePage.commanderDamage,
-        count: player.commanderDamage.values.fold<int>(0, (a, b) => a + b),
+      _StatusBadge(
+        label: '${profile.name}, Monarch',
+        icon: Icons.workspace_premium_outlined,
+        enabled: monarch,
+        onTap: onMonarch,
       ),
       shortcut(
         Icons.hexagon_outlined,
@@ -726,7 +889,12 @@ class _LifePanel extends StatelessWidget {
             : 'manage utilities, $hiddenUtilities hidden',
         WorkspacePage.utilities,
       ),
-      shortcut(Icons.more_horiz, 'player menu', WorkspacePage.player),
+      _StatusBadge(
+        label: '${profile.name}, City’s blessing',
+        icon: Icons.auto_awesome,
+        enabled: player.citysBlessing,
+        onTap: onBlessing,
+      ),
     ];
     return _ArtworkSurface(
       url: profile.artworkUrl,
@@ -738,7 +906,7 @@ class _LifePanel extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 4, 8, 0),
+            padding: const EdgeInsets.fromLTRB(10, 0, 8, 0),
             child: Row(
               children: [
                 Expanded(
@@ -753,24 +921,6 @@ class _LifePanel extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (monarch)
-                  const Tooltip(
-                    message: 'The monarch',
-                    child: Icon(
-                      Icons.workspace_premium,
-                      size: 17,
-                      color: Color(0xFFE8D391),
-                    ),
-                  ),
-                if (player.citysBlessing)
-                  const Tooltip(
-                    message: 'City’s blessing',
-                    child: Icon(
-                      Icons.auto_awesome,
-                      size: 17,
-                      color: Color(0xFFE8D391),
-                    ),
-                  ),
                 if (player.warnings.isNotEmpty)
                   Tooltip(
                     message: player.warnings.join('\n'),
@@ -784,7 +934,7 @@ class _LifePanel extends StatelessWidget {
             ),
           ),
           SizedBox(
-            height: 64,
+            height: 48,
             child: Row(
               children: [
                 _HoldControl(
@@ -806,7 +956,7 @@ class _LifePanel extends StatelessWidget {
                           child: Text(
                             '${player.life}',
                             style: TextStyle(
-                              fontSize: 56,
+                              fontSize: 48,
                               fontWeight: FontWeight.w300,
                               height: 1,
                               color: artColor,
@@ -827,81 +977,266 @@ class _LifePanel extends StatelessWidget {
               ],
             ),
           ),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 240 ? 6 : 3;
-              return Wrap(
+          if (compactCommanders != null)
+            SizedBox(
+              height: 44,
+              child: Row(
                 children: [
-                  for (final shortcut in shortcuts)
-                    SizedBox(
-                      width: constraints.maxWidth / columns,
-                      child: shortcut,
-                    ),
+                  SizedBox(width: 40, child: shortcuts[0]),
+                  SizedBox(width: 40, child: shortcuts[5]),
+                  SizedBox(width: 40, child: shortcuts[1]),
+                  Expanded(
+                    child: compactCommanders!([
+                      shortcuts[2],
+                      shortcuts[3],
+                      shortcuts[4],
+                    ]),
+                  ),
                 ],
-              );
-            },
-          ),
+              ),
+            )
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = constraints.maxWidth >= 240 ? 6 : 3;
+                return Wrap(
+                  children: [
+                    for (final shortcut in shortcuts)
+                      SizedBox(
+                        width: constraints.maxWidth / columns,
+                        child: shortcut,
+                      ),
+                  ],
+                );
+              },
+            ),
         ],
       ),
     );
   }
 }
 
-class _LaneHeading extends StatelessWidget {
-  final String tooltip, summaryTooltip;
-  final int count;
-  final VoidCallback onAdd, onSummary;
-  const _LaneHeading({
-    required this.count,
-    required this.tooltip,
-    required this.summaryTooltip,
-    required this.onAdd,
-    required this.onSummary,
+class _StatusBadge extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
+  const _StatusBadge({
+    required this.label,
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
   });
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 40,
-    child: Row(
-      children: [
-        Tooltip(
-          message: summaryTooltip,
-          child: Semantics(
-            label: '$summaryTooltip, $count token stacks',
-            button: true,
-            excludeSemantics: true,
-            child: InkWell(
-              onTap: onSummary,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: SizedBox(
-                  height: 40,
-                  child: Row(
-                    children: [
-                      const Icon(Icons.style_outlined, size: 18),
-                      const SizedBox(width: 7),
-                      Text(
-                        '$count',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    toggled: enabled,
+    label: '$label, ${enabled ? 'enabled' : 'disabled'}',
+    excludeSemantics: true,
+    child: Tooltip(
+      message: '$label, ${enabled ? 'enabled' : 'disabled'}',
+      child: IconButton(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        style: IconButton.styleFrom(
+          minimumSize: const Size(40, 40),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          padding: const EdgeInsets.all(8),
+          foregroundColor: enabled
+              ? const Color(0xFFE8D391)
+              : Theme.of(context).colorScheme.onSurfaceVariant,
+          backgroundColor: enabled
+              ? const Color(0xFF51472D)
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          side: BorderSide(
+            color: enabled
+                ? const Color(0xFFE8D391)
+                : Theme.of(context).colorScheme.outlineVariant,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _CommanderChip extends StatelessWidget {
+  final bool compact;
+  final CommanderSource source;
+  final SeatProfile owner;
+  final String recipient;
+  final int value;
+  final ValueChanged<int> onChange;
+  final VoidCallback onOpen;
+  const _CommanderChip({
+    super.key,
+    this.compact = false,
+    required this.source,
+    required this.owner,
+    required this.recipient,
+    required this.value,
+    required this.onChange,
+    required this.onOpen,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final color = Color(owner.color);
+    if (compact) {
+      Widget adjust(int delta) => IconButton(
+        tooltip:
+            '$recipient, ${delta < 0 ? 'decrease' : 'increase'} damage from ${source.name} (${owner.name})',
+        onPressed: delta < 0 && value == 0 ? null : () => onChange(delta),
+        icon: Icon(delta < 0 ? Icons.remove : Icons.add, size: 18),
+        style: IconButton.styleFrom(
+          minimumSize: const Size(44, 44),
+          maximumSize: const Size(44, 44),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          padding: EdgeInsets.zero,
+        ),
+      );
+      return Container(
+        width: 140,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+        foregroundDecoration: BoxDecoration(
+          border: Border.all(color: color, width: 2),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: _ArtworkSurface(
+          url: owner.artworkUrl,
+          tint: Color.alphaBlend(
+            color.withValues(alpha: .24),
+            Theme.of(context).colorScheme.surface,
+          ),
+          child: Row(
+            children: [
+              adjust(-1),
+              Expanded(
+                child: Tooltip(
+                  message: '${source.name} · ${owner.name}',
+                  child: InkWell(
+                    onTap: onOpen,
+                    child: Semantics(
+                      button: true,
+                      label:
+                          '$recipient, $value damage from ${source.name}, owned by ${owner.name}',
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            source.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: owner.artworkUrl == null
+                                  ? color
+                                  : Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              '$value',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                height: 1,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
+              adjust(1),
+            ],
           ),
         ),
-        const Spacer(),
-        IconButton(
-          tooltip: tooltip,
-          onPressed: onAdd,
-          icon: const Icon(Icons.add, size: 20),
+      );
+    }
+    return Container(
+      width: 150,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        border: Border.all(color: color, width: 2),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: _ArtworkSurface(
+        url: owner.artworkUrl,
+        tint: Color.alphaBlend(
+          color.withValues(alpha: .24),
+          Theme.of(context).colorScheme.surface,
         ),
-      ],
-    ),
-  );
+        child: Column(
+          children: [
+            Tooltip(
+              message: '${source.name} · ${owner.name}',
+              child: Text(
+                source.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: owner.artworkUrl == null ? color : Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip:
+                        '$recipient, decrease damage from ${source.name} (${owner.name})',
+                    onPressed: value == 0 ? null : () => onChange(-1),
+                    icon: const Icon(Icons.remove, size: 18),
+                    constraints: const BoxConstraints(
+                      minWidth: 44,
+                      minHeight: 44,
+                    ),
+                    padding: EdgeInsets.zero,
+                  ),
+                  Expanded(
+                    child: InkWell(
+                      onTap: onOpen,
+                      child: Semantics(
+                        button: true,
+                        label:
+                            '$recipient, $value damage from ${source.name}, owned by ${owner.name}',
+                        child: Center(
+                          child: Text(
+                            '$value',
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip:
+                        '$recipient, increase damage from ${source.name} (${owner.name})',
+                    onPressed: () => onChange(1),
+                    icon: const Icon(Icons.add, size: 18),
+                    constraints: const BoxConstraints(
+                      minWidth: 44,
+                      minHeight: 44,
+                    ),
+                    padding: EdgeInsets.zero,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _EmptyLane extends StatelessWidget {
@@ -945,6 +1280,7 @@ class _EmptyLane extends StatelessWidget {
 }
 
 class _UtilityRow extends StatelessWidget {
+  final bool compactSpacing;
   final UtilityState utility;
   final PlayerState player;
   final BoardService board;
@@ -953,6 +1289,7 @@ class _UtilityRow extends StatelessWidget {
   final ValueChanged<int> onChange;
   final void Function(String, int) onMana;
   const _UtilityRow({
+    this.compactSpacing = false,
     required this.utility,
     required this.player,
     required this.board,
@@ -1031,7 +1368,12 @@ class _UtilityRow extends StatelessWidget {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(17, 0, 6, 4),
+                  padding: EdgeInsets.fromLTRB(
+                    17,
+                    0,
+                    6,
+                    compactSpacing ? 0 : 3,
+                  ),
                   child: DefaultTextStyle.merge(
                     style: TextStyle(color: color),
                     child: Column(

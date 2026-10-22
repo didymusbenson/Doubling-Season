@@ -1,0 +1,99 @@
+{
+  "source_commit": "0b3e3a5f99e5da9292643f187d7c7c1dc471beef",
+  "branch": "codex/tablet-ui-feedback-batch",
+  "evidence_type": "Flutter widget-test renderer, real fonts; not release browser or native runtime",
+  "safe_area": {
+    "top": 24,
+    "bottom": 20
+  },
+  "input_review_screenshot": "libfile_a50c006455348191a5e26bc36b239b04",
+  "aggregate_tests": 129,
+  "capture_tests": 30,
+  "web_bundle_sha256": "0fdad92f971d4ed5b8e7a3f996fd8caeb8f5e314fa7a2e60474a0e71ea59ebfb",
+  "ci_url": "https://github.com/didymusbenson/Doubling-Season/actions/runs/39824515835",
+  "ci_status": "completed",
+  "screenshots": [
+    {
+      "file_name": "flutter-test-renderer-capacity-2p-1133x744-partners.png",
+      "width": 1133,
+      "height": 744,
+      "library_file_id": "libfile_2632f549be448191a1b4d3c9d80bf1d7",
+      "current_version_number": 0,
+      "sha256": "a8faae90b14f01a5e0d58c5fde98b4a2e7bd63a4285e7f13631bfb6de51aad8c",
+      "size_bytes": 72882,
+      "pixels_inspected": true,
+      "scenario": "two distinct partners for every active player, including recipient self sources; default Storm and all six mana colors"
+    },
+    {
+      "file_name": "flutter-test-renderer-capacity-2p-1366x1024-partners.png",
+      "width": 1366,
+      "height": 1024,
+      "library_file_id": "libfile_f7137a20c5a481919a604ffe0284b598",
+      "current_version_number": 0,
+      "sha256": "e4c5e7ba25b887a3e7d20b28fae1ca439eb29c8499b2efcf618d92da047d28b4",
+      "size_bytes": 82082,
+      "pixels_inspected": true,
+      "scenario": "two distinct partners for every active player, including recipient self sources; default Storm and all six mana colors"
+    },
+    {
+      "file_name": "flutter-test-renderer-capacity-2p-744x1133-partners.png",
+      "width": 744,
+      "height": 1133,
+      "library_file_id": "libfile_b216dc8dc29c8191939c1ecf04e03ad9",
+      "current_version_number": 0,
+      "sha256": "75ab9b585d00b0e4ff904f5a7a20057079d3c472226159693b0b37a777b03f64",
+      "size_bytes": 72848,
+      "pixels_inspected": true,
+      "scenario": "two distinct partners for every active player, including recipient self sources; default Storm and all six mana colors"
+    },
+    {
+      "file_name": "flutter-test-renderer-capacity-3p-1133x744-partners.png",
+      "width": 1133,
+      "height": 744,
+      "library_file_id": "libfile_e07f0e97b6588191b0d2e0efc762067a",
+      "current_version_number": 0,
+      "sha256": "58910dac958f036edca252fe039b2cf3df03e3ba934ce4722b8183717935719f",
+      "size_bytes": 108491,
+      "pixels_inspected": true,
+      "scenario": "two distinct partners for every active player, including recipient self sources; default Storm and all six mana colors"
+    },
+    {
+      "file_name": "flutter-test-renderer-capacity-4p-1133x744-partners.png",
+      "width": 1133,
+      "height": 744,
+      "library_file_id": "libfile_5e5e9080f2148191b693f3f63c3da6bc",
+      "current_version_number": 0,
+      "sha256": "814b59fa7a68b1d92f9709be2ca217ef6eeca96a38c111211e62e882863b12c4",
+      "size_bytes": 116572,
+      "pixels_inspected": true,
+      "scenario": "two distinct partners for every active player, including recipient self sources; default Storm and all six mana colors"
+    },
+    {
+      "file_name": "flutter-test-renderer-capacity-4p-1366x1024-partners.png",
+      "width": 1366,
+      "height": 1024,
+      "library_file_id": "libfile_87c9f3c691dc819191ac4b91f18c4c2c",
+      "current_version_number": 0,
+      "sha256": "952195f878389ada002f59a44325fabf55764afb892630d3cd0766c42f7adbaf",
+      "size_bytes": 115916,
+      "pixels_inspected": true,
+      "scenario": "two distinct partners for every active player, including recipient self sources; default Storm and all six mana colors"
+    },
+    {
+      "file_name": "flutter-test-renderer-capacity-4p-744x1133-partners.png",
+      "width": 744,
+      "height": 1133,
+      "library_file_id": "libfile_9294261a031c8191b91506737eb94717",
+      "current_version_number": 0,
+      "sha256": "16606cbcb723e7676dc46f4bc607098bd34a9797975e56e24651cb2945ac583e",
+      "size_bytes": 105388,
+      "pixels_inspected": true,
+      "scenario": "two distinct partners for every active player, including recipient self sources; default Storm and all six mana colors"
+    }
+  ],
+  "ci_conclusion": "success",
+  "ci_jobs": {
+    "android-web": "success",
+    "ipad-simulator": "success"
+  }
+}

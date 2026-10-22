@@ -606,6 +606,11 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
                                   controller: _controller!,
                                   focusNode: _draftFocus,
                                   readOnly: true,
+                                  // Software keys return focus here after updating
+                                  // the shared controller. Web/desktop defaults
+                                  // would reselect that new text on focus, so the
+                                  // next key replaces it. Selection is explicit.
+                                  selectAllOnFocus: false,
                                   showCursor: true,
                                   keyboardType: TextInputType.none,
                                   maxLines: _multiline ? 2 : 1,

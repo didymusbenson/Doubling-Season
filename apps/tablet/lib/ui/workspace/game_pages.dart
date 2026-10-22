@@ -8,284 +8,378 @@ extension _GamePages on _TableWorkspaceState {
         const Text('Open a player’s menu to edit their life and appearance.'),
       ]);
     }
+    return _GamePageTabs(
+      labels: const ['Life & status', 'Appearance', 'Commanders'],
+      builder: (index) => switch (index) {
+        1 => _playerAppearance(player),
+        2 => _playerCommanders(player),
+        _ => _list([
+          if (player.warnings.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(player.warnings.join(' · ')),
+            ),
+          _gameGrid([
+            _gamePanel('Life · ${player.life}', [
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final delta in [-10, -5, -1, 1, 5, 10])
+                    _button(
+                      '${delta > 0 ? '+' : ''}$delta',
+                      () => _run(() => c.adjustLife(player.id, delta)),
+                      icon: delta < 0 ? Icons.remove : Icons.add,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _gameFieldAction(
+                _input(
+                  'life.delta',
+                  'Change life by',
+                  initial: '-1',
+                  numeric: true,
+                ),
+                _button(
+                  'Apply',
+                  () => _run(
+                    () => c.adjustLife(player.id, _integer('life.delta')),
+                  ),
+                  primary: true,
+                ),
+              ),
+              const Text('Negative loses life; positive gains life.'),
+              _gameFieldAction(
+                _input(
+                  'life.set',
+                  'Set life total to',
+                  initial: '${player.life}',
+                  numeric: true,
+                ),
+                _button(
+                  'Set',
+                  () => _run(() => c.setLife(player.id, _integer('life.set'))),
+                ),
+              ),
+              _button(
+                'Reset life to ${c.session.startingLife}',
+                () => _confirm(
+                  'Reset $_seatName’s life?',
+                  'Set life to ${c.session.startingLife}. Commander damage, player counters, tokens, and other players remain as they are.',
+                  () => c.setLife(player.id, c.session.startingLife),
+                ),
+                icon: Icons.restart_alt,
+              ),
+            ]),
+            _gamePanel('Status & trackers', [
+              _playerStatusBadges(player),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _button(
+                    'Commander damage',
+                    () => _go(WorkspacePage.commanderDamage),
+                    icon: Icons.shield_outlined,
+                  ),
+                  _button(
+                    'Player counters',
+                    () => _go(WorkspacePage.counters),
+                    icon: Icons.hexagon_outlined,
+                  ),
+                ],
+              ),
+              const Divider(height: 24),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Summoning sickness'),
+                subtitle: const Text(
+                  'Creature tokens without haste enter sick.',
+                ),
+                value: player.summoningSicknessEnabled,
+                onChanged: (value) => _run(
+                  () => c.updateState(
+                    'Summoning sickness setting',
+                    (state) =>
+                        state.session
+                                .player(player.id)
+                                .summoningSicknessEnabled =
+                            value,
+                    recordHistory: true,
+                  ),
+                ),
+              ),
+            ]),
+          ]),
+        ]),
+      },
+    );
+  }
+
+  Widget _playerStatusBadges(PlayerState player) {
+    final monarch = c.session.monarchPlayerId == player.id;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            FilterChip(
+              avatar: const Icon(Icons.auto_awesome, size: 18),
+              label: Text(
+                'City’s blessing · ${player.citysBlessing ? 'On' : 'Off'}',
+              ),
+              selected: player.citysBlessing,
+              onSelected: _working
+                  ? null
+                  : (value) => _run(() => c.setCitysBlessing(player.id, value)),
+            ),
+            FilterChip(
+              avatar: const Icon(Icons.workspace_premium_outlined, size: 18),
+              label: Text('Monarch · ${monarch ? 'On' : 'Off'}'),
+              selected: monarch,
+              onSelected: _working
+                  ? null
+                  : (_) => _run(() => c.setMonarch(monarch ? null : player.id)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          c.session.monarchPlayerId == null
+              ? 'Tap Monarch to claim it.'
+              : 'Monarch: ${_nameForPlayer(c.session.monarchPlayerId!)}',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+
+  Widget _gamePanel(String title, List<Widget> children) => Card(
+    margin: EdgeInsets.zero,
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+          ...children,
+        ],
+      ),
+    ),
+  );
+
+  Widget _gameGrid(List<Widget> children) => LayoutBuilder(
+    builder: (context, constraints) {
+      final columns = constraints.maxWidth >= 590 ? 2 : 1;
+      final width = (constraints.maxWidth - (columns - 1) * 12) / columns;
+      return Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: [
+          for (final child in children) SizedBox(width: width, child: child),
+        ],
+      );
+    },
+  );
+
+  Widget _gameFieldAction(Widget field, Widget action) => Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      Expanded(child: field),
+      const SizedBox(width: 8),
+      action,
+    ],
+  );
+
+  Widget _playerAppearance(PlayerState player) {
     final profile = c.profile(player.seatId);
     return _list([
-      _section(
-        '$_seatName · ${player.life} life',
-        detail: player.warnings.isEmpty ? null : player.warnings.join(' · '),
-      ),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (final delta in [-10, -5, -1, 1, 5, 10])
-            _button(
-              '${delta > 0 ? '+' : ''}$delta life',
-              () => _run(() => c.adjustLife(player.id, delta)),
-              icon: delta < 0 ? Icons.remove : Icons.add,
-            ),
-        ],
-      ),
-      _input(
-        'life.delta',
-        'Change life by',
-        initial: '-1',
-        numeric: true,
-        helper: 'A negative number loses life; a positive number gains life.',
-      ),
-      _button(
-        'Apply life change',
-        () => _run(
-          () => c.adjustLife(player.id, _integer('life.delta')),
-          success: 'Life changed.',
-        ),
-        primary: true,
-      ),
-      _input(
-        'life.set',
-        'Set life total to',
-        initial: '${player.life}',
-        numeric: true,
-      ),
-      _button(
-        'Set life total',
-        () => _run(
-          () => c.setLife(player.id, _integer('life.set')),
-          success: 'Life total set.',
-        ),
-      ),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          _button(
-            'Commander damage',
-            () => _go(WorkspacePage.commanderDamage),
-            icon: Icons.shield_outlined,
-          ),
-          _button(
-            'Player counters',
-            () => _go(WorkspacePage.counters),
-            icon: Icons.hexagon_outlined,
-          ),
-          _button(
-            'Reset only this life total',
-            () => _confirm(
-              'Reset $_seatName’s life?',
-              'Set life to ${c.session.startingLife}. Commander damage, player counters, tokens, and other players remain as they are.',
-              () => c.setLife(player.id, c.session.startingLife),
-            ),
-          ),
-        ],
-      ),
-      _section('Statuses'),
-      SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: const Text('City’s blessing'),
-        subtitle: const Text('Independent of every other player.'),
-        value: player.citysBlessing,
-        onChanged: (value) => _run(() => c.setCitysBlessing(player.id, value)),
-      ),
-      ListTile(
-        contentPadding: EdgeInsets.zero,
-        title: Text(
-          c.session.monarchPlayerId == player.id
-              ? 'You are the monarch'
-              : 'Monarch',
-        ),
-        subtitle: Text(
-          c.session.monarchPlayerId == null
-              ? 'No monarch yet'
-              : 'Current holder: ${_nameForPlayer(c.session.monarchPlayerId!)}',
-        ),
-        trailing: _button(
-          c.session.monarchPlayerId == player.id ? 'Clear' : 'Claim',
-          () => _run(
-            () => c.setMonarch(
-              c.session.monarchPlayerId == player.id ? null : player.id,
-            ),
-          ),
-          icon: Icons.workspace_premium_outlined,
-        ),
-      ),
       _section(
         'Saved player appearance',
         detail: 'Name, color and life artwork persist between games.',
       ),
-      _input(
-        'profile.name',
-        'Player name',
-        initial: profile.name,
-        live: true,
-        helper: 'Valid name changes save as you type.',
-        onCommit: (value) async {
-          final name = value.trim();
-          if (name.isEmpty) throw const FormatException('Enter a player name.');
-          return c.updateState(
-            'Rename seat',
-            (state) =>
-                state.profiles.firstWhere((s) => s.id == player.seatId).name =
-                    name,
-          );
-        },
-      ),
-      Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: [
-          for (final color in [
-            0xffd7bd78,
-            0xff83b7ce,
-            0xffb498ca,
-            0xff92bc91,
-            0xffd28f80,
-            0xffb2b5c1,
-            0xffe6ba89,
-            0xff8bc8bf,
-          ])
-            Semantics(
-              label: 'Seat color ${color.toRadixString(16)}',
-              button: true,
-              selected: profile.color == color,
-              child: InkWell(
-                onTap: () => _run(
-                  () => c.updateState(
-                    'Change seat color',
-                    (state) =>
-                        state.profiles
-                                .firstWhere((s) => s.id == player.seatId)
-                                .color =
-                            color,
-                  ),
-                ),
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Color(color),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: profile.color == color
-                          ? Colors.white
-                          : Colors.transparent,
-                      width: 4,
+      _gameGrid([
+        _gamePanel('Name & color', [
+          _input(
+            'profile.name',
+            'Player name',
+            initial: profile.name,
+            live: true,
+            helper: 'Valid name changes save as you type.',
+            onCommit: (value) async {
+              final name = value.trim();
+              if (name.isEmpty) {
+                throw const FormatException('Enter a player name.');
+              }
+              return c.updateState(
+                'Rename seat',
+                (state) =>
+                    state.profiles
+                            .firstWhere((s) => s.id == player.seatId)
+                            .name =
+                        name,
+              );
+            },
+          ),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              for (final color in [
+                0xffd7bd78,
+                0xff83b7ce,
+                0xffb498ca,
+                0xff92bc91,
+                0xffd28f80,
+                0xffb2b5c1,
+                0xffe6ba89,
+                0xff8bc8bf,
+              ])
+                Semantics(
+                  label: 'Seat color ${color.toRadixString(16)}',
+                  button: true,
+                  selected: profile.color == color,
+                  child: InkWell(
+                    onTap: () => _run(
+                      () => c.updateState(
+                        'Change seat color',
+                        (state) =>
+                            state.profiles
+                                    .firstWhere((s) => s.id == player.seatId)
+                                    .color =
+                                color,
+                      ),
+                    ),
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Color(color),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: profile.color == color
+                              ? Colors.white
+                              : Colors.transparent,
+                          width: 4,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-        ],
-      ),
-      const SizedBox(height: 12),
-      if (profile.artworkUrl != null)
-        Align(
-          alignment: Alignment.centerLeft,
-          child: _art(profile.artworkUrl, width: 180, height: 110),
-        ),
-      Wrap(
-        spacing: 8,
-        children: [
-          _button(
-            'Choose life artwork',
-            () => _run(() async {
-              final art = await _pickArtwork();
-              if (art != null) {
-                return c.updateState(
-                  'Change seat artwork',
-                  (state) =>
-                      state.profiles
-                              .firstWhere((s) => s.id == player.seatId)
-                              .artworkUrl =
-                          art,
-                );
-              }
-            }),
-            icon: Icons.image_outlined,
+            ],
           ),
+        ]),
+        _gamePanel('Life artwork', [
+          const SizedBox(height: 12),
           if (profile.artworkUrl != null)
-            _button(
-              'Remove life artwork',
-              () => _run(
-                () => c.updateState(
-                  'Remove seat artwork',
-                  (state) =>
-                      state.profiles
-                              .firstWhere((s) => s.id == player.seatId)
-                              .artworkUrl =
-                          null,
-                ),
-              ),
-              icon: Icons.hide_image_outlined,
+            Align(
+              alignment: Alignment.centerLeft,
+              child: _art(profile.artworkUrl, width: 180, height: 110),
             ),
-        ],
-      ),
-      _section('Token creation'),
-      SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: const Text('Apply summoning sickness'),
-        subtitle: const Text(
-          'Creature tokens without haste enter summoning sick.',
-        ),
-        value: player.summoningSicknessEnabled,
-        onChanged: (value) => _run(
-          () => c.updateState(
-            'Summoning sickness setting',
-            (state) =>
-                state.session.player(player.id).summoningSicknessEnabled =
-                    value,
-            recordHistory: true,
+          Wrap(
+            spacing: 8,
+            children: [
+              _button(
+                'Choose life artwork',
+                () => _run(() async {
+                  final art = await _pickArtwork();
+                  if (art != null) {
+                    return c.updateState(
+                      'Change seat artwork',
+                      (state) =>
+                          state.profiles
+                                  .firstWhere((s) => s.id == player.seatId)
+                                  .artworkUrl =
+                              art,
+                    );
+                  }
+                }),
+                icon: Icons.image_outlined,
+              ),
+              if (profile.artworkUrl != null)
+                _button(
+                  'Remove life artwork',
+                  () => _run(
+                    () => c.updateState(
+                      'Remove seat artwork',
+                      (state) =>
+                          state.profiles
+                                  .firstWhere((s) => s.id == player.seatId)
+                                  .artworkUrl =
+                              null,
+                    ),
+                  ),
+                  icon: Icons.hide_image_outlined,
+                ),
+            ],
           ),
-        ),
-      ),
-      _section(
-        'Your commanders',
-        detail:
-            'Each commander has a distinct identity, including partners with the same name.',
-      ),
-      for (final commander in c.session.commanders.where(
-        (s) => s.ownerPlayerId == player.id,
-      )) ...[
-        _input(
-          'commander.${commander.id}.name',
-          'Commander name',
-          initial: commander.name,
-        ),
-        Wrap(
-          spacing: 8,
-          children: [
-            _button(
-              'Rename commander',
-              () => _run(
-                () => c.renameCommander(
-                  commander.id,
-                  _field('commander.${commander.id}.name').text.trim(),
-                ),
-              ),
-            ),
-            _button(
-              'Remove source',
-              () => _confirm(
-                'Remove ${commander.name}?',
-                'Only remove this source after all its recorded damage is corrected to zero. Renaming preserves its existing damage and identity.',
-                () => c.removeCommander(commander.id),
-              ),
-              icon: Icons.remove_circle_outline,
-            ),
-          ],
-        ),
-      ],
-      _input('commander.new', 'Add commander or partner'),
-      _button(
-        'Add commander',
-        () => _run(
-          () => c.addCommander(player.id, _field('commander.new').text.trim()),
-          success: 'Commander added.',
-          after: () => _field('commander.new').clear(),
-        ),
-        icon: Icons.add,
-      ),
+        ]),
+      ]),
     ]);
   }
+
+  Widget _playerCommanders(PlayerState player) => _list([
+    _section(
+      'Your commanders',
+      detail:
+          'Each source keeps its identity and damage when renamed, including same-name partners.',
+    ),
+    _gameGrid([
+      for (final commander in c.session.commanders.where(
+        (source) => source.ownerPlayerId == player.id,
+      ))
+        _gamePanel(commander.name, [
+          _input(
+            'commander.${commander.id}.name',
+            'Commander name',
+            initial: commander.name,
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _button(
+                'Rename',
+                () => _run(
+                  () => c.renameCommander(
+                    commander.id,
+                    _field('commander.${commander.id}.name').text.trim(),
+                  ),
+                ),
+                icon: Icons.edit_outlined,
+              ),
+              _button(
+                'Remove',
+                () => _confirm(
+                  'Remove ${commander.name}?',
+                  'Only remove this source after all its recorded damage is corrected to zero. Renaming preserves its existing damage and identity.',
+                  () => c.removeCommander(commander.id),
+                ),
+                icon: Icons.remove_circle_outline,
+              ),
+            ],
+          ),
+        ]),
+      _gamePanel('Add commander or partner', [
+        _input('commander.new', 'Commander name'),
+        _button(
+          'Add commander',
+          () => _run(
+            () =>
+                c.addCommander(player.id, _field('commander.new').text.trim()),
+            after: () => _field('commander.new').clear(),
+          ),
+          icon: Icons.add,
+          primary: true,
+        ),
+      ]),
+    ]),
+  ]);
 
   String _nameForPlayer(String id) {
     for (final player in c.session.players) {
@@ -308,46 +402,75 @@ extension _GamePages on _TableWorkspaceState {
       _section(
         'Counters on $_seatName',
         detail:
-            'Life: ${player.life}. These are player counters; token counter modifiers do not apply.',
+            'Life: ${player.life} · Player counters ignore token counter modifiers.',
       ),
-      for (final counter in counters.entries) ...[
-        _stepper(
-          '${counter.key[0].toUpperCase()}${counter.key.substring(1)}',
-          counter.value,
-          () => _run(() => c.adjustPlayerCounter(player.id, counter.key, -1)),
-          () => _run(() => c.adjustPlayerCounter(player.id, counter.key, 1)),
-          detail: counter.key == 'poison' && counter.value >= 10
-              ? 'Poison threshold reached. Controls stay available.'
-              : null,
-        ),
-        ExpansionTile(
-          title: Text('Set ${counter.key} directly'),
-          children: [
-            _input(
-              'counter.${counter.key}',
-              'Set ${counter.key} to',
-              initial: '${counter.value}',
-              numeric: true,
-            ),
-            _button(
-              'Set counter',
-              () => _run(
-                () => c.setPlayerCounter(
-                  player.id,
-                  counter.key,
-                  _integer('counter.${counter.key}', min: 0),
+      _gameGrid([
+        for (final counter in counters.entries)
+          _gamePanel(
+            '${counter.key[0].toUpperCase()}${counter.key.substring(1)}',
+            [
+              Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Decrease ${counter.key}',
+                    onPressed: _working
+                        ? null
+                        : () => _run(
+                            () => c.adjustPlayerCounter(
+                              player.id,
+                              counter.key,
+                              -1,
+                            ),
+                          ),
+                    icon: const Icon(Icons.remove),
+                  ),
+                  Expanded(
+                    child: Text(
+                      '${counter.value}',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Increase ${counter.key}',
+                    onPressed: _working
+                        ? null
+                        : () => _run(
+                            () => c.adjustPlayerCounter(
+                              player.id,
+                              counter.key,
+                              1,
+                            ),
+                          ),
+                    icon: const Icon(Icons.add),
+                  ),
+                ],
+              ),
+              if (counter.key == 'poison' && counter.value >= 10)
+                const Text('Poison threshold reached.'),
+              _gameFieldAction(
+                _input(
+                  'counter.${counter.key}',
+                  'Set total',
+                  initial: '${counter.value}',
+                  numeric: true,
+                ),
+                _button(
+                  'Set',
+                  () => _run(
+                    () => c.setPlayerCounter(
+                      player.id,
+                      counter.key,
+                      _integer('counter.${counter.key}', min: 0),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-      ],
-      SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: const Text('City’s blessing'),
-        value: player.citysBlessing,
-        onChanged: (value) => _run(() => c.setCitysBlessing(player.id, value)),
-      ),
+            ],
+          ),
+      ]),
+      const SizedBox(height: 12),
+      _playerStatusBadges(player),
     ]);
   }
 
@@ -362,83 +485,152 @@ extension _GamePages on _TableWorkspaceState {
         _section(
           'No commander sources yet',
           detail:
-              'Add each player’s commander or partners in that player’s settings. Each source retains its identity when renamed.',
+              'Add each player’s commander or partners in that player’s Commanders tab. Renaming preserves damage and identity.',
         ),
         _button('Player settings', () => _go(WorkspacePage.player)),
       ]);
     }
     return _list([
       _section(
-        'Damage received by $_seatName',
+        'Damage received by $_seatName · ${player.life} life',
         detail:
-            'Current life: ${player.life}. New combat damage also subtracts life in one undoable action. Correcting a recorded total changes only this ledger.',
+            '− / + changes damage and life together. Open Edit damage for a larger amount or a ledger-only correction.',
       ),
-      for (final source in sources)
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  source.name,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                Text(
-                  'Source: ${_nameForPlayer(source.ownerPlayerId)}${source.ownerPlayerId == player.id ? ' · own commander' : ''} · ${source.id.substring(0, 6)}',
-                ),
-                Text(
-                  'Recorded damage: ${player.commanderDamage[source.id] ?? 0}${(player.commanderDamage[source.id] ?? 0) >= 21 ? ' · 21 damage warning' : ''}',
-                ),
-                _input(
-                  'damage.${source.id}',
-                  'New combat damage',
-                  initial: '1',
-                  numeric: true,
-                ),
-                _button(
-                  'Record damage & lose life',
-                  () => _run(
-                    () => c.adjustCommanderDamage(
-                      player.id,
-                      source.id,
-                      _integer('damage.${source.id}', min: 0),
-                      adjustLife: true,
-                    ),
-                    success: 'Damage and life saved together.',
+      _gameGrid([
+        for (final source in sources) _commanderTracker(player, source),
+      ]),
+      const SizedBox(height: 12),
+      _button('Correct life separately', () => _go(WorkspacePage.player)),
+    ]);
+  }
+
+  Widget _commanderTracker(PlayerState player, CommanderSource source) {
+    final owner = c.session.player(source.ownerPlayerId);
+    final color = Color(c.profile(owner.seatId).color);
+    final damage = player.commanderDamage[source.id] ?? 0;
+    return Card(
+      key: ValueKey('commander-tracker-${source.id}'),
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: color, width: 2),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(source.name, style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              '${_nameForPlayer(source.ownerPlayerId)}${source.ownerPlayerId == player.id ? ' · own commander' : ''} · ${source.id.substring(0, min(6, source.id.length))}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 6),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: .16),
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Decrease ${source.name} commander damage',
+                    onPressed: _working || damage == 0
+                        ? null
+                        : () => _run(
+                            () => c.adjustCommanderDamage(
+                              player.id,
+                              source.id,
+                              -1,
+                            ),
+                          ),
+                    icon: const Icon(Icons.remove),
                   ),
-                  icon: Icons.shield_outlined,
-                  primary: true,
-                ),
-                ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  title: const Text('Correct recorded damage only'),
-                  children: [
-                    _input(
-                      'damageCorrection.${source.id}',
-                      'Set recorded damage to',
-                      initial: '${player.commanderDamage[source.id] ?? 0}',
-                      numeric: true,
-                    ),
-                    _button(
-                      'Correct ledger only',
-                      () => _run(
-                        () => c.setCommanderDamage(
-                          player.id,
-                          source.id,
-                          _integer('damageCorrection.${source.id}', min: 0),
-                        ),
-                        success: 'Ledger corrected; life was not changed.',
+                  Expanded(
+                    child: Semantics(
+                      label: '${source.name} recorded damage $damage',
+                      child: Text(
+                        '$damage',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
                     ),
-                  ],
+                  ),
+                  IconButton(
+                    tooltip: 'Increase ${source.name} commander damage',
+                    onPressed: _working
+                        ? null
+                        : () => _run(
+                            () => c.adjustCommanderDamage(
+                              player.id,
+                              source.id,
+                              1,
+                            ),
+                          ),
+                    icon: const Icon(Icons.add),
+                  ),
+                ],
+              ),
+            ),
+            if (damage >= 21)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text('21 damage warning'),
+              ),
+            ExpansionTile(
+              key: PageStorageKey('commander-editor-${source.id}'),
+              tilePadding: EdgeInsets.zero,
+              title: const Text('Edit damage'),
+              children: [
+                _gameFieldAction(
+                  _input(
+                    'damage.${source.id}',
+                    'New combat damage',
+                    initial: '1',
+                    numeric: true,
+                  ),
+                  _button(
+                    'Record',
+                    () => _run(
+                      () => c.adjustCommanderDamage(
+                        player.id,
+                        source.id,
+                        _integer('damage.${source.id}', min: 0),
+                      ),
+                    ),
+                    primary: true,
+                  ),
+                ),
+                const Text('Record also subtracts life.'),
+                const Divider(height: 24),
+                _gameFieldAction(
+                  _input(
+                    'damageCorrection.${source.id}',
+                    'Set recorded damage',
+                    initial: '$damage',
+                    numeric: true,
+                  ),
+                  _button(
+                    'Correct',
+                    () => _run(
+                      () => c.setCommanderDamage(
+                        player.id,
+                        source.id,
+                        _integer('damageCorrection.${source.id}', min: 0),
+                      ),
+                    ),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: Text('Correction changes this ledger only.'),
                 ),
               ],
             ),
-          ),
+          ],
         ),
-      _button('Correct life separately', () => _go(WorkspacePage.player)),
-    ]);
+      ),
+    );
   }
 
   Widget _historyPage() => _list([
@@ -636,48 +828,108 @@ extension _GamePages on _TableWorkspaceState {
       ),
   ]);
 
-  Widget _dicePage() => _list([
-    _section(
-      'Roll dice',
-      detail:
-          'Choose any mix of standard dice. Rolling does not change game state.',
-    ),
-    for (final entry in _diceCounts.entries)
-      _stepper(
-        'd${entry.key}',
-        entry.value,
-        () => _update(() => _diceCounts[entry.key] = max(0, entry.value - 1)),
-        () => _update(() => _diceCounts[entry.key] = min(20, entry.value + 1)),
-      ),
-    _button(
-      'Roll selected dice',
-      () => _update(() {
-        final random = Random.secure();
-        _diceResults.clear();
-        _diceTotal = 0;
-        for (final entry in _diceCounts.entries) {
-          if (entry.value == 0) continue;
-          final rolls = List.generate(
-            entry.value,
-            (_) => random.nextInt(entry.key) + 1,
-          );
-          _diceResults.add('${entry.value}d${entry.key}: ${rolls.join(' · ')}');
-          _diceTotal = _diceTotal! + rolls.fold(0, (sum, value) => sum + value);
-        }
-      }),
-      icon: Icons.casino,
-      primary: true,
-    ),
-    if (_diceTotal != null) ...[
-      _section('Total: $_diceTotal'),
-      for (final result in _diceResults)
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Text(result, style: Theme.of(context).textTheme.titleLarge),
+  Widget _dicePage() => LayoutBuilder(
+    builder: (context, constraints) {
+      final columns = constraints.maxWidth >= 800 ? 3 : 2;
+      final width = (constraints.maxWidth - 40 - (columns - 1) * 12) / columns;
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _section(
+              'Roll dice',
+              detail: 'Choose any mix. Rolling does not change game state.',
+            ),
+            Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              children: [
+                for (final entry in _diceCounts.entries)
+                  SizedBox(
+                    width: width,
+                    child: IconButtonTheme(
+                      data: IconButtonThemeData(
+                        style: IconButton.styleFrom(
+                          minimumSize: const Size(48, 48),
+                        ),
+                      ),
+                      child: _stepper(
+                        'd${entry.key}',
+                        entry.value,
+                        () => _update(
+                          () => _diceCounts[entry.key] = max(
+                            0,
+                            _diceCounts[entry.key]! - 1,
+                          ),
+                        ),
+                        () => _update(
+                          () => _diceCounts[entry.key] = min(
+                            20,
+                            _diceCounts[entry.key]! + 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _button(
+              'Roll selected dice',
+              () => _update(() {
+                final random = Random.secure();
+                _diceResults.clear();
+                _diceTotal = 0;
+                for (final entry in _diceCounts.entries) {
+                  if (entry.value == 0) continue;
+                  final rolls = List.generate(
+                    entry.value,
+                    (_) => random.nextInt(entry.key) + 1,
+                  );
+                  _diceResults.add(
+                    '${entry.value}d${entry.key}: ${rolls.join(' · ')}',
+                  );
+                  _diceTotal =
+                      _diceTotal! + rolls.fold(0, (sum, value) => sum + value);
+                }
+              }),
+              icon: Icons.casino,
+              primary: true,
+            ),
+            if (_diceTotal != null) ...[
+              _section('Total: $_diceTotal'),
+              Flexible(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: columns == 3 ? 120 : 160,
+                  ),
+                  child: SingleChildScrollView(
+                    key: const ValueKey('dice-results'),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final result in _diceResults)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Text(
+                              result,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                        if (_diceResults.isEmpty)
+                          const Text('Select at least one die.'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
-      if (_diceResults.isEmpty) const Text('Select at least one die.'),
-    ],
-  ]);
+      );
+    },
+  );
 
   Widget _settingsPage() => _list([
     _section('Shared game state'),
@@ -778,4 +1030,40 @@ extension _GamePages on _TableWorkspaceState {
       icon: Icons.favorite_outline,
     ),
   ]);
+}
+
+/// Keeps contextual setup controls visible without making gameplay a long form.
+class _GamePageTabs extends StatefulWidget {
+  const _GamePageTabs({required this.labels, required this.builder});
+  final List<String> labels;
+  final Widget Function(int index) builder;
+
+  @override
+  State<_GamePageTabs> createState() => _GamePageTabsState();
+}
+
+class _GamePageTabsState extends State<_GamePageTabs> {
+  int selected = 0;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            for (var index = 0; index < widget.labels.length; index++)
+              ChoiceChip(
+                label: Text(widget.labels[index]),
+                selected: selected == index,
+                onSelected: (_) => setState(() => selected = index),
+              ),
+          ],
+        ),
+      ),
+      Expanded(child: widget.builder(selected)),
+    ],
+  );
 }

@@ -321,7 +321,15 @@ The Pages workflow deploys both apps in one artifact: original at
 or clear origin storage to switch apps. See `apps/tablet/README.md` for build
 and storage isolation details. Browser preview is not native acceptance.
 
-Tablet board controls are compact and icon-led with accessible names. Seat
+Tablet board controls are compact and icon-led with accessible names.
+The 2026-10-22 UI batch requires token name/totals on the first row, real Mana
+P/T glyphs, no expand chevron or permanent token-lane header, local corner Add
+and Summary overlays with full final-row scroll clearance, and solid player
+borders independent of game controls. Shared game controls stay inside the life
+zone. Statuses are compact badges; attached commander damage mini-trackers use
+the source owner's color/art and existing coupled commands. Fixed utility
+choices fit small-tablet modals; variable lists scroll separately. See
+[the batch checklist](docs/activeDevelopment/in_progress_features/ipad_edition/ui_feedback_batch_2026-10-22.md). Seat
 identity belongs in the life region; retain target context in shared editors.
 Any modal blocks the entire table, dismisses on tapaway without click-through,
 and preserves recoverable drafts. A single custom keyboard faces the initiating

@@ -3,12 +3,11 @@
 The separate tablet app developed from the Tripling Season iPad specifications.
 “Tripling Table” is a development name, not a selected store name.
 
-**Checkpoint status (2026-10-22): not production-ready.** Independent web review
-confirmed that inline Name → Select all → q → a can replace the first letter
-(`a` instead of `qa`). This cross-machine consolidation preserves the current
-implementation; no completed follow-up fix was found in the clean checkouts.
-See the [independent review](../../docs/activeDevelopment/in_progress_features/ipad_edition/independent_review/correction_review_2026-10-22.txt)
-and [illustrated evidence](../../docs/activeDevelopment/in_progress_features/ipad_edition/independent_review/correction_review_2026-10-22.html).
+**Checkpoint status (2026-10-22): independent review in progress.** The
+reviewer reproduced the carried web Name → Select all → q → a replacement on
+`8849514`. A focused shared-preview selection repair now has a red-before /
+green-after regression and 111 passing tablet tests. Live-browser retest remains
+required; see the [focus repair](../../docs/activeDevelopment/in_progress_features/ipad_edition/keyboard_focus_fix_2026-10-22.md).
 
 ## Run
 
@@ -97,5 +96,14 @@ entry point does not initialize the original app's Hive providers or settings.
 No storage migration or reset is part of publishing this preview. Do not clear
 site data to switch between apps, since that would delete both apps' saved state.
 
-This is a browser inspection build with the known inline keyboard P1 unresolved.
+This is a browser inspection build; the focused inline-keyboard P1 repair awaits independent live-browser retest.
 It does not establish native iPad/Android acceptance or store readiness.
+
+## UI feedback review branch — 2026-10-22
+
+The next UI batch preserves the corrected token object while tightening token
+headers, corner overlays, player dividers, game-control placement, fixed utility
+editors, status badges and directly adjustable commander trackers. See the
+[batch checklist and validation limits](../../docs/activeDevelopment/in_progress_features/ipad_edition/ui_feedback_batch_2026-10-22.md).
+The focused web q→a repair is documented separately and awaits live-browser retest. This branch is for
+review; it is not merged or deployed and does not change the root app.

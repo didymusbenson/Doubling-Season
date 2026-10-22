@@ -468,12 +468,18 @@ class _TabletTokenCardState extends State<TabletTokenCard>
         children: [
           Icon(icon, size: prominent ? 17 : 15, color: color),
           const SizedBox(width: 2),
-          Text(
-            '$value',
-            style: TextStyle(
-              fontSize: prominent ? 18 : 14,
-              fontWeight: FontWeight.w700,
-              color: color,
+          Flexible(
+            fit: FlexFit.loose,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '$value',
+                style: TextStyle(
+                  fontSize: prominent ? 18 : 14,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
             ),
           ),
         ],
@@ -541,55 +547,47 @@ class _TabletTokenCardState extends State<TabletTokenCard>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: _field(
-                                      field: 'name',
-                                      label: 'Name',
-                                      value: token.name,
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 3,
-                                        ),
-                                        child: Text(
-                                          _value('name', token.name).isEmpty
-                                              ? 'Name'
-                                              : _value('name', token.name),
-                                          maxLines: widget.expanded ? null : 2,
-                                          overflow: widget.expanded
-                                              ? null
-                                              : TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w800,
+                              LayoutBuilder(
+                                builder: (context, constraints) => Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: _field(
+                                        field: 'name',
+                                        label: 'Name',
+                                        value: token.name,
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 3,
+                                          ),
+                                          child: Text(
+                                            _value('name', token.name).isEmpty
+                                                ? 'Name'
+                                                : _value('name', token.name),
+                                            maxLines: widget.expanded
+                                                ? null
+                                                : 2,
+                                            overflow: widget.expanded
+                                                ? null
+                                                : TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w800,
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  InkWell(
-                                    onTap: _inputOpen ? null : _expand,
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 4,
-                                        vertical: 5,
+                                    const SizedBox(width: 5),
+                                    ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxWidth: constraints.maxWidth * .65,
                                       ),
-                                      child: Icon(
-                                        widget.expanded
-                                            ? Icons.expand_less
-                                            : Icons.expand_more,
-                                        size: 17,
-                                        semanticLabel: widget.expanded
-                                            ? 'Collapse $_name'
-                                            : 'Expand $_name',
-                                      ),
+                                      child: _status(color),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                              _status(color),
                               if (counters.isNotEmpty || widget.expanded)
                                 SizedBox(
                                   height: 32,
@@ -719,9 +717,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
                                         value: token.pt,
                                         numeric: true,
                                         child: _PowerToughness(
-                                          value: _powerToughness.isEmpty
-                                              ? 'P/T'
-                                              : _powerToughness,
+                                          value: _powerToughness,
                                           modified: _modifiedPt,
                                           color: color,
                                         ),
@@ -1021,15 +1017,41 @@ class _PowerToughnessState extends State<_PowerToughness>
         color: widget.modified ? Colors.orange.shade800 : Colors.black12,
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Text(
-        widget.value,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w800,
-          color: widget.modified ? Colors.white : widget.color,
-        ),
-      ),
+      child: widget.value.isEmpty
+          ? ExcludeSemantics(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    ManaIcons.power,
+                    size: 22,
+                    color: widget.color.withValues(alpha: .55),
+                  ),
+                  Text(
+                    '/',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: widget.color.withValues(alpha: .55),
+                    ),
+                  ),
+                  Icon(
+                    ManaIcons.toughness,
+                    size: 22,
+                    color: widget.color.withValues(alpha: .55),
+                  ),
+                ],
+              ),
+            )
+          : Text(
+              widget.value,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: widget.modified ? Colors.white : widget.color,
+              ),
+            ),
     ),
   );
 }

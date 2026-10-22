@@ -30,15 +30,15 @@ Proposed setup presets: Commander 40, ordinary casual 20, and a custom value. Co
 
 Do not automatically eliminate a player, disable controls, clear their board or declare a winner at a threshold. Proposed state is manually controlled active/eliminated, with an optional “check player status” prompt. Losing a game can involve more than the values being tracked. Negative life remains editable to represent corrections and relevant effects.
 
-## Commander damage: required capability, proposed detailed interaction
+## Commander damage: required direct trackers — accepted 2026-10-22
 
 Commander damage is required, including damage from a player’s own commander. A single “commander damage taken” scalar is inadequate. Record damage by **recipient player ID and stable commander identity**. Two commanders belonging to one player must remain distinguishable. Commander identities survive seat moves and label changes; a displayed name is not their key. Independent commanders and commander tax are supported by the official rules. [Rules 702.124d / 903.8](https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt).
 
-Proposed interaction:
+Accepted interaction (the latest feedback supersedes the earlier menu-first proposal):
 
-1. Recipient opens their commander-damage panel.
-2. Select source commander from named commander slots **including the recipient’s own commander(s)**; show source owner, recipient and commander label distinctly. Never filter the selector to opponents only.
-3. Enter combat damage amount.
+1. Recipient adjusts an individual commander mini-tracker directly in the attached life area, with the source owner’s visual identity. A compact overview remains available for arbitrary amounts and ledger corrections. On short tablet seats, integrate the direct source chips into the attached shortcut row instead of reserving another fixed-height strip; keep default Storm and all six mana controls initially visible with life legibility and touch targets preserved. Taller seats may retain the fuller source row. Test one source and partners for all active seats, including self sources, at 2/3/4 players.
+2. Keep each named commander source distinct **including the recipient’s own commander(s)** and partners. Identify owner, recipient and commander in context/accessibility; never restrict sources to opponents.
+3. Direct ± changes damage and coupled life through the existing command. Enter a larger combat amount or an explicit ledger-only correction in the source’s contextual editor.
 4. **Accepted:** entering new commander damage also subtracts life. Provide distinct corrections to either value independently; correction must not silently repeat the coupled effect.
 5. Commit new damage and its life delta as **one command and undo unit** in the chronological game history. Exact correction affordances remain open, not the coupled-entry policy.
 
@@ -57,7 +57,7 @@ The user requested the relevant life-tracker fundamentals, not a life-only minim
 | Life totals; tap/delta and negative totals observed in research “Life adjustment, player panel, and counters” | **Confirmed** | Per player. Detailed gestures, presets, bounds, history grouping and direct-entry UX remain design choices. |
 | Energy, poison, experience (`Exp`) numeric controls observed in COUNTER-01 | **Explicitly confirmed examples** of relevant player counters | Typed values per player; visibility/defaults, bounds and correction controls remain open. Do not confuse poison with an automated infect calculation. |
 | Radiation (`Rad`) observed in COUNTER-01 | **Sourced candidate** within the confirmed relevant-counter category | Carry into the inventory for suitability/default review, not silently omit it; no automated milling, life loss or turn effects implied. |
-| City’s blessing (reference label `Ascend`) observed as a status control | **Explicitly confirmed** | Independent player status, not a numerical counter or exclusive holder. UI naming/placement and manual correction behavior remain open. |
+| City’s blessing (reference label `Ascend`) observed as a status control | **Explicitly confirmed** | Independent player status, not a numerical counter or exclusive holder. Compact enabled/disabled badges are accepted; independent manual corrections stay local. |
 | Monarch observed as status control; reference exclusivity was not tested | **Explicitly confirmed ownership tracking** | One authoritative table-level holder reference, projected into player views; never independent conflicting booleans. Transfer/correction history and elimination handling need explicit UX. |
 | Day/night control observed adding a central sun indicator | **Explicitly confirmed game-level state** | One shared designation with an initial neither state; no per-player copies and no automatic spell/turn inference. Placement/transition controls remain open. |
 | Source damage and life coupling observed; `me` cell visible; two partner cells observed but independent partner edits untested | **Confirmed per-source damage including self** | Stable recipient/source identities, distinct partner sources. New damage subtracts life as one undoable action; independent corrections are required; thresholds warn without automatic elimination. Detailed UI remains open. Our required support exceeds the reference’s verified source/partner behavior. |
@@ -166,3 +166,9 @@ Global modifier applicability is not blanket multiplication of life/player count
 Board wipe means token-level destroy creatures/all tokens, not reset life/status/game. Both game resets zero preset modifier counts and disable custom rules while retaining definitions. Reset-menu reload restores historical activation instead of clearing it. Dice selection/results follow the standard six dice types; mana uses the audited Disa manual-pool baseline pending tablet adaptation. See [source-backed decisions and limitations](implementation_carryover_clarifications.md).
 
 **Accepted compact-control direction (2026-10-22):** familiar controls are compact and icon-led, not large labeled toolbar rows; TS FAB patterns are precedent, not mandatory. Seat name appears in its life counter without redundant board “Seat N” labels. Preserve meaningful text, accessible semantic names and necessary shared-editor target identification. See [layout guidance](02_layout_and_interaction.md#compact-controls-and-restrained-chrome--accepted-2026-10-22).
+
+## UI feedback implementation — 2026-10-22
+
+The latest explicit revision uses compact enabled/disabled Monarch and City’s Blessing badges in the fixed life shortcuts and player editor. Tap Monarch to claim the single shared holder; blessing is independent per player. Attached commander mini-trackers expose direct adjustment without menu navigation, use the commander owner’s color/art, and retain stable source identity for partners and self-damage. Quick damage adjustment uses the existing coupled life/history command; exact ledger correction stays explicitly separate. Game controls sit entirely inside the life zone; independent solid borders divide player regions. See [batch checks and remaining acceptance](ui_feedback_batch_2026-10-22.md).
+
+The user clarified that this feedback applies consistently to iOS/Android tablets and web, even though it was observed on web. Validate font bundling, responsive geometry, touch, keyboard and modal behavior separately on each available target; preserve explicit not-run entries for inaccessible native/browser surfaces.
