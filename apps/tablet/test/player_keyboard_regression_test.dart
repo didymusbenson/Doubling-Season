@@ -1,3 +1,5 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -112,6 +114,82 @@ void main() {
       controller.dispose();
     },
   );
+
+  for (final platform in [
+    TargetPlatform.android,
+    TargetPlatform.iOS,
+    TargetPlatform.macOS,
+    TargetPlatform.windows,
+  ]) {
+    for (final turns in [0, 2]) {
+      testWidgets(
+        'explicit selection survives keyboard focus changes on $platform at $turns turns',
+        (tester) async {
+          await tabletSize(tester);
+          final controller = TextEditingController(text: 'Original name')
+            ..selection = const TextSelection.collapsed(offset: 13);
+          String? saved;
+          await tester.pumpWidget(
+            _EditorHarness(
+              controller: controller,
+              value: () => controller.text,
+              onChanged: (_) {},
+              onCommit: (value) async => saved = value,
+              onResult: (_) {},
+              quarterTurns: turns,
+            ),
+          );
+          await tester.tap(find.text('Edit'));
+          await tester.pumpAndSettle();
+          expect(
+            controller.selection,
+            const TextSelection.collapsed(offset: 13),
+          );
+          Future<void> tap(Finder target) async {
+            // A browser/desktop keyboard button can take focus before onPressed.
+            // Model that focus transfer explicitly; touch-only tests omit it.
+            Focus.of(tester.element(target)).requestFocus();
+            await tester.pump();
+            await tester.tap(target, kind: PointerDeviceKind.mouse);
+            await tester.pumpAndSettle();
+          }
+
+          await tap(find.byTooltip('Select all'));
+          expect(
+            controller.selection,
+            const TextSelection(baseOffset: 0, extentOffset: 13),
+          );
+          await tap(find.text('q'));
+          final afterQ = controller.selection;
+          await tap(find.text('a'));
+          expect(controller.text, 'qa');
+          expect(afterQ, const TextSelection.collapsed(offset: 1));
+          await tap(find.text('a'));
+          expect(controller.text, 'qaa');
+          await tap(find.text('←'));
+          await tap(find.text('q'));
+          expect(controller.text, 'qaqa');
+          controller.selection = const TextSelection(
+            baseOffset: 1,
+            extentOffset: 3,
+          );
+          await tap(find.text('z'));
+          expect(controller.text, 'qza');
+          await tap(find.text('⌫'));
+          expect(controller.text, 'qa');
+          await tap(find.byTooltip('Select all'));
+          await tap(find.text('z'));
+          expect(controller.text, 'z');
+          await tap(find.text('Done'));
+          expect(saved, 'z');
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox.shrink());
+          controller.dispose();
+        },
+        variant: TargetPlatformVariant({platform}),
+      );
+    }
+  }
 
   testWidgets('failed save keeps draft and supports close then resume', (
     tester,
