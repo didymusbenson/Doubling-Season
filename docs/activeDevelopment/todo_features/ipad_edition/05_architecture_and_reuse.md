@@ -49,7 +49,7 @@ All current-code statements below are supported by the [pinned audit](../../../.
 | BoardOrderPersistence | Reuse journaling/recovery ideas | New independent order domains; no hidden mixed-list canonical order |
 | BoardUndoSnapshot | Reuse snapshot/restoration semantics | Replace whole-box local restoration with scoped affected-state restore |
 | ExpandableCardController / edit sessions | Reuse save-veto and focused-editor principles | Per-player interaction state and keyboard coordinator |
-| TokenCard and utility cards | Canonical behavior/visual reference | New narrow-lane composition and control arrangements; do not mount four ContentScreens |
+| TokenCard and supporting token components | **Reuse-first, full token functional parity required** | Fit the existing deliberately dense token object into its lane; adapt injected seat/session commands and constraints. Do not replace direct controls with a simplified redesign or mount four unscoped ContentScreens |
 | Settings / updates / IAP | Reuse platform integration selectively | Device versus player settings explicit; defer intrusive maintenance during play |
 
 ## Proposed component graph
@@ -95,13 +95,13 @@ Life, typed player counters/status and commander damage can appear in the centra
 
 Per-player queues express ordering of intents and keep local busy/error state isolated. D15 decides whether they feed one serialized session writer initially or independent scoped writers with a table coordinator. A single durable writer can still accept input from multiple seats; sequential storage alone does not require disabling the UI. D41 separately blocks every background control while a modal is open; persistence command queues are not queued second-editor interactions.
 
-## Retiring the list-item architecture in the tablet frontend
+## Adapt the board container, preserve the token object
 
-The current `_BoardItem` sequence interleaves tokens, trackers and toggles into one order and one expandable list. The tablet edition should not render filtered views over that same mixed canonical order. It has distinct life state, token order and utility order by design.
+The current `_BoardItem` sequence interleaves tokens, trackers and toggles into one order and one expandable list. The tablet has distinct life state, token order and utility order. This is a container/order-domain adaptation, **not a requirement to retire TokenCard, rebuild its controls or simplify its functionality**. Reuse the existing token implementation and its supporting components wherever practical, parameterizing seat/session context and layout constraints.
 
-This does not require erasing useful polymorphism. A utility lane may still host trackers, toggles and a specialized mana panel under a small utility renderer contract. Common artwork, identity rail, accessibility and editor primitives may be shared. Avoid a new universal cell abstraction that immediately forces life, tokens and all utilities back into one reorderable model.
+This does not require erasing useful polymorphism. A utility lane may still host trackers, toggles and a specialized mana panel under a small utility renderer contract. Existing token rendering, artwork, counter pills, editing and action primitives should be reused where practical, not merely recreated from screenshots. Avoid a new universal cell abstraction that immediately forces life, tokens and all utilities back into one reorderable model.
 
-Preserve the repository's board-item parity principle deliberately: inspect all relevant token and utility compact/expanded views whenever shared behavior changes. Tablet-specific spacing/control arrangement may differ from phone cells; document the reason. Save-veto behavior, high-contrast counters, image error preservation, and explicit undo should remain consistent across tablet item types.
+Preserve the repository's board-item parity principle deliberately: inspect all relevant token and utility compact/expanded views whenever shared behavior changes. Preserve the original token’s density, direct controls and interaction economy. Change spacing/control arrangement only for a demonstrated lane/accessibility constraint; document the reason and prove equivalent access/functionality. A separate frontend does not authorize an arbitrary token redesign. Save-veto behavior, high-contrast counters, image error preservation, and explicit undo should remain consistent across tablet item types.
 
 ## Extraction sequence
 
@@ -154,3 +154,7 @@ Save the current game before archive restore; keep the latest ten archived game-
 ## Explicit carryover clarification — 2026-10-22
 
 Reuse TS design principles and its token DB/feed/update contracts; adapt filesystem promotion to web and verify separate-product manifest compatibility. Existing decklist import is required. Custom player-facing keyboard/system-input suppression is the principal net-new interaction; preserve scoped persistence rather than inherit global stores. See [source-backed decisions and limitations](implementation_carryover_clarifications.md).
+
+## Full token parity correction — 2026-10-22
+
+The entire original TS token functionality, deliberate density and direct controls must carry over. Reuse the existing token implementation where practical and adapt lane constraints/seat-session integration; a new board container is not a mandate to rebuild or simplify tokens. Any parity-reducing exception requires explicit justification and approval. Review [the source-backed token inventory and acceptance method](token_functional_parity.md), not just row aesthetics or generated mockup styling. No specific runtime mismatch is claimed without implementation evidence.

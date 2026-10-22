@@ -115,3 +115,7 @@ Save the current game before archive restore; keep the latest ten archived game-
 ## Explicit carryover clarification — 2026-10-22
 
 Accepted: token-level creature/all-token wipes are distinct from game resets; both resets clear modifier activation per TS. Existing TS decklist import and the same token database/update feed are in scope. Dice support d4/d6/d8/d10/d12/d20 with chosen counts, individual results and total. Free/no ads, optional FV/TS-style non-consumable supporter cosmetics; working names remain candidates. See [source-backed decisions and limitations](implementation_carryover_clarifications.md).
+
+## Full token parity correction — 2026-10-22
+
+The entire original TS token functionality, deliberate density and direct controls must carry over. Reuse the existing token implementation where practical and adapt lane constraints/seat-session integration; a new board container is not a mandate to rebuild or simplify tokens. Any parity-reducing exception requires explicit justification and approval. Review [the source-backed token inventory and acceptance method](token_functional_parity.md), not just row aesthetics or generated mockup styling. No specific runtime mismatch is claimed without implementation evidence.

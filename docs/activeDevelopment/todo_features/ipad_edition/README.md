@@ -142,3 +142,7 @@ Save the current game before archive restore; keep the latest ten archived game-
 ## Explicit carryover clarification — 2026-10-22
 
 Follow TS deliberate design principles unless concrete incompatibility requires adaptation. Wipes are token-level; resets clear rule activation per TS. TS decklist import/shared catalog feed, standard dice, iterative Lifetap-informed life UI and per-seat Rules-equivalent applied-effects menu are accepted. Free/no ads with optional FV/TS-style support IAP cosmetics. Working names are listed in the clarification record. See [source-backed decisions and limitations](implementation_carryover_clarifications.md).
+
+## Full token parity correction — 2026-10-22
+
+The entire original TS token functionality, deliberate density and direct controls must carry over. Reuse the existing token implementation where practical and adapt lane constraints/seat-session integration; a new board container is not a mandate to rebuild or simplify tokens. Any parity-reducing exception requires explicit justification and approval. Review [the source-backed token inventory and acceptance method](token_functional_parity.md), not just row aesthetics or generated mockup styling. No specific runtime mismatch is claimed without implementation evidence.

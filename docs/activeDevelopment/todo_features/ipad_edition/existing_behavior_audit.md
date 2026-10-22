@@ -63,7 +63,7 @@ The current board has one expanded item; tapping another first requests collapse
 | D05 | R opposite-facing two-player template; U four-seat orientation options beyond accepted concepts; T rotated hit/semantics |
 | D06 | R tablet MVP, iPad mini through full-size iPads/Android tablets, complete 2–4-seat view, web at tablet-suitable sizes; no phone/focused fallback; T exact geometry/orientation |
 | D07 | R dedicated life/attached shortcuts/separate lanes/shared controls; T exact geometry and reach |
-| D08 | R conceptual existing workflow baseline; A utility/token parity inventory; U intentional release omissions, not assumed whole feature parity |
+| D08 | R full original token functional parity, density and direct controls; reuse-first implementation with lane/seat integration; A utility inventory. Token omissions require explicit approved exceptions |
 | D09 | R one keyboard, all-modal whole-table blocking, no queued second editor; T nonmodal multi-touch |
 | D10 | R C for detailed work and inline editing for quick fields; A compact expansion state; T capacity/interaction, not four simultaneous modal editors |
 | D11 | R finish/dismiss then fresh interaction; search/form/inline resolution above; T rotation/native/IME/accessibility and safe async dismissal |
@@ -106,3 +106,7 @@ See the [second-pass granular baseline map](outstanding_behavior_baselines.md) f
 ## Modifier scope checkpoint — D25
 
 D25 subsequently settled local/global source applicability. The old local-only calculator is reuse evidence, not the accepted tablet scope; see the updated contract. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).
+
+## Full token parity correction — 2026-10-22
+
+The entire original TS token functionality, deliberate density and direct controls must carry over. Reuse the existing token implementation where practical and adapt lane constraints/seat-session integration; a new board container is not a mandate to rebuild or simplify tokens. Any parity-reducing exception requires explicit justification and approval. Review [the source-backed token inventory and acceptance method](token_functional_parity.md), not just row aesthetics or generated mockup styling. No specific runtime mismatch is claimed without implementation evidence.
