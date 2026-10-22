@@ -99,3 +99,12 @@ site data to switch between apps, since that would delete both apps' saved state
 
 This is a browser inspection build with the known inline keyboard P1 unresolved.
 It does not establish native iPad/Android acceptance or store readiness.
+
+## UI feedback review branch — 2026-10-22
+
+The next UI batch preserves the corrected token object while tightening token
+headers, corner overlays, player dividers, game-control placement, fixed utility
+editors, status badges and directly adjustable commander trackers. See the
+[batch checklist and validation limits](../../docs/activeDevelopment/in_progress_features/ipad_edition/ui_feedback_batch_2026-10-22.md).
+The known web q→a keyboard issue remains separately tracked. This branch is for
+review; it is not merged or deployed and does not change the root app.

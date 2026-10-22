@@ -101,18 +101,90 @@ extension _LibraryPages on _TableWorkspaceState {
     final preview = hasAction
         ? _board.utilityPreview(player.id, utility.id)
         : <TokenCreationResult>[];
-    return _list([
-      _button(
-        'All utilities',
-        () => _update(() => _itemId = null),
-        icon: Icons.arrow_back,
+    if (_field('$key.panel').text == 'artwork') {
+      return _utilityArtwork(utility);
+    }
+    final transforming = hasAction && action == 'brudiclad_telchor_engineer';
+    final controls = <Widget>[
+      Row(
+        children: [
+          _button('All utilities', () async {
+            if (await _flushInline()) _update(() => _itemId = null);
+          }, icon: Icons.arrow_back),
+          const Spacer(),
+          _button('Artwork', () async {
+            if (await _flushInline()) {
+              _update(() => _field('$key.panel').text = 'artwork');
+            }
+          }, icon: Icons.image_outlined),
+          const SizedBox(width: 8),
+          IconButton(
+            tooltip: utility.visible ? 'Hide this utility' : 'Restore to board',
+            onPressed: _working
+                ? null
+                : () => utility.visible
+                      ? _confirm(
+                          'Hide ${utility.name}?',
+                          'The utility’s current values will remain saved. Restore it from the utilities menu.',
+                          () => _board.setUtility(
+                            player.id,
+                            utility.id,
+                            visible: false,
+                          ),
+                          button: 'Hide utility',
+                        )
+                      : _run(
+                          () => _board.setUtility(
+                            player.id,
+                            utility.id,
+                            visible: true,
+                          ),
+                        ),
+            icon: Icon(
+              utility.visible
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined,
+            ),
+          ),
+        ],
       ),
-      _section(utility.name, detail: utility.description),
       if (!utility.visible)
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 12),
-          child: Text('Hidden from the board. Its values are still saved.'),
-        ),
+        const Text('Hidden from the board. Its values are still saved.'),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: _input(
+              '$key.name',
+              'Name',
+              initial: utility.name,
+              onCommit: (value) => _board.setUtility(
+                player.id,
+                utility.id,
+                name: value.trim(),
+                captured: scope,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 3,
+            child: _input(
+              '$key.description',
+              'Description',
+              initial: utility.description,
+              maxLines: 2,
+              onCommit: (value) => _board.setUtility(
+                player.id,
+                utility.id,
+                description: value,
+                captured: scope,
+              ),
+            ),
+          ),
+        ],
+      ),
       if (utility.kind == 'mana_pool')
         ..._manaControls(player)
       else if (toggle)
@@ -124,340 +196,423 @@ extension _LibraryPages on _TableWorkspaceState {
                 ? utility.description
                 : utility.configuration['offDescription'] as String? ?? '',
           ),
-          value: _board.utilityActive(player.id, utility.id),
+          value: active,
           onChanged: (v) =>
               _run(() => _board.setUtility(player.id, utility.id, isActive: v)),
         )
-      else if (!actionOnly) ...[
-        _stepper(
-          utility.name,
-          currentValue,
-          () => _run(() => _board.adjustUtility(player.id, utility.id, -step)),
-          () => _run(() => _board.adjustUtility(player.id, utility.id, step)),
-          holdMinus: () => _run(
-            () => _board.adjustUtility(
-              player.id,
-              utility.id,
-              -(utility.configuration['longPressIncrement'] as int? ?? 10),
-            ),
-          ),
-          holdPlus: () => _run(
-            () => _board.adjustUtility(
-              player.id,
-              utility.id,
-              utility.configuration['longPressIncrement'] as int? ?? 10,
-            ),
-          ),
-        ),
-        _input(
-          '$key.value',
-          'Set value',
-          initial: '$currentValue',
-          numeric: true,
-        ),
-        _button(
-          'Set value',
-          () => _run(
-            () => _board.setUtility(
-              player.id,
-              utility.id,
-              value: _integer(
-                '$key.value',
-                min: utility.kind == 'life_total' ? -1000000000 : 0,
-              ),
-            ),
-          ),
-        ),
-      ],
-      if (hasAction) ...[
-        _section(
-          'Action preview',
-          detail: preview.isNotEmpty
-              ? TokenCreationResult.breakdownString(preview)
-              : action == 'cathars_crusade'
-              ? 'Resolve $currentValue pending creature entries as +1/+1 counters on your creatures, including applicable modifiers.'
-              : 'Apply this utility’s action to $_seatName’s board.',
-        ),
-        if (action == 'brudiclad_telchor_engineer') ...[
-          const Text(
-            'Choose the token every token will become. This also creates the Myr shown above and clears summoning sickness.',
-          ),
-          for (final token in player.tokens.where(
-            (t) => t.amount > 0 && !t.isEmblem,
-          ))
-            ListTile(
-              title: Text('${token.name} · ${token.pt}'),
-              subtitle: Text(token.abilities, maxLines: 2),
-              trailing: const Icon(Icons.transform),
-              onTap: () => _confirm(
-                'Transform into ${token.name}?',
-                'Create the previewed Myr, then make all your tokens copies of this selected token. Other seats are unaffected.',
-                () => _board.utilityAction(
-                  player.id,
-                  utility.id,
-                  targetTokenId: token.id,
-                  expectedRevision: revision,
-                  captured: scope,
+      else if (!actionOnly)
+        Row(
+          children: [
+            Expanded(
+              child: _stepper(
+                'Value',
+                currentValue,
+                () => _run(
+                  () => _board.adjustUtility(player.id, utility.id, -step),
                 ),
-                button: 'Create & transform',
-              ),
-            ),
-          for (final result in preview)
-            ListTile(
-              title: Text('${result.name} · ${result.pt} (new token)'),
-              trailing: const Icon(Icons.transform),
-              onTap: () => _confirm(
-                'Transform into ${result.name}?',
-                'Create the Myr and transform every token you control into this token.',
-                () => _board.utilityAction(
-                  player.id,
-                  utility.id,
-                  targetTokenId: result.compositeId,
-                  expectedRevision: revision,
-                  captured: scope,
+                () => _run(
+                  () => _board.adjustUtility(player.id, utility.id, step),
                 ),
-                button: 'Create & transform',
-              ),
-            ),
-          _button(
-            'Create Myr & skip transformation',
-            () => _run(
-              () => _board.utilityAction(
-                player.id,
-                utility.id,
-                skip: true,
-                expectedRevision: revision,
-                captured: scope,
-              ),
-              success: 'Myr created; transformation skipped.',
-            ),
-          ),
-        ] else ...[
-          _button(
-            utility.configuration['actionButtonText'] as String? ??
-                'Resolve action',
-            () => _run(
-              () => _board.utilityAction(
-                player.id,
-                utility.id,
-                expectedRevision: revision,
-                captured: scope,
-              ),
-              success: '${utility.name} resolved.',
-            ),
-            primary: true,
-          ),
-          if (action == 'cathars_crusade')
-            _button(
-              'Quick +1/+1 to creatures',
-              () => _run(
-                () => _board.utilityAction(
-                  player.id,
-                  utility.id,
-                  quick: true,
-                  captured: scope,
-                ),
-                success: 'Counters applied. Pending entries were retained.',
-              ),
-            ),
-        ],
-      ],
-      ExpansionTile(
-        title: const Text('Edit utility'),
-        controller: _utilityPropertiesController,
-        onExpansionChanged: (expanded) async {
-          if (!expanded && !await _flushInline() && mounted) {
-            _utilityPropertiesController.expand();
-          }
-        },
-        children: [
-          const Text(
-            'Changes save when you leave a field, tap Done, or close this workspace.',
-          ),
-          _input(
-            '$key.name',
-            'Name',
-            initial: utility.name,
-            onCommit: (value) => _board.setUtility(
-              player.id,
-              utility.id,
-              name: value.trim(),
-              captured: scope,
-            ),
-          ),
-          _input(
-            '$key.description',
-            'Description',
-            initial: utility.description,
-            maxLines: 3,
-            onCommit: (value) => _board.setUtility(
-              player.id,
-              utility.id,
-              description: value,
-              captured: scope,
-            ),
-          ),
-        ],
-      ),
-      ExpansionTile(
-        title: const Text('Artwork for this utility'),
-        children: [
-          if (utility.artworkUrl != null)
-            _art(utility.artworkUrl, width: 180, height: 140),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final raw
-                  in utility.configuration['artworkOptions'] as List? ?? [])
-                SizedBox(
-                  width: 150,
-                  child: InkWell(
-                    onTap: () => _run(
-                      () => _board.setUtility(
-                        player.id,
-                        utility.id,
-                        artworkUrl: raw['url'] as String?,
-                        captured: scope,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        _art(raw['url'] as String?, width: 150, height: 130),
-                        Text(
-                          '${raw['set'] ?? ''}\n${raw['artist'] ?? ''}',
-                          maxLines: 2,
-                        ),
-                      ],
-                    ),
+                holdMinus: () => _run(
+                  () => _board.adjustUtility(
+                    player.id,
+                    utility.id,
+                    -(utility.configuration['longPressIncrement'] as int? ??
+                        10),
                   ),
                 ),
-            ],
-          ),
-          _button(
-            'Upload utility artwork',
-            () => _run(() async {
-              final art = await _pickArtwork();
-              if (art != null) {
-                await _board.setUtility(
-                  player.id,
-                  utility.id,
-                  artworkUrl: art,
-                  captured: scope,
-                );
-              }
-            }),
-            icon: Icons.upload,
-          ),
-          if (utility.artworkUrl != null)
+                holdPlus: () => _run(
+                  () => _board.adjustUtility(
+                    player.id,
+                    utility.id,
+                    utility.configuration['longPressIncrement'] as int? ?? 10,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _input(
+                '$key.value',
+                'Set value',
+                initial: '$currentValue',
+                numeric: true,
+              ),
+            ),
+            const SizedBox(width: 8),
             _button(
-              'Remove artwork',
+              'Set value',
               () => _run(
                 () => _board.setUtility(
                   player.id,
                   utility.id,
-                  clearArtwork: true,
-                  captured: scope,
+                  value: _integer(
+                    '$key.value',
+                    min: utility.kind == 'life_total' ? -1000000000 : 0,
+                  ),
                 ),
               ),
-              icon: Icons.hide_image_outlined,
             ),
-        ],
-      ),
-      const SizedBox(height: 16),
-      _button(
-        utility.visible ? 'Hide this utility' : 'Restore to board',
-        () => utility.visible
-            ? _confirm(
-                'Hide ${utility.name}?',
-                'The utility’s current values will remain saved. Restore it from the utilities menu.',
-                () => _board.setUtility(player.id, utility.id, visible: false),
-                button: 'Hide utility',
-              )
-            : _run(
-                () => _board.setUtility(player.id, utility.id, visible: true),
+          ],
+        ),
+      if (hasAction) ...[
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: preview.isNotEmpty
+              ? ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 96),
+                  child: SingleChildScrollView(
+                    key: const ValueKey('utility-action-preview'),
+                    child: Text(TokenCreationResult.breakdownString(preview)),
+                  ),
+                )
+              : Text(
+                  action == 'cathars_crusade'
+                      ? 'Resolve $currentValue pending creature entries as +1/+1 counters on your creatures, including applicable modifiers.'
+                      : 'Apply this utility’s action to $_seatName’s board.',
+                ),
+        ),
+        if (transforming) ...[
+          const Text(
+            'Choose the token every token will become. This also creates the Myr shown above and clears summoning sickness.',
+          ),
+          const SizedBox(height: 8),
+        ] else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _button(
+                utility.configuration['actionButtonText'] as String? ??
+                    'Resolve action',
+                () => _run(
+                  () => _board.utilityAction(
+                    player.id,
+                    utility.id,
+                    expectedRevision: revision,
+                    captured: scope,
+                  ),
+                ),
+                primary: true,
               ),
-        icon: utility.visible
-            ? Icons.visibility_off_outlined
-            : Icons.visibility_outlined,
-      ),
-    ]);
+              if (action == 'cathars_crusade')
+                _button(
+                  'Quick +1/+1 to creatures',
+                  () => _run(
+                    () => _board.utilityAction(
+                      player.id,
+                      utility.id,
+                      quick: true,
+                      captured: scope,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+      ],
+    ];
+    final targets = transforming
+        ? ListView(
+            key: const ValueKey('utility-transform-targets'),
+            children: [
+              for (final token in player.tokens.where(
+                (t) => t.amount > 0 && !t.isEmblem,
+              ))
+                ListTile(
+                  title: Text('${token.name} · ${token.pt}'),
+                  subtitle: Text(token.abilities, maxLines: 2),
+                  trailing: const Icon(Icons.transform),
+                  onTap: () => _confirm(
+                    'Transform into ${token.name}?',
+                    'Create the previewed Myr, then make all your tokens copies of this selected token. Other seats are unaffected.',
+                    () => _board.utilityAction(
+                      player.id,
+                      utility.id,
+                      targetTokenId: token.id,
+                      expectedRevision: revision,
+                      captured: scope,
+                    ),
+                    button: 'Create & transform',
+                  ),
+                ),
+              for (final result in preview)
+                ListTile(
+                  title: Text('${result.name} · ${result.pt} (new token)'),
+                  trailing: const Icon(Icons.transform),
+                  onTap: () => _confirm(
+                    'Transform into ${result.name}?',
+                    'Create the Myr and transform every token you control into this token.',
+                    () => _board.utilityAction(
+                      player.id,
+                      utility.id,
+                      targetTokenId: result.compositeId,
+                      expectedRevision: revision,
+                      captured: scope,
+                    ),
+                    button: 'Create & transform',
+                  ),
+                ),
+            ],
+          )
+        : null;
+    return Padding(
+      key: ValueKey('utility-detail-${utility.kind}'),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      child: transforming
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ...controls,
+                Expanded(child: targets!),
+                _button(
+                  'Create Myr & skip transformation',
+                  () => _run(
+                    () => _board.utilityAction(
+                      player.id,
+                      utility.id,
+                      skip: true,
+                      expectedRevision: revision,
+                      captured: scope,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : SingleChildScrollView(
+              key: const ValueKey('utility-fixed-controls'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: controls,
+              ),
+            ),
+    );
   }
 
-  List<Widget> _manaControls(PlayerState player) => [
-    const Text(
-      'Tap ± for one; hold for ten. Locks protect against Empty only. Conversion moves all mana, including locked colors, into the chosen color.',
-    ),
-    for (final color in PlayerState.manaColors)
-      Card(
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(
+  Widget _utilityArtwork(UtilityState utility) {
+    final player = p!;
+    final scope = _board.scope(player.id);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _stepper(
-                {
-                  'W': 'White',
-                  'U': 'Blue',
-                  'B': 'Black',
-                  'R': 'Red',
-                  'G': 'Green',
-                  'C': 'Colorless',
-                }[color]!,
-                player.mana[color] ?? 0,
-                () => _run(() => c.adjustMana(player.id, color, -1)),
-                () => _run(() => c.adjustMana(player.id, color, 1)),
-                holdMinus: () =>
-                    _run(() => c.adjustMana(player.id, color, -10)),
-                holdPlus: () => _run(() => c.adjustMana(player.id, color, 10)),
+              _button(
+                'Utility controls',
+                () => _update(
+                  () => _field('utility.${utility.id}.panel').clear(),
+                ),
+                icon: Icons.arrow_back,
               ),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _button(
-                    '−10',
-                    () => _run(() => c.adjustMana(player.id, color, -10)),
-                    icon: Icons.remove,
-                  ),
-                  _button(
-                    '+10',
-                    () => _run(() => c.adjustMana(player.id, color, 10)),
-                    icon: Icons.add,
-                  ),
-                  _button(
-                    player.manaLocks.contains(color)
-                        ? 'Locked'
-                        : 'Lock for Empty',
-                    () => _run(() => c.toggleManaLock(player.id, color)),
-                    icon: player.manaLocks.contains(color)
-                        ? Icons.lock
-                        : Icons.lock_open,
-                  ),
-                  _button(
-                    'Convert all to $color',
-                    () => _run(
-                      () => c.convertMana(player.id, color),
-                      success: 'All mana converted to $color.',
+              _button(
+                'Upload utility artwork',
+                () => _run(() async {
+                  final art = await _pickArtwork();
+                  if (art != null) {
+                    await _board.setUtility(
+                      player.id,
+                      utility.id,
+                      artworkUrl: art,
+                      captured: scope,
+                    );
+                  }
+                }),
+                icon: Icons.upload,
+              ),
+              if (utility.artworkUrl != null)
+                _button(
+                  'Remove artwork',
+                  () => _run(
+                    () => _board.setUtility(
+                      player.id,
+                      utility.id,
+                      clearArtwork: true,
+                      captured: scope,
                     ),
-                    icon: Icons.compare_arrows,
                   ),
-                ],
-              ),
+                  icon: Icons.hide_image_outlined,
+                ),
             ],
           ),
         ),
+        Expanded(
+          child: _list([
+            _section('Artwork for ${utility.name}'),
+            if (utility.artworkUrl != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: _art(utility.artworkUrl, width: 180, height: 140),
+              ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final raw
+                    in utility.configuration['artworkOptions'] as List? ?? [])
+                  SizedBox(
+                    width: 150,
+                    child: InkWell(
+                      onTap: () => _run(
+                        () => _board.setUtility(
+                          player.id,
+                          utility.id,
+                          artworkUrl: raw['url'] as String?,
+                          captured: scope,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          _art(raw['url'] as String?, width: 150, height: 130),
+                          Text(
+                            '${raw['set'] ?? ''}\n${raw['artist'] ?? ''}',
+                            maxLines: 2,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ]),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _manaControls(PlayerState player) => [
+    const Padding(
+      padding: EdgeInsets.symmetric(vertical: 6),
+      child: Text(
+        'Tap ± for one; hold for ten. Locks protect against Empty only. Conversion moves all mana, including locked colors.',
       ),
-    _button(
-      'Empty unlocked mana',
-      () => _confirm(
-        'Empty mana pool?',
-        'Set all unlocked colors to zero for $_seatName. Locked colors keep their values. This is undoable in game history.',
-        () => c.emptyMana(player.id),
-        button: 'Empty unlocked mana',
+    ),
+    LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 900 ? 3 : 2;
+        final width = (constraints.maxWidth - 8 * (columns - 1)) / columns;
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final color in PlayerState.manaColors)
+              SizedBox(width: width, child: _manaControl(player, color)),
+          ],
+        );
+      },
+    ),
+    Align(
+      alignment: Alignment.centerRight,
+      child: _button(
+        'Empty unlocked mana',
+        () => _confirm(
+          'Empty mana pool?',
+          'Set all unlocked colors to zero for $_seatName. Locked colors keep their values. This is undoable in game history.',
+          () => c.emptyMana(player.id),
+          button: 'Empty unlocked mana',
+        ),
+        icon: Icons.delete_outline,
       ),
-      icon: Icons.delete_outline,
     ),
   ];
+
+  Widget _manaControl(PlayerState player, String color) {
+    final name = const {
+      'W': 'White',
+      'U': 'Blue',
+      'B': 'Black',
+      'R': 'Red',
+      'G': 'Green',
+      'C': 'Colorless',
+    }[color]!;
+    final locked = player.manaLocks.contains(color);
+    Widget adjust(int amount) => Tooltip(
+      message: '${amount < 0 ? 'Decrease' : 'Increase'} $name mana',
+      child: GestureDetector(
+        onLongPress: _working
+            ? null
+            : () => _run(() => c.adjustMana(player.id, color, amount * 10)),
+        child: IconButton(
+          onPressed: _working
+              ? null
+              : () => _run(() => c.adjustMana(player.id, color, amount)),
+          icon: Icon(amount < 0 ? Icons.remove : Icons.add),
+        ),
+      ),
+    );
+    return Card(
+      key: ValueKey('utility-mana-$color'),
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: Text(name)),
+                adjust(-1),
+                SizedBox(
+                  width: 52,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '${player.mana[color] ?? 0}',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                ),
+                adjust(1),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                  onPressed: _working
+                      ? null
+                      : () => _run(() => c.adjustMana(player.id, color, -10)),
+                  child: Text(
+                    '−10',
+                    semanticsLabel: 'Decrease $name mana by ten',
+                  ),
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                  onPressed: _working
+                      ? null
+                      : () => _run(() => c.adjustMana(player.id, color, 10)),
+                  child: Text(
+                    '+10',
+                    semanticsLabel: 'Increase $name mana by ten',
+                  ),
+                ),
+                IconButton(
+                  tooltip: '${locked ? 'Unlock' : 'Lock'} $name mana for Empty',
+                  isSelected: locked,
+                  onPressed: _working
+                      ? null
+                      : () => _run(() => c.toggleManaLock(player.id, color)),
+                  icon: const Icon(Icons.lock_open),
+                  selectedIcon: const Icon(Icons.lock),
+                ),
+                IconButton(
+                  tooltip: 'Convert all mana to $name',
+                  onPressed: _working
+                      ? null
+                      : () => _run(() => c.convertMana(player.id, color)),
+                  icon: const Icon(Icons.compare_arrows),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _rulesPage() {
     final player = p;

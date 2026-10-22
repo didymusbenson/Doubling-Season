@@ -111,7 +111,6 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   String? _itemId;
   final _fields = <String, TextEditingController>{};
   final _inlineEdits = <String, _InlineEdit>{};
-  final _utilityPropertiesController = ExpansibleController();
   bool _allowPop = false;
   bool _closing = false;
   bool _navigating = false;
@@ -554,12 +553,14 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
               ],
             ),
           ),
-          GestureDetector(
-            onLongPress: _working ? null : holdMinus,
-            child: IconButton(
-              tooltip: 'Decrease $label',
-              onPressed: _working ? null : minus,
-              icon: const Icon(Icons.remove),
+          Tooltip(
+            message: 'Decrease $label',
+            child: GestureDetector(
+              onLongPress: _working ? null : holdMinus,
+              child: IconButton(
+                onPressed: _working ? null : minus,
+                icon: const Icon(Icons.remove),
+              ),
             ),
           ),
           TextButton(
@@ -569,12 +570,14 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
           ),
-          GestureDetector(
-            onLongPress: _working ? null : holdPlus,
-            child: IconButton(
-              tooltip: 'Increase $label',
-              onPressed: _working ? null : plus,
-              icon: const Icon(Icons.add),
+          Tooltip(
+            message: 'Increase $label',
+            child: GestureDetector(
+              onLongPress: _working ? null : holdPlus,
+              child: IconButton(
+                onPressed: _working ? null : plus,
+                icon: const Icon(Icons.add),
+              ),
             ),
           ),
         ],
@@ -586,7 +589,6 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   void dispose() {
     c.removeListener(_refresh);
     catalog.removeListener(_refresh);
-    _utilityPropertiesController.dispose();
     for (final edit in _inlineEdits.values) {
       edit.timer?.cancel();
     }

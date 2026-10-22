@@ -1,0 +1,228 @@
+{
+  "evidence_type": "Flutter widget-test renderer with real fonts; not release-browser or native acceptance",
+  "source_base_commit": "bbfdbd075e95af1a7bc0017a7f2f2542ac251288",
+  "branch": "codex/tablet-ui-feedback-batch",
+  "source_files_sha256": {
+    "apps/tablet/lib/domain/table_controller.dart": "8ed393efaab248a086875fec84d30f04a4a67338e39531f9a5e68597119974f3",
+    "apps/tablet/lib/domain/table_state.dart": "2cea5444ab20409219a7aa5c67fe5cf328db48d80e79e89077edbd40482084f1",
+    "apps/tablet/lib/features/board_service.dart": "d0b9072a600a4512ddba19aace480150e4462252693975f8f62fc4faf73d0b2c",
+    "apps/tablet/lib/features/preset_service.dart": "f9f4a9b9e48b72675f432c1df9f55d7d02a1e78213a54fc3c862bdcd3a31f35d",
+    "apps/tablet/lib/main.dart": "748fae8651bd390910057d142275ee30937103614c7ba2ffe546528186b68923",
+    "apps/tablet/lib/services/scoped_rules_calculator.dart": "9ea5bd3b0e4a03751feb44d9ffc5ff959b45faea1b09f72140c63c71769cc56a",
+    "apps/tablet/lib/services/table_support_service.dart": "09ec48a95d0918904bc030814c3aa6098bdb9b7191bbb211e793a22127b439c1",
+    "apps/tablet/lib/services/tablet_catalog.dart": "3ad1b19de8334550235ed8fa7fb484c8667f108cd7dd045a6d9745a80f3db2e9",
+    "apps/tablet/lib/services/tablet_media_store.dart": "54a09077bd2f8d137d9cfb58e1c6092921ed39b51a6690b806d2fcddfe7e8655",
+    "apps/tablet/lib/state/table_controller.dart": "d043f267fa4a8fc289c27d961c960a1b4a85d23b085785ad7bf340dcf625a659",
+    "apps/tablet/lib/storage/table_repository.dart": "0f2f33b6701ff047ac143d98f2dda887d6da421aaad8b08e6bd72b9eacbdcded",
+    "apps/tablet/lib/ui/artwork_selection.dart": "0f323115900d226b338717394fd40b9061e1e7730a10a278245c911c1fd006d7",
+    "apps/tablet/lib/ui/support_sheet.dart": "ffe06d46e53b2e1c4448a9f19562758bc04ca04801f3a719b65fc0ec0bd95228",
+    "apps/tablet/lib/ui/table_artwork.dart": "8c621e0d1b71b935b1ca33a4a3a3fa0ee066355a96047b03cfa9b19d18f0c81e",
+    "apps/tablet/lib/ui/table_screen.dart": "b963202a32858333a282d394f3f8e694d3d846a19e2f4e46bbcc59eed724c27f",
+    "apps/tablet/lib/ui/table_theme.dart": "1881db4a950b9ed22e011c4000cdfa168e7a192e2b8b2eb379e7a0bbed80a08c",
+    "apps/tablet/lib/ui/tablet_token_card.dart": "2e728564ae389d2e4031a949974db414ec2e1585e042afedea403d870bb34bf2",
+    "apps/tablet/lib/ui/token_board_summary.dart": "bede00b692eb810ee42df9f87f379c69ef3855ca6b26c42fc3cb94df8f252992",
+    "apps/tablet/lib/ui/workspace/game_pages.dart": "82c2558ea51fcb417c7b1ac2072e63b9eaf967980c6d1750a5b68afe3ee5e574",
+    "apps/tablet/lib/ui/workspace/library_pages.dart": "f83e4b4623465de48e20cb5efdd25300e13d7b8473223ee3df15f5a6c12872b9",
+    "apps/tablet/lib/ui/workspace/player_keyboard.dart": "90c0d4fc9ac04ae94de5c49c7741dba2cca0cf248d776fa00f1d727aa1ca1b5c",
+    "apps/tablet/lib/ui/workspace/table_workspace.dart": "36bed6c1d39497113bae5dfe777e7eef1d2eae5d479eb2525a6d224fa7b3c72a",
+    "apps/tablet/lib/ui/workspace/token_pages.dart": "85ad3ba5101b3c404f7951e8f70230659d61d8b1db00dfd5f4b30a0292d2a008"
+  },
+  "library_upload": {
+    "status": "not_executed",
+    "action": "supported prepared-upload helper for 27 requested screenshots",
+    "reason": "Library prepare_uploads is not available",
+    "denied": false,
+    "uncertain": false
+  },
+  "screenshots": [
+    {
+      "file_name": "flutter-test-renderer-2p-1133x744.png",
+      "width": 1133,
+      "height": 744,
+      "sha256": "dca3c4ca0562be10a35e91040aebd49a6a0359c19d110f0f341b94009b9fae7b",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-2p-1366x1024.png",
+      "width": 1366,
+      "height": 1024,
+      "sha256": "e18e76bc85e45a0c171192125fbf985c2365decb1055843d155c838bef711c4b",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-2p-744x1133.png",
+      "width": 744,
+      "height": 1133,
+      "sha256": "a08bd45cbad3454180338af06f324c2edf809f3c30385723cc6d2b30e9f5ca42",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-2p-direct-commander-partner-self-trackers.png",
+      "width": 1133,
+      "height": 744,
+      "sha256": "57eb0c7a3e5ab85794309c22c3e1662c1ac816dc567386be66a1d2b984f058ce",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-3p-1133x744.png",
+      "width": 1133,
+      "height": 744,
+      "sha256": "822c67ec86c5af8cee7ad0f44e443c7239e0a69ec11ed52e92462f79f0a8a3c2",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-3p-1366x1024.png",
+      "width": 1366,
+      "height": 1024,
+      "sha256": "a81141f923c587df9c0a003363f2654eda447fa9222d760ec62014d2eef25412",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-3p-744x1133.png",
+      "width": 744,
+      "height": 1133,
+      "sha256": "f40879e6204935951f93b1e020c530d09ceb95b1124952a1ac157abb5209e26b",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-4p-1133x744-mana-glyphs-long-name-large-totals.png",
+      "width": 1133,
+      "height": 744,
+      "sha256": "0d0a95a90b4526346ebcd42e8aa24350d764c46dffc47d0bc2d0fbd7a8ff6143",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-4p-1133x744.png",
+      "width": 1133,
+      "height": 744,
+      "sha256": "d705e0f6061eecd3a122bcaf01fa8f830a1b74e0bd077ec748b533b8de3398cb",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-4p-1366x1024.png",
+      "width": 1366,
+      "height": 1024,
+      "sha256": "c5f747f99d916a137918b89f61a8d187679a5a5514198cef7adeec124a4d0eea",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-4p-744x1133-mana-glyphs-long-name-large-totals.png",
+      "width": 744,
+      "height": 1133,
+      "sha256": "e678e532b194312b472090486f6f3470c4c708057f92d13e62d485000a214559",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-4p-744x1133.png",
+      "width": 744,
+      "height": 1133,
+      "sha256": "7332aa5ddb4234684cc8ffaad362309b63bff0cb4911bf1c3ee3d9a12cea5f36",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-4p-mini-landscape-last-expanded-token.png",
+      "width": 1133,
+      "height": 744,
+      "sha256": "203416577a2e271ee041d177e227f8c86919dc9ba6f9af8e8b0156dd0e2bc997",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-4p-status-badges-after-undo.png",
+      "width": 1366,
+      "height": 1024,
+      "sha256": "f8150338cfb807a85dd4fd021b3432ea199231aa63ab8f380a719eed98ab46c9",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-commander-overview-1133x744.png",
+      "width": 1133,
+      "height": 744,
+      "sha256": "3848bdb364dcc9a479210f3c17f1decc5da064f79aeb259049a1c0fbb4d69fed",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-dice-1133x744.png",
+      "width": 1133,
+      "height": 744,
+      "sha256": "a57f82c5848b42362ec880416974957a33f46e1f8c6d15ed2e89a1a4c4c0d58c",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-dice-744x1133.png",
+      "width": 744,
+      "height": 1133,
+      "sha256": "08724abf57cf4f82872e5b3f73db9650772fe04e40997bff6558b7813894fd50",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-player-life-status-1133x744.png",
+      "width": 1133,
+      "height": 744,
+      "sha256": "062ed320cf7a840a5b50346034823267c767b9f34b144352b0383c6f707cbfbd",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-player-life-status-744x1133.png",
+      "width": 744,
+      "height": 1133,
+      "sha256": "8b0c229769345c87ea511e306b98bf2896711dbbf10790973f49b57dca361de1",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-utility-cathars_crusade-1133x744.png",
+      "width": 1133,
+      "height": 744,
+      "sha256": "08a16c3c86160b04f9ae3b51af81f8c596bc72814fdd2b70166aae387c0f1a48",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-utility-cathars_crusade-744x1133.png",
+      "width": 744,
+      "height": 1133,
+      "sha256": "b57ed47dcbfda7e711577f4f247cf18271c519c91071526cd24d16c09f6b5d7d",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-utility-citys_blessing-1133x744.png",
+      "width": 1133,
+      "height": 744,
+      "sha256": "ab93b0220ec1940faf2e0e7f4552ab248072e9a28cb536a2b730431a21616819",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-utility-citys_blessing-744x1133.png",
+      "width": 744,
+      "height": 1133,
+      "sha256": "358417100a0d148f9431d2f884af3b6161a168dbe80835e84dc813efcec6cdd3",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-utility-mana_pool-1133x744.png",
+      "width": 1133,
+      "height": 744,
+      "sha256": "69856e0b9b31e51ce135505838c29a22468c3af8ee99bb63dd8ae2a660cab00f",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-utility-mana_pool-744x1133.png",
+      "width": 744,
+      "height": 1133,
+      "sha256": "880462f2247720c78a38df647bd0c64de8b22e808109c953b2c184b222e04859",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-utility-storm_count-1133x744.png",
+      "width": 1133,
+      "height": 744,
+      "sha256": "37dd617363dae3e94e95898fd6a1f1b158479bccc57619c62322d8989ae3ed4f",
+      "library_file_id": null
+    },
+    {
+      "file_name": "flutter-test-renderer-utility-storm_count-744x1133.png",
+      "width": 744,
+      "height": 1133,
+      "sha256": "323374f7696841fc7cd4d3715953819cd4e826be1f32c8a37e75058498565aaa",
+      "library_file_id": null
+    }
+  ]
+}

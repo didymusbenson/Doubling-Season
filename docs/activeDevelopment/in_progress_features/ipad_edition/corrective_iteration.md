@@ -347,3 +347,7 @@ into an approved omission. Any actual access/approval blocker must identify the
 action, target, reason, completed work, and whether it was denied, pending, or
 uncertain. No new software installation, signing/account/security change,
 store upload, personal game-data mutation, force-push or main merge is authorized.
+
+## Follow-on UI feedback batch — 2026-10-22
+
+The next completed user batch is implemented separately from the historical correction recorded above. See [UI feedback implementation and acceptance](ui_feedback_batch_2026-10-22.md) for source scope, current verification, screenshot identities and explicit native/browser blockers. It preserves this correction’s tested token behavior and does not resolve the independently tracked web keyboard q→a defect.

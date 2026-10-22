@@ -178,6 +178,11 @@ class _TableScreenState extends State<TableScreen> {
                   player: player,
                   turns: turns,
                   tokenLeft: tokenLeft,
+                  gameInset: two
+                      ? (controller.session.players.indexOf(player) == 0
+                            ? 40
+                            : 0)
+                      : (player.slot == 0 || player.slot == 3 ? 40 : 0),
                   interactionEpoch: interactionEpoch,
                   onInputLock: setInputLock,
                   onOpen: (page, [itemId]) =>
@@ -230,30 +235,64 @@ class _TableScreenState extends State<TableScreen> {
                       ),
                     ),
                   Expanded(
-                    child: two
-                        ? seat(controller.session.players[1])
-                        : Row(
-                            children: [
-                              Expanded(child: slot(1)),
-                              const VerticalDivider(width: 2),
-                              Expanded(child: slot(2)),
-                            ],
-                          ),
-                  ),
-                  _GameStrip(
-                    controller: controller,
-                    onOpen: (page) => open(page),
-                  ),
-                  Expanded(
-                    child: two
-                        ? seat(controller.session.players[0])
-                        : Row(
-                            children: [
-                              Expanded(child: slot(0)),
-                              const VerticalDivider(width: 2),
-                              Expanded(child: slot(3)),
-                            ],
-                          ),
+                    child: LayoutBuilder(
+                      builder: (context, table) {
+                        final dividerColor = Theme.of(
+                          context,
+                        ).colorScheme.outline;
+                        Widget row(int left, int right) => Row(
+                          children: [
+                            Expanded(child: slot(left)),
+                            VerticalDivider(
+                              width: 3,
+                              thickness: 3,
+                              color: dividerColor,
+                            ),
+                            Expanded(child: slot(right)),
+                          ],
+                        );
+                        return Stack(
+                          children: [
+                            Positioned.fill(
+                              child: Column(
+                                children: [
+                                  Expanded(
+                                    child: two
+                                        ? seat(controller.session.players[1])
+                                        : row(1, 2),
+                                  ),
+                                  Divider(
+                                    key: const ValueKey(
+                                      'player-horizontal-divider',
+                                    ),
+                                    height: 3,
+                                    thickness: 3,
+                                    color: dividerColor,
+                                  ),
+                                  Expanded(
+                                    child: two
+                                        ? seat(controller.session.players[0])
+                                        : row(0, 3),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Positioned(
+                              left: two
+                                  ? table.maxWidth * 11 / 21
+                                  : table.maxWidth * 11 / 42,
+                              right: two ? 0 : table.maxWidth * 11 / 42,
+                              top: table.maxHeight / 2 + 1.5,
+                              child: _GameStrip(
+                                divided: !two,
+                                controller: controller,
+                                onOpen: (page) => open(page),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
                 ],
               );
@@ -268,86 +307,108 @@ class _TableScreenState extends State<TableScreen> {
 class _GameStrip extends StatelessWidget {
   final TableController controller;
   final ValueChanged<WorkspacePage> onOpen;
-  const _GameStrip({required this.controller, required this.onOpen});
+  final bool divided;
+  const _GameStrip({
+    required this.controller,
+    required this.onOpen,
+    required this.divided,
+  });
   @override
-  Widget build(BuildContext context) => Material(
-    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-    child: SizedBox(
-      height: 40,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: ListenableBuilder(
-              listenable: TableSupportService.instance,
-              builder: (context, _) {
-                final support = TableSupportService.instance;
-                return Icon(
-                  support.tier == 0 ? Icons.spa_outlined : Icons.favorite,
-                  size: 22,
-                  semanticLabel: support.tier == 0
-                      ? 'Tripling Table'
-                      : '${TableSupportService.tierNames[support.tier - 1]} supporter',
-                  color: support.tier == 0
-                      ? null
-                      : Color(
-                          support.tier == 1
-                              ? 0xffdf7474
-                              : support.tier == 2
-                              ? 0xff83b7ce
-                              : support.heartColor,
-                        ),
-                );
-              },
-            ),
-          ),
-          const Spacer(),
-          _StripButton(
-            icon: Icons.history,
-            label: 'History',
-            onTap: () => onOpen(WorkspacePage.history),
-          ),
-          _StripButton(
-            icon: Icons.casino_outlined,
-            label: 'Dice',
-            onTap: () => onOpen(WorkspacePage.dice),
-          ),
-          _StripButton(
-            icon: controller.session.dayNight == 'night'
-                ? Icons.dark_mode_outlined
-                : Icons.light_mode_outlined,
-            label: controller.session.dayNight == 'neither'
-                ? 'Day / night'
-                : controller.session.dayNight,
-            onTap: () => onOpen(WorkspacePage.settings),
-          ),
-          _StripButton(
-            icon: Icons.restart_alt,
-            label: 'Reset',
-            onTap: () => onOpen(WorkspacePage.reset),
-          ),
-          _StripButton(
-            icon: Icons.tune,
-            label: 'Table',
-            onTap: () => onOpen(WorkspacePage.settings),
-          ),
-          const Spacer(),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Semantics(
-              label: controller.busy ? 'Saving game' : 'Game saved',
-              child: Icon(
-                controller.busy ? Icons.sync : Icons.check_circle_outline,
-                size: 17,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-          ),
-        ],
+  Widget build(BuildContext context) {
+    final left = <Widget>[
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: ListenableBuilder(
+          listenable: TableSupportService.instance,
+          builder: (context, _) {
+            final support = TableSupportService.instance;
+            return Icon(
+              support.tier == 0 ? Icons.spa_outlined : Icons.favorite,
+              size: 22,
+              semanticLabel: support.tier == 0
+                  ? 'Tripling Table'
+                  : '${TableSupportService.tierNames[support.tier - 1]} supporter',
+              color: support.tier == 0
+                  ? null
+                  : Color(
+                      support.tier == 1
+                          ? 0xffdf7474
+                          : support.tier == 2
+                          ? 0xff83b7ce
+                          : support.heartColor,
+                    ),
+            );
+          },
+        ),
       ),
-    ),
-  );
+      const Spacer(),
+      _StripButton(
+        icon: Icons.history,
+        label: 'History',
+        onTap: () => onOpen(WorkspacePage.history),
+      ),
+      _StripButton(
+        icon: Icons.casino_outlined,
+        label: 'Dice',
+        onTap: () => onOpen(WorkspacePage.dice),
+      ),
+      _StripButton(
+        icon: controller.session.dayNight == 'night'
+            ? Icons.dark_mode_outlined
+            : Icons.light_mode_outlined,
+        label: controller.session.dayNight == 'neither'
+            ? 'Day / night'
+            : controller.session.dayNight,
+        onTap: () => onOpen(WorkspacePage.settings),
+      ),
+    ];
+    final right = <Widget>[
+      _StripButton(
+        icon: Icons.restart_alt,
+        label: 'Reset',
+        onTap: () => onOpen(WorkspacePage.reset),
+      ),
+      _StripButton(
+        icon: Icons.tune,
+        label: 'Table',
+        onTap: () => onOpen(WorkspacePage.settings),
+      ),
+      const Spacer(),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Semantics(
+          label: controller.busy ? 'Saving game' : 'Game saved',
+          child: Icon(
+            controller.busy ? Icons.sync : Icons.check_circle_outline,
+            size: 17,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      ),
+    ];
+    return Material(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: SizedBox(
+        height: 40,
+        child: Row(
+          children: divided
+              ? [
+                  Expanded(child: Row(children: left)),
+                  SizedBox(
+                    key: const ValueKey('game-strip-player-divider'),
+                    width: 3,
+                    height: 40,
+                    child: ColoredBox(
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                  ),
+                  Expanded(child: Row(children: right)),
+                ]
+              : [...left, ...right],
+        ),
+      ),
+    );
+  }
 }
 
 class _StripButton extends StatelessWidget {
@@ -367,7 +428,8 @@ class _StripButton extends StatelessWidget {
     style: IconButton.styleFrom(
       foregroundColor: Theme.of(context).colorScheme.onSurface,
       minimumSize: const Size(44, 40),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
     ),
   );
 }
@@ -431,6 +493,7 @@ class _PlayerSpace extends StatefulWidget {
   final PlayerState player;
   final int turns, interactionEpoch;
   final bool tokenLeft;
+  final double gameInset;
   final void Function(WorkspacePage, [String?]) onOpen;
   final ValueChanged<UtilityState> onHide;
   final ValueChanged<bool> onInputLock;
@@ -441,6 +504,7 @@ class _PlayerSpace extends StatefulWidget {
     required this.player,
     required this.turns,
     required this.tokenLeft,
+    required this.gameInset,
     required this.interactionEpoch,
     required this.onOpen,
     required this.onHide,
@@ -485,16 +549,10 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
         .effectiveSources(p.id)
         .where((s) => s.enabled && s.count > 0)
         .length;
-    Widget tokenLane = Column(
+    Widget tokenLane = Stack(
+      key: ValueKey('${p.id}-token-lane'),
       children: [
-        _LaneHeading(
-          count: p.tokens.length,
-          tooltip: '${profile.name}, add token',
-          onAdd: () => widget.onOpen(WorkspacePage.tokens),
-          summaryTooltip: '${profile.name}, board summary',
-          onSummary: () => widget.onOpen(WorkspacePage.tokenSummary),
-        ),
-        Expanded(
+        Positioned.fill(
           child: p.tokens.isEmpty
               ? _EmptyLane(
                   icon: Icons.style_outlined,
@@ -505,6 +563,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
               : DragBoundary(
                   child: ReorderableListView.builder(
                     scrollController: tokenScroll,
+                    padding: const EdgeInsets.only(bottom: 88),
                     buildDefaultDragHandles: false,
                     itemCount: p.tokens.length,
                     onReorder: (old, next) => perform(
@@ -534,11 +593,38 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
                   ),
                 ),
         ),
+        Positioned(
+          right: 68,
+          bottom: 12,
+          child: Material(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            elevation: 3,
+            shape: const CircleBorder(),
+            child: IconButton(
+              key: ValueKey('${p.id}-board-summary'),
+              tooltip: '${profile.name}, board summary',
+              onPressed: () => widget.onOpen(WorkspacePage.tokenSummary),
+              icon: const Icon(Icons.style_outlined, size: 20),
+            ),
+          ),
+        ),
+        Positioned(
+          right: 12,
+          bottom: 12,
+          child: FloatingActionButton.small(
+            key: ValueKey('${p.id}-add-token'),
+            heroTag: '${p.id}-add-token',
+            tooltip: '${profile.name}, add token',
+            onPressed: () => widget.onOpen(WorkspacePage.tokens),
+            child: const Icon(Icons.add),
+          ),
+        ),
       ],
     );
     final visible = p.utilities.where((u) => u.visible).toList();
     Widget innerLane = Column(
       children: [
+        SizedBox(height: widget.gameInset),
         _LifePanel(
           player: p,
           profile: profile,
@@ -548,7 +634,44 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
           hiddenUtilities: hidden,
           onOpen: widget.onOpen,
           onChange: (d) => perform(() => widget.controller.adjustLife(p.id, d)),
+          onMonarch: () => perform(() => widget.controller.setMonarch(p.id)),
+          onBlessing: () => perform(
+            () => widget.controller.setCitysBlessing(p.id, !p.citysBlessing),
+          ),
         ),
+        if (widget.controller.session.commanders.isNotEmpty)
+          SizedBox(
+            key: ValueKey('${p.id}-commander-trackers'),
+            height: 70,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+              itemCount: widget.controller.session.commanders.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 4),
+              itemBuilder: (context, index) {
+                final source = widget.controller.session.commanders[index];
+                final owner = widget.controller.session.player(
+                  source.ownerPlayerId,
+                );
+                final identity = widget.controller.profile(owner.seatId);
+                return _CommanderChip(
+                  key: ValueKey('${p.id}-commander-${source.id}'),
+                  source: source,
+                  owner: identity,
+                  recipient: profile.name,
+                  value: p.commanderDamage[source.id] ?? 0,
+                  onChange: (delta) => perform(
+                    () => widget.controller.adjustCommanderDamage(
+                      p.id,
+                      source.id,
+                      delta,
+                    ),
+                  ),
+                  onOpen: () => widget.onOpen(WorkspacePage.commanderDamage),
+                );
+              },
+            ),
+          ),
 
         Expanded(
           child: visible.isEmpty
@@ -642,6 +765,7 @@ class _LifePanel extends StatelessWidget {
   final TableController controller;
   final int epoch, enabledRules, hiddenUtilities;
   final ValueChanged<int> onChange;
+  final VoidCallback onMonarch, onBlessing;
   final void Function(WorkspacePage, [String?]) onOpen;
   const _LifePanel({
     required this.player,
@@ -651,6 +775,8 @@ class _LifePanel extends StatelessWidget {
     required this.enabledRules,
     required this.hiddenUtilities,
     required this.onChange,
+    required this.onMonarch,
+    required this.onBlessing,
     required this.onOpen,
   });
   @override
@@ -696,11 +822,11 @@ class _LifePanel extends StatelessWidget {
       ),
     );
     final shortcuts = [
-      shortcut(
-        Icons.shield_outlined,
-        'commander damage',
-        WorkspacePage.commanderDamage,
-        count: player.commanderDamage.values.fold<int>(0, (a, b) => a + b),
+      _StatusBadge(
+        label: '${profile.name}, Monarch',
+        icon: Icons.workspace_premium_outlined,
+        enabled: monarch,
+        onTap: onMonarch,
       ),
       shortcut(
         Icons.hexagon_outlined,
@@ -726,7 +852,12 @@ class _LifePanel extends StatelessWidget {
             : 'manage utilities, $hiddenUtilities hidden',
         WorkspacePage.utilities,
       ),
-      shortcut(Icons.more_horiz, 'player menu', WorkspacePage.player),
+      _StatusBadge(
+        label: '${profile.name}, City’s blessing',
+        icon: Icons.auto_awesome,
+        enabled: player.citysBlessing,
+        onTap: onBlessing,
+      ),
     ];
     return _ArtworkSurface(
       url: profile.artworkUrl,
@@ -738,7 +869,7 @@ class _LifePanel extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 4, 8, 0),
+            padding: const EdgeInsets.fromLTRB(10, 0, 8, 0),
             child: Row(
               children: [
                 Expanded(
@@ -753,24 +884,6 @@ class _LifePanel extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (monarch)
-                  const Tooltip(
-                    message: 'The monarch',
-                    child: Icon(
-                      Icons.workspace_premium,
-                      size: 17,
-                      color: Color(0xFFE8D391),
-                    ),
-                  ),
-                if (player.citysBlessing)
-                  const Tooltip(
-                    message: 'City’s blessing',
-                    child: Icon(
-                      Icons.auto_awesome,
-                      size: 17,
-                      color: Color(0xFFE8D391),
-                    ),
-                  ),
                 if (player.warnings.isNotEmpty)
                   Tooltip(
                     message: player.warnings.join('\n'),
@@ -784,7 +897,7 @@ class _LifePanel extends StatelessWidget {
             ),
           ),
           SizedBox(
-            height: 64,
+            height: 48,
             child: Row(
               children: [
                 _HoldControl(
@@ -806,7 +919,7 @@ class _LifePanel extends StatelessWidget {
                           child: Text(
                             '${player.life}',
                             style: TextStyle(
-                              fontSize: 56,
+                              fontSize: 48,
                               fontWeight: FontWeight.w300,
                               height: 1,
                               color: artColor,
@@ -847,61 +960,148 @@ class _LifePanel extends StatelessWidget {
   }
 }
 
-class _LaneHeading extends StatelessWidget {
-  final String tooltip, summaryTooltip;
-  final int count;
-  final VoidCallback onAdd, onSummary;
-  const _LaneHeading({
-    required this.count,
-    required this.tooltip,
-    required this.summaryTooltip,
-    required this.onAdd,
-    required this.onSummary,
+class _StatusBadge extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
+  const _StatusBadge({
+    required this.label,
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
   });
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 40,
-    child: Row(
-      children: [
-        Tooltip(
-          message: summaryTooltip,
-          child: Semantics(
-            label: '$summaryTooltip, $count token stacks',
-            button: true,
-            excludeSemantics: true,
-            child: InkWell(
-              onTap: onSummary,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: SizedBox(
-                  height: 40,
-                  child: Row(
-                    children: [
-                      const Icon(Icons.style_outlined, size: 18),
-                      const SizedBox(width: 7),
-                      Text(
-                        '$count',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    toggled: enabled,
+    label: '$label, ${enabled ? 'enabled' : 'disabled'}',
+    excludeSemantics: true,
+    child: Tooltip(
+      message: '$label, ${enabled ? 'enabled' : 'disabled'}',
+      child: IconButton(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        style: IconButton.styleFrom(
+          minimumSize: const Size(40, 40),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          padding: const EdgeInsets.all(8),
+          foregroundColor: enabled
+              ? const Color(0xFFE8D391)
+              : Theme.of(context).colorScheme.onSurfaceVariant,
+          backgroundColor: enabled
+              ? const Color(0xFF51472D)
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          side: BorderSide(
+            color: enabled
+                ? const Color(0xFFE8D391)
+                : Theme.of(context).colorScheme.outlineVariant,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _CommanderChip extends StatelessWidget {
+  final CommanderSource source;
+  final SeatProfile owner;
+  final String recipient;
+  final int value;
+  final ValueChanged<int> onChange;
+  final VoidCallback onOpen;
+  const _CommanderChip({
+    super.key,
+    required this.source,
+    required this.owner,
+    required this.recipient,
+    required this.value,
+    required this.onChange,
+    required this.onOpen,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final color = Color(owner.color);
+    return Container(
+      width: 150,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        border: Border.all(color: color, width: 2),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: _ArtworkSurface(
+        url: owner.artworkUrl,
+        tint: Color.alphaBlend(
+          color.withValues(alpha: .24),
+          Theme.of(context).colorScheme.surface,
+        ),
+        child: Column(
+          children: [
+            Tooltip(
+              message: '${source.name} · ${owner.name}',
+              child: Text(
+                source.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: owner.artworkUrl == null ? color : Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
-          ),
+            Expanded(
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip:
+                        '$recipient, decrease damage from ${source.name} (${owner.name})',
+                    onPressed: value == 0 ? null : () => onChange(-1),
+                    icon: const Icon(Icons.remove, size: 18),
+                    constraints: const BoxConstraints(
+                      minWidth: 44,
+                      minHeight: 44,
+                    ),
+                    padding: EdgeInsets.zero,
+                  ),
+                  Expanded(
+                    child: InkWell(
+                      onTap: onOpen,
+                      child: Semantics(
+                        button: true,
+                        label:
+                            '$recipient, $value damage from ${source.name}, owned by ${owner.name}',
+                        child: Center(
+                          child: Text(
+                            '$value',
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip:
+                        '$recipient, increase damage from ${source.name} (${owner.name})',
+                    onPressed: () => onChange(1),
+                    icon: const Icon(Icons.add, size: 18),
+                    constraints: const BoxConstraints(
+                      minWidth: 44,
+                      minHeight: 44,
+                    ),
+                    padding: EdgeInsets.zero,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        const Spacer(),
-        IconButton(
-          tooltip: tooltip,
-          onPressed: onAdd,
-          icon: const Icon(Icons.add, size: 20),
-        ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 class _EmptyLane extends StatelessWidget {
@@ -1031,7 +1231,7 @@ class _UtilityRow extends StatelessWidget {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(17, 0, 6, 4),
+                  padding: const EdgeInsets.fromLTRB(17, 0, 6, 3),
                   child: DefaultTextStyle.merge(
                     style: TextStyle(color: color),
                     child: Column(
