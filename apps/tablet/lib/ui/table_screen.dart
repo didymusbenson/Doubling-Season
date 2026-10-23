@@ -552,7 +552,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
         return Column(
           children: [
             _LifePanel(
-              height: (lane.maxHeight * .30).clamp(104.0, 148.0),
+              height: (lane.maxHeight * .30 + 32).clamp(140.0, 180.0),
               centerNotch: widget.centerNotch,
               centerNotchAtStart: widget.centerNotchAtStart,
               player: p,
@@ -762,12 +762,6 @@ class _LifePanel extends StatelessWidget {
         WorkspacePage.rules,
         count: enabledRules,
       ),
-      CommanderLedger(
-        key: ValueKey('${player.id}-commander-ledger'),
-        controller: controller,
-        recipient: player,
-        onOpen: () => onOpen(WorkspacePage.commanderDamage),
-      ),
       SizedBox(
         key: ValueKey('${player.id}-player-details'),
         height: 40,
@@ -795,91 +789,124 @@ class _LifePanel extends StatelessWidget {
               color.withValues(alpha: .19),
               Theme.of(context).colorScheme.surface,
             ),
-            child: HalfStepper(
-              label: '${profile.name}, life',
-              value: '${player.life}',
-              height: height,
-              iconSize: 22,
-              iconY: 24 / height,
-              decreaseKey: ValueKey('${player.id}-life-decrease'),
-              increaseKey: ValueKey('${player.id}-life-increase'),
-              decreaseLabel: '${profile.name}, decrease life by one',
-              increaseLabel: '${profile.name}, increase life by one',
-              onDecrease: () => onChange(-1),
-              onIncrease: () => onChange(1),
-              onDecreaseHold: () => onChange(-5),
-              onIncreaseHold: () => onChange(5),
-              interactionEpoch: epoch,
-              foregroundColor: artColor,
-              displayOverlay: Column(
-                children: [
-                  SizedBox(
-                    height: 24,
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        12 + (centerNotchAtStart ? centerNotch : 0),
-                        4,
-                        12 + (centerNotchAtStart ? 0 : centerNotch),
-                        0,
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              profile.name,
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                              style: TextStyle(
-                                color: artColor ?? color,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                              ),
-                            ),
+            child: Stack(
+              children: [
+                HalfStepper(
+                  label: '${profile.name}, life',
+                  value: '${player.life}',
+                  height: height,
+                  iconSize: 22,
+                  iconY: -28 / height,
+                  decreaseKey: ValueKey('${player.id}-life-decrease'),
+                  increaseKey: ValueKey('${player.id}-life-increase'),
+                  decreaseLabel: '${profile.name}, decrease life by one',
+                  increaseLabel: '${profile.name}, increase life by one',
+                  onDecrease: () => onChange(-1),
+                  onIncrease: () => onChange(1),
+                  onDecreaseHold: () => onChange(-5),
+                  onIncreaseHold: () => onChange(5),
+                  interactionEpoch: epoch,
+                  foregroundColor: artColor,
+                  displayOverlay: Column(
+                    children: [
+                      SizedBox(
+                        height: 24,
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            12 + (centerNotchAtStart ? centerNotch : 0),
+                            4,
+                            12 + (centerNotchAtStart ? 0 : centerNotch),
+                            0,
                           ),
-                          _LifeDelta(
-                            key: ValueKey('${player.id}-life-delta'),
-                            entry:
-                                controller.session.history.isNotEmpty &&
-                                    !controller.session.history.last.undone &&
-                                    controller.session.history.last.groupKey ==
-                                        'life:${player.id}'
-                                ? controller.session.history.last
-                                : null,
-                          ),
-                          if (player.warnings.isNotEmpty)
-                            Tooltip(
-                              message: player.warnings.join('\n'),
-                              child: const Icon(
-                                Icons.warning_amber_rounded,
-                                color: Color(0xFFFFB485),
-                                size: 18,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  profile.name,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                  style: TextStyle(
+                                    color: artColor ?? color,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                  ),
+                                ),
                               ),
-                            ),
-                        ],
+                              _LifeDelta(
+                                key: ValueKey('${player.id}-life-delta'),
+                                entry:
+                                    controller.session.history.isNotEmpty &&
+                                        !controller
+                                            .session
+                                            .history
+                                            .last
+                                            .undone &&
+                                        controller
+                                                .session
+                                                .history
+                                                .last
+                                                .groupKey ==
+                                            'life:${player.id}'
+                                    ? controller.session.history.last
+                                    : null,
+                              ),
+                              if (player.warnings.isNotEmpty)
+                                Tooltip(
+                                  message: player.warnings.join('\n'),
+                                  child: const Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: Color(0xFFFFB485),
+                                    size: 18,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            '${player.life}',
-                            style: TextStyle(
-                              fontSize: (height * .64).clamp(64.0, 80.0),
-                              fontWeight: FontWeight.w400,
-                              height: 1,
-                              color: artColor,
+                      Expanded(
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 32),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                '${player.life}',
+                                key: ValueKey('${player.id}-life-number'),
+                                style: TextStyle(
+                                  fontSize: (height * .64).clamp(64.0, 80.0),
+                                  fontWeight: FontWeight.w400,
+                                  height: 1,
+                                  color: artColor,
+                                ),
+                              ),
                             ),
                           ),
                         ),
                       ),
+                      // Reserve the mini-tracker's own hit target below the total.
+                      // This display remains read-only, so the surrounding padding
+                      // and name continue to belong to the two life halves.
+                      const SizedBox(height: 52),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 8,
+                  child: Center(
+                    child: SizedBox(
+                      width: constraints.maxWidth < 160 ? 68 : 80,
+                      child: CommanderLedger(
+                        key: ValueKey('${player.id}-commander-ledger'),
+                        controller: controller,
+                        recipient: player,
+                        onOpen: () => onOpen(WorkspacePage.commanderDamage),
+                      ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
@@ -890,24 +917,18 @@ class _LifePanel extends StatelessWidget {
             children: [
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final ledgerWidth = constraints.maxWidth < 160
-                      ? 60.0
-                      : (constraints.maxWidth - 200).clamp(68.0, 80.0);
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
                     child: Wrap(
                       alignment: WrapAlignment.center,
-                      spacing: constraints.maxWidth >= 200 + ledgerWidth
-                          ? ((constraints.maxWidth - 200 - ledgerWidth) / 5)
-                                .clamp(0.0, 12.0)
-                          : constraints.maxWidth < 160
-                          ? 3.5
+                      spacing: constraints.maxWidth >= 200
+                          ? ((constraints.maxWidth - 200) / 4).clamp(0.0, 12.0)
                           : 4,
                       runSpacing: 4,
                       children: [
                         for (var index = 0; index < shortcuts.length; index++)
                           SizedBox(
-                            width: index == 4 ? ledgerWidth : 40,
+                            width: 40,
                             height: 44,
                             child: shortcuts[index],
                           ),

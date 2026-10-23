@@ -41,7 +41,7 @@ void main() {
         'MaterialIcons': 'MaterialIcons-Regular.otf',
       }.entries) {
         final file = File(
-          '/opt/homebrew/share/flutter/bin/cache/artifacts/material_fonts/${font.value}',
+          '${Platform.environment['FLUTTER_ROOT'] ?? '/opt/homebrew/share/flutter'}/bin/cache/artifacts/material_fonts/${font.value}',
         );
         if (await file.exists()) {
           await (FontLoader(
@@ -354,11 +354,7 @@ void main() {
               find.byKey(ValueKey('${player.id}-player-details')),
               within: tools,
             ).center;
-            for (final label in [
-              '$name, player counters',
-              '$name, rules',
-              '$name, commander damage',
-            ]) {
+            for (final label in ['$name, player counters', '$name, rules']) {
               final button = find.byTooltip(label);
               expect(button.hitTestable(), findsOneWidget);
               final point = bounds(tester, button, within: tools).center;
