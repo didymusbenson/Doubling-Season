@@ -261,9 +261,11 @@ void main() {
               );
               expect(
                 utilities.scrollController!.position.maxScrollExtent,
-                lessThanOrEqualTo(allowsUtilityScroll(size, seats) ? 48 : 1),
+                lessThanOrEqualTo(
+                  allowsUtilityScroll(size, seats) ? (seats == 2 ? 48 : 80) : 1,
+                ),
                 reason:
-                    'Only locally short mini-tablet seats may scroll by one mana row.',
+                    'Only short mini-tablet seats may scroll; the six life tools retain full targets.',
               );
               final ledger = find.byKey(
                 ValueKey('${player.id}-commander-ledger'),

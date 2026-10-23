@@ -354,12 +354,17 @@ void main() {
               find.byKey(ValueKey('${player.id}-player-details')),
               within: tools,
             ).center;
-            for (final label in ['$name, player counters', '$name, rules']) {
+            for (final label in [
+              '$name, player counters',
+              '$name, rules',
+              '$name, Manage utilities',
+            ]) {
               final button = find.byTooltip(label);
               expect(button.hitTestable(), findsOneWidget);
               final point = bounds(tester, button, within: tools).center;
               expect(
-                point.dy < editPosition.dy || point.dx < editPosition.dx,
+                point.dy < editPosition.dy ||
+                    (point.dy == editPosition.dy && point.dx < editPosition.dx),
                 isTrue,
                 reason: 'Edit is last in player-local tool order.',
               );
@@ -369,13 +374,22 @@ void main() {
               ValueKey('${player.id}-manage-utilities'),
             );
             expect(manage.hitTestable(), findsOneWidget);
-            expect(find.descendant(of: tools, matching: manage), findsNothing);
+            final managePosition = bounds(tester, manage, within: tools).center;
+            expect(managePosition.dy, editPosition.dy);
+            expect(
+              editPosition.dx - managePosition.dx,
+              inInclusiveRange(40, 52),
+            );
+            expect(
+              find.descendant(of: tools, matching: manage),
+              findsOneWidget,
+            );
             expect(
               find.descendant(
                 of: find.byKey(ValueKey('${player.id}-utility-section')),
                 matching: manage,
               ),
-              findsOneWidget,
+              findsNothing,
             );
             final lane = find.byKey(ValueKey('${player.id}-token-lane'));
             final fab = find.byKey(ValueKey('${player.id}-add-token'));

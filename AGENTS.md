@@ -377,8 +377,9 @@ including the name and all inner padding, belongs to its two hit regions except
 for the commander mini-grid's distinct target. The mini-grid is centered inside
 the colored chip below the raised life number; tapping it opens the source grid
 without stepping life. Life tools stay disjoint below the chip: crown Monarch
-beside City's Blessing, then counters, rules, and Edit last. Presets are inside
-Edit; Manage Utilities belongs in the utility section. Shared game controls are one compact standalone
+beside City's Blessing, then counters, rules, Manage Utilities, and Edit last. Presets are inside
+Edit. Manage Utilities never belongs inside a utility row. Shared game controls
+are one compact standalone
 component at the global table center, never a control-bearing divider/strip.
 Keep thin player borders distinct and token lanes full height. Assert global
 coordinates, compact bounds and content/hit-region separation in regressions.

@@ -545,7 +545,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
     Widget innerLane = LayoutBuilder(
       builder: (context, lane) {
         // Short player-local seats keep utility padding compact so the taller
-        // life chip costs at most one scrollable mana row, never smaller targets.
+        // life chip and tools never require shrinking the utility touch targets.
         final compactUtilities = lane.maxHeight < 420;
         return Column(
           children: [
@@ -574,11 +574,22 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
             Expanded(
               key: ValueKey('${p.id}-utility-section'),
               child: visible.isEmpty
-                  ? _EmptyLane(
-                      icon: Icons.widgets_outlined,
-                      text: 'Tools for your game',
-                      action: 'Choose utilities',
-                      onTap: () => widget.onOpen(WorkspacePage.utilities),
+                  ? LayoutBuilder(
+                      builder: (context, space) => space.maxHeight < 130
+                          ? Center(
+                              child: TextButton(
+                                onPressed: () =>
+                                    widget.onOpen(WorkspacePage.utilities),
+                                child: const Text('Choose utilities'),
+                              ),
+                            )
+                          : _EmptyLane(
+                              icon: Icons.widgets_outlined,
+                              text: 'Tools for your game',
+                              action: 'Choose utilities',
+                              onTap: () =>
+                                  widget.onOpen(WorkspacePage.utilities),
+                            ),
                     )
                   : DragBoundary(
                       child: ReorderableListView.builder(
@@ -600,9 +611,6 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
                             index: index,
                             enabled: expandedId == null,
                             child: _UtilityRow(
-                              onManage: index == 0
-                                  ? () => widget.onOpen(WorkspacePage.utilities)
-                                  : null,
                               compactSpacing: compactUtilities,
                               utility: u,
                               player: p,
@@ -763,6 +771,14 @@ class _LifePanel extends StatelessWidget {
         WorkspacePage.rules,
         count: enabledRules,
       ),
+      KeyedSubtree(
+        key: ValueKey('${player.id}-manage-utilities'),
+        child: shortcut(
+          Icons.widgets_outlined,
+          'Manage utilities',
+          WorkspacePage.utilities,
+        ),
+      ),
       SizedBox(
         key: ValueKey('${player.id}-player-details'),
         height: 40,
@@ -918,22 +934,29 @@ class _LifePanel extends StatelessWidget {
             children: [
               LayoutBuilder(
                 builder: (context, constraints) {
+                  // Keep six tools balanced: one row where it fits, otherwise
+                  // two rows of three, without shrinking their hit targets.
+                  final columns = constraints.maxWidth >= 260 ? 6 : 3;
+                  final spacing =
+                      ((constraints.maxWidth - columns * 40) / (columns - 1))
+                          .clamp(4.0, 12.0);
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: constraints.maxWidth >= 200
-                          ? ((constraints.maxWidth - 200) / 4).clamp(0.0, 12.0)
-                          : 4,
-                      runSpacing: 4,
-                      children: [
-                        for (var index = 0; index < shortcuts.length; index++)
-                          SizedBox(
-                            width: 40,
-                            height: 44,
-                            child: shortcuts[index],
-                          ),
-                      ],
+                    child: SizedBox(
+                      width: columns * 40 + (columns - 1) * spacing,
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: spacing,
+                        runSpacing: 4,
+                        children: [
+                          for (var index = 0; index < shortcuts.length; index++)
+                            SizedBox(
+                              width: 40,
+                              height: 44,
+                              child: shortcuts[index],
+                            ),
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -1078,11 +1101,9 @@ class _UtilityRow extends StatelessWidget {
   final BoardService board;
   final bool expanded;
   final VoidCallback onExpand, onHide, onOpen, onToggle;
-  final VoidCallback? onManage;
   final ValueChanged<int> onChange;
   final void Function(String, int) onMana;
   const _UtilityRow({
-    this.onManage,
     this.compactSpacing = false,
     required this.utility,
     required this.player,
@@ -1215,15 +1236,6 @@ class _UtilityRow extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            if (onManage != null)
-                              KeyedSubtree(
-                                key: ValueKey('${player.id}-manage-utilities'),
-                                child: icon(
-                                  Icons.widgets_outlined,
-                                  'Manage utilities',
-                                  onManage!,
-                                ),
-                              ),
                             if (mana)
                               icon(Icons.tune, 'Manage ${utility.name}', onOpen)
                             else if (toggle)
@@ -1245,7 +1257,7 @@ class _UtilityRow extends StatelessWidget {
                           ],
                         ),
                         // A portrait Storm row cannot share its value width with
-                        // its title and utility-management target.
+                        // its title while preserving comfortable stepper targets.
                         if (narrowStorm) valueStepper,
                         if (mana)
                           LayoutBuilder(
