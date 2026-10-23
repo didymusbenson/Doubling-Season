@@ -128,7 +128,7 @@ void main() {
   }
 
   bool allowsUtilityScroll(Size size, int seats) =>
-      size == const Size(1133, 744) && seats > 2;
+      size == const Size(1133, 744);
 
   ScrollController utilityScroll(WidgetTester tester, PlayerState player) =>
       tester
@@ -263,7 +263,7 @@ void main() {
                 utilities.scrollController!.position.maxScrollExtent,
                 lessThanOrEqualTo(allowsUtilityScroll(size, seats) ? 48 : 1),
                 reason:
-                    'Only short landscape may scroll by at most one mana row.',
+                    'Only locally short mini-tablet seats may scroll by one mana row.',
               );
               final ledger = find.byKey(
                 ValueKey('${player.id}-commander-ledger'),
