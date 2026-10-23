@@ -15,6 +15,7 @@ extension _GamePages on _TableWorkspaceState {
         'Commanders',
         'Saved setups',
       ],
+      onChanged: (index) => _update(() => _playerTabIndex = index),
       builder: (index) => switch (index) {
         1 => _playerAppearance(player),
         2 => _playerCommanders(player),
@@ -68,7 +69,11 @@ extension _GamePages on _TableWorkspaceState {
                   primary: true,
                 ),
               ),
-              const Text('Negative loses life; positive gains life.'),
+              const SizedBox(height: 8),
+              Text(
+                'Correct total',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
               _gameFieldAction(
                 _input(
                   'life.set',
@@ -180,12 +185,12 @@ extension _GamePages on _TableWorkspaceState {
   Widget _gamePanel(String title, List<Widget> children) => Card(
     margin: EdgeInsets.zero,
     child: Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           ...children,
         ],
       ),
@@ -440,48 +445,74 @@ extension _GamePages on _TableWorkspaceState {
       ),
       _gameGrid([
         for (final counter in counters.entries)
-          _gamePanel(
-            '${counter.key[0].toUpperCase()}${counter.key.substring(1)}',
-            [
-              HalfStepper(
-                height: 48,
-                label: counter.key,
-                value: '${counter.value}',
-                decreaseLabel: 'Decrease ${counter.key}',
-                increaseLabel: 'Increase ${counter.key}',
-                onDecrease: _working || counter.value == 0
-                    ? null
-                    : () => _run(
-                        () => c.adjustPlayerCounter(player.id, counter.key, -1),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  HalfStepper(
+                    height: 48,
+                    label: counter.key,
+                    value: '${counter.value}',
+                    valueWidget: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${counter.key[0].toUpperCase()}${counter.key.substring(1)}',
+                          style: Theme.of(context).textTheme.labelMedium,
+                        ),
+                        Text(
+                          '${counter.value}',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                      ],
+                    ),
+                    decreaseLabel: 'Decrease ${counter.key}',
+                    increaseLabel: 'Increase ${counter.key}',
+                    onDecrease: _working || counter.value == 0
+                        ? null
+                        : () => _run(
+                            () => c.adjustPlayerCounter(
+                              player.id,
+                              counter.key,
+                              -1,
+                            ),
+                          ),
+                    onIncrease: _working
+                        ? null
+                        : () => _run(
+                            () => c.adjustPlayerCounter(
+                              player.id,
+                              counter.key,
+                              1,
+                            ),
+                          ),
+                    valueStyle: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  if (counter.key == 'poison' && counter.value >= 10)
+                    const Text('Poison threshold reached.'),
+                  _gameFieldAction(
+                    _input(
+                      'counter.${counter.key}',
+                      'Set total',
+                      initial: '${counter.value}',
+                      numeric: true,
+                    ),
+                    _button(
+                      'Set',
+                      () => _run(
+                        () => c.setPlayerCounter(
+                          player.id,
+                          counter.key,
+                          _integer('counter.${counter.key}', min: 0),
+                        ),
                       ),
-                onIncrease: _working
-                    ? null
-                    : () => _run(
-                        () => c.adjustPlayerCounter(player.id, counter.key, 1),
-                      ),
-                valueStyle: Theme.of(context).textTheme.headlineSmall,
-              ),
-              if (counter.key == 'poison' && counter.value >= 10)
-                const Text('Poison threshold reached.'),
-              _gameFieldAction(
-                _input(
-                  'counter.${counter.key}',
-                  'Set total',
-                  initial: '${counter.value}',
-                  numeric: true,
-                ),
-                _button(
-                  'Set',
-                  () => _run(
-                    () => c.setPlayerCounter(
-                      player.id,
-                      counter.key,
-                      _integer('counter.${counter.key}', min: 0),
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
       ]),
       const SizedBox(height: 12),
@@ -512,7 +543,12 @@ extension _GamePages on _TableWorkspaceState {
             runSpacing: 8,
             children: [
               for (final source in sources)
-                SizedBox(width: 200, child: _commanderTracker(player, source)),
+                SizedBox(
+                  width: _expandedCommanderEditors.contains(source.id)
+                      ? 280
+                      : 200,
+                  child: _commanderTracker(player, source),
+                ),
             ],
           ),
         ]);
@@ -616,7 +652,7 @@ extension _GamePages on _TableWorkspaceState {
                       _gameFieldAction(
                         _input(
                           'damage.${source.id}',
-                          'New combat damage',
+                          'New damage',
                           initial: '1',
                           numeric: true,
                         ),
@@ -637,7 +673,7 @@ extension _GamePages on _TableWorkspaceState {
                       _gameFieldAction(
                         _input(
                           'damageCorrection.${source.id}',
-                          'Set recorded damage',
+                          'Set total',
                           initial: '$damage',
                           numeric: true,
                         ),
@@ -719,148 +755,173 @@ extension _GamePages on _TableWorkspaceState {
     return '${d.month}/${d.day}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
   }
 
-  Widget _resetPage() => _list([
-    _section(
-      'Start a new game',
-      detail:
-          'The current game and its full timeline are archived before a reset. Permanent player names, colors, artwork and saved setups are preserved.',
-    ),
-    Wrap(
-      spacing: 10,
-      children: [
-        for (final count in [2, 3, 4])
-          ChoiceChip(
-            label: Text('$count players'),
-            selected: _resetCount == count,
-            onSelected: (_) => _update(() => _resetCount = count),
-          ),
-      ],
-    ),
-    if (_resetCount == 3) ...[
-      _section('Empty control slot'),
-      Wrap(
-        spacing: 8,
-        children: [
-          for (var slot = 0; slot < 4; slot++)
-            ChoiceChip(
-              label: Text(
-                ['Bottom left', 'Top left', 'Top right', 'Bottom right'][slot],
+  Widget _resetPage() => _GamePageTabs(
+    labels: const ['New game', 'Archives', 'Board wipes'],
+    builder: (index) => switch (index) {
+      1 => _list([
+        _section(
+          'Reload a previous game state',
+          detail:
+              'Restore the complete archived game and its timeline. The current game is saved first. The latest 10 archives are retained.',
+        ),
+        if (c.state.archives.isEmpty) const Text('No archived games yet.'),
+        for (final archive in c.state.archives.reversed)
+          Card(
+            child: ListTile(
+              title: Text(archive.label),
+              subtitle: Text(
+                '${_date(archive.savedAt)} · ${archive.session.players.length} players · ${archive.session.history.length} history entries',
               ),
-              selected: _emptySlot == slot,
-              onSelected: (_) => _update(() => _emptySlot = slot),
+              trailing: const Icon(Icons.restore),
+              onTap: () => _confirm(
+                'Restore ${archive.label}?',
+                'Save the current game first, then restore this archive’s board, life, damage, rules and full timeline. Saved setups and permanent player customization will not be overwritten.',
+                () => c.restoreArchive(archive.id),
+                button: 'Save current & restore',
+                closeOnSuccess: true,
+              ),
             ),
+          ),
+      ]),
+      2 => _list([
+        _section(
+          'Board wipes',
+          detail:
+              'A wipe affects only the named player’s tokens. Life, commander damage, player counters and modifier sources remain.',
+        ),
+        for (final player in c.session.players)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(_nameForPlayer(player.id)),
+                _button(
+                  'Wipe creatures',
+                  () => _confirm(
+                    'Wipe ${_nameForPlayer(player.id)}’s creatures?',
+                    'Remove creature tokens from this player only. Undo is available in game history.',
+                    () => _board.bulk(
+                      player.id,
+                      'wipe_creatures',
+                      gameOrigin: true,
+                    ),
+                    button: 'Wipe creatures',
+                  ),
+                  icon: Icons.delete_outline,
+                ),
+                _button(
+                  'Wipe all tokens',
+                  () => _confirm(
+                    'Wipe ${_nameForPlayer(player.id)}’s tokens?',
+                    'Remove every token from this player only. Utilities and all non-token state remain. Undo is available in game history.',
+                    () => _board.bulk(player.id, 'wipe_all', gameOrigin: true),
+                    button: 'Wipe all tokens',
+                  ),
+                  icon: Icons.delete_outline,
+                ),
+              ],
+            ),
+          ),
+      ]),
+      _ => _list([
+        _section(
+          'Start a new game',
+          detail:
+              'The current game and its full timeline are archived before a reset. Permanent player names, colors, artwork and saved setups are preserved.',
+        ),
+        Wrap(
+          spacing: 10,
+          children: [
+            for (final count in [2, 3, 4])
+              ChoiceChip(
+                label: Text('$count players'),
+                selected: _resetCount == count,
+                onSelected: (_) => _update(() => _resetCount = count),
+              ),
+          ],
+        ),
+        if (_resetCount == 3) ...[
+          _section('Empty control slot'),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (var slot = 0; slot < 4; slot++)
+                ChoiceChip(
+                  label: Text(
+                    [
+                      'Bottom left',
+                      'Top left',
+                      'Top right',
+                      'Bottom right',
+                    ][slot],
+                  ),
+                  selected: _emptySlot == slot,
+                  onSelected: (_) => _update(() => _emptySlot = slot),
+                ),
+            ],
+          ),
         ],
-      ),
-    ],
-    _input(
-      'reset.life',
-      'Starting life',
-      initial: '${c.session.startingLife}',
-      numeric: true,
-    ),
-    Wrap(
-      spacing: 8,
-      children: [
-        for (final life in [20, 40])
-          _button('$life life', () => _field('reset.life').text = '$life'),
-      ],
-    ),
-    const SizedBox(height: 18),
-    _button(
-      'Reset with current configuration',
-      () => _confirm(
-        'Reset with board?',
-        'Start a $_resetCount-player game. Keep remaining players’ token entries at zero and enabled utility selections; clear token counters, utility runtime values, damage and player counters. Restore starting life. Disable all modifier sources/custom rules. Removed seats lose their live boards. Save the current game to archives first.',
-        () => c.resetGame(
-          keepBoard: true,
-          playerCount: _resetCount,
-          startingLife: _integer('reset.life', min: 1, max: 1000000),
-          emptySlot: _emptySlot,
-        ),
-        button: 'Archive & reset with board',
-        closeOnSuccess: true,
-      ),
-      icon: Icons.restart_alt,
-    ),
-    const SizedBox(height: 8),
-    _button(
-      'Complete reset',
-      () => _confirm(
-        'Clear boards & restart?',
-        'Start a $_resetCount-player game with empty token and utility lanes, starting life, cleared damage/counters/statuses, and disabled modifier sources/custom rules. Permanent seat appearances and saved setups remain. Archive the current game first.',
-        () => c.resetGame(
-          keepBoard: false,
-          playerCount: _resetCount,
-          startingLife: _integer('reset.life', min: 1, max: 1000000),
-          emptySlot: _emptySlot,
-        ),
-        button: 'Archive & complete reset',
-        closeOnSuccess: true,
-      ),
-      icon: Icons.delete_sweep_outlined,
-    ),
-    _section(
-      'Reload a previous game state',
-      detail:
-          'Restore the complete archived game and its timeline. The current game is saved first. The latest 10 archives are retained.',
-    ),
-    if (c.state.archives.isEmpty) const Text('No archived games yet.'),
-    for (final archive in c.state.archives.reversed)
-      Card(
-        child: ListTile(
-          title: Text(archive.label),
-          subtitle: Text(
-            '${_date(archive.savedAt)} · ${archive.session.players.length} players · ${archive.session.history.length} history entries',
-          ),
-          trailing: const Icon(Icons.restore),
-          onTap: () => _confirm(
-            'Restore ${archive.label}?',
-            'Save the current game first, then restore this archive’s board, life, damage, rules and full timeline. Saved setups and permanent player customization will not be overwritten.',
-            () => c.restoreArchive(archive.id),
-            button: 'Save current & restore',
-            closeOnSuccess: true,
+        SizedBox(
+          width: 220,
+          child: _input(
+            'reset.life',
+            'Starting life',
+            initial: '${c.session.startingLife}',
+            numeric: true,
           ),
         ),
-      ),
-    _section(
-      'Board wipes',
-      detail:
-          'A wipe affects only the named player’s tokens. Life, commander damage, player counters and modifier sources remain.',
-    ),
-    for (final player in c.session.players)
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Wrap(
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final life in [20, 40])
+              _button('$life life', () => _field('reset.life').text = '$life'),
+          ],
+        ),
+        const SizedBox(height: 18),
+        Wrap(
           spacing: 8,
           runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Text(_nameForPlayer(player.id)),
             _button(
-              'Wipe creatures',
+              'Reset with current configuration',
               () => _confirm(
-                'Wipe ${_nameForPlayer(player.id)}’s creatures?',
-                'Remove creature tokens from this player only. Undo is available in game history.',
-                () =>
-                    _board.bulk(player.id, 'wipe_creatures', gameOrigin: true),
-                button: 'Wipe creatures',
+                'Reset with board?',
+                'Start a $_resetCount-player game. Keep remaining players’ token entries at zero and enabled utility selections; clear token counters, utility runtime values, damage and player counters. Restore starting life. Disable all modifier sources/custom rules. Removed seats lose their live boards. Save the current game to archives first.',
+                () => c.resetGame(
+                  keepBoard: true,
+                  playerCount: _resetCount,
+                  startingLife: _integer('reset.life', min: 1, max: 1000000),
+                  emptySlot: _emptySlot,
+                ),
+                button: 'Archive & reset with board',
+                closeOnSuccess: true,
               ),
-              icon: Icons.delete_outline,
+              icon: Icons.restart_alt,
             ),
             _button(
-              'Wipe all tokens',
+              'Complete reset',
               () => _confirm(
-                'Wipe ${_nameForPlayer(player.id)}’s tokens?',
-                'Remove every token from this player only. Utilities and all non-token state remain. Undo is available in game history.',
-                () => _board.bulk(player.id, 'wipe_all', gameOrigin: true),
-                button: 'Wipe all tokens',
+                'Clear boards & restart?',
+                'Start a $_resetCount-player game with empty token and utility lanes, starting life, cleared damage/counters/statuses, and disabled modifier sources/custom rules. Permanent seat appearances and saved setups remain. Archive the current game first.',
+                () => c.resetGame(
+                  keepBoard: false,
+                  playerCount: _resetCount,
+                  startingLife: _integer('reset.life', min: 1, max: 1000000),
+                  emptySlot: _emptySlot,
+                ),
+                button: 'Archive & complete reset',
+                closeOnSuccess: true,
               ),
-              icon: Icons.delete_outline,
+              icon: Icons.delete_sweep_outlined,
             ),
           ],
         ),
-      ),
-  ]);
+      ]),
+    },
+  );
 
   Widget _dicePage() => LayoutBuilder(
     builder: (context, constraints) {

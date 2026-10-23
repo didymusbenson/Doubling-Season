@@ -343,6 +343,12 @@ identity belongs in the life region; retain target context in shared editors.
 Any modal blocks the entire table, dismisses on tapaway without click-through,
 and preserves recoverable drafts. A single custom keyboard faces the initiating
 player for every input. Routine actions do not generate toast/snackbar feedback.
+The 2026-10-23 visual pass gives life adaptive taller surfaces with circular hub
+clearance, real symbol-led mana controls, and local-left Add/Summary overlays.
+Modal frames follow their fixed content; variable art/search/archive lists keep
+bounded content viewports. Each PlayerField owns its PageStorage identity so
+ExpansionTile state cannot become a text-field scroll offset. See
+[the visual review checklist](docs/activeDevelopment/in_progress_features/ipad_edition/visual_polish_2026-10-23.md).
 Tablet utility rows do not render a color-indicator stripe. Retain their color
 metadata/model/storage and other uses of color; tablet tokens keep their 7px
 color rails. This is a tablet utility presentation exception, not a change to

@@ -293,7 +293,23 @@ void main() {
           for (final player in fixture.controller.session.players) {
             final name = fixture.controller.profile(player.seatId).name;
             final life = find.byKey(ValueKey('${player.id}-life-surface'));
-            expect(bounds(tester, life).overlaps(stripBounds), isFalse);
+            final clipFinder = find.byKey(ValueKey('${player.id}-life-clip'));
+            final clip = tester.widget<ClipPath>(clipFinder);
+            final box = tester.renderObject<RenderBox>(clipFinder);
+            final path = clip.clipper!.getClip(box.size);
+            // Rectangular bounds meet at the corner; colored pixels stop at
+            // the hub's circular clearance rather than a full-height gutter.
+            for (var x = 0.0; x <= box.size.width; x += 2) {
+              for (var y = 0.0; y <= box.size.height; y += 2) {
+                final point = Offset(x, y);
+                if (!path.contains(point)) continue;
+                expect(
+                  (box.localToGlobal(point) - stripBounds.center).distance,
+                  greaterThanOrEqualTo(stripBounds.width / 2),
+                  reason: 'Colored life surface must clear the central circle.',
+                );
+              }
+            }
             final decrease = find.byKey(ValueKey('${player.id}-life-decrease'));
             final increase = find.byKey(ValueKey('${player.id}-life-increase'));
             final hitBounds = bounds(
@@ -382,7 +398,7 @@ void main() {
             expect(nameBounds.right, lessThanOrEqualTo(laneBounds.right + .01));
             final localFab = bounds(tester, fab, within: lane);
             expect(fab.hitTestable(), findsOneWidget);
-            expect(localFab.right, closeTo(laneSize.width - 12, .01));
+            expect(localFab.left, closeTo(12, .01));
             expect(localFab.bottom, closeTo(laneSize.height - 12, .01));
             expect(laneSize.height, closeTo((tableHeight - 3) / 2, .01));
             expect(
@@ -401,7 +417,7 @@ void main() {
               find.byKey(ValueKey('${player.id}-board-summary')),
               within: lane,
             );
-            expect(localSummary.right, closeTo(laneSize.width - 68, .01));
+            expect(localSummary.left, closeTo(68, .01));
             expect(localSummary.bottom, closeTo(laneSize.height - 12, .01));
             expect(localSummary.overlaps(localFab), isFalse);
             final tokenList = find.descendant(
@@ -898,7 +914,8 @@ void main() {
       final unchangedOpponent = fixture.controller.player(opponent.id).toJson();
       final ledger = find.byKey(ValueKey('${recipient.id}-commander-ledger'));
       expect(ledger.hitTestable(), findsOneWidget);
-      expect(tester.getSize(ledger), const Size(60, 44));
+      expect(tester.getSize(ledger).width, inInclusiveRange(68, 80));
+      expect(tester.getSize(ledger).height, 44);
       await capture(tester, '2p-commander-mini-ledger');
       await tester.tap(ledger);
       await tester.pumpAndSettle();

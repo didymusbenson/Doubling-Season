@@ -98,6 +98,8 @@ void main() {
     await f.controller.resetGame(keepBoard: false, playerCount: 2);
     final outgoing = f.controller.session.id;
     await workspace(tester, f, WorkspacePage.reset);
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Archives'));
+    await tester.pumpAndSettle();
     final archive = find.text('Before complete reset');
     await tester.ensureVisible(archive);
     await tester.tap(archive);

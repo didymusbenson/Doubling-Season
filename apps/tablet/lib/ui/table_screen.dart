@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:doubling_season/widgets/mana/mana_icons.dart';
 import 'package:flutter/material.dart';
 import '../domain/table_state.dart';
 import '../state/table_controller.dart';
@@ -497,7 +498,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
                 ),
         ),
         Positioned(
-          right: 68,
+          left: 68,
           bottom: 12,
           child: Material(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -512,7 +513,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
           ),
         ),
         Positioned(
-          right: 12,
+          left: 12,
           bottom: 12,
           child: FloatingActionButton.small(
             key: ValueKey('${p.id}-add-token'),
@@ -535,6 +536,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
         return Column(
           children: [
             _LifePanel(
+              height: (lane.maxHeight * .30).clamp(104.0, 148.0),
               centerNotch: widget.centerNotch,
               centerNotchAtStart: widget.centerNotchAtStart,
               player: p,
@@ -657,6 +659,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
 }
 
 class _LifePanel extends StatelessWidget {
+  final double height;
   final double centerNotch;
   final bool centerNotchAtStart;
   final PlayerState player;
@@ -667,6 +670,7 @@ class _LifePanel extends StatelessWidget {
   final VoidCallback onMonarch, onBlessing;
   final void Function(WorkspacePage, [String?]) onOpen;
   const _LifePanel({
+    required this.height,
     required this.centerNotch,
     required this.centerNotchAtStart,
     required this.player,
@@ -766,11 +770,13 @@ class _LifePanel extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // This corner clearance is outside the colored/tappable life surface.
-        Padding(
-          padding: EdgeInsets.only(
-            left: centerNotchAtStart ? centerNotch : 0,
-            right: centerNotchAtStart ? 0 : centerNotch,
+        // Only the circular hub's immediate corner is excluded. The colored
+        // life surface fills its lane below that arc, without a vertical gutter.
+        ClipPath(
+          key: ValueKey('${player.id}-life-clip'),
+          clipper: _LifeHubNotch(
+            atStart: centerNotchAtStart,
+            inset: centerNotch > 30 ? 27 : -1.5,
           ),
           child: _ArtworkSurface(
             key: ValueKey('${player.id}-life-surface'),
@@ -782,7 +788,9 @@ class _LifePanel extends StatelessWidget {
             child: HalfStepper(
               label: '${profile.name}, life',
               value: '${player.life}',
-              height: 66,
+              height: height,
+              iconSize: 22,
+              iconY: 24 / height,
               decreaseKey: ValueKey('${player.id}-life-decrease'),
               increaseKey: ValueKey('${player.id}-life-increase'),
               decreaseLabel: '${profile.name}, decrease life by one',
@@ -796,9 +804,14 @@ class _LifePanel extends StatelessWidget {
               displayOverlay: Column(
                 children: [
                   SizedBox(
-                    height: 18,
+                    height: 24,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 0, 8, 0),
+                      padding: EdgeInsets.fromLTRB(
+                        12 + (centerNotchAtStart ? centerNotch : 0),
+                        4,
+                        12 + (centerNotchAtStart ? 0 : centerNotch),
+                        0,
+                      ),
                       child: Row(
                         children: [
                           Expanded(
@@ -809,7 +822,7 @@ class _LifePanel extends StatelessWidget {
                               style: TextStyle(
                                 color: artColor ?? color,
                                 fontWeight: FontWeight.w700,
-                                fontSize: 13,
+                                fontSize: 14,
                               ),
                             ),
                           ),
@@ -839,14 +852,14 @@ class _LifePanel extends StatelessWidget {
                   Expanded(
                     child: Center(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 27),
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
                           child: Text(
                             '${player.life}',
                             style: TextStyle(
-                              fontSize: 48,
-                              fontWeight: FontWeight.w300,
+                              fontSize: (height * .64).clamp(64.0, 80.0),
+                              fontWeight: FontWeight.w400,
                               height: 1,
                               color: artColor,
                             ),
@@ -867,19 +880,31 @@ class _LifePanel extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               LayoutBuilder(
-                builder: (context, constraints) => Wrap(
-                  spacing: constraints.maxWidth >= 260
-                      ? ((constraints.maxWidth - 260) / 5).clamp(0, 12)
-                      : 0,
-                  children: [
-                    for (var index = 0; index < shortcuts.length; index++)
-                      SizedBox(
-                        width: index == 4 ? 60 : 40,
-                        height: 44,
-                        child: shortcuts[index],
-                      ),
-                  ],
-                ),
+                builder: (context, constraints) {
+                  final ledgerWidth = (constraints.maxWidth - 200).clamp(
+                    68.0,
+                    80.0,
+                  );
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: constraints.maxWidth >= 200 + ledgerWidth
+                          ? ((constraints.maxWidth - 200 - ledgerWidth) / 5)
+                                .clamp(0.0, 12.0)
+                          : 4,
+                      runSpacing: 4,
+                      children: [
+                        for (var index = 0; index < shortcuts.length; index++)
+                          SizedBox(
+                            width: index == 4 ? ledgerWidth : 40,
+                            height: 44,
+                            child: shortcuts[index],
+                          ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -887,6 +912,27 @@ class _LifePanel extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Circular clearance follows the hub, rather than removing a full-height strip.
+class _LifeHubNotch extends CustomClipper<Path> {
+  final bool atStart;
+  final double inset;
+  const _LifeHubNotch({required this.atStart, required this.inset});
+  @override
+  Path getClip(Size size) => Path.combine(
+    PathOperation.difference,
+    Path()..addRect(Offset.zero & size),
+    Path()..addOval(
+      Rect.fromCircle(
+        center: Offset(atStart ? inset : size.width - inset, -1.5),
+        radius: 30,
+      ),
+    ),
+  );
+  @override
+  bool shouldReclip(covariant _LifeHubNotch oldClipper) =>
+      atStart != oldClipper.atStart || inset != oldClipper.inset;
 }
 
 class _StatusBadge extends StatelessWidget {
@@ -908,23 +954,34 @@ class _StatusBadge extends StatelessWidget {
     excludeSemantics: true,
     child: Tooltip(
       message: '$label, ${enabled ? 'enabled' : 'disabled'}',
-      child: IconButton(
-        onPressed: onTap,
-        icon: icon,
-        style: IconButton.styleFrom(
-          minimumSize: const Size(40, 40),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          padding: const EdgeInsets.all(8),
-          foregroundColor: enabled
-              ? const Color(0xFFE8D391)
-              : Theme.of(context).colorScheme.onSurfaceVariant,
-          backgroundColor: enabled
-              ? const Color(0xFF51472D)
-              : Theme.of(context).colorScheme.surfaceContainerHighest,
-          side: BorderSide(
-            color: enabled
-                ? const Color(0xFFE8D391)
-                : Theme.of(context).colorScheme.outlineVariant,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Center(
+            child: Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: enabled ? const Color(0xFF51472D) : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: enabled
+                      ? const Color(0xFFE8D391)
+                      : Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
+              child: IconTheme(
+                data: IconThemeData(
+                  color: enabled
+                      ? const Color(0xFFE8D391)
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                  size: 18,
+                ),
+                child: Center(child: icon),
+              ),
+            ),
           ),
         ),
       ),
@@ -1165,113 +1222,60 @@ class _UtilityRow extends StatelessWidget {
                                   for (final type in PlayerState.manaColors)
                                     SizedBox(
                                       width: width,
-                                      height: 48,
+                                      height: 44,
                                       child: Material(
                                         color: _manaColor(type),
-                                        borderRadius: BorderRadius.circular(5),
+                                        borderRadius: BorderRadius.circular(6),
                                         clipBehavior: Clip.antiAlias,
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Tooltip(
-                                                message:
-                                                    'Spend ${_manaName(type)} mana; hold to spend ten',
-                                                child: Semantics(
-                                                  label:
-                                                      'Spend one ${_manaName(type)} mana',
-                                                  button: true,
-                                                  excludeSemantics: true,
-                                                  child: InkWell(
-                                                    key: ValueKey(
-                                                      '${player.id}-mana-$type-spend',
-                                                    ),
-                                                    onTap: () =>
-                                                        onMana(type, -1),
-                                                    onLongPress: () =>
-                                                        onMana(type, -10),
-                                                    child:
-                                                        const SizedBox.expand(
-                                                          child: Icon(
-                                                            Icons.remove,
-                                                            color: Colors.white,
-                                                            size: 17,
-                                                          ),
-                                                        ),
-                                                  ),
+                                        child: HalfStepper(
+                                          label: '${_manaName(type)} mana',
+                                          value: '${player.mana[type] ?? 0}',
+                                          height: 44,
+                                          iconSize: 15,
+                                          iconPadding: 5,
+                                          displayPadding: 20,
+                                          decreaseKey: ValueKey(
+                                            '${player.id}-mana-$type-spend',
+                                          ),
+                                          increaseKey: ValueKey(
+                                            '${player.id}-mana-$type-add',
+                                          ),
+                                          decreaseLabel:
+                                              'Spend one ${_manaName(type)} mana',
+                                          increaseLabel:
+                                              '${_manaName(type)} mana ${player.mana[type] ?? 0}, add one',
+                                          decreaseTooltip:
+                                              'Spend ${_manaName(type)} mana; hold to spend ten',
+                                          increaseTooltip:
+                                              'Add ${_manaName(type)} mana; hold to add ten',
+                                          onDecrease: () => onMana(type, -1),
+                                          onIncrease: () => onMana(type, 1),
+                                          onDecreaseHold: () =>
+                                              onMana(type, -10),
+                                          onIncreaseHold: () =>
+                                              onMana(type, 10),
+                                          holdRepeatInterval: null,
+                                          foregroundColor: Colors.white,
+                                          valueWidget: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                _manaGlyph(type),
+                                                size: 17,
+                                                color: Colors.white,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${player.mana[type] ?? 0}',
+                                                style: const TextStyle(
+                                                  fontSize: 21,
+                                                  height: 1,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.white,
                                                 ),
                                               ),
-                                            ),
-                                            Expanded(
-                                              child: Tooltip(
-                                                message:
-                                                    'Add ${_manaName(type)} mana; hold to add ten',
-                                                child: Semantics(
-                                                  label:
-                                                      '${_manaName(type)} mana ${player.mana[type] ?? 0}, add one',
-                                                  button: true,
-                                                  excludeSemantics: true,
-                                                  child: InkWell(
-                                                    key: ValueKey(
-                                                      '${player.id}-mana-$type-add',
-                                                    ),
-                                                    onTap: () =>
-                                                        onMana(type, 1),
-                                                    onLongPress: () =>
-                                                        onMana(type, 10),
-                                                    child: SizedBox.expand(
-                                                      child: Column(
-                                                        mainAxisAlignment:
-                                                            MainAxisAlignment
-                                                                .center,
-                                                        children: [
-                                                          Row(
-                                                            mainAxisAlignment:
-                                                                MainAxisAlignment
-                                                                    .center,
-                                                            children: [
-                                                              Text(
-                                                                type,
-                                                                style: const TextStyle(
-                                                                  color: Colors
-                                                                      .white,
-                                                                  fontSize: 10,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                ),
-                                                              ),
-                                                              const Icon(
-                                                                Icons.add,
-                                                                size: 12,
-                                                                color: Colors
-                                                                    .white70,
-                                                              ),
-                                                            ],
-                                                          ),
-                                                          FittedBox(
-                                                            fit: BoxFit
-                                                                .scaleDown,
-                                                            child: Text(
-                                                              '${player.mana[type] ?? 0}',
-                                                              style: const TextStyle(
-                                                                color: Colors
-                                                                    .white,
-                                                                fontSize: 18,
-                                                                height: 1.1,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w700,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -1335,6 +1339,14 @@ class _UtilityRow extends StatelessWidget {
     );
   }
 
+  IconData _manaGlyph(String color) => switch (color) {
+    'W' => ManaIcons.white,
+    'U' => ManaIcons.blue,
+    'B' => ManaIcons.black,
+    'R' => ManaIcons.red,
+    'G' => ManaIcons.green,
+    _ => ManaIcons.colorless,
+  };
   String _manaName(String color) => switch (color) {
     'W' => 'white',
     'U' => 'blue',

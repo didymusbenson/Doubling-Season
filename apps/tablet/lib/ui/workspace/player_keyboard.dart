@@ -795,6 +795,9 @@ class PlayerField extends StatelessWidget {
         },
         child: ExcludeSemantics(
           child: TextField(
+            // Do not restore an ancestor ExpansionTile's saved bool as this
+            // field's scroll offset. Each editor owns its scroll identity.
+            key: PageStorageKey<TextEditingController>(controller),
             enabled: input?.enabled ?? true,
             controller: controller,
             readOnly: true,

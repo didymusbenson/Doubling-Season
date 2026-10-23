@@ -11,6 +11,7 @@ class HalfStepper extends StatelessWidget {
   final Duration? holdRepeatInterval;
   final int interactionEpoch;
   final double height;
+  final double iconSize, iconPadding, iconY, displayPadding;
   final Color? foregroundColor;
   final TextStyle? valueStyle;
   final Widget? valueWidget;
@@ -33,6 +34,10 @@ class HalfStepper extends StatelessWidget {
     this.holdRepeatInterval = const Duration(milliseconds: 300),
     this.interactionEpoch = 0,
     this.height = 44,
+    this.iconSize = 19,
+    this.iconPadding = 8,
+    this.iconY = 0,
+    this.displayPadding = 27,
     this.foregroundColor,
     this.valueStyle,
     this.valueWidget,
@@ -79,6 +84,9 @@ class HalfStepper extends StatelessWidget {
                           repeatInterval: holdRepeatInterval,
                           epoch: interactionEpoch,
                           color: color,
+                          iconSize: iconSize,
+                          iconPadding: iconPadding,
+                          iconY: iconY,
                           increase: false,
                         ),
                       ),
@@ -96,6 +104,9 @@ class HalfStepper extends StatelessWidget {
                           repeatInterval: holdRepeatInterval,
                           epoch: interactionEpoch,
                           color: color,
+                          iconSize: iconSize,
+                          iconPadding: iconPadding,
+                          iconY: iconY,
                           increase: true,
                         ),
                       ),
@@ -107,8 +118,8 @@ class HalfStepper extends StatelessWidget {
                           displayOverlay ??
                           Center(
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 27,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: displayPadding,
                               ),
                               child: FittedBox(
                                 fit: BoxFit.scaleDown,
@@ -161,6 +172,7 @@ class _StepHalf extends StatefulWidget {
   final int epoch;
   final Color color;
   final bool increase;
+  final double iconSize, iconPadding, iconY;
   const _StepHalf({
     super.key,
     required this.label,
@@ -172,6 +184,9 @@ class _StepHalf extends StatefulWidget {
     required this.epoch,
     required this.color,
     required this.increase,
+    required this.iconSize,
+    required this.iconPadding,
+    required this.iconY,
   });
 
   @override
@@ -253,14 +268,12 @@ class _StepHalfState extends State<_StepHalf> with WidgetsBindingObserver {
           splashFactory: widget.onTap == null ? NoSplash.splashFactory : null,
           excludeFromSemantics: true,
           child: Align(
-            alignment: widget.increase
-                ? Alignment.centerRight
-                : Alignment.centerLeft,
+            alignment: Alignment(widget.increase ? 1 : -1, widget.iconY),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: EdgeInsets.symmetric(horizontal: widget.iconPadding),
               child: Icon(
                 widget.increase ? Icons.add : Icons.remove,
-                size: 19,
+                size: widget.iconSize,
                 color: widget.onTap == null
                     ? widget.color.withValues(alpha: .38)
                     : widget.color,
