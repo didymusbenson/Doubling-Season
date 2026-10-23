@@ -158,6 +158,41 @@ void main() {
   }
 
   testWidgets(
+    'counter corrections reveal independently, cancel without saving, set and undo exactly',
+    (tester) async {
+      final f = TableFixture();
+      await f.initialize();
+      addTearDown(f.dispose);
+      await open(tester, f, page: WorkspacePage.counters);
+      expect(find.byType(TextField), findsNothing);
+      final originalLife = f.player.life;
+      for (final counter in ['energy', 'poison', 'experience', 'radiation']) {
+        await tester.tap(find.byTooltip('Set $counter total'));
+        await tester.pumpAndSettle();
+        expect(field('Set total'), findsOneWidget);
+        tester.widget<TextField>(field('Set total')).controller!.text = '7';
+        await tester.tap(find.byTooltip('Cancel counter correction'));
+        await tester.pumpAndSettle();
+        expect(f.player.counters[counter] ?? 0, 0);
+        expect(find.byType(TextField), findsNothing);
+        await tester.tap(find.byTooltip('Set $counter total'));
+        await tester.pumpAndSettle();
+        tester.widget<TextField>(field('Set total')).controller!.text = '7';
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Set'));
+        await tester.pumpAndSettle();
+        expect(f.player.counters[counter], 7);
+        expect(f.player.life, originalLife);
+        expect(find.byType(TextField), findsNothing);
+        expect(await f.controller.undo(), isTrue);
+        await tester.pumpAndSettle();
+        expect(f.player.counters[counter] ?? 0, 0);
+      }
+      expect(tester.takeException(), isNull);
+      await close(tester);
+    },
+  );
+
+  testWidgets(
     'status badges claim monarch atomically and undo restores prior holder',
     (tester) async {
       final f = TableFixture();

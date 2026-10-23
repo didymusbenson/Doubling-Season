@@ -108,6 +108,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   String? _commanderOwnerId;
   bool _commanderSetup = false;
   int _playerTabIndex = 0;
+  int _resetTabIndex = 0;
+  String? _editingPlayerCounter;
+  bool _artworkPreviewActive = false;
   final Set<String> _expandedCommanderEditors = {};
   late BoardService _board;
   late PresetService _presets;
@@ -707,6 +710,14 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         utility != null &&
         _field('utility.${utility.id}.panel').text == 'artwork';
     final compactUtility = utility != null && !utilityArtwork;
+    final artworkToken = _page == WorkspacePage.tokenArtwork
+        ? p?.tokens.where((t) => t.id == _itemId).firstOrNull
+        : null;
+    final hasArtwork = artworkToken?.artworkUrl != null;
+    final hasArtworkOptions =
+        (artworkToken?.artworkOptions.isNotEmpty ?? false) ||
+        (catalog.byId(artworkToken?.definitionId ?? '')?.artwork.isNotEmpty ??
+            false);
     // Frames follow the task's content. Search/artwork/timelines keep a taller
     // list viewport; fixed controls do not inherit a nearly full-screen form.
     final (panelWidth, panelHeight) = switch (_page) {
@@ -718,17 +729,38 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
             ? ((rotated ? size.height : size.width) < 760 ? 620.0 : 540.0)
             : 600.0,
       ),
-      WorkspacePage.counters => (680.0, 590.0),
+      WorkspacePage.counters => (
+        680.0,
+        _editingPlayerCounter == null ? 420.0 : 470.0,
+      ),
       WorkspacePage.dice => (800.0, 580.0),
-      WorkspacePage.reset => (820.0, 650.0),
+      WorkspacePage.reset => (
+        760.0,
+        _resetTabIndex == 0
+            ? (_resetCount == 3
+                  ? 540.0
+                  : (rotated ? size.height : size.width) < 760
+                  ? 460.0
+                  : 420.0)
+            : 650.0,
+      ),
       WorkspacePage.settings => (760.0, 760.0),
-      WorkspacePage.tokenArtwork => (760.0, 680.0),
+      WorkspacePage.tokenArtwork => (
+        760.0,
+        _artworkPreviewActive
+            ? 640.0
+            : hasArtwork
+            ? 580.0
+            : hasArtworkOptions
+            ? 520.0
+            : 360.0,
+      ),
       WorkspacePage.tokenStatus => (600.0, 440.0),
       WorkspacePage.tokenCounters => (680.0, 640.0),
       WorkspacePage.tokenSplit => (680.0, 560.0),
       WorkspacePage.tokenSummary => (700.0, 650.0),
       WorkspacePage.token => (820.0, 760.0),
-      WorkspacePage.tokens when _selectedDefinition != null => (720.0, 620.0),
+      WorkspacePage.tokens when _selectedDefinition != null => (720.0, 520.0),
       WorkspacePage.tokens when _createCustom => (760.0, 600.0),
       WorkspacePage.utilities when compactUtility => (
         utility.kind == 'mana_pool' ? 960.0 : 760.0,

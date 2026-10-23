@@ -446,70 +446,107 @@ extension _GamePages on _TableWorkspaceState {
       _gameGrid([
         for (final counter in counters.entries)
           Card(
+            key: ValueKey('player-counter-${counter.key}'),
             margin: EdgeInsets.zero,
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  HalfStepper(
-                    height: 48,
-                    label: counter.key,
-                    value: '${counter.value}',
-                    valueWidget: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${counter.key[0].toUpperCase()}${counter.key.substring(1)}',
-                          style: Theme.of(context).textTheme.labelMedium,
-                        ),
-                        Text(
-                          '${counter.value}',
-                          style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                      ],
-                    ),
-                    decreaseLabel: 'Decrease ${counter.key}',
-                    increaseLabel: 'Increase ${counter.key}',
-                    onDecrease: _working || counter.value == 0
-                        ? null
-                        : () => _run(
-                            () => c.adjustPlayerCounter(
-                              player.id,
-                              counter.key,
-                              -1,
-                            ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: HalfStepper(
+                          height: 48,
+                          label: counter.key,
+                          value: '${counter.value}',
+                          valueWidget: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '${counter.key[0].toUpperCase()}${counter.key.substring(1)}',
+                                style: Theme.of(context).textTheme.labelMedium,
+                              ),
+                              Text(
+                                '${counter.value}',
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.headlineSmall,
+                              ),
+                            ],
                           ),
-                    onIncrease: _working
-                        ? null
-                        : () => _run(
-                            () => c.adjustPlayerCounter(
-                              player.id,
-                              counter.key,
-                              1,
-                            ),
-                          ),
-                    valueStyle: Theme.of(context).textTheme.headlineSmall,
+                          decreaseLabel: 'Decrease ${counter.key}',
+                          increaseLabel: 'Increase ${counter.key}',
+                          onDecrease: _working || counter.value == 0
+                              ? null
+                              : () => _run(
+                                  () => c.adjustPlayerCounter(
+                                    player.id,
+                                    counter.key,
+                                    -1,
+                                  ),
+                                ),
+                          onIncrease: _working
+                              ? null
+                              : () => _run(
+                                  () => c.adjustPlayerCounter(
+                                    player.id,
+                                    counter.key,
+                                    1,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 44,
+                        height: 48,
+                        child: IconButton(
+                          tooltip: 'Set ${counter.key} total',
+                          icon: const Icon(Icons.edit_outlined, size: 19),
+                          onPressed: _working
+                              ? null
+                              : () => _update(() {
+                                  _editingPlayerCounter = counter.key;
+                                  _field('counter.${counter.key}').text =
+                                      '${counter.value}';
+                                }),
+                        ),
+                      ),
+                    ],
                   ),
                   if (counter.key == 'poison' && counter.value >= 10)
                     const Text('Poison threshold reached.'),
-                  _gameFieldAction(
-                    _input(
-                      'counter.${counter.key}',
-                      'Set total',
-                      initial: '${counter.value}',
-                      numeric: true,
-                    ),
-                    _button(
-                      'Set',
-                      () => _run(
-                        () => c.setPlayerCounter(
-                          player.id,
-                          counter.key,
-                          _integer('counter.${counter.key}', min: 0),
+                  if (_editingPlayerCounter == counter.key)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _input(
+                            'counter.${counter.key}',
+                            'Set total',
+                            initial: '${counter.value}',
+                            numeric: true,
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        _button(
+                          'Set',
+                          () => _run(
+                            () => c.setPlayerCounter(
+                              player.id,
+                              counter.key,
+                              _integer('counter.${counter.key}', min: 0),
+                            ),
+                            after: () => _editingPlayerCounter = null,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Cancel counter correction',
+                          onPressed: () =>
+                              _update(() => _editingPlayerCounter = null),
+                          icon: const Icon(Icons.close, size: 19),
+                        ),
+                      ],
                     ),
-                  ),
                 ],
               ),
             ),
@@ -757,6 +794,7 @@ extension _GamePages on _TableWorkspaceState {
 
   Widget _resetPage() => _GamePageTabs(
     labels: const ['New game', 'Archives', 'Board wipes'],
+    onChanged: (index) => _update(() => _resetTabIndex = index),
     builder: (index) => switch (index) {
       1 => _list([
         _section(
@@ -833,14 +871,41 @@ extension _GamePages on _TableWorkspaceState {
               'The current game and its full timeline are archived before a reset. Permanent player names, colors, artwork and saved setups are preserved.',
         ),
         Wrap(
-          spacing: 10,
+          key: const ValueKey('reset-configuration'),
+          spacing: 12,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            for (final count in [2, 3, 4])
-              ChoiceChip(
-                label: Text('$count players'),
-                selected: _resetCount == count,
-                onSelected: (_) => _update(() => _resetCount = count),
+            Wrap(
+              spacing: 10,
+              children: [
+                for (final count in [2, 3, 4])
+                  ChoiceChip(
+                    label: Text('$count players'),
+                    selected: _resetCount == count,
+                    onSelected: (_) => _update(() => _resetCount = count),
+                  ),
+              ],
+            ),
+            SizedBox(
+              width: 140,
+              child: _input(
+                'reset.life',
+                'Starting life',
+                initial: '${c.session.startingLife}',
+                numeric: true,
               ),
+            ),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final life in [20, 40])
+                  _button(
+                    '$life life',
+                    () => _field('reset.life').text = '$life',
+                  ),
+              ],
+            ),
           ],
         ),
         if (_resetCount == 3) ...[
@@ -864,22 +929,6 @@ extension _GamePages on _TableWorkspaceState {
             ],
           ),
         ],
-        SizedBox(
-          width: 220,
-          child: _input(
-            'reset.life',
-            'Starting life',
-            initial: '${c.session.startingLife}',
-            numeric: true,
-          ),
-        ),
-        Wrap(
-          spacing: 8,
-          children: [
-            for (final life in [20, 40])
-              _button('$life life', () => _field('reset.life').text = '$life'),
-          ],
-        ),
         const SizedBox(height: 18),
         Wrap(
           spacing: 8,

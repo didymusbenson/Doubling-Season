@@ -656,7 +656,7 @@ extension _LibraryPages on _TableWorkspaceState {
                 ),
                 detail: entry.key == 'primal_vigor'
                     ? 'Global · applies to the entire table'
-                    : 'Owned by $_seatName',
+                    : null,
               );
             },
           ),

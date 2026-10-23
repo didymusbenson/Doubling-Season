@@ -19,7 +19,7 @@ The user’s screenshot `libfile_0aadcaae49c88191a1c989dfbf432350` was materiali
 
 ## Verification and acceptance
 
-- [x] `flutter analyze` and aggregate `flutter test`: 289 tests pass. The 89 populated real-font modal scenarios include mini landscape/portrait, larger landscape and top-facing player/mana/status/commander/dice examples.
+- [x] `flutter analyze` and aggregate `flutter test`: 314 tests pass. The 113 populated real-font modal scenarios include mini landscape/portrait, larger landscape and top-facing player/mana/status/commander/dice examples.
 - [x] Board capacity and geometry: 2/3/4 seats, 1133×744 / 744×1133 / 1366×1024, safe areas, one/eight commander sources, default mana/Storm controls, global hub center, clipped colored-path clearance, disjoint tools, local-left overlays and expanded last-token clearance.
 - [x] Every utility catalog type’s fixed controls fit without scrolling in both mini orientations. Variable utility action targets/results keep their own content region.
 - [x] All modal families rendered and inspected: life/status, appearance, commander setup/grid/expanded correction, counters, mana/Storm and utility selection, rules/custom rule, dice with results, reset/archive/wipes, presets, token search/create/custom/status/counters/split/art/detail/summary, settings and history.
@@ -29,9 +29,21 @@ The user’s screenshot `libfile_0aadcaae49c88191a1c989dfbf432350` was materiali
 
 | Target | Validation in this pass | Remaining boundary |
 | --- | --- | --- |
-| Shared Flutter renderer | 289 regressions pass; real-font captures inspected | Widget renderer is not a running release browser or native device |
+| Shared Flutter renderer | 314 regressions pass; real-font captures inspected | Widget renderer is not a running release browser or native device |
 | Web release | Local release build with `/Doubling-Season/tablet/`; Mana font present in output | Supported live browser-control tool unavailable; HTTP/artifact checks do not close interaction acceptance |
 | Android tablet | Shared Android-target widget behavior passes; CI APK build requested by PR | No native UI-control tool exposed; native hands-on validation not run |
 | iPad/iOS | Shared iOS-target widget behavior passes; CI simulator build requested by PR | No native UI-control tool exposed; locked-host restriction preserved, no bypass |
 
 No supported browser/native control is exposed in this executor. The old preview’s refused connection was a stopped server, not evidence of an app regression. A fresh loopback release server and evidence manifest are provided at handoff. No personal data, authentication settings or installs were changed. This checkpoint is reviewable renderer/build evidence; native acceptance remains open.
+
+## Parent visual review refinements
+
+The first checkpoint (`8ec983c`) passed CI web/Android/iOS builds, then parent pixel review requested five bounded improvements before merge. The original 8823 review artifact remains available unchanged.
+
+- Every player counter now has the same 48px-high stepper and disjoint 44px correction affordance. No correction inputs are permanently reserved; one precise Set row reveals on demand. Cancel makes no mutation; Set and undo retain exact counter-only semantics. Tests compare all four geometries, including Radiation, and exercise cancel/set/undo for each counter. Default frame is 420px high; an active correction uses 470px.
+- Local preset rules omit repeated owner text; Primal Vigor’s visible global note and foreign-source provenance remain. Create Custom Rule is hit-testable above the fold in mini landscape and portrait, including the rotated seat.
+- New-game configuration groups player count, a 140px starting-life field and 20/40 quick choices. The frame is 420px in landscape, 460px at the narrow portrait width, and grows to 540px for explicit three-player empty-slot options. Archives/wipes retain their own list viewports.
+- Artwork uses 360px for empty state, 520px for unselected options, 580px for current art and 640px for staged preview. Thumbnail choices scroll within a 200px cap beside a preview, or a 120px cap without one. All fixed controls remain reachable with a long art list; preview/cancel/apply behavior is retained.
+- Token creation uses a 180px preview column and the remaining width for quantity, all five presets, tapped choice, creation breakdown and Create. Presets 1–5 stay in one row at supported mini sizes, and Create aligns with its own input column. The frame is 520px high.
+
+Final local checks: 314 aggregate tests, 113 real-font populated modal scenarios, clean analysis and release web build. The new exact source/CI/run and Library version identities are recorded in the handoff manifest. Native hands-on and supported live-browser interaction remain not run; parent visual review still gates merge/deploy.

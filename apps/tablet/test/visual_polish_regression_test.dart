@@ -8,6 +8,7 @@ import 'package:doubling_season/models/token_definition.dart';
 import 'package:tripling_table/domain/table_state.dart';
 import 'package:tripling_table/features/preset_service.dart';
 import 'package:tripling_table/ui/table_theme.dart';
+import 'package:tripling_table/ui/half_stepper.dart';
 import 'package:tripling_table/ui/workspace/table_workspace.dart';
 import 'support/table_fixture.dart';
 
@@ -85,6 +86,7 @@ void main() {
     'commander-setup': WorkspacePage.commanderDamage,
     'commander-correction': WorkspacePage.commanderDamage,
     'counters': WorkspacePage.counters,
+    'counter-correction': WorkspacePage.counters,
     'mana': WorkspacePage.utilities,
     'storm': WorkspacePage.utilities,
     'utility-selection': WorkspacePage.utilities,
@@ -92,6 +94,7 @@ void main() {
     'rules-custom': WorkspacePage.rules,
     'dice': WorkspacePage.dice,
     'reset-new-game': WorkspacePage.reset,
+    'reset-three-player': WorkspacePage.reset,
     'reset-archives': WorkspacePage.reset,
     'reset-wipes': WorkspacePage.reset,
     'presets': WorkspacePage.presets,
@@ -102,6 +105,9 @@ void main() {
     'token-counters': WorkspacePage.tokenCounters,
     'token-split': WorkspacePage.tokenSplit,
     'token-art': WorkspacePage.tokenArtwork,
+    'token-art-many': WorkspacePage.tokenArtwork,
+    'token-art-empty': WorkspacePage.tokenArtwork,
+    'token-art-preview': WorkspacePage.tokenArtwork,
     'token-details': WorkspacePage.token,
     'token-summary': WorkspacePage.tokenSummary,
     'settings': WorkspacePage.settings,
@@ -122,6 +128,15 @@ void main() {
               'mana',
               'token-status',
               'commander-grid',
+              'counters',
+              'counter-correction',
+              'reset-new-game',
+              'token-art',
+              'token-art-many',
+              'token-art-empty',
+              'token-art-preview',
+              'token-create',
+              'rules',
               'dice',
             }.contains(scene.key))
           2,
@@ -200,6 +215,21 @@ void main() {
               'partner-b': 2,
               'self': 1,
             });
+            if (scene.key == 'token-art-many') {
+              player.tokens.first.artworkOptions.addAll([
+                for (var index = 0; index < 20; index++)
+                  {
+                    'url': _fixtureArt,
+                    'set': 'Fixture $index',
+                    'artist': 'Synthetic image',
+                  },
+              ]);
+            }
+            if (scene.key == 'token-art-empty') {
+              player.tokens.first.artworkUrl = null;
+              player.tokens.first.artworkOptions.clear();
+              player.tokens.first.definitionId = 'no-art-fixture';
+            }
             final f = TableFixture(state);
             await f.initialize();
             addTearDown(() async {
@@ -274,6 +304,7 @@ void main() {
                                     'dice',
                                     'reset-archives',
                                     'reset-new-game',
+                                    'reset-three-player',
                                     'reset-wipes',
                                     'history',
                                     'settings',
@@ -310,6 +341,8 @@ void main() {
                 await tester.tap(find.text('Goblin · 1/1').first);
               case 'token-custom':
                 await tester.tap(find.text('Custom token'));
+              case 'reset-three-player':
+                await tester.tap(find.widgetWithText(ChoiceChip, '3 players'));
               case 'reset-archives':
                 await tester.tap(find.widgetWithText(ChoiceChip, 'Archives'));
               case 'reset-wipes':
@@ -319,6 +352,13 @@ void main() {
               case 'rules-custom':
                 await tester.ensureVisible(find.text('Create a custom rule'));
                 await tester.tap(find.text('Create a custom rule'));
+              case 'counter-correction':
+                await tester.tap(find.byTooltip('Set radiation total'));
+              case 'token-art-preview':
+                await tester.tap(find.text('TEST\nTest artist'));
+                await tester.runAsync(
+                  () => Future<void>.delayed(const Duration(milliseconds: 80)),
+                );
               case 'dice':
                 await tester.tap(find.text('Roll selected dice'));
             }
@@ -342,6 +382,7 @@ void main() {
               'token-create',
               'token-status',
               'reset-new-game',
+              'reset-three-player',
               'reset-wipes',
               'settings',
             }.contains(scene.key)) {
@@ -362,6 +403,157 @@ void main() {
                   reason: '${scene.key} fixed controls fit',
                 );
               }
+            }
+            if (scene.key == 'counters') {
+              expect(find.byType(TextField), findsNothing);
+              final steppers = <Rect>[];
+              for (final name in [
+                'energy',
+                'poison',
+                'experience',
+                'radiation',
+              ]) {
+                expect(
+                  find.byTooltip('Set $name total').hitTestable(),
+                  findsOneWidget,
+                );
+                steppers.add(
+                  tester.getRect(
+                    find.byWidgetPredicate(
+                      (w) => w is HalfStepper && w.label == name,
+                    ),
+                  ),
+                );
+              }
+              for (final rect in steppers) {
+                expect(rect.width, closeTo(steppers.first.width, .01));
+                expect(rect.height, closeTo(steppers.first.height, .01));
+              }
+              expect(
+                steppers[0].center.dx,
+                closeTo(steppers[2].center.dx, .01),
+              );
+              expect(
+                steppers[1].center.dx,
+                closeTo(steppers[3].center.dx, .01),
+              );
+              expect(
+                tester
+                    .getSize(find.byKey(const ValueKey('context-workspace')))
+                    .height,
+                lessThanOrEqualTo(420),
+              );
+            }
+            if (scene.key == 'counter-correction') {
+              expect(find.byType(TextField), findsOneWidget);
+              expect(find.text('Set').hitTestable(), findsOneWidget);
+              expect(
+                find.byTooltip('Cancel counter correction').hitTestable(),
+                findsOneWidget,
+              );
+            }
+            if (scene.key == 'rules') {
+              expect(find.textContaining('Owned by'), findsNothing);
+              expect(
+                find.text('Global · applies to the entire table'),
+                findsOneWidget,
+              );
+              expect(
+                find.text('Create a custom rule').hitTestable(),
+                findsOneWidget,
+              );
+            }
+            if (scene.key == 'reset-new-game') {
+              final field = find.byWidgetPredicate(
+                (w) =>
+                    w is TextField &&
+                    w.decoration?.labelText == 'Starting life',
+              );
+              expect(tester.getSize(field).width, lessThanOrEqualTo(160));
+              expect(find.text('20 life').hitTestable(), findsOneWidget);
+              expect(find.text('40 life').hitTestable(), findsOneWidget);
+              expect(
+                tester
+                    .getSize(find.byKey(const ValueKey('context-workspace')))
+                    .height,
+                lessThanOrEqualTo(size.width < 760 ? 460 : 420),
+              );
+            }
+            if (scene.key == 'token-create') {
+              final chips = [
+                for (final n in [1, 2, 3, 4, 5])
+                  find.widgetWithText(ChoiceChip, '$n'),
+              ];
+              final parent = tester.renderObject<RenderBox>(
+                find.byKey(const ValueKey('context-workspace')),
+              );
+              final positions = [
+                for (final chip in chips)
+                  parent.globalToLocal(tester.getCenter(chip)),
+              ];
+              for (final point in positions) {
+                expect(point.dy, closeTo(positions.first.dy, .01));
+              }
+              final create = parent.globalToLocal(
+                tester.getTopLeft(
+                  find.widgetWithText(FilledButton, 'Create tokens'),
+                ),
+              );
+              final quantity = parent.globalToLocal(
+                tester.getTopLeft(find.byType(TextField).first),
+              );
+              expect(create.dx, closeTo(quantity.dx, .01));
+            }
+            if (scene.key == 'token-art-many') {
+              final choices = tester.state<ScrollableState>(
+                find
+                    .descendant(
+                      of: find.byKey(const ValueKey('artwork-options-scroll')),
+                      matching: find.byType(Scrollable),
+                    )
+                    .first,
+              );
+              expect(choices.position.maxScrollExtent, greaterThan(0));
+              expect(
+                find.text('Preview image URL').hitTestable(),
+                findsOneWidget,
+              );
+            }
+            if (scene.key == 'token-art-empty') {
+              expect(
+                tester
+                    .getSize(find.byKey(const ValueKey('context-workspace')))
+                    .height,
+                lessThanOrEqualTo(360),
+              );
+              expect(
+                find.text('Preview image URL').hitTestable(),
+                findsOneWidget,
+              );
+            }
+            if (scene.key == 'token-art-preview') {
+              expect(
+                find.text('Use this artwork').hitTestable(),
+                findsOneWidget,
+              );
+              expect(
+                tester
+                    .getSize(find.byKey(const ValueKey('context-workspace')))
+                    .height,
+                lessThanOrEqualTo(640),
+              );
+            }
+            if (scene.key == 'token-art') {
+              expect(
+                tester
+                    .getSize(find.byKey(const ValueKey('context-workspace')))
+                    .height,
+                lessThanOrEqualTo(580),
+              );
+              expect(
+                find.text('Preview image URL').hitTestable(),
+                findsOneWidget,
+              );
             }
             await capture(
               tester,

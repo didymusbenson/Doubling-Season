@@ -58,6 +58,7 @@ class TabletArtworkSelection extends StatefulWidget {
   final PlayerState player;
   final TokenState token;
   final int quarterTurns;
+  final ValueChanged<bool>? onPreviewChanged;
   const TabletArtworkSelection({
     super.key,
     required this.board,
@@ -65,6 +66,7 @@ class TabletArtworkSelection extends StatefulWidget {
     required this.player,
     required this.token,
     this.quarterTurns = 0,
+    this.onPreviewChanged,
   });
   @override
   State<TabletArtworkSelection> createState() => _TabletArtworkSelectionState();
@@ -106,7 +108,10 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
 
   Future<void> choose(Map<String, dynamic> art) async {
     await TableArtwork.validatedBytes(art['url'] as String);
-    if (mounted) setState(() => candidate = art);
+    if (mounted) {
+      setState(() => candidate = art);
+      widget.onPreviewChanged?.call(true);
+    }
   }
 
   @override
@@ -214,7 +219,10 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
                                     artist: art['artist'] as String?,
                                     captured: scope,
                                   );
-                                  if (mounted) setState(() => candidate = null);
+                                  if (mounted) {
+                                    setState(() => candidate = null);
+                                    widget.onPreviewChanged?.call(false);
+                                  }
                                 }),
                           icon: const Icon(Icons.check),
                           label: const Text('Use this artwork'),
@@ -226,7 +234,9 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
             if (selected['url'] != null) const SizedBox(width: 12),
             Expanded(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 240),
+                constraints: BoxConstraints(
+                  maxHeight: selected['url'] != null ? 200 : 120,
+                ),
                 child: SingleChildScrollView(
                   key: const ValueKey('artwork-options-scroll'),
                   child: Wrap(
@@ -328,7 +338,10 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
                           null,
                           captured: scope,
                         );
-                        if (mounted) setState(() => candidate = null);
+                        if (mounted) {
+                          setState(() => candidate = null);
+                          widget.onPreviewChanged?.call(false);
+                        }
                       }),
                 icon: const Icon(Icons.hide_image_outlined),
                 label: const Text('Remove artwork'),
