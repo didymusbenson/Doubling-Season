@@ -107,6 +107,10 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   late WorkspacePage _page;
   String? _commanderOwnerId;
   bool _commanderSetup = false;
+  int _playerTabIndex = 0;
+  int _resetTabIndex = 0;
+  String? _editingPlayerCounter;
+  bool _artworkPreviewActive = false;
   final Set<String> _expandedCommanderEditors = {};
   late BoardService _board;
   late PresetService _presets;
@@ -136,6 +140,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   int _resetCount = 4;
   int _emptySlot = 3;
   String? _editingRuleId;
+  bool _ruleEditorOpen = false;
   int _editingRuleCount = 1;
   bool _editingRuleEnabled = true;
   final List<Map<String, dynamic>> _customRuleOutcomes = [];
@@ -395,6 +400,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       setState(() {
         _navigation.add((_page, _itemId));
         _page = page;
+        if (page == WorkspacePage.player) _playerTabIndex = 0;
         _itemId = itemId;
         _confirmation = null;
         _error = null;
@@ -499,7 +505,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   }
 
   Widget _section(String title, {String? detail}) => Padding(
-    padding: const EdgeInsets.only(top: 18, bottom: 8),
+    padding: const EdgeInsets.only(top: 12, bottom: 8),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -511,8 +517,14 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   );
 
   Widget _list(List<Widget> children) => ListView(
-    padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
-    children: children,
+    padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
+    children: [
+      for (final child in children)
+        if (child is ButtonStyleButton)
+          Align(alignment: Alignment.centerLeft, child: child)
+        else
+          child,
+    ],
   );
 
   Widget _art(String? url, {double width = 72, double height = 72}) => SizedBox(
@@ -680,43 +692,115 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
     final rotated = widget.quarterTurns.isOdd;
-    final focusedToken = {
-      WorkspacePage.tokenStatus,
-      WorkspacePage.tokenCounters,
-      WorkspacePage.tokenSplit,
-      WorkspacePage.tokenArtwork,
-    }.contains(_page);
     final focusedCommander = _page == WorkspacePage.commanderDamage;
     final commanderSetup = _commanderSetup || c.session.commanders.isEmpty;
     final commanderWidth = commanderSetup
         ? 680.0
-        : max(400.0, 40 + min(3, c.session.commanders.length) * 208.0 - 8);
+        : max(
+            400.0,
+            40 +
+                min(3, c.session.commanders.length) * 208.0 -
+                8 +
+                (_expandedCommanderEditors.isEmpty ? 0 : 80),
+          );
+    final utility = _page == WorkspacePage.utilities && p != null
+        ? p!.utilities.where((u) => u.id == _itemId).firstOrNull
+        : null;
+    final utilityArtwork =
+        utility != null &&
+        _field('utility.${utility.id}.panel').text == 'artwork';
+    final compactUtility = utility != null && !utilityArtwork;
+    final artworkToken = _page == WorkspacePage.tokenArtwork
+        ? p?.tokens.where((t) => t.id == _itemId).firstOrNull
+        : null;
+    final hasArtwork = artworkToken?.artworkUrl != null;
+    final hasArtworkOptions =
+        (artworkToken?.artworkOptions.isNotEmpty ?? false) ||
+        (catalog.byId(artworkToken?.definitionId ?? '')?.artwork.isNotEmpty ??
+            false);
+    // Frames follow the task's content. Search/artwork/timelines keep a taller
+    // list viewport; fixed controls do not inherit a nearly full-screen form.
+    final (panelWidth, panelHeight) = switch (_page) {
+      WorkspacePage.player => (
+        900.0,
+        _playerTabIndex == 3
+            ? 760.0
+            : _playerTabIndex == 0
+            ? ((rotated ? size.height : size.width) < 760 ? 620.0 : 540.0)
+            : 600.0,
+      ),
+      WorkspacePage.counters => (
+        680.0,
+        _editingPlayerCounter == null ? 420.0 : 470.0,
+      ),
+      WorkspacePage.dice => (800.0, 580.0),
+      WorkspacePage.reset => (
+        760.0,
+        _resetTabIndex == 0
+            ? (_resetCount == 3
+                  ? 540.0
+                  : (rotated ? size.height : size.width) < 760
+                  ? 460.0
+                  : 420.0)
+            : 650.0,
+      ),
+      WorkspacePage.settings => (760.0, 760.0),
+      WorkspacePage.tokenArtwork => (
+        760.0,
+        _artworkPreviewActive
+            ? 640.0
+            : hasArtwork
+            ? 580.0
+            : hasArtworkOptions
+            ? 520.0
+            : 360.0,
+      ),
+      WorkspacePage.tokenStatus => (600.0, 440.0),
+      WorkspacePage.tokenCounters => (680.0, 640.0),
+      WorkspacePage.tokenSplit => (680.0, 560.0),
+      WorkspacePage.tokenSummary => (700.0, 650.0),
+      WorkspacePage.token => (820.0, 760.0),
+      WorkspacePage.tokens when _selectedDefinition != null => (720.0, 520.0),
+      WorkspacePage.tokens when _createCustom => (760.0, 600.0),
+      WorkspacePage.utilities when compactUtility => (
+        utility.kind == 'mana_pool' ? 960.0 : 760.0,
+        utility.kind == 'mana_pool'
+            ? ((rotated ? size.height : size.width) >= 760 ? 560.0 : 650.0)
+            : utility.configuration['hasAction'] == true
+            ? 600.0
+            : 330.0,
+      ),
+      WorkspacePage.utilities => (820.0, 760.0),
+      WorkspacePage.rules => (900.0, 760.0),
+      WorkspacePage.presets => (820.0, 760.0),
+      _ => (920.0, 800.0),
+    };
     final width = min(
-      focusedCommander
-          ? commanderWidth
-          : focusedToken
-          ? 680.0
-          : 1050.0,
+      focusedCommander ? commanderWidth : panelWidth,
       (rotated ? size.height : size.width) - 40,
     );
     final commanderColumns = max(1, ((width - 40 + 8) / 208).floor());
     final commanderRows =
         (max(1, c.session.commanders.length) / commanderColumns).ceil();
     final height = min(
-      focusedCommander
+      _confirmation != null
+          ? 460.0
+          : focusedCommander
           ? commanderSetup
                 ? 520.0
                 : _expandedCommanderEditors.isNotEmpty
-                ? 640.0
+                ? (width >= commanderWidth ? 580.0 : 740.0)
                 : min(640.0, 168.0 + commanderRows * 176)
-          : 940.0,
+          : panelHeight,
       (rotated ? size.width : size.height) - 40,
     );
     final content = Center(
       child: RotatedBox(
         quarterTurns: widget.quarterTurns,
         child: SizedBox(
-          key: focusedCommander ? const ValueKey('commander-workspace') : null,
+          key: focusedCommander
+              ? const ValueKey('commander-workspace')
+              : const ValueKey('context-workspace'),
           width: width,
           height: height,
           child: Material(
@@ -775,7 +859,15 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
                   ),
                 ),
                 if (_playerId != null &&
+                    !_createCustom &&
+                    _selectedDefinition == null &&
+                    !compactUtility &&
                     !{
+                      WorkspacePage.player,
+                      WorkspacePage.rules,
+                      WorkspacePage.presets,
+                      WorkspacePage.counters,
+                      WorkspacePage.token,
                       WorkspacePage.commanderDamage,
                       WorkspacePage.tokenStatus,
                       WorkspacePage.tokenCounters,
@@ -812,7 +904,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
                       ],
                     ),
                   ),
-                if (_playerId == null)
+                if (_playerId == null && _page != WorkspacePage.reset)
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 14),

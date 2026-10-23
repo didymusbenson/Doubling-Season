@@ -113,7 +113,7 @@ void main() {
     }
   }
 
-  const edgePoints = [Offset(.02, .1), Offset(.5, .9), Offset(.98, .5)];
+  const edgePoints = [Offset(.02, .35), Offset(.5, .9), Offset(.98, .5)];
 
   Future<void> tapEntireHalf(WidgetTester tester, Finder target) async {
     for (final point in edgePoints) {
@@ -195,6 +195,8 @@ void main() {
             var expected = player.life;
             for (final point in [
               const Offset(1, 1),
+              const Offset(1, 32),
+              Offset(box.size.width - 1, 32),
               Offset(box.size.width / 2 - 1, 1),
               Offset(box.size.width / 2 + 1, 1),
               Offset(box.size.width - 1, 1),
@@ -203,6 +205,10 @@ void main() {
               Offset(box.size.width / 2 + 1, box.size.height - 1),
               Offset(box.size.width - 1, box.size.height - 1),
             ]) {
+              final clip = tester.widget<ClipPath>(
+                find.byKey(ValueKey('${player.id}-life-clip')),
+              );
+              if (!clip.clipper!.getClip(box.size).contains(point)) continue;
               expected += point.dx < box.size.width / 2 ? -1 : 1;
               await tester.tapAt(box.localToGlobal(point));
               await tester.pumpAndSettle();
@@ -271,7 +277,7 @@ void main() {
             tester.getSize(decrease).width,
             closeTo(tester.getSize(increase).width, .01),
           );
-          expect(tester.getSize(decrease).height, 66);
+          expect(tester.getSize(decrease).height, greaterThanOrEqualTo(104));
           await tapEntireHalf(tester, decrease);
           expect(fixture.controller.player(player.id).life, 37);
           expectLifeDelta(tester, player.id, '-3');
@@ -532,8 +538,8 @@ void main() {
           final spendBox = tester.renderObject<RenderBox>(spend);
           final addBox = tester.renderObject<RenderBox>(add);
           expect(spendBox.size.width, closeTo(addBox.size.width, .01));
-          expect(spendBox.size.height, 48);
-          expect(addBox.size.height, 48);
+          expect(spendBox.size.height, 44);
+          expect(addBox.size.height, 44);
           final historyBefore = fixture.controller.session.history.length;
           await tapAtFraction(tester, spend, const Offset(.02, .1));
           expect(fixture.controller.player(player.id).mana['W'] ?? 0, 0);

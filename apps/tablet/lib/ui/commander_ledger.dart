@@ -44,70 +44,79 @@ class CommanderLedger extends StatelessWidget {
               .toList();
     final columns = math.max(2, (entries.length / 2).ceil());
     final name = controller.profile(recipient.seatId).name;
-    return Tooltip(
-      message: '$name, commander damage',
-      child: Semantics(
-        button: true,
-        label: '$name, commander damage by source',
-        value: entries.map((e) => '${e.label}: ${e.value}').join('; '),
-        hint:
-            'Expand source trackers${sources.isEmpty ? ' and configure commanders' : ''}',
-        onTap: onOpen,
-        excludeSemantics: true,
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : 68.0;
+        return Tooltip(
+          message: '$name, commander damage',
+          child: Semantics(
+            button: true,
+            label: '$name, commander damage by source',
+            value: entries.map((e) => '${e.label}: ${e.value}').join('; '),
+            hint:
+                'Expand source trackers${sources.isEmpty ? ' and configure commanders' : ''}',
             onTap: onOpen,
-            child: SizedBox(
-              width: 60,
-              height: 44,
-              child: IgnorePointer(
-                child: Wrap(
-                  children: [
-                    for (final entry in entries)
-                      SizedBox(
-                        key: ValueKey(
-                          '${recipient.id}-ledger-source-${entry.id}',
-                        ),
-                        width: 60 / columns,
-                        height: 22,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Color(
-                              controller.profile(entry.owner.seatId).color,
-                            ).withValues(alpha: .22),
-                            border: Border.all(
-                              color: Color(
-                                controller.profile(entry.owner.seatId).color,
-                              ),
+            excludeSemantics: true,
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: onOpen,
+                child: SizedBox(
+                  width: width,
+                  height: 44,
+                  child: IgnorePointer(
+                    child: Wrap(
+                      children: [
+                        for (final entry in entries)
+                          SizedBox(
+                            key: ValueKey(
+                              '${recipient.id}-ledger-source-${entry.id}',
                             ),
-                          ),
-                          child: TableArtworkSurface(
-                            url: controller
-                                .profile(entry.owner.seatId)
-                                .artworkUrl,
-                            child: Center(
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  entry.value,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
+                            width: width / columns,
+                            height: 22,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Color(
+                                  controller.profile(entry.owner.seatId).color,
+                                ).withValues(alpha: .22),
+                                border: Border.all(
+                                  color: Color(
+                                    controller
+                                        .profile(entry.owner.seatId)
+                                        .color,
+                                  ),
+                                ),
+                              ),
+                              child: TableArtworkSurface(
+                                url: controller
+                                    .profile(entry.owner.seatId)
+                                    .artworkUrl,
+                                child: Center(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      entry.value,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                  ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

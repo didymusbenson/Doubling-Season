@@ -58,6 +58,7 @@ class TabletArtworkSelection extends StatefulWidget {
   final PlayerState player;
   final TokenState token;
   final int quarterTurns;
+  final ValueChanged<bool>? onPreviewChanged;
   const TabletArtworkSelection({
     super.key,
     required this.board,
@@ -65,6 +66,7 @@ class TabletArtworkSelection extends StatefulWidget {
     required this.player,
     required this.token,
     this.quarterTurns = 0,
+    this.onPreviewChanged,
   });
   @override
   State<TabletArtworkSelection> createState() => _TabletArtworkSelectionState();
@@ -106,7 +108,10 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
 
   Future<void> choose(Map<String, dynamic> art) async {
     await TableArtwork.validatedBytes(art['url'] as String);
-    if (mounted) setState(() => candidate = art);
+    if (mounted) {
+      setState(() => candidate = art);
+      widget.onPreviewChanged?.call(true);
+    }
   }
 
   @override
@@ -161,92 +166,123 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
             ),
           ),
         if (busy) const LinearProgressIndicator(),
-        if (selected['url'] != null) ...[
-          Center(
-            child: SizedBox(
-              width: 330,
-              height: 235,
-              child: TableArtwork(
-                url: selected['url'] as String?,
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-          Center(
-            child: Text(
-              '${selected['set'] ?? ''} · ${selected['artist'] ?? ''}',
-              textAlign: TextAlign.center,
-            ),
-          ),
-          Center(
-            child: Text(
-              candidate == null
-                  ? 'Current artwork'
-                  : 'Preview — confirm to apply',
-            ),
-          ),
-        ],
-        if (candidate != null)
-          Center(
-            child: FilledButton.icon(
-              onPressed: busy
-                  ? null
-                  : () => run(() async {
-                      final art = candidate!;
-                      await TableArtwork.validatedBytes(art['url'] as String);
-                      if (!mounted) return;
-                      await widget.board.setArtwork(
-                        widget.player.id,
-                        token.id,
-                        art['url'] as String,
-                        set: art['set'] as String?,
-                        artist: art['artist'] as String?,
-                        captured: scope,
-                      );
-                      if (mounted) setState(() => candidate = null);
-                    }),
-              icon: const Icon(Icons.check),
-              label: const Text('Use this artwork'),
-            ),
-          ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (final art in options)
+            if (selected['url'] != null)
               SizedBox(
-                width: 132,
-                child: InkWell(
-                  onTap: busy ? null : () => run(() => choose(art)),
-                  child: Column(
-                    children: [
-                      Stack(
-                        children: [
-                          SizedBox(
-                            width: 132,
-                            height: 108,
-                            child: TableArtwork(url: art['url'] as String?),
+                width: 240,
+                child: Column(
+                  children: [
+                    if (selected['url'] != null) ...[
+                      Center(
+                        child: SizedBox(
+                          width: 240,
+                          height: 160,
+                          child: TableArtwork(
+                            url: selected['url'] as String?,
+                            fit: BoxFit.contain,
                           ),
-                          if (art['url'] == token.artworkUrl)
-                            const Positioned(
-                              right: 4,
-                              top: 4,
-                              child: Icon(
-                                Icons.check_circle,
-                                color: Colors.lightGreenAccent,
-                              ),
+                        ),
+                      ),
+                      Center(
+                        child: Text(
+                          '${selected['set'] ?? ''} · ${selected['artist'] ?? ''}',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      Center(
+                        child: Text(
+                          candidate == null
+                              ? 'Current artwork'
+                              : 'Preview — confirm to apply',
+                        ),
+                      ),
+                    ],
+                    if (candidate != null)
+                      Center(
+                        child: FilledButton.icon(
+                          onPressed: busy
+                              ? null
+                              : () => run(() async {
+                                  final art = candidate!;
+                                  await TableArtwork.validatedBytes(
+                                    art['url'] as String,
+                                  );
+                                  if (!mounted) return;
+                                  await widget.board.setArtwork(
+                                    widget.player.id,
+                                    token.id,
+                                    art['url'] as String,
+                                    set: art['set'] as String?,
+                                    artist: art['artist'] as String?,
+                                    captured: scope,
+                                  );
+                                  if (mounted) {
+                                    setState(() => candidate = null);
+                                    widget.onPreviewChanged?.call(false);
+                                  }
+                                }),
+                          icon: const Icon(Icons.check),
+                          label: const Text('Use this artwork'),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            if (selected['url'] != null) const SizedBox(width: 12),
+            Expanded(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: selected['url'] != null ? 200 : 120,
+                ),
+                child: SingleChildScrollView(
+                  key: const ValueKey('artwork-options-scroll'),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final art in options)
+                        SizedBox(
+                          width: 132,
+                          child: InkWell(
+                            onTap: busy ? null : () => run(() => choose(art)),
+                            child: Column(
+                              children: [
+                                Stack(
+                                  children: [
+                                    SizedBox(
+                                      width: 132,
+                                      height: 108,
+                                      child: TableArtwork(
+                                        url: art['url'] as String?,
+                                      ),
+                                    ),
+                                    if (art['url'] == token.artworkUrl)
+                                      const Positioned(
+                                        right: 4,
+                                        top: 4,
+                                        child: Icon(
+                                          Icons.check_circle,
+                                          color: Colors.lightGreenAccent,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                Text(
+                                  '${art['set'] ?? ''}\n${art['artist'] ?? ''}',
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
                             ),
-                        ],
-                      ),
-                      Text(
-                        '${art['set'] ?? ''}\n${art['artist'] ?? ''}',
-                        textAlign: TextAlign.center,
-                      ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ),
+            ),
           ],
         ),
         if (options.isNotEmpty)
@@ -302,7 +338,10 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
                           null,
                           captured: scope,
                         );
-                        if (mounted) setState(() => candidate = null);
+                        if (mounted) {
+                          setState(() => candidate = null);
+                          widget.onPreviewChanged?.call(false);
+                        }
                       }),
                 icon: const Icon(Icons.hide_image_outlined),
                 label: const Text('Remove artwork'),

@@ -17,64 +17,94 @@ extension _TokenPages on _TableWorkspaceState {
           () => _update(() => _selectedDefinition = null),
           icon: Icons.arrow_back,
         ),
-        _section(
-          selected.name,
-          detail: '${selected.pt} ${selected.cleanType}'.trim(),
-        ),
-        if (selected.abilities.isNotEmpty) ManaText(selected.abilities),
-        if (selected.artwork.isNotEmpty)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: _art(selected.artwork.first.url, width: 160, height: 150),
-          ),
-        _input(
-          'create.quantity',
-          'Quantity before modifiers',
-          initial: '1',
-          numeric: true,
-        ),
-        _creationQuantityShortcuts(quantity),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Create tapped'),
-          value: _createTapped,
-          onChanged: (v) => _update(() => _createTapped = v),
-        ),
-        ValueListenableBuilder<TextEditingValue>(
-          valueListenable: quantity,
-          builder: (context, value, _) {
-            final count = int.tryParse(value.text);
-            if (count == null || count < 1) {
-              return const Text(
-                'Enter a positive quantity to preview creation.',
-              );
-            }
-            try {
-              final result = _board.preview(p!.id, selected, count);
-              return _section(
-                'Will create for $_seatName',
-                detail: TokenCreationResult.breakdownString(result),
-              );
-            } catch (e) {
-              return Text('$e');
-            }
-          },
-        ),
-        _button(
-          'Create tokens',
-          () => _run(
-            () => _board.createToken(
-              p!.id,
-              selected,
-              quantity: _integer('create.quantity', min: 1, max: 999999),
-              tapped: _createTapped,
-              expectedRevision: revision,
-              captured: scope,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 180,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _section(
+                    selected.name,
+                    detail: '${selected.pt} ${selected.cleanType}'.trim(),
+                  ),
+                  if (selected.abilities.isNotEmpty)
+                    ManaText(selected.abilities),
+                  if (selected.artwork.isNotEmpty)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: _art(
+                        selected.artwork.first.url,
+                        width: 160,
+                        height: 150,
+                      ),
+                    ),
+                ],
+              ),
             ),
-            closeOnSuccess: true,
-          ),
-          icon: Icons.add,
-          primary: true,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _input(
+                    'create.quantity',
+                    'Quantity before modifiers',
+                    initial: '1',
+                    numeric: true,
+                  ),
+                  _creationQuantityShortcuts(quantity),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Create tapped'),
+                    value: _createTapped,
+                    onChanged: (v) => _update(() => _createTapped = v),
+                  ),
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: quantity,
+                    builder: (context, value, _) {
+                      final count = int.tryParse(value.text);
+                      if (count == null || count < 1) {
+                        return const Text(
+                          'Enter a positive quantity to preview creation.',
+                        );
+                      }
+                      try {
+                        final result = _board.preview(p!.id, selected, count);
+                        return _section(
+                          'Will create for $_seatName',
+                          detail: TokenCreationResult.breakdownString(result),
+                        );
+                      } catch (e) {
+                        return Text('$e');
+                      }
+                    },
+                  ),
+                  _button(
+                    'Create tokens',
+                    () => _run(
+                      () => _board.createToken(
+                        p!.id,
+                        selected,
+                        quantity: _integer(
+                          'create.quantity',
+                          min: 1,
+                          max: 999999,
+                        ),
+                        tapped: _createTapped,
+                        expectedRevision: revision,
+                        captured: scope,
+                      ),
+                      closeOnSuccess: true,
+                    ),
+                    icon: Icons.add,
+                    primary: true,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ]);
     }
@@ -259,14 +289,16 @@ extension _TokenPages on _TableWorkspaceState {
       detail:
           'Saving adds this definition to the custom library. Choose it to create tokens for $_seatName.',
     ),
-    _input('custom.name', 'Name'),
-    _input('custom.pt', 'Base power / toughness', initial: '1/1'),
-    _input('custom.type', 'Type', initial: 'Creature'),
-    _input(
-      'custom.colors',
-      'Color identity',
-      helper: 'W, U, B, R, G, or leave empty for colorless',
-    ),
+    _gameGrid([
+      _input('custom.name', 'Name'),
+      _input('custom.pt', 'Base power / toughness', initial: '1/1'),
+      _input('custom.type', 'Type', initial: 'Creature'),
+      _input(
+        'custom.colors',
+        'Color identity',
+        helper: 'W, U, B, R, G, or leave empty for colorless',
+      ),
+    ]),
     _input('custom.abilities', 'Abilities', maxLines: 3),
     if (_field('custom.artwork').text.isNotEmpty)
       Align(
@@ -418,6 +450,8 @@ extension _TokenPages on _TableWorkspaceState {
           player: player,
           token: token,
           quarterTurns: widget.quarterTurns,
+          onPreviewChanged: (active) =>
+              _update(() => _artworkPreviewActive = active),
         ),
       ]),
       _ => _tokenDetails(token),
@@ -775,38 +809,40 @@ extension _TokenPages on _TableWorkspaceState {
       const Text(
         'These properties also edit directly on the expanded token. Changes save on focus loss, Done, or dismissal.',
       ),
-      _input(
-        '$key.name',
-        'Name',
-        initial: t.name,
-        onCommit: (v) =>
-            _board.editToken(player.id, t.id, name: v, captured: scope),
-      ),
-      _input(
-        '$key.pt',
-        'Base power / toughness',
-        initial: t.pt,
-        onCommit: (v) =>
-            _board.editToken(player.id, t.id, pt: v, captured: scope),
-      ),
-      _input(
-        '$key.type',
-        'Type',
-        initial: t.type,
-        onCommit: (v) =>
-            _board.editToken(player.id, t.id, type: v, captured: scope),
-      ),
-      _input(
-        '$key.colors',
-        'Color identity',
-        initial: t.colors,
-        onCommit: (v) => _board.editToken(
-          player.id,
-          t.id,
-          colors: v.toUpperCase(),
-          captured: scope,
+      _gameGrid([
+        _input(
+          '$key.name',
+          'Name',
+          initial: t.name,
+          onCommit: (v) =>
+              _board.editToken(player.id, t.id, name: v, captured: scope),
         ),
-      ),
+        _input(
+          '$key.pt',
+          'Base power / toughness',
+          initial: t.pt,
+          onCommit: (v) =>
+              _board.editToken(player.id, t.id, pt: v, captured: scope),
+        ),
+        _input(
+          '$key.type',
+          'Type',
+          initial: t.type,
+          onCommit: (v) =>
+              _board.editToken(player.id, t.id, type: v, captured: scope),
+        ),
+        _input(
+          '$key.colors',
+          'Color identity',
+          initial: t.colors,
+          onCommit: (v) => _board.editToken(
+            player.id,
+            t.id,
+            colors: v.toUpperCase(),
+            captured: scope,
+          ),
+        ),
+      ]),
       _input(
         '$key.abilities',
         'Abilities',

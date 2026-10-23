@@ -12,77 +12,85 @@ extension _LibraryPages on _TableWorkspaceState {
       }
     }
     final query = _field('utilities.search');
-    return _list([
-      _section(
-        '$_seatName’s utilities',
-        detail:
-            'Hidden utilities retain their values. Restore them here; hiding is separate from clearing.',
-      ),
-      for (final utility in player.utilities)
-        Card(
-          child: ListTile(
-            leading: Icon(
-              utility.visible
-                  ? Icons.dashboard_outlined
-                  : Icons.visibility_off_outlined,
-            ),
-            title: Text(utility.name),
-            subtitle: Text(
-              utility.kind == 'mana_pool'
-                  ? 'Mana total: ${player.mana.values.fold(0, (a, b) => a + b)}${utility.visible ? '' : ' · hidden'}'
-                  : '${_board.utilityValue(player.id, utility.id)}${utility.isActive ? ' · active' : ''}${utility.visible ? '' : ' · hidden'}',
-            ),
-            trailing: IconButton(
-              tooltip: utility.visible ? 'Hide utility' : 'Restore utility',
-              icon: Icon(
-                utility.visible
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
-              ),
-              onPressed: () => utility.visible
-                  ? _confirm(
-                      'Hide ${utility.name}?',
-                      'Hide this utility for the current game. Stored values remain available in this menu.',
-                      () => _board.setUtility(
-                        player.id,
-                        utility.id,
-                        visible: false,
-                      ),
-                      button: 'Hide utility',
-                    )
-                  : _run(
-                      () => _board.setUtility(
-                        player.id,
-                        utility.id,
-                        visible: true,
-                      ),
-                    ),
-            ),
-            onTap: () => _update(() => _itemId = utility.id),
-          ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+          child: PlayerField(controller: query, label: 'Search utilities'),
         ),
-      _section('Add a utility'),
-      PlayerField(controller: query, label: 'Search utilities'),
-      ValueListenableBuilder<TextEditingValue>(
-        valueListenable: query,
-        builder: (context, value, _) => Column(
-          children: [
-            for (final definition in _board.utilityDefinitions.where(
-              (d) => d.matches(searchQuery: value.text),
-            ))
-              ListTile(
-                title: Text(definition.name),
-                subtitle: Text(definition.description),
-                trailing: const Icon(Icons.add),
-                onTap: () => _run(
-                  () => _board.addUtility(player.id, definition.id),
-                  success: '${definition.name} added for $_seatName.',
+        Expanded(
+          child: _list([
+            for (final utility in player.utilities)
+              Card(
+                child: ListTile(
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  leading: Icon(
+                    utility.visible
+                        ? Icons.dashboard_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                  title: Text(utility.name),
+                  subtitle: Text(
+                    utility.kind == 'mana_pool'
+                        ? 'Mana total: ${player.mana.values.fold(0, (a, b) => a + b)}${utility.visible ? '' : ' · hidden'}'
+                        : '${_board.utilityValue(player.id, utility.id)}${utility.isActive ? ' · active' : ''}${utility.visible ? '' : ' · hidden'}',
+                  ),
+                  trailing: IconButton(
+                    tooltip: utility.visible
+                        ? 'Hide utility'
+                        : 'Restore utility',
+                    icon: Icon(
+                      utility.visible
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                    ),
+                    onPressed: () => utility.visible
+                        ? _confirm(
+                            'Hide ${utility.name}?',
+                            'Hide this utility for the current game. Stored values remain available in this menu.',
+                            () => _board.setUtility(
+                              player.id,
+                              utility.id,
+                              visible: false,
+                            ),
+                            button: 'Hide utility',
+                          )
+                        : _run(
+                            () => _board.setUtility(
+                              player.id,
+                              utility.id,
+                              visible: true,
+                            ),
+                          ),
+                  ),
+                  onTap: () => _update(() => _itemId = utility.id),
                 ),
               ),
-          ],
+            _section('Add a utility'),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: query,
+              builder: (context, value, _) => Column(
+                children: [
+                  for (final definition in _board.utilityDefinitions.where(
+                    (d) => d.matches(searchQuery: value.text),
+                  ))
+                    ListTile(
+                      title: Text(definition.name),
+                      subtitle: Text(definition.description),
+                      trailing: const Icon(Icons.add),
+                      onTap: () => _run(
+                        () => _board.addUtility(player.id, definition.id),
+                        success: '${definition.name} added for $_seatName.',
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ]),
         ),
-      ),
-    ]);
+      ],
+    );
   }
 
   Widget _utilityDetail(UtilityState utility) {
@@ -493,7 +501,7 @@ extension _LibraryPages on _TableWorkspaceState {
     ),
     LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 900 ? 3 : 2;
+        final columns = constraints.maxWidth >= 660 ? 3 : 2;
         final width = (constraints.maxWidth - 8 * (columns - 1)) / columns;
         return Wrap(
           spacing: 8,
@@ -554,13 +562,14 @@ extension _LibraryPages on _TableWorkspaceState {
               onIncreaseHold: () =>
                   _run(() => c.adjustMana(player.id, color, 10)),
               holdRepeatInterval: null,
-              valueWidget: Column(
+              valueWidget: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(name, style: Theme.of(context).textTheme.labelMedium),
+                  ManaText('{$color}', style: const TextStyle(fontSize: 23)),
+                  const SizedBox(width: 8),
                   Text(
                     '${player.mana[color] ?? 0}',
-                    style: Theme.of(context).textTheme.titleLarge,
+                    style: Theme.of(context).textTheme.headlineSmall,
                   ),
                 ],
               ),
@@ -612,6 +621,7 @@ extension _LibraryPages on _TableWorkspaceState {
     if (player == null) {
       return _list([const Text('Open Rules from a player’s menu.')]);
     }
+    if (_ruleEditorOpen) return _customRuleEditor(player);
     final foreign = _board
         .effectiveSources(player.id)
         .where((s) => s.ownerPlayerId != player.id && s.enabled && s.count > 0)
@@ -622,30 +632,35 @@ extension _LibraryPages on _TableWorkspaceState {
         detail:
             'Each source belongs to $_seatName. Primal Vigor affects every player; other preset modifiers affect their owner.',
       ),
-      for (final entry in BoardService.modifierDefinitions.entries)
-        Builder(
-          builder: (context) {
-            ModifierSource? source;
-            for (final rule in player.rules) {
-              if (rule.definitionId == entry.key) source = rule;
-            }
-            final count = source?.count ?? 0;
-            return _stepper(
-              entry.value,
-              count,
-              () => _run(
-                () =>
-                    _board.setModifier(player.id, entry.key, max(0, count - 1)),
-              ),
-              () => _run(
-                () => _board.setModifier(player.id, entry.key, count + 1),
-              ),
-              detail: entry.key == 'primal_vigor'
-                  ? 'Global · applies to the entire table'
-                  : 'Owned by $_seatName',
-            );
-          },
-        ),
+      _gameGrid([
+        for (final entry in BoardService.modifierDefinitions.entries)
+          Builder(
+            builder: (context) {
+              ModifierSource? source;
+              for (final rule in player.rules) {
+                if (rule.definitionId == entry.key) source = rule;
+              }
+              final count = source?.count ?? 0;
+              return _stepper(
+                entry.value,
+                count,
+                () => _run(
+                  () => _board.setModifier(
+                    player.id,
+                    entry.key,
+                    max(0, count - 1),
+                  ),
+                ),
+                () => _run(
+                  () => _board.setModifier(player.id, entry.key, count + 1),
+                ),
+                detail: entry.key == 'primal_vigor'
+                    ? 'Global · applies to the entire table'
+                    : null,
+              );
+            },
+          ),
+      ]),
       _section('Custom rules'),
       for (final source in player.rules.where(
         (s) => s.definitionId == 'custom',
@@ -720,190 +735,10 @@ extension _LibraryPages on _TableWorkspaceState {
             ),
           ),
         ),
-      ExpansionTile(
-        key: ValueKey('custom-rule-$_editingRuleId'),
-        initiallyExpanded: _editingRuleId != null,
-        title: Text(
-          _editingRuleId == null ? 'Create a custom rule' : 'Edit custom rule',
-        ),
-        children: [
-          _input('rule.name', 'Rule name'),
-          _section('When creating'),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final choice in {
-                'all': 'Any token',
-                'creatures': 'Has P/T',
-                'type': 'Token type',
-                'color': 'Color',
-                'specific': 'Specific token',
-              }.entries)
-                ChoiceChip(
-                  label: Text(choice.value),
-                  selected: _customTrigger == choice.key,
-                  onSelected: (_) => _update(() => _customTrigger = choice.key),
-                ),
-            ],
-          ),
-          if (_customTrigger == 'specific') ...[
-            _input('rule.triggerSearch', 'Find the triggering token'),
-            ValueListenableBuilder<TextEditingValue>(
-              valueListenable: _field('rule.triggerSearch'),
-              builder: (context, value, _) => Column(
-                children: [
-                  for (final token in catalog.search(value.text).take(12))
-                    CheckboxListTile(
-                      title: Text('${token.name} ${token.pt}'),
-                      subtitle: Text(token.cleanType),
-                      value: _field('rule.triggerId').text == token.id,
-                      onChanged: (_) => _update(
-                        () => _field('rule.triggerId').text = token.id,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-          if (_customTrigger == 'type' || _customTrigger == 'color')
-            _input(
-              'rule.triggerValue',
-              _customTrigger == 'type'
-                  ? 'Token type contains'
-                  : 'Color W, U, B, R, or G',
-            ),
-          _section('Outcome'),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final choice in {
-                'multiply': 'Multiply quantity',
-                'also_create': 'Also create a token',
-                'replace': 'Replace with a token',
-              }.entries)
-                ChoiceChip(
-                  label: Text(choice.value),
-                  selected: _customEffect == choice.key,
-                  onSelected: (_) => _update(() => _customEffect = choice.key),
-                ),
-            ],
-          ),
-          if (_customEffect == 'multiply')
-            _input('rule.multiplier', 'Multiplier', initial: '2', numeric: true)
-          else ...[
-            _input('rule.resultSearch', 'Find resulting token'),
-            ValueListenableBuilder<TextEditingValue>(
-              valueListenable: _field('rule.resultSearch'),
-              builder: (context, value, _) => Column(
-                children: [
-                  for (final token in catalog.search(value.text).take(12))
-                    CheckboxListTile(
-                      title: Text('${token.name} ${token.pt}'),
-                      subtitle: Text(token.cleanType),
-                      value: _field('rule.targetId').text == token.id,
-                      onChanged: (_) => _update(
-                        () => _field('rule.targetId').text = token.id,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            if (_customEffect == 'also_create')
-              _input(
-                'rule.extra',
-                'Companion tokens per token created',
-                initial: '1',
-                numeric: true,
-              ),
-          ],
-          _button(
-            'Add outcome to rule',
-            () => _run(() async {
-              final outcome = _ruleOutcome();
-              _update(() => _customRuleOutcomes.add(outcome));
-            }, success: 'Outcome added. Save the rule to apply it.'),
-            icon: Icons.add,
-          ),
-          for (var index = 0; index < _customRuleOutcomes.length; index++)
-            ListTile(
-              title: Text(_outcomeLabel(_customRuleOutcomes[index])),
-              trailing: IconButton(
-                tooltip: 'Remove outcome',
-                onPressed: () =>
-                    _update(() => _customRuleOutcomes.removeAt(index)),
-                icon: const Icon(Icons.close),
-              ),
-            ),
-          SwitchListTile(
-            title: const Text('Global applicability'),
-            subtitle: const Text(
-              'This source affects every player while enabled.',
-            ),
-            value: _customGlobal,
-            onChanged: (value) => _update(() => _customGlobal = value),
-          ),
-          _button(
-            'Save custom rule',
-            () => _run(
-              () async {
-                final name = _field('rule.name').text.trim();
-                if (name.isEmpty) {
-                  throw const FormatException('Enter a rule name.');
-                }
-                if (_customRuleOutcomes.isEmpty &&
-                    _customEffect != 'multiply' &&
-                    _field('rule.targetId').text.isEmpty) {
-                  throw const FormatException('Select the resulting token.');
-                }
-                final trigger = {
-                  'all': 'any_token',
-                  'creatures': 'has_pt',
-                  'type': 'token_type',
-                  'color': 'color',
-                  'specific': 'specific_token',
-                }[_customTrigger]!;
-                await _board.saveCustomRule(player.id, {
-                  if (_editingRuleId != null) 'id': _editingRuleId,
-                  if (_customTrigger == 'specific')
-                    'targetTokenId': _field('rule.triggerId').text,
-                  'name': name,
-                  'count': _editingRuleId == null ? 1 : _editingRuleCount,
-                  'global': _customGlobal,
-                  'enabled': _editingRuleId == null
-                      ? true
-                      : _editingRuleEnabled,
-                  'triggerType': trigger,
-                  if (_customTrigger == 'type')
-                    'targetType': _field('rule.triggerValue').text.trim(),
-                  if (_customTrigger == 'color')
-                    'targetColor': _field(
-                      'rule.triggerValue',
-                    ).text.trim().toUpperCase(),
-                  'outcomes': _customRuleOutcomes.isEmpty
-                      ? [_ruleOutcome()]
-                      : List<Map<String, dynamic>>.from(_customRuleOutcomes),
-                });
-              },
-              success: 'Custom rule saved.',
-              after: () {
-                _editingRuleId = null;
-                _customRuleOutcomes.clear();
-              },
-            ),
-            primary: true,
-          ),
-          if (_editingRuleId != null)
-            _button(
-              'Cancel rule edit',
-              () => _update(() {
-                _editingRuleId = null;
-                _customRuleOutcomes.clear();
-              }),
-              icon: Icons.close,
-            ),
-        ],
+      _button(
+        'Create a custom rule',
+        () => _update(() => _ruleEditorOpen = true),
+        icon: Icons.add,
       ),
       _section(
         'Other players’ global effects',
@@ -924,6 +759,191 @@ extension _LibraryPages on _TableWorkspaceState {
         ),
     ]);
   }
+
+  Widget _customRuleEditor(PlayerState player) => _list([
+    _button(
+      'Back to rules',
+      () => _update(() => _ruleEditorOpen = false),
+      icon: Icons.arrow_back,
+    ),
+    const SizedBox(height: 8),
+    _gameGrid([
+      _gamePanel('When creating', [
+        _input('rule.name', 'Rule name'),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final choice in {
+              'all': 'Any token',
+              'creatures': 'Has P/T',
+              'type': 'Token type',
+              'color': 'Color',
+              'specific': 'Specific token',
+            }.entries)
+              ChoiceChip(
+                label: Text(choice.value),
+                selected: _customTrigger == choice.key,
+                onSelected: (_) => _update(() => _customTrigger = choice.key),
+              ),
+          ],
+        ),
+        if (_customTrigger == 'specific') ...[
+          _input('rule.triggerSearch', 'Find the triggering token'),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _field('rule.triggerSearch'),
+            builder: (context, value, _) => Column(
+              children: [
+                for (final token in catalog.search(value.text).take(12))
+                  CheckboxListTile(
+                    title: Text('${token.name} ${token.pt}'),
+                    subtitle: Text(token.cleanType),
+                    value: _field('rule.triggerId').text == token.id,
+                    onChanged: (_) =>
+                        _update(() => _field('rule.triggerId').text = token.id),
+                  ),
+              ],
+            ),
+          ),
+        ],
+        if (_customTrigger == 'type' || _customTrigger == 'color')
+          _input(
+            'rule.triggerValue',
+            _customTrigger == 'type'
+                ? 'Token type contains'
+                : 'Color W, U, B, R, or G',
+          ),
+      ]),
+      _gamePanel('Outcome', [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final choice in {
+              'multiply': 'Multiply quantity',
+              'also_create': 'Also create a token',
+              'replace': 'Replace with a token',
+            }.entries)
+              ChoiceChip(
+                label: Text(choice.value),
+                selected: _customEffect == choice.key,
+                onSelected: (_) => _update(() => _customEffect = choice.key),
+              ),
+          ],
+        ),
+        if (_customEffect == 'multiply')
+          _input('rule.multiplier', 'Multiplier', initial: '2', numeric: true)
+        else ...[
+          _input('rule.resultSearch', 'Find resulting token'),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _field('rule.resultSearch'),
+            builder: (context, value, _) => Column(
+              children: [
+                for (final token in catalog.search(value.text).take(12))
+                  CheckboxListTile(
+                    title: Text('${token.name} ${token.pt}'),
+                    subtitle: Text(token.cleanType),
+                    value: _field('rule.targetId').text == token.id,
+                    onChanged: (_) =>
+                        _update(() => _field('rule.targetId').text = token.id),
+                  ),
+              ],
+            ),
+          ),
+          if (_customEffect == 'also_create')
+            _input(
+              'rule.extra',
+              'Companion tokens per token created',
+              initial: '1',
+              numeric: true,
+            ),
+        ],
+        _button(
+          'Add outcome to rule',
+          () => _run(() async {
+            final outcome = _ruleOutcome();
+            _update(() => _customRuleOutcomes.add(outcome));
+          }, success: 'Outcome added. Save the rule to apply it.'),
+          icon: Icons.add,
+        ),
+        for (var index = 0; index < _customRuleOutcomes.length; index++)
+          ListTile(
+            title: Text(_outcomeLabel(_customRuleOutcomes[index])),
+            trailing: IconButton(
+              tooltip: 'Remove outcome',
+              onPressed: () =>
+                  _update(() => _customRuleOutcomes.removeAt(index)),
+              icon: const Icon(Icons.close),
+            ),
+          ),
+      ]),
+    ]),
+    SwitchListTile(
+      title: const Text('Global applicability'),
+      subtitle: const Text('This source affects every player while enabled.'),
+      value: _customGlobal,
+      onChanged: (value) => _update(() => _customGlobal = value),
+    ),
+    _button(
+      'Save custom rule',
+      () => _run(
+        () async {
+          final name = _field('rule.name').text.trim();
+          if (name.isEmpty) {
+            throw const FormatException('Enter a rule name.');
+          }
+          if (_customRuleOutcomes.isEmpty &&
+              _customEffect != 'multiply' &&
+              _field('rule.targetId').text.isEmpty) {
+            throw const FormatException('Select the resulting token.');
+          }
+          final trigger = {
+            'all': 'any_token',
+            'creatures': 'has_pt',
+            'type': 'token_type',
+            'color': 'color',
+            'specific': 'specific_token',
+          }[_customTrigger]!;
+          await _board.saveCustomRule(player.id, {
+            if (_editingRuleId != null) 'id': _editingRuleId,
+            if (_customTrigger == 'specific')
+              'targetTokenId': _field('rule.triggerId').text,
+            'name': name,
+            'count': _editingRuleId == null ? 1 : _editingRuleCount,
+            'global': _customGlobal,
+            'enabled': _editingRuleId == null ? true : _editingRuleEnabled,
+            'triggerType': trigger,
+            if (_customTrigger == 'type')
+              'targetType': _field('rule.triggerValue').text.trim(),
+            if (_customTrigger == 'color')
+              'targetColor': _field(
+                'rule.triggerValue',
+              ).text.trim().toUpperCase(),
+            'outcomes': _customRuleOutcomes.isEmpty
+                ? [_ruleOutcome()]
+                : List<Map<String, dynamic>>.from(_customRuleOutcomes),
+          });
+        },
+        success: 'Custom rule saved.',
+        after: () {
+          _ruleEditorOpen = false;
+          _editingRuleId = null;
+          _customRuleOutcomes.clear();
+        },
+      ),
+      primary: true,
+    ),
+    if (_editingRuleId != null)
+      _button(
+        'Cancel rule edit',
+        () => _update(() {
+          _ruleEditorOpen = false;
+          _editingRuleId = null;
+          _customRuleOutcomes.clear();
+        }),
+        icon: Icons.close,
+      ),
+  ]);
 
   Map<String, dynamic> _ruleOutcome() {
     if (_customEffect != 'multiply' && _field('rule.targetId').text.isEmpty) {
@@ -953,6 +973,7 @@ extension _LibraryPages on _TableWorkspaceState {
   }
 
   void _editRule(ModifierSource source) => _update(() {
+    _ruleEditorOpen = true;
     _editingRuleId = source.id;
     _editingRuleCount = source.count;
     _editingRuleEnabled = source.enabled;
@@ -995,19 +1016,21 @@ extension _LibraryPages on _TableWorkspaceState {
         detail:
             'A setup contains zero-state tokens, utility configuration and artwork. Loading preserves life, damage, player counters and the game timeline.',
       ),
-      _input('preset.name', 'Name for the current setup'),
-      _button(
-        'Save this player’s setup',
-        () => _run(
-          () => _presets.save(
-            player.id,
-            _field('preset.name').text.trim(),
-            imageUrl: c.profile(player.seatId).artworkUrl,
+      _gameFieldAction(
+        _input('preset.name', 'Name for the current setup'),
+        _button(
+          'Save this player’s setup',
+          () => _run(
+            () => _presets.save(
+              player.id,
+              _field('preset.name').text.trim(),
+              imageUrl: c.profile(player.seatId).artworkUrl,
+            ),
+            success: 'Setup saved to the library.',
           ),
-          success: 'Setup saved to the library.',
+          icon: Icons.save_outlined,
+          primary: true,
         ),
-        icon: Icons.save_outlined,
-        primary: true,
       ),
       SwitchListTile(
         contentPadding: EdgeInsets.zero,

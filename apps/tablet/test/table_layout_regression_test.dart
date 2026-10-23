@@ -170,7 +170,7 @@ void main() {
               );
               expect(
                 tester.widget<Text>(lifeText).style!.fontSize,
-                48,
+                greaterThanOrEqualTo(64),
                 reason: 'Commander capacity must preserve life legibility.',
               );
               final utilities = tester.widget<ReorderableListView>(
@@ -191,7 +191,8 @@ void main() {
                 ValueKey('${player.id}-commander-ledger'),
               );
               expect(ledger.hitTestable(), findsOneWidget);
-              expect(tester.getSize(ledger), const Size(60, 44));
+              expect(tester.getSize(ledger).width, inInclusiveRange(68, 80));
+              expect(tester.getSize(ledger).height, 44);
               for (final source in fixture.controller.session.commanders) {
                 final cell = find.byKey(
                   ValueKey('${player.id}-ledger-source-${source.id}'),
@@ -230,8 +231,8 @@ void main() {
                   expect(bounds.bottom, lessThanOrEqualTo(size.height - 20));
                   expect(
                     bounds.height,
-                    closeTo(48, .01),
-                    reason: 'Mana targets keep their original height.',
+                    closeTo(44, .01),
+                    reason: 'Mana targets retain a 44px touch height.',
                   );
                 }
               }
