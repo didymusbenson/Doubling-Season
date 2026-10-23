@@ -8,6 +8,7 @@ import 'package:hive/hive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tripling_table/domain/table_state.dart';
 import 'package:tripling_table/ui/table_screen.dart';
+import 'package:tripling_table/ui/half_stepper.dart';
 import 'package:tripling_table/ui/table_theme.dart';
 
 import 'support/table_fixture.dart';
@@ -103,6 +104,14 @@ void main() {
       );
       final tokenWidth = tester.getSize(token).width;
       final innerWidth = tester.getSize(life).width;
+      final surface = find.byKey(ValueKey('${player.id}-life-surface'));
+      final tools = find.byKey(ValueKey('${player.id}-life-tools'));
+      expect(
+        tester.getSize(surface).width,
+        closeTo(innerWidth, .01),
+        reason: 'Tools stay below the full-width colored life surface.',
+      );
+      expect(tester.getRect(surface).overlaps(tester.getRect(tools)), isFalse);
       expect(tokenWidth / (tokenWidth + innerWidth), closeTo(.6, .0001));
       expect(innerWidth / (tokenWidth + innerWidth), closeTo(.4, .0001));
       expect(
@@ -118,6 +127,37 @@ void main() {
     return fixture;
   }
 
+  bool allowsUtilityScroll(Size size, int seats) =>
+      size == const Size(1133, 744) && seats > 2;
+
+  ScrollController utilityScroll(WidgetTester tester, PlayerState player) =>
+      tester
+          .widget<ReorderableListView>(
+            find.descendant(
+              of: find.byKey(ValueKey('${player.id}-utility-section')),
+              matching: find.byType(ReorderableListView),
+            ),
+          )
+          .scrollController!;
+
+  Future<void> revealUtilityControl(
+    WidgetTester tester,
+    PlayerState player,
+    Finder control,
+    bool mayScroll,
+  ) async {
+    if (mayScroll && control.hitTestable().evaluate().isEmpty) {
+      final scroll = utilityScroll(tester, player);
+      scroll.jumpTo(scroll.position.maxScrollExtent);
+      await tester.pumpAndSettle();
+    }
+    expect(
+      control.hitTestable(),
+      findsOneWidget,
+      reason: 'Every full-size mana control must remain directly reachable.',
+    );
+  }
+
   for (final size in [
     const Size(1133, 744),
     const Size(744, 1133),
@@ -125,7 +165,7 @@ void main() {
   ]) {
     for (final seats in [2, 3, 4]) {
       testWidgets(
-        '$seats seats at $size expose every default mana control without scrolling',
+        '$seats seats at $size expose every default mana control at full touch size',
         (tester) async {
           final fixture = await showTable(tester, size, tableFor(seats));
           expect(tester.takeException(), isNull);
@@ -143,11 +183,11 @@ void main() {
                 final target = find.byKey(
                   ValueKey('${player.id}-mana-$type-$action'),
                 );
-                expect(
-                  target.hitTestable(),
-                  findsOneWidget,
-                  reason:
-                      '$name $type $action must be visible without moving the lane.',
+                await revealUtilityControl(
+                  tester,
+                  player,
+                  target,
+                  allowsUtilityScroll(size, seats),
                 );
                 final bounds = tester.getRect(target);
                 expect(bounds.top, greaterThanOrEqualTo(24));
@@ -221,11 +261,9 @@ void main() {
               );
               expect(
                 utilities.scrollController!.position.maxScrollExtent,
-                lessThanOrEqualTo(
-                  1,
-                ), // At most a subpixel decorative border tail.
+                lessThanOrEqualTo(allowsUtilityScroll(size, seats) ? 48 : 1),
                 reason:
-                    'Default Storm and all mana controls must fit with sources.',
+                    'Only short landscape may scroll by at most one mana row.',
               );
               final ledger = find.byKey(
                 ValueKey('${player.id}-commander-ledger'),
@@ -265,7 +303,12 @@ void main() {
                   final control = find.byKey(
                     ValueKey('${player.id}-mana-$color-$action'),
                   );
-                  expect(control.hitTestable(), findsOneWidget);
+                  await revealUtilityControl(
+                    tester,
+                    player,
+                    control,
+                    allowsUtilityScroll(size, seats),
+                  );
                   final bounds = tester.getRect(control);
                   expect(bounds.top, greaterThanOrEqualTo(24));
                   expect(bounds.bottom, lessThanOrEqualTo(size.height - 20));
@@ -277,6 +320,10 @@ void main() {
                 }
               }
             }
+            for (final player in fixture.controller.session.players) {
+              utilityScroll(tester, player).jumpTo(0);
+            }
+            await tester.pumpAndSettle();
             expect(find.byTooltip('Storm').hitTestable(), findsNWidgets(seats));
             expect(tester.takeException(), isNull);
             if (_captureDirectory != null &&
@@ -337,23 +384,90 @@ void main() {
     },
   );
 
-  testWidgets(
-    'portrait Storm uses a named icon and exposes its full title when expanded',
-    (tester) async {
-      await showTable(tester, const Size(744, 1133), tableFor(4));
-      final storm = find.byTooltip('Storm');
-      expect(storm.hitTestable(), findsNWidgets(4));
-      expect(
-        find.descendant(of: storm, matching: find.byIcon(Icons.bolt_outlined)),
-        findsNWidgets(4),
+  for (final count in [7, 123, 999999]) {
+    testWidgets('portrait Storm displays $count in a full-width direct stepper', (
+      tester,
+    ) async {
+      final state = tableFor(4);
+      for (final player in state.session.players) {
+        player.utilities.firstWhere((u) => u.kind == 'storm_count').value =
+            count;
+      }
+      final fixture = await showTable(tester, const Size(744, 1133), state);
+      expect(find.text('Storm').hitTestable(), findsNWidgets(4));
+      for (final player in fixture.controller.session.players) {
+        final section = find.byKey(ValueKey('${player.id}-utility-section'));
+        final stepper = find.descendant(
+          of: section,
+          matching: find.byWidgetPredicate(
+            (w) => w is HalfStepper && w.label == 'Storm',
+          ),
+        );
+        final bounds = tester.getRect(stepper);
+        expect(bounds.width, greaterThan(130));
+        expect(bounds.height, 44);
+        final value = find.descendant(
+          of: stepper,
+          matching: find.text('$count'),
+        );
+        final render = tester.renderObject<RenderBox>(value);
+        final painted = MatrixUtils.transformRect(
+          render.getTransformTo(null),
+          Offset.zero & render.size,
+        );
+        expect(
+          painted.height,
+          greaterThanOrEqualTo(18),
+          reason:
+              'Fitting the complete value must not reduce it to a fragment.',
+        );
+        expect(bounds.inflate(.01).contains(painted.topLeft), isTrue);
+        expect(bounds.inflate(.01).contains(painted.bottomRight), isTrue);
+      }
+      if (_captureDirectory != null && count == 999999) {
+        final boundary = tester.renderObject<RenderRepaintBoundary>(
+          find.byKey(_captureKey),
+        );
+        await tester.runAsync(() async {
+          final image = await boundary.toImage(pixelRatio: 1);
+          try {
+            final png = (await image.toByteData(
+              format: ui.ImageByteFormat.png,
+            ))!;
+            await File(
+              '$_captureDirectory/flutter-test-renderer-storm-999999-4p-744x1133.png',
+            ).writeAsBytes(png.buffer.asUint8List());
+          } finally {
+            image.dispose();
+          }
+        });
+      }
+      final player = fixture.controller.session.players.last;
+      final section = find.byKey(ValueKey('${player.id}-utility-section'));
+      int currentStorm() => fixture.controller
+          .player(player.id)
+          .utilities
+          .firstWhere((u) => u.kind == 'storm_count')
+          .value;
+      await tester.tap(
+        find.descendant(
+          of: section,
+          matching: find.byTooltip('Decrease Storm'),
+        ),
       );
-      expect(find.text('Storm'), findsNothing);
-      await tester.tap(storm.last);
       await tester.pumpAndSettle();
-      expect(find.text('Storm').hitTestable(), findsOneWidget);
+      expect(currentStorm(), count - 1);
+      await tester.tap(
+        find.descendant(
+          of: section,
+          matching: find.byTooltip('Increase Storm'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(currentStorm(), count);
       expect(tester.takeException(), isNull);
-    },
-  );
+    });
+  }
 
   testWidgets('narrow portrait lane bounds large utility and mana values', (
     tester,

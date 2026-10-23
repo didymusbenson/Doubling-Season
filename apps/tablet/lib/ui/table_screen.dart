@@ -781,11 +781,6 @@ class _LifePanel extends StatelessWidget {
     ];
     return LayoutBuilder(
       builder: (context, constraints) {
-        final sideTools =
-            constraints.maxWidth >= 200 &&
-            constraints.maxWidth < 260 &&
-            height <= 110;
-        final effectiveHeight = sideTools ? 144.0 : height;
         final surface = ClipPath(
           key: ValueKey('${player.id}-life-clip'),
           clipper: _LifeHubNotch(
@@ -803,9 +798,9 @@ class _LifePanel extends StatelessWidget {
             child: HalfStepper(
               label: '${profile.name}, life',
               value: '${player.life}',
-              height: effectiveHeight,
+              height: height,
               iconSize: 22,
-              iconY: 24 / effectiveHeight,
+              iconY: 24 / height,
               decreaseKey: ValueKey('${player.id}-life-decrease'),
               increaseKey: ValueKey('${player.id}-life-increase'),
               decreaseLabel: '${profile.name}, decrease life by one',
@@ -873,10 +868,7 @@ class _LifePanel extends StatelessWidget {
                           child: Text(
                             '${player.life}',
                             style: TextStyle(
-                              fontSize: (effectiveHeight * .64).clamp(
-                                64.0,
-                                80.0,
-                              ),
+                              fontSize: (height * .64).clamp(64.0, 80.0),
                               fontWeight: FontWeight.w400,
                               height: 1,
                               color: artColor,
@@ -927,17 +919,6 @@ class _LifePanel extends StatelessWidget {
             ],
           ),
         );
-        if (sideTools) {
-          final toolColumn = SizedBox(width: 104, child: tools);
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (!centerNotchAtStart) toolColumn,
-              Expanded(child: surface),
-              if (centerNotchAtStart) toolColumn,
-            ],
-          );
-        }
         return Column(children: [surface, tools]);
       },
     );
@@ -1134,6 +1115,21 @@ class _UtilityRow extends StatelessWidget {
       builder: (context, constraints) {
         final compactStorm =
             utility.kind == 'storm_count' && constraints.maxWidth < 230;
+        final narrowStorm = compactStorm && constraints.maxWidth < 180;
+        final valueStepper = HalfStepper(
+          label: utility.name,
+          value: '${board.utilityValue(player.id, utility.id)}',
+          decreaseLabel: 'Decrease ${utility.name}',
+          increaseLabel: 'Increase ${utility.name}',
+          onDecrease: () => onChange(-step),
+          onIncrease: () => onChange(step),
+          foregroundColor: color,
+          valueStyle: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        );
         return Container(
           decoration: BoxDecoration(
             border: Border(
@@ -1175,7 +1171,7 @@ class _UtilityRow extends StatelessWidget {
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 10,
                                       ),
-                                      child: compactStorm
+                                      child: compactStorm && !narrowStorm
                                           ? Icon(
                                               Icons.bolt_outlined,
                                               size: 22,
@@ -1216,26 +1212,9 @@ class _UtilityRow extends StatelessWidget {
                                 ),
                                 onChanged: (_) => onToggle(),
                               )
-                            else if (!actionOnly)
-                              Expanded(
-                                flex: 2,
-                                child: HalfStepper(
-                                  label: utility.name,
-                                  value:
-                                      '${board.utilityValue(player.id, utility.id)}',
-                                  decreaseLabel: 'Decrease ${utility.name}',
-                                  increaseLabel: 'Increase ${utility.name}',
-                                  onDecrease: () => onChange(-step),
-                                  onIncrease: () => onChange(step),
-                                  foregroundColor: color,
-                                  valueStyle: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w600,
-                                    color: color,
-                                  ),
-                                ),
-                              )
-                            else
+                            else if (!actionOnly && !narrowStorm)
+                              Expanded(flex: 2, child: valueStepper)
+                            else if (actionOnly)
                               icon(
                                 Icons.play_arrow_outlined,
                                 'Resolve ${utility.name}',
@@ -1243,6 +1222,9 @@ class _UtilityRow extends StatelessWidget {
                               ),
                           ],
                         ),
+                        // A portrait Storm row cannot share its value width with
+                        // its title and utility-management target.
+                        if (narrowStorm) valueStepper,
                         if (mana)
                           LayoutBuilder(
                             builder: (context, constraints) {
@@ -1323,7 +1305,7 @@ class _UtilityRow extends StatelessWidget {
                             },
                           ),
                         if (expanded) ...[
-                          if (compactStorm)
+                          if (compactStorm && !narrowStorm)
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 4),
                               child: Text(
