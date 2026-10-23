@@ -1,6 +1,8 @@
 # IPAD EDITION
 
-**Latest lane revision:** [60/40 token/life-and-utilities split](lane_split_60_40_2026-10-23.md), awaiting parent pixel review.
+**Latest utility revision:** [built-in redundancy cleanup](utility_redundancy_2026-10-23.md), pending final parent review. Stored legacy payloads/history remain intact.
+
+**Latest lane revision:** [60/40 token/life-and-utilities split](lane_split_60_40_2026-10-23.md), published through PR43 after parent pixel review.
 
 **Latest visual checkpoint:** [2026-10-23 board and modal polish](visual_polish_2026-10-23.md), awaiting independent visual review before publication.
 

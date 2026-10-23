@@ -11,6 +11,9 @@ extension _LibraryPages on _TableWorkspaceState {
         if (utility.id == _itemId) return _utilityDetail(utility);
       }
     }
+    final legacy = player.utilities
+        .where((utility) => !_board.isStandaloneUtilityKind(utility.kind))
+        .toList();
     final query = _field('utilities.search');
     return Column(
       children: [
@@ -20,8 +23,11 @@ extension _LibraryPages on _TableWorkspaceState {
         ),
         Expanded(
           child: _list([
-            for (final utility in player.utilities)
+            for (final utility in player.utilities.where(
+              (utility) => _board.isStandaloneUtilityKind(utility.kind),
+            ))
               Card(
+                key: ValueKey('utility-menu-${utility.id}'),
                 child: ListTile(
                   dense: true,
                   visualDensity: VisualDensity.compact,
@@ -67,6 +73,23 @@ extension _LibraryPages on _TableWorkspaceState {
                   onTap: () => _update(() => _itemId = utility.id),
                 ),
               ),
+            if (legacy.isNotEmpty)
+              ExpansionTile(
+                key: const PageStorageKey('legacy-utility-settings'),
+                title: const Text('Legacy settings'),
+                leading: const Icon(Icons.inventory_2_outlined, size: 20),
+                dense: true,
+                children: [
+                  for (final utility in legacy)
+                    ListTile(
+                      key: ValueKey('legacy-settings-${utility.id}'),
+                      dense: true,
+                      title: Text(utility.name),
+                      trailing: const Icon(Icons.edit_outlined, size: 18),
+                      onTap: () => _update(() => _itemId = utility.id),
+                    ),
+                ],
+              ),
             _section('Add a utility'),
             ValueListenableBuilder<TextEditingValue>(
               valueListenable: query,
@@ -99,6 +122,7 @@ extension _LibraryPages on _TableWorkspaceState {
     final scope = _board.scope(player.id);
     final revision = c.session.revision;
     final currentValue = _board.utilityValue(player.id, utility.id);
+    final standalone = _board.isStandaloneUtilityKind(utility.kind);
     final toggle = utility.configuration['type'] == 'toggle';
     final active = _board.utilityActive(player.id, utility.id);
     final action =
@@ -106,13 +130,14 @@ extension _LibraryPages on _TableWorkspaceState {
     final hasAction = utility.configuration['hasAction'] == true;
     final actionOnly = utility.configuration['actionOnly'] == true;
     final step = utility.configuration['tapIncrement'] as int? ?? 1;
-    final preview = hasAction
+    final preview = standalone && hasAction
         ? _board.utilityPreview(player.id, utility.id)
         : <TokenCreationResult>[];
     if (_field('$key.panel').text == 'artwork') {
       return _utilityArtwork(utility);
     }
-    final transforming = hasAction && action == 'brudiclad_telchor_engineer';
+    final transforming =
+        standalone && hasAction && action == 'brudiclad_telchor_engineer';
     final controls = <Widget>[
       Row(
         children: [
@@ -125,38 +150,41 @@ extension _LibraryPages on _TableWorkspaceState {
               _update(() => _field('$key.panel').text = 'artwork');
             }
           }, icon: Icons.image_outlined),
-          const SizedBox(width: 8),
-          IconButton(
-            tooltip: utility.visible ? 'Hide this utility' : 'Restore to board',
-            onPressed: _working
-                ? null
-                : () => utility.visible
-                      ? _confirm(
-                          'Hide ${utility.name}?',
-                          'The utility’s current values will remain saved. Restore it from the utilities menu.',
-                          () => _board.setUtility(
-                            player.id,
-                            utility.id,
-                            visible: false,
+          if (standalone) const SizedBox(width: 8),
+          if (standalone)
+            IconButton(
+              tooltip: utility.visible
+                  ? 'Hide this utility'
+                  : 'Restore to board',
+              onPressed: _working
+                  ? null
+                  : () => utility.visible
+                        ? _confirm(
+                            'Hide ${utility.name}?',
+                            'The utility’s current values will remain saved. Restore it from the utilities menu.',
+                            () => _board.setUtility(
+                              player.id,
+                              utility.id,
+                              visible: false,
+                            ),
+                            button: 'Hide utility',
+                          )
+                        : _run(
+                            () => _board.setUtility(
+                              player.id,
+                              utility.id,
+                              visible: true,
+                            ),
                           ),
-                          button: 'Hide utility',
-                        )
-                      : _run(
-                          () => _board.setUtility(
-                            player.id,
-                            utility.id,
-                            visible: true,
-                          ),
-                        ),
-            icon: Icon(
-              utility.visible
-                  ? Icons.visibility_off_outlined
-                  : Icons.visibility_outlined,
+              icon: Icon(
+                utility.visible
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+              ),
             ),
-          ),
         ],
       ),
-      if (!utility.visible)
+      if (standalone && !utility.visible)
         const Text('Hidden from the board. Its values are still saved.'),
       Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,9 +221,9 @@ extension _LibraryPages on _TableWorkspaceState {
           ),
         ],
       ),
-      if (utility.kind == 'mana_pool')
+      if (standalone && utility.kind == 'mana_pool')
         ..._manaControls(player)
-      else if (toggle)
+      else if (standalone && toggle)
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(active ? 'Active' : 'Inactive'),
@@ -208,7 +236,7 @@ extension _LibraryPages on _TableWorkspaceState {
           onChanged: (v) =>
               _run(() => _board.setUtility(player.id, utility.id, isActive: v)),
         )
-      else if (!actionOnly)
+      else if (standalone && !actionOnly)
         Row(
           children: [
             Expanded(
@@ -264,7 +292,7 @@ extension _LibraryPages on _TableWorkspaceState {
             ),
           ],
         ),
-      if (hasAction) ...[
+      if (standalone && hasAction) ...[
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: preview.isNotEmpty
@@ -411,7 +439,9 @@ extension _LibraryPages on _TableWorkspaceState {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               _button(
-                'Utility controls',
+                _board.isStandaloneUtilityKind(utility.kind)
+                    ? 'Utility controls'
+                    : 'Legacy settings',
                 () => _update(
                   () => _field('utility.${utility.id}.panel').clear(),
                 ),

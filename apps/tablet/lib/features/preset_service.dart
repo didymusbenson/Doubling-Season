@@ -244,6 +244,10 @@ class PresetService {
       ((a['order'] as num?) ?? 0).compareTo((b['order'] as num?) ?? 0);
   Map<String, dynamic> _phoneUtility(Map<String, dynamic> m, bool toggle) {
     String? kind = m['actionType'] as String?;
+    // Custom identity wins over an editable name when legacy exports omit it.
+    if (kind == null && m['isCustom'] == true) {
+      kind = toggle ? 'custom_toggle' : 'custom_tracker';
+    }
     if (kind == null) {
       final db = WidgetDatabase();
       for (final d in db.filteredWidgets) {

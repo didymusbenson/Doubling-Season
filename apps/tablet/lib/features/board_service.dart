@@ -927,16 +927,30 @@ class BoardService {
     final item = items.removeAt(oldIndex);
     items.insert(newIndex, item);
   });
+  // Presentation only: legacy payloads and their bound command handlers remain
+  // intact so saved history can still resolve exact values and entity IDs.
+  static const _builtInUtilityKinds = {
+    'life_total',
+    'poison_counters',
+    'energy_counters',
+    'experience_counters',
+    'radiation_counters',
+    'citys_blessing',
+    'monarch',
+    'day_night',
+  };
+  bool isStandaloneUtilityKind(String kind) =>
+      !_builtInUtilityKinds.contains(kind);
+  bool isUtilityVisible(UtilityState utility) =>
+      utility.visible && isStandaloneUtilityKind(utility.kind);
+
   List<WidgetDefinition> get utilityDefinitions {
     final db = WidgetDatabase();
     final list = db.filteredWidgets
         .where(
-          (d) => !{
-            'initiative',
-            'commander_tax',
-            'monarch',
-            'day_night',
-          }.contains(d.id),
+          (d) =>
+              isStandaloneUtilityKind(d.id) &&
+              !{'initiative', 'commander_tax'}.contains(d.id),
         )
         .toList();
     db.dispose();
@@ -1153,7 +1167,7 @@ class BoardService {
       });
   Future<void> reorderVisibleUtilities(String playerId, List<String> ids) =>
       _commit(playerId, 'Reorder utilities', (s, p) {
-        final visible = p.utilities.where((u) => u.visible).toList();
+        final visible = p.utilities.where(isUtilityVisible).toList();
         if (ids.length != visible.length ||
             ids.toSet().length != ids.length ||
             !visible.every((u) => ids.contains(u.id))) {
@@ -1162,7 +1176,8 @@ class BoardService {
         final byId = {for (final u in visible) u.id: u};
         var i = 0;
         p.utilities = [
-          for (final u in p.utilities) u.visible ? byId[ids[i++]]! : u,
+          for (final u in p.utilities)
+            isUtilityVisible(u) ? byId[ids[i++]]! : u,
         ];
       });
 
