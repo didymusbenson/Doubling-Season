@@ -541,7 +541,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
         ),
       );
     }
-    final visible = p.utilities.where((u) => u.visible).toList();
+    final visible = p.utilities.where(widget.board.isUtilityVisible).toList();
     Widget innerLane = LayoutBuilder(
       builder: (context, lane) {
         // Keep attached source trackers compact on short seats, preserving

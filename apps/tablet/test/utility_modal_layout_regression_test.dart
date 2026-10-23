@@ -233,7 +233,6 @@ void main() {
           if ({
             'mana_pool',
             'storm_count',
-            'citys_blessing',
             'cathars_crusade',
           }.contains(utility.kind)) {
             await capture(
@@ -247,13 +246,7 @@ void main() {
           definitions.map((d) => d.id),
           containsAll([
             'mana_pool',
-            'life_total',
-            'poison_counters',
-            'radiation_counters',
-            'energy_counters',
-            'experience_counters',
             'storm_count',
-            'citys_blessing',
             'krenko_mob_boss',
             'krenko_tin_street',
             'cathars_crusade',
@@ -353,9 +346,13 @@ void main() {
       final fixture = TableFixture();
       await fixture.initialize();
       addTearDown(fixture.dispose);
-      await fixture.board.addUtility(fixture.playerId, 'citys_blessing');
+      await fixture.board.createCustomUtility(
+        fixture.playerId,
+        name: 'Custom blessing',
+        toggle: true,
+      );
       final utility = fixture.player.utilities.firstWhere(
-        (u) => u.kind == 'citys_blessing',
+        (u) => u.kind == 'custom_toggle',
       );
       utility.artworkUrl = null;
       utility.configuration['artworkOptions'] = [];
@@ -363,7 +360,11 @@ void main() {
       await showUtility(tester, fixture, utility, const Size(744, 1133));
       await tester.tap(find.byType(Switch));
       await tester.pumpAndSettle();
-      expect(fixture.player.citysBlessing, isTrue);
+      expect(
+        fixture.player.utilities.firstWhere((u) => u.id == utility.id).isActive,
+        isTrue,
+      );
+      expect(fixture.player.citysBlessing, isFalse);
       for (final entry in {
         'Name': 'Ascended',
         'Description': 'Saved utility description',

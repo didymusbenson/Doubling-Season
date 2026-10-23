@@ -354,6 +354,14 @@ Modal frames follow their fixed content; variable art/search/archive lists keep
 bounded content viewports. Each PlayerField owns its PageStorage identity so
 ExpansionTile state cannot become a text-field scroll offset. See
 [the visual review checklist](docs/activeDevelopment/in_progress_features/ipad_edition/visual_polish_2026-10-23.md).
+Tablet utility presentation excludes built-in life/counter/status projections by
+exact kind, using BoardService.isUtilityVisible for both rendering and reorder.
+Never remove/normalize serialized legacy entries: exact values, IDs, flags and
+metadata can be required by historical undo. Legacy settings provides metadata
+access without duplicate gameplay controls. Preserve explicit custom identity
+when importing phone setups before matching editable names. See
+[the utility cleanup](docs/activeDevelopment/in_progress_features/ipad_edition/utility_redundancy_2026-10-23.md).
+
 Tablet utility rows do not render a color-indicator stripe. Retain their color
 metadata/model/storage and other uses of color; tablet tokens keep their 7px
 color rails. This is a tablet utility presentation exception, not a change to
