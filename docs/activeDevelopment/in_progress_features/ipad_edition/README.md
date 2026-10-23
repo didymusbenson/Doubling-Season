@@ -1,5 +1,7 @@
 # IPAD EDITION
 
+**Latest lane revision:** [60/40 token/life-and-utilities split](lane_split_60_40_2026-10-23.md), awaiting parent pixel review.
+
 **Latest visual checkpoint:** [2026-10-23 board and modal polish](visual_polish_2026-10-23.md), awaiting independent visual review before publication.
 
 **Status:** corrective implementation in progress in `apps/tablet`; see [the corrective review tracker](corrective_iteration.md) and [first-pass implementation evidence](implementation.md).

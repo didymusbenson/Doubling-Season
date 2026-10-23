@@ -331,6 +331,11 @@ or clear origin storage to switch apps. See `apps/tablet/README.md` for build
 and storage isolation details. Browser preview is not native acceptance.
 
 Tablet board controls are compact and icon-led with accessible names.
+Player-local lane widths are 60% tokens / 40% life-and-utilities for every
+2/3/4-seat layout, excluding the existing 1px lane divider. Preserve the central
+hub, hard borders and opposite-corner token overlays; see
+[the 60/40 fit notes](docs/activeDevelopment/in_progress_features/ipad_edition/lane_split_60_40_2026-10-23.md)
+for short-landscape tools and the two-player circular token-content clearance.
 The 2026-10-22 UI batch requires token name/totals on the first row, real Mana
 P/T glyphs, no expand chevron or permanent token-lane header, local corner Add
 and Summary overlays with full final-row scroll clearance, and solid player
