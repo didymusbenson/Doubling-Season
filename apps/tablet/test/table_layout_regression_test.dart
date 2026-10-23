@@ -56,6 +56,16 @@ void main() {
       state.session.players = state.session.players.take(2).toList();
     }
     if (seats == 3) state.session.players.removeAt(0);
+    for (final player in state.session.players) {
+      player.tokens = [
+        for (var n = 0; n < 4; n++)
+          sampleToken(
+            id: '${player.id}-token-$n',
+            name: 'Saproling ${n + 1}',
+            counters: {'charge': 1},
+          ),
+      ];
+    }
     return state;
   }
 
@@ -82,6 +92,24 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    for (final player in fixture.controller.session.players) {
+      final seat = find.byKey(ValueKey(player.id));
+      final token = find.byKey(ValueKey('${player.id}-token-lane'));
+      final life = find.descendant(
+        of: seat,
+        matching: find.byWidgetPredicate(
+          (w) => w.runtimeType.toString() == '_LifePanel',
+        ),
+      );
+      final tokenWidth = tester.getSize(token).width;
+      final innerWidth = tester.getSize(life).width;
+      expect(tokenWidth / (tokenWidth + innerWidth), closeTo(.6, .0001));
+      expect(innerWidth / (tokenWidth + innerWidth), closeTo(.4, .0001));
+      expect(
+        tokenWidth + innerWidth + 1,
+        closeTo(tester.getSize(seat).width, .01),
+      );
+    }
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
@@ -155,6 +183,18 @@ void main() {
                     name: n == 0 ? 'Partner A' : 'Partner B',
                   ),
             ];
+            for (final player in state.session.players) {
+              for (var n = 0; n < PlayerState.manaColors.length; n++) {
+                player.mana[PlayerState.manaColors[n]] = n + 1;
+              }
+              player.utilities
+                      .firstWhere((u) => u.kind == 'storm_count')
+                      .value =
+                  7;
+              for (var n = 0; n < state.session.commanders.length; n++) {
+                player.commanderDamage[state.session.commanders[n].id] = n + 1;
+              }
+            }
             final fixture = await showTable(tester, size, state);
             for (final player in fixture.controller.session.players) {
               final seat = find.byKey(ValueKey(player.id));
@@ -175,7 +215,7 @@ void main() {
               );
               final utilities = tester.widget<ReorderableListView>(
                 find.descendant(
-                  of: seat,
+                  of: find.byKey(ValueKey('${player.id}-utility-section')),
                   matching: find.byType(ReorderableListView),
                 ),
               );
@@ -191,7 +231,7 @@ void main() {
                 ValueKey('${player.id}-commander-ledger'),
               );
               expect(ledger.hitTestable(), findsOneWidget);
-              expect(tester.getSize(ledger).width, inInclusiveRange(68, 80));
+              expect(tester.getSize(ledger).width, inInclusiveRange(60, 80));
               expect(tester.getSize(ledger).height, 44);
               for (final source in fixture.controller.session.commanders) {
                 final cell = find.byKey(

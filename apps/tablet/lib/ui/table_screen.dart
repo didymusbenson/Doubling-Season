@@ -180,9 +180,9 @@ class _TableScreenState extends State<TableScreen> {
                   player: player,
                   turns: turns,
                   tokenLeft: tokenLeft,
-                  centerNotch: two ? 56 : 30,
+                  centerNotch: two ? 0 : 30,
                   centerNotchAtStart: two || !tokenLeft,
-                  tokenWidth: two ? (constraints.maxWidth - 56) / 2 : null,
+                  hubInTokenLane: two,
                   interactionEpoch: interactionEpoch,
                   onInputLock: setInputLock,
                   onOpen: (page, [itemId]) =>
@@ -396,7 +396,7 @@ class _PlayerSpace extends StatefulWidget {
   final bool tokenLeft;
   final double centerNotch;
   final bool centerNotchAtStart;
-  final double? tokenWidth;
+  final bool hubInTokenLane;
   final void Function(WorkspacePage, [String?]) onOpen;
   final ValueChanged<UtilityState> onHide;
   final ValueChanged<bool> onInputLock;
@@ -409,7 +409,7 @@ class _PlayerSpace extends StatefulWidget {
     required this.tokenLeft,
     required this.centerNotch,
     required this.centerNotchAtStart,
-    this.tokenWidth,
+    required this.hubInTokenLane,
     required this.interactionEpoch,
     required this.onOpen,
     required this.onHide,
@@ -467,7 +467,10 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
               : DragBoundary(
                   child: ReorderableListView.builder(
                     scrollController: tokenScroll,
-                    padding: const EdgeInsets.only(bottom: 88),
+                    padding: EdgeInsets.only(
+                      top: widget.hubInTokenLane ? 30 : 0,
+                      bottom: 88,
+                    ),
                     buildDefaultDragHandles: false,
                     itemCount: p.tokens.length,
                     onReorder: (old, next) => perform(
@@ -525,6 +528,19 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
         ),
       ],
     );
+    if (widget.hubInTokenLane) {
+      final lane = tokenLane;
+      tokenLane = LayoutBuilder(
+        builder: (context, constraints) => ClipPath(
+          key: ValueKey('${p.id}-token-hub-clearance'),
+          clipper: _LifeHubNotch(
+            atStart: true,
+            inset: (constraints.maxWidth / .6 + 1) / 2,
+          ),
+          child: lane,
+        ),
+      );
+    }
     final visible = p.utilities.where((u) => u.visible).toList();
     Widget innerLane = LayoutBuilder(
       builder: (context, lane) {
@@ -639,15 +655,11 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (widget.tokenLeft)
-                    if (widget.tokenWidth != null)
-                      SizedBox(width: widget.tokenWidth!, child: tokenLane)
-                    else
-                      Expanded(flex: 11, child: tokenLane),
+                  if (widget.tokenLeft) Expanded(flex: 3, child: tokenLane),
                   if (widget.tokenLeft) const VerticalDivider(width: 1),
-                  Expanded(flex: 10, child: innerLane),
+                  Expanded(flex: 2, child: innerLane),
                   if (!widget.tokenLeft) const VerticalDivider(width: 1),
-                  if (!widget.tokenLeft) Expanded(flex: 11, child: tokenLane),
+                  if (!widget.tokenLeft) Expanded(flex: 3, child: tokenLane),
                 ],
               ),
             ),
@@ -767,16 +779,19 @@ class _LifePanel extends StatelessWidget {
         ),
       ),
     ];
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Only the circular hub's immediate corner is excluded. The colored
-        // life surface fills its lane below that arc, without a vertical gutter.
-        ClipPath(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final sideTools =
+            constraints.maxWidth >= 200 &&
+            constraints.maxWidth < 260 &&
+            height <= 110;
+        final effectiveHeight = sideTools ? 144.0 : height;
+        final surface = ClipPath(
           key: ValueKey('${player.id}-life-clip'),
           clipper: _LifeHubNotch(
             atStart: centerNotchAtStart,
-            inset: centerNotch > 30 ? 27 : -1.5,
+            inset: -1.5,
+            enabled: centerNotch > 0,
           ),
           child: _ArtworkSurface(
             key: ValueKey('${player.id}-life-surface'),
@@ -788,9 +803,9 @@ class _LifePanel extends StatelessWidget {
             child: HalfStepper(
               label: '${profile.name}, life',
               value: '${player.life}',
-              height: height,
+              height: effectiveHeight,
               iconSize: 22,
-              iconY: 24 / height,
+              iconY: 24 / effectiveHeight,
               decreaseKey: ValueKey('${player.id}-life-decrease'),
               increaseKey: ValueKey('${player.id}-life-increase'),
               decreaseLabel: '${profile.name}, decrease life by one',
@@ -858,7 +873,10 @@ class _LifePanel extends StatelessWidget {
                           child: Text(
                             '${player.life}',
                             style: TextStyle(
-                              fontSize: (height * .64).clamp(64.0, 80.0),
+                              fontSize: (effectiveHeight * .64).clamp(
+                                64.0,
+                                80.0,
+                              ),
                               fontWeight: FontWeight.w400,
                               height: 1,
                               color: artColor,
@@ -872,19 +890,17 @@ class _LifePanel extends StatelessWidget {
               ),
             ),
           ),
-        ),
-        // Tools are a disjoint area; they never sit on the life hit surface.
-        SizedBox(
+        );
+        final tools = SizedBox(
           key: ValueKey('${player.id}-life-tools'),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final ledgerWidth = (constraints.maxWidth - 200).clamp(
-                    68.0,
-                    80.0,
-                  );
+                  final ledgerWidth = constraints.maxWidth < 160
+                      ? 60.0
+                      : (constraints.maxWidth - 200).clamp(68.0, 80.0);
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
                     child: Wrap(
@@ -892,6 +908,8 @@ class _LifePanel extends StatelessWidget {
                       spacing: constraints.maxWidth >= 200 + ledgerWidth
                           ? ((constraints.maxWidth - 200 - ledgerWidth) / 5)
                                 .clamp(0.0, 12.0)
+                          : constraints.maxWidth < 160
+                          ? 3.5
                           : 4,
                       runSpacing: 4,
                       children: [
@@ -908,8 +926,20 @@ class _LifePanel extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ],
+        );
+        if (sideTools) {
+          final toolColumn = SizedBox(width: 104, child: tools);
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!centerNotchAtStart) toolColumn,
+              Expanded(child: surface),
+              if (centerNotchAtStart) toolColumn,
+            ],
+          );
+        }
+        return Column(children: [surface, tools]);
+      },
     );
   }
 }
@@ -918,21 +948,30 @@ class _LifePanel extends StatelessWidget {
 class _LifeHubNotch extends CustomClipper<Path> {
   final bool atStart;
   final double inset;
-  const _LifeHubNotch({required this.atStart, required this.inset});
+  final bool enabled;
+  const _LifeHubNotch({
+    required this.atStart,
+    required this.inset,
+    this.enabled = true,
+  });
   @override
-  Path getClip(Size size) => Path.combine(
-    PathOperation.difference,
-    Path()..addRect(Offset.zero & size),
-    Path()..addOval(
-      Rect.fromCircle(
-        center: Offset(atStart ? inset : size.width - inset, -1.5),
-        radius: 30,
-      ),
-    ),
-  );
+  Path getClip(Size size) => !enabled
+      ? (Path()..addRect(Offset.zero & size))
+      : Path.combine(
+          PathOperation.difference,
+          Path()..addRect(Offset.zero & size),
+          Path()..addOval(
+            Rect.fromCircle(
+              center: Offset(atStart ? inset : size.width - inset, -1.5),
+              radius: 30,
+            ),
+          ),
+        );
   @override
   bool shouldReclip(covariant _LifeHubNotch oldClipper) =>
-      atStart != oldClipper.atStart || inset != oldClipper.inset;
+      atStart != oldClipper.atStart ||
+      inset != oldClipper.inset ||
+      enabled != oldClipper.enabled;
 }
 
 class _StatusBadge extends StatelessWidget {
@@ -1209,7 +1248,7 @@ class _UtilityRow extends StatelessWidget {
                             builder: (context, constraints) {
                               // Two columns keep both +/- targets usable in the narrow
                               // portrait lane; landscape fits all six colors in two rows.
-                              final columns = constraints.maxWidth >= 225
+                              final columns = constraints.maxWidth >= 200
                                   ? 3
                                   : 2;
                               final width =

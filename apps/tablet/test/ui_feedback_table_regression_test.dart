@@ -401,11 +401,32 @@ void main() {
             expect(localFab.left, closeTo(12, .01));
             expect(localFab.bottom, closeTo(laneSize.height - 12, .01));
             expect(laneSize.height, closeTo((tableHeight - 3) / 2, .01));
-            expect(
-              bounds(tester, lane).overlaps(stripBounds),
-              isFalse,
-              reason: '$name token board must remain uninterrupted.',
-            );
+            if (seats == 2) {
+              final clipFinder = find.byKey(
+                ValueKey('${player.id}-token-hub-clearance'),
+              );
+              final clip = tester.widget<ClipPath>(clipFinder);
+              final box = tester.renderObject<RenderBox>(clipFinder);
+              final path = clip.clipper!.getClip(box.size);
+              for (var x = stripBounds.left; x < stripBounds.right; x += 4) {
+                for (var y = stripBounds.top; y < stripBounds.bottom; y += 4) {
+                  final global = Offset(x, y);
+                  if ((global - stripBounds.center).distance >= 26) continue;
+                  expect(
+                    path.contains(box.globalToLocal(global)),
+                    isFalse,
+                    reason:
+                        'Two-player token content clears the stationary center hub.',
+                  );
+                }
+              }
+            } else {
+              expect(
+                bounds(tester, lane).overlaps(stripBounds),
+                isFalse,
+                reason: 'Token boards remain outside the center hub.',
+              );
+            }
             final summary = find.byTooltip('$name, board summary');
             expect(summary.hitTestable(), findsOneWidget);
             expect(
@@ -430,7 +451,7 @@ void main() {
             expect(localList.size, laneSize);
             expect(
               tester.widget<ReorderableListView>(tokenList).padding,
-              const EdgeInsets.only(bottom: 88),
+              EdgeInsets.only(top: seats == 2 ? 30 : 0, bottom: 88),
               reason: 'Compact corner controls must not reserve a header.',
             );
             for (final status in ['Monarch', 'City’s blessing']) {
