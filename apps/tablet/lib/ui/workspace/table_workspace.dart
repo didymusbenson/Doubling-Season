@@ -872,9 +872,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
                       ],
                     ),
                   ),
-                if (_playerId == null &&
-                    _page != WorkspacePage.reset &&
-                    _page != WorkspacePage.settings)
+                if (_playerId == null && _page != WorkspacePage.reset)
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 14),

@@ -1028,103 +1028,162 @@ extension _GamePages on _TableWorkspaceState {
   );
 
   Widget _settingsPage() => _list([
-    _section('Shared game state'),
-    Wrap(
-      spacing: 8,
-      children: [
-        for (final state in ['neither', 'day', 'night'])
-          ChoiceChip(
-            label: Text(
-              state == 'neither'
-                  ? 'Neither day nor night'
-                  : state[0].toUpperCase() + state.substring(1),
-            ),
-            selected: c.session.dayNight == state,
-            onSelected: (_) => _run(() => c.setDayNight(state)),
-          ),
-      ],
-    ),
-    _section(
-      'Token catalog',
-      detail:
-          '${catalog.tokens.length} definitions · database version ${catalog.version}. Catalog updates preserve current artwork and custom token selections.',
-    ),
-    _button(
-      'Check for catalog updates',
-      () => _run(() async {
-        final update = await catalog.checkForUpdate();
-        if (!mounted || !_validScope) return;
-        if (update.error != null) throw StateError(update.error!);
-        if (update.version <= catalog.version) {
-          _update(() => _status = 'Your token database is current.');
-          return;
-        }
-        _confirm(
-          'Update token catalog?',
-          'Download database version ${update.version}. The download will be checked before it replaces the current catalog.',
-          () => catalog.applyUpdate(update),
-          button: 'Download & verify',
-        );
-      }),
-      icon: Icons.download,
-    ),
-    _button(
-      'Use bundled catalog',
-      () => _confirm(
-        'Restore the bundled catalog?',
-        'Remove the downloaded catalog update. Custom definitions and artwork choices remain.',
-        () => catalog.revertToBundled(),
-      ),
-    ),
-    _section('Appearance'),
-    Wrap(
-      spacing: 8,
-      children: [
-        for (final theme in ['system', 'light', 'dark'])
-          ChoiceChip(
-            label: Text(theme[0].toUpperCase() + theme.substring(1)),
-            selected: (c.state.settings['theme'] ?? 'dark') == theme,
-            onSelected: (_) => _run(
-              () => c.updateState(
-                'Change theme',
-                (state) => state.settings['theme'] = theme,
+    _gameGrid([
+      Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _section('Shared game state'),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final state in ['neither', 'day', 'night'])
+                    ChoiceChip(
+                      label: Text(
+                        state == 'neither'
+                            ? 'Neither day nor night'
+                            : state[0].toUpperCase() + state.substring(1),
+                      ),
+                      selected: c.session.dayNight == state,
+                      onSelected: (_) => _run(() => c.setDayNight(state)),
+                    ),
+                ],
               ),
-            ),
+              _section('Appearance'),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final theme in ['system', 'light', 'dark'])
+                    ChoiceChip(
+                      label: Text(theme[0].toUpperCase() + theme.substring(1)),
+                      selected: (c.state.settings['theme'] ?? 'dark') == theme,
+                      onSelected: (_) => _run(
+                        () => c.updateState(
+                          'Change theme',
+                          (state) => state.settings['theme'] = theme,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ),
-      ],
-    ),
-    _section(
-      'Player appearance reset',
-      detail:
-          'This separate reset clears saved player names, colors and life artwork only. It does not delete the current game or setups.',
-    ),
-    _button(
-      'Reset saved seat appearance',
-      () => _confirm(
-        'Reset all saved player appearances?',
-        'Replace all saved names and colors with defaults and remove life artwork, including hidden seats. This cannot be undone through game history.',
-        () => c.updateState('Reset seat appearances', (state) {
-          const colors = [0xffd7bd78, 0xff83b7ce, 0xffb498ca, 0xff92bc91];
-          for (var index = 0; index < state.profiles.length; index++) {
-            state.profiles[index].name = 'Player ${index + 1}';
-            state.profiles[index].color = colors[index % colors.length];
-            state.profiles[index].artworkUrl = null;
-          }
-        }),
-        button: 'Reset appearances',
+        ),
       ),
-      icon: Icons.person_off_outlined,
-    ),
-    _section(
-      'Tripling Season · Tablet edition',
-      detail:
-          'Free to play, with no ads. Optional supporter cosmetics never gate game features.',
-    ),
-    _button(
-      'Support this app',
-      () => showTableSupport(context, quarterTurns: widget.quarterTurns),
-      icon: Icons.favorite_outline,
-    ),
+      Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _section(
+                'Token catalog',
+                detail:
+                    '${catalog.tokens.length} definitions · database version ${catalog.version}. Catalog updates preserve current artwork and custom token selections.',
+              ),
+              _button(
+                'Check for catalog updates',
+                () => _run(() async {
+                  final update = await catalog.checkForUpdate();
+                  if (!mounted || !_validScope) return;
+                  if (update.error != null) throw StateError(update.error!);
+                  if (update.version <= catalog.version) {
+                    _update(() => _status = 'Your token database is current.');
+                    return;
+                  }
+                  _confirm(
+                    'Update token catalog?',
+                    'Download database version ${update.version}. The download will be checked before it replaces the current catalog.',
+                    () => catalog.applyUpdate(update),
+                    button: 'Download & verify',
+                  );
+                }),
+                icon: Icons.download,
+              ),
+              _button(
+                'Use bundled catalog',
+                () => _confirm(
+                  'Restore the bundled catalog?',
+                  'Remove the downloaded catalog update. Custom definitions and artwork choices remain.',
+                  () => catalog.revertToBundled(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _section(
+                'Player appearance reset',
+                detail:
+                    'This separate reset clears saved player names, colors and life artwork only. It does not delete the current game or setups.',
+              ),
+              _button(
+                'Reset saved seat appearance',
+                () => _confirm(
+                  'Reset all saved player appearances?',
+                  'Replace all saved names and colors with defaults and remove life artwork, including hidden seats. This cannot be undone through game history.',
+                  () => c.updateState('Reset seat appearances', (state) {
+                    const colors = [
+                      0xffd7bd78,
+                      0xff83b7ce,
+                      0xffb498ca,
+                      0xff92bc91,
+                    ];
+                    for (
+                      var index = 0;
+                      index < state.profiles.length;
+                      index++
+                    ) {
+                      state.profiles[index].name = 'Player ${index + 1}';
+                      state.profiles[index].color =
+                          colors[index % colors.length];
+                      state.profiles[index].artworkUrl = null;
+                    }
+                  }),
+                  button: 'Reset appearances',
+                ),
+                icon: Icons.person_off_outlined,
+              ),
+            ],
+          ),
+        ),
+      ),
+      Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _section(
+                'Tripling Season · Tablet edition',
+                detail:
+                    'Free to play, with no ads. Optional supporter cosmetics never gate game features.',
+              ),
+              _button(
+                'Support this app',
+                () => showTableSupport(
+                  context,
+                  quarterTurns: widget.quarterTurns,
+                ),
+                icon: Icons.favorite_outline,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ]),
   ]);
 }
 
