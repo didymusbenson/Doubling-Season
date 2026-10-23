@@ -365,6 +365,23 @@ void main() {
       final player = fixture.controller.session.players.first;
       final add = find.byKey(ValueKey('${player.id}-mana-W-add'));
       final spend = find.byKey(ValueKey('${player.id}-mana-W-spend'));
+      // The additional life tool row keeps full-size controls: reach mana by
+      // an actual player-local scroll gesture rather than tapping clipped ink.
+      await tester.drag(
+        find.byKey(ValueKey('${player.id}-utility-section')),
+        const Offset(0, -100),
+      );
+      await tester.pumpAndSettle();
+      expect(add.hitTestable(), findsOneWidget);
+      final bottomAdd = find.byKey(ValueKey('${player.id}-mana-C-add'));
+      final bottomSpend = find.byKey(ValueKey('${player.id}-mana-C-spend'));
+      expect(bottomAdd.hitTestable(), findsOneWidget);
+      await tester.tap(bottomAdd);
+      await tester.pumpAndSettle();
+      expect(fixture.controller.player(player.id).mana['C'], 1);
+      await tester.tap(bottomSpend);
+      await tester.pumpAndSettle();
+      expect(fixture.controller.player(player.id).mana['C'], 0);
       await tester.tap(add);
       await tester.pumpAndSettle();
       expect(fixture.controller.player(player.id).mana['W'], 1);
@@ -381,6 +398,11 @@ void main() {
         expect(other.mana['W'] ?? 0, 0);
       }
       expect(find.byType(AlertDialog), findsNothing);
+      await tester.drag(
+        find.byKey(ValueKey('${player.id}-utility-section')),
+        const Offset(0, 100),
+      );
+      await tester.pumpAndSettle();
       expect(find.byTooltip('Storm').hitTestable(), findsNWidgets(4));
       expect(tester.takeException(), isNull);
     },
