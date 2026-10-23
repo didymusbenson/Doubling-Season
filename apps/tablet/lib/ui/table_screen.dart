@@ -544,15 +544,16 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
     final visible = p.utilities.where(widget.board.isUtilityVisible).toList();
     Widget innerLane = LayoutBuilder(
       builder: (context, lane) {
-        // Keep attached source trackers compact on short seats, preserving
-        // default Storm/mana capacity and the large life number.
-        final compactCommanders =
-            widget.controller.session.commanders.isNotEmpty &&
-            lane.maxHeight < 420;
+        // Short player-local seats keep utility padding compact so the taller
+        // life chip costs at most one scrollable mana row, never smaller targets.
+        final compactUtilities = lane.maxHeight < 420;
         return Column(
           children: [
             _LifePanel(
-              height: (lane.maxHeight * .30 + 32).clamp(140.0, 180.0),
+              height: (lane.maxHeight * .30 + 32).clamp(
+                140.0,
+                lane.maxWidth < 200 ? 148.0 : 180.0,
+              ),
               centerNotch: widget.centerNotch,
               centerNotchAtStart: widget.centerNotchAtStart,
               player: p,
@@ -602,7 +603,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
                               onManage: index == 0
                                   ? () => widget.onOpen(WorkspacePage.utilities)
                                   : null,
-                              compactSpacing: compactCommanders,
+                              compactSpacing: compactUtilities,
                               utility: u,
                               player: p,
                               board: widget.board,

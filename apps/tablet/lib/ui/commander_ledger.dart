@@ -68,6 +68,9 @@ class CommanderLedger extends StatelessWidget {
                   height: 44,
                   child: IgnorePointer(
                     child: Wrap(
+                      alignment: entries.length == 1
+                          ? WrapAlignment.center
+                          : WrapAlignment.start,
                       children: [
                         for (final entry in entries)
                           SizedBox(

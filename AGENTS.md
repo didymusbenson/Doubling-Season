@@ -373,10 +373,12 @@ value does not intercept adjustment taps. Keep edit/customization controls
 separate, preserve specialized token/mana holds, and cancel repeating holds on
 input lock/lifecycle interruption. Life uses direct halves and a transient net
 delta from the existing 1500ms history group. The entire colored life surface,
-including the name and all inner padding, belongs to its two hit regions. Life
-tools are disjoint below it: crown Monarch beside City's Blessing, then counters,
-rules, commander access, and Edit last. Presets are inside Edit; Manage Utilities
-belongs in the utility section. Shared game controls are one compact standalone
+including the name and all inner padding, belongs to its two hit regions except
+for the commander mini-grid's distinct target. The mini-grid is centered inside
+the colored chip below the raised life number; tapping it opens the source grid
+without stepping life. Life tools stay disjoint below the chip: crown Monarch
+beside City's Blessing, then counters, rules, and Edit last. Presets are inside
+Edit; Manage Utilities belongs in the utility section. Shared game controls are one compact standalone
 component at the global table center, never a control-bearing divider/strip.
 Keep thin player borders distinct and token lanes full height. Assert global
 coordinates, compact bounds and content/hit-region separation in regressions.
