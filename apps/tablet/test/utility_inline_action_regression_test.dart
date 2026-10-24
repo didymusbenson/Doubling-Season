@@ -163,7 +163,7 @@ void main() {
           expect(switchControl.hitTestable(), findsOneWidget);
           expect(
             tester.getSize(header).width,
-            greaterThan(45),
+            greaterThan(53),
             reason: 'Keep a readable name width.',
           );
           expect(

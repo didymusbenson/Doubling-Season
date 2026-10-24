@@ -1268,9 +1268,9 @@ class _UtilityRow extends StatelessWidget {
               children: [
                 Padding(
                   padding: EdgeInsets.fromLTRB(
-                    10,
+                    narrowToggle ? 6 : 10,
                     0,
-                    6,
+                    narrowToggle ? 2 : 6,
                     compactSpacing ? 0 : 3,
                   ),
                   child: DefaultTextStyle.merge(

@@ -69,7 +69,15 @@ that was corrected for Squirrel Girl and Krenko, with all five actual bundled
 Changeling definitions, owner/other-seat isolation, modifiers once and atomic undo.
 64 focused engine/board/inline tests pass. After this correction, clean analyzer,
 **500 passed / one web-only test skipped**, release web build and source/subset
-Mana codepoint verification passed. Exact-head remote CI remains the merge gate. No original-app source/assets/configuration changed.
+Mana codepoint verification passed. PR #51 merged as `23c4e106be89b676910b2ff382610d7f35882b14` with exact-head CI
+and combined Pages publication verified. PR #52 completes compact header Edit/Hide
+placement for non-action utilities and protects narrow custom toggles: the switch
+moves directly below the title/control header while the title keeps readable width.
+The final aggregate suite passes **506 tests / one web-only test skipped**. Its
+scrollable-capacity checks reveal the entire mana touch target, including cases
+where a partly clipped center point was already hittable. Native four-seat mini
+portrait pixels verify readable toggle naming, pencil/Hide placement and switch.
+Exact-head CI remains the follow-up merge gate. No original-app source/assets/configuration changed.
 
 Native iPad mini A17 Pro, iOS26.2 isolated simulator: inspected portrait/landscape
 2/3/4-player layouts, all four initiating commander seats, matching empty-three
@@ -100,7 +108,7 @@ existing commander tests (43), Ring focused tests (7), compact modal/inline test
 simulator launches; actual catalog Goblin followed by Krenko merges into one
 art-bearing stack. Android configured AVD is a phone; no configured tablet AVD found.
 
-Screenshot delivery: native PNGs and labeled renderer frames are preserved in the
-task-local `tripling-table-batch2-review-evidence.zip`. The supported Library upload
-helper stopped before transfer because prepared uploads were unavailable on this
-executor; no Library save is claimed. No personal iPad backup data is in that ZIP.
+Screenshot evidence: raw native PNGs and labeled renderer frames are retained
+locally, with a review bundle delivered separately. Individual prepared-image
+uploads were unavailable on this executor. No personal iPad backup data is
+included in the review evidence.
