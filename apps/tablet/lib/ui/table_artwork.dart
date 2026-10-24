@@ -4,10 +4,33 @@ import 'package:http/http.dart' as http;
 import 'dart:ui' as ui;
 import 'package:doubling_season/utils/artwork_manager.dart';
 import '../services/tablet_media_store.dart';
+import '../services/remote_artwork_byte_cache.dart';
 
 class TableArtwork extends StatelessWidget {
   static final Map<String, Future<Uint8List?>> _downloads = {};
   static final Map<String, DateTime> _retryAfter = {};
+
+  static final _webCache = RemoteArtworkByteCache(loadBytes: _fetchWebBytes);
+
+  static Future<Uint8List> _fetchWebBytes(String source) async {
+    final response = await http
+        .get(Uri.parse(source))
+        .timeout(const Duration(seconds: 20));
+    final bytes = response.bodyBytes;
+    if (response.statusCode != 200 ||
+        bytes.isEmpty ||
+        bytes.length > 12 * 1024 * 1024) {
+      throw const FormatException('Artwork could not be downloaded.');
+    }
+    final codec = await ui.instantiateImageCodec(bytes);
+    try {
+      final frame = await codec.getNextFrame();
+      frame.image.dispose();
+    } finally {
+      codec.dispose();
+    }
+    return bytes;
+  }
 
   /// Validate a new choice before replacing the currently saved artwork.
   static Future<Uint8List> validatedBytes(String source) async {
@@ -30,10 +53,7 @@ class TableArtwork extends StatelessWidget {
         }
         bytes = await _cached(source);
       } else {
-        final response = await http
-            .get(uri)
-            .timeout(const Duration(seconds: 20));
-        if (response.statusCode == 200) bytes = response.bodyBytes;
+        bytes = await _webCache.load(source, retry: _webCache.failed(source));
       }
     }
     if (bytes == null || bytes.isEmpty || bytes.length > 12 * 1024 * 1024) {
@@ -94,12 +114,14 @@ class TableArtwork extends StatelessWidget {
   final BoxFit fit;
   final Widget? placeholder;
   final bool crop;
+  final bool showLoadStatus;
   const TableArtwork({
     super.key,
     required this.url,
     this.fit = BoxFit.cover,
     this.placeholder,
     this.crop = false,
+    this.showLoadStatus = false,
   });
   @override
   Widget build(BuildContext context) {
@@ -159,19 +181,53 @@ class TableArtwork extends StatelessWidget {
             },
           );
         }
-        return Image.network(
-          display,
-          fit: fit,
-          gaplessPlayback: true,
-          frameBuilder: frame,
-          errorBuilder: (_, _, _) => display == source
-              ? fallback()
-              : Image.network(
-                  source,
-                  fit: fit,
-                  frameBuilder: frame,
-                  errorBuilder: (_, _, _) => fallback(),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            Widget status(bool failed) {
+              if (!showLoadStatus) return fallback();
+              if (!failed) {
+                return const Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                );
+              }
+              return Center(
+                child: IconButton(
+                  tooltip: 'Artwork unavailable. Retry loading image',
+                  icon: const Icon(Icons.broken_image_outlined),
+                  onPressed: () => setState(() {
+                    for (final url in {display, source}) {
+                      _webCache.evict(url);
+                      _webCache.evict(display, fallback: source);
+                    }
+                  }),
                 ),
+              );
+            }
+
+            Widget loaded(Uint8List bytes) => Image.memory(
+              bytes,
+              fit: fit,
+              gaplessPlayback: true,
+              // Decoded bytes stay stable across rebuilds; don't restart a fade
+              // or depend on a separate browser image-element request/frame.
+              errorBuilder: (_, _, _) => status(true),
+            );
+            return FutureBuilder<Uint8List>(
+              key: ValueKey('web-art:$display'),
+              future: _webCache.load(
+                display,
+                fallback: display == source ? null : source,
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) return loaded(snapshot.data!);
+                return status(snapshot.hasError);
+              },
+            );
+          },
         );
       }
     } catch (_) {
