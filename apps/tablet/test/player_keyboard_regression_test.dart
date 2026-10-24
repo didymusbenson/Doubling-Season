@@ -11,6 +11,57 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
   }
 
+  testWidgets('command keys use bundled Material icons, not text font glyphs', (
+    tester,
+  ) async {
+    await tabletSize(tester);
+    final controller = TextEditingController(text: 'ab');
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PlayerKeyboardHost(
+            child: PlayerField(
+              controller: controller,
+              label: 'Artwork search',
+              maxLines: 3,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byType(PlayerField));
+    await tester.pumpAndSettle();
+    for (final icon in [
+      Icons.arrow_upward,
+      Icons.keyboard_arrow_left,
+      Icons.keyboard_arrow_right,
+      Icons.keyboard_return,
+      Icons.backspace_outlined,
+    ]) {
+      expect(find.byIcon(icon), findsOneWidget);
+      expect(icon.fontFamily, 'MaterialIcons');
+    }
+    for (final glyph in ['⇧', '⌫', '←', '→', '↵']) {
+      expect(find.text(glyph), findsNothing);
+    }
+    final semantics = tester.ensureSemantics();
+    expect(find.bySemanticsLabel('Shift'), findsOneWidget);
+    expect(find.bySemanticsLabel('Delete previous character'), findsOneWidget);
+    expect(find.bySemanticsLabel('Move cursor left'), findsOneWidget);
+    expect(find.bySemanticsLabel('Return'), findsOneWidget);
+    semantics.dispose();
+    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Q'));
+    await tester.pumpAndSettle();
+    expect(controller.text, contains('Q'));
+    await tester.tap(find.byIcon(Icons.backspace_outlined));
+    await tester.pumpAndSettle();
+    expect(controller.text, isNot(contains('Q')));
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets(
     'multiline fields insert hardware and visible Return until Done',
     (tester) async {
@@ -49,7 +100,7 @@ void main() {
       expect(commits, 0);
       expect(find.text('Done'), findsOneWidget);
 
-      await tester.tap(find.text('↵'));
+      await tester.tap(find.byIcon(Icons.keyboard_return));
       await tester.pump();
       expect(controller.text, 'First\n\n');
       expect(commits, 0);
@@ -166,7 +217,7 @@ void main() {
           expect(afterQ, const TextSelection.collapsed(offset: 1));
           await tap(find.text('a'));
           expect(controller.text, 'qaa');
-          await tap(find.text('←'));
+          await tap(find.byIcon(Icons.keyboard_arrow_left));
           await tap(find.text('q'));
           expect(controller.text, 'qaqa');
           controller.selection = const TextSelection(
@@ -175,7 +226,7 @@ void main() {
           );
           await tap(find.text('z'));
           expect(controller.text, 'qza');
-          await tap(find.text('⌫'));
+          await tap(find.byIcon(Icons.backspace_outlined));
           expect(controller.text, 'qa');
           await tap(find.byTooltip('Select all'));
           await tap(find.text('z'));
@@ -328,7 +379,7 @@ void main() {
     expect(rotation.quarterTurns, 2);
     // Rotating the complete host puts the software keys at the top player's edge.
     expect(tester.getCenter(find.text('q')).dy, lessThan(372));
-    await tester.tap(find.text('↵'));
+    await tester.tap(find.byIcon(Icons.keyboard_return));
     await tester.pump();
     expect(draft, 'Tap\n');
     await tester.tap(find.text('Done'));

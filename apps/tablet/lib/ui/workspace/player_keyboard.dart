@@ -495,6 +495,7 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
     VoidCallback? action,
     int flex = 1,
     String? semantics,
+    IconData? icon,
   }) {
     final perform =
         action ?? () => _replace(_shift ? text.toUpperCase() : text);
@@ -517,7 +518,9 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
                 ),
               ),
               onPressed: _editable ? perform : null,
-              child: Text(_shift ? text.toUpperCase() : text, maxLines: 1),
+              child: icon == null
+                  ? Text(_shift ? text.toUpperCase() : text, maxLines: 1)
+                  : Icon(icon, size: 22),
             ),
           ),
         ),
@@ -647,14 +650,20 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
                               ),
                             if (!_numeric)
                               _key(
-                                '⇧',
+                                'Shift',
+                                icon: Icons.arrow_upward,
                                 semantics: 'Shift',
                                 action: () => setState(() => _shift = !_shift),
                               ),
                             if (_numeric)
-                              _key('−', action: () => _replace('-')),
+                              _key(
+                                '−',
+                                icon: Icons.remove,
+                                action: () => _replace('-'),
+                              ),
                             _key(
-                              '←',
+                              'Move cursor left',
+                              icon: Icons.keyboard_arrow_left,
                               semantics: 'Move cursor left',
                               action: () => _move(false, extend: _shift),
                             ),
@@ -668,17 +677,20 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
                               _key('/', action: () => _replace('/')),
                             if (_multiline)
                               _key(
-                                '↵',
+                                'Return',
+                                icon: Icons.keyboard_return,
                                 semantics: 'Return',
                                 action: () => _replace('\n'),
                               ),
                             _key(
-                              '→',
+                              'Move cursor right',
+                              icon: Icons.keyboard_arrow_right,
                               semantics: 'Move cursor right',
                               action: () => _move(true, extend: _shift),
                             ),
                             _key(
-                              '⌫',
+                              'Delete previous character',
+                              icon: Icons.backspace_outlined,
                               semantics: 'Delete previous character',
                               flex: 2,
                               action: _delete,

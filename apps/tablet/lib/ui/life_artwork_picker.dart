@@ -165,7 +165,11 @@ class _LifeArtworkPickerState extends State<LifeArtworkPicker> {
                             SizedBox(
                               height: 110,
                               width: double.infinity,
-                              child: TableArtwork(url: candidate, crop: true),
+                              child: TableArtwork(
+                                url: candidate,
+                                crop: true,
+                                showLoadStatus: true,
+                              ),
                             ),
                             if (variant != null)
                               Text('${variant!.set} · ${variant!.artist}'),
@@ -225,6 +229,7 @@ class _LifeArtworkPickerState extends State<LifeArtworkPicker> {
                                           child: TableArtwork(
                                             url: token.artwork.first.url,
                                             crop: true,
+                                            showLoadStatus: true,
                                           ),
                                         ),
                                         title: Text(token.name),
@@ -267,6 +272,7 @@ class _LifeArtworkPickerState extends State<LifeArtworkPicker> {
                                           child: TableArtwork(
                                             url: art.url,
                                             crop: true,
+                                            showLoadStatus: true,
                                           ),
                                         ),
                                         Text(
