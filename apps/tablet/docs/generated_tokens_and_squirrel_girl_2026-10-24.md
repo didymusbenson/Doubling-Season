@@ -29,8 +29,16 @@ restores the action atomically.
 
 The tablet-only utility defaults its manual **nontoken Squirrels** count to one,
 including Squirrel Girl herself. `Make Squirrels · 1GGG` reads that manual count
-plus every owned token whose subtype includes Squirrel at resolution. It creates
-that many fresh canonical green 1/1 Squirrel creature tokens, applying creation
+plus every owned Squirrel token at resolution, including tokens with the actual
+Changeling keyword. Krenko, Mob Boss likewise includes Changeling tokens in its
+Goblin count. Explicit subtype matching uses whole words; keyword recognition
+accepts the bundled keyword-only ability format (including `Changeling
+Deathtouch`) and ordinary reminder text, without treating general rules text
+that mentions Changeling as granting it. Hare Apparent still uses its manual
+named-Hare count: being a Rabbit or having Changeling does not give a permanent
+the name Hare Apparent. Krenko, Tin Street Kingpin still uses manual power.
+The Squirrel Girl action creates fresh canonical green 1/1 Squirrel creature
+tokens equal to the counted total, applying creation
 rules once through the existing calculator. Counters, abilities or artwork on
 the counted token stacks do not get copied into the new tokens. Other seats are
 not counted. The supplied MSH193 Kim Dingwall scan is first; the credited MSH371
@@ -43,7 +51,13 @@ one Squirrel** trigger and whether a richer non-token creature list is useful.
 That trigger is not silently fired by adding the utility or activating 1GGG;
 ordinary catalog creation can record it manually. Cost/payment, available mana,
 tap eligibility and the presence of the physical Squirrel Girl card remain manual.
-The utility does not create or track Squirrel Girl herself as a token.
+The utility does not create or track Squirrel Girl herself as a token. Effects
+that grant or remove types/abilities outside the recorded token data remain
+manual; this is not a general continuous-effect rules engine. The Changeling
+rule is verified against the official
+[Lorwyn Eclipsed mechanics](https://magic.wizards.com/en/news/feature/lorwyn-eclipsed-mechanics):
+the keyword gives every creature type, while the printed Shapeshifter type alone
+does not.
 
 ## Evidence
 
@@ -51,6 +65,8 @@ The utility does not create or track Squirrel Girl herself as a token.
 and tests first creation, canonical metadata and credited art, non-default art
 preferences, expected clean-stack merges, counter/art/legacy separation,
 status-subcount preservation, owner scope, one-action undo, canonical-ID custom
-rules, and Squirrel Girl plus doubler/Chatterfang arithmetic. The existing inline
-utility interaction suite also exercises the added Squirrel action. Native and
+rules, all five actual catalog Changeling definitions (owner/other-seat scope,
+modifiers and undo), rejection of keyword/type-text false positives, the
+named-Hare exception, and Squirrel Girl plus doubler/Chatterfang arithmetic.
+The existing inline utility interaction suite also exercises the added Squirrel action. Native and
 visual acceptance belongs to the integrated batch validation record.

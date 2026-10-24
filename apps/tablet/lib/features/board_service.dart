@@ -136,6 +136,28 @@ class BoardService {
 
   bool _creature(TokenState t) => t.pt.trim().isNotEmpty;
   bool _emblem(TokenState t) => t.isEmblem;
+  bool _hasCreatureSubtype(TokenState t, String subtype) {
+    if (RegExp(
+      r'\b' + RegExp.escape(subtype) + r'\b',
+      caseSensitive: false,
+    ).hasMatch(t.type)) {
+      return true;
+    }
+    // Catalog keyword abilities may be flattened ("Changeling Deathtouch").
+    // Recognize an actual keyword-only ability, never a rules-text mention such
+    // as "Creatures with changeling get ..." or "Changeling creatures ...".
+    final abilities = t.abilities.replaceAll(RegExp(r'\([^)]*\)'), '');
+    final keywords = RegExp(
+      r'^(?:(?:changeling|deathtouch|defender|double strike|first strike|flying|haste|hexproof|indestructible|lifelink|menace|reach|trample|vigilance)\s*)+$',
+      caseSensitive: false,
+    );
+    return abilities.split(RegExp(r'[\n,;.]')).any((part) {
+      final ability = part.trim();
+      return keywords.hasMatch(ability) &&
+          RegExp(r'\bchangeling\b', caseSensitive: false).hasMatch(ability);
+    });
+  }
+
   bool _clean(TokenState t) =>
       t.plusOneCounters == 0 &&
       t.minusOneCounters == 0 &&
@@ -1324,7 +1346,7 @@ class BoardService {
         quantity =
             u.value +
             p.tokens
-                .where((t) => t.type.toLowerCase().contains('goblin'))
+                .where((t) => _hasCreatureSubtype(t, 'Goblin'))
                 .fold<int>(0, (n, t) => n + t.amount);
         d = _definitionId('Goblin|1/1|R|Creature — Goblin|');
         break;
@@ -1342,7 +1364,7 @@ class BoardService {
         quantity =
             u.value +
             p.tokens
-                .where((t) => t.type.toLowerCase().contains('squirrel'))
+                .where((t) => _hasCreatureSubtype(t, 'Squirrel'))
                 .fold<int>(0, (n, t) => n + t.amount);
         d = _definitionId(GameConstants.squirrelCompositeId);
         break;

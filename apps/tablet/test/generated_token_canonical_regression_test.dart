@@ -308,6 +308,144 @@ void main() {
   );
 
   test(
+    'Squirrel Girl default plus actual 3/2 colorless Changeling creates two',
+    () async {
+      await open();
+      final changeling = definition(
+        'Shapeshifter|3/2||Creature — Shapeshifter|Changeling',
+      );
+      await f.board.createToken(f.playerId, changeling);
+      final utility = await add('the_unbeatable_squirrel_girl');
+      expect(utility.value, 1);
+      expect(f.board.utilityPreview(f.playerId, utility.id).single.quantity, 2);
+      await f.board.utilityAction(f.playerId, utility.id);
+      expect(f.player.tokens.last.name, 'Squirrel');
+      expect(f.player.tokens.last.amount, 2);
+    },
+  );
+
+  for (final kind in ['the_unbeatable_squirrel_girl', 'krenko_mob_boss']) {
+    test(
+      '$kind counts all five catalog Changelings only for the owner',
+      () async {
+        await open();
+        final changelings = f.catalog.tokens
+            .where((d) => d.abilities.startsWith('Changeling'))
+            .toList();
+        expect(changelings.length, 5);
+        final utility = await add(kind);
+        for (final d in changelings) {
+          await f.board.createToken(f.playerId, d);
+        }
+        final changelingBefore = [for (final t in f.player.tokens) t.toJson()];
+        f.controller.session.players[1].tokens.add(
+          f.player.tokens.first.copy()
+            ..id = 'other-seat-changeling'
+            ..amount = 100,
+        );
+        final otherBefore = f.controller.session.players[1].toJson();
+        expect(
+          f.board.utilityPreview(f.playerId, utility.id).single.quantity,
+          6,
+        );
+        await f.board.setModifier(f.playerId, 'token_doubler', 1);
+        expect(
+          f.board.utilityPreview(f.playerId, utility.id).single.quantity,
+          12,
+        );
+        final before = f.player.toJson();
+
+        await f.board.utilityAction(f.playerId, utility.id);
+
+        expect(f.player.tokens.length, 6);
+        expect(f.player.tokens.last.amount, 12);
+        expect(
+          f.player.tokens.last.name,
+          kind == 'krenko_mob_boss' ? 'Goblin' : 'Squirrel',
+        );
+        expect([
+          for (final t in f.player.tokens.take(5)) t.toJson(),
+        ], changelingBefore);
+        expect(f.controller.session.players[1].toJson(), otherBefore);
+        expect(await f.controller.undo(), isTrue);
+        expect(
+          f.player.toJson()..remove('generation'),
+          before..remove('generation'),
+        );
+      },
+    );
+
+    test(
+      '$kind recognizes keyword ability without broad text false positives',
+      () async {
+        await open(
+          stateWithTokens([
+            sampleToken(
+              id: 'own-keyword',
+              name: 'Shapeshifter',
+              type: 'Creature — Shapeshifter',
+              abilities:
+                  'Changeling (This creature is every creature type.)\nHaste',
+              amount: 2,
+            ),
+            sampleToken(
+              id: 'mentions-keyword',
+              name: 'Elf',
+              type: 'Creature — Elf',
+              abilities: 'Creatures with changeling get +1/+1.',
+              amount: 100,
+            ),
+            sampleToken(
+              id: 'starts-keyword',
+              name: 'Elf',
+              type: 'Creature — Elf',
+              abilities: 'Changeling creatures you control have haste.',
+              amount: 100,
+            ),
+            sampleToken(
+              id: 'mentions-types',
+              name: 'Elf',
+              type: 'Creature — Elf',
+              abilities: 'Whenever a Squirrel or Goblin enters, draw a card.',
+              amount: 100,
+            ),
+            sampleToken(
+              id: 'not-subtype-word',
+              name: 'Custom',
+              type: 'Creature — Squirrelfolk Goblinfolk',
+              abilities: '',
+              amount: 100,
+            ),
+          ]),
+        );
+        final utility = await add(kind);
+        expect(
+          f.board.utilityPreview(f.playerId, utility.id).single.quantity,
+          3,
+        );
+        await f.board.utilityAction(f.playerId, utility.id);
+        expect(f.player.tokens.last.amount, 3);
+      },
+    );
+  }
+
+  test(
+    'Hare counts named Hare Apparents manually, not every Rabbit or Changeling',
+    () async {
+      await open();
+      final changeling = definition(
+        'Shapeshifter|3/2||Creature — Shapeshifter|Changeling',
+      );
+      await f.board.createToken(f.playerId, changeling, quantity: 5);
+      final utility = await add('hare_apparent', value: 3);
+      expect(f.board.utilityPreview(f.playerId, utility.id).single.quantity, 2);
+      await f.board.utilityAction(f.playerId, utility.id);
+      expect(f.player.tokens.last.name, 'Rabbit');
+      expect(f.player.tokens.last.amount, 2);
+    },
+  );
+
+  test(
     'analogous Manufactor, Myr and Chatterfang generated IDs resolve artwork',
     () async {
       await open();
