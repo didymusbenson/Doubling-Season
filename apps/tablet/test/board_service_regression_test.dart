@@ -17,7 +17,7 @@ void main() {
   tearDown(() => f.dispose());
 
   test(
-    'quick add preserves modified source and creates adjacent clean tokens',
+    'quick add grows selected counter-bearing stack without changing counters',
     () async {
       final source = sampleToken(
         plusOne: 2,
@@ -39,18 +39,15 @@ void main() {
 
       await f.board.changeQuantity(f.playerId, 'source', 1);
 
-      expect(f.token('source').toJson(), before);
-      expect(f.player.tokens.map((t) => t.id).first, 'source');
-      final created = f.player.tokens[1];
-      expect(created.id, isNot('source'));
-      expect(created.definitionId, source.definitionId);
-      expect(created.amount, 1);
-      expect(created.tapped, 0);
-      expect(created.summoningSick, 1);
-      expect(created.plusOneCounters, 0);
-      expect(created.counters, isEmpty);
-      expect(created.artworkUrl, source.artworkUrl);
-      expect(created.artworkOptions, source.artworkOptions);
+      expect(f.player.tokens.map((t) => t.id), ['source', 'other']);
+      final grown = f.token('source');
+      expect(grown.amount, 4);
+      expect(grown.tapped, 1);
+      expect(grown.summoningSick, 2);
+      expect(grown.plusOneCounters, 2);
+      expect(grown.counters, source.counters);
+      expect(grown.artworkUrl, source.artworkUrl);
+      expect(grown.artworkOptions, source.artworkOptions);
       expect(f.controller.session.players[1].toJson(), otherSeat);
       expect(await f.controller.undo(), isTrue);
       expect(f.player.tokens.map((t) => t.id), ['source', 'other']);
@@ -59,7 +56,7 @@ void main() {
   );
 
   test(
-    'quick add merges compatible clean stack but respects distinct artwork',
+    'quick add targets selected modified stack instead of another clean stack',
     () async {
       final source = sampleToken(
         plusOne: 1,
@@ -75,14 +72,13 @@ void main() {
         artworkUrl: 'https://example.test/b.jpg',
       );
       await open(stateWithTokens([source, otherArt, compatible]));
-      final before = f.token('source').toJson();
-
       await f.board.changeQuantity(f.playerId, 'source', 1);
 
       expect(f.player.tokens.length, 3);
-      expect(f.token('source').toJson(), before);
-      expect(f.token('clean').amount, 3);
-      expect(f.token('clean').summoningSick, 2);
+      expect(f.token('source').amount, 4);
+      expect(f.token('source').plusOneCounters, 1);
+      expect(f.token('clean').amount, 2);
+      expect(f.token('clean').summoningSick, 1);
       expect(f.token('other-art').amount, 3);
     },
   );
@@ -99,11 +95,11 @@ void main() {
 
       await f.board.changeQuantity(f.playerId, 'source', 1);
 
-      expect(f.token('source').amount, 3);
+      expect(f.token('source').amount, 5);
       expect(f.token('source').plusOneCounters, 1);
       final added = f.player.tokens.where((t) => t.id != 'source').toList();
       expect(added.map((t) => t.amount), everyElement(2));
-      expect(added.map((t) => t.name).toSet(), {'Saproling', 'Squirrel'});
+      expect(added.map((t) => t.name).toSet(), {'Squirrel'});
       expect(added.map((t) => t.plusOneCounters), everyElement(0));
       expect(
         f.controller.session.history.last.tokenSummary,

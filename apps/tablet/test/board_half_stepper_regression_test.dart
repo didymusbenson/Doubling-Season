@@ -453,7 +453,10 @@ void main() {
               0,
             );
             expect(fixture.controller.player(player.id).life, 40);
-            await tapEntireHalf(tester, increase);
+            // The bottom-right pencil is deliberately not a damage hit target.
+            for (final point in const [Offset(.02, .35), Offset(.5, .5), Offset(.98, .5)]) {
+              await tapAtFraction(tester, increase, point);
+            }
             expect(
               fixture.controller.player(player.id).commanderDamage[source.id],
               3,

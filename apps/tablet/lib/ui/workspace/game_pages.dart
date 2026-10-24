@@ -309,9 +309,16 @@ extension _GamePages on _TableWorkspaceState {
             spacing: 8,
             children: [
               _button(
-                'Choose life artwork',
+                'Search token art',
                 () => _run(() async {
-                  final art = await _pickArtwork();
+                  final art = await showLifeArtworkPicker(
+                    context,
+                    catalog: catalog,
+                    seatName: profile.name,
+                    quarterTurns: widget.quarterTurns,
+                    current: profile.artworkUrl,
+                  );
+                  if (!mounted || !_validScope) return null;
                   if (art != null) {
                     return c.updateState(
                       'Change seat artwork',
@@ -559,45 +566,102 @@ extension _GamePages on _TableWorkspaceState {
 
   Widget _commanderPage() {
     final player = p;
-    if (player == null) {
+    if (player == null)
       return _list([const Text('Select the player receiving damage first.')]);
-    }
-    final sources = c.session.commanders;
-    return _GamePageTabs(
-      labels: const ['Damage', 'Sources'],
-      onChanged: (index) => _update(() => _commanderSetup = index == 1),
-      builder: (index) {
-        if (index == 1 || sources.isEmpty) {
-          final owner = c.session.players.firstWhere(
-            (p) => p.id == (_commanderOwnerId ?? player.id),
-            orElse: () => player,
-          );
-          return _playerCommanders(owner, chooseOwner: true);
-        }
-        return _list([
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final source in sources)
-                SizedBox(
-                  width: _expandedCommanderEditors.contains(source.id)
-                      ? 280
-                      : 200,
-                  child: _commanderTracker(player, source),
-                ),
-            ],
+    final sources = c.session.commanderTrackingSources;
+    if (_commanderSetup) {
+      final owner = c.session.players.firstWhere(
+        (p) => p.id == (_commanderOwnerId ?? player.id),
+        orElse: () => player,
+      );
+      return Column(
+        children: [
+          _button(
+            'Back to damage',
+            () => _update(() => _commanderSetup = false),
           ),
-        ]);
-      },
+          Expanded(child: _playerCommanders(owner, chooseOwner: true)),
+        ],
+      );
+    }
+    final editing = sources
+        .where((s) => s.id == _editingCommanderId)
+        .firstOrNull;
+    if (editing != null) return _commanderEditor(player, editing);
+    return LayoutBuilder(
+      builder: (context, constraints) => _list([
+        Row(
+          children: [
+            const Expanded(
+              child: Text('− / + changes damage and life · Hold for more'),
+            ),
+            IconButton(
+              tooltip: 'Edit commander sources',
+              onPressed: () => _update(() => _commanderSetup = true),
+              icon: const Icon(Icons.settings_outlined),
+            ),
+          ],
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final owner in c.session.players)
+              SizedBox(
+                width: (constraints.maxWidth - 48) / 2,
+                key: ValueKey('commander-owner-${owner.id}'),
+                child: Column(
+                  children: [
+                    Text(
+                      '${_nameForPlayer(owner.id)}${owner.id == player.id ? ' · self' : ''}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        for (final source in sources.where(
+                          (s) => s.ownerPlayerId == owner.id,
+                        ))
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 2,
+                              ),
+                              child: _commanderTracker(player, source),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        if (c.canUndo)
+          _button(
+            'Undo latest action',
+            () => _run(() => c.undo()),
+            icon: Icons.undo,
+          ),
+      ]),
     );
   }
 
+  String _commanderSourceLabel(CommanderSource source) {
+    final siblings = c.session.commanderTrackingSources
+        .where((s) => s.ownerPlayerId == source.ownerPlayerId)
+        .toList();
+    return '${source.name}${siblings.length > 1 ? ' #${siblings.indexWhere((s) => s.id == source.id) + 1}' : ''}';
+  }
+
   Widget _commanderTracker(PlayerState player, CommanderSource source) {
-    final owner = c.session.player(source.ownerPlayerId);
+    final owner = c.player(source.ownerPlayerId);
     final identity = c.profile(owner.seatId);
     final color = Color(identity.color);
     final damage = player.commanderDamage[source.id] ?? 0;
+    final sourceLabel = _commanderSourceLabel(source);
+    final disabled = _working || _closing || _navigating || !_validScope;
     return Card(
       key: ValueKey('commander-tracker-${source.id}'),
       margin: EdgeInsets.zero,
@@ -610,135 +674,143 @@ extension _GamePages on _TableWorkspaceState {
         url: identity.artworkUrl,
         child: ColoredBox(
           color: color.withValues(alpha: .16),
-          child: DefaultTextStyle.merge(
-            style: TextStyle(
-              color: identity.artworkUrl == null ? null : Colors.white,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    source.name,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  Text(
-                    '${_nameForPlayer(source.ownerPlayerId)}${source.ownerPlayerId == player.id ? ' · self' : ''}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 6),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: .16),
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                    child: HalfStepper(
-                      height: 48,
-                      label: '${source.name} commander damage',
-                      foregroundColor: identity.artworkUrl == null
-                          ? color
-                          : Colors.white,
-                      value: '$damage',
-                      decreaseLabel:
-                          'Decrease ${source.name} commander damage from ${identity.name}',
-                      increaseLabel:
-                          'Increase ${source.name} commander damage from ${identity.name}',
-                      decreaseTooltip:
-                          'Decrease ${source.name} commander damage',
-                      increaseTooltip:
-                          'Increase ${source.name} commander damage',
-                      onDecrease: _working || damage == 0
-                          ? null
-                          : () => _run(
-                              () => c.adjustCommanderDamage(
-                                player.id,
-                                source.id,
-                                -1,
-                              ),
-                            ),
-                      onIncrease: _working
-                          ? null
-                          : () => _run(
-                              () => c.adjustCommanderDamage(
-                                player.id,
-                                source.id,
-                                1,
-                              ),
-                            ),
-                      valueStyle: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                  ),
-                  if (damage >= 21)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 6),
-                      child: Text('21 damage warning'),
-                    ),
-                  ExpansionTile(
-                    key: PageStorageKey('commander-editor-${source.id}'),
-                    onExpansionChanged: (open) => _update(() {
-                      if (open) {
-                        _expandedCommanderEditors.add(source.id);
-                      } else {
-                        _expandedCommanderEditors.remove(source.id);
-                      }
-                    }),
-                    tilePadding: EdgeInsets.zero,
-                    title: const Text('Edit damage'),
+          child: Stack(
+            children: [
+              HalfStepper(
+                height: 140,
+                label: '${source.name} commander damage',
+                value: '$damage',
+                foregroundColor: identity.artworkUrl == null
+                    ? null
+                    : Colors.white,
+                decreaseLabel:
+                    'Decrease ${source.name} commander damage from ${identity.name}',
+                increaseLabel:
+                    'Increase ${source.name} commander damage from ${identity.name}',
+                decreaseTooltip: 'Decrease ${source.name} commander damage',
+                increaseTooltip: 'Increase ${source.name} commander damage',
+                onDecrease: disabled
+                    ? null
+                    : () => _stepCommander(player, source, -1),
+                onIncrease: disabled
+                    ? null
+                    : () => _stepCommander(player, source, 1),
+                onDecreaseHoldStep: disabled
+                    ? null
+                    : (amount) => _stepCommander(player, source, -amount),
+                onIncreaseHoldStep: disabled
+                    ? null
+                    : (amount) => _stepCommander(player, source, amount),
+                interactionEpoch: Object.hash(
+                  _sessionId,
+                  _sessionGeneration,
+                  _closing,
+                  _navigating,
+                  _editingCommanderId,
+                  _directFailureEpoch,
+                ),
+                displayOverlay: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 36),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _gameFieldAction(
-                        _input(
-                          'damage.${source.id}',
-                          'New damage',
-                          initial: '1',
-                          numeric: true,
+                      if (sourceLabel != 'Commander')
+                        Text(
+                          sourceLabel,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
                         ),
-                        _button(
-                          'Record',
-                          () => _run(
-                            () => c.adjustCommanderDamage(
-                              player.id,
-                              source.id,
-                              _integer('damage.${source.id}', min: 0),
-                            ),
-                          ),
-                          primary: true,
-                        ),
-                      ),
-                      const Text('Record also subtracts life.'),
-                      const Divider(height: 24),
-                      _gameFieldAction(
-                        _input(
-                          'damageCorrection.${source.id}',
-                          'Set total',
-                          initial: '$damage',
-                          numeric: true,
-                        ),
-                        _button(
-                          'Correct',
-                          () => _run(
-                            () => c.setCommanderDamage(
-                              player.id,
-                              source.id,
-                              _integer('damageCorrection.${source.id}', min: 0),
-                            ),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          '$damage',
+                          style: const TextStyle(
+                            fontSize: 40,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                      const Padding(
-                        padding: EdgeInsets.only(bottom: 12),
-                        child: Text('Correction changes this ledger only.'),
-                      ),
+                      if (damage >= 21)
+                        const Text(
+                          '21 damage warning',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 10),
+                        ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: IconButton(
+                  key: ValueKey('commander-edit-${source.id}'),
+                  tooltip: 'Edit $sourceLabel damage from ${identity.name}',
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black.withValues(alpha: .16),
+                    foregroundColor: identity.artworkUrl == null
+                        ? null
+                        : Colors.white,
+                  ),
+                  onPressed: disabled
+                      ? null
+                      : () => _editCommander(player, source),
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
+
+  Widget _commanderEditor(PlayerState player, CommanderSource source) => _list([
+    _button('Back to damage', () => _update(() => _editingCommanderId = null)),
+    _section(
+      '${_nameForPlayer(source.ownerPlayerId)} · ${_commanderSourceLabel(source)}',
+    ),
+    _gameFieldAction(
+      _input(
+        'damage.${source.id}',
+        'Damage to add',
+        initial: '1',
+        numeric: true,
+      ),
+      _button(
+        'Record damage',
+        () => _run(
+          () => c.adjustCommanderDamage(
+            player.id,
+            source.id,
+            _integer('damage.${source.id}', min: 0),
+          ),
+        ),
+        primary: true,
+      ),
+    ),
+    const Text('Record also subtracts life.'),
+    const Divider(height: 24),
+    _gameFieldAction(
+      _input(
+        'damageCorrection.${source.id}',
+        'Set damage total',
+        numeric: true,
+      ),
+      _button(
+        'Correct ledger only',
+        () => _run(
+          () => c.setCommanderDamage(
+            player.id,
+            source.id,
+            _integer('damageCorrection.${source.id}', min: 0),
+          ),
+        ),
+      ),
+    ),
+    const Text('Correction changes this ledger only. Life stays unchanged.'),
+  ]);
 
   Widget _historyPage() => _list([
     _section(
@@ -954,7 +1026,7 @@ extension _GamePages on _TableWorkspaceState {
               'Complete reset',
               () => _confirm(
                 'Clear boards & restart?',
-                'Start a $_resetCount-player game with empty token and utility lanes, starting life, cleared damage/counters/statuses, and disabled modifier sources/custom rules. Permanent seat appearances and saved setups remain. Archive the current game first.',
+                'Start a $_resetCount-player game with empty token lanes, fresh default Storm and Mana utilities, starting life, cleared damage/counters/statuses, and disabled modifier sources/custom rules. Permanent seat appearances and saved setups remain. Archive the current game first.',
                 () => c.resetGame(
                   keepBoard: false,
                   playerCount: _resetCount,
@@ -1011,6 +1083,18 @@ extension _GamePages on _TableWorkspaceState {
                           () => _diceCounts[entry.key] = min(
                             20,
                             _diceCounts[entry.key]! + 1,
+                          ),
+                        ),
+                        holdMinusStep: (amount) => _update(
+                          () => _diceCounts[entry.key] = max(
+                            0,
+                            _diceCounts[entry.key]! - amount,
+                          ),
+                        ),
+                        holdPlusStep: (amount) => _update(
+                          () => _diceCounts[entry.key] = min(
+                            20,
+                            _diceCounts[entry.key]! + amount,
                           ),
                         ),
                         maximum: 20,

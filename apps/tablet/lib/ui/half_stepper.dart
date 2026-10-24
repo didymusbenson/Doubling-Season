@@ -8,6 +8,12 @@ class HalfStepper extends StatelessWidget {
   final String label, value;
   final VoidCallback? onDecrease, onIncrease;
   final VoidCallback? onDecreaseHold, onIncreaseHold, onEdit;
+
+  /// Numeric holds await each update before scheduling another, preventing a
+  /// backlog of persisted changes after the finger lifts. Amount is unsigned.
+  final FutureOr<void> Function(int amount)? onDecreaseHoldStep,
+      onIncreaseHoldStep;
+  final int holdStep;
   final Duration? holdRepeatInterval;
   final int interactionEpoch;
   final double height;
@@ -31,6 +37,9 @@ class HalfStepper extends StatelessWidget {
     this.onDecreaseHold,
     this.onIncreaseHold,
     this.onEdit,
+    this.onDecreaseHoldStep,
+    this.onIncreaseHoldStep,
+    this.holdStep = 5,
     this.holdRepeatInterval = const Duration(milliseconds: 300),
     this.interactionEpoch = 0,
     this.height = 44,
@@ -81,6 +90,10 @@ class HalfStepper extends StatelessWidget {
                           value: value,
                           onTap: onDecrease,
                           onHold: onDecrease == null ? null : onDecreaseHold,
+                          onHoldStep: onDecrease == null
+                              ? null
+                              : onDecreaseHoldStep,
+                          holdStep: holdStep,
                           repeatInterval: holdRepeatInterval,
                           epoch: interactionEpoch,
                           color: color,
@@ -101,6 +114,10 @@ class HalfStepper extends StatelessWidget {
                           value: value,
                           onTap: onIncrease,
                           onHold: onIncrease == null ? null : onIncreaseHold,
+                          onHoldStep: onIncrease == null
+                              ? null
+                              : onIncreaseHoldStep,
+                          holdStep: holdStep,
                           repeatInterval: holdRepeatInterval,
                           epoch: interactionEpoch,
                           color: color,
@@ -165,14 +182,53 @@ class HalfStepper extends StatelessWidget {
   }
 }
 
+/// Reuse the numeric hold policy for a compact single +/- button.
+class NumericHoldRegion extends StatelessWidget {
+  final Widget child;
+  final String label;
+  final VoidCallback? onTap;
+  final FutureOr<void> Function(int)? onStep;
+  final int step, interactionEpoch;
+  const NumericHoldRegion({
+    super.key,
+    required this.child,
+    required this.label,
+    required this.onTap,
+    required this.onStep,
+    this.step = 5,
+    this.interactionEpoch = 0,
+  });
+  @override
+  Widget build(BuildContext context) => _StepHalf(
+    label: label,
+    tooltip: label,
+    value: '',
+    onTap: onTap,
+    onHold: null,
+    onHoldStep: onStep,
+    holdStep: step,
+    repeatInterval: null,
+    epoch: interactionEpoch,
+    color: Theme.of(context).colorScheme.onSurface,
+    increase: true,
+    iconSize: 19,
+    iconPadding: 0,
+    iconY: 0,
+    customChild: child,
+  );
+}
+
 class _StepHalf extends StatefulWidget {
   final String label, tooltip, value;
   final VoidCallback? onTap, onHold;
+  final FutureOr<void> Function(int)? onHoldStep;
+  final int holdStep;
   final Duration? repeatInterval;
   final int epoch;
   final Color color;
   final bool increase;
   final double iconSize, iconPadding, iconY;
+  final Widget? customChild;
   const _StepHalf({
     super.key,
     required this.label,
@@ -180,6 +236,8 @@ class _StepHalf extends StatefulWidget {
     required this.value,
     required this.onTap,
     required this.onHold,
+    required this.onHoldStep,
+    required this.holdStep,
     required this.repeatInterval,
     required this.epoch,
     required this.color,
@@ -187,6 +245,7 @@ class _StepHalf extends StatefulWidget {
     required this.iconSize,
     required this.iconPadding,
     required this.iconY,
+    this.customChild,
   });
 
   @override
@@ -194,18 +253,49 @@ class _StepHalf extends StatefulWidget {
 }
 
 class _StepHalfState extends State<_StepHalf> with WidgetsBindingObserver {
-  Timer? _repeat;
+  Timer? _repeat, _accelerate, _fast;
+  int _gesture = 0, _phase = 0;
   void _stop() {
+    _gesture++;
     _repeat?.cancel();
-    _repeat = null;
+    _accelerate?.cancel();
+    _fast?.cancel();
+    _repeat = _accelerate = _fast = null;
+    _phase = 0;
+  }
+
+  int get _amount => _phase == 0
+      ? widget.holdStep
+      : (_phase == 1 ? 10 : 25).clamp(widget.holdStep, 1000000);
+  Duration get _interval =>
+      Duration(milliseconds: _phase == 0 ? 300 : (_phase == 1 ? 150 : 80));
+
+  Future<void> _numericTick(int gesture) async {
+    if (!mounted || gesture != _gesture) return;
+    try {
+      await widget.onHoldStep?.call(_amount);
+    } catch (_) {
+      // The action owns presentation of persistence/validation errors.
+      if (gesture == _gesture) _stop();
+      return;
+    }
+    if (!mounted || gesture != _gesture) return;
+    _repeat = Timer(_interval, () => _numericTick(gesture));
   }
 
   void _hold() {
     _stop();
-    widget.onHold?.call();
-    final interval = widget.repeatInterval;
-    if (interval != null) {
-      _repeat = Timer.periodic(interval, (_) => widget.onHold?.call());
+    if (widget.onHoldStep != null) {
+      final gesture = _gesture;
+      _accelerate = Timer(const Duration(seconds: 2), () => _phase = 1);
+      _fast = Timer(const Duration(seconds: 5), () => _phase = 2);
+      unawaited(_numericTick(gesture));
+    } else {
+      widget.onHold?.call();
+      final interval = widget.repeatInterval;
+      if (interval != null) {
+        _repeat = Timer.periodic(interval, (_) => widget.onHold?.call());
+      }
     }
   }
 
@@ -220,7 +310,7 @@ class _StepHalfState extends State<_StepHalf> with WidgetsBindingObserver {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.epoch != widget.epoch ||
         widget.onTap == null ||
-        widget.onHold == null) {
+        (widget.onHold == null && widget.onHoldStep == null)) {
       _stop();
     }
   }
@@ -244,7 +334,11 @@ class _StepHalfState extends State<_StepHalf> with WidgetsBindingObserver {
     button: true,
     enabled: widget.onTap != null,
     onTap: widget.onTap,
-    onLongPress: widget.onTap == null ? null : widget.onHold,
+    onLongPress: widget.onTap == null
+        ? null
+        : widget.onHoldStep != null
+        ? () => widget.onHoldStep!(widget.holdStep)
+        : widget.onHold,
     excludeSemantics: true,
     child: Tooltip(
       message: widget.tooltip,
@@ -257,7 +351,7 @@ class _StepHalfState extends State<_StepHalf> with WidgetsBindingObserver {
           onTap: widget.onTap ?? () {},
           onLongPress: widget.onTap == null
               ? () {}
-              : widget.onHold == null
+              : widget.onHold == null && widget.onHoldStep == null
               ? null
               : _hold,
           canRequestFocus: widget.onTap != null,
@@ -267,19 +361,21 @@ class _StepHalfState extends State<_StepHalf> with WidgetsBindingObserver {
               : null,
           splashFactory: widget.onTap == null ? NoSplash.splashFactory : null,
           excludeFromSemantics: true,
-          child: Align(
-            alignment: Alignment(widget.increase ? 1 : -1, widget.iconY),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: widget.iconPadding),
-              child: Icon(
-                widget.increase ? Icons.add : Icons.remove,
-                size: widget.iconSize,
-                color: widget.onTap == null
-                    ? widget.color.withValues(alpha: .38)
-                    : widget.color,
+          child:
+              widget.customChild ??
+              Align(
+                alignment: Alignment(widget.increase ? 1 : -1, widget.iconY),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: widget.iconPadding),
+                  child: Icon(
+                    widget.increase ? Icons.add : Icons.remove,
+                    size: widget.iconSize,
+                    color: widget.onTap == null
+                        ? widget.color.withValues(alpha: .38)
+                        : widget.color,
+                  ),
+                ),
               ),
-            ),
-          ),
         ),
       ),
     ),

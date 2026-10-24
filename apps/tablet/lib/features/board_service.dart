@@ -373,10 +373,8 @@ class BoardService {
           s,
           playerId,
         ).evaluateRules(t.name, t.pt, t.colors, t.type, t.abilities, delta);
-        // Match the original TokenCard._addTokensViaRules decision: only a
-        // clean unchanged source grows in place. A modified source remains
-        // intact and creation resolves to a compatible clean stack or an
-        // adjacent fresh stack, retaining its selected artwork.
+        // Plus grows the selected stack, including its existing counters. Only
+        // identity-changing replacement results need a separate stack.
         final first = r.first;
         final unchanged =
             first.name == t.name &&
@@ -384,7 +382,7 @@ class BoardService {
             first.colors == t.colors &&
             first.type == t.type &&
             first.abilities == t.abilities;
-        if (unchanged && _clean(t)) {
+        if (unchanged) {
           _quantity(t.amount + first.quantity);
           t.amount += first.quantity;
           if (p.summoningSicknessEnabled &&
@@ -856,6 +854,15 @@ class BoardService {
     }
     _token(p, tokenId).extra['artworkDisplayStyle'] = style;
   }, captured: captured);
+
+  /// One seat's turn boundary is one atomic, undoable operation.
+  Future<void> startTurn(String playerId) =>
+      _commit(playerId, 'Start turn', (s, p) {
+        for (final token in p.tokens) {
+          token.tapped = 0;
+          token.summoningSick = 0;
+        }
+      });
 
   Future<void> bulk(
     String playerId,

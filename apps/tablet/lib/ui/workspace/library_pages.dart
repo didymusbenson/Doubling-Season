@@ -250,20 +250,11 @@ extension _LibraryPages on _TableWorkspaceState {
                   () => _board.adjustUtility(player.id, utility.id, step),
                 ),
                 minimum: utility.kind == 'life_total' ? null : 0,
-                holdMinus: () => _run(
-                  () => _board.adjustUtility(
-                    player.id,
-                    utility.id,
-                    -(utility.configuration['longPressIncrement'] as int? ??
-                        10),
-                  ),
+                holdMinusStep: (amount) => _runDirect(
+                  () => _board.adjustUtility(player.id, utility.id, -amount),
                 ),
-                holdPlus: () => _run(
-                  () => _board.adjustUtility(
-                    player.id,
-                    utility.id,
-                    utility.configuration['longPressIncrement'] as int? ?? 10,
-                  ),
+                holdPlusStep: (amount) => _runDirect(
+                  () => _board.adjustUtility(player.id, utility.id, amount),
                 ),
               ),
             ),
@@ -587,11 +578,19 @@ extension _LibraryPages on _TableWorkspaceState {
               onIncrease: _working
                   ? null
                   : () => _run(() => c.adjustMana(player.id, color, 1)),
-              onDecreaseHold: () =>
-                  _run(() => c.adjustMana(player.id, color, -10)),
-              onIncreaseHold: () =>
-                  _run(() => c.adjustMana(player.id, color, 10)),
-              holdRepeatInterval: null,
+              onDecreaseHoldStep: (amount) =>
+                  _runDirect(() => c.adjustMana(player.id, color, -amount)),
+              onIncreaseHoldStep: (amount) =>
+                  _runDirect(() => c.adjustMana(player.id, color, amount)),
+              holdStep: 10,
+              interactionEpoch: Object.hash(
+                _sessionId,
+                _sessionGeneration,
+                _closing,
+                _navigating,
+                _page,
+                _itemId,
+              ),
               valueWidget: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -619,6 +618,21 @@ extension _LibraryPages on _TableWorkspaceState {
                     onIncrease: _working
                         ? null
                         : () => _run(() => c.adjustMana(player.id, color, 10)),
+                    onDecreaseHoldStep: (amount) => _runDirect(
+                      () => c.adjustMana(player.id, color, -amount),
+                    ),
+                    onIncreaseHoldStep: (amount) => _runDirect(
+                      () => c.adjustMana(player.id, color, amount),
+                    ),
+                    holdStep: 10,
+                    interactionEpoch: Object.hash(
+                      _sessionId,
+                      _sessionGeneration,
+                      _closing,
+                      _navigating,
+                      _page,
+                      _itemId,
+                    ),
                     valueStyle: Theme.of(context).textTheme.labelLarge,
                   ),
                 ),
@@ -645,6 +659,29 @@ extension _LibraryPages on _TableWorkspaceState {
       ),
     );
   }
+
+  Future<void> _adjustPresetModifier(String playerId, String kind, int delta) =>
+      _runDirect(() {
+        final sources = c
+            .player(playerId)
+            .rules
+            .where((r) => r.definitionId == kind);
+        final count = sources.isEmpty ? 0 : sources.first.count;
+        return _board.setModifier(playerId, kind, (count + delta).clamp(0, 20));
+      });
+
+  Future<void> _adjustCustomModifier(
+    String playerId,
+    String sourceId,
+    int delta,
+  ) => _runDirect(() {
+    final source = c.player(playerId).rules.firstWhere((r) => r.id == sourceId);
+    return _board.setSource(
+      playerId,
+      sourceId,
+      count: (source.count + delta).clamp(0, 20),
+    );
+  });
 
   Widget _rulesPage() {
     final player = p;
@@ -674,16 +711,13 @@ extension _LibraryPages on _TableWorkspaceState {
               return _stepper(
                 entry.value,
                 count,
-                () => _run(
-                  () => _board.setModifier(
-                    player.id,
-                    entry.key,
-                    max(0, count - 1),
-                  ),
-                ),
-                () => _run(
-                  () => _board.setModifier(player.id, entry.key, count + 1),
-                ),
+                () => _adjustPresetModifier(player.id, entry.key, -1),
+                () => _adjustPresetModifier(player.id, entry.key, 1),
+                holdMinusStep: (amount) =>
+                    _adjustPresetModifier(player.id, entry.key, -amount),
+                holdPlusStep: (amount) =>
+                    _adjustPresetModifier(player.id, entry.key, amount),
+                maximum: 20,
                 detail: entry.key == 'primal_vigor'
                     ? 'Global · applies to the entire table'
                     : null,
@@ -715,20 +749,13 @@ extension _LibraryPages on _TableWorkspaceState {
                 _stepper(
                   'Copies',
                   source.count,
-                  () => _run(
-                    () => _board.setSource(
-                      player.id,
-                      source.id,
-                      count: max(0, source.count - 1),
-                    ),
-                  ),
-                  () => _run(
-                    () => _board.setSource(
-                      player.id,
-                      source.id,
-                      count: source.count + 1,
-                    ),
-                  ),
+                  () => _adjustCustomModifier(player.id, source.id, -1),
+                  () => _adjustCustomModifier(player.id, source.id, 1),
+                  holdMinusStep: (amount) =>
+                      _adjustCustomModifier(player.id, source.id, -amount),
+                  holdPlusStep: (amount) =>
+                      _adjustCustomModifier(player.id, source.id, amount),
+                  maximum: 20,
                 ),
                 _button(
                   'Edit rule',

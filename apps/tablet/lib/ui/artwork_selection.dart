@@ -16,7 +16,6 @@ Future<String?> pickTabletArtwork(
   BuildContext context, {
   int quarterTurns = 0,
 }) async {
-  if (kIsWeb) return null;
   final picked = await FilePicker.platform.pickFiles(
     type: FileType.image,
     withData: true,

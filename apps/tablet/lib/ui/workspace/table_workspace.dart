@@ -21,6 +21,7 @@ import '../table_artwork.dart';
 import '../half_stepper.dart';
 import '../monarch_crown.dart';
 import '../artwork_selection.dart';
+import '../life_artwork_picker.dart';
 import '../token_board_summary.dart';
 import '../support_sheet.dart';
 
@@ -111,7 +112,12 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   int _resetTabIndex = 0;
   String? _editingPlayerCounter;
   bool _artworkPreviewActive = false;
-  final Set<String> _expandedCommanderEditors = {};
+  String? _editingCommanderId;
+  Future<void> _directQueue = Future.value();
+  // Failure survives later successful writes and close-in-progress rebuilds.
+  String? _directFailure;
+  int _directFailureEpoch = 0;
+  bool _directFailureNeedsAcknowledgement = false;
   late BoardService _board;
   late PresetService _presets;
   late String _sessionId;
@@ -302,8 +308,17 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     if (_closing) return;
     setState(() => _closing = true);
     await WidgetsBinding.instance.endOfFrame;
+    await _directQueue;
     await _flushInline();
     if (!mounted) return;
+    if (_directFailureNeedsAcknowledgement) {
+      setState(() {
+        _closing = false;
+        _directFailureNeedsAcknowledgement = false;
+        _error = _directFailure;
+      });
+      return; // Show the failed action once; explicit Close can then dismiss.
+    }
     _finishClose();
   }
 
@@ -349,6 +364,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       _status = null;
     });
     try {
+      await _directQueue;
       if (!await _flushInline() || !mounted || !_validScope || _closing) return;
       final result = await action();
       if (result == false) {
@@ -365,6 +381,57 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     } catch (error) {
       _retainDrafts();
       if (mounted) setState(() => _error = '$error');
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  /// Direct numeric commands never disable/reflow the active control per save.
+  Future<void> _runDirect(Future<dynamic> Function() action) {
+    if (_working || _closing || _navigating || !_validScope)
+      return Future.value();
+    final operation = _directQueue.then((_) async {
+      try {
+        if (!mounted || !_validScope) return;
+        if (!await _flushInline()) {
+          throw StateError('The current text edit could not be saved.');
+        }
+        final result = await action();
+        if (result == false)
+          throw StateError(c.error ?? 'The change could not be saved.');
+      } catch (error) {
+        _directFailure =
+            'Some changes were not saved. Check the displayed totals before retrying. $error';
+        _directFailureNeedsAcknowledgement = true;
+        _directFailureEpoch++;
+        if (mounted) setState(() => _error = _directFailure);
+      }
+    });
+    _directQueue = operation;
+    return operation;
+  }
+
+  Future<void> _stepCommander(
+    PlayerState player,
+    CommanderSource source,
+    int delta,
+  ) => _runDirect(() => c.adjustCommanderDamage(player.id, source.id, delta));
+
+  Future<void> _editCommander(
+    PlayerState player,
+    CommanderSource source,
+  ) async {
+    if (_working || _closing || _navigating || !_validScope) return;
+    setState(() => _working = true);
+    try {
+      await _directQueue;
+      if (!mounted || !_validScope || _closing) return;
+      setState(() {
+        _field('damage.${source.id}').text = '1';
+        _field('damageCorrection.${source.id}').text =
+            '${c.player(player.id).commanderDamage[source.id] ?? 0}';
+        _editingCommanderId = source.id;
+      });
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -554,6 +621,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     VoidCallback? edit,
     VoidCallback? holdMinus,
     VoidCallback? holdPlus,
+    FutureOr<void> Function(int)? holdMinusStep,
+    FutureOr<void> Function(int)? holdPlusStep,
+    int holdStep = 5,
     int? minimum = 0,
     int? maximum,
   }) => Card(
@@ -577,6 +647,22 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
                 : plus,
             onDecreaseHold: _working ? null : holdMinus,
             onIncreaseHold: _working ? null : holdPlus,
+            onDecreaseHoldStep: _working || _closing || _navigating
+                ? null
+                : holdMinusStep,
+            onIncreaseHoldStep: _working || _closing || _navigating
+                ? null
+                : holdPlusStep,
+            holdStep: holdStep,
+            interactionEpoch: Object.hash(
+              _sessionId,
+              _sessionGeneration,
+              _closing,
+              _navigating,
+              _page,
+              _itemId,
+              _directFailureEpoch,
+            ),
             holdRepeatInterval: null,
             onEdit: _working ? null : edit,
             valueWidget: Column(
@@ -691,18 +777,11 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
+    final visibleError = _directFailure ?? _error;
     final rotated = widget.quarterTurns.isOdd;
     final focusedCommander = _page == WorkspacePage.commanderDamage;
-    final commanderSetup = _commanderSetup || c.session.commanders.isEmpty;
-    final commanderWidth = commanderSetup
-        ? 680.0
-        : max(
-            400.0,
-            40 +
-                min(3, c.session.commanders.length) * 208.0 -
-                8 +
-                (_expandedCommanderEditors.isEmpty ? 0 : 80),
-          );
+    final commanderSetup = _commanderSetup || _editingCommanderId != null;
+    const commanderWidth = 680.0;
     final utility = _page == WorkspacePage.utilities && p != null
         ? p!.utilities.where((u) => u.id == _itemId).firstOrNull
         : null;
@@ -779,18 +858,14 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       focusedCommander ? commanderWidth : panelWidth,
       (rotated ? size.height : size.width) - 40,
     );
-    final commanderColumns = max(1, ((width - 40 + 8) / 208).floor());
-    final commanderRows =
-        (max(1, c.session.commanders.length) / commanderColumns).ceil();
+    final commanderRows = (c.session.players.length / 2).ceil();
     final height = min(
       _confirmation != null
           ? 460.0
           : focusedCommander
           ? commanderSetup
                 ? 520.0
-                : _expandedCommanderEditors.isNotEmpty
-                ? (width >= commanderWidth ? 580.0 : 740.0)
-                : min(640.0, 168.0 + commanderRows * 176)
+                : min(680.0, 196.0 + commanderRows * 184)
           : panelHeight,
       (rotated ? size.width : size.height) - 40,
     );
@@ -932,20 +1007,27 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
                       ],
                     ),
                   ),
-                if (_working) const LinearProgressIndicator(minHeight: 2),
-                if (_error != null || _status != null)
+                SizedBox(
+                  height: 2,
+                  child: _working
+                      ? const LinearProgressIndicator(minHeight: 2)
+                      : null,
+                ),
+                if (visibleError != null || _status != null)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
                       vertical: 9,
                     ),
-                    color: _error == null
+                    color: visibleError == null
                         ? Theme.of(context).colorScheme.secondaryContainer
                         : Theme.of(context).colorScheme.errorContainer,
                     child: Text(
-                      _error != null
-                          ? '$_error\nYour draft is retained. You can retry or close and reopen.'
+                      visibleError != null
+                          ? (visibleError == _directFailure
+                                ? '$visibleError\nClose again to dismiss.'
+                                : '$visibleError\nYour draft is retained. You can retry or close and reopen.')
                           : _status!,
                     ),
                   ),

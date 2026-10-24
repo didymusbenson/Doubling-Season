@@ -332,9 +332,9 @@ void main() {
               case 'edit-commanders':
                 await tester.tap(find.widgetWithText(ChoiceChip, 'Commanders'));
               case 'commander-setup':
-                await tester.tap(find.widgetWithText(ChoiceChip, 'Sources'));
+                await tester.tap(find.byTooltip('Edit commander sources'));
               case 'commander-correction':
-                await tester.tap(find.text('Edit damage').first);
+                await tester.tap(find.byKey(const ValueKey('commander-edit-partner-a')));
               case 'token-create':
                 await tester.tap(find.widgetWithText(ChoiceChip, 'Custom'));
                 await tester.pumpAndSettle();
