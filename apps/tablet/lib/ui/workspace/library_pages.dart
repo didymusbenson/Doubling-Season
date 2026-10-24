@@ -241,9 +241,13 @@ extension _LibraryPages on _TableWorkspaceState {
               _run(() => _board.setUtility(player.id, utility.id, isActive: v)),
         )
       else if (standalone && !actionOnly)
-        Row(
+        Wrap(
+          spacing: 12,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Expanded(
+            SizedBox(
+              width: 180,
               child: _stepper(
                 'Value',
                 currentValue,
@@ -262,8 +266,8 @@ extension _LibraryPages on _TableWorkspaceState {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
+            SizedBox(
+              width: 140,
               child: _input(
                 '$key.value',
                 'Set value',
@@ -271,7 +275,6 @@ extension _LibraryPages on _TableWorkspaceState {
                 numeric: true,
               ),
             ),
-            const SizedBox(width: 8),
             _button(
               'Set value',
               () => _run(

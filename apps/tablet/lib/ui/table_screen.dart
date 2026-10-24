@@ -10,6 +10,8 @@ import 'table_artwork.dart';
 import 'tablet_token_card.dart';
 import 'half_stepper.dart';
 import 'monarch_crown.dart';
+import 'table_mana_icons.dart';
+import 'ring_inline.dart';
 import 'commander_ledger.dart';
 import 'utility_inline_actions.dart';
 
@@ -515,7 +517,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
                 key: ValueKey('${p.id}-start-turn'),
                 tooltip: '${profile.name}, Start turn',
                 onPressed: () => perform(() => widget.board.startTurn(p.id)),
-                icon: const Icon(Icons.wb_sunny_outlined, size: 20),
+                icon: const Icon(ManaIcons.untap, size: 20),
                 padding: EdgeInsets.zero,
               ),
             ),
@@ -591,6 +593,8 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
                   perform(() => widget.controller.adjustLife(p.id, d)),
               onMonarch: () =>
                   perform(() => widget.controller.setMonarch(p.id)),
+              onClearMonarch: () =>
+                  perform(() => widget.controller.setMonarch(null)),
               onBlessing: () => perform(
                 () =>
                     widget.controller.setCitysBlessing(p.id, !p.citysBlessing),
@@ -694,11 +698,13 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (widget.tokenLeft) Expanded(flex: 3, child: tokenLane),
+                  if (widget.tokenLeft)
+                    Expanded(flex: 3, child: ClipRect(child: tokenLane)),
                   if (widget.tokenLeft) const VerticalDivider(width: 1),
                   Expanded(flex: 2, child: innerLane),
                   if (!widget.tokenLeft) const VerticalDivider(width: 1),
-                  if (!widget.tokenLeft) Expanded(flex: 3, child: tokenLane),
+                  if (!widget.tokenLeft)
+                    Expanded(flex: 3, child: ClipRect(child: tokenLane)),
                 ],
               ),
             ),
@@ -718,7 +724,7 @@ class _LifePanel extends StatelessWidget {
   final TableController controller;
   final int epoch, enabledRules;
   final Future<void> Function(int) onChange;
-  final VoidCallback onMonarch, onBlessing;
+  final VoidCallback onMonarch, onClearMonarch, onBlessing;
   final void Function(WorkspacePage, [String?]) onOpen;
   const _LifePanel({
     required this.height,
@@ -731,6 +737,7 @@ class _LifePanel extends StatelessWidget {
     required this.enabledRules,
     required this.onChange,
     required this.onMonarch,
+    required this.onClearMonarch,
     required this.onBlessing,
     required this.onOpen,
   });
@@ -782,10 +789,11 @@ class _LifePanel extends StatelessWidget {
         icon: const MonarchCrown(),
         enabled: monarch,
         onTap: onMonarch,
+        onLongPress: monarch ? onClearMonarch : null,
       ),
       _StatusBadge(
         label: '${profile.name}, City’s blessing',
-        icon: const Icon(Icons.auto_awesome, size: 18),
+        icon: const Icon(TableManaIcons.ascend, size: 18),
         enabled: player.citysBlessing,
         onTap: onBlessing,
       ),
@@ -859,53 +867,65 @@ class _LifePanel extends StatelessWidget {
                       SizedBox(
                         height: 24,
                         child: Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            12 + (centerNotchAtStart ? centerNotch : 0),
-                            4,
-                            12 + (centerNotchAtStart ? 0 : centerNotch),
-                            0,
-                          ),
-                          child: Row(
+                          padding: EdgeInsets.fromLTRB(12, 4, 12, 0),
+                          child: Stack(
+                            fit: StackFit.expand,
                             children: [
-                              Expanded(
-                                child: Text(
-                                  profile.name,
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                  style: TextStyle(
-                                    color: artColor ?? color,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14,
+                              Center(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 20),
+                                  child: Text(
+                                    profile.name,
+                                    key: ValueKey('${player.id}-player-name'),
+                                    textAlign: TextAlign.center,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      color: artColor ?? color,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                    ),
                                   ),
                                 ),
                               ),
-                              _LifeDelta(
-                                key: ValueKey('${player.id}-life-delta'),
-                                entry:
-                                    controller.session.history.isNotEmpty &&
-                                        !controller
-                                            .session
-                                            .history
-                                            .last
-                                            .undone &&
-                                        controller
-                                                .session
-                                                .history
-                                                .last
-                                                .groupKey ==
-                                            'life:${player.id}'
-                                    ? controller.session.history.last
-                                    : null,
-                              ),
-                              if (player.warnings.isNotEmpty)
-                                Tooltip(
-                                  message: player.warnings.join('\n'),
-                                  child: const Icon(
-                                    Icons.warning_amber_rounded,
-                                    color: Color(0xFFFFB485),
-                                    size: 18,
-                                  ),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _LifeDelta(
+                                      key: ValueKey('${player.id}-life-delta'),
+                                      entry:
+                                          controller
+                                                  .session
+                                                  .history
+                                                  .isNotEmpty &&
+                                              !controller
+                                                  .session
+                                                  .history
+                                                  .last
+                                                  .undone &&
+                                              controller
+                                                      .session
+                                                      .history
+                                                      .last
+                                                      .groupKey ==
+                                                  'life:${player.id}'
+                                          ? controller.session.history.last
+                                          : null,
+                                    ),
+                                    if (player.warnings.isNotEmpty)
+                                      Tooltip(
+                                        message: player.warnings.join('\n'),
+                                        child: const Icon(
+                                          Icons.warning_amber_rounded,
+                                          color: Color(0xFFFFB485),
+                                          size: 18,
+                                        ),
+                                      ),
+                                  ],
                                 ),
+                              ),
                             ],
                           ),
                         ),
@@ -1050,17 +1070,22 @@ class _StatusBadge extends StatelessWidget {
   final Widget icon;
   final bool enabled;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
   const _StatusBadge({
     required this.label,
     required this.icon,
     required this.enabled,
     required this.onTap,
+    this.onLongPress,
   });
   @override
   Widget build(BuildContext context) => Semantics(
     button: true,
     toggled: enabled,
     label: '$label, ${enabled ? 'enabled' : 'disabled'}',
+    onTap: onTap,
+    onLongPress: onLongPress,
+    hint: onLongPress == null ? null : 'Hold to clear Monarch',
     excludeSemantics: true,
     child: Tooltip(
       message: '$label, ${enabled ? 'enabled' : 'disabled'}',
@@ -1068,6 +1093,7 @@ class _StatusBadge extends StatelessWidget {
         type: MaterialType.transparency,
         child: InkWell(
           onTap: onTap,
+          onLongPress: onLongPress,
           borderRadius: BorderRadius.circular(8),
           child: Center(
             child: Container(
@@ -1196,6 +1222,7 @@ class _UtilityRow extends StatelessWidget {
         final compactStorm =
             utility.kind == 'storm_count' && constraints.maxWidth < 230;
         final narrowStorm = compactStorm && constraints.maxWidth < 180;
+        final narrowValue = constraints.maxWidth < 210;
         final valueStepper = HalfStepper(
           label: utility.name,
           value: '${board.utilityValue(player.id, utility.id)}',
@@ -1207,6 +1234,9 @@ class _UtilityRow extends StatelessWidget {
           onIncreaseHoldStep: (amount) => onChange(amount),
           interactionEpoch: interactionEpoch,
           foregroundColor: color,
+          iconSize: 15,
+          iconPadding: 3,
+          displayPadding: 19,
           valueStyle: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w600,
@@ -1286,13 +1316,25 @@ class _UtilityRow extends StatelessWidget {
                                 ),
                                 onChanged: (_) => onToggle(),
                               )
-                            else if (!actionOnly && !narrowStorm)
-                              Expanded(flex: 2, child: valueStepper),
+                            else if (!actionOnly &&
+                                !narrowStorm &&
+                                !narrowValue)
+                              SizedBox(width: 88, child: valueStepper),
                           ],
                         ),
                         // A portrait Storm row cannot share its value width with
                         // its title while preserving comfortable stepper targets.
-                        if (narrowStorm) valueStepper,
+                        if (!mana &&
+                            !toggle &&
+                            !actionOnly &&
+                            (narrowStorm || narrowValue))
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: SizedBox(
+                              width: narrowStorm ? double.infinity : 88,
+                              child: valueStepper,
+                            ),
+                          ),
                         if (mana)
                           LayoutBuilder(
                             builder: (context, constraints) {
@@ -1393,28 +1435,50 @@ class _UtilityRow extends StatelessWidget {
                                 style: const TextStyle(fontSize: 12),
                               ),
                             ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              icon(
-                                Icons.visibility_off_outlined,
-                                'Hide ${utility.name}',
-                                onHide,
-                              ),
-                              icon(
-                                Icons.open_in_full,
-                                '${utility.name}, details and actions',
-                                onOpen,
-                              ),
-                            ],
-                          ),
                         ],
-                        UtilityInlineActions(
-                          key: ValueKey('inline-actions-${utility.id}'),
-                          board: board,
-                          playerId: player.id,
-                          utility: utility,
-                        ),
+                        if (utility.kind == 'the_ring')
+                          RingInline(
+                            utility: utility,
+                            onTempt: onOpen,
+                            trailing: expanded
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      icon(
+                                        Icons.edit_outlined,
+                                        '${utility.name}, details and actions',
+                                        onOpen,
+                                      ),
+                                      icon(
+                                        Icons.visibility_off_outlined,
+                                        'Hide ${utility.name}',
+                                        onHide,
+                                      ),
+                                    ],
+                                  )
+                                : null,
+                          )
+                        else
+                          UtilityInlineActions(
+                            key: ValueKey('inline-actions-${utility.id}'),
+                            board: board,
+                            playerId: player.id,
+                            utility: utility,
+                            management: expanded
+                                ? [
+                                    icon(
+                                      Icons.edit_outlined,
+                                      '${utility.name}, details and actions',
+                                      onOpen,
+                                    ),
+                                    icon(
+                                      Icons.visibility_off_outlined,
+                                      'Hide ${utility.name}',
+                                      onHide,
+                                    ),
+                                  ]
+                                : const [],
+                          ),
                       ],
                     ),
                   ),

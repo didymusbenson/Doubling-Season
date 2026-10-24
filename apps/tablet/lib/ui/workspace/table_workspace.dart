@@ -852,7 +852,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
             : utility.kind == 'mana_pool'
             ? ((rotated ? size.height : size.width) >= 760 ? 560.0 : 650.0)
             : utility.configuration['hasAction'] == true
-            ? 600.0
+            ? (utility.kind == 'brudiclad_telchor_engineer' ? 600.0 : 460.0)
             : 330.0,
       ),
       WorkspacePage.utilities => (820.0, 760.0),

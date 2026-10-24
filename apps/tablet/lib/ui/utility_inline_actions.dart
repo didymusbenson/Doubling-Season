@@ -8,11 +8,13 @@ class UtilityInlineActions extends StatefulWidget {
   final BoardService board;
   final String playerId;
   final UtilityState utility;
+  final List<Widget> management;
   const UtilityInlineActions({
     super.key,
     required this.board,
     required this.playerId,
     required this.utility,
+    this.management = const [],
   });
 
   static const labels = {
@@ -20,6 +22,7 @@ class UtilityInlineActions extends StatefulWidget {
     'krenko_mob_boss': 'Make Goblins',
     'krenko_tin_street': 'Make Goblins',
     'hare_apparent': 'Make Rabbits',
+    'the_unbeatable_squirrel_girl': 'Make Squirrels · 1GGG',
     'academy_manufactor': 'Make Tokens',
     'cathars_crusade': 'Resolve All',
     'brudiclad_telchor_engineer': 'Resolve Trigger',
@@ -101,7 +104,9 @@ class _UtilityInlineActionsState extends State<UtilityInlineActions> {
   Widget build(BuildContext context) {
     final kind = widget.utility.kind;
     final label = UtilityInlineActions.labels[kind];
-    if (label == null) return const SizedBox.shrink();
+    if (label == null) {
+      return Wrap(spacing: 4, children: widget.management);
+    }
     final choosing = _selectionScope != null;
     final player = widget.board.controller.player(widget.playerId);
     return Column(
@@ -126,6 +131,7 @@ class _UtilityInlineActionsState extends State<UtilityInlineActions> {
                 onPressed: _working ? null : () => _resolve(quick: true),
                 child: const Text('Quick +1/+1'),
               ),
+            ...widget.management,
           ],
         ),
         if (choosing) ...[
