@@ -317,6 +317,12 @@ eligible sickness added by a positive absolute-total edit.
 
 ### Separate tablet app
 
+Tablet icon artwork lives in `apps/tablet/assets/AppIconSource.png`. Regenerate
+only its iOS/Android/web icons with `python3 apps/tablet/tool/generate_app_icons.py`
+on macOS (`--check` validates sizes/alpha). Do not run the root icon generator
+for tablet branding. See `apps/tablet/README.md` for direct iPad Release testing
+and data-preserving installation; `flutter install` can uninstall existing data.
+
 `apps/tablet` adapts the original token object to stable seat/session commands
 and chronological history. Reuse `TokenCard` and supporting implementation
 where practical; separate token/utility lanes do not authorize a reduced token
