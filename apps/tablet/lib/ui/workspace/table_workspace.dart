@@ -19,6 +19,7 @@ import '../../services/tablet_catalog.dart';
 import 'player_keyboard.dart';
 import '../table_artwork.dart';
 import '../half_stepper.dart';
+import '../commander_ledger.dart';
 import '../monarch_crown.dart';
 import '../artwork_selection.dart';
 import '../life_artwork_picker.dart';
@@ -860,7 +861,10 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       focusedCommander ? commanderWidth : panelWidth,
       (rotated ? size.height : size.width) - 40,
     );
-    final commanderRows = (c.session.players.length / 2).ceil();
+    final commanderRows = CommanderSeatLayout.rowsFor(
+      c.session.players,
+      widget.quarterTurns,
+    ).length;
     final height = min(
       _confirmation != null
           ? 460.0

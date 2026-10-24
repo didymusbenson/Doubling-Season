@@ -589,64 +589,58 @@ extension _GamePages on _TableWorkspaceState {
         .where((s) => s.id == _editingCommanderId)
         .firstOrNull;
     if (editing != null) return _commanderEditor(player, editing);
-    return LayoutBuilder(
-      builder: (context, constraints) => _list([
-        Row(
-          children: [
-            const Expanded(
-              child: Text('− / + changes damage and life · Hold for more'),
-            ),
-            IconButton(
-              tooltip: 'Edit commander sources',
-              onPressed: () => _update(() => _commanderSetup = true),
-              icon: const Icon(Icons.settings_outlined),
-            ),
-          ],
-        ),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final owner in c.session.players)
-              SizedBox(
-                width: (constraints.maxWidth - 48) / 2,
-                key: ValueKey('commander-owner-${owner.id}'),
-                child: Column(
-                  children: [
-                    Text(
-                      '${_nameForPlayer(owner.id)}${owner.id == player.id ? ' · self' : ''}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        for (final source in sources.where(
-                          (s) => s.ownerPlayerId == owner.id,
-                        ))
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 2,
-                              ),
-                              child: _commanderTracker(player, source),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-        if (c.canUndo)
-          _button(
-            'Undo latest action',
-            () => _run(() => c.undo()),
-            icon: Icons.undo,
+    return _list([
+      Row(
+        children: [
+          const Expanded(
+            child: Text('− / + changes damage and life · Hold for more'),
           ),
-      ]),
-    );
+          IconButton(
+            tooltip: 'Edit commander sources',
+            onPressed: () => _update(() => _commanderSetup = true),
+            icon: const Icon(Icons.settings_outlined),
+          ),
+        ],
+      ),
+      CommanderSeatLayout(
+        players: c.session.players,
+        quarterTurns: widget.quarterTurns,
+        spacing: 8,
+        runSpacing: 8,
+        ownerBuilder: (owner) => SizedBox(
+          key: ValueKey('commander-owner-${owner.id}'),
+          child: Column(
+            children: [
+              Text(
+                '${_nameForPlayer(owner.id)}${owner.id == player.id ? ' · self' : ''}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  for (final source in sources.where(
+                    (s) => s.ownerPlayerId == owner.id,
+                  ))
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: _commanderTracker(player, source),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      if (c.canUndo)
+        _button(
+          'Undo latest action',
+          () => _run(() => c.undo()),
+          icon: Icons.undo,
+        ),
+    ]);
   }
 
   String _commanderSourceLabel(CommanderSource source) {
