@@ -146,9 +146,18 @@ void main() {
     Finder control,
     bool mayScroll,
   ) async {
-    if (mayScroll && control.hitTestable().evaluate().isEmpty) {
-      final scroll = utilityScroll(tester, player);
-      scroll.jumpTo(scroll.position.maxScrollExtent);
+    final bounds = tester.getRect(control);
+    final height = tester.view.physicalSize.height;
+    if (mayScroll &&
+        (control.hitTestable().evaluate().isEmpty ||
+            bounds.top < 24 ||
+            bounds.bottom > height - 20)) {
+      // A partially clipped control can pass the center-point hit test. Reveal
+      // its whole touch target before checking the scrollable utility lane.
+      await Scrollable.ensureVisible(
+        tester.element(control),
+        alignment: .5,
+      );
       await tester.pumpAndSettle();
     }
     expect(

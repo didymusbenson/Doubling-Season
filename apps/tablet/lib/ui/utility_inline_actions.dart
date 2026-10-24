@@ -105,6 +105,7 @@ class _UtilityInlineActionsState extends State<UtilityInlineActions> {
     final kind = widget.utility.kind;
     final label = UtilityInlineActions.labels[kind];
     if (label == null) {
+      if (widget.management.isEmpty) return const SizedBox.shrink();
       return Wrap(spacing: 4, children: widget.management);
     }
     final choosing = _selectionScope != null;

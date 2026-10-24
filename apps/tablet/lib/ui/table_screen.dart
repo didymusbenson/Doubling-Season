@@ -1192,6 +1192,9 @@ class _UtilityRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mana = utility.kind == 'mana_pool' || utility.kind == 'mana';
+    final inlineAction =
+        utility.kind == 'the_ring' ||
+        UtilityInlineActions.labels.containsKey(utility.kind);
     final step = (utility.configuration['tapIncrement'] as num?)?.toInt() ?? 1;
     final actionOnly = utility.configuration['actionOnly'] == true;
     final toggle =
@@ -1215,6 +1218,7 @@ class _UtilityRow extends StatelessWidget {
       style: IconButton.styleFrom(
         padding: EdgeInsets.zero,
         minimumSize: const Size(40, 44),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     );
     return LayoutBuilder(
@@ -1223,6 +1227,12 @@ class _UtilityRow extends StatelessWidget {
             utility.kind == 'storm_count' && constraints.maxWidth < 230;
         final narrowStorm = compactStorm && constraints.maxWidth < 180;
         final narrowValue = constraints.maxWidth < 210;
+        final narrowToggle =
+            toggle && expanded && !inlineAction && constraints.maxWidth < 260;
+        final toggleControl = Switch(
+          value: board.utilityActive(player.id, utility.id),
+          onChanged: (_) => onToggle(),
+        );
         final valueStepper = HalfStepper(
           label: utility.name,
           value: '${board.utilityValue(player.id, utility.id)}',
@@ -1258,9 +1268,9 @@ class _UtilityRow extends StatelessWidget {
               children: [
                 Padding(
                   padding: EdgeInsets.fromLTRB(
-                    10,
+                    narrowToggle ? 6 : 10,
                     0,
-                    6,
+                    narrowToggle ? 2 : 6,
                     compactSpacing ? 0 : 3,
                   ),
                   child: DefaultTextStyle.merge(
@@ -1307,21 +1317,38 @@ class _UtilityRow extends StatelessWidget {
                               ),
                             ),
                             if (mana)
-                              icon(Icons.tune, 'Manage ${utility.name}', onOpen)
-                            else if (toggle)
-                              Switch(
-                                value: board.utilityActive(
-                                  player.id,
-                                  utility.id,
-                                ),
-                                onChanged: (_) => onToggle(),
+                              icon(
+                                Icons.edit_outlined,
+                                'Manage ${utility.name}',
+                                onOpen,
                               )
-                            else if (!actionOnly &&
+                            else if (toggle && !narrowToggle)
+                              toggleControl
+                            else if (!toggle &&
+                                !actionOnly &&
                                 !narrowStorm &&
                                 !narrowValue)
                               SizedBox(width: 88, child: valueStepper),
+                            if (expanded && !inlineAction) ...[
+                              if (!mana)
+                                icon(
+                                  Icons.edit_outlined,
+                                  '${utility.name}, details and actions',
+                                  onOpen,
+                                ),
+                              icon(
+                                Icons.visibility_off_outlined,
+                                'Hide ${utility.name}',
+                                onHide,
+                              ),
+                            ],
                           ],
                         ),
+                        if (narrowToggle)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: toggleControl,
+                          ),
                         // A portrait Storm row cannot share its value width with
                         // its title while preserving comfortable stepper targets.
                         if (!mana &&
@@ -1464,7 +1491,7 @@ class _UtilityRow extends StatelessWidget {
                             board: board,
                             playerId: player.id,
                             utility: utility,
-                            management: expanded
+                            management: expanded && inlineAction
                                 ? [
                                     icon(
                                       Icons.edit_outlined,
