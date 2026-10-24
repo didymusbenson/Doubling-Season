@@ -1,6 +1,6 @@
 # Feature Priority Queue
 
-**Last updated:** 2026-10-20 (IPAD EDITION discovery link; queue unchanged)
+**Last updated:** 2026-10-23 (tablet field-testing status; phone queue unchanged)
 
 The 1.11 implementation scope is closed aside from acceptance testing. New
 implementation work proceeds through the immediate queue below.
@@ -51,14 +51,15 @@ priority:
    path reuse live in `todo_features/Optimizations.md`; none is required for
    1.11 acceptance.
 
-## Separate Project Discovery
+## Separate Tablet Project
 
-- **IPAD EDITION** — new Flutter large-screen/tabletop project with a central
-  life tracker and independent per-player token and utility lanes. Detailed
-  product, architecture, isolation, recovery, research, validation and open
-  decisions live in [the planning dossier](in_progress_features/ipad_edition/README.md).
-  Discovery only; this does not change the 1.11 acceptance or implementation
-  priorities above.
+- **IPAD EDITION / Tripling Table** — tablet implementation is paused for
+  iPad field testing. The [tablet hub](in_progress_features/ipad_edition/README.md)
+  links the active requirements/evidence dossier, readiness audit and next-pass
+  feedback collection. Gather and group feedback before agreeing a deliberate
+  implementation batch; do not resume spot fixes from individual observations.
+  Full device/gameplay/recovery acceptance and store preparation remain open.
+  This does not change the phone 1.11 acceptance or implementation priorities.
 
 ## Explicitly Descoped
 

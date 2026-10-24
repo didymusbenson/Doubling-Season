@@ -18,6 +18,14 @@ scoped rules, commander damage/correction and zero-state setup loading. See the
 [measured results and remaining gates](../in_progress_features/ipad_edition/implementation.md).
 Physical acceptance remains pending; the tablet dossier is not release staged.
 
+2026-10-23 update: the tablet's signed Release 0.1.0+1 (`a79a381`, PR #47)
+was installed and launched on a physical iPad Air 13-inch (M3), with the rendered
+four-player board and installed icon inspected. This completes that narrow
+handoff, not full gameplay/device-matrix acceptance. The
+[readiness audit](../in_progress_features/ipad_edition/mvp_readiness_audit.md)
+records coverage and remaining gates; implementation is paused while the user
+collects field-test feedback for one deliberate next batch.
+
 ### Billing update included in 1.11
 
 The pricing/billing fix ships with 1.11.0+19. `in_app_purchase` is locked to
