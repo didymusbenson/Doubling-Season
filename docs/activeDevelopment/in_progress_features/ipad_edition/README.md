@@ -1,5 +1,23 @@
 # IPAD EDITION
 
+> **Current status — 2026-10-23 (America/Phoenix):** implementation is paused
+> for iPad field testing. Source `a79a381` is installed as signed Release
+> 0.1.0+1 on iPad Air 13-inch (M3). See the
+> [requirements/readiness audit](mvp_readiness_audit.md),
+> [physical handoff evidence](physical_ipad_handoff_2026-10-23.md), and
+> [next-pass feedback collection](next_pass/README.md).
+>
+> **The conditional MVP consolidation is deferred.** Feature categories have
+> implementations, but the original device/accessibility/recovery acceptance
+> requirements are not all verified met or exceeded. Keep this dossier and its
+> original requirements/evidence in place. Gather substantial feedback before
+> agreeing the next implementation batch; do not resume spot fixes from
+> individual observations.
+>
+> The historical planning/checkpoint statements below retain their original
+> dates and evidence limits. They are not current pass/fail claims; the audit
+> distinguishes implemented, observed and still-unverified behavior.
+
 **Latest utility revision:** [built-in redundancy cleanup](utility_redundancy_2026-10-23.md), pending final parent review. Stored legacy payloads/history remain intact.
 
 **Latest lane revision:** [60/40 token/life-and-utilities split](lane_split_60_40_2026-10-23.md), published through PR43 after parent pixel review.

@@ -317,6 +317,16 @@ eligible sickness added by a positive absolute-total edit.
 
 ### Separate tablet app
 
+The tablet implementation is paused for iPad field testing (2026-10-23 user
+direction). Start at the [tablet documentation hub](docs/activeDevelopment/in_progress_features/ipad_edition/README.md).
+The initial dossier remains in place: the readiness audit does not establish
+that all original acceptance requirements are met/exceeded, so the user's
+conditional move into `MVP` is deferred. Collect and group observations in
+`ipad_edition/next_pass/field_test_feedback.md` before agreeing a deliberate
+next batch. Recording feedback does not authorize spot fixes or app changes;
+wait for the user's direction to implement the batch. Deferred ideas are not
+automatically that batch's scope.
+
 Tablet icon artwork lives in `apps/tablet/assets/AppIconSource.png`. Regenerate
 only its iOS/Android/web icons with `python3 apps/tablet/tool/generate_app_icons.py`
 on macOS (`--check` validates sizes/alpha). Do not run the root icon generator
