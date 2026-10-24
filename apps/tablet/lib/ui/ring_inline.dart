@@ -19,7 +19,7 @@ class RingInline extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
-        'Stage ${RingService.stage(utility)}/4 · ${utility.value} temptations',
+        'Stage ${RingService.stage(utility)}/4 · ${utility.value} ${utility.value == 1 ? 'temptation' : 'temptations'}',
         style: const TextStyle(fontSize: 12),
       ),
       if (RingService.bearer(utility).isNotEmpty)

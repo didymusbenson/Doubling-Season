@@ -1,7 +1,7 @@
 name: tripling_table
 description: "A shared tabletop companion for Magic, from Tripling Season."
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.1.0+3
 
 environment:
   sdk: ^3.11.0

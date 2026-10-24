@@ -9,7 +9,9 @@ The clean before-state checkpoint is that same commit, pushed as
 `checkpoint/tablet-field-feedback-2-before-20261024`; no empty source commit was needed.
 Implementation uses an isolated clone on Kista's Mac, branch
 `codex/tablet-field-feedback-2`. Existing worktrees and PR #48 are preserved.
-No physical iPad/iPhone installation is authorized for this batch.
+The later user request explicitly authorizes the final iPad in-place Release update
+after validation, merge and publication; iPhone installation remains out of scope.
+Use existing valid provisioning, no new credentials/certificates or store upload.
 
 ## Implemented feedback
 
@@ -61,8 +63,34 @@ requirements. The user explicitly deferred complete design/feedback for this bat
 
 ## Validation and publication record
 
-In progress. Record final full-suite result, native simulator pixels, release build,
-exact source CI and combined Pages deployment here before declaring ready.
+Local verification: clean analyzer, full suite **494 passed / one web-only test
+skipped** before review. Independent review then caught Changeling tribal counting;
+that was corrected for Squirrel Girl and Krenko, with all five actual bundled
+Changeling definitions, owner/other-seat isolation, modifiers once and atomic undo.
+64 focused engine/board/inline tests pass. Final full-suite/release/CI are being
+rerun after this correction. No original-app source/assets/configuration changed.
+
+Native iPad mini A17 Pro, iOS26.2 isolated simulator: inspected portrait/landscape
+2/3/4-player layouts, all four initiating commander seats, matching empty-three
+slot and opposing two-player grid; direct self-damage + one undo restored both
+life and damage. Native catalog Goblin1 + Krenko made one art-bearing stack3;
+Squirrel Girl generated a canonical art-bearing green1/1. Native Ring bearer
+`goblin` was entered using actual custom keyboard keys, then committed atomically
+with stage1. Native complete resets restored Storm/Mana and archived QA games.
+
+Active swipe displacement and owned Monarch hold/release have real-font Flutter
+renderer pixel/interaction evidence in portrait/landscape; the moving token was
+verified displaced before comparing the whole life-zone pixels (no changes).
+These intermediate frames are renderer evidence, not claimed native recordings.
+Native scroll/gesture exhaustiveness remains distinct from those tests. No
+configured Android tablet emulator exists; the existing AVD is a phone.
+
+The paired physical iPad was read-only checked: app0.1.0 build2 and hardware UDID
+matched the existing Tripling Table iPad Development profile. Its Documents were
+copied to a task-local backup before any update. Final Release uses0.1.0 build3;
+compare stored gameplay and media after installation before claiming preservation.
+Exact final source CI, deployment and installation outcomes are recorded in the
+final task handoff.
 
 Already verified: three original Library reference images materialized and viewed
 on this Mac; canonical engine focused tests (58), commander spatial tests (37),

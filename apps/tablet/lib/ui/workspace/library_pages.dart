@@ -510,7 +510,7 @@ extension _LibraryPages on _TableWorkspaceState {
             children: [
               Expanded(
                 child: Text(
-                  'Stage ${RingService.stage(utility)}/4 · ${utility.value} temptations',
+                  'Stage ${RingService.stage(utility)}/4 · ${utility.value} ${utility.value == 1 ? 'temptation' : 'temptations'}',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
