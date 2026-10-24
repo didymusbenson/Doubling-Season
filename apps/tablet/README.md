@@ -54,6 +54,41 @@ for the source-backed token inventory, measured checks and remaining gaps.
 
 ## Release configuration
 
+### App icons
+
+The tablet's original 2048px artwork is `assets/AppIconSource.png`, copied
+unchanged from the supplied `app_icon.png`. It is separate from the root phone
+app's source and branding. On macOS, regenerate and validate the platform icons:
+
+```sh
+python3 tool/generate_app_icons.py
+python3 tool/generate_app_icons.py --check
+```
+
+The generator uses `sips` for all resizing: the existing iOS AppIcon catalog
+(including 167px iPad Pro and 1024px marketing icons), five Android launcher
+densities, and the web icons/favicon. A native ImageIO helper first removes the
+alpha channel losslessly into a temporary RGB PNG, following the phone app's
+`remove_alpha_ios` precedent. The source file is preserved; transparent source
+pixels composite onto the existing cream brand background. Validation checks
+every output's dimensions/alpha and the catalog/manifest references.
+
+### Direct iPad testing
+
+Use this app's `ios/Runner.xcworkspace`, bundle `LooseTie.Tripling-Table` and
+team `84W8Q8DV3S`. Check the intended physical iPad's current device identifier,
+pairing, Developer Mode and provisioning before building. A simulator build
+does not establish device signing or Release readiness.
+
+Once development provisioning covers the iPad, build from this directory with
+`flutter build ios --release`. For a data-preserving installation, use
+`xcrun devicectl device install app --device <ipad-id> build/ios/iphoneos/Runner.app`
+and launch `LooseTie.Tripling-Table` with `devicectl device process launch`.
+Check the installed version/build and actual launch before reporting success.
+Do not uninstall an existing app: Flutter 3.41's `flutter install` attempts to
+uninstall an existing copy by default. This flow is a development-signed Release
+test and does not upload to TestFlight or change the phone app.
+
 All gameplay is free and works without a store connection. Optional supporter
 cosmetics use this product's own three non-consumable store products. Supply
 `TABLE_SUPPORT_THANKS_ID`, `TABLE_SUPPORT_PLAY_ID`, and
