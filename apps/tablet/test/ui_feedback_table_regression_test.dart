@@ -990,8 +990,19 @@ void main() {
         tester
             .getSize(find.byKey(const ValueKey('commander-workspace')))
             .height,
-        lessThan(450),
+        lessThan(600),
+        reason: 'Opposing two-player seats occupy two spatial rows.',
       );
+      final recipientSlot = bounds(
+        tester,
+        find.byKey(ValueKey('commander-owner-${recipient.id}')),
+      );
+      final opponentSlot = bounds(
+        tester,
+        find.byKey(ValueKey('commander-owner-${opponent.id}')),
+      );
+      expect(opponentSlot.bottom, lessThanOrEqualTo(recipientSlot.top));
+      expect(opponentSlot.center.dx, closeTo(recipientSlot.center.dx, .01));
       await capture(tester, '2p-commander-expanded-source-grid');
       for (final source in fixture.controller.session.commanders) {
         final sourceOwner = fixture.controller.player(source.ownerPlayerId);
