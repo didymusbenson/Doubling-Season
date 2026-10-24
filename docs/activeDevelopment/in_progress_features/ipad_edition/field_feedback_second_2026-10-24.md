@@ -67,8 +67,9 @@ Local verification: clean analyzer, full suite **494 passed / one web-only test
 skipped** before review. Independent review then caught Changeling tribal counting;
 that was corrected for Squirrel Girl and Krenko, with all five actual bundled
 Changeling definitions, owner/other-seat isolation, modifiers once and atomic undo.
-64 focused engine/board/inline tests pass. Final full-suite/release/CI are being
-rerun after this correction. No original-app source/assets/configuration changed.
+64 focused engine/board/inline tests pass. After this correction, clean analyzer,
+**500 passed / one web-only test skipped**, release web build and source/subset
+Mana codepoint verification passed. Exact-head remote CI remains the merge gate. No original-app source/assets/configuration changed.
 
 Native iPad mini A17 Pro, iOS26.2 isolated simulator: inspected portrait/landscape
 2/3/4-player layouts, all four initiating commander seats, matching empty-three
@@ -98,3 +99,8 @@ existing commander tests (43), Ring focused tests (7), compact modal/inline test
 (24), release web build and required source/subset Mana codepoints. Native iPad mini
 simulator launches; actual catalog Goblin followed by Krenko merges into one
 art-bearing stack. Android configured AVD is a phone; no configured tablet AVD found.
+
+Screenshot delivery: native PNGs and labeled renderer frames are preserved in the
+task-local `tripling-table-batch2-review-evidence.zip`. The supported Library upload
+helper stopped before transfer because prepared uploads were unavailable on this
+executor; no Library save is claimed. No personal iPad backup data is in that ZIP.
