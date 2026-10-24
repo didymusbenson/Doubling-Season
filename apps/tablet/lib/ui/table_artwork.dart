@@ -187,12 +187,14 @@ class TableArtworkSurface extends StatelessWidget {
   final Widget child;
   final String style;
   final bool expanded;
+  final bool shadeArtwork;
   const TableArtworkSurface({
     super.key,
     required this.url,
     required this.child,
     this.style = 'full',
     this.expanded = false,
+    this.shadeArtwork = true,
   });
 
   @override
@@ -228,7 +230,8 @@ class TableArtworkSurface extends StatelessWidget {
                       )
                     else
                       TableArtwork(url: url, crop: true, fit: BoxFit.fitWidth),
-                    const ColoredBox(color: Color(0x99000000)),
+                    if (shadeArtwork)
+                      const ColoredBox(color: Color(0x99000000)),
                   ],
                 ),
               ),

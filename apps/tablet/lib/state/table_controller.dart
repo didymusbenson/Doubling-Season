@@ -550,11 +550,19 @@ class TableController extends ChangeNotifier {
         '${actual >= 0 ? '+' : ''}$actual',
     mutate: (game) {
       if (!game.commanders.any((value) => value.id == sourceId)) {
-        throw StateError('This commander source no longer exists.');
+        final projected = game.commanderTrackingSources.firstWhereOrNull(
+          (s) => s.id == sourceId,
+        );
+        if (projected == null) {
+          throw StateError('This commander source no longer exists.');
+        }
+        if (delta <= 0) return;
+        game.commanders.add(projected.copy());
       }
       final recipient = game.player(recipientId);
       final before = recipient.commanderDamage[sourceId] ?? 0;
       final after = math.max(0, before + delta);
+      if (before == after) return;
       recipient.commanderDamage[sourceId] = after;
       if (adjustLife) recipient.life -= after - before;
     },
@@ -566,15 +574,37 @@ class TableController extends ChangeNotifier {
   ) => commit(
     'Correct ${_commanderName(sourceId)} damage to $value',
     playerId: recipientId,
-    mutate: (game) =>
-        game.player(recipientId).commanderDamage[sourceId] = value,
+    mutate: (game) {
+      if (value < 0) throw ArgumentError('Damage cannot be negative.');
+      if (!game.commanders.any((s) => s.id == sourceId)) {
+        final projected = game.commanderTrackingSources.firstWhereOrNull(
+          (s) => s.id == sourceId,
+        );
+        if (projected == null) {
+          throw StateError('This commander source no longer exists.');
+        }
+        if (value == 0) return;
+        game.commanders.add(projected.copy());
+      }
+      final recipient = game.player(recipientId);
+      if ((recipient.commanderDamage[sourceId] ?? 0) == value) return;
+      recipient.commanderDamage[sourceId] = value;
+    },
   );
 
-  String _commanderName(String sourceId) =>
-      session.commanders
-          .firstWhereOrNull((value) => value.id == sourceId)
-          ?.name ??
-      'Commander';
+  String _commanderName(String sourceId) {
+    final sources = session.commanderTrackingSources;
+    final source = sources.firstWhereOrNull((s) => s.id == sourceId);
+    if (source == null) return 'Commander';
+    final siblings = sources
+        .where((s) => s.ownerPlayerId == source.ownerPlayerId)
+        .toList();
+    final owner = profile(session.player(source.ownerPlayerId).seatId).name;
+    final ordinal = siblings.length > 1
+        ? ' #${siblings.indexWhere((s) => s.id == sourceId) + 1}'
+        : '';
+    return '$owner: ${source.name}$ordinal';
+  }
 
   Future<bool> adjustMana(String playerId, String color, int delta) => commit(
     '$color mana ${delta >= 0 ? '+' : ''}$delta',
@@ -707,9 +737,9 @@ class TableController extends ChangeNotifier {
             )
             .toList();
         next.artPreferences = Map.from(prior.artPreferences);
-      } else if (keepBoard) {
-        // A newly active seat gets fresh default utilities, never its removed
-        // game's setup. Complete reset still clears every utility selection.
+      } else {
+        // Complete reset and newly active seats start with the default tools,
+        // never a previous game's custom utility selection or runtime values.
         next.utilities = defaultUtilities();
       }
       // Reusable definitions survive; activation never carries into a new game.

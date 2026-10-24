@@ -11,6 +11,7 @@ import 'tablet_token_card.dart';
 import 'half_stepper.dart';
 import 'monarch_crown.dart';
 import 'commander_ledger.dart';
+import 'utility_inline_actions.dart';
 
 /// The table is composed in seat-local coordinates, then oriented toward each
 /// player. Tokens remain on the physical outer edge in the four-slot layout.
@@ -501,6 +502,26 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
                 ),
         ),
         Positioned(
+          left: 124,
+          bottom: 12,
+          child: Material(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            elevation: 3,
+            shape: const CircleBorder(),
+            child: SizedBox(
+              width: 40,
+              height: 44,
+              child: IconButton(
+                key: ValueKey('${p.id}-start-turn'),
+                tooltip: '${profile.name}, Start turn',
+                onPressed: () => perform(() => widget.board.startTurn(p.id)),
+                icon: const Icon(Icons.wb_sunny_outlined, size: 20),
+                padding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+        ),
+        Positioned(
           left: 68,
           bottom: 12,
           child: Material(
@@ -559,7 +580,11 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
               player: p,
               profile: profile,
               controller: widget.controller,
-              epoch: widget.interactionEpoch,
+              epoch: Object.hash(
+                widget.interactionEpoch,
+                p.generation,
+                widget.controller.session.generation,
+              ),
               enabledRules: enabled,
               onOpen: widget.onOpen,
               onChange: (d) =>
@@ -612,6 +637,11 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
                             enabled: expandedId == null,
                             child: _UtilityRow(
                               compactSpacing: compactUtilities,
+                              interactionEpoch: Object.hash(
+                                widget.interactionEpoch,
+                                widget.controller.session.generation,
+                                p.generation,
+                              ),
                               utility: u,
                               player: p,
                               board: widget.board,
@@ -687,7 +717,7 @@ class _LifePanel extends StatelessWidget {
   final SeatProfile profile;
   final TableController controller;
   final int epoch, enabledRules;
-  final ValueChanged<int> onChange;
+  final Future<void> Function(int) onChange;
   final VoidCallback onMonarch, onBlessing;
   final void Function(WorkspacePage, [String?]) onOpen;
   const _LifePanel({
@@ -820,8 +850,8 @@ class _LifePanel extends StatelessWidget {
                   increaseLabel: '${profile.name}, increase life by one',
                   onDecrease: () => onChange(-1),
                   onIncrease: () => onChange(1),
-                  onDecreaseHold: () => onChange(-5),
-                  onIncreaseHold: () => onChange(5),
+                  onDecreaseHoldStep: (amount) => onChange(-amount),
+                  onIncreaseHoldStep: onChange,
                   interactionEpoch: epoch,
                   foregroundColor: artColor,
                   displayOverlay: Column(
@@ -934,29 +964,44 @@ class _LifePanel extends StatelessWidget {
             children: [
               LayoutBuilder(
                 builder: (context, constraints) {
-                  // Keep six tools balanced: one row where it fits, otherwise
-                  // two rows of three, without shrinking their hit targets.
-                  final columns = constraints.maxWidth >= 260 ? 6 : 3;
-                  final spacing =
-                      ((constraints.maxWidth - columns * 40) / (columns - 1))
-                          .clamp(4.0, 12.0);
+                  // Keep status controls together, and Utilities immediately
+                  // beside Edit on the final row at every supported width.
+                  final rows = constraints.maxWidth >= 260
+                      ? [shortcuts]
+                      : [shortcuts.sublist(0, 3), shortcuts.sublist(3)];
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: SizedBox(
-                      width: columns * 40 + (columns - 1) * spacing,
-                      child: Wrap(
-                        alignment: WrapAlignment.center,
-                        spacing: spacing,
-                        runSpacing: 4,
-                        children: [
-                          for (var index = 0; index < shortcuts.length; index++)
-                            SizedBox(
-                              width: 40,
-                              height: 44,
-                              child: shortcuts[index],
-                            ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (var row = 0; row < rows.length; row++) ...[
+                          if (row > 0) const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              for (
+                                var index = 0;
+                                index < rows[row].length;
+                                index++
+                              ) ...[
+                                if (index > 0)
+                                  SizedBox(
+                                    width:
+                                        ((constraints.maxWidth -
+                                                    rows[row].length * 40) /
+                                                (rows[row].length - 1))
+                                            .clamp(4.0, 12.0),
+                                  ),
+                                SizedBox(
+                                  width: 40,
+                                  height: 44,
+                                  child: rows[row][index],
+                                ),
+                              ],
+                            ],
+                          ),
                         ],
-                      ),
+                      ],
                     ),
                   );
                 },
@@ -1096,15 +1141,17 @@ class _EmptyLane extends StatelessWidget {
 
 class _UtilityRow extends StatelessWidget {
   final bool compactSpacing;
+  final int interactionEpoch;
   final UtilityState utility;
   final PlayerState player;
   final BoardService board;
   final bool expanded;
   final VoidCallback onExpand, onHide, onOpen, onToggle;
-  final ValueChanged<int> onChange;
-  final void Function(String, int) onMana;
+  final Future<void> Function(int) onChange;
+  final Future<void> Function(String, int) onMana;
   const _UtilityRow({
     this.compactSpacing = false,
+    required this.interactionEpoch,
     required this.utility,
     required this.player,
     required this.board,
@@ -1132,16 +1179,6 @@ class _UtilityRow extends StatelessWidget {
           'the_initiative',
           'toggle',
         ].contains(utility.kind);
-    final hasAction =
-        utility.configuration['actionType'] != null ||
-        utility.kind.contains('krenko') ||
-        utility.kind.contains('rhys') ||
-        utility.kind.contains('brudiclad') ||
-        [
-          'cathars_crusade',
-          'academy_manufactor',
-          'hare_apparent',
-        ].contains(utility.kind);
     final color = utility.artworkUrl == null
         ? Theme.of(context).colorScheme.onSurface
         : Colors.white;
@@ -1166,6 +1203,9 @@ class _UtilityRow extends StatelessWidget {
           increaseLabel: 'Increase ${utility.name}',
           onDecrease: () => onChange(-step),
           onIncrease: () => onChange(step),
+          onDecreaseHoldStep: (amount) => onChange(-amount),
+          onIncreaseHoldStep: (amount) => onChange(amount),
+          interactionEpoch: interactionEpoch,
           foregroundColor: color,
           valueStyle: TextStyle(
             fontSize: 24,
@@ -1247,13 +1287,7 @@ class _UtilityRow extends StatelessWidget {
                                 onChanged: (_) => onToggle(),
                               )
                             else if (!actionOnly && !narrowStorm)
-                              Expanded(flex: 2, child: valueStepper)
-                            else if (actionOnly)
-                              icon(
-                                Icons.play_arrow_outlined,
-                                'Resolve ${utility.name}',
-                                onOpen,
-                              ),
+                              Expanded(flex: 2, child: valueStepper),
                           ],
                         ),
                         // A portrait Storm row cannot share its value width with
@@ -1305,11 +1339,12 @@ class _UtilityRow extends StatelessWidget {
                                               'Add ${_manaName(type)} mana; hold to add ten',
                                           onDecrease: () => onMana(type, -1),
                                           onIncrease: () => onMana(type, 1),
-                                          onDecreaseHold: () =>
-                                              onMana(type, -10),
-                                          onIncreaseHold: () =>
-                                              onMana(type, 10),
-                                          holdRepeatInterval: null,
+                                          onDecreaseHoldStep: (amount) =>
+                                              onMana(type, -amount),
+                                          onIncreaseHoldStep: (amount) =>
+                                              onMana(type, amount),
+                                          holdStep: 10,
+                                          interactionEpoch: interactionEpoch,
                                           foregroundColor: Colors.white,
                                           valueWidget: Row(
                                             mainAxisSize: MainAxisSize.min,
@@ -1373,15 +1408,13 @@ class _UtilityRow extends StatelessWidget {
                               ),
                             ],
                           ),
-                        ] else if (hasAction && !actionOnly)
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: icon(
-                              Icons.play_arrow_outlined,
-                              'Resolve ${utility.name}',
-                              onOpen,
-                            ),
-                          ),
+                        ],
+                        UtilityInlineActions(
+                          key: ValueKey('inline-actions-${utility.id}'),
+                          board: board,
+                          playerId: player.id,
+                          utility: utility,
+                        ),
                       ],
                     ),
                   ),

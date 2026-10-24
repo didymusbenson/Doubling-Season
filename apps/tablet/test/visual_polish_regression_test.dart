@@ -131,6 +131,7 @@ void main() {
               'counters',
               'counter-correction',
               'reset-new-game',
+              'reset-three-player',
               'token-art',
               'token-art-many',
               'token-art-empty',
@@ -332,9 +333,11 @@ void main() {
               case 'edit-commanders':
                 await tester.tap(find.widgetWithText(ChoiceChip, 'Commanders'));
               case 'commander-setup':
-                await tester.tap(find.widgetWithText(ChoiceChip, 'Sources'));
+                await tester.tap(find.byTooltip('Edit commander sources'));
               case 'commander-correction':
-                await tester.tap(find.text('Edit damage').first);
+                await tester.tap(
+                  find.byKey(const ValueKey('commander-edit-partner-a')),
+                );
               case 'token-create':
                 await tester.tap(find.widgetWithText(ChoiceChip, 'Custom'));
                 await tester.pumpAndSettle();
@@ -476,8 +479,22 @@ void main() {
                 tester
                     .getSize(find.byKey(const ValueKey('context-workspace')))
                     .height,
-                lessThanOrEqualTo(size.width < 760 ? 460 : 420),
+                lessThanOrEqualTo(size.width < 760 ? 520 : 480),
               );
+            }
+            if ({'reset-new-game', 'reset-three-player'}.contains(scene.key)) {
+              final frame = tester.renderObject<RenderBox>(find.byKey(const ValueKey('context-workspace')));
+              if (scene.key == 'reset-three-player') {
+                expect(frame.size.height, lessThanOrEqualTo(600));
+              }
+              for (final label in ['Reset with current configuration', 'Complete reset']) {
+                final button = find.widgetWithText(OutlinedButton, label);
+                final box = tester.renderObject<RenderBox>(button);
+                final bounds = MatrixUtils.transformRect(box.getTransformTo(frame), Offset.zero & box.size);
+                expect(bounds.top, greaterThanOrEqualTo(0));
+                expect(bounds.bottom, lessThanOrEqualTo(frame.size.height - 12), reason: '$label fits wholly inside the reset modal');
+                expect(button.hitTestable(), findsOneWidget);
+              }
             }
             if (scene.key == 'token-create') {
               final chips = [

@@ -146,6 +146,26 @@ class GameSession {
        commanders = commanders ?? [],
        history = history ?? [],
        completedCommandIds = completedCommandIds ?? [];
+
+  /// Unconfigured owners remain visible without writing setup or history.
+  List<CommanderSource> get commanderTrackingSources => [
+    for (final owner in players)
+      ...(() {
+        final configured = commanders
+            .where((s) => s.ownerPlayerId == owner.id)
+            .toList();
+        return configured.isNotEmpty
+            ? configured
+            : [
+                CommanderSource(
+                  id: 'default-commander:${owner.id}',
+                  ownerPlayerId: owner.id,
+                  name: 'Commander',
+                ),
+              ];
+      })(),
+  ];
+
   PlayerState player(String id) => players.firstWhere(
     (value) => value.id == id,
     orElse: () => throw StateError('That player is no longer in this game.'),

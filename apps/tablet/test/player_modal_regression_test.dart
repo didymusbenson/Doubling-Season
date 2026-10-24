@@ -134,7 +134,7 @@ void main() {
         await tester.tap(find.text('Appearance'));
         await tester.pumpAndSettle();
         expect(field('Player name').hitTestable(), findsOneWidget);
-        expect(find.text('Choose life artwork').hitTestable(), findsOneWidget);
+        expect(find.text('Search token art').hitTestable(), findsOneWidget);
         await tester.tap(find.text('Commanders'));
         await tester.pumpAndSettle();
         expect(find.text('Add commander').hitTestable(), findsOneWidget);

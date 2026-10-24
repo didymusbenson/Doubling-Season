@@ -471,16 +471,16 @@ extension _TokenPages on _TableWorkspaceState {
       _stepper(
         label,
         value,
-        () => _run(() => change(-1)),
-        () => _run(() => change(1)),
+        () => _runDirect(() => change(-1)),
+        () => _runDirect(() => change(1)),
         minimum: minimum,
         maximum: maximum,
         edit: () => _update(() {
           _editingNumber = id;
           _field(id, '$value').text = '$value';
         }),
-        holdMinus: () => _run(() => change(-10)),
-        holdPlus: () => _run(() => change(10)),
+        holdMinusStep: (amount) => _runDirect(() => change(-amount)),
+        holdPlusStep: (amount) => _runDirect(() => change(amount)),
       ),
       if (_editingNumber == id)
         Row(
@@ -722,6 +722,10 @@ extension _TokenPages on _TableWorkspaceState {
                   count,
                   () => quantity.text = '${max(1, count - 1)}',
                   () => quantity.text = '${min(t.amount - 1, count + 1)}',
+                  holdMinusStep: (amount) => quantity.text =
+                      '${max(1, (int.tryParse(quantity.text) ?? 1) - amount)}',
+                  holdPlusStep: (amount) => quantity.text =
+                      '${min(t.amount - 1, (int.tryParse(quantity.text) ?? 1) + amount)}',
                   minimum: 1,
                   maximum: t.amount - 1,
                 ),

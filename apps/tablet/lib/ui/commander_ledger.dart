@@ -1,10 +1,9 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../domain/table_state.dart';
 import '../state/table_controller.dart';
 import 'table_artwork.dart';
 
-/// Read-only source overview; the whole mini-grid opens the expanded grid.
+/// Stable owner slots, with partners subdividing their owner's slot.
 class CommanderLedger extends StatelessWidget {
   final TableController controller;
   final PlayerState recipient;
@@ -18,31 +17,8 @@ class CommanderLedger extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sources = controller.session.commanders;
-    final entries = sources.isEmpty
-        ? controller.session.players
-              .map(
-                (p) => (
-                  id: p.id,
-                  owner: p,
-                  label:
-                      '${controller.profile(p.seatId).name}, no commander configured',
-                  value: p.id == recipient.id ? 'me' : '0',
-                ),
-              )
-              .toList()
-        : sources
-              .map(
-                (s) => (
-                  id: s.id,
-                  owner: controller.player(s.ownerPlayerId),
-                  label:
-                      '${s.name} (${controller.profile(controller.player(s.ownerPlayerId).seatId).name})',
-                  value: '${recipient.commanderDamage[s.id] ?? 0}',
-                ),
-              )
-              .toList();
-    final columns = math.max(2, (entries.length / 2).ceil());
+    final sources = controller.session.commanderTrackingSources;
+    final owners = controller.session.players;
     final name = controller.profile(recipient.seatId).name;
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -54,9 +30,13 @@ class CommanderLedger extends StatelessWidget {
           child: Semantics(
             button: true,
             label: '$name, commander damage by source',
-            value: entries.map((e) => '${e.label}: ${e.value}').join('; '),
-            hint:
-                'Expand source trackers${sources.isEmpty ? ' and configure commanders' : ''}',
+            value: sources
+                .map(
+                  (s) =>
+                      '${controller.profile(controller.player(s.ownerPlayerId).seatId).name}, ${s.name}: ${recipient.commanderDamage[s.id] ?? 0}',
+                )
+                .join('; '),
+            hint: 'Expand source trackers',
             onTap: onOpen,
             excludeSemantics: true,
             child: Material(
@@ -68,47 +48,64 @@ class CommanderLedger extends StatelessWidget {
                   height: 44,
                   child: IgnorePointer(
                     child: Wrap(
-                      alignment: entries.length == 1
-                          ? WrapAlignment.center
-                          : WrapAlignment.start,
                       children: [
-                        for (final entry in entries)
+                        for (final owner in owners)
                           SizedBox(
                             key: ValueKey(
-                              '${recipient.id}-ledger-source-${entry.id}',
+                              '${recipient.id}-ledger-owner-${owner.id}',
                             ),
-                            width: width / columns,
+                            width: width / 2,
                             height: 22,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: Color(
-                                  controller.profile(entry.owner.seatId).color,
-                                ).withValues(alpha: .22),
-                                border: Border.all(
-                                  color: Color(
-                                    controller
-                                        .profile(entry.owner.seatId)
-                                        .color,
-                                  ),
-                                ),
-                              ),
-                              child: TableArtworkSurface(
-                                url: controller
-                                    .profile(entry.owner.seatId)
-                                    .artworkUrl,
-                                child: Center(
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      entry.value,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
+                            child: Row(
+                              children: [
+                                for (final source in sources.where(
+                                  (s) => s.ownerPlayerId == owner.id,
+                                ))
+                                  Expanded(
+                                    child: Container(
+                                      key: ValueKey(
+                                        '${recipient.id}-ledger-source-${source.id}',
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Color(
+                                          controller
+                                              .profile(owner.seatId)
+                                              .color,
+                                        ).withValues(alpha: .22),
+                                        border: Border.all(
+                                          color: Color(
+                                            controller
+                                                .profile(owner.seatId)
+                                                .color,
+                                          ),
+                                        ),
+                                      ),
+                                      child: TableArtworkSurface(
+                                        url: controller
+                                            .profile(owner.seatId)
+                                            .artworkUrl,
+                                        child: Center(
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                              owner.id == recipient.id &&
+                                                      (recipient.commanderDamage[source
+                                                                  .id] ??
+                                                              0) ==
+                                                          0
+                                                  ? 'me'
+                                                  : '${recipient.commanderDamage[source.id] ?? 0}',
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ),
+                              ],
                             ),
                           ),
                       ],

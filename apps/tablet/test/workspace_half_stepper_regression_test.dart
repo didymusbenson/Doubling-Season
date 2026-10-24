@@ -65,7 +65,7 @@ void main() {
 
   for (final turns in [0, 2]) {
     testWidgets(
-      'workspace mana uses full halves and one-shot holds at turns=$turns',
+      'workspace mana uses full halves and repeat holds that stop on release at turns=$turns',
       (tester) async {
         final fixture = TableFixture();
         await fixture.initialize();
@@ -116,13 +116,30 @@ void main() {
           box.localToGlobal(Offset(box.size.width - 1, box.size.height - 1)),
         );
         await tester.pump(const Duration(milliseconds: 1600));
+        await tester.pump();
+        final heldTotal = fixture.player.mana['W']!;
+        expect(
+          heldTotal,
+          greaterThan(10),
+          reason:
+              'Holding repeats, rather than stopping after the first configured increment.',
+        );
+        expect(
+          fixture.controller.session.history.last.commands.length,
+          greaterThan(1),
+        );
         await gesture.up();
         await tester.pumpAndSettle();
         expect(
           fixture.player.mana['W'],
-          10,
-          reason:
-              'Long press keeps its original one-shot +10 without a trailing tap.',
+          heldTotal,
+          reason: 'Release has no trailing tap.',
+        );
+        await tester.pump(const Duration(seconds: 3));
+        expect(
+          fixture.player.mana['W'],
+          heldTotal,
+          reason: 'All repeat timers stop on release.',
         );
         expect(await fixture.controller.undo(), isTrue);
         await tester.pumpAndSettle();

@@ -87,7 +87,7 @@ void main() {
       await f.controller.adjustCommanderDamage(f.playerId, first, -10);
       expect(
         f.controller.session.history.last.summary,
-        'Partner one damage -2',
+        'Player 1: Partner one #1 damage -2',
       );
       expect(f.player.life, 37);
       expect(f.player.commanderDamage[second], 3);
@@ -235,10 +235,14 @@ void main() {
       expect(f.player.utilities.last.visible, isFalse);
       expect(f.player.utilities.last.value, 0);
 
-      // Default provisioning is limited to keep-board's newly active seats.
+      // Complete reset also restores fresh default tools.
       await f.controller.resetGame(keepBoard: false, playerCount: 3);
       expect(
-        f.controller.session.players.every((p) => p.utilities.isEmpty),
+        f.controller.session.players.every(
+          (p) =>
+              p.utilities.map((u) => u.kind).join(',') ==
+              'storm_count,mana_pool',
+        ),
         isTrue,
       );
     },

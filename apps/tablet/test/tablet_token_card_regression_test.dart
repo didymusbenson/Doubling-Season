@@ -187,23 +187,23 @@ void main() {
     final cardBox = tester.getRect(find.byType(TabletTokenCard));
     expect(numberBox.right, lessThanOrEqualTo(cardBox.right));
     expect(
-      find.byTooltip('Add one; hold to add ten').hitTestable(),
+      find.byKey(const ValueKey('source-quantity-increase')).hitTestable(),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
   });
 
   testWidgets(
-    'compact direct controls retain holds and clean quick additions',
+    'compact direct controls retain holds and grow the selected countered stack',
     (tester) async {
       final fixture = TableFixture(stateWithTokens([sampleToken()]));
       var expansions = 0;
       await showCard(tester, fixture, onExpand: () => expansions++);
       final otherPlayer = fixture.controller.session.players[1].toJson();
-      final add = find.byTooltip('Add one; hold to add ten');
+      final add = find.byKey(const ValueKey('source-quantity-increase'));
       await tester.longPress(add);
       await tester.pumpAndSettle();
-      expect(fixture.token('source').amount, 13);
+      expect(fixture.token('source').amount, 8);
       await tester.tap(find.byTooltip('Tap one; hold to tap all'));
       await tester.pumpAndSettle();
       expect(fixture.token('source').tapped, 2);
@@ -214,14 +214,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(add);
       await tester.pumpAndSettle();
-      expect(fixture.token('source').amount, 13);
+      expect(fixture.token('source').amount, 9);
       expect(fixture.token('source').plusOneCounters, 1);
-      expect(fixture.player.tokens.length, 2);
-      final clean = fixture.player.tokens.last;
-      expect(clean.amount, 1);
-      expect(clean.plusOneCounters, 0);
-      expect(clean.tapped, 0);
-      expect(clean.summoningSick, 1);
+      expect(fixture.player.tokens.length, 1);
       expect(fixture.controller.session.players[1].toJson(), otherPlayer);
       expect(expansions, 0);
       expect(find.byType(SnackBar), findsNothing);
@@ -318,7 +313,7 @@ void main() {
   }
 
   testWidgets(
-    'token quantity holds remain one-shot and zero taps do not expand',
+    'token quantity holds repeat, stop on release and zero taps do not expand',
     (tester) async {
       final fixture = TableFixture(
         stateWithTokens([sampleToken(amount: 3, tapped: 0, sick: 0)]),
@@ -334,12 +329,21 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
       await addGesture.up();
       await tester.pumpAndSettle();
-      expect(fixture.token('source').amount, 13);
+      expect(fixture.token('source').amount, greaterThan(8));
+      final releasedAmount = fixture.token('source').amount;
+      await tester.pump(const Duration(seconds: 1));
+      expect(fixture.token('source').amount, releasedAmount);
       final removeBox = tester.renderObject<RenderBox>(decrease);
       final removeGesture = await tester.startGesture(
         removeBox.localToGlobal(const Offset(4, 4)),
       );
-      await tester.pump(const Duration(seconds: 2));
+      for (
+        var tick = 0;
+        tick < 60 && fixture.token('source').amount > 0;
+        tick++
+      ) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
       await removeGesture.up();
       await tester.pumpAndSettle();
       expect(fixture.token('source').amount, 0);

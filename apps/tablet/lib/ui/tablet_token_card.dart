@@ -11,6 +11,7 @@ import 'package:doubling_season/widgets/mana/mana_text.dart';
 import '../domain/table_state.dart';
 import '../features/board_service.dart';
 import 'table_artwork.dart';
+import 'half_stepper.dart';
 import 'workspace/player_keyboard.dart';
 import 'workspace/table_workspace.dart';
 
@@ -78,8 +79,11 @@ class _TabletTokenCardState extends State<TabletTokenCard>
   String get _name => token.name.isEmpty ? 'Unnamed token' : token.name;
   String get _target => '${widget.playerName}, $_name';
 
-  Future<void> _perform(Future<void> Function() action) async {
-    if (_inputOpen) return;
+  Future<void> _perform(
+    Future<void> Function() action, {
+    bool allowInputLock = false,
+  }) async {
+    if (_inputOpen && !allowInputLock) return;
     try {
       if (!await _flushDrafts()) return;
       await action();
@@ -218,7 +222,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
     }
   }
 
-  Future<bool> _confirmDelete(DismissDirection _) async {
+  Future<bool> _deleteOnSwipe(DismissDirection _) async {
     if (_inputOpen || _drafts.isNotEmpty) return false;
     final playerId = widget.player.id;
     final tokenId = token.id;
@@ -226,43 +230,17 @@ class _TabletTokenCardState extends State<TabletTokenCard>
     final scope = board.scope(playerId);
     setState(() => _inputOpen = true);
     widget.onInputLock(true);
-    bool? confirmed;
     try {
-      confirmed = await showDialog<bool>(
-        context: context,
-        barrierDismissible: true,
-        builder: (dialogContext) => RotatedBox(
-          quarterTurns: widget.quarterTurns,
-          child: AlertDialog(
-            title: Text('Remove $_name?'),
-            content: Text(
-              '${widget.playerName} · ${token.amount} tokens. '
-              'You can undo this from History.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Remove stack'),
-              ),
-            ],
-          ),
-        ),
+      await _perform(
+        () => board.deleteToken(playerId, tokenId, captured: scope),
+        allowInputLock: true,
       );
     } finally {
       widget.onInputLock(false);
       if (mounted) setState(() => _inputOpen = false);
     }
-    if (confirmed == true) {
-      await _perform(
-        () => board.deleteToken(playerId, tokenId, captured: scope),
-      );
-    }
-    // The saved board transaction removes the row. Dismissible must not remove
-    // an unsaved object, nor show a routine success notification.
+    // Only the durable transaction removes the row. Failure leaves it intact;
+    // global History provides undo without a confirmation or success toast.
     return false;
   }
 
@@ -289,6 +267,17 @@ class _TabletTokenCardState extends State<TabletTokenCard>
       token.netPlusOneCounters != 0 ||
       (token.counters['+1/+0'] ?? 0) != 0 ||
       (token.counters['+0/+1'] ?? 0) != 0;
+
+  // Readability belongs to the content, not a scrim across the token artwork.
+  Widget _readable(Widget child) => token.artworkUrl == null
+      ? child
+      : DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: .60),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: child,
+        );
 
   Widget _field({
     required String field,
@@ -373,7 +362,54 @@ class _TabletTokenCardState extends State<TabletTokenCard>
             ),
             color: editing ? Colors.black26 : null,
           ),
-          child: content,
+          child: Align(
+            alignment: field == 'pt' ? Alignment.center : Alignment.centerLeft,
+            widthFactor: 1,
+            child: _readable(content),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _quantityAction({required bool increase}) {
+    final enabled = !_inputOpen && (increase || token.amount > 0);
+    final session = widget.board.controller.session;
+    final playerId = widget.player.id;
+    final tokenId = token.id;
+    Future<void> change(int amount) => _perform(
+      () => widget.board.changeQuantity(
+        playerId,
+        tokenId,
+        increase ? amount : -amount,
+      ),
+    );
+    return NumericHoldRegion(
+      key: ValueKey('$tokenId-quantity-${increase ? 'increase' : 'decrease'}'),
+      label:
+          '$_target, ${increase ? 'Add one' : 'Remove one'}; hold for accelerating steps',
+      interactionEpoch: Object.hash(
+        session.id,
+        session.generation,
+        widget.player.generation,
+        _inputOpen,
+      ),
+      onTap: enabled ? () => change(1) : null,
+      onStep: enabled ? change : null,
+      child: SizedBox(
+        width: 38,
+        height: 40,
+        child: Center(
+          child: _readable(
+            Padding(
+              padding: const EdgeInsets.all(3),
+              child: Icon(
+                increase ? Icons.add : Icons.remove,
+                size: 21,
+                color: enabled ? null : Colors.grey,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -407,10 +443,17 @@ class _TabletTokenCardState extends State<TabletTokenCard>
             child: SizedBox(
               width: 38,
               height: 40,
-              child: Icon(
-                icon,
-                size: 21,
-                color: onTap == null ? Colors.grey : null,
+              child: Center(
+                child: _readable(
+                  Padding(
+                    padding: const EdgeInsets.all(3),
+                    child: Icon(
+                      icon,
+                      size: 21,
+                      color: onTap == null ? Colors.grey : null,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -468,26 +511,28 @@ class _TabletTokenCardState extends State<TabletTokenCard>
   }) => Semantics(
     label: '$value $name',
     child: ExcludeSemantics(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: prominent ? 17 : 15, color: color),
-          const SizedBox(width: 2),
-          Flexible(
-            fit: FlexFit.loose,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                '$value',
-                style: TextStyle(
-                  fontSize: prominent ? 18 : 14,
-                  fontWeight: FontWeight.w700,
-                  color: color,
+      child: _readable(
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: prominent ? 17 : 15, color: color),
+            const SizedBox(width: 2),
+            Flexible(
+              fit: FlexFit.loose,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  '$value',
+                  style: TextStyle(
+                    fontSize: prominent ? 18 : 14,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );
@@ -515,6 +560,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
           url: token.artworkUrl,
           style: token.extra['artworkDisplayStyle'] as String? ?? 'full',
           expanded: widget.expanded,
+          shadeArtwork: false,
           child: DecoratedBox(
             decoration: BoxDecoration(
               border: Border(
@@ -775,53 +821,8 @@ class _TabletTokenCardState extends State<TabletTokenCard>
                                 spacing: 0,
                                 runSpacing: 0,
                                 children: [
-                                  _action(
-                                    Icons.remove,
-                                    'Remove one; hold to remove all',
-                                    token.amount == 0
-                                        ? null
-                                        : () => _perform(
-                                            () => widget.board.changeQuantity(
-                                              widget.player.id,
-                                              token.id,
-                                              -1,
-                                            ),
-                                          ),
-                                    key: ValueKey(
-                                      '${token.id}-quantity-decrease',
-                                    ),
-                                    consumeDisabled: true,
-                                    onHold: token.amount == 0
-                                        ? null
-                                        : () => _perform(
-                                            () => widget.board.changeQuantity(
-                                              widget.player.id,
-                                              token.id,
-                                              -token.amount,
-                                            ),
-                                          ),
-                                  ),
-                                  _action(
-                                    Icons.add,
-                                    'Add one; hold to add ten',
-                                    () => _perform(
-                                      () => widget.board.changeQuantity(
-                                        widget.player.id,
-                                        token.id,
-                                        1,
-                                      ),
-                                    ),
-                                    key: ValueKey(
-                                      '${token.id}-quantity-increase',
-                                    ),
-                                    onHold: () => _perform(
-                                      () => widget.board.changeQuantity(
-                                        widget.player.id,
-                                        token.id,
-                                        10,
-                                      ),
-                                    ),
-                                  ),
+                                  _quantityAction(increase: false),
+                                  _quantityAction(increase: true),
                                   if (!token.isEmblem) ...[
                                     _action(
                                       Icons.mobile_friendly,
@@ -970,7 +971,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
       direction: _inputOpen || _drafts.isNotEmpty
           ? DismissDirection.none
           : DismissDirection.endToStart,
-      confirmDismiss: _confirmDelete,
+      confirmDismiss: _deleteOnSwipe,
       background: Container(
         color: Theme.of(context).colorScheme.errorContainer,
         alignment: Alignment.centerRight,

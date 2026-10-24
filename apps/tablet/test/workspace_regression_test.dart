@@ -52,6 +52,16 @@ void main() {
     addTearDown(f.dispose);
     final original = f.controller.session.id;
     await workspace(tester, f, WorkspacePage.reset);
+    final resetButton = find.widgetWithText(
+      OutlinedButton,
+      'Reset with current configuration',
+    );
+    final frame = tester.getRect(
+      find.byKey(const ValueKey('context-workspace')),
+    );
+    final buttonBounds = tester.getRect(resetButton);
+    expect(buttonBounds.bottom, lessThanOrEqualTo(frame.bottom - 12));
+    expect(resetButton.hitTestable(), findsOneWidget);
     await tester.tap(find.text('Reset with current configuration'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Archive & reset with board'));
@@ -72,6 +82,16 @@ void main() {
       addTearDown(f.dispose);
       final original = f.controller.session.id;
       await workspace(tester, f, WorkspacePage.reset);
+      final resetButton = find.widgetWithText(
+        OutlinedButton,
+        'Reset with current configuration',
+      );
+      final frame = tester.getRect(
+        find.byKey(const ValueKey('context-workspace')),
+      );
+      final buttonBounds = tester.getRect(resetButton);
+      expect(buttonBounds.bottom, lessThanOrEqualTo(frame.bottom - 12));
+      expect(resetButton.hitTestable(), findsOneWidget);
       await tester.tap(find.text('Reset with current configuration'));
       await tester.pumpAndSettle();
       f.repository.failSave = true;
