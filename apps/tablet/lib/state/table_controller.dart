@@ -553,8 +553,9 @@ class TableController extends ChangeNotifier {
         final projected = game.commanderTrackingSources.firstWhereOrNull(
           (s) => s.id == sourceId,
         );
-        if (projected == null)
+        if (projected == null) {
           throw StateError('This commander source no longer exists.');
+        }
         if (delta <= 0) return;
         game.commanders.add(projected.copy());
       }
@@ -579,8 +580,9 @@ class TableController extends ChangeNotifier {
         final projected = game.commanderTrackingSources.firstWhereOrNull(
           (s) => s.id == sourceId,
         );
-        if (projected == null)
+        if (projected == null) {
           throw StateError('This commander source no longer exists.');
+        }
         if (value == 0) return;
         game.commanders.add(projected.copy());
       }

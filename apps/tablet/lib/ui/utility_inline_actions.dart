@@ -165,10 +165,13 @@ class _UtilityInlineActionsState extends State<UtilityInlineActions> {
               ),
             ),
           ),
-          OutlinedButton(
-            key: ValueKey('utility-skip-${widget.utility.id}'),
-            onPressed: _working ? null : () => _resolve(skip: true),
-            child: const Text('Create Myr & skip transformation'),
+          Tooltip(
+            message: 'Create the Myr and skip transformation',
+            child: OutlinedButton(
+              key: ValueKey('utility-skip-${widget.utility.id}'),
+              onPressed: _working ? null : () => _resolve(skip: true),
+              child: const Text('Create Myr only'),
+            ),
           ),
           TextButton(
             onPressed: _working

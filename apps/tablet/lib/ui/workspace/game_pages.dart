@@ -566,8 +566,9 @@ extension _GamePages on _TableWorkspaceState {
 
   Widget _commanderPage() {
     final player = p;
-    if (player == null)
+    if (player == null) {
       return _list([const Text('Select the player receiving damage first.')]);
+    }
     final sources = c.session.commanderTrackingSources;
     if (_commanderSetup) {
       final owner = c.session.players.firstWhere(
@@ -721,13 +722,15 @@ extension _GamePages on _TableWorkspaceState {
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
                         ),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          '$damage',
-                          style: const TextStyle(
-                            fontSize: 40,
-                            fontWeight: FontWeight.w700,
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '$damage',
+                            style: const TextStyle(
+                              fontSize: 40,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),

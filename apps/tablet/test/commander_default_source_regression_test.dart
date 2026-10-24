@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tripling_table/domain/table_state.dart';
 import 'package:tripling_table/state/table_controller.dart';
 import 'support/table_fixture.dart';
 

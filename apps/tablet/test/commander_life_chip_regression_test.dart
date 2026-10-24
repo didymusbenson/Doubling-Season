@@ -187,9 +187,15 @@ void main() {
             );
             expect(gridRect.center.dx, closeTo(surfaceBox.size.width / 2, .01));
             // Every owner retains a visible position, even before configuration.
-            for (final source in fixture.controller.session.commanderTrackingSources) {
-              final cell = find.byKey(ValueKey('${player.id}-ledger-source-${source.id}'));
-              expect(find.descendant(of: ledger, matching: cell), findsOneWidget);
+            for (final source
+                in fixture.controller.session.commanderTrackingSources) {
+              final cell = find.byKey(
+                ValueKey('${player.id}-ledger-source-${source.id}'),
+              );
+              expect(
+                find.descendant(of: ledger, matching: cell),
+                findsOneWidget,
+              );
               final cellRect = painted(tester, cell, ancestor: surfaceBox);
               expect(cellRect.left, greaterThanOrEqualTo(gridRect.left));
               expect(cellRect.right, lessThanOrEqualTo(gridRect.right + .01));

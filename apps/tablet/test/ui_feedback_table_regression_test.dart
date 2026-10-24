@@ -854,81 +854,93 @@ void main() {
       },
     );
 
-    testWidgets('empty commander ledger allows immediate damage and secondary owner setup at $size', (
-      tester,
-    ) async {
-      final fixture = await showTable(tester, size, tableFor(4));
-      final player = fixture.controller.session.players.first;
-      final owner = fixture.controller.session.players.last;
-      final beforeLife = fixture.controller.session.players
-          .map((p) => p.life)
-          .toList();
-      final ledger = find.byKey(ValueKey('${player.id}-commander-ledger'));
-      expect(ledger.hitTestable(), findsOneWidget);
-      await tester.tap(ledger);
-      await tester.pumpAndSettle();
-      expect(fixture.controller.session.commanders, isEmpty);
-      final sourceId = 'default-commander:${owner.id}';
-      final direct = find.byKey(ValueKey('commander-tracker-$sourceId'));
-      expect(direct.hitTestable(), findsOneWidget);
-      await tester.tap(find.descendant(of: direct, matching: find.byTooltip('Increase Commander commander damage')));
-      await tester.pumpAndSettle();
-      expect(fixture.controller.player(player.id).life, 39);
-      expect(fixture.controller.player(player.id).commanderDamage[sourceId], 1);
-      expect(await fixture.controller.undo(), isTrue);
-      await tester.pumpAndSettle();
-      expect(fixture.controller.session.commanders, isEmpty);
-      expect(fixture.controller.player(player.id).life, 40);
-      await tester.tap(find.byTooltip('Edit commander sources'));
-      await tester.pumpAndSettle();
-      expect(find.text('Add commander').hitTestable(), findsOneWidget);
-      await tester.tap(
-        find.widgetWithText(
-          ChoiceChip,
-          fixture.controller.profile(owner.seatId).name,
-        ),
-      );
-      await tester.pumpAndSettle();
-      final input = find.byWidgetPredicate(
-        (w) => w is TextField && w.decoration?.labelText == 'Commander name',
-      );
-      tester.widget<TextField>(input).controller!.text = 'New partner';
-      await tester.tap(find.text('Add commander'));
-      await tester.pumpAndSettle();
-      expect(
-        fixture.controller.session.commanders.single.ownerPlayerId,
-        owner.id,
-      );
-      expect(fixture.controller.session.commanders.single.name, 'New partner');
-      await tester.tap(find.text('Back to damage'));
-      await tester.pumpAndSettle();
-      expect(
-        fixture.controller.session.players.map((p) => p.life).toList(),
-        beforeLife,
-      );
-      expect(
-        find
-            .byKey(
-              ValueKey(
-                'commander-tracker-${fixture.controller.session.commanders.single.id}',
-              ),
-            )
-            .hitTestable(),
-        findsOneWidget,
-      );
-      await capture(
-        tester,
-        '4p-${size.width.toInt()}x${size.height.toInt()}-commander-source-setup',
-      );
-      await tester.tap(find.byTooltip('Close workspace'));
-      await tester.pumpAndSettle();
-      expect(ledger.hitTestable(), findsOneWidget);
-      expect(
-        fixture.controller.session.players.map((p) => p.life).toList(),
-        beforeLife,
-      );
-      expect(tester.takeException(), isNull);
-    });
+    testWidgets(
+      'empty commander ledger allows immediate damage and secondary owner setup at $size',
+      (tester) async {
+        final fixture = await showTable(tester, size, tableFor(4));
+        final player = fixture.controller.session.players.first;
+        final owner = fixture.controller.session.players.last;
+        final beforeLife = fixture.controller.session.players
+            .map((p) => p.life)
+            .toList();
+        final ledger = find.byKey(ValueKey('${player.id}-commander-ledger'));
+        expect(ledger.hitTestable(), findsOneWidget);
+        await tester.tap(ledger);
+        await tester.pumpAndSettle();
+        expect(fixture.controller.session.commanders, isEmpty);
+        final sourceId = 'default-commander:${owner.id}';
+        final direct = find.byKey(ValueKey('commander-tracker-$sourceId'));
+        expect(direct.hitTestable(), findsOneWidget);
+        await tester.tap(
+          find.descendant(
+            of: direct,
+            matching: find.byTooltip('Increase Commander commander damage'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(fixture.controller.player(player.id).life, 39);
+        expect(
+          fixture.controller.player(player.id).commanderDamage[sourceId],
+          1,
+        );
+        expect(await fixture.controller.undo(), isTrue);
+        await tester.pumpAndSettle();
+        expect(fixture.controller.session.commanders, isEmpty);
+        expect(fixture.controller.player(player.id).life, 40);
+        await tester.tap(find.byTooltip('Edit commander sources'));
+        await tester.pumpAndSettle();
+        expect(find.text('Add commander').hitTestable(), findsOneWidget);
+        await tester.tap(
+          find.widgetWithText(
+            ChoiceChip,
+            fixture.controller.profile(owner.seatId).name,
+          ),
+        );
+        await tester.pumpAndSettle();
+        final input = find.byWidgetPredicate(
+          (w) => w is TextField && w.decoration?.labelText == 'Commander name',
+        );
+        tester.widget<TextField>(input).controller!.text = 'New partner';
+        await tester.tap(find.text('Add commander'));
+        await tester.pumpAndSettle();
+        expect(
+          fixture.controller.session.commanders.single.ownerPlayerId,
+          owner.id,
+        );
+        expect(
+          fixture.controller.session.commanders.single.name,
+          'New partner',
+        );
+        await tester.tap(find.text('Back to damage'));
+        await tester.pumpAndSettle();
+        expect(
+          fixture.controller.session.players.map((p) => p.life).toList(),
+          beforeLife,
+        );
+        expect(
+          find
+              .byKey(
+                ValueKey(
+                  'commander-tracker-${fixture.controller.session.commanders.single.id}',
+                ),
+              )
+              .hitTestable(),
+          findsOneWidget,
+        );
+        await capture(
+          tester,
+          '4p-${size.width.toInt()}x${size.height.toInt()}-commander-source-setup',
+        );
+        await tester.tap(find.byTooltip('Close workspace'));
+        await tester.pumpAndSettle();
+        expect(ledger.hitTestable(), findsOneWidget);
+        expect(
+          fixture.controller.session.players.map((p) => p.life).toList(),
+          beforeLife,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
   testWidgets(

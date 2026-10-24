@@ -388,8 +388,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
 
   /// Direct numeric commands never disable/reflow the active control per save.
   Future<void> _runDirect(Future<dynamic> Function() action) {
-    if (_working || _closing || _navigating || !_validScope)
+    if (_working || _closing || _navigating || !_validScope) {
       return Future.value();
+    }
     final operation = _directQueue.then((_) async {
       try {
         if (!mounted || !_validScope) return;
@@ -397,8 +398,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
           throw StateError('The current text edit could not be saved.');
         }
         final result = await action();
-        if (result == false)
+        if (result == false) {
           throw StateError(c.error ?? 'The change could not be saved.');
+        }
       } catch (error) {
         _directFailure =
             'Some changes were not saved. Check the displayed totals before retrying. $error';
@@ -817,10 +819,10 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         760.0,
         _resetTabIndex == 0
             ? (_resetCount == 3
-                  ? 540.0
+                  ? 600.0
                   : (rotated ? size.height : size.width) < 760
-                  ? 460.0
-                  : 420.0)
+                  ? 520.0
+                  : 480.0)
             : 650.0,
       ),
       WorkspacePage.settings => (760.0, 760.0),

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:tripling_table/ui/table_screen.dart';
+import 'package:tripling_table/domain/table_state.dart';
+import 'package:tripling_table/state/table_controller.dart';
 import 'package:tripling_table/ui/table_theme.dart';
 import 'package:tripling_table/ui/utility_inline_actions.dart';
 
@@ -155,6 +157,11 @@ void main() {
       expect(f.player.tokens.map((t) => t.toJson()).toList(), initial);
       expect(find.byKey(ValueKey('utility-feedback-$id')), findsOneWidget);
       await tap(tester, 'utility-action-$id');
+      expect(find.text('Create Myr only'), findsOneWidget);
+      expect(
+        find.byTooltip('Create the Myr and skip transformation'),
+        findsOneWidget,
+      );
       await tap(tester, 'utility-skip-$id');
       expect(f.player.tokens.any((t) => t.name.contains('Myr')), isTrue);
       expect(find.byType(Dialog), findsNothing);
@@ -222,6 +229,53 @@ void main() {
     expect(f.player.tokens.fold<int>(0, (n, t) => n + t.amount), 6);
   });
 
+  for (final label in ['Increase White mana', 'Increase White mana by ten']) {
+    testWidgets('Mana hold stops after failed save: $label', (tester) async {
+      final state = TabletState.initial();
+      state.session.players = state.session.players.take(2).toList();
+      final repository = _CountingRepository(state);
+      final controller = TableController(repository: repository);
+      await controller.initialize();
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1133, 744);
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: tableTheme(Brightness.dark),
+          home: TableScreen(controller: controller),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Manage Mana pool').first);
+      await tester.pumpAndSettle();
+      repository.failSave = true;
+      repository.attempts = 0;
+      final target = find.byTooltip(label);
+
+      await tester.ensureVisible(target);
+      await tester.pumpAndSettle();
+      final gesture = await tester.startGesture(tester.getCenter(target));
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(repository.attempts, 1);
+      expect(controller.session.players.first.mana['W'], 0);
+      await gesture.up();
+      await tester.pump(const Duration(seconds: 2));
+      expect(repository.attempts, 1);
+      repository.failSave = false;
+      for (var i = 0; i < 2; i++) {
+        if (find.byTooltip('Close workspace').evaluate().isNotEmpty) {
+          await tester.tap(find.byTooltip('Close workspace'));
+          await tester.pumpAndSettle();
+        }
+      }
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+      controller.dispose();
+    });
+  }
+
   for (final turns in [0, 1, 2, 3]) {
     testWidgets('Inline buttons fit narrow rotated seat $turns', (
       tester,
@@ -239,5 +293,15 @@ void main() {
       expect(f.token('source').plusOneCounters, 4);
       expect(tester.takeException(), isNull);
     });
+  }
+}
+
+class _CountingRepository extends MemoryTableRepository {
+  int attempts = 0;
+  _CountingRepository(super.state);
+  @override
+  Future<void> save(TabletState state) {
+    attempts++;
+    return super.save(state);
   }
 }

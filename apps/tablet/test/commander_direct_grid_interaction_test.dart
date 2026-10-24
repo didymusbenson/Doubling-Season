@@ -1,11 +1,19 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tripling_table/domain/table_state.dart';
 import 'package:tripling_table/state/table_controller.dart';
 import 'package:tripling_table/services/tablet_catalog.dart';
 import 'package:tripling_table/ui/workspace/table_workspace.dart';
+import 'package:tripling_table/ui/table_theme.dart';
 import 'support/table_fixture.dart';
+
+final _captureDirectory = Platform.environment['TABLET_CAPTURE_DIR'];
+const _captureKey = ValueKey('commander-pending-renderer');
 
 class DelayedRepository extends MemoryTableRepository {
   DelayedRepository(super.state);
@@ -24,6 +32,37 @@ class DelayedRepository extends MemoryTableRepository {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    if (_captureDirectory == null) return;
+    final root = Platform.environment['FLUTTER_ROOT']!;
+    for (final font in {
+      'sans-serif': 'Roboto-Regular.ttf',
+      'MaterialIcons': 'MaterialIcons-Regular.otf',
+    }.entries) {
+      await (FontLoader(font.key)..addFont(
+            File(
+              '$root/bin/cache/artifacts/material_fonts/${font.value}',
+            ).readAsBytes().then(ByteData.sublistView),
+          ))
+          .load();
+    }
+    await Directory(_captureDirectory!).create(recursive: true);
+  });
+  Future<void> capture(WidgetTester tester, String name) async {
+    if (_captureDirectory == null) return;
+    final boundary = tester.renderObject<RenderRepaintBoundary>(
+      find.byKey(_captureKey),
+    );
+    await tester.runAsync(() async {
+      final image = await boundary.toImage(pixelRatio: 1);
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      await File(
+        '$_captureDirectory/$name.png',
+      ).writeAsBytes(bytes!.buffer.asUint8List());
+      image.dispose();
+    });
+  }
+
   late DelayedRepository repo;
   late TableController controller;
   late TabletCatalog catalog;
@@ -39,18 +78,22 @@ void main() {
     playerId = controller.session.players.first.id;
     sourceId = controller.session.commanderTrackingSources.last.id;
     await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: TextButton(
-              onPressed: () => showTableWorkspace(
-                context,
-                controller,
-                catalog: catalog,
-                seatId: controller.session.players.first.seatId,
-                initialPage: WorkspacePage.commanderDamage,
+      RepaintBoundary(
+        key: _captureKey,
+        child: MaterialApp(
+          theme: tableTheme(Brightness.dark),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => showTableWorkspace(
+                  context,
+                  controller,
+                  catalog: catalog,
+                  seatId: controller.session.players.first.seatId,
+                  initialPage: WorkspacePage.commanderDamage,
+                ),
+                child: const Text('Open'),
               ),
-              child: const Text('Open'),
             ),
           ),
         ),
@@ -232,6 +275,26 @@ void main() {
       await tester.pumpAndSettle();
       await close(tester);
       await tester.pumpAndSettle();
+      await close(tester);
+      await tester.pumpAndSettle();
+    },
+  );
+  testWidgets(
+    'real renderer preserves the grid before during and after an acknowledged write',
+    (tester) async {
+      await open(tester);
+      final before = tester.getRect(card());
+      await capture(tester, 'commander-before-save');
+      repo.delay = true;
+      await plus(tester);
+      await tester.pumpAndSettle();
+      expect(tester.getRect(card()), before);
+      await capture(tester, 'commander-save-pending');
+      repo.waits.single.complete();
+      await tester.pumpAndSettle();
+      expect(tester.getRect(card()), before);
+      expect(controller.player(playerId).commanderDamage[sourceId], 1);
+      await capture(tester, 'commander-save-acknowledged');
       await close(tester);
       await tester.pumpAndSettle();
     },

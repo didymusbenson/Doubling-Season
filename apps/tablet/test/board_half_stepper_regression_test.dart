@@ -454,7 +454,11 @@ void main() {
             );
             expect(fixture.controller.player(player.id).life, 40);
             // The bottom-right pencil is deliberately not a damage hit target.
-            for (final point in const [Offset(.02, .35), Offset(.5, .5), Offset(.98, .5)]) {
+            for (final point in const [
+              Offset(.02, .35),
+              Offset(.5, .5),
+              Offset(.98, .5),
+            ]) {
               await tapAtFraction(tester, increase, point);
             }
             expect(

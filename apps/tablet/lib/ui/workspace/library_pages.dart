@@ -590,6 +590,7 @@ extension _LibraryPages on _TableWorkspaceState {
                 _navigating,
                 _page,
                 _itemId,
+                _directFailureEpoch,
               ),
               valueWidget: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -632,6 +633,7 @@ extension _LibraryPages on _TableWorkspaceState {
                       _navigating,
                       _page,
                       _itemId,
+                      _directFailureEpoch,
                     ),
                     valueStyle: Theme.of(context).textTheme.labelLarge,
                   ),
