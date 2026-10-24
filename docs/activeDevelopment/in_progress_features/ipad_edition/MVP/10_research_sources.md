@@ -4,13 +4,13 @@
 
 ## Decision update — 2026-10-21
 
-The user has since selected Flutter with custom player-facing input as the direction, a separate product, Android/iOS/web targets and customizable 2–4 players. This does not turn the source research below into prototype evidence. Any keyboard input must face its initiating player; the subsequent explicit “No simultaneous keyboards.” decision requires one keyboard at a time, with D41 now requiring all-modal table blocking and tapaway dismissal without click-through; native/IME validation remains. See the [decision register](09_decision_register.md) and [deferred keyboard options](custom_keyboard_options.md). The research date above remains unchanged.
+The user has since selected Flutter with custom player-facing input as the direction, a separate product, Android/iOS/web targets and customizable 2–4 players. This does not turn the source research below into prototype evidence. Any keyboard input must face its initiating player; the subsequent explicit “No simultaneous keyboards.” decision requires one keyboard at a time, with D41 now requiring all-modal table blocking and tapaway dismissal without click-through; native/IME validation remains. See the [decision register](09_decision_register.md) and [deferred keyboard options](../future/custom_keyboard_options.md). The research date above remains unchanged.
 
 ## Findings and confidence
 
 **Recommendation: keep Flutter.** The official framework APIs cover the required categories. This is an inference from capability and existing code reuse, not measured proof of this particular four-player interface. The unresolved questions concern rotated panels/keyboard, geometry, multi-touch arbitration and persistence. None of the reviewed evidence establishes a reason to pivot frameworks.
 
-**The existing frontend needs a new composition boundary.** This follows directly from the current mixed list, global providers/events and whole-board restoration. The [source audit](../../../../ai_docs/research/2026-10-20-ipad-edition-current-architecture.md) pins those facts to `8894640543833eaf37bd62b971a0955c26bafa49`, with source links rather than relying on older project summaries.
+**The existing frontend needs a new composition boundary.** This follows directly from the current mixed list, global providers/events and whole-board restoration. The [source audit](../../../../../ai_docs/research/2026-10-20-ipad-edition-current-architecture.md) pins those facts to `8894640543833eaf37bd62b971a0955c26bafa49`, with source links rather than relying on older project summaries.
 
 **Hardware and source validation are different.** Online API support does not establish usable touch targets, acceptable seated reading distance, correct system-keyboard behavior or session durability. Those require the [phase gates and manual acceptance work](08_delivery_validation_and_risks.md).
 
@@ -68,7 +68,7 @@ The latest D25 decision supersedes the audit’s earlier local-only proposal. Ca
 
 ## Tablet-first MVP boundary — D06/D30
 
-MVP supports tablets from iPad mini through full-size iPads and Android variants, retaining the complete active 2–4-seat view. Android/iOS/web targets remain; web support uses tablet-suitable viewports. Exact minimum dimensions, model generations, OS/browser floors, aspect ratios and orientations require validation, not guesses. Small-tablet fit is mandatory; no MVP phone or focused-seat mode. The [closed-focus/unfolded-multiplayer foldable concept](foldable_phone_future_version.md) is deferred to another major version and does not add a standalone one-player game.
+MVP supports tablets from iPad mini through full-size iPads and Android variants, retaining the complete active 2–4-seat view. Android/iOS/web targets remain; web support uses tablet-suitable viewports. Exact minimum dimensions, model generations, OS/browser floors, aspect ratios and orientations require validation, not guesses. Small-tablet fit is mandatory; no MVP phone or focused-seat mode. The [closed-focus/unfolded-multiplayer foldable concept](../future/foldable_phone_future_version.md) is deferred to another major version and does not add a standalone one-player game.
 
 ## Explicit carryover clarification — 2026-10-22
 

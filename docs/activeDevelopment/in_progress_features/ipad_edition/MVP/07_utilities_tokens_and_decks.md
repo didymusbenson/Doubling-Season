@@ -1,6 +1,6 @@
 # Utilities, tokens and decks
 
-**Status:** curated per-seat utility customization, default-visible storm/mana, hold-drag ordering and confirmed corner-X hiding/restoration are accepted; remaining mechanics are proposed tablet workflows. Existing behavior is described in the [current-code audit](../../../../ai_docs/research/2026-10-20-ipad-edition-current-architecture.md); initial release inventory is D08.
+**Status:** curated per-seat utility customization, default-visible storm/mana, hold-drag ordering and confirmed corner-X hiding/restoration are accepted; remaining mechanics are proposed tablet workflows. Existing behavior is described in the [current-code audit](../../../../../ai_docs/research/2026-10-20-ipad-edition-current-architecture.md); initial release inventory is D08.
 
 ## Utility lane contract
 

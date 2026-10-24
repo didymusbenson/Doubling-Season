@@ -15,8 +15,16 @@ Maestro flows on iPad mini A17 Pro / iOS 26.2 verified launch, token selection,
 Treasure creation, and modal dismissal back to that player's board. Browser
 interaction covered 2/3/4-seat layouts, life/history undo, archive restoration,
 scoped rules, commander damage/correction and zero-state setup loading. See the
-[measured results and remaining gates](../in_progress_features/ipad_edition/implementation.md).
+[measured results and remaining gates](../in_progress_features/ipad_edition/MVP/implementation.md).
 Physical acceptance remains pending; the tablet dossier is not release staged.
+
+2026-10-23 update: the tablet's signed Release 0.1.0+1 (`a79a381`, PR #47)
+was installed and launched on a physical iPad Air 13-inch (M3), with the rendered
+four-player board and installed icon inspected. This completes that narrow
+handoff, not full gameplay/device-matrix acceptance. The
+[MVP audit](../in_progress_features/ipad_edition/mvp_readiness_audit.md)
+records coverage and remaining gates; implementation is frozen while the user
+collects field-test feedback for one deliberate next batch.
 
 ### Billing update included in 1.11
 

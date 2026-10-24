@@ -1,7 +1,7 @@
 # Custom keyboard options
 
 **Status:** deferred design exploration, requested 2026-10-21; no options below are first-release commitments or implemented features.
-**Related:** [input requirement](02_layout_and_interaction.md), [D09/D11](09_decision_register.md), [V34 validation](08_delivery_validation_and_risks.md).
+**Related:** [input requirement](../MVP/02_layout_and_interaction.md), [D09/D11](../MVP/09_decision_register.md), [V34 validation](../MVP/08_delivery_validation_and_risks.md).
 
 Seat-facing keyboard/draft context does not confer ownership of central history/wipes/resets. Game-level input must preserve app/game origin separately from the interaction orientation; exact central-input orientation/handoff UI needs design without weakening the accepted player-facing requirement (D36).
 
@@ -46,11 +46,11 @@ Select a small useful option set and permitted fields only after the core player
 
 ## Old-design inference checkpoint
 
-The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.
+The [granular baseline map](../MVP/outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.
 
 ## Modifier scope checkpoint — D25
 
-Editing a source modifier count/configuration retains source and owning-seat identity even when the keyboard/workspace is central. A recipient read-only effect display must not become a second editable source. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).
+Editing a source modifier count/configuration retains source and owning-seat identity even when the keyboard/workspace is central. A recipient read-only effect display must not become a second editable source. See [modifier ownership and applicability](../MVP/modifier_ownership_and_applicability.md).
 
 ## Tablet-first MVP boundary — D06/D30
 

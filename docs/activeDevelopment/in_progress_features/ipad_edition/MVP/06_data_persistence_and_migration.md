@@ -1,6 +1,6 @@
 # Data, persistence and migration
 
-**Status:** current-game state/history persistence and latest-action global undo are required; concrete storage engine, migration, session format, acknowledgement and preference policies remain proposals. Resolve D14–D24 in the [decision register](09_decision_register.md). Current-code statements refer to baseline `8894640543833eaf37bd62b971a0955c26bafa49`; see the [evidence audit](../../../../ai_docs/research/2026-10-20-ipad-edition-current-architecture.md).
+**Status:** current-game state/history persistence and latest-action global undo are required; concrete storage engine, migration, session format, acknowledgement and preference policies remain proposals. Resolve D14–D24 in the [decision register](09_decision_register.md). Current-code statements refer to baseline `8894640543833eaf37bd62b971a0955c26bafa49`; see the [evidence audit](../../../../../ai_docs/research/2026-10-20-ipad-edition-current-architecture.md).
 
 ## Existing behavior that constrains reuse
 

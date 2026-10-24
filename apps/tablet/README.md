@@ -3,15 +3,16 @@
 The separate tablet app developed from the Tripling Season iPad specifications.
 “Tripling Table” is a development name, not a selected store name.
 
-**Checkpoint status (2026-10-22): compact hub/life tools correction in progress.**
-Published main is `71c1aee` (PR #40). The current
-[compact hub, inline token actions and life-tool correction](../../docs/activeDevelopment/in_progress_features/ipad_edition/compact_hub_life_tools_2026-10-22.md)
-removes the rejected control strip and full-width token quantity band, makes the
-whole colored life surface tappable, and separates/reorders tools. Commander
-mini-tracker expansion uses the researched source-ledger→expanded-grid pattern,
-with explicit partner/self identity and direct owner setup. Parent visual
-review is required before publishing this branch. Native hands-on validation
-remains outstanding.
+**Checkpoint status (2026-10-23): MVP baseline frozen for iPad field testing.**
+Source `a79a381` (PR #47) is published and installed as signed Release 0.1.0+1
+on an iPad Air 13-inch (M3). The
+[readiness audit](../../docs/activeDevelopment/in_progress_features/ipad_edition/mvp_readiness_audit.md)
+maps original requirements to implementation/evidence and retains the unrun
+acceptance gates. Initial requirements, decisions and iteration history are
+preserved under `ipad_edition/MVP`; this is not a store/full-acceptance sign-off.
+Collect [field-test feedback](../../docs/activeDevelopment/in_progress_features/ipad_edition/next_pass/field_test_feedback.md)
+before agreeing the next implementation batch; do not resume spot fixes from
+individual observations alone.
 
 ## Run
 
@@ -41,7 +42,7 @@ Dart primitives through a path dependency. It never initializes the phone
 providers or its Hive setup. Multiplayer state has a separate versioned store.
 
 The authoritative specification is in
-[the iPad dossier](../../docs/activeDevelopment/in_progress_features/ipad_edition/README.md).
+[the iPad dossier](../../docs/activeDevelopment/in_progress_features/ipad_edition/MVP/README.md).
 Implementation details and measured validation are recorded beside it.
 
 The user authorized tablet regression tests for the 2026-10-22 corrective
@@ -49,7 +50,7 @@ iteration. From this directory, run `flutter analyze` and `flutter test`.
 Manual visual and functional validation remains required, including actual
 small-tablet native checks. Browser-only evidence does not establish native
 acceptance. Temporary external UI-driving flows may be used and discarded.
-See the [corrective review tracker](../../docs/activeDevelopment/in_progress_features/ipad_edition/corrective_iteration.md)
+See the [corrective review tracker](../../docs/activeDevelopment/in_progress_features/ipad_edition/MVP/corrective_iteration.md)
 for the source-backed token inventory, measured checks and remaining gaps.
 
 ## Release configuration
@@ -138,10 +139,12 @@ site data to switch between apps, since that would delete both apps' saved state
 This is a browser inspection build; the focused inline-keyboard repair passed independent live-browser retesting in the preceding batch.
 It does not establish native iPad/Android acceptance or store readiness.
 
-## UI feedback review branch — 2026-10-22
+## Historical UI feedback batch — 2026-10-22
 
-The next UI batch preserves the corrected token object while tightening token
+That UI batch preserved the corrected token object while tightening token
 headers, corner overlays, player dividers, game-control placement, fixed utility
 editors, status badges and directly adjustable commander trackers. See the
-[batch checklist and validation limits](../../docs/activeDevelopment/in_progress_features/ipad_edition/ui_feedback_batch_2026-10-22.md).
-The focused web q→a repair passed independent live retesting. The current correction branch is for review and preserves the root app.
+[batch checklist and validation limits](../../docs/activeDevelopment/in_progress_features/ipad_edition/MVP/ui_feedback_batch_2026-10-22.md).
+The focused web q→a repair passed independent live retesting. This is a
+historical iteration record; current status and the field-test pause are at
+the top of this page.

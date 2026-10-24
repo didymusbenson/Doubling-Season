@@ -1,7 +1,7 @@
 # Six-player expansion
 
 **Status:** deferred feature, requested 2026-10-21. Initial scope remains customizable **2–4 players**; five/six-player implementation and release support are not promised now.
-**Related:** [D04](09_decision_register.md), [layout](02_layout_and_interaction.md), [validation](08_delivery_validation_and_risks.md).
+**Related:** [D04](../MVP/09_decision_register.md), [layout](../MVP/02_layout_and_interaction.md), [validation](../MVP/08_delivery_validation_and_risks.md).
 
 The D36 scope distinction also applies to future seats: central controls remain app/game-level regardless of position; affected-seat sets are not human actor identities. Expansion must not introduce strict seat permissions; D41 explicitly requires whole-table blocking whenever any modal is open.
 
@@ -40,11 +40,11 @@ No team modes, networking, extra mana/rules automation or new distribution targe
 
 ## Old-design inference checkpoint
 
-The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.
+The [granular baseline map](../MVP/outstanding_behavior_baselines.md) supplies concrete starting points for remaining behavior questions, including what current design cannot settle. These are explicitly inferred defaults, not additional accepted requirements; D41 and all earlier explicit decisions take precedence.
 
 ## Modifier scope checkpoint — D25
 
-Future seats derive applicable global contributions from stable source identities. Expansion must not clone modifiers per seat or multiply an effect by recipient count; source ownership remains separate from applicability. See [modifier ownership and applicability](modifier_ownership_and_applicability.md).
+Future seats derive applicable global contributions from stable source identities. Expansion must not clone modifiers per seat or multiply an effect by recipient count; source ownership remains separate from applicability. See [modifier ownership and applicability](../MVP/modifier_ownership_and_applicability.md).
 
 ## Tablet-first MVP boundary — D06/D30
 
