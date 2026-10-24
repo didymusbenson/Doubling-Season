@@ -53,9 +53,9 @@ priority:
 
 ## Separate Tablet Project
 
-- **IPAD EDITION / Tripling Table** — implemented MVP baseline is frozen for
+- **IPAD EDITION / Tripling Table** — tablet implementation is paused for
   iPad field testing. The [tablet hub](in_progress_features/ipad_edition/README.md)
-  links preserved requirements/evidence, the readiness audit and next-pass
+  links the active requirements/evidence dossier, readiness audit and next-pass
   feedback collection. Gather and group feedback before agreeing a deliberate
   implementation batch; do not resume spot fixes from individual observations.
   Full device/gameplay/recovery acceptance and store preparation remain open.

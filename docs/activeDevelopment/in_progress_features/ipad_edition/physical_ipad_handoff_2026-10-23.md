@@ -25,6 +25,6 @@ unchanged; no device identifier, serial number or signing material is published.
 This is build/install/launch evidence, **not a completed gameplay acceptance
 run**. It does not prove physical iPad mini support, all 2/3/4-player and
 orientation cases, artwork/input accessibility, corruption/failure recovery,
-or sustained game performance. Those remain in the [current audit](../mvp_readiness_audit.md).
+or sustained game performance. Those remain in the [current audit](mvp_readiness_audit.md).
 The existing certificate expires November 8, 2026; renewal is separate work.
 No TestFlight or App Store upload occurred.

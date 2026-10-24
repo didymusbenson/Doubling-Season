@@ -1,30 +1,35 @@
-# MVP implementation and acceptance audit
+# Tablet requirements and readiness audit
 
 **Audited:** 2026-10-23 (America/Phoenix), source `a79a381` / PR #47.
-**Disposition:** implemented MVP baseline, now frozen for field testing;
-full acceptance remains open. No application code changed in this audit.
+**Verdict:** feature-category implementations are present; not all original
+requirements are verified met or exceeded. **Do not consolidate the initial
+dossier into an `MVP` directory yet.** No application code changed in this audit.
 
-## Finding and interpretation
+## Finding and the user's condition
 
-The original requested feature categories have implemented routes and supporting
-source/regression evidence. The app has progressed beyond a prototype to a
-separate Android/iOS/web product with scoped gameplay, persistent history,
-presets, artwork and an installed physical-iPad Release build. No confirmed
-missing feature category was identified in this source/document review.
+The app has progressed beyond a prototype to a separate Android/iOS/web product
+with scoped gameplay, persistent history, presets, artwork and an installed
+physical-iPad Release build. No confirmed missing feature category was identified
+in this source/document review.
 
-That is **not evidence that every original requirement is fully accepted**.
-The initial plan explicitly requires real-game, device-size, recovery and
-accessibility validation. Those gates have not all been exercised. The `MVP/`
-directory freezes the requirements and implementation history for the field-test
-baseline; it does not close those gates, declare store readiness, or approve
-omissions. If "complete" means every applicable acceptance scenario passed,
-the answer remains **not yet**.
+That does not establish that every initial requirement is met. The original
+dossier also requires small-tablet/device coverage, native parity/input,
+accessibility and durable recovery acceptance. Those obligations remain partly
+unverified. Implementation routes, 369 passing regressions, simulator builds
+and one successful physical launch do not prove those remaining requirements.
 
-The original [R01–R17 traceability](MVP/01_product_and_scope.md#requirements-and-traceability),
-[C01–C16 requirements](MVP/README.md#confirmed-direction), and accepted decisions
+The user's condition for moving the initial docs into `MVP` is therefore
+**not established**. Keep the original dossier paths, requirements, decisions,
+research and evidence in place. Prepare feedback collection now; revisit the
+consolidation when the remaining requirements have objective acceptance
+evidence or the user explicitly changes that gate. No existing requirement is
+waived or reclassified as a later feature just to close this phase.
+
+The original [R01–R17 traceability](01_product_and_scope.md#requirements-and-traceability),
+[C01–C16 requirements](README.md#confirmed-direction), and accepted decisions
 are the comparison set. Proposed architecture/numeric budgets and explicitly
-deferred features are not silently promoted into new MVP requirements. Later
-user decisions supersede older contradictory recommendations.
+deferred features are not silently promoted into new requirements. Later user
+decisions supersede older contradictory recommendations.
 
 ## Requirements coverage
 
@@ -40,7 +45,7 @@ not new tests or a newly executed end-to-end acceptance campaign.
 | R04 — independent persistent ordering | [Board reorder](../../../../apps/tablet/lib/features/board_service.dart#L919), [visible utility reorder](../../../../apps/tablet/lib/features/board_service.dart#L1168), serialized seat state | Present; native drag/restart and accessibility-reorder coverage remains open. |
 | R05 — safe generated/replacement tokens | [Scoped board/rules calculation](../../../../apps/tablet/lib/features/board_service.dart#L102), [rules calculator](../../../../apps/tablet/lib/services/scoped_rules_calculator.dart), [board tests](../../../../apps/tablet/test/board_service_regression_test.dart) | Present; all-utility/companion/failure native matrix remains open. |
 | R06 — intentional central game controls | [Game workspace](../../../../apps/tablet/lib/ui/workspace/game_pages.dart), central hub and scoped wipe/history/reset commands | Present; game origin and affected seats are separate, as clarified by D36. |
-| R07 — reuse Flutter/domain behavior | Separate [app manifest](../../../../apps/tablet/pubspec.yaml) uses the root path dependency; [domain inventory](../../../../apps/tablet/docs/domain-parity.md); [50-row token inventory](MVP/corrective_iteration.md) | Present. The inventory records narrow partial/unverified artwork/accessibility evidence, not blanket parity acceptance. |
+| R07 — reuse Flutter/domain behavior | Separate [app manifest](../../../../apps/tablet/pubspec.yaml) uses the root path dependency; [domain inventory](../../../../apps/tablet/docs/domain-parity.md); [50-row token inventory](corrective_iteration.md) | Present. The inventory records narrow partial/unverified artwork/accessibility evidence, not blanket parity acceptance. |
 | R08 — usable tabletop life/lists | Adaptive layouts, compact controls, scrolling and mini/full-size widget fixtures | Implemented approach; **small physical tablet and full seated usability gate still open**. |
 | R09 — undo safety | [Latest-action undo](../../../../apps/tablet/lib/state/table_controller.dart#L402), [history tests](../../../../apps/tablet/test/table_history_regression_test.dart) | The old local-undo proposal is superseded by accepted D16: latest action globally. Arbitrary older/per-seat undo is not a missing MVP feature. |
 | R10 — phone data safety | [Separate entry point](../../../../apps/tablet/lib/main.dart), [isolated storage namespace](../../../../apps/tablet/lib/storage/table_repository.dart#L23), explicit copy-only setup import | Isolation present; no root app code changed in PR #47. Broader legacy fixture/device regression evidence remains open. |
@@ -58,7 +63,7 @@ Replace/Append zero-state setup loading; game-and-seat artwork preferences;
 curated utility hide/restore; full-table modal blocking with consumed tapaway;
 standard mixed dice with individual results and totals; and free gameplay with
 optional supporter cosmetics. See the [domain inventory](../../../../apps/tablet/docs/domain-parity.md)
-and [carryover clarifications](MVP/implementation_carryover_clarifications.md).
+and [carryover clarifications](implementation_carryover_clarifications.md).
 Live supporter purchases remain unconfigured and unvalidated.
 
 ## Verified checkpoint evidence
@@ -70,7 +75,7 @@ Live supporter purchases remain unconfigured and unvalidated.
   and iPad simulator build. The local run also passed analysis and 369 tests.
 - Signed physical **Release 0.1.0+1** installed and launched on iPad Air
   13-inch (M3), iPadOS 26.6.2; rendered four-player board and installed icon
-  visually inspected. [Handoff evidence](MVP/physical_ipad_handoff_2026-10-23.md).
+  visually inspected. [Handoff evidence](physical_ipad_handoff_2026-10-23.md).
 - [Combined Pages deployment](https://github.com/didymusbenson/Doubling-Season/actions/runs/40044269495)
   passed; public source marker and tablet icon matched `a79a381`.
 
@@ -78,7 +83,7 @@ These observations supersede stale "not yet installed" statements for this
 specific checkpoint. Earlier 70-test/simulator records remain historical and
 do not establish acceptance of later source changes or broader native flows.
 
-## Open acceptance work to retain with MVP
+## Remaining original acceptance work
 
 | Area | What is still needed | Original reference |
 |---|---|---|
@@ -90,13 +95,13 @@ do not establish acceptance of later source changes or broader native flows.
 
 No new failure is asserted merely because a case lacks evidence. Preserve these
 as open validation items, not an automatic implementation backlog. Existing
-confirmed requirements are not waived by moving their documents.
+confirmed requirements remain active; no initial documents are moved.
 
 ## Deferred work and release preparation
 
-[Six-player expansion](future/six_player_expansion.md),
-[foldable/closed-seat focus](future/foldable_phone_future_version.md), and
-[extra keyboard options](future/custom_keyboard_options.md) remain deferred.
+[Six-player expansion](six_player_expansion.md),
+[foldable/closed-seat focus](foldable_phone_future_version.md), and
+[extra keyboard options](custom_keyboard_options.md) remain deferred.
 Networking, a general Magic rules engine and automatic mana payment were never
 added to MVP scope. Full multilingual software composition needs an explicit
 scope decision as well as validation; do not claim it works today.

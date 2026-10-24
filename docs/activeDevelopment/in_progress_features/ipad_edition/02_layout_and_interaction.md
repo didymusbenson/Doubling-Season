@@ -71,7 +71,7 @@ Flutter's `RotatedBox` participates in layout for quarter turns. That makes it a
 
 ## Player-count boundary
 
-The four-quadrant sketch is the reference fixture, not a hard-coded player limit. Initial scope includes customizable two-, three- and four-player tables. Prototype each count deliberately: use the accepted matched opposite-facing two-player layout; three-player setup selects any empty one of four slots for expanded game controls. Do not assume unused screen space must remain blank. Keep stable player identity separate from seat geometry and avoid fixed-four assumptions in the domain. [Expansion to six](../future/six_player_expansion.md) is deferred; preserve layout leeway without implementing or promising it now.
+The four-quadrant sketch is the reference fixture, not a hard-coded player limit. Initial scope includes customizable two-, three- and four-player tables. Prototype each count deliberately: use the accepted matched opposite-facing two-player layout; three-player setup selects any empty one of four slots for expanded game controls. Do not assume unused screen space must remain blank. Keep stable player identity separate from seat geometry and avoid fixed-four assumptions in the domain. [Expansion to six](six_player_expansion.md) is deferred; preserve layout leeway without implementing or promising it now.
 
 ## Persistent seats versus visible slots
 
@@ -157,7 +157,7 @@ A shared workspace host must explicitly manage orientation, focus, target contex
 - **Chosen direction:** render a custom in-app keyboard within the player-facing Flutter surface. OS/system keyboards do not expose arbitrary per-seat rotation; rotating a Flutter field does not rotate the system keyboard. An in-app panel can be rotated with its seat, but touch mapping, focus, editing and accessibility still need prototype evidence.
 - **Concurrency accepted (D09): one keyboard at a time, facing its initiating player.** The user explicitly answered “No simultaneous keyboards.” Preserve drafts and stable player/item origin; one player’s editing must not mutate another’s state. D41 settles sequential modal use: no background request is queued and no takeover occurs. The dismissing gesture is absorbed; another player must initiate a fresh interaction after dismissal. Resolve edited values according to the existing operation’s commit/cancel model.
 - Reserve appropriate shared-workspace space, accepting that detailed editing may obscure much of the table. Background input is blocked by D41; exact obstruction/resize dimensions still need validation. System/native fallback, hardware keyboard and IME routes need explicit orientation and accessibility review, not an unnoticed escape from the player-facing requirement.
-- [Custom keyboard options](../future/custom_keyboard_options.md), including mana-symbol candidates, are deferred exploration, not approved first-release features.
+- [Custom keyboard options](custom_keyboard_options.md), including mana-symbol candidates, are deferred exploration, not approved first-release features.
 - Central actions keep app/game context regardless of placement. Any modal blocks the table regardless of action scope; stop underlying repeat gestures when it opens. This UI barrier does not replace durable transaction/generation checks or settle wipe targets.
 
 Flutter distinguishes raw pointers and gesture recognition; nested buttons, drags and repeated controls need deliberate gesture arbitration. [Gesture documentation](https://docs.flutter.dev/ui/interactivity/gestures). Actual multi-seat reliability remains unproven until P0.
@@ -190,7 +190,7 @@ Modifier panels distinguish owned controls from inherited global contributions. 
 
 ## Tablet-first MVP boundary — D06/D30
 
-MVP supports tablets from iPad mini through full-size iPads and Android variants, retaining the complete active 2–4-seat view. Android/iOS/web targets remain; web support uses tablet-suitable viewports. Exact minimum dimensions, model generations, OS/browser floors, aspect ratios and orientations require validation, not guesses. Small-tablet fit is mandatory; no MVP phone or focused-seat mode. The [closed-focus/unfolded-multiplayer foldable concept](../future/foldable_phone_future_version.md) is deferred to another major version and does not add a standalone one-player game.
+MVP supports tablets from iPad mini through full-size iPads and Android variants, retaining the complete active 2–4-seat view. Android/iOS/web targets remain; web support uses tablet-suitable viewports. Exact minimum dimensions, model generations, OS/browser floors, aspect ratios and orientations require validation, not guesses. Small-tablet fit is mandatory; no MVP phone or focused-seat mode. The [closed-focus/unfolded-multiplayer foldable concept](foldable_phone_future_version.md) is deferred to another major version and does not add a standalone one-player game.
 
 ## Explicit carryover clarification — 2026-10-22
 

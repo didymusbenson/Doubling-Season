@@ -6,7 +6,7 @@
 
 For an ordinary player action, the complete causal chain belongs to the originating player's session: source reads, rules selection, result planning, primary and companion creation, merge lookup, counters, trigger accumulation, order allocation, persistence, feedback, rollback and undo. It must never acquire a different destination because someone else touched a menu while an async operation was pending.
 
-The current single-board app uses app-wide providers, fixed Hive boxes, singleton events, whole-board queries and snapshots. Those are appropriate current single-board assumptions, not existing multiplayer defects. [Current-code evidence](../../../../../ai_docs/research/2026-10-20-ipad-edition-current-architecture.md) identifies each adaptation point.
+The current single-board app uses app-wide providers, fixed Hive boxes, singleton events, whole-board queries and snapshots. Those are appropriate current single-board assumptions, not existing multiplayer defects. [Current-code evidence](../../../../ai_docs/research/2026-10-20-ipad-edition-current-architecture.md) identifies each adaptation point.
 
 ## Accepted control context, not permissions
 

@@ -31,7 +31,7 @@ Implementation proposal within the accepted separate-app boundary: prototype the
 
 ## Existing reuse map
 
-All current-code statements below are supported by the [pinned audit](../../../../../ai_docs/research/2026-10-20-ipad-edition-current-architecture.md). Reuse classification means engineering intent, not drop-in compatibility.
+All current-code statements below are supported by the [pinned audit](../../../../ai_docs/research/2026-10-20-ipad-edition-current-architecture.md). Reuse classification means engineering intent, not drop-in compatibility.
 
 | Existing area | Reuse intent | Adaptation boundary |
 |---|---|---|
@@ -90,7 +90,7 @@ Life, typed player counters/status and commander damage can appear in the centra
 - **Game coordinator:** own reset/rematch/seat administration, shared state changes and explicit multi-player write sets; represent game-level origin separately from affected seats and optional player attribution. Every modal requires an app-wide input barrier and tapaway consumption (D41), independently of command scope; exact wipe targeting remains open.
 - **Rules configuration:** player-session active values plus optionally shared definitions. The evaluator receives a versioned snapshot, not ambient mutable settings.
 - **Interaction controller:** seat-local quick-control/scroll/drag state plus a shared detailed-editor/search workspace with captured target, orientation and draft state. It does not own game truth.
-- **Player-facing input host:** custom Flutter keyboard and entry surface for any keyboard input, rotated together toward its initiating player. Numeric/text modes and richer options are discussed in [custom keyboard options](../future/custom_keyboard_options.md). D09 now requires one active keyboard at a time. Preserve per-player drafts and origin; D41 requires sequential modal use with no queued request/takeover; preserve operation-specific commit/cancel semantics and recoverable failed drafts.
+- **Player-facing input host:** custom Flutter keyboard and entry surface for any keyboard input, rotated together toward its initiating player. Numeric/text modes and richer options are discussed in [custom keyboard options](custom_keyboard_options.md). D09 now requires one active keyboard at a time. Preserve per-player drafts and origin; D41 requires sequential modal use with no queued request/takeover; preserve operation-specific commit/cancel semantics and recoverable failed drafts.
 - **Device interaction coordinator:** native/hardware keyboard fallback and focus, photo picker/cropper, file import/share and other OS-native surfaces. Retain originating seat or app/game context through every return; never manufacture a player actor for a game-level flow. System keyboards cannot be arbitrarily rotated per seat; native fallback needs an explicit policy rather than silently weakening player-facing input.
 
 Per-player queues express ordering of intents and keep local busy/error state isolated. D15 decides whether they feed one serialized session writer initially or independent scoped writers with a table coordinator. A single durable writer can still accept input from multiple seats; sequential storage alone does not require disabling the UI. D41 separately blocks every background control while a modal is open; persistence command queues are not queued second-editor interactions.
@@ -145,7 +145,7 @@ Resolve effective modifiers from authoritative seat-owned local/global sources b
 
 ## Tablet-first MVP boundary — D06/D30
 
-MVP supports tablets from iPad mini through full-size iPads and Android variants, retaining the complete active 2–4-seat view. Android/iOS/web targets remain; web support uses tablet-suitable viewports. Exact minimum dimensions, model generations, OS/browser floors, aspect ratios and orientations require validation, not guesses. Small-tablet fit is mandatory; no MVP phone or focused-seat mode. The [closed-focus/unfolded-multiplayer foldable concept](../future/foldable_phone_future_version.md) is deferred to another major version and does not add a standalone one-player game.
+MVP supports tablets from iPad mini through full-size iPads and Android variants, retaining the complete active 2–4-seat view. Android/iOS/web targets remain; web support uses tablet-suitable viewports. Exact minimum dimensions, model generations, OS/browser floors, aspect ratios and orientations require validation, not guesses. Small-tablet fit is mandatory; no MVP phone or focused-seat mode. The [closed-focus/unfolded-multiplayer foldable concept](foldable_phone_future_version.md) is deferred to another major version and does not add a standalone one-player game.
 
 ## Accepted archive safety and retention — D33
 

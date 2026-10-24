@@ -1,7 +1,7 @@
 # Next pass — collect before implementing
 
 **Status:** feedback collection only, started 2026-10-23 (America/Phoenix).
-The user is field testing the [MVP baseline](../mvp_readiness_audit.md) on iPad
+The user is field testing the [current field-test build](../mvp_readiness_audit.md) on iPad
 and wants a substantial batch of observations before implementation resumes.
 
 ## Collection
@@ -14,7 +14,7 @@ screenshots. "Unknown" is better than inventing context or reproducibility.
 
 An observation is not an approved fix. Do not preselect a solution from one
 example, bundle unrelated preferences into a bug, or promote the old
-[future directions](../future/README.md) into this batch automatically.
+[future directions](../README.md#start-here) into this batch automatically.
 Data loss or unsafe cross-player changes should be recorded and surfaced
 promptly; they still do not authorize unsolicited app edits.
 
@@ -25,7 +25,7 @@ promptly; they still do not authorize unsolicited app edits.
    validation; preserve behavior users report working well.
 3. Agree priorities, tradeoffs, exclusions and a bounded implementation batch.
 4. Write one batch specification with observable acceptance checks, including
-   relevant [MVP validation obligations](../MVP/08_delivery_validation_and_risks.md).
+   the relevant [original validation obligations](../08_delivery_validation_and_risks.md).
 5. Implement only that agreed batch, validate the affected paths, then follow
    the repository's normal PR/publication workflow.
 

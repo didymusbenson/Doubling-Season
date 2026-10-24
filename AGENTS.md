@@ -317,11 +317,12 @@ eligible sickness added by a positive absolute-total edit.
 
 ### Separate tablet app
 
-The tablet implementation is frozen for iPad field testing (2026-10-23 user
+The tablet implementation is paused for iPad field testing (2026-10-23 user
 direction). Start at the [tablet documentation hub](docs/activeDevelopment/in_progress_features/ipad_edition/README.md).
-Initial requirements/evidence are preserved in `ipad_edition/MVP`; open
-acceptance items remain in the readiness audit. Collect and group observations
-in `ipad_edition/next_pass/field_test_feedback.md` before agreeing a deliberate
+The initial dossier remains in place: the readiness audit does not establish
+that all original acceptance requirements are met/exceeded, so the user's
+conditional move into `MVP` is deferred. Collect and group observations in
+`ipad_edition/next_pass/field_test_feedback.md` before agreeing a deliberate
 next batch. Recording feedback does not authorize spot fixes or app changes;
 wait for the user's direction to implement the batch. Deferred ideas are not
 automatically that batch's scope.
@@ -336,8 +337,8 @@ and data-preserving installation; `flutter install` can uninstall existing data.
 and chronological history. Reuse `TokenCard` and supporting implementation
 where practical; separate token/utility lanes do not authorize a reduced token
 component. Preserve direct compact actions, inline editing and full functional
-parity. Use [the corrected dossier](docs/activeDevelopment/in_progress_features/ipad_edition/MVP/token_functional_parity.md)
-and [the corrective review tracker](docs/activeDevelopment/in_progress_features/ipad_edition/MVP/corrective_iteration.md).
+parity. Use [the corrected dossier](docs/activeDevelopment/in_progress_features/ipad_edition/token_functional_parity.md)
+and [the corrective review tracker](docs/activeDevelopment/in_progress_features/ipad_edition/corrective_iteration.md).
 The original phone Hive providers must not be initialized by the tablet app.
 The Pages workflow deploys both apps in one artifact: original at
 `/Doubling-Season/` (Flutter 3.38.x), tablet at `/Doubling-Season/tablet/`
@@ -349,7 +350,7 @@ Tablet board controls are compact and icon-led with accessible names.
 Player-local lane widths are 60% tokens / 40% life-and-utilities for every
 2/3/4-seat layout, excluding the existing 1px lane divider. Preserve the central
 hub, hard borders and opposite-corner token overlays; see
-[the 60/40 fit notes](docs/activeDevelopment/in_progress_features/ipad_edition/MVP/lane_split_60_40_2026-10-23.md)
+[the 60/40 fit notes](docs/activeDevelopment/in_progress_features/ipad_edition/lane_split_60_40_2026-10-23.md)
 for short-landscape tools and the two-player circular token-content clearance.
 The 2026-10-22 UI batch requires token name/totals on the first row, real Mana
 P/T glyphs, no expand chevron or permanent token-lane header, local corner Add
@@ -358,7 +359,7 @@ borders independent of game controls. Shared game controls stay inside the life
 zone. Statuses are compact badges; attached commander damage mini-trackers use
 the source owner's color/art and existing coupled commands. Fixed utility
 choices fit small-tablet modals; variable lists scroll separately. See
-[the batch checklist](docs/activeDevelopment/in_progress_features/ipad_edition/MVP/ui_feedback_batch_2026-10-22.md). Seat
+[the batch checklist](docs/activeDevelopment/in_progress_features/ipad_edition/ui_feedback_batch_2026-10-22.md). Seat
 identity belongs in the life region; retain target context in shared editors.
 Any modal blocks the entire table, dismisses on tapaway without click-through,
 and preserves recoverable drafts. A single custom keyboard faces the initiating
@@ -368,14 +369,14 @@ clearance, real symbol-led mana controls, and local-left Add/Summary overlays.
 Modal frames follow their fixed content; variable art/search/archive lists keep
 bounded content viewports. Each PlayerField owns its PageStorage identity so
 ExpansionTile state cannot become a text-field scroll offset. See
-[the visual review checklist](docs/activeDevelopment/in_progress_features/ipad_edition/MVP/visual_polish_2026-10-23.md).
+[the visual review checklist](docs/activeDevelopment/in_progress_features/ipad_edition/visual_polish_2026-10-23.md).
 Tablet utility presentation excludes built-in life/counter/status projections by
 exact kind, using BoardService.isUtilityVisible for both rendering and reorder.
 Never remove/normalize serialized legacy entries: exact values, IDs, flags and
 metadata can be required by historical undo. Legacy settings provides metadata
 access without duplicate gameplay controls. Preserve explicit custom identity
 when importing phone setups before matching editable names. See
-[the utility cleanup](docs/activeDevelopment/in_progress_features/ipad_edition/MVP/utility_redundancy_2026-10-23.md).
+[the utility cleanup](docs/activeDevelopment/in_progress_features/ipad_edition/utility_redundancy_2026-10-23.md).
 
 Tablet utility rows do not render a color-indicator stripe. Retain their color
 metadata/model/storage and other uses of color; tablet tokens keep their 7px

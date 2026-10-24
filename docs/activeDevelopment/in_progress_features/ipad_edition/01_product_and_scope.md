@@ -8,7 +8,7 @@
 
 Place an iPad in the middle of a Magic game and let each player operate their own small Tripling Season board while everyone can see the central life tracker. Players should spend little time navigating and should recognize immediately whose state a control changes.
 
-This is a **separate app / new product** with a different frontend composition (D01 accepted). The same repository is acceptable with proper directory isolation; exact packaging and shared-core extraction remain open. “iPad” remains the working name and design reference, while **Android, iOS and web** are accepted product targets (D03). Initial scope is **customizable 2–4 players**, with [expansion to six deferred](../future/six_player_expansion.md) (D04). Two players use opposite-facing matched layouts (local token-left, life-upper-right, utilities below life). Three players use a four-seat base with any setup-selectable empty slot for expanded game controls. See the [accepted mockups](02_layout_and_interaction.md); exact dimensions and four-player composition remain open.
+This is a **separate app / new product** with a different frontend composition (D01 accepted). The same repository is acceptable with proper directory isolation; exact packaging and shared-core extraction remain open. “iPad” remains the working name and design reference, while **Android, iOS and web** are accepted product targets (D03). Initial scope is **customizable 2–4 players**, with [expansion to six deferred](six_player_expansion.md) (D04). Two players use opposite-facing matched layouts (local token-left, life-upper-right, utilities below life). Three players use a four-seat base with any setup-selectable empty slot for expanded game controls. See the [accepted mockups](02_layout_and_interaction.md); exact dimensions and four-player composition remain open.
 
 ## Experience principles
 
@@ -40,7 +40,7 @@ The product/platform/player-count boundaries below are accepted; the remaining c
 
 | Capability | Foundation prototype | Proposed first usable edition | Later / separate decision |
 |---|---|---|---|
-| Table | Four-seat reference plus 2/3-seat layout checks | Customizable 2–4 players (accepted); session resume proposal | [Expansion to six](../future/six_player_expansion.md) deferred; teams unapproved |
+| Table | Four-seat reference plus 2/3-seat layout checks | Customizable 2–4 players (accepted); session resume proposal | [Expansion to six](six_player_expansion.md) deferred; teams unapproved |
 | Life tracker | Life plus representative typed counter/status, shared state and self/partner damage fixtures | **Confirmed:** life, relevant player counters, city’s blessing, monarch, shared day/night, source damage including self; detailed policies open | Rich statistics; optional modes; reference-derived inventory additions require review |
 | Tokens | One creation route and reorder | Search/custom/create, counts, tap, sickness, counters, copy/split, artwork | Explicit cross-player gifting/control transfer |
 | Utilities | One manual tracker and Krenko | Existing utility parity where scoped safely; default-visible dismissible mana pool and storm counter; curated visibility/order | Additional unapproved automation / token-control transfers |
@@ -106,7 +106,7 @@ The [granular baseline map](outstanding_behavior_baselines.md) supplies concrete
 
 ## Tablet-first MVP boundary — D06/D30
 
-MVP supports tablets from iPad mini through full-size iPads and Android variants, retaining the complete active 2–4-seat view. Android/iOS/web targets remain; web support uses tablet-suitable viewports. Exact minimum dimensions, model generations, OS/browser floors, aspect ratios and orientations require validation, not guesses. Small-tablet fit is mandatory; no MVP phone or focused-seat mode. The [closed-focus/unfolded-multiplayer foldable concept](../future/foldable_phone_future_version.md) is deferred to another major version and does not add a standalone one-player game.
+MVP supports tablets from iPad mini through full-size iPads and Android variants, retaining the complete active 2–4-seat view. Android/iOS/web targets remain; web support uses tablet-suitable viewports. Exact minimum dimensions, model generations, OS/browser floors, aspect ratios and orientations require validation, not guesses. Small-tablet fit is mandatory; no MVP phone or focused-seat mode. The [closed-focus/unfolded-multiplayer foldable concept](foldable_phone_future_version.md) is deferred to another major version and does not add a standalone one-player game.
 
 ## Accepted archive safety and retention — D33
 
