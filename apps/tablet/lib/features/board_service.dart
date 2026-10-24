@@ -136,6 +136,28 @@ class BoardService {
 
   bool _creature(TokenState t) => t.pt.trim().isNotEmpty;
   bool _emblem(TokenState t) => t.isEmblem;
+  bool _hasCreatureSubtype(TokenState t, String subtype) {
+    if (RegExp(
+      r'\b' + RegExp.escape(subtype) + r'\b',
+      caseSensitive: false,
+    ).hasMatch(t.type)) {
+      return true;
+    }
+    // Catalog keyword abilities may be flattened ("Changeling Deathtouch").
+    // Recognize an actual keyword-only ability, never a rules-text mention such
+    // as "Creatures with changeling get ..." or "Changeling creatures ...".
+    final abilities = t.abilities.replaceAll(RegExp(r'\([^)]*\)'), '');
+    final keywords = RegExp(
+      r'^(?:(?:changeling|deathtouch|defender|double strike|first strike|flying|haste|hexproof|indestructible|lifelink|menace|reach|trample|vigilance)\s*)+$',
+      caseSensitive: false,
+    );
+    return abilities.split(RegExp(r'[\n,;.]')).any((part) {
+      final ability = part.trim();
+      return keywords.hasMatch(ability) &&
+          RegExp(r'\bchangeling\b', caseSensitive: false).hasMatch(ability);
+    });
+  }
+
   bool _clean(TokenState t) =>
       t.plusOneCounters == 0 &&
       t.minusOneCounters == 0 &&
@@ -185,6 +207,15 @@ class BoardService {
   }) {
     final art =
         artworkUrl ?? (d.artwork.isNotEmpty ? d.artwork.first.url : null);
+    String? selectedSet = artworkSet;
+    if (selectedSet == null && art != null) {
+      for (final variant in d.artwork) {
+        if (variant.url == art) {
+          selectedSet = variant.set;
+          break;
+        }
+      }
+    }
     return TokenState(
       id: newEntityId(),
       definitionId: d.id,
@@ -202,8 +233,7 @@ class BoardService {
           ? quantity
           : 0,
       artworkUrl: art,
-      artworkSet:
-          artworkSet ?? (d.artwork.isNotEmpty ? d.artwork.first.set : null),
+      artworkSet: selectedSet,
       artworkOptions: d.artwork.map((a) => a.toJson()).toList(),
     );
   }
@@ -310,6 +340,18 @@ class BoardService {
     int? expectedRevision,
     BoardScope? captured,
   }) async {
+    // New Ring selections represent the player's emblem utility. Existing saved
+    // Ring token objects and templates remain untouched and undoable.
+    if (def.name == 'The Ring // The Ring Tempts You' &&
+        def.type.toLowerCase().contains('emblem')) {
+      await addUtility(
+        playerId,
+        'the_ring',
+        captured: captured,
+        expectedRevision: expectedRevision,
+      );
+      return;
+    }
     _quantity(quantity);
     await _commit(
       playerId,
@@ -963,6 +1005,24 @@ class BoardService {
     db.dispose();
     return [
       WidgetDefinition(
+        id: 'the_ring',
+        type: WidgetType.special,
+        name: 'The Ring',
+        description:
+            'The Ring tempts you: choose your bearer and advance up to four abilities.',
+        colorIdentity: '',
+        defaultValue: 0,
+        actionOnly: true,
+        artwork: [
+          ArtworkVariant(
+            set: 'LTR',
+            artist: 'Viko Menezes',
+            url:
+                'https://cards.scryfall.io/large/front/7/2/7215460e-8c06-47d0-94e5-d1832d0218af.jpg',
+          ),
+        ],
+      ),
+      WidgetDefinition(
         id: 'mana_pool',
         type: WidgetType.special,
         name: 'Mana pool',
@@ -970,6 +1030,31 @@ class BoardService {
             'Manual mana. Empty preserves locked colors; conversion moves every color.',
         colorIdentity: '',
         defaultValue: 0,
+      ),
+      WidgetDefinition(
+        id: 'the_unbeatable_squirrel_girl',
+        type: WidgetType.special,
+        name: 'The Unbeatable Squirrel Girl',
+        description: 'Nontoken Squirrels you control (including Squirrel Girl)',
+        colorIdentity: 'G',
+        defaultValue: 1,
+        hasAction: true,
+        actionButtonText: 'Make Squirrels · 1GGG',
+        actionType: 'the_unbeatable_squirrel_girl',
+        artwork: [
+          ArtworkVariant(
+            set: 'MSH',
+            artist: 'Kim Dingwall',
+            url:
+                'https://cards.scryfall.io/large/front/d/8/d8b94ebb-0b3a-4e68-8c0c-3a61ac32f3ef.jpg?1783902911',
+          ),
+          ArtworkVariant(
+            set: 'MSH',
+            artist: 'Swayart',
+            url:
+                'https://cards.scryfall.io/large/front/e/f/ef518e5b-7942-4e66-aee0-a1c2aa1f9754.jpg?1783902847',
+          ),
+        ],
       ),
       ...list,
     ];
@@ -1001,53 +1086,64 @@ class BoardService {
     'experience_counters': 'experience',
     'radiation_counters': 'radiation',
   }[kind];
-  Future<void> addUtility(String playerId, String definitionId) =>
-      _commit(playerId, 'Add utility', (s, p) {
-        final d = utilityDefinitions.firstWhere(
-          (d) => d.id == definitionId,
-          orElse: () => throw StateError('Unsupported utility'),
-        );
-        if ({
-          'mana_pool',
-          'storm_count',
-          'life_total',
-          'poison_counters',
-          'energy_counters',
-          'experience_counters',
-          'radiation_counters',
-          'citys_blessing',
-        }.contains(definitionId)) {
-          for (final u in p.utilities) {
-            if (u.kind == definitionId) {
-              u.visible = true;
-              return;
-            }
+  Future<void> addUtility(
+    String playerId,
+    String definitionId, {
+    BoardScope? captured,
+    int? expectedRevision,
+  }) => _commit(
+    playerId,
+    'Add utility',
+    (s, p) {
+      final d = utilityDefinitions.firstWhere(
+        (d) => d.id == definitionId,
+        orElse: () => throw StateError('Unsupported utility'),
+      );
+      if ({
+        'the_ring',
+        'mana_pool',
+        'storm_count',
+        'life_total',
+        'poison_counters',
+        'energy_counters',
+        'experience_counters',
+        'radiation_counters',
+        'citys_blessing',
+      }.contains(definitionId)) {
+        for (final u in p.utilities) {
+          if (u.kind == definitionId) {
+            u.visible = true;
+            return;
           }
         }
-        p.utilities.add(
-          UtilityState(
-            id: newEntityId(),
-            kind: d.id,
-            name: d.name,
-            description: d.description,
-            colors: d.colorIdentity,
-            value: d.defaultValue ?? 0,
-            defaultValue: d.defaultValue ?? 0,
-            artworkUrl: d.artwork.isEmpty ? null : d.artwork.first.url,
-            configuration: {
-              'type': d.type == WidgetType.toggle ? 'toggle' : 'tracker',
-              'tapIncrement': d.tapIncrement,
-              'longPressIncrement': d.longPressIncrement,
-              'hasAction': d.hasAction,
-              'actionType': d.actionType,
-              'actionOnly': d.actionOnly,
-              'actionButtonText': d.actionButtonText,
-              'offDescription': d.offDescription,
-              'artworkOptions': d.artwork.map((a) => a.toJson()).toList(),
-            },
-          ),
-        );
-      });
+      }
+      p.utilities.add(
+        UtilityState(
+          id: newEntityId(),
+          kind: d.id,
+          name: d.name,
+          description: d.description,
+          colors: d.colorIdentity,
+          value: d.defaultValue ?? 0,
+          defaultValue: d.defaultValue ?? 0,
+          artworkUrl: d.artwork.isEmpty ? null : d.artwork.first.url,
+          configuration: {
+            'type': d.type == WidgetType.toggle ? 'toggle' : 'tracker',
+            'tapIncrement': d.tapIncrement,
+            'longPressIncrement': d.longPressIncrement,
+            'hasAction': d.hasAction,
+            'actionType': d.actionType,
+            'actionOnly': d.actionOnly,
+            'actionButtonText': d.actionButtonText,
+            'offDescription': d.offDescription,
+            'artworkOptions': d.artwork.map((a) => a.toJson()).toList(),
+          },
+        ),
+      );
+    },
+    captured: captured,
+    expectedRevision: expectedRevision,
+  );
   Future<void> setUtility(
     String playerId,
     String id, {
@@ -1250,22 +1346,27 @@ class BoardService {
         quantity =
             u.value +
             p.tokens
-                .where((t) => t.type.toLowerCase().contains('goblin'))
+                .where((t) => _hasCreatureSubtype(t, 'Goblin'))
                 .fold<int>(0, (n, t) => n + t.amount);
+        d = _definitionId('Goblin|1/1|R|Creature — Goblin|');
         break;
       case 'krenko_tin_street':
         quantity = u.value;
+        d = _definitionId('Goblin|1/1|R|Creature — Goblin|');
         break;
       case 'hare_apparent':
         quantity = max(0, u.value - 1);
-        d = TokenDefinition(
-          name: 'Rabbit',
-          pt: '1/1',
-          colors: 'W',
-          type: 'Creature Token — Rabbit',
-          abilities: '',
-          popularity: 0,
-        );
+        d = _definitionId('Rabbit|1/1|W|Creature — Rabbit|');
+        break;
+      case 'the_unbeatable_squirrel_girl':
+        // Count at resolution, then create fresh tokens once. This is the
+        // activated 1GGG ability, not the separate enters/attacks trigger.
+        quantity =
+            u.value +
+            p.tokens
+                .where((t) => _hasCreatureSubtype(t, 'Squirrel'))
+                .fold<int>(0, (n, t) => n + t.amount);
+        d = _definitionId(GameConstants.squirrelCompositeId);
         break;
       case 'academy_manufactor':
         if (u.value > 0) {
@@ -1281,15 +1382,7 @@ class BoardService {
       default:
         return [];
     }
-    d ??= TokenDefinition(
-      name: 'Goblin',
-      pt: '1/1',
-      colors: 'R',
-      type: 'Creature Token — Goblin',
-      abilities: '',
-      popularity: 0,
-    );
-    if (quantity == 0) return [];
+    if (quantity == 0 || d == null) return [];
     return _rules(s, p.id).evaluateRules(
       d.name,
       d.pt,

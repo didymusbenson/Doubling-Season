@@ -8,6 +8,28 @@ extension _TokenPages on _TableWorkspaceState {
     if (_createCustom) return _customTokenPage();
     final selected = _selectedDefinition;
     if (selected != null) {
+      if (RingService.isRingDefinition(selected.name, selected.type)) {
+        return _list([
+          _button(
+            'Back to search',
+            () => _update(() => _selectedDefinition = null),
+            icon: Icons.arrow_back,
+          ),
+          _section(
+            'The Ring',
+            detail:
+                'Track your Ring progress and choose a Ring-bearer with a utility.',
+          ),
+          _button(
+            'Add The Ring utility',
+            () => _run(
+              () => _board.addUtility(p!.id, RingService.kind),
+              closeOnSuccess: true,
+            ),
+            primary: true,
+          ),
+        ]);
+      }
       final scope = _board.scope(p!.id);
       final revision = c.session.revision;
       final quantity = _field('create.quantity', '1');

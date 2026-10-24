@@ -117,6 +117,10 @@ extension _LibraryPages on _TableWorkspaceState {
   }
 
   Widget _utilityDetail(UtilityState utility) {
+    if (utility.kind == RingService.kind &&
+        _field('utility.${utility.id}.panel').text != 'artwork') {
+      return _ringDetail(utility);
+    }
     final player = p!;
     final key = 'utility.${utility.id}';
     final scope = _board.scope(player.id);
@@ -237,9 +241,13 @@ extension _LibraryPages on _TableWorkspaceState {
               _run(() => _board.setUtility(player.id, utility.id, isActive: v)),
         )
       else if (standalone && !actionOnly)
-        Row(
+        Wrap(
+          spacing: 12,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Expanded(
+            SizedBox(
+              width: 180,
               child: _stepper(
                 'Value',
                 currentValue,
@@ -258,8 +266,8 @@ extension _LibraryPages on _TableWorkspaceState {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
+            SizedBox(
+              width: 140,
               child: _input(
                 '$key.value',
                 'Set value',
@@ -267,7 +275,6 @@ extension _LibraryPages on _TableWorkspaceState {
                 numeric: true,
               ),
             ),
-            const SizedBox(width: 8),
             _button(
               'Set value',
               () => _run(
@@ -413,6 +420,210 @@ extension _LibraryPages on _TableWorkspaceState {
                 children: controls,
               ),
             ),
+    );
+  }
+
+  Widget _ringDetail(UtilityState utility) {
+    final player = p!;
+    final key = 'utility.${utility.id}';
+    final scope = _board.scope(player.id);
+    final ring = RingService(c);
+    final bearer = _field('$key.ringBearer', RingService.bearer(utility));
+    final noCreatures = _field('$key.noCreatures', 'false');
+    final correction = _field('$key.correct').text == 'true';
+    void resetChoice() {
+      bearer.text = RingService.bearer(utility);
+      noCreatures.text = 'false';
+    }
+
+    return Padding(
+      key: const ValueKey('utility-detail-the_ring'),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      child: SingleChildScrollView(
+        key: const ValueKey('utility-fixed-controls'),
+        child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              _button('All utilities', () async {
+                if (await _flushInline()) _update(() => _itemId = null);
+              }, icon: Icons.arrow_back),
+              const Spacer(),
+              _button('Artwork', () async {
+                if (await _flushInline()) {
+                  _update(() => _field('$key.panel').text = 'artwork');
+                }
+              }, icon: Icons.image_outlined),
+              IconButton(
+                tooltip: utility.visible
+                    ? 'Hide this utility'
+                    : 'Restore to board',
+                onPressed: () => _run(
+                  () => _board.setUtility(
+                    player.id,
+                    utility.id,
+                    visible: !utility.visible,
+                  ),
+                ),
+                icon: Icon(
+                  utility.visible
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                ),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: _input(
+                  '$key.name',
+                  'Name',
+                  initial: utility.name,
+                  onCommit: (value) => _board.setUtility(
+                    player.id,
+                    utility.id,
+                    name: value.trim(),
+                    captured: scope,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: _input(
+                  '$key.description',
+                  'Description',
+                  initial: utility.description,
+                  onCommit: (value) => _board.setUtility(
+                    player.id,
+                    utility.id,
+                    description: value,
+                    captured: scope,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Stage ${RingService.stage(utility)}/4 · ${utility.value} ${utility.value == 1 ? 'temptation' : 'temptations'}',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              TextButton(
+                onPressed: () => _update(() {
+                  resetChoice();
+                  _field('$key.correct').text = correction ? '' : 'true';
+                  _field('$key.count').text = '${utility.value}';
+                }),
+                child: Text(correction ? 'Back' : 'Correct'),
+              ),
+            ],
+          ),
+          if (correction)
+            _input(
+              '$key.count',
+              'Temptation count',
+              initial: '${utility.value}',
+              numeric: true,
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < RingService.reminders.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Text(
+                        '${i + 1}. ${RingService.reminders[i]}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: i < RingService.stage(utility)
+                              ? null
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          _input(
+            '$key.ringBearer',
+            'Ring-bearer',
+            initial: RingService.bearer(utility),
+            helper:
+                'Any creature you control; keep the name or choose another.',
+          ),
+          if (!correction)
+            CheckboxListTile(
+              key: const ValueKey('ring-no-creatures'),
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              dense: true,
+              title: const Text('No creatures'),
+              value: noCreatures.text == 'true',
+              onChanged: (value) => _update(() => noCreatures.text = '$value'),
+            ),
+          Wrap(
+            spacing: 8,
+            children: [
+              _button(
+                correction ? 'Save correction' : 'The Ring tempts you',
+                () => _run(
+                  () => correction
+                      ? ring.correct(
+                          player.id,
+                          utility.id,
+                          temptations: _integer('$key.count', min: 0),
+                          bearer: bearer.text,
+                          captured: scope,
+                        )
+                      : ring.tempt(
+                          player.id,
+                          utility.id,
+                          bearer: bearer.text,
+                          noCreatures: noCreatures.text == 'true',
+                          captured: scope,
+                        ),
+                  after: () {
+                    final saved = c
+                        .player(player.id)
+                        .utilities
+                        .firstWhere((u) => u.id == utility.id);
+                    bearer.text = RingService.bearer(saved);
+                    noCreatures.text = 'false';
+                    _field('$key.correct').clear();
+                  },
+                ),
+                primary: true,
+              ),
+              _button('Cancel choice', () => _update(resetChoice)),
+              _button(
+                'Clear bearer',
+                () => _run(
+                  () =>
+                      ring.clearBearer(player.id, utility.id, captured: scope),
+                  after: () => bearer.clear(),
+                ),
+              ),
+            ],
+          ),
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Text(
+              'Manual reminders. Clear the bearer if it leaves or changes controller; combat effects resolve at the table.',
+              style: TextStyle(fontSize: 11),
+            ),
+          ),
+        ],
+        ),
+      ),
     );
   }
 

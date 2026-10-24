@@ -365,7 +365,12 @@ class _TabletTokenCardState extends State<TabletTokenCard>
           child: Align(
             alignment: field == 'pt' ? Alignment.center : Alignment.centerLeft,
             widthFactor: 1,
-            child: _readable(content),
+            child: _readable(
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                child: content,
+              ),
+            ),
           ),
         ),
       ),
@@ -512,26 +517,29 @@ class _TabletTokenCardState extends State<TabletTokenCard>
     label: '$value $name',
     child: ExcludeSemantics(
       child: _readable(
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: prominent ? 17 : 15, color: color),
-            const SizedBox(width: 2),
-            Flexible(
-              fit: FlexFit.loose,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  '$value',
-                  style: TextStyle(
-                    fontSize: prominent ? 18 : 14,
-                    fontWeight: FontWeight.w700,
-                    color: color,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: prominent ? 17 : 15, color: color),
+              const SizedBox(width: 2),
+              Flexible(
+                fit: FlexFit.loose,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '$value',
+                    style: TextStyle(
+                      fontSize: prominent ? 18 : 14,
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     ),
@@ -642,46 +650,39 @@ class _TabletTokenCardState extends State<TabletTokenCard>
                               if (counters.isNotEmpty || widget.expanded)
                                 SizedBox(
                                   height: 32,
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: SingleChildScrollView(
-                                          scrollDirection: Axis.horizontal,
-                                          child: Row(
-                                            children: [
-                                              for (final entry in counters)
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                        right: 4,
-                                                      ),
-                                                  child: Semantics(
-                                                    button: true,
-                                                    label:
-                                                        '$_target, manage ${entry.$1} counters',
-                                                    child: InkWell(
-                                                      onTap: () => _open(
-                                                        WorkspacePage
-                                                            .tokenCounters,
-                                                      ),
-                                                      child: CounterPillView(
-                                                        name: entry.$1,
-                                                        amount: entry.$2,
-                                                      ),
-                                                    ),
-                                                  ),
+                                  child: SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Row(
+                                      children: [
+                                        for (final entry in counters)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              right: 4,
+                                            ),
+                                            child: Semantics(
+                                              button: true,
+                                              label:
+                                                  '$_target, manage ${entry.$1} counters',
+                                              child: InkWell(
+                                                onTap: () => _open(
+                                                  WorkspacePage.tokenCounters,
                                                 ),
-                                            ],
+                                                child: CounterPillView(
+                                                  name: entry.$1,
+                                                  amount: entry.$2,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        _action(
+                                          Icons.add_circle_outline,
+                                          'Manage counters',
+                                          () => _open(
+                                            WorkspacePage.tokenCounters,
                                           ),
                                         ),
-                                      ),
-                                      _action(
-                                        Icons.add_circle_outline,
-                                        'Manage counters',
-                                        () =>
-                                            _open(WorkspacePage.tokenCounters),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                               if (token.type.isNotEmpty || widget.expanded)
@@ -709,6 +710,9 @@ class _TabletTokenCardState extends State<TabletTokenCard>
                                     ),
                                   ),
                                 ),
+                              if ((token.type.isNotEmpty || widget.expanded) &&
+                                  (abilities.isNotEmpty || widget.expanded))
+                                const SizedBox(height: 3),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [

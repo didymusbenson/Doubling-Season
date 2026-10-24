@@ -15,10 +15,12 @@ import '../../domain/table_controller.dart';
 import '../../domain/table_state.dart';
 import '../../features/board_service.dart';
 import '../../features/preset_service.dart';
+import '../../features/ring_service.dart';
 import '../../services/tablet_catalog.dart';
 import 'player_keyboard.dart';
 import '../table_artwork.dart';
 import '../half_stepper.dart';
+import '../commander_ledger.dart';
 import '../monarch_crown.dart';
 import '../artwork_selection.dart';
 import '../life_artwork_picker.dart';
@@ -845,10 +847,12 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       WorkspacePage.tokens when _createCustom => (760.0, 600.0),
       WorkspacePage.utilities when compactUtility => (
         utility.kind == 'mana_pool' ? 960.0 : 760.0,
-        utility.kind == 'mana_pool'
+        utility.kind == RingService.kind
+            ? 700.0
+            : utility.kind == 'mana_pool'
             ? ((rotated ? size.height : size.width) >= 760 ? 560.0 : 650.0)
             : utility.configuration['hasAction'] == true
-            ? 600.0
+            ? (utility.kind == 'brudiclad_telchor_engineer' ? 600.0 : 460.0)
             : 330.0,
       ),
       WorkspacePage.utilities => (820.0, 760.0),
@@ -860,7 +864,10 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       focusedCommander ? commanderWidth : panelWidth,
       (rotated ? size.height : size.width) - 40,
     );
-    final commanderRows = (c.session.players.length / 2).ceil();
+    final commanderRows = CommanderSeatLayout.rowsFor(
+      c.session.players,
+      widget.quarterTurns,
+    ).length;
     final height = min(
       _confirmation != null
           ? 460.0

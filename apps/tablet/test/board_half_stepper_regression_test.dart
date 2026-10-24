@@ -222,11 +222,16 @@ void main() {
               ),
             );
             final namePoint = tester.getCenter(name);
+            // A centered label straddles the exact half seam. Exercise each
+            // side explicitly; subpixel rounding at the seam is not a contract.
             final localName = box.globalToLocal(namePoint);
-            expected += localName.dx < box.size.width / 2 ? -1 : 1;
-            await tester.tapAt(namePoint);
-            await tester.pumpAndSettle();
-            expect(fixture.controller.player(player.id).life, expected);
+            for (final dx in [-4.0, 4.0]) {
+              final point = Offset(box.size.width / 2 + dx, localName.dy);
+              expected += dx < 0 ? -1 : 1;
+              await tester.tapAt(box.localToGlobal(point));
+              await tester.pumpAndSettle();
+              expect(fixture.controller.player(player.id).life, expected);
+            }
             expect(find.byTooltip('Close workspace'), findsNothing);
             expect(await fixture.controller.undo(), isTrue);
             await tester.pumpAndSettle();

@@ -9,6 +9,7 @@ import '../domain/table_controller.dart';
 import '../services/tablet_catalog.dart';
 import '../services/tablet_media_store.dart';
 import 'board_service.dart';
+import 'ring_service.dart';
 
 /// Reusable zero-state setup library, separate from active games and archives.
 class PresetService {
@@ -43,10 +44,12 @@ class PresetService {
     'name': u.name,
     'description': u.description,
     'colors': u.colors,
-    'defaultValue': u.defaultValue,
+    'defaultValue': u.kind == RingService.kind ? 0 : u.defaultValue,
     'visible': u.visible,
     'artworkUrl': u.artworkUrl,
-    'configuration': u.configuration,
+    'configuration': u.kind == RingService.kind
+        ? RingService.freshConfiguration(u.configuration)
+        : u.configuration,
   };
   Future<Map<String, dynamic>> save(
     String playerId,
@@ -146,6 +149,7 @@ class PresetService {
           final kind = m['kind'] as String? ?? 'custom_tracker';
           // Bound utility projections must never introduce a second authoritative pool.
           if ({
+                RingService.kind,
                 'mana_pool',
                 'storm_count',
                 'life_total',
@@ -165,13 +169,21 @@ class PresetService {
               name: m['name'] as String? ?? 'Utility',
               description: m['description'] as String? ?? '',
               colors: m['colors'] as String? ?? '',
-              value: m['defaultValue'] as int? ?? 0,
-              defaultValue: m['defaultValue'] as int? ?? 0,
+              value: kind == RingService.kind
+                  ? 0
+                  : m['defaultValue'] as int? ?? 0,
+              defaultValue: kind == RingService.kind
+                  ? 0
+                  : m['defaultValue'] as int? ?? 0,
               visible: m['visible'] as bool? ?? true,
               artworkUrl: m['artworkUrl'] as String?,
-              configuration: Map<String, dynamic>.from(
-                m['configuration'] as Map? ?? {},
-              ),
+              configuration: kind == RingService.kind
+                  ? RingService.freshConfiguration(
+                      Map<String, dynamic>.from(
+                        m['configuration'] as Map? ?? {},
+                      ),
+                    )
+                  : Map<String, dynamic>.from(m['configuration'] as Map? ?? {}),
             ),
           );
         }
