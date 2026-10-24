@@ -32,9 +32,10 @@ void main() {
     bool table = true,
     int turns = 0,
     double width = 220,
+    int seats = 2,
   }) async {
     final state = stateWithTokens([sampleToken(tapped: 0, sick: 0)]);
-    state.session.players = state.session.players.take(2).toList();
+    state.session.players = state.session.players.take(seats).toList();
     state.session.players.first.utilities.clear();
     final fixture = TableFixture(state);
     await fixture.initialize();
@@ -88,6 +89,67 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(target);
     await tester.pumpAndSettle();
+  }
+
+  for (final kind in ['storm_count', 'mana_pool']) {
+    for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
+      testWidgets('$kind management shares its header at $size', (
+        tester,
+      ) async {
+        final (f, id) = await showUtility(tester, kind, seats: 4);
+        tester.view.physicalSize = size;
+        await tester.pumpAndSettle();
+        final seat = find.byKey(ValueKey(f.playerId));
+        final utility = f.player.utilities.single;
+        await tester.tap(
+          find.descendant(of: seat, matching: find.byTooltip(utility.name)),
+        );
+        await tester.pumpAndSettle();
+        final edit = find.descendant(
+          of: seat,
+          matching: find.byTooltip(
+            kind == 'mana_pool'
+                ? 'Manage ${utility.name}'
+                : '${utility.name}, details and actions',
+          ),
+        );
+        final hide = find.descendant(
+          of: seat,
+          matching: find.byTooltip('Hide ${utility.name}'),
+        );
+        expect(edit.hitTestable(), findsOneWidget);
+        expect(hide.hitTestable(), findsOneWidget);
+        expect(
+          (tester.getCenter(edit).dy - tester.getCenter(hide).dy).abs(),
+          lessThan(1),
+        );
+        final header = find.descendant(
+          of: seat,
+          matching: find.byTooltip(utility.name),
+        );
+        expect(
+          (tester.getCenter(header).dy - tester.getCenter(edit).dy).abs(),
+          lessThan(12),
+        );
+        final inline = tester.widget<UtilityInlineActions>(
+          find.byKey(ValueKey('inline-actions-$id')),
+        );
+        expect(
+          inline.management,
+          isEmpty,
+          reason: 'No trailing management-only row.',
+        );
+        expect(
+          tester
+              .widget<Icon>(
+                find.descendant(of: edit, matching: find.byType(Icon)),
+              )
+              .icon,
+          Icons.edit_outlined,
+        );
+        expect(tester.takeException(), isNull);
+      });
+    }
   }
 
   for (final kind in UtilityInlineActions.labels.keys.where(

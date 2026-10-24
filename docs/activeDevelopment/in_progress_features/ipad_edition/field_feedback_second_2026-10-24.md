@@ -25,7 +25,7 @@ Use existing valid provisioning, no new credentials/certificates or store upload
   source and release-subset font cmap for both glyphs.
 - Commander miniature and expanded grid share physical seat mapping, rotations,
   the empty three-player slot and partner subdivisions. See
-  [commander notes](../../../../../apps/tablet/docs/commander_spatial_layout_2026-10-24.md).
+  [commander notes](../../../../apps/tablet/docs/commander_spatial_layout_2026-10-24.md).
 - Hold the owned Monarch crown to clear ownership. Tap still claims/transfers;
   the gesture recognizer consumes hold release. One chronological undo restores it.
 - Token lane clipping contains the transformed Dismissible during motion, in
@@ -40,7 +40,7 @@ Use existing valid provisioning, no new credentials/certificates or store upload
 - Player names are horizontally centered in the life surface and remain under
   the life halves. Edit is separate. Name tests exercise both sides of the seam.
 - Canonical generated-token identity/art/merge fixes and Squirrel Girl are in
-  [the engine notes](../../../../../apps/tablet/docs/generated_tokens_and_squirrel_girl_2026-10-24.md).
+  [the engine notes](../../../../apps/tablet/docs/generated_tokens_and_squirrel_girl_2026-10-24.md).
 - The Ring is a seat utility with atomic manual bearer/temptation choices;
   existing Ring tokens remain intact. See [Ring design and rules](ring_utility_2026-10-24.md).
 

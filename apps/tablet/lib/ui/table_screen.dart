@@ -1192,6 +1192,9 @@ class _UtilityRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mana = utility.kind == 'mana_pool' || utility.kind == 'mana';
+    final inlineAction =
+        utility.kind == 'the_ring' ||
+        UtilityInlineActions.labels.containsKey(utility.kind);
     final step = (utility.configuration['tapIncrement'] as num?)?.toInt() ?? 1;
     final actionOnly = utility.configuration['actionOnly'] == true;
     final toggle =
@@ -1307,7 +1310,11 @@ class _UtilityRow extends StatelessWidget {
                               ),
                             ),
                             if (mana)
-                              icon(Icons.tune, 'Manage ${utility.name}', onOpen)
+                              icon(
+                                Icons.edit_outlined,
+                                'Manage ${utility.name}',
+                                onOpen,
+                              )
                             else if (toggle)
                               Switch(
                                 value: board.utilityActive(
@@ -1320,6 +1327,19 @@ class _UtilityRow extends StatelessWidget {
                                 !narrowStorm &&
                                 !narrowValue)
                               SizedBox(width: 88, child: valueStepper),
+                            if (expanded && !inlineAction) ...[
+                              if (!mana)
+                                icon(
+                                  Icons.edit_outlined,
+                                  '${utility.name}, details and actions',
+                                  onOpen,
+                                ),
+                              icon(
+                                Icons.visibility_off_outlined,
+                                'Hide ${utility.name}',
+                                onHide,
+                              ),
+                            ],
                           ],
                         ),
                         // A portrait Storm row cannot share its value width with
@@ -1464,7 +1484,7 @@ class _UtilityRow extends StatelessWidget {
                             board: board,
                             playerId: player.id,
                             utility: utility,
-                            management: expanded
+                            management: expanded && inlineAction
                                 ? [
                                     icon(
                                       Icons.edit_outlined,
