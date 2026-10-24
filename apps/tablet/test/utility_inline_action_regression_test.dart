@@ -39,7 +39,15 @@ void main() {
     state.session.players.first.utilities.clear();
     final fixture = TableFixture(state);
     await fixture.initialize();
-    await fixture.board.addUtility(fixture.playerId, kind);
+    if (kind == 'custom_toggle') {
+      await fixture.board.createCustomUtility(
+        fixture.playerId,
+        name: 'Custom toggle',
+        toggle: true,
+      );
+    } else {
+      await fixture.board.addUtility(fixture.playerId, kind);
+    }
     final utility = fixture.player.utilities.single;
     utility.artworkUrl = null;
     utility.configuration['artworkOptions'] = [];
@@ -91,7 +99,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  for (final kind in ['storm_count', 'mana_pool']) {
+  for (final kind in ['storm_count', 'mana_pool', 'custom_toggle']) {
     for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
       testWidgets('$kind management shares its header at $size', (
         tester,
@@ -147,6 +155,29 @@ void main() {
               .icon,
           Icons.edit_outlined,
         );
+        if (kind == 'custom_toggle') {
+          final switchControl = find.descendant(
+            of: seat,
+            matching: find.byType(Switch),
+          );
+          expect(switchControl.hitTestable(), findsOneWidget);
+          expect(
+            tester.getSize(header).width,
+            greaterThan(45),
+            reason: 'Keep a readable name width.',
+          );
+          expect(
+            tester.getSize(switchControl).height,
+            greaterThanOrEqualTo(44),
+          );
+          expect(find.byTooltip('Increase Custom toggle'), findsNothing);
+          await tester.tap(switchControl);
+          await tester.pumpAndSettle();
+          expect(f.board.utilityActive(f.playerId, id), isTrue);
+          await f.controller.undo();
+          await tester.pumpAndSettle();
+          expect(f.board.utilityActive(f.playerId, id), isFalse);
+        }
         expect(tester.takeException(), isNull);
       });
     }

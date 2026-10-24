@@ -1226,6 +1226,12 @@ class _UtilityRow extends StatelessWidget {
             utility.kind == 'storm_count' && constraints.maxWidth < 230;
         final narrowStorm = compactStorm && constraints.maxWidth < 180;
         final narrowValue = constraints.maxWidth < 210;
+        final narrowToggle =
+            toggle && expanded && !inlineAction && constraints.maxWidth < 260;
+        final toggleControl = Switch(
+          value: board.utilityActive(player.id, utility.id),
+          onChanged: (_) => onToggle(),
+        );
         final valueStepper = HalfStepper(
           label: utility.name,
           value: '${board.utilityValue(player.id, utility.id)}',
@@ -1315,15 +1321,10 @@ class _UtilityRow extends StatelessWidget {
                                 'Manage ${utility.name}',
                                 onOpen,
                               )
-                            else if (toggle)
-                              Switch(
-                                value: board.utilityActive(
-                                  player.id,
-                                  utility.id,
-                                ),
-                                onChanged: (_) => onToggle(),
-                              )
-                            else if (!actionOnly &&
+                            else if (toggle && !narrowToggle)
+                              toggleControl
+                            else if (!toggle &&
+                                !actionOnly &&
                                 !narrowStorm &&
                                 !narrowValue)
                               SizedBox(width: 88, child: valueStepper),
@@ -1342,6 +1343,11 @@ class _UtilityRow extends StatelessWidget {
                             ],
                           ],
                         ),
+                        if (narrowToggle)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: toggleControl,
+                          ),
                         // A portrait Storm row cannot share its value width with
                         // its title while preserving comfortable stepper targets.
                         if (!mana &&
