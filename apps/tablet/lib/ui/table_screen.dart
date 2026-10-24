@@ -1218,6 +1218,7 @@ class _UtilityRow extends StatelessWidget {
       style: IconButton.styleFrom(
         padding: EdgeInsets.zero,
         minimumSize: const Size(40, 44),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     );
     return LayoutBuilder(
