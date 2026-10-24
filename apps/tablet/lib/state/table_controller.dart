@@ -729,13 +729,16 @@ class TableController extends ChangeNotifier {
                 ..counters.clear(),
             )
             .toList();
-        next.utilities = prior.utilities
-            .map(
-              (value) => value.copy()
-                ..value = value.defaultValue
-                ..isActive = false,
-            )
-            .toList();
+        next.utilities = prior.utilities.map((value) {
+          final fresh = value.copy()
+            ..value = value.kind == 'the_ring' ? 0 : value.defaultValue
+            ..isActive = false;
+          if (value.kind == 'the_ring') {
+            fresh.defaultValue = 0;
+            fresh.configuration.remove('ringBearer');
+          }
+          return fresh;
+        }).toList();
         next.artPreferences = Map.from(prior.artPreferences);
       } else {
         // Complete reset and newly active seats start with the default tools,

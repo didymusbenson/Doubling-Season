@@ -322,7 +322,12 @@ class BoardService {
     // Ring token objects and templates remain untouched and undoable.
     if (def.name == 'The Ring // The Ring Tempts You' &&
         def.type.toLowerCase().contains('emblem')) {
-      await addUtility(playerId, 'the_ring', captured: captured, expectedRevision: expectedRevision);
+      await addUtility(
+        playerId,
+        'the_ring',
+        captured: captured,
+        expectedRevision: expectedRevision,
+      );
       return;
     }
     _quantity(quantity);
@@ -981,7 +986,8 @@ class BoardService {
         id: 'the_ring',
         type: WidgetType.special,
         name: 'The Ring',
-        description: 'The Ring tempts you: choose your bearer and advance up to four abilities.',
+        description:
+            'The Ring tempts you: choose your bearer and advance up to four abilities.',
         colorIdentity: '',
         defaultValue: 0,
         actionOnly: true,
@@ -989,7 +995,8 @@ class BoardService {
           ArtworkVariant(
             set: 'LTR',
             artist: 'Viko Menezes',
-            url: 'https://cards.scryfall.io/large/front/7/2/7215460e-8c06-47d0-94e5-d1832d0218af.jpg',
+            url:
+                'https://cards.scryfall.io/large/front/7/2/7215460e-8c06-47d0-94e5-d1832d0218af.jpg',
           ),
         ],
       ),
@@ -1057,54 +1064,64 @@ class BoardService {
     'experience_counters': 'experience',
     'radiation_counters': 'radiation',
   }[kind];
-  Future<void> addUtility(String playerId, String definitionId, {BoardScope? captured, int? expectedRevision}) =>
-      _commit(playerId, 'Add utility', (s, p) {
-        final d = utilityDefinitions.firstWhere(
-          (d) => d.id == definitionId,
-          orElse: () => throw StateError('Unsupported utility'),
-        );
-        if ({
-          'the_ring',
-          'mana_pool',
-          'storm_count',
-          'life_total',
-          'poison_counters',
-          'energy_counters',
-          'experience_counters',
-          'radiation_counters',
-          'citys_blessing',
-        }.contains(definitionId)) {
-          for (final u in p.utilities) {
-            if (u.kind == definitionId) {
-              u.visible = true;
-              return;
-            }
+  Future<void> addUtility(
+    String playerId,
+    String definitionId, {
+    BoardScope? captured,
+    int? expectedRevision,
+  }) => _commit(
+    playerId,
+    'Add utility',
+    (s, p) {
+      final d = utilityDefinitions.firstWhere(
+        (d) => d.id == definitionId,
+        orElse: () => throw StateError('Unsupported utility'),
+      );
+      if ({
+        'the_ring',
+        'mana_pool',
+        'storm_count',
+        'life_total',
+        'poison_counters',
+        'energy_counters',
+        'experience_counters',
+        'radiation_counters',
+        'citys_blessing',
+      }.contains(definitionId)) {
+        for (final u in p.utilities) {
+          if (u.kind == definitionId) {
+            u.visible = true;
+            return;
           }
         }
-        p.utilities.add(
-          UtilityState(
-            id: newEntityId(),
-            kind: d.id,
-            name: d.name,
-            description: d.description,
-            colors: d.colorIdentity,
-            value: d.defaultValue ?? 0,
-            defaultValue: d.defaultValue ?? 0,
-            artworkUrl: d.artwork.isEmpty ? null : d.artwork.first.url,
-            configuration: {
-              'type': d.type == WidgetType.toggle ? 'toggle' : 'tracker',
-              'tapIncrement': d.tapIncrement,
-              'longPressIncrement': d.longPressIncrement,
-              'hasAction': d.hasAction,
-              'actionType': d.actionType,
-              'actionOnly': d.actionOnly,
-              'actionButtonText': d.actionButtonText,
-              'offDescription': d.offDescription,
-              'artworkOptions': d.artwork.map((a) => a.toJson()).toList(),
-            },
-          ),
-        );
-      }, captured: captured, expectedRevision: expectedRevision);
+      }
+      p.utilities.add(
+        UtilityState(
+          id: newEntityId(),
+          kind: d.id,
+          name: d.name,
+          description: d.description,
+          colors: d.colorIdentity,
+          value: d.defaultValue ?? 0,
+          defaultValue: d.defaultValue ?? 0,
+          artworkUrl: d.artwork.isEmpty ? null : d.artwork.first.url,
+          configuration: {
+            'type': d.type == WidgetType.toggle ? 'toggle' : 'tracker',
+            'tapIncrement': d.tapIncrement,
+            'longPressIncrement': d.longPressIncrement,
+            'hasAction': d.hasAction,
+            'actionType': d.actionType,
+            'actionOnly': d.actionOnly,
+            'actionButtonText': d.actionButtonText,
+            'offDescription': d.offDescription,
+            'artworkOptions': d.artwork.map((a) => a.toJson()).toList(),
+          },
+        ),
+      );
+    },
+    captured: captured,
+    expectedRevision: expectedRevision,
+  );
   Future<void> setUtility(
     String playerId,
     String id, {

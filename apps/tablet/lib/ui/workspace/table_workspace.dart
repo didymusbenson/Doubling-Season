@@ -15,6 +15,7 @@ import '../../domain/table_controller.dart';
 import '../../domain/table_state.dart';
 import '../../features/board_service.dart';
 import '../../features/preset_service.dart';
+import '../../features/ring_service.dart';
 import '../../services/tablet_catalog.dart';
 import 'player_keyboard.dart';
 import '../table_artwork.dart';
@@ -846,7 +847,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       WorkspacePage.tokens when _createCustom => (760.0, 600.0),
       WorkspacePage.utilities when compactUtility => (
         utility.kind == 'mana_pool' ? 960.0 : 760.0,
-        utility.kind == 'mana_pool'
+        utility.kind == RingService.kind
+            ? 700.0
+            : utility.kind == 'mana_pool'
             ? ((rotated ? size.height : size.width) >= 760 ? 560.0 : 650.0)
             : utility.configuration['hasAction'] == true
             ? 600.0
