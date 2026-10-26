@@ -5961,7 +5961,7 @@
     "name": "Council of Reeds",
     "abilities": "The \"legend rule\" doesn't apply to creatures you control. At the beginning of combat on your turn, if you've cast a noncreature spell this turn, create a token that's a copy of Council of Reeds.",
     "pt": "2/2",
-    "colors": "",
+    "colors": "U",
     "type": "Legendary Creature — Human Scientist Hero",
     "popularity": 1,
     "artwork": [
@@ -10450,7 +10450,7 @@
     "pt": "",
     "colors": "",
     "type": "Artifact — Food",
-    "popularity": 157,
+    "popularity": 159,
     "artwork": [
       {
         "set": "BIG",
@@ -10892,6 +10892,8 @@
       "Spectrox Mines",
       "Spider Food",
       "Spider-Ham, Peter Porker",
+      "Spot, Felis catus",
+      "Stardew Valley",
       "Stew the Coneys",
       "Survivor's Med Kit",
       "Sweettooth Witch",
