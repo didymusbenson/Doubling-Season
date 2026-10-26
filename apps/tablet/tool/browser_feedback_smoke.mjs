@@ -99,17 +99,100 @@ function matches(node, name, startsWith) { return startsWith ? node.name.startsW
 async function find(name, { startsWith = false, role, timeout = 30000 } = {}) {
   return until(`visible semantic control ${JSON.stringify(name)}`, async () => {
     const nodes = (await semantics()).filter(node => matches(node, name, startsWith) && !node.disabled && (!role || node.role === role));
-    // Prefer the actionable merged semantic node over a redundant text descendant.
-    nodes.sort((a, b) => Number(b.role === 'button') - Number(a.role === 'button'));
-    for (const node of nodes) { const rect = await bounds(node); if (rect) return { ...node, rect }; }
+    const candidates = [];
+    for (const node of nodes) { const rect = await bounds(node); if (rect) candidates.push({ ...node, rect }); }
+    // A full-table dismissal barrier can share the header button's name.
+    // Prefer the smallest actionable visible target, never its giant ancestor.
+    candidates.sort((a, b) => Number(b.role === 'button') - Number(a.role === 'button') ||
+      a.rect.width * a.rect.height - b.rect.width * b.rect.height);
+    if (candidates.length) return candidates[0];
     return null;
   }, timeout);
+}
+async function hitTarget(node) {
+  const { object } = await cdp.send('DOM.resolveNode', { backendNodeId: node.backend });
+  try {
+    const { result } = await cdp.send('Runtime.callFunctionOn', {
+      objectId: object.objectId, returnByValue: true,
+      arguments: [{ value: node.rect.x + node.rect.width / 2 }, { value: node.rect.y + node.rect.height / 2 }],
+      functionDeclaration: `function(x, y) {
+        let hit = document.elementFromPoint(x, y);
+        while (hit && hit.shadowRoot) { const inner = hit.shadowRoot.elementFromPoint(x, y); if (!inner || inner === hit) break; hit = inner; }
+        return { tag: hit?.tagName, label: hit?.getAttribute('aria-label'), text: hit?.textContent?.slice(0, 220),
+          selectedContainsHit: !!hit && (this === hit || this.contains(hit)), hitContainsSelected: !!hit && hit.contains(this) };
+      }`,
+    });
+    return result.value;
+  } finally { await cdp.send('Runtime.releaseObject', { objectId: object.objectId }); }
+}
+async function installInputObservation() {
+  await cdp.evaluate(`(() => {
+    window.__tableSmokeInputEvents = [];
+    for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'mousedown', 'mouseup', 'click', 'touchstart', 'touchend', 'contextmenu']) {
+      document.addEventListener(type, event => {
+        const target = event.composedPath()[0];
+        window.__tableSmokeInputEvents.push({ at: performance.now(), type, pointerType: event.pointerType,
+          buttons: event.buttons, tag: target?.tagName, tappable: target?.hasAttribute?.('flt-tappable'),
+          label: target?.getAttribute?.('aria-label'), text: target?.textContent?.slice(0, 220), x: event.clientX, y: event.clientY });
+      }, true);
+    }
+    return true;
+  })()`);
+}
+async function dayNightState() {
+  const node = (await semantics()).find(node => node.role === 'button' && node.name.startsWith('Day/Night:'));
+  return node?.name.match(/^Day\/Night: (\w+)/)?.[1] || 'missing';
+}
+async function restoreNight() {
+  for (let index = 0; index < 3 && await dayNightState() !== 'night'; index++) {
+    await click('Day/Night:', { startsWith: true, role: 'button' });
+    await sleep(250);
+  }
+  assert.equal(await dayNightState(), 'night', 'Could not establish Night through ordinary taps.');
+}
+async function diagnoseHold(input) {
+  await restoreNight();
+  const node = await find('Day/Night: night.', { startsWith: true, role: 'button' });
+  const x = node.rect.x + node.rect.width / 2, y = node.rect.y + node.rect.height / 2;
+  const record = { input, before: await dayNightState(), rect: node.rect, hit: await hitTarget(node) };
+  const eventOffset = await cdp.evaluate('window.__tableSmokeInputEvents.length');
+  log('begin observed long press', record);
+  if (input === 'mouse') {
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 });
+  } else {
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 0, radiusX: 1, radiusY: 1, force: 1 }] });
+  }
+  await sleep(750);
+  record.pressedAt750ms = await dayNightState();
+  await capture(`04-${input}-hold-750ms-still-pressed`);
+  await sleep(350);
+  record.pressedAtLeast1100ms = await dayNightState();
+  await capture(`04-${input}-hold-1100ms-still-pressed`);
+  if (input === 'mouse') {
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1 });
+  } else {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false });
+  }
+  await sleep(500);
+  record.afterRelease = await dayNightState();
+  record.events = await cdp.evaluate(`window.__tableSmokeInputEvents.slice(${eventOffset})`);
+  evidence.holds ||= [];
+  evidence.holds.push(record);
+  log('observed hold outcome', record);
+  await capture(`04-${input}-hold-after-release`);
+  await click('Game controls');
+  await click('History');
+  await capture(`04-${input}-hold-chronological-history`);
+  await click('Close workspace');
 }
 async function click(name, options = {}) {
   const node = await find(name, options);
   const x = node.rect.x + node.rect.width / 2, y = node.rect.y + node.rect.height / 2;
   assert(x >= 0 && y >= 0 && x < evidence.viewport.width && y < evidence.viewport.height, `Control center is clipped: ${name}`);
-  log(options.hold ? 'pointer hold from rendered semantic bounds' : 'pointer click from rendered semantic bounds', { name: node.name, role: node.role, rect: node.rect });
+  log(options.hold ? 'pointer hold from rendered semantic bounds' : 'pointer click from rendered semantic bounds', { name: node.name, role: node.role, rect: node.rect, hit: await hitTarget(node) });
   await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
   await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 });
   await sleep(options.hold || 40);
@@ -206,6 +289,7 @@ try {
   await cdp.send('Page.reload', { ignoreCache: true });
   await enableSemantics();
   await find('qa, player details', { timeout: 90000 });
+  await installInputObservation();
   await capture('03-name-persisted-after-reload');
   log('PASS software q→a typing, Done, durable rename and reload');
 
@@ -214,11 +298,9 @@ try {
   await click('Day/Night: day.', { startsWith: true });
   await find('Day/Night: night.', { startsWith: true });
   await capture('04-direct-day-night');
-  await click('Day/Night: night.', { startsWith: true, hold: 750 });
-  await find('Day/Night: neither.', { startsWith: true });
-  await sleep(250);
-  await find('Day/Night: neither.', { startsWith: true });
-  await click('Roll dice');
+  await diagnoseHold('mouse');
+  await diagnoseHold('touch');
+  await click('Roll dice', { startsWith: true, role: 'button' });
   await click('Roll selected dice');
   const roll = await find('Total:', { startsWith: true });
   const total = Number(roll.name.match(/^Total:\s*(\d+)/)?.[1]);
@@ -226,7 +308,7 @@ try {
   await find('1d6:', { startsWith: true });
   await capture('05-direct-dice-results');
   await click('Close workspace');
-  log('PASS direct Day/Night and Dice controls');
+  log('PASS direct Day/Night taps and Dice controls; hold outcomes recorded separately');
 
   await click('qa, add token');
   await click('Search tokens, abilities, type, or P/T. Current value:', { startsWith: true });
@@ -247,6 +329,7 @@ try {
   await find('qa, player details');
   await capture('07-populated-token-table');
   log('PASS real catalog token creation with downloaded artwork evidence');
+  assert(evidence.holds.every(hold => hold.pressedAtLeast1100ms === 'neither' && hold.afterRelease === 'neither'), 'Observed mouse/touch hold did not clear and remain Neither; inspect hold snapshots, DOM event timeline and chronological history.');
   assert.equal(evidence.exceptions.length, 0, 'Unhandled browser runtime exceptions occurred; inspect evidence.json.');
   evidence.status = 'passed';
 } catch (error) {
