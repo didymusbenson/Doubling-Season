@@ -1,12 +1,15 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:doubling_season/widgets/mana/mana_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import '../domain/table_state.dart';
 import '../state/table_controller.dart';
 import '../services/tablet_catalog.dart';
 import '../features/board_service.dart';
 import 'workspace/table_workspace.dart';
 import 'table_artwork.dart';
+import 'table_modal_frame.dart';
 import 'tablet_token_card.dart';
 import 'half_stepper.dart';
 import 'monarch_crown.dart';
@@ -91,23 +94,40 @@ class _TableScreenState extends State<TableScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
-      builder: (context) => RotatedBox(
+      useSafeArea: false,
+      builder: (context) => TableModalFrame(
         quarterTurns: turns,
-        child: AlertDialog(
-          title: Text('Hide ${utility.name}?'),
-          content: const Text(
-            'Its values will be kept. You can bring it back from Utilities.',
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Hide ${utility.name}?',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Its values will be kept. You can bring it back from Utilities.',
+                ),
+                const SizedBox(height: 24),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Hide utility'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Hide utility'),
-            ),
-          ],
         ),
       ),
     );
@@ -281,6 +301,30 @@ class _TableScreenState extends State<TableScreen> {
                                 ],
                               ),
                             ),
+                            // Two-seat token lanes meet at the true center.
+                            // Keep direct tools in opposite life corners there,
+                            // rather than expanding the token hub obstruction.
+                            Positioned(
+                              left:
+                                  table.maxWidth / 2 -
+                                  (two ? table.maxWidth * .1 + 26 : 54) -
+                                  22,
+                              top: table.maxHeight / 2 - (two ? 26 : 0) - 22,
+                              child: _SharedTableControl(
+                                controlKey: const ValueKey('shared-dice'),
+                                label: 'Roll dice',
+                                icon: Icons.casino_outlined,
+                                onTap: () => open(WorkspacePage.dice),
+                              ),
+                            ),
+                            Positioned(
+                              left:
+                                  table.maxWidth / 2 +
+                                  (two ? table.maxWidth * .1 + 26 : 54) -
+                                  22,
+                              top: table.maxHeight / 2 + (two ? 26 : 0) - 22,
+                              child: _DayNightControl(controller: controller),
+                            ),
                             Positioned(
                               left: (table.maxWidth - 52) / 2,
                               top: (table.maxHeight - 52) / 2,
@@ -301,6 +345,95 @@ class _TableScreenState extends State<TableScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SharedTableControl extends StatelessWidget {
+  final Key controlKey;
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  final bool active;
+  const _SharedTableControl({
+    required this.controlKey,
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.onLongPress,
+    this.active = true,
+  });
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: label,
+    excludeFromSemantics: true,
+    child: Material(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      shape: CircleBorder(
+        side: BorderSide(color: Theme.of(context).colorScheme.outline),
+      ),
+      clipBehavior: Clip.antiAlias,
+      elevation: 3,
+      child: Semantics(
+        label: label,
+        button: true,
+        onTap: onTap,
+        onLongPress: onLongPress,
+        customSemanticsActions: onLongPress == null
+            ? null
+            : {
+                const CustomSemanticsAction(label: 'Clear Day/Night'):
+                    onLongPress!,
+              },
+        excludeSemantics: true,
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          child: SizedBox(
+            key: controlKey,
+            width: 44,
+            height: 44,
+            child: Icon(
+              icon,
+              size: 23,
+              color: active
+                  ? null
+                  : Theme.of(
+                      context,
+                    ).colorScheme.onSurfaceVariant.withValues(alpha: .5),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _DayNightControl extends StatelessWidget {
+  final TableController controller;
+  const _DayNightControl({required this.controller});
+  @override
+  Widget build(BuildContext context) {
+    final state = controller.session.dayNight;
+    return _SharedTableControl(
+      controlKey: const ValueKey('shared-day-night'),
+      label: 'Day/Night: $state. Tap to change; hold to clear',
+      icon: state == 'night'
+          ? Icons.dark_mode
+          : state == 'day'
+          ? Icons.light_mode
+          : Icons.brightness_4_outlined,
+      active: state != 'neither',
+      // Resolve inside the serialized command, so rapid taps do not all
+      // capture the same pre-save state. Publication remains durable.
+      onTap: () => controller.commit(
+        'Cycle day/night',
+        mutate: (game) {
+          game.dayNight = game.dayNight == 'day' ? 'night' : 'day';
+        },
+      ),
+      onLongPress: () => controller.setDayNight('neither'),
     );
   }
 }
@@ -422,7 +555,36 @@ class _PlayerSpace extends StatefulWidget {
   State<_PlayerSpace> createState() => _PlayerSpaceState();
 }
 
-class _PlayerSpaceState extends State<_PlayerSpace> {
+class _PlayerSpaceState extends State<_PlayerSpace>
+    with WidgetsBindingObserver {
+  bool compactUtilityReorder = false;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didUpdateWidget(covariant _PlayerSpace oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.interactionEpoch != widget.interactionEpoch ||
+        oldWidget.player.generation != widget.player.generation) {
+      compactUtilityReorder = false;
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed && compactUtilityReorder) {
+      setState(() => compactUtilityReorder = false);
+    }
+  }
+
+  void setUtilityReorder(bool value) {
+    if (utilityScroll.hasClients) utilityScroll.jumpTo(0);
+    setState(() => compactUtilityReorder = value);
+  }
+
   String? expandedId;
   String? error;
   final tokenScroll = ScrollController(), utilityScroll = ScrollController();
@@ -439,6 +601,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     tokenScroll.dispose();
     utilityScroll.dispose();
     super.dispose();
@@ -570,114 +733,223 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
         // Short player-local seats keep utility padding compact so the taller
         // life chip and tools never require shrinking the utility touch targets.
         final compactUtilities = lane.maxHeight < 420;
-        return Column(
-          children: [
-            _LifePanel(
-              height: (lane.maxHeight * .30 + 32).clamp(
-                140.0,
-                lane.maxWidth < 200 ? 148.0 : 180.0,
-              ),
-              centerNotch: widget.centerNotch,
-              centerNotchAtStart: widget.centerNotchAtStart,
-              player: p,
-              profile: profile,
-              controller: widget.controller,
-              epoch: Object.hash(
+        final lifeHeight =
+            (lane.maxHeight * .30 + 32).clamp(
+              140.0,
+              lane.maxWidth < 200 ? 148.0 : 180.0,
+            ) +
+            26;
+        final toolHeight = lane.maxWidth >= 260 ? 48.0 : 96.0;
+        // Keep the life surface fixed even at the existing 480px boundary.
+        // Tools and utilities share the remaining viewport instead of shrinking
+        // touch targets, adding a menu, or overflowing the seat.
+        final shortFooter = lane.maxHeight < lifeHeight + toolHeight + 44;
+        void reorderUtilities(int old, int next) => perform(() async {
+          final ids = visible.map((u) => u.id).toList();
+          if (next > old) next--;
+          ids.insert(next, ids.removeAt(old));
+          await widget.board.reorderVisibleUtilities(p.id, ids);
+        });
+        Widget utilityItem(BuildContext context, int index) {
+          final u = visible[index];
+          return ReorderableDelayedDragStartListener(
+            key: ValueKey(u.id),
+            index: index,
+            enabled: !shortFooter && expandedId == null,
+            child: _UtilityRow(
+              compactSpacing: compactUtilities,
+              interactionEpoch: Object.hash(
                 widget.interactionEpoch,
-                p.generation,
                 widget.controller.session.generation,
+                p.generation,
               ),
-              enabledRules: enabled,
-              onOpen: widget.onOpen,
-              onChange: (d) =>
-                  perform(() => widget.controller.adjustLife(p.id, d)),
-              onMonarch: () =>
-                  perform(() => widget.controller.setMonarch(p.id)),
-              onClearMonarch: () =>
-                  perform(() => widget.controller.setMonarch(null)),
-              onBlessing: () => perform(
-                () =>
-                    widget.controller.setCitysBlessing(p.id, !p.citysBlessing),
+              utility: u,
+              player: p,
+              board: widget.board,
+              expanded: expandedId == u.id,
+              onExpand: () => expand(u.id),
+              onHide: () => widget.onHide(u),
+              onOpen: () => widget.onOpen(WorkspacePage.utilities, u.id),
+              onChange: (delta) =>
+                  perform(() => widget.board.adjustUtility(p.id, u.id, delta)),
+              onToggle: () =>
+                  perform(() => widget.board.toggleUtility(p.id, u.id)),
+              onMana: (mana, delta) => perform(
+                () => widget.controller.adjustMana(p.id, mana, delta),
+              ),
+            ),
+          );
+        }
+
+        final utilities = visible.isEmpty
+            ? LayoutBuilder(
+                builder: (context, space) =>
+                    shortFooter || space.maxHeight < 130
+                    ? Center(
+                        child: TextButton(
+                          onPressed: () =>
+                              widget.onOpen(WorkspacePage.utilities),
+                          child: const Text('Choose utilities'),
+                        ),
+                      )
+                    : _EmptyLane(
+                        icon: Icons.widgets_outlined,
+                        text: 'Tools for your game',
+                        action: 'Choose utilities',
+                        onTap: () => widget.onOpen(WorkspacePage.utilities),
+                      ),
+              )
+            : DragBoundary(
+                child: ReorderableListView.builder(
+                  scrollController: utilityScroll,
+                  buildDefaultDragHandles: false,
+                  itemCount: visible.length,
+                  onReorder: reorderUtilities,
+                  proxyDecorator: (child, index, animation) =>
+                      Material(elevation: 5, child: child),
+                  itemBuilder: utilityItem,
+                ),
+              );
+        // Native reorder measures the entire utility (mana can be taller than
+        // this viewport). A deliberate compact mode keeps native drag/autoscroll
+        // bounded without shrinking gameplay controls or replacing the engine.
+        final compactReorderList = Row(
+          children: [
+            SizedBox(
+              width: 44,
+              child: IconButton(
+                key: ValueKey('${p.id}-finish-utility-reorder'),
+                tooltip: 'Done reordering utilities',
+                onPressed: () => setUtilityReorder(false),
+                icon: const Icon(Icons.done),
               ),
             ),
             Expanded(
-              key: ValueKey('${p.id}-utility-section'),
-              child: visible.isEmpty
-                  ? LayoutBuilder(
-                      builder: (context, space) => space.maxHeight < 130
-                          ? Center(
-                              child: TextButton(
-                                onPressed: () =>
-                                    widget.onOpen(WorkspacePage.utilities),
-                                child: const Text('Choose utilities'),
-                              ),
-                            )
-                          : _EmptyLane(
-                              icon: Icons.widgets_outlined,
-                              text: 'Tools for your game',
-                              action: 'Choose utilities',
-                              onTap: () =>
-                                  widget.onOpen(WorkspacePage.utilities),
-                            ),
-                    )
-                  : DragBoundary(
-                      child: ReorderableListView.builder(
-                        scrollController: utilityScroll,
-                        buildDefaultDragHandles: false,
+              child: DragBoundary(
+                key: ValueKey('${p.id}-utility-reorder-boundary'),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: CustomScrollView(
+                    key: ValueKey('${p.id}-compact-utility-reorder'),
+                    controller: utilityScroll,
+                    slivers: [
+                      SliverReorderableList(
                         itemCount: visible.length,
-                        onReorder: (old, next) => perform(() async {
-                          final ids = visible.map((u) => u.id).toList();
-                          if (next > old) next--;
-                          ids.insert(next, ids.removeAt(old));
-                          await widget.board.reorderVisibleUtilities(p.id, ids);
-                        }),
-                        proxyDecorator: (child, index, animation) =>
-                            Material(elevation: 5, child: child),
+                        onReorder: reorderUtilities,
+                        proxyDecorator: (child, index, animation) => Material(
+                          key: ValueKey('${p.id}-utility-reorder-proxy'),
+                          elevation: 5,
+                          child: child,
+                        ),
                         itemBuilder: (context, index) {
                           final u = visible[index];
                           return ReorderableDelayedDragStartListener(
-                            key: ValueKey(u.id),
+                            key: ValueKey('compact-reorder-${u.id}'),
                             index: index,
                             enabled: expandedId == null,
-                            child: _UtilityRow(
-                              compactSpacing: compactUtilities,
-                              interactionEpoch: Object.hash(
-                                widget.interactionEpoch,
-                                widget.controller.session.generation,
-                                p.generation,
-                              ),
-                              utility: u,
-                              player: p,
-                              board: widget.board,
-                              expanded: expandedId == u.id,
-                              onExpand: () => expand(u.id),
-                              onHide: () => widget.onHide(u),
-                              onOpen: () =>
-                                  widget.onOpen(WorkspacePage.utilities, u.id),
-                              onChange: (delta) => perform(
-                                () => widget.board.adjustUtility(
-                                  p.id,
-                                  u.id,
-                                  delta,
-                                ),
-                              ),
-                              onToggle: () => perform(
-                                () => widget.board.toggleUtility(p.id, u.id),
-                              ),
-                              onMana: (mana, delta) => perform(
-                                () => widget.controller.adjustMana(
-                                  p.id,
-                                  mana,
-                                  delta,
+                            child: Semantics(
+                              label: 'Reorder ${u.name}',
+                              excludeSemantics: true,
+                              hint: 'Hold and drag to reorder',
+                              child: SizedBox(
+                                height: 44,
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.drag_handle, size: 18),
+                                    Expanded(
+                                      child: Text(
+                                        u.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
                           );
                         },
                       ),
-                    ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ],
+        );
+        return _LifePanel(
+          compose: (surface, tools) => Column(
+            children: [
+              surface,
+              if (!shortFooter) tools,
+              Expanded(
+                key: ValueKey('${p.id}-utility-section'),
+                child: shortFooter
+                    ? compactUtilityReorder
+                          ? compactReorderList
+                          : CustomScrollView(
+                              key: ValueKey('${p.id}-life-footer-scroll'),
+                              controller: utilityScroll,
+                              slivers: [
+                                SliverToBoxAdapter(child: tools),
+                                if (visible.length > 1)
+                                  SliverToBoxAdapter(
+                                    child: SizedBox(
+                                      height: 44,
+                                      child: TextButton.icon(
+                                        key: ValueKey(
+                                          '${p.id}-start-utility-reorder',
+                                        ),
+                                        onPressed: expandedId == null
+                                            ? () => setUtilityReorder(true)
+                                            : null,
+                                        icon: const Icon(
+                                          Icons.reorder,
+                                          size: 18,
+                                        ),
+                                        label: const Text(
+                                          'Reorder utilities',
+                                          maxLines: 2,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                if (visible.isEmpty)
+                                  SliverToBoxAdapter(child: utilities)
+                                else
+                                  SliverList(
+                                    delegate: SliverChildBuilderDelegate(
+                                      utilityItem,
+                                      childCount: visible.length,
+                                    ),
+                                  ),
+                              ],
+                            )
+                    : utilities,
+              ),
+            ],
+          ),
+          height: lifeHeight,
+          twoPlayer: widget.hubInTokenLane,
+          centerNotch: widget.centerNotch,
+          centerNotchAtStart: widget.centerNotchAtStart,
+          player: p,
+          profile: profile,
+          controller: widget.controller,
+          epoch: Object.hash(
+            widget.interactionEpoch,
+            p.generation,
+            widget.controller.session.generation,
+          ),
+          enabledRules: enabled,
+          onOpen: widget.onOpen,
+          onChange: (d) => perform(() => widget.controller.adjustLife(p.id, d)),
+          onMonarch: () => perform(() => widget.controller.setMonarch(p.id)),
+          onClearMonarch: () =>
+              perform(() => widget.controller.setMonarch(null)),
+          onBlessing: () => perform(
+            () => widget.controller.setCitysBlessing(p.id, !p.citysBlessing),
+          ),
         );
       },
     );
@@ -716,6 +988,8 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
 }
 
 class _LifePanel extends StatelessWidget {
+  final Widget Function(Widget surface, Widget tools) compose;
+  final bool twoPlayer;
   final double height;
   final double centerNotch;
   final bool centerNotchAtStart;
@@ -727,6 +1001,8 @@ class _LifePanel extends StatelessWidget {
   final VoidCallback onMonarch, onClearMonarch, onBlessing;
   final void Function(WorkspacePage, [String?]) onOpen;
   const _LifePanel({
+    required this.compose,
+    required this.twoPlayer,
     required this.height,
     required this.centerNotch,
     required this.centerNotchAtStart,
@@ -835,7 +1111,9 @@ class _LifePanel extends StatelessWidget {
           clipper: _LifeHubNotch(
             atStart: centerNotchAtStart,
             inset: -1.5,
-            enabled: centerNotch > 0,
+            enabled: centerNotch > 0 || twoPlayer,
+            sharedControls: true,
+            twoPlayer: twoPlayer,
           ),
           child: _ArtworkSurface(
             key: ValueKey('${player.id}-life-surface'),
@@ -851,7 +1129,8 @@ class _LifePanel extends StatelessWidget {
                   value: '${player.life}',
                   height: height,
                   iconSize: 22,
-                  iconY: -28 / height,
+                  // Symbols sit beside the name, leaving the total/delta row clear.
+                  iconY: 1 - 130 / height,
                   decreaseKey: ValueKey('${player.id}-life-decrease'),
                   increaseKey: ValueKey('${player.id}-life-increase'),
                   decreaseLabel: '${profile.name}, decrease life by one',
@@ -860,91 +1139,72 @@ class _LifePanel extends StatelessWidget {
                   onIncrease: () => onChange(1),
                   onDecreaseHoldStep: (amount) => onChange(-amount),
                   onIncreaseHoldStep: onChange,
+                  holdStep: 10,
                   interactionEpoch: epoch,
                   foregroundColor: artColor,
                   displayOverlay: Column(
                     children: [
-                      SizedBox(
-                        height: 24,
-                        child: Padding(
-                          padding: EdgeInsets.fromLTRB(12, 4, 12, 0),
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              Center(
-                                child: Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 20),
-                                  child: Text(
-                                    profile.name,
-                                    key: ValueKey('${player.id}-player-name'),
-                                    textAlign: TextAlign.center,
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                    style: TextStyle(
-                                      color: artColor ?? color,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    _LifeDelta(
-                                      key: ValueKey('${player.id}-life-delta'),
-                                      entry:
-                                          controller
-                                                  .session
-                                                  .history
-                                                  .isNotEmpty &&
-                                              !controller
-                                                  .session
-                                                  .history
-                                                  .last
-                                                  .undone &&
-                                              controller
-                                                      .session
-                                                      .history
-                                                      .last
-                                                      .groupKey ==
-                                                  'life:${player.id}'
-                                          ? controller.session.history.last
-                                          : null,
-                                    ),
-                                    if (player.warnings.isNotEmpty)
-                                      Tooltip(
-                                        message: player.warnings.join('\n'),
-                                        child: const Icon(
-                                          Icons.warning_amber_rounded,
-                                          color: Color(0xFFFFB485),
-                                          size: 18,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                      // Shared tools occupy the top edge. The original total
+                      // region stays fixed; the name moves into the added 26px
+                      // footer instead of pushing the number down or clipping.
+                      const SizedBox(height: 24),
+                      Expanded(
+                        child: _LifeDelta(
+                          entry:
+                              controller.session.history.isNotEmpty &&
+                                  !controller.session.history.last.undone &&
+                                  controller.session.history.last.groupKey ==
+                                      'life:${player.id}'
+                              ? controller.session.history.last
+                              : null,
+                          builder: (delta) => _LifeNumber(
+                            playerId: player.id,
+                            life: player.life,
+                            delta: delta,
+                            color: artColor,
+                            fontSize: (height * .64).clamp(64.0, 80.0),
                           ),
                         ),
                       ),
-                      Expanded(
-                        child: Center(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 32),
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                '${player.life}',
-                                key: ValueKey('${player.id}-life-number'),
-                                style: TextStyle(
-                                  fontSize: (height * .64).clamp(64.0, 80.0),
-                                  fontWeight: FontWeight.w400,
-                                  height: 1,
-                                  color: artColor,
-                                ),
+                      SizedBox(
+                        height: 26,
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(12, 4, 12, 0),
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      profile.name,
+                                      key: ValueKey('${player.id}-player-name'),
+                                      textAlign: TextAlign.center,
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                      style: TextStyle(
+                                        color: artColor ?? color,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                  if (player.warnings.isNotEmpty)
+                                    Tooltip(
+                                      message: player.warnings.join('\n'),
+                                      child: Icon(
+                                        Icons.warning_amber_rounded,
+                                        key: ValueKey(
+                                          '${player.id}-life-warning',
+                                        ),
+                                        color: const Color(0xFFFFB485),
+                                        size: 18,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                           ),
@@ -1029,7 +1289,7 @@ class _LifePanel extends StatelessWidget {
             ],
           ),
         );
-        return Column(children: [surface, tools]);
+        return compose(surface, tools);
       },
     );
   }
@@ -1040,10 +1300,13 @@ class _LifeHubNotch extends CustomClipper<Path> {
   final bool atStart;
   final double inset;
   final bool enabled;
+  final bool sharedControls, twoPlayer;
   const _LifeHubNotch({
     required this.atStart,
     required this.inset,
     this.enabled = true,
+    this.sharedControls = false,
+    this.twoPlayer = false,
   });
   @override
   Path getClip(Size size) => !enabled
@@ -1051,18 +1314,32 @@ class _LifeHubNotch extends CustomClipper<Path> {
       : Path.combine(
           PathOperation.difference,
           Path()..addRect(Offset.zero & size),
-          Path()..addOval(
-            Rect.fromCircle(
-              center: Offset(atStart ? inset : size.width - inset, -1.5),
-              radius: 30,
+          Path()
+            ..addOval(
+              Rect.fromCircle(
+                center: twoPlayer
+                    ? const Offset(26, 26)
+                    : Offset(atStart ? inset : size.width - inset, -1.5),
+                radius: twoPlayer ? 26 : 30,
+              ),
+            )
+            ..addOval(
+              Rect.fromCircle(
+                center: Offset(
+                  atStart ? inset + 54 : size.width - inset - 54,
+                  -1.5,
+                ),
+                radius: sharedControls && !twoPlayer ? 26 : 0,
+              ),
             ),
-          ),
         );
   @override
   bool shouldReclip(covariant _LifeHubNotch oldClipper) =>
       atStart != oldClipper.atStart ||
       inset != oldClipper.inset ||
-      enabled != oldClipper.enabled;
+      enabled != oldClipper.enabled ||
+      sharedControls != oldClipper.sharedControls ||
+      twoPlayer != oldClipper.twoPlayer;
 }
 
 class _StatusBadge extends StatelessWidget {
@@ -1567,7 +1844,8 @@ class _ArtworkSurface extends StatelessWidget {
 
 class _LifeDelta extends StatefulWidget {
   final HistoryEntry? entry;
-  const _LifeDelta({super.key, this.entry});
+  final Widget Function(int?) builder;
+  const _LifeDelta({this.entry, required this.builder});
   @override
   State<_LifeDelta> createState() => _LifeDeltaState();
 }
@@ -1616,19 +1894,108 @@ class _LifeDeltaState extends State<_LifeDelta> {
   }
 
   @override
-  Widget build(BuildContext context) => delta == null
-      ? const SizedBox.shrink()
-      : Semantics(
-          label: 'Life change ${delta! >= 0 ? '+' : ''}$delta',
-          liveRegion: true,
-          child: Text(
-            '${delta! >= 0 ? '+' : ''}$delta',
-            style: TextStyle(
-              fontSize: 14,
-              height: 1,
-              fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.primary,
+  Widget build(BuildContext context) => widget.builder(delta);
+}
+
+/// Fit the total symmetrically, then anchor the delta to its painted text bounds.
+/// Delta presence/sign never shifts the total, and neither depends on corner
+/// alignment. Reserved side slots also bound long signed changes.
+class _LifeNumber extends StatelessWidget {
+  final String playerId;
+  final int life;
+  final int? delta;
+  final Color? color;
+  final double fontSize;
+  const _LifeNumber({
+    required this.playerId,
+    required this.life,
+    required this.delta,
+    required this.color,
+    required this.fontSize,
+  });
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final style = DefaultTextStyle.of(context).style.merge(
+        TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.w400,
+          height: 1,
+          color: color,
+        ),
+      );
+      final scaler = MediaQuery.textScalerOf(context);
+      final painter = TextPainter(
+        text: TextSpan(text: '$life', style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: scaler,
+      )..layout();
+      final slot = box.maxWidth < 180 ? 26.0 : 42.0;
+      const gap = 4.0;
+      final available = math.max(1.0, box.maxWidth - 2 * (slot + gap + 2));
+      final scale = math.min(
+        1.0,
+        math.min(available / painter.width, box.maxHeight / painter.height),
+      );
+      final width = painter.width * scale;
+      final height = painter.height * scale;
+      painter.dispose();
+      final positive = (delta ?? 0) >= 0;
+      return Stack(
+        children: [
+          Positioned(
+            left: (box.maxWidth - width) / 2,
+            top: (box.maxHeight - height) / 2,
+            width: width,
+            height: height,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '$life',
+                key: ValueKey('$playerId-life-number'),
+                textDirection: TextDirection.ltr,
+                textScaler: scaler,
+                style: style,
+              ),
             ),
           ),
-        );
+          Positioned(
+            left: positive
+                ? (box.maxWidth + width) / 2 + gap
+                : (box.maxWidth - width) / 2 - gap - slot,
+            top: 0,
+            bottom: 0,
+            width: slot,
+            child: KeyedSubtree(
+              key: ValueKey('$playerId-life-delta'),
+              child: delta == null
+                  ? const SizedBox.shrink()
+                  : Align(
+                      alignment: positive
+                          ? Alignment.centerLeft
+                          : Alignment.centerRight,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Semantics(
+                          label: 'Life change ${positive ? '+' : ''}$delta',
+                          liveRegion: true,
+                          child: Text(
+                            '${positive ? '+' : ''}$delta',
+                            textDirection: TextDirection.ltr,
+                            style: TextStyle(
+                              fontSize: 14,
+                              height: 1,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
 }

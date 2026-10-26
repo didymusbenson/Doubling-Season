@@ -1,5 +1,8 @@
 part of 'table_workspace.dart';
 
+// Deferred authoring must stay unreachable, including recovered editor drafts.
+const _customRuleAuthoringEnabled = false;
+
 extension _LibraryPages on _TableWorkspaceState {
   Widget _utilitiesPage() {
     final player = p;
@@ -442,186 +445,192 @@ extension _LibraryPages on _TableWorkspaceState {
       child: SingleChildScrollView(
         key: const ValueKey('utility-fixed-controls'),
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              _button('All utilities', () async {
-                if (await _flushInline()) _update(() => _itemId = null);
-              }, icon: Icons.arrow_back),
-              const Spacer(),
-              _button('Artwork', () async {
-                if (await _flushInline()) {
-                  _update(() => _field('$key.panel').text = 'artwork');
-                }
-              }, icon: Icons.image_outlined),
-              IconButton(
-                tooltip: utility.visible
-                    ? 'Hide this utility'
-                    : 'Restore to board',
-                onPressed: () => _run(
-                  () => _board.setUtility(
-                    player.id,
-                    utility.id,
-                    visible: !utility.visible,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                _button('All utilities', () async {
+                  if (await _flushInline()) _update(() => _itemId = null);
+                }, icon: Icons.arrow_back),
+                const Spacer(),
+                _button('Artwork', () async {
+                  if (await _flushInline()) {
+                    _update(() => _field('$key.panel').text = 'artwork');
+                  }
+                }, icon: Icons.image_outlined),
+                IconButton(
+                  tooltip: utility.visible
+                      ? 'Hide this utility'
+                      : 'Restore to board',
+                  onPressed: () => _run(
+                    () => _board.setUtility(
+                      player.id,
+                      utility.id,
+                      visible: !utility.visible,
+                    ),
+                  ),
+                  icon: Icon(
+                    utility.visible
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
                   ),
                 ),
-                icon: Icon(
-                  utility.visible
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                ),
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: _input(
-                  '$key.name',
-                  'Name',
-                  initial: utility.name,
-                  onCommit: (value) => _board.setUtility(
-                    player.id,
-                    utility.id,
-                    name: value.trim(),
-                    captured: scope,
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: _input(
+                    '$key.name',
+                    'Name',
+                    initial: utility.name,
+                    onCommit: (value) => _board.setUtility(
+                      player.id,
+                      utility.id,
+                      name: value.trim(),
+                      captured: scope,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: _input(
-                  '$key.description',
-                  'Description',
-                  initial: utility.description,
-                  onCommit: (value) => _board.setUtility(
-                    player.id,
-                    utility.id,
-                    description: value,
-                    captured: scope,
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: _input(
+                    '$key.description',
+                    'Description',
+                    initial: utility.description,
+                    onCommit: (value) => _board.setUtility(
+                      player.id,
+                      utility.id,
+                      description: value,
+                      captured: scope,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Stage ${RingService.stage(utility)}/4 · ${utility.value} ${utility.value == 1 ? 'temptation' : 'temptations'}',
-                  style: Theme.of(context).textTheme.titleMedium,
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Stage ${RingService.stage(utility)}/4 · ${utility.value} ${utility.value == 1 ? 'temptation' : 'temptations'}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                 ),
-              ),
-              TextButton(
-                onPressed: () => _update(() {
-                  resetChoice();
-                  _field('$key.correct').text = correction ? '' : 'true';
-                  _field('$key.count').text = '${utility.value}';
-                }),
-                child: Text(correction ? 'Back' : 'Correct'),
-              ),
-            ],
-          ),
-          if (correction)
-            _input(
-              '$key.count',
-              'Temptation count',
-              initial: '${utility.value}',
-              numeric: true,
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (var i = 0; i < RingService.reminders.length; i++)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Text(
-                        '${i + 1}. ${RingService.reminders[i]}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: i < RingService.stage(utility)
-                              ? null
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                TextButton(
+                  onPressed: () => _update(() {
+                    resetChoice();
+                    _field('$key.correct').text = correction ? '' : 'true';
+                    _field('$key.count').text = '${utility.value}';
+                  }),
+                  child: Text(correction ? 'Back' : 'Correct'),
+                ),
+              ],
+            ),
+            if (correction)
+              _input(
+                '$key.count',
+                'Temptation count',
+                initial: '${utility.value}',
+                numeric: true,
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (var i = 0; i < RingService.reminders.length; i++)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Text(
+                          '${i + 1}. ${RingService.reminders[i]}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: i < RingService.stage(utility)
+                                ? null
+                                : Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ),
+                  ],
+                ),
+              ),
+            _input(
+              '$key.ringBearer',
+              'Ring-bearer',
+              initial: RingService.bearer(utility),
+              helper:
+                  'Any creature you control; keep the name or choose another.',
+            ),
+            if (!correction)
+              CheckboxListTile(
+                key: const ValueKey('ring-no-creatures'),
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                dense: true,
+                title: const Text('No creatures'),
+                value: noCreatures.text == 'true',
+                onChanged: (value) =>
+                    _update(() => noCreatures.text = '$value'),
+              ),
+            Wrap(
+              spacing: 8,
+              children: [
+                _button(
+                  correction ? 'Save correction' : 'The Ring tempts you',
+                  () => _run(
+                    () => correction
+                        ? ring.correct(
+                            player.id,
+                            utility.id,
+                            temptations: _integer('$key.count', min: 0),
+                            bearer: bearer.text,
+                            captured: scope,
+                          )
+                        : ring.tempt(
+                            player.id,
+                            utility.id,
+                            bearer: bearer.text,
+                            noCreatures: noCreatures.text == 'true',
+                            captured: scope,
+                          ),
+                    after: () {
+                      final saved = c
+                          .player(player.id)
+                          .utilities
+                          .firstWhere((u) => u.id == utility.id);
+                      bearer.text = RingService.bearer(saved);
+                      noCreatures.text = 'false';
+                      _field('$key.correct').clear();
+                    },
+                  ),
+                  primary: true,
+                ),
+                _button('Cancel choice', () => _update(resetChoice)),
+                _button(
+                  'Clear bearer',
+                  () => _run(
+                    () => ring.clearBearer(
+                      player.id,
+                      utility.id,
+                      captured: scope,
                     ),
-                ],
-              ),
-            ),
-          _input(
-            '$key.ringBearer',
-            'Ring-bearer',
-            initial: RingService.bearer(utility),
-            helper:
-                'Any creature you control; keep the name or choose another.',
-          ),
-          if (!correction)
-            CheckboxListTile(
-              key: const ValueKey('ring-no-creatures'),
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              dense: true,
-              title: const Text('No creatures'),
-              value: noCreatures.text == 'true',
-              onChanged: (value) => _update(() => noCreatures.text = '$value'),
-            ),
-          Wrap(
-            spacing: 8,
-            children: [
-              _button(
-                correction ? 'Save correction' : 'The Ring tempts you',
-                () => _run(
-                  () => correction
-                      ? ring.correct(
-                          player.id,
-                          utility.id,
-                          temptations: _integer('$key.count', min: 0),
-                          bearer: bearer.text,
-                          captured: scope,
-                        )
-                      : ring.tempt(
-                          player.id,
-                          utility.id,
-                          bearer: bearer.text,
-                          noCreatures: noCreatures.text == 'true',
-                          captured: scope,
-                        ),
-                  after: () {
-                    final saved = c
-                        .player(player.id)
-                        .utilities
-                        .firstWhere((u) => u.id == utility.id);
-                    bearer.text = RingService.bearer(saved);
-                    noCreatures.text = 'false';
-                    _field('$key.correct').clear();
-                  },
+                    after: () => bearer.clear(),
+                  ),
                 ),
-                primary: true,
-              ),
-              _button('Cancel choice', () => _update(resetChoice)),
-              _button(
-                'Clear bearer',
-                () => _run(
-                  () =>
-                      ring.clearBearer(player.id, utility.id, captured: scope),
-                  after: () => bearer.clear(),
-                ),
-              ),
-            ],
-          ),
-          const Padding(
-            padding: EdgeInsets.only(top: 6),
-            child: Text(
-              'Manual reminders. Clear the bearer if it leaves or changes controller; combat effects resolve at the table.',
-              style: TextStyle(fontSize: 11),
+              ],
             ),
-          ),
-        ],
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text(
+                'Manual reminders. Clear the bearer if it leaves or changes controller; combat effects resolve at the table.',
+                style: TextStyle(fontSize: 11),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -630,98 +639,174 @@ extension _LibraryPages on _TableWorkspaceState {
   Widget _utilityArtwork(UtilityState utility) {
     final player = p!;
     final scope = _board.scope(player.id);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              _button(
-                _board.isStandaloneUtilityKind(utility.kind)
-                    ? 'Utility controls'
-                    : 'Legacy settings',
-                () => _update(
-                  () => _field('utility.${utility.id}.panel').clear(),
-                ),
-                icon: Icons.arrow_back,
-              ),
-              _button(
-                'Upload utility artwork',
-                () => _run(() async {
-                  final art = await _pickArtwork();
-                  if (art != null) {
-                    await _board.setUtility(
-                      player.id,
-                      utility.id,
-                      artworkUrl: art,
-                      captured: scope,
-                    );
-                  }
-                }),
-                icon: Icons.upload,
-              ),
-              if (utility.artworkUrl != null)
-                _button(
-                  'Remove artwork',
-                  () => _run(
-                    () => _board.setUtility(
-                      player.id,
-                      utility.id,
-                      clearArtwork: true,
-                      captured: scope,
-                    ),
-                  ),
-                  icon: Icons.hide_image_outlined,
-                ),
-            ],
+    final key = 'utility.${utility.id}';
+    final candidate = _field('$key.artCandidate');
+    final previewKey = GlobalObjectKey(candidate);
+    final candidateArtist = _field('$key.artCandidateArtist');
+    final candidateSet = _field('$key.artCandidateSet');
+    final known = _board.utilityDefinitions
+        .where((definition) => definition.id == utility.kind)
+        .firstOrNull
+        ?.artwork;
+    final options = <Map<String, dynamic>>[
+      for (final raw in utility.configuration['artworkOptions'] as List? ?? [])
+        Map<String, dynamic>.from(raw as Map),
+    ];
+    for (final option in options) {
+      if ((option['artist'] as String? ?? '').isEmpty) {
+        final match = known
+            ?.where((art) => art.url == option['url'])
+            .firstOrNull;
+        if (match != null) option['artist'] = match.artist;
+      }
+    }
+    final previewing = candidate.text.isNotEmpty;
+    final shown = previewing ? candidate.text : utility.artworkUrl;
+    final current = options.where((art) => art['url'] == shown).firstOrNull;
+    final artist = previewing
+        ? candidateArtist.text
+        : current?['artist'] as String?;
+    Future<void> choose(
+      String url, {
+      String artist = '',
+      String set = '',
+    }) async {
+      await TableArtwork.validatedBytes(url);
+      if (!mounted) return;
+      _update(() {
+        candidate.text = url;
+        candidateArtist.text = artist;
+        candidateSet.text = set;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final previewContext = previewKey.currentContext;
+        if (previewContext != null) {
+          Scrollable.ensureVisible(previewContext, alignment: 0);
+        }
+      });
+    }
+
+    return _list([
+      _section('Artwork for ${utility.name}'),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _button(
+            'Utility controls',
+            () => _update(() => _field('$key.panel').clear()),
+            icon: Icons.arrow_back,
           ),
+          _button(
+            'Upload utility artwork',
+            () => _run(() async {
+              final art = await _pickArtwork();
+              if (art != null) {
+                await choose(art, artist: 'user uploaded', set: 'Custom');
+              }
+            }),
+            icon: Icons.upload,
+          ),
+        ],
+      ),
+      if (shown != null) ...[
+        const SizedBox(height: 12),
+        Text(
+          previewing ? 'Preview — not saved' : 'Current artwork',
+          key: previewKey,
         ),
-        Expanded(
-          child: _list([
-            _section('Artwork for ${utility.name}'),
-            if (utility.artworkUrl != null)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: _art(utility.artworkUrl, width: 180, height: 140),
-              ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final raw
-                    in utility.configuration['artworkOptions'] as List? ?? [])
-                  SizedBox(
-                    width: 150,
-                    child: InkWell(
-                      onTap: () => _run(
-                        () => _board.setUtility(
-                          player.id,
-                          utility.id,
-                          artworkUrl: raw['url'] as String?,
-                          captured: scope,
+        Align(
+          alignment: Alignment.centerLeft,
+          child: _art(shown, width: 180, height: 140),
+        ),
+        TabletArtworkCredit(url: shown, artist: artist),
+      ],
+      if (previewing)
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _button(
+              'Use this artwork',
+              () => _run(() async {
+                final url = candidate.text;
+                await TableArtwork.validatedBytes(url);
+                final savedOptions = options
+                    .map((art) => Map<String, dynamic>.from(art))
+                    .toList();
+                if (!savedOptions.any((art) => art['url'] == url)) {
+                  savedOptions.add({
+                    'url': url,
+                    'set': candidateSet.text,
+                    'artist': candidateArtist.text,
+                  });
+                }
+                await _board.setUtility(
+                  player.id,
+                  utility.id,
+                  artworkUrl: url,
+                  configuration: {'artworkOptions': savedOptions},
+                  captured: scope,
+                );
+                if (mounted) _update(candidate.clear);
+              }),
+              primary: true,
+              icon: Icons.check,
+            ),
+            _button('Cancel preview', () => _update(candidate.clear)),
+          ],
+        ),
+      if (utility.artworkUrl != null)
+        _button(
+          'Remove artwork',
+          () => _run(() async {
+            await _board.setUtility(
+              player.id,
+              utility.id,
+              clearArtwork: true,
+              captured: scope,
+            );
+            if (mounted) _update(candidate.clear);
+          }),
+          icon: Icons.hide_image_outlined,
+        ),
+      const SizedBox(height: 12),
+      Wrap(
+        spacing: 8,
+        runSpacing: 12,
+        children: [
+          for (final art in options)
+            SizedBox(
+              width: 150,
+              child: InkWell(
+                onTap: _working
+                    ? null
+                    : () => _run(
+                        () => choose(
+                          art['url'] as String,
+                          artist: art['artist'] as String? ?? '',
+                          set: art['set'] as String? ?? '',
                         ),
                       ),
-                      child: Column(
-                        children: [
-                          _art(raw['url'] as String?, width: 150, height: 130),
-                          Text(
-                            '${raw['set'] ?? ''}\n${raw['artist'] ?? ''}',
-                            maxLines: 2,
-                          ),
-                        ],
-                      ),
+                child: Column(
+                  children: [
+                    _art(art['url'] as String?, width: 150, height: 130),
+                    Text(
+                      art['set'] as String? ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-              ],
+                    TabletArtworkCredit(
+                      url: art['url'] as String?,
+                      artist: art['artist'] as String?,
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ]),
-        ),
-      ],
-    );
+        ],
+      ),
+    ]);
   }
 
   List<Widget> _manaControls(PlayerState player) => [
@@ -901,7 +986,9 @@ extension _LibraryPages on _TableWorkspaceState {
     if (player == null) {
       return _list([const Text('Open Rules from a player’s menu.')]);
     }
-    if (_ruleEditorOpen) return _customRuleEditor(player);
+    if (_customRuleAuthoringEnabled && _ruleEditorOpen) {
+      return _customRuleEditor(player);
+    }
     final foreign = _board
         .effectiveSources(player.id)
         .where((s) => s.ownerPlayerId != player.id && s.enabled && s.count > 0)
@@ -938,7 +1025,12 @@ extension _LibraryPages on _TableWorkspaceState {
             },
           ),
       ]),
-      _section('Custom rules'),
+      if (player.rules.any((source) => source.definitionId == 'custom'))
+        _section(
+          'Existing custom effects',
+          detail:
+              'Saved effects are preserved. Enable or disable them here; authoring is deferred.',
+        ),
       for (final source in player.rules.where(
         (s) => s.definitionId == 'custom',
       ))
@@ -971,28 +1063,6 @@ extension _LibraryPages on _TableWorkspaceState {
                   maximum: 20,
                 ),
                 _button(
-                  'Edit rule',
-                  () => _editRule(source),
-                  icon: Icons.edit_outlined,
-                ),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    _button(
-                      'Move earlier',
-                      () =>
-                          _run(() => _board.moveRule(player.id, source.id, -1)),
-                      icon: Icons.arrow_upward,
-                    ),
-                    _button(
-                      'Move later',
-                      () =>
-                          _run(() => _board.moveRule(player.id, source.id, 1)),
-                      icon: Icons.arrow_downward,
-                    ),
-                  ],
-                ),
-                _button(
                   'Remove rule definition',
                   () => _confirm(
                     'Remove ${source.name}?',
@@ -1005,11 +1075,6 @@ extension _LibraryPages on _TableWorkspaceState {
             ),
           ),
         ),
-      _button(
-        'Create a custom rule',
-        () => _update(() => _ruleEditorOpen = true),
-        icon: Icons.add,
-      ),
       _section(
         'Other players’ global effects',
         detail:
@@ -1241,35 +1306,6 @@ extension _LibraryPages on _TableWorkspaceState {
         ? 'Replace with $name'
         : 'Also create ${outcome['quantity']} $name';
   }
-
-  void _editRule(ModifierSource source) => _update(() {
-    _ruleEditorOpen = true;
-    _editingRuleId = source.id;
-    _editingRuleCount = source.count;
-    _editingRuleEnabled = source.enabled;
-    _field('rule.name').text = source.name;
-    _customGlobal = source.global;
-    _customTrigger =
-        {
-          'any_token': 'all',
-          'has_pt': 'creatures',
-          'token_type': 'type',
-          'color': 'color',
-          'specific_token': 'specific',
-        }[source.configuration['triggerType']] ??
-        'all';
-    _field('rule.triggerValue').text =
-        (source.configuration['targetType'] ??
-                source.configuration['targetColor'] ??
-                '')
-            .toString();
-    _field('rule.triggerId').text =
-        (source.configuration['targetTokenId'] ?? '').toString();
-    _customRuleOutcomes.clear();
-    for (final raw in source.configuration['outcomes'] as List? ?? []) {
-      _customRuleOutcomes.add(Map<String, dynamic>.from(raw as Map));
-    }
-  });
 
   Widget _presetsPage() {
     final player = p;

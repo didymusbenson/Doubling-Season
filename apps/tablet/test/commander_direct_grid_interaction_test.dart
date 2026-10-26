@@ -211,7 +211,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(controller.player(playerId).life, 40);
       expect(controller.player(playerId).commanderDamage[sourceId], 7);
-      await tester.tap(find.text('Back to damage'));
+      await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
       await plus(tester);
       await tester.pumpAndSettle();

@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -217,20 +220,24 @@ class PlayerKeyboardHost extends StatefulWidget {
     this.enabled = true,
     this.canEdit,
     this.showValue = false,
+    this.onClose,
   });
   final Widget child;
   final bool enabled;
   final bool showValue;
+  final VoidCallback? onClose;
   final bool Function()? canEdit;
 
   @override
   State<PlayerKeyboardHost> createState() => _PlayerKeyboardHostState();
 }
 
-class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
+class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
+    with WidgetsBindingObserver {
   final FocusNode _hardwareFocus = FocusNode(debugLabel: 'Player keyboard');
   final FocusNode _draftFocus = FocusNode(debugLabel: 'Inline token draft');
   final _draftEditable = GlobalKey<EditableTextState>();
+  final _keysScroll = ScrollController();
   TextEditingController? _controller;
   Future<bool> Function()? _onExit;
   bool _numeric = false;
@@ -238,12 +245,18 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
   bool _shift = false;
   bool _symbols = false;
   String _label = '';
+  bool _selecting = false;
+  bool _editingMenu = false;
+  String? _clipboardError;
+  Timer? _deleteTimer;
+  bool _deleteHeld = false;
   bool get _editable => widget.enabled && (widget.canEdit?.call() ?? true);
 
   @override
   void initState() {
     super.initState();
     HardwareKeyboard.instance.addHandler(_hardwareHandler);
+    WidgetsBinding.instance.addObserver(this);
   }
 
   bool _hardwareHandler(KeyEvent event) =>
@@ -264,6 +277,12 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
     }
     if (!mounted) return false;
     if (_controller != controller) {
+      _stopDelete();
+      _shift = false;
+      _symbols = false;
+      _selecting = false;
+      _editingMenu = false;
+      _clipboardError = null;
       _controller?.removeListener(_revealDraft);
       controller.addListener(_revealDraft);
     }
@@ -275,19 +294,20 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
       _multiline = multiline;
     });
     _hardwareFocus.requestFocus();
-    if (widget.showValue) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _controller == controller) {
-          _draftFocus.requestFocus();
-          _revealDraft();
-        }
-      });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted &&
+          _controller == controller &&
+          _draftEditable.currentState != null) {
+        _draftFocus.requestFocus();
+        _revealDraft();
+      }
+    });
     return true;
   }
 
   Future<void> finishField([TextEditingController? expected]) async {
     if (expected != null && expected != _controller) return;
+    _stopDelete();
     final captured = _controller;
     if (await _onExit?.call() == false) return;
     if (!mounted || captured != _controller) return;
@@ -299,7 +319,6 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
   }
 
   void _revealDraft() {
-    if (!widget.showValue) return;
     final controller = _controller;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || controller == null || controller != _controller) return;
@@ -310,7 +329,7 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
   }
 
   void _focusDraft() {
-    if (widget.showValue) _draftFocus.requestFocus();
+    if (_draftEditable.currentState != null) _draftFocus.requestFocus();
   }
 
   void _replace(String value) {
@@ -384,20 +403,105 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
         : TextSelection.collapsed(offset: next);
   }
 
+  void _clipboardFailure(String message) {
+    if (mounted) {
+      setState(() => _clipboardError = message);
+      _revealKeyboardContext();
+    }
+  }
+
   Future<void> _paste() async {
+    if (!_editable) return;
     final captured = _controller;
-    final data = await Clipboard.getData(Clipboard.kTextPlain);
-    if (!mounted || captured != _controller || data?.text == null) return;
-    _replace(data!.text!);
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      if (!mounted || captured != _controller || !_editable) return;
+      if (data?.text == null || data!.text!.isEmpty) {
+        _clipboardFailure(
+          'No text is available to paste. Copy text and try again.',
+        );
+        return;
+      }
+      setState(() => _clipboardError = null);
+      _replace(data.text!);
+    } catch (_) {
+      if (mounted && captured == _controller) {
+        _clipboardFailure(
+          'Paste is unavailable. Allow clipboard access or type the text.',
+        );
+      }
+    }
   }
 
   Future<void> _copy({bool cut = false}) async {
+    if (!_editable) return;
     final c = _controller;
     if (c == null) return;
-    final selection = c.selection;
+    final value = c.value;
+    final selection = value.selection;
     if (!selection.isValid || selection.isCollapsed) return;
-    await Clipboard.setData(ClipboardData(text: selection.textInside(c.text)));
-    if (cut && mounted && c == _controller) _replace('');
+    try {
+      await Clipboard.setData(
+        ClipboardData(text: selection.textInside(value.text)),
+      );
+      if (!mounted || c != _controller || !_editable) return;
+      setState(() => _clipboardError = null);
+      // Never cut a newer draft or a selection changed during clipboard access.
+      if (cut && c.value == value) _replace('');
+    } catch (_) {
+      if (mounted && c == _controller) {
+        _clipboardFailure('Clipboard access failed. Your text is unchanged.');
+      }
+    }
+  }
+
+  void _revealKeyboardContext() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _keysScroll.hasClients) _keysScroll.jumpTo(0);
+    });
+  }
+
+  void _toggleEditingMenu() {
+    setState(() => _editingMenu = !_editingMenu);
+    _revealKeyboardContext();
+  }
+
+  void _showEditingMenu() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _controller != null && !_editingMenu) {
+        setState(() => _editingMenu = true);
+        _revealKeyboardContext();
+      }
+    });
+  }
+
+  void _stopDelete() {
+    _deleteTimer?.cancel();
+    _deleteTimer = null;
+  }
+
+  void _startDelete() {
+    _stopDelete();
+    _deleteHeld = true;
+    _delete();
+    _deleteTimer = Timer.periodic(const Duration(milliseconds: 90), (_) {
+      if (!_editable || _controller == null) {
+        _stopDelete();
+      } else {
+        _delete();
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(PlayerKeyboardHost oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_editable) _stopDelete();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) _stopDelete();
   }
 
   void _selectAll() {
@@ -483,230 +587,499 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost> {
 
   @override
   void dispose() {
+    _stopDelete();
+    WidgetsBinding.instance.removeObserver(this);
     HardwareKeyboard.instance.removeHandler(_hardwareHandler);
     _controller?.removeListener(_revealDraft);
     _hardwareFocus.dispose();
     _draftFocus.dispose();
+    _keysScroll.dispose();
     super.dispose();
   }
 
   Widget _key(
     String text, {
     VoidCallback? action,
-    int flex = 1,
+    double? width,
     String? semantics,
     IconData? icon,
+    bool selected = false,
+    bool backspace = false,
   }) {
-    final perform =
-        action ?? () => _replace(_shift ? text.toUpperCase() : text);
-    return Expanded(
-      flex: flex,
-      child: Padding(
-        padding: const EdgeInsets.all(2),
-        child: Semantics(
-          label: semantics ?? text,
-          button: true,
-          enabled: _editable,
-          onTap: _editable ? perform : null,
-          child: ExcludeSemantics(
-            child: FilledButton.tonal(
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(36, 40),
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              onPressed: _editable ? perform : null,
-              child: icon == null
-                  ? Text(_shift ? text.toUpperCase() : text, maxLines: 1)
-                  : Icon(icon, size: 22),
+    void perform() {
+      if (!_editable) return;
+      if (backspace && _deleteHeld) {
+        _deleteHeld = false;
+        return;
+      }
+      if (action != null) {
+        action();
+      } else {
+        _replace(_shift ? text.toUpperCase() : text);
+        if (_shift && RegExp(r'[a-z]').hasMatch(text)) {
+          setState(() => _shift = false);
+        }
+      }
+    }
+
+    Widget button = Semantics(
+      label: semantics ?? text,
+      button: true,
+      enabled: _editable,
+      selected: selected,
+      onTap: _editable ? perform : null,
+      child: ExcludeSemantics(
+        child: FilledButton.tonal(
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(44, 44),
+            maximumSize: const Size(double.infinity, 44),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            backgroundColor: selected
+                ? Theme.of(context).colorScheme.primaryContainer
+                : null,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
             ),
           ),
+          onPressed: _editable ? perform : null,
+          child: icon == null
+              ? Text(
+                  action == null && _shift ? text.toUpperCase() : text,
+                  maxLines: 1,
+                )
+              : Icon(icon, size: 22),
         ),
+      ),
+    );
+    if (backspace) {
+      button = Listener(
+        onPointerDown: (_) => _deleteHeld = false,
+        onPointerUp: (_) => _stopDelete(),
+        onPointerCancel: (_) => _stopDelete(),
+        child: GestureDetector(
+          onLongPressStart: _editable ? (_) => _startDelete() : null,
+          onLongPressEnd: (_) => _stopDelete(),
+          onLongPressCancel: _stopDelete,
+          child: button,
+        ),
+      );
+    }
+    return SizedBox(
+      width: width,
+      height: 48,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: width != null && width >= 48 ? 2 : .25,
+          vertical: 2,
+        ),
+        child: button,
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _draft({bool compact = false}) => Padding(
+    padding: EdgeInsets.fromLTRB(4, 0, 4, compact ? 0 : 6),
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: compact ? 4 : 8,
+        ),
+        child: EditableText(
+          key: _draftEditable,
+          controller: _controller!,
+          focusNode: _draftFocus,
+          readOnly: true,
+          // Preserve explicit selection when a software key returns focus.
+          selectAllOnFocus: false,
+          showCursor: true,
+          keyboardType: TextInputType.none,
+          maxLines: compact ? 1 : (_multiline ? 2 : 1),
+          style: Theme.of(context).textTheme.bodyLarge!,
+          cursorColor: Theme.of(context).colorScheme.primary,
+          backgroundCursorColor: Colors.grey,
+          selectionColor: Theme.of(
+            context,
+          ).colorScheme.primary.withValues(alpha: .3),
+          selectionControls: materialTextSelectionHandleControls,
+          contextMenuBuilder: (_, state) {
+            _showEditingMenu();
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (state.mounted) state.hideToolbar(false);
+            });
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    ),
+  );
+
+  Widget _menu() => ValueListenableBuilder<TextEditingValue>(
+    valueListenable: _controller!,
+    builder: (context, value, _) {
+      final selected = value.selection.isValid && !value.selection.isCollapsed;
+      final items = <ContextMenuButtonItem>[
+        if (selected)
+          ContextMenuButtonItem(
+            type: ContextMenuButtonType.copy,
+            onPressed: _editable ? _copy : null,
+          ),
+        if (selected)
+          ContextMenuButtonItem(
+            type: ContextMenuButtonType.cut,
+            onPressed: _editable ? () => _copy(cut: true) : null,
+          ),
+        ContextMenuButtonItem(
+          type: ContextMenuButtonType.paste,
+          onPressed: _editable ? _paste : null,
+        ),
+        if (value.text.isNotEmpty)
+          ContextMenuButtonItem(
+            type: ContextMenuButtonType.selectAll,
+            onPressed: _editable ? _selectAll : null,
+          ),
+      ];
+      return Material(
+        key: const ValueKey('player-editing-toolbar'),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          children:
+              AdaptiveTextSelectionToolbar.getAdaptiveButtons(context, items)
+                  .map(
+                    (button) => ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        minWidth: 44,
+                        minHeight: 44,
+                      ),
+                      child: button,
+                    ),
+                  )
+                  .toList(),
+        ),
+      );
+    },
+  );
+
+  Widget _keyBank(double availableWidth) {
     final rows = _numeric
         ? ['12345', '67890']
         : _symbols
         ? ['1234567890', '@#%&*()+-=', '.,!?/:;"\'']
         : ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
-    return _InputScope(
-      activate: activateField,
-      finish: finishField,
-      canEdit: () => _editable,
-      child: Focus(
-        focusNode: _hardwareFocus,
-        // The global handler is also reached when a read-only field owns focus.
-        // Consume its editing keys here so EditableText's ancestor shortcuts do
-        // not apply the same cursor/selection operation for a second time.
-        onKeyEvent: (_, event) => _controller != null && _isEditingKey(event)
-            ? KeyEventResult.handled
-            : KeyEventResult.ignored,
+    final width = math.max(availableWidth, _numeric ? 267.0 : 445.0);
+    final letterWidth = width / (_numeric ? 5 : 10);
+    final commands = <Widget>[
+      if (!_numeric)
+        _key(
+          _symbols ? 'ABC' : '123',
+          width: 60,
+          action: () => setState(() => _symbols = !_symbols),
+        ),
+      if (!_numeric)
+        _key(
+          'Shift',
+          width: 44.5,
+          icon: Icons.arrow_upward,
+          semantics: 'Shift',
+          selected: _shift,
+          action: () => setState(() => _shift = !_shift),
+        ),
+      if (_numeric)
+        _key('−', width: 44.5, icon: Icons.remove, action: () => _replace('-')),
+      _key(
+        'Move cursor left',
+        width: 44.5,
+        icon: Icons.keyboard_arrow_left,
+        semantics: 'Move cursor left',
+        action: () => _move(false, extend: _selecting),
+      ),
+      if (!_numeric)
+        _key(
+          'Space',
+          width: math.max(70, width - (_multiline ? 338 : 293)),
+          action: () => _replace(' '),
+        ),
+      if (_numeric) _key('/', width: 44.5, action: () => _replace('/')),
+      if (_multiline)
+        _key(
+          'Return',
+          width: 44.5,
+          icon: Icons.keyboard_return,
+          semantics: 'Return',
+          action: () => _replace('\n'),
+        ),
+      _key(
+        'Move cursor right',
+        width: 44.5,
+        icon: Icons.keyboard_arrow_right,
+        semantics: 'Move cursor right',
+        action: () => _move(true, extend: _selecting),
+      ),
+      _key(
+        'Delete previous character',
+        width: 55,
+        icon: Icons.backspace_outlined,
+        semantics: 'Delete previous character',
+        backspace: true,
+        action: _delete,
+      ),
+      _key(
+        'Extend selection',
+        width: 44.5,
+        icon: Icons.select_all,
+        semantics: 'Extend selection',
+        selected: _selecting,
+        action: () => setState(() => _selecting = !_selecting),
+      ),
+    ];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: width,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(child: widget.child),
-            if (_controller != null)
-              TextFieldTapRegion(
-                child: Material(
-                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+            for (final row in rows)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: row.characters
+                    .map((c) => _key(c, width: letterWidth))
+                    .toList(),
+              ),
+            Wrap(alignment: WrapAlignment.center, children: commands),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _focusedKeyboard() => TextFieldTapRegion(
+    child: Material(
+      color: Theme.of(context).colorScheme.surfaceContainerHigh,
+      child: Column(
+        children: [
+          SizedBox(
+            height: 44,
+            child: Semantics(label: _label, child: _draft(compact: true)),
+          ),
+          SizedBox(
+            height: 48,
+            child: Row(
+              children: [
+                IconButton(
+                  tooltip: 'Select all',
+                  onPressed: _editable ? _selectAll : null,
+                  icon: const Icon(Icons.select_all),
+                ),
+                IconButton(
+                  tooltip: 'Text editing actions',
+                  onPressed: _editable ? _toggleEditingMenu : null,
+                  icon: const Icon(Icons.more_horiz),
+                ),
+                IconButton(
+                  tooltip: 'Paste',
+                  onPressed: _editable ? _paste : null,
+                  icon: const Icon(Icons.content_paste, size: 20),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: _editable ? finishField : null,
+                  child: const Text('Done'),
+                ),
+                if (widget.onClose != null)
+                  IconButton(
+                    tooltip: 'Close',
+                    onPressed: _editable ? widget.onClose : null,
+                    icon: const Icon(Icons.close),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _clipboardError != null
+                ? SingleChildScrollView(
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                _label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: 'Select all',
-                              onPressed: _editable ? _selectAll : null,
-                              icon: const Icon(Icons.select_all),
-                            ),
-                            IconButton(
-                              tooltip: 'Copy selected text',
-                              onPressed: _editable ? _copy : null,
-                              icon: const Icon(Icons.copy, size: 20),
-                            ),
-                            IconButton(
-                              tooltip: 'Paste',
-                              onPressed: _editable ? _paste : null,
-                              icon: const Icon(Icons.content_paste, size: 20),
-                            ),
-                            TextButton(
-                              onPressed: _editable ? finishField : null,
-                              child: const Text('Done'),
-                            ),
-                          ],
+                        Text(
+                          _clipboardError!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
                         ),
-                        if (widget.showValue)
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: Theme.of(context).colorScheme.outline,
+                        TextButton(
+                          onPressed: () =>
+                              setState(() => _clipboardError = null),
+                          child: const Text('Continue typing'),
+                        ),
+                      ],
+                    ),
+                  )
+                : _editingMenu
+                ? Column(
+                    children: [
+                      _menu(),
+                      TextButton(
+                        onPressed: () => setState(() => _editingMenu = false),
+                        child: const Text('Continue typing'),
+                      ),
+                    ],
+                  )
+                : LayoutBuilder(
+                    builder: (context, constraints) => Align(
+                      alignment: Alignment.topCenter,
+                      child: _keyBank(constraints.maxWidth),
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _formPane({bool focused = false}) => Expanded(
+    child: Stack(
+      fit: StackFit.expand,
+      children: [
+        Offstage(offstage: focused, child: widget.child),
+        if (focused) _focusedKeyboard(),
+      ],
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) => _InputScope(
+    activate: activateField,
+    finish: finishField,
+    canEdit: () => _editable,
+    showEditingMenu: _showEditingMenu,
+    child: Focus(
+      focusNode: _hardwareFocus,
+      onKeyEvent: (_, event) => _controller != null && _isEditingKey(event)
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (_controller == null) return Column(children: [_formPane()]);
+          final short = constraints.maxHeight < 400;
+          if (short) {
+            // Keep the exact form and its scroll/selection state mounted while
+            // dedicating the unchanged shell to typing. Done restores the form.
+            return Column(children: [_formPane(focused: true)]);
+          }
+          // Reserve useful space for the form. The key bank scrolls inside its
+          // own clearly bounded region; neither keys nor the outer shell shrink.
+          final keyboardHeight = math.min(
+            constraints.maxHeight - 96,
+            widget.showValue ? 340.0 : 244.0,
+          );
+          return Column(
+            children: [
+              _formPane(),
+              SizedBox(
+                height: keyboardHeight,
+                child: TextFieldTapRegion(
+                  child: Material(
+                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          height: 48,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(left: 8),
+                                  child:
+                                      ValueListenableBuilder<TextEditingValue>(
+                                        valueListenable: _controller!,
+                                        builder: (context, value, _) => Text(
+                                          _label,
+                                          key: const ValueKey(
+                                            'player-keyboard-context',
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
                                 ),
-                                borderRadius: BorderRadius.circular(4),
                               ),
+                              IconButton(
+                                tooltip: 'Select all',
+                                onPressed: _editable ? _selectAll : null,
+                                icon: const Icon(Icons.select_all),
+                              ),
+                              IconButton(
+                                tooltip: 'Text editing actions',
+                                onPressed: _editable
+                                    ? _toggleEditingMenu
+                                    : null,
+                                icon: const Icon(Icons.more_horiz),
+                              ),
+                              IconButton(
+                                tooltip: 'Paste',
+                                onPressed: _editable ? _paste : null,
+                                icon: const Icon(Icons.content_paste, size: 20),
+                              ),
+                              TextButton(
+                                onPressed: _editable ? finishField : null,
+                                child: const Text('Done'),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Scrollbar(
+                            controller: _keysScroll,
+                            thumbVisibility: true,
+                            child: SingleChildScrollView(
+                              key: const ValueKey('player-keyboard-scroll'),
+                              controller: _keysScroll,
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 8,
-                                ),
-                                child: EditableText(
-                                  key: _draftEditable,
-                                  controller: _controller!,
-                                  focusNode: _draftFocus,
-                                  readOnly: true,
-                                  // Software keys return focus here after updating
-                                  // the shared controller. Web/desktop defaults
-                                  // would reselect that new text on focus, so the
-                                  // next key replaces it. Selection is explicit.
-                                  selectAllOnFocus: false,
-                                  showCursor: true,
-                                  keyboardType: TextInputType.none,
-                                  maxLines: _multiline ? 2 : 1,
-                                  style: Theme.of(context).textTheme.bodyLarge!,
-                                  cursorColor: Theme.of(
-                                    context,
-                                  ).colorScheme.primary,
-                                  backgroundCursorColor: Colors.grey,
-                                  selectionColor: Theme.of(
-                                    context,
-                                  ).colorScheme.primary.withValues(alpha: .3),
-                                  selectionControls:
-                                      materialTextSelectionControls,
-                                  contextMenuBuilder: (_, _) =>
-                                      const SizedBox.shrink(),
+                                padding: const EdgeInsets.fromLTRB(2, 0, 2, 4),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (widget.showValue) _draft(),
+                                    if (_clipboardError != null)
+                                      Padding(
+                                        padding: const EdgeInsets.all(4),
+                                        child: Text(
+                                          _clipboardError!,
+                                          style: TextStyle(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.error,
+                                          ),
+                                        ),
+                                      ),
+                                    if (_editingMenu) _menu(),
+                                    LayoutBuilder(
+                                      builder: (context, constraints) =>
+                                          _keyBank(constraints.maxWidth),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
                           ),
-                        for (final row in rows)
-                          Row(
-                            children: row.characters
-                                .map((c) => _key(c))
-                                .toList(),
-                          ),
-                        Row(
-                          children: [
-                            if (!_numeric)
-                              _key(
-                                _symbols ? 'ABC' : '123',
-                                flex: 2,
-                                action: () =>
-                                    setState(() => _symbols = !_symbols),
-                              ),
-                            if (!_numeric)
-                              _key(
-                                'Shift',
-                                icon: Icons.arrow_upward,
-                                semantics: 'Shift',
-                                action: () => setState(() => _shift = !_shift),
-                              ),
-                            if (_numeric)
-                              _key(
-                                '−',
-                                icon: Icons.remove,
-                                action: () => _replace('-'),
-                              ),
-                            _key(
-                              'Move cursor left',
-                              icon: Icons.keyboard_arrow_left,
-                              semantics: 'Move cursor left',
-                              action: () => _move(false, extend: _shift),
-                            ),
-                            if (!_numeric)
-                              _key(
-                                'Space',
-                                flex: 4,
-                                action: () => _replace(' '),
-                              ),
-                            if (_numeric)
-                              _key('/', action: () => _replace('/')),
-                            if (_multiline)
-                              _key(
-                                'Return',
-                                icon: Icons.keyboard_return,
-                                semantics: 'Return',
-                                action: () => _replace('\n'),
-                              ),
-                            _key(
-                              'Move cursor right',
-                              icon: Icons.keyboard_arrow_right,
-                              semantics: 'Move cursor right',
-                              action: () => _move(true, extend: _shift),
-                            ),
-                            _key(
-                              'Delete previous character',
-                              icon: Icons.backspace_outlined,
-                              semantics: 'Delete previous character',
-                              flex: 2,
-                              action: _delete,
-                            ),
-                          ],
                         ),
                       ],
                     ),
                   ),
                 ),
               ),
-          ],
-        ),
+            ],
+          );
+        },
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _InputScope extends InheritedWidget {
@@ -714,6 +1087,7 @@ class _InputScope extends InheritedWidget {
     required this.activate,
     required this.finish,
     required this.canEdit,
+    required this.showEditingMenu,
     required super.child,
   });
   final Future<bool> Function(
@@ -726,6 +1100,7 @@ class _InputScope extends InheritedWidget {
   activate;
   final Future<void> Function([TextEditingController?]) finish;
   final bool Function() canEdit;
+  final VoidCallback showEditingMenu;
   bool get enabled => canEdit();
   @override
   bool updateShouldNotify(_InputScope oldWidget) =>
@@ -816,7 +1191,14 @@ class PlayerField extends StatelessWidget {
             showCursor: true,
             keyboardType: TextInputType.none,
             maxLines: maxLines,
-            contextMenuBuilder: (_, _) => const SizedBox.shrink(),
+            selectionControls: materialTextSelectionHandleControls,
+            contextMenuBuilder: (_, state) {
+              input?.showEditingMenu();
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (state.mounted) state.hideToolbar(false);
+              });
+              return const SizedBox.shrink();
+            },
             onTapOutside: (_) => context
                 .getInheritedWidgetOfExactType<_InputScope>()
                 ?.finish(controller),

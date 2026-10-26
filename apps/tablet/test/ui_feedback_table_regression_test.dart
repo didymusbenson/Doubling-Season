@@ -504,7 +504,7 @@ void main() {
     }
   }
   testWidgets(
-    'direct life change shows a readable delta beside the seat name',
+    'direct life change shows a readable delta beside the life total',
     (tester) async {
       final fixture = await showTable(
         tester,
@@ -855,7 +855,7 @@ void main() {
     );
 
     testWidgets(
-      'empty commander ledger allows immediate damage and secondary owner setup at $size',
+      'empty commander ledger allows immediate damage and owned setup at $size',
       (tester) async {
         final fixture = await showTable(tester, size, tableFor(4));
         final player = fixture.controller.session.players.first;
@@ -870,6 +870,8 @@ void main() {
         expect(fixture.controller.session.commanders, isEmpty);
         final sourceId = 'default-commander:${owner.id}';
         final direct = find.byKey(ValueKey('commander-tracker-$sourceId'));
+        await tester.ensureVisible(direct);
+        await tester.pumpAndSettle();
         expect(direct.hitTestable(), findsOneWidget);
         await tester.tap(
           find.descendant(
@@ -887,16 +889,21 @@ void main() {
         await tester.pumpAndSettle();
         expect(fixture.controller.session.commanders, isEmpty);
         expect(fixture.controller.player(player.id).life, 40);
-        await tester.tap(find.byTooltip('Edit commander sources'));
+        await tester.tap(find.widgetWithText(ChoiceChip, 'Player'));
         await tester.pumpAndSettle();
-        expect(find.text('Add commander').hitTestable(), findsOneWidget);
-        await tester.tap(
-          find.widgetWithText(
-            ChoiceChip,
-            fixture.controller.profile(owner.seatId).name,
-          ),
+        final addCommander = find.text('Add commander');
+        await tester.scrollUntilVisible(
+          addCommander,
+          160,
+          scrollable: find
+              .descendant(
+                of: find.byType(ListView).last,
+                matching: find.byType(Scrollable),
+              )
+              .first,
         );
         await tester.pumpAndSettle();
+        expect(addCommander.hitTestable(), findsOneWidget);
         final input = find.byWidgetPredicate(
           (w) => w is TextField && w.decoration?.labelText == 'Commander name',
         );
@@ -905,13 +912,13 @@ void main() {
         await tester.pumpAndSettle();
         expect(
           fixture.controller.session.commanders.single.ownerPlayerId,
-          owner.id,
+          player.id,
         );
         expect(
           fixture.controller.session.commanders.single.name,
           'New partner',
         );
-        await tester.tap(find.text('Back to damage'));
+        await tester.tap(find.widgetWithText(ChoiceChip, 'Counters'));
         await tester.pumpAndSettle();
         expect(
           fixture.controller.session.players.map((p) => p.life).toList(),
@@ -990,8 +997,8 @@ void main() {
         tester
             .getSize(find.byKey(const ValueKey('commander-workspace')))
             .height,
-        lessThan(600),
-        reason: 'Opposing two-player seats occupy two spatial rows.',
+        744 * .75,
+        reason: 'The shared shell uses exactly 75% of the viewport.',
       );
       final recipientSlot = bounds(
         tester,
@@ -1073,6 +1080,14 @@ void main() {
       expect(
         fixture.controller.player(recipient.id).commanderDamage['partner-b'],
         1,
+      );
+      await tester.ensureVisible(
+        find.byTooltip('Decrease Partner A commander damage'),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byTooltip('Decrease Partner A commander damage').hitTestable(),
+        findsOneWidget,
       );
       await tester.tap(find.byTooltip('Decrease Partner A commander damage'));
       await tester.pumpAndSettle();

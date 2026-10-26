@@ -203,7 +203,8 @@ void main() {
             }
             expect(numberRect.center.dx, closeTo(gridRect.center.dx, .01));
             expect(numberRect.bottom, lessThanOrEqualTo(gridRect.top));
-            expect(nameRect.bottom, lessThanOrEqualTo(numberRect.top + .01));
+            expect(numberRect.bottom, lessThanOrEqualTo(nameRect.top + .01));
+            expect(nameRect.bottom, lessThanOrEqualTo(gridRect.top + .01));
             expect(gridRect.bottom, lessThan(surfaceBox.size.height));
             expect(gridRect.height, 44);
             expect(surfaceBox.size.height, greaterThanOrEqualTo(140));

@@ -167,8 +167,10 @@ void main() {
         WorkspacePage.tokenArtwork,
         const Size(1133, 744),
       );
-      final invalid = find.text('INVALID\nBad image');
+      final invalid = find.text('INVALID');
       await tester.ensureVisible(invalid);
+      await tester.pumpAndSettle();
+      expect(invalid.hitTestable(), findsOneWidget);
       await tester.tap(invalid);
       await tester.pumpAndSettle();
       expect(find.text('Use this artwork'), findsNothing);
@@ -199,7 +201,7 @@ void main() {
         await f.initialize();
         addTearDown(f.dispose);
         await openWorkspace(tester, f, WorkspacePage.tokenArtwork, size);
-        final lastArt = find.text('SET 23\nArtist 23');
+        final lastArt = find.text('SET 23');
         await tester.ensureVisible(lastArt);
         await tester.pumpAndSettle();
         expect(lastArt.hitTestable(), findsOneWidget);

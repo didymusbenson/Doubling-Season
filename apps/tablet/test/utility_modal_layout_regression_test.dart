@@ -26,7 +26,7 @@ void main() {
       'MaterialIcons': 'MaterialIcons-Regular.otf',
     }.entries) {
       final file = File(
-        '/opt/homebrew/share/flutter/bin/cache/artifacts/material_fonts/${font.value}',
+        '${Platform.environment['FLUTTER_ROOT'] ?? '/opt/homebrew/share/flutter'}/bin/cache/artifacts/material_fonts/${font.value}',
       );
       if (await file.exists()) {
         await (FontLoader(
@@ -55,6 +55,23 @@ void main() {
     });
   }
 
+  Future<void> reachable(
+    WidgetTester tester,
+    Finder target, {
+    String? reason,
+  }) async {
+    expect(target, findsOneWidget, reason: reason);
+    await tester.ensureVisible(target);
+    await tester.pumpAndSettle();
+    expect(target.hitTestable(), findsOneWidget, reason: reason);
+  }
+
+  Future<void> tap(WidgetTester tester, Finder target) async {
+    await reachable(tester, target);
+    await tester.tap(target);
+    await tester.pumpAndSettle();
+  }
+
   Future<void> showUtility(
     WidgetTester tester,
     TableFixture fixture,
@@ -69,7 +86,7 @@ void main() {
     addTearDown(tester.view.reset);
     addTearDown(() async {
       if (find.byTooltip('Close workspace').evaluate().isNotEmpty) {
-        await tester.tap(find.byTooltip('Close workspace'));
+        await tap(tester, find.byTooltip('Close workspace'));
         await tester.pumpAndSettle();
       }
       await tester.pumpWidget(const SizedBox.shrink());
@@ -104,19 +121,25 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('Open utility'));
+    await tap(tester, find.text('Open utility'));
     await tester.pumpAndSettle();
+    expect(
+      tester.getSize(find.byKey(const ValueKey('context-workspace'))),
+      quarterTurns.isOdd
+          ? Size(size.height * .75, size.width * .75)
+          : Size(size.width * .75, size.height * .75),
+    );
   }
 
   Future<void> closeUtility(WidgetTester tester) async {
-    await tester.tap(find.byTooltip('Close workspace'));
+    await tap(tester, find.byTooltip('Close workspace'));
     await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox.shrink());
   }
 
   for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
     testWidgets(
-      'every utility exposes fixed options without scrolling at $size',
+      'every utility exposes reachable options inside the fixed 75% shell at $size',
       (tester) async {
         final fixture = TableFixture();
         await fixture.initialize();
@@ -145,89 +168,62 @@ void main() {
           await showUtility(tester, fixture, utility, size);
           final detail = find.byKey(ValueKey('utility-detail-${utility.kind}'));
           expect(detail, findsOneWidget, reason: utility.kind);
+          expect(
+            tester.getSize(find.byKey(const ValueKey('context-workspace'))),
+            Size(size.width * .75, size.height * .75),
+          );
           for (final label in ['Name', 'Description']) {
-            expect(
-              find
-                  .byWidgetPredicate(
-                    (w) => w is TextField && w.decoration?.labelText == label,
-                  )
-                  .hitTestable(),
-              findsOneWidget,
+            await reachable(
+              tester,
+              find.byWidgetPredicate(
+                (w) => w is TextField && w.decoration?.labelText == label,
+              ),
               reason: utility.kind,
             );
           }
           for (final label in ['All utilities', 'Artwork']) {
-            expect(
-              find.text(label).hitTestable(),
-              findsOneWidget,
+            await reachable(
+              tester,
+              find.text(label),
               reason: '${utility.kind}: $label',
             );
           }
-          expect(
-            find.byTooltip('Hide this utility').hitTestable(),
-            findsOneWidget,
-          );
+          await reachable(tester, find.byTooltip('Hide this utility'));
           expect(find.byType(ExpansionTile), findsNothing);
           if (utility.kind == 'mana_pool') {
             for (final color in PlayerState.manaColors) {
               final card = find.byKey(ValueKey('utility-mana-$color'));
-              for (final control in tester.widgetList<Tooltip>(
-                find.descendant(of: card, matching: find.byType(Tooltip)),
-              )) {
-                expect(
-                  find.byTooltip(control.message!).hitTestable(),
-                  findsOneWidget,
-                );
+              for (final control
+                  in tester
+                      .widgetList<Tooltip>(
+                        find.descendant(
+                          of: card,
+                          matching: find.byType(Tooltip),
+                        ),
+                      )
+                      .toList()) {
+                await reachable(tester, find.byTooltip(control.message!));
               }
             }
-            expect(
-              find.text('Empty unlocked mana').hitTestable(),
-              findsOneWidget,
-            );
+            await reachable(tester, find.text('Empty unlocked mana'));
           } else if (utility.configuration['type'] == 'toggle') {
-            expect(find.byType(SwitchListTile).hitTestable(), findsOneWidget);
+            await reachable(tester, find.byType(SwitchListTile));
           } else if (utility.configuration['actionOnly'] != true) {
-            expect(
-              find.byTooltip('Increase Value').hitTestable(),
-              findsOneWidget,
-            );
-            expect(
-              find.byTooltip('Decrease Value').hitTestable(),
-              findsOneWidget,
-            );
-            expect(
-              find.widgetWithText(OutlinedButton, 'Set value').hitTestable(),
-              findsOneWidget,
+            await reachable(tester, find.byTooltip('Increase Value'));
+            await reachable(tester, find.byTooltip('Decrease Value'));
+            await reachable(
+              tester,
+              find.widgetWithText(OutlinedButton, 'Set value'),
             );
           }
           if (utility.configuration['hasAction'] == true) {
             final label = utility.kind == 'brudiclad_telchor_engineer'
                 ? 'Create Myr & skip transformation'
                 : utility.configuration['actionButtonText'] as String;
-            expect(
-              find.text(label).hitTestable(),
-              findsOneWidget,
-              reason: utility.kind,
-            );
+            await reachable(tester, find.text(label), reason: utility.kind);
             if (utility.kind == 'cathars_crusade') {
-              expect(
-                find.text('Quick +1/+1 to creatures').hitTestable(),
-                findsOneWidget,
-              );
+              await reachable(tester, find.text('Quick +1/+1 to creatures'));
             }
-          }
-          final fixed = find.byKey(const ValueKey('utility-fixed-controls'));
-          if (fixed.evaluate().isNotEmpty) {
-            final scroll = tester.state<ScrollableState>(
-              find
-                  .descendant(of: fixed, matching: find.byType(Scrollable))
-                  .first,
-            );
-            expect(
-              scroll.position.maxScrollExtent,
-              0,
-              reason: '${utility.kind} fixed options must fit.',
-            );
           }
           expect(tester.takeException(), isNull, reason: utility.kind);
           if ({
@@ -271,16 +267,16 @@ void main() {
       );
       final otherSeat = fixture.controller.session.players[1].toJson();
       await showUtility(tester, fixture, utility, const Size(1133, 744));
-      await tester.tap(find.byTooltip('Increase White mana'));
+      await tap(tester, find.byTooltip('Increase White mana'));
       await tester.pumpAndSettle();
       await tester.longPress(find.byTooltip('Increase White mana'));
       await tester.pumpAndSettle();
       expect(fixture.player.mana['W'], 11);
-      await tester.tap(find.byTooltip('Lock White mana for Empty'));
+      await tap(tester, find.byTooltip('Lock White mana for Empty'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Increase Blue mana'));
+      await tap(tester, find.byTooltip('Increase Blue mana'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Empty unlocked mana'));
+      await tap(tester, find.text('Empty unlocked mana'));
       await tester.pumpAndSettle();
       await tester.tap(
         find.widgetWithText(FilledButton, 'Empty unlocked mana'),
@@ -288,7 +284,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(fixture.player.mana['W'], 11);
       expect(fixture.player.mana['U'], 0);
-      await tester.tap(find.byTooltip('Convert all mana to Blue'));
+      await tap(tester, find.byTooltip('Convert all mana to Blue'));
       await tester.pumpAndSettle();
       expect(fixture.player.mana['W'], 0);
       expect(fixture.player.mana['U'], 11);
@@ -317,11 +313,11 @@ void main() {
         const Size(744, 1133),
         onBackgroundTap: () => backgroundTaps++,
       );
-      await tester.tap(find.text('Artwork'));
+      await tap(tester, find.text('Artwork'));
       await tester.pumpAndSettle();
       expect(find.text('Upload utility artwork').hitTestable(), findsOneWidget);
       expect(find.text('Utility controls').hitTestable(), findsOneWidget);
-      await tester.tap(find.text('Utility controls'));
+      await tap(tester, find.text('Utility controls'));
       await tester.pumpAndSettle();
       expect(
         find
@@ -358,7 +354,7 @@ void main() {
       utility.configuration['artworkOptions'] = [];
       final otherSeat = fixture.controller.session.players[1].toJson();
       await showUtility(tester, fixture, utility, const Size(744, 1133));
-      await tester.tap(find.byType(Switch));
+      await tap(tester, find.byType(Switch));
       await tester.pumpAndSettle();
       expect(
         fixture.player.utilities.firstWhere((u) => u.id == utility.id).isActive,
@@ -377,7 +373,7 @@ void main() {
         field.controller!.text = entry.value;
       }
       await tester.pump();
-      await tester.tap(find.text('Artwork'));
+      await tap(tester, find.text('Artwork'));
       await tester.pumpAndSettle();
       final saved = fixture.player.utilities.firstWhere(
         (u) => u.id == utility.id,
@@ -414,7 +410,10 @@ void main() {
           final outer = tester.state<ScrollableState>(
             find.descendant(of: fixed, matching: find.byType(Scrollable)).first,
           );
-          expect(outer.position.maxScrollExtent, 0);
+          expect(
+            outer.position.viewportDimension,
+            inInclusiveRange(44, 744 * .75),
+          );
           final preview = find.byKey(const ValueKey('utility-action-preview'));
           final scroll = tester.state<ScrollableState>(
             find
@@ -422,11 +421,9 @@ void main() {
                 .first,
           );
           expect(scroll.position.maxScrollExtent, greaterThan(0));
-          expect(
-            find
-                .text(utility.configuration['actionButtonText'] as String)
-                .hitTestable(),
-            findsOneWidget,
+          await reachable(
+            tester,
+            find.text(utility.configuration['actionButtonText'] as String),
           );
         } else {
           final targets = find.byKey(
@@ -438,12 +435,12 @@ void main() {
                 .first,
           );
           expect(scroll.position.maxScrollExtent, greaterThan(0));
-          expect(
-            find.text('Create Myr & skip transformation').hitTestable(),
-            findsOneWidget,
+          await reachable(
+            tester,
+            find.text('Create Myr & skip transformation'),
           );
         }
-        expect(find.text('Artwork').hitTestable(), findsOneWidget);
+        await reachable(tester, find.text('Artwork'));
         expect(tester.takeException(), isNull);
         await closeUtility(tester);
       }

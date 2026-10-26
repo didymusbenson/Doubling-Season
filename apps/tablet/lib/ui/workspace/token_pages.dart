@@ -472,8 +472,6 @@ extension _TokenPages on _TableWorkspaceState {
           player: player,
           token: token,
           quarterTurns: widget.quarterTurns,
-          onPreviewChanged: (active) =>
-              _update(() => _artworkPreviewActive = active),
         ),
       ]),
       _ => _tokenDetails(token),
