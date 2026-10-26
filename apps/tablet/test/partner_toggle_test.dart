@@ -70,8 +70,17 @@ void main() {
       await f.controller.setCommanderDamage(recipient, partner, 1);
       final before = f.controller.state.toJson();
       final persisted = f.repository.encoded;
-      expect(await f.controller.setHasPartner(f.playerId, false), isFalse);
-      expect(f.controller.error, contains('zero for everyone'));
+      String? guidance;
+      expect(
+        await f.controller.setHasPartner(
+          f.playerId,
+          false,
+          onBlocked: (reason) => guidance = reason,
+        ),
+        isFalse,
+      );
+      expect(guidance, contains('zero for everyone'));
+      expect(f.controller.error, isNull);
       expect(f.controller.state.toJson(), before);
       expect(f.repository.encoded, persisted);
     },
@@ -220,7 +229,11 @@ void main() {
           .toList();
       expect(await f.controller.setHasPartner(f.playerId, true), isTrue);
       expect(await f.controller.setHasPartner(f.playerId, false), isFalse);
-      expect(f.controller.error, contains('individually'));
+      expect(
+        f.controller.partnerToggleBlockReason(f.playerId),
+        contains('individually'),
+      );
+      expect(f.controller.error, isNull);
       expect(f.controller.session.commanders.map((s) => s.toJson()), sources);
       expect(
         f.controller.session.commanderTrackingSources.where(

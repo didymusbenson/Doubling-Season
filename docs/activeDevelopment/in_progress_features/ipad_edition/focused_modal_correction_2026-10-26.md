@@ -43,3 +43,7 @@ Normal setup supports a primary plus one partner. Existing active groups with mo
 ### Release-browser dismissal interception repair
 
 Chrome interaction testing identified a real accessibility hit-order defect after a state update: a full-window actionable `Close workspace` semantics node sat above the visible modal controls. Twenty fresh DOM hit checks across three seconds identified the same 1133×744 dismissal target over the 44px Close button; an earlier Back click had therefore dismissed the route instead of returning to the commander grid. The outside-tap layer now excludes semantics while retaining its raw pointer dismissal behavior. Assistive technology retains the visible Close control and the keyboard's focused Close control. Regression coverage checks the semantics surface and pending-save/outside-tap behavior; actual browser target correspondence remains required before publication.
+
+### Partner guard presentation
+
+Expected blocked deactivation is local guidance beside Has partner, not a failed-save or global error banner. The UI preflights current damage; a typed guard inside the serialized controller command handles a queued-damage race without publishing an error or changing data. Genuine storage and scope failures retain the existing error path. Tests cover the preflight, race, unchanged partner/history, clearing guidance after correction, and real save failure. Browser captures wait for the committed switch state and its visual transition.

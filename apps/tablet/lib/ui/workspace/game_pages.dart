@@ -314,13 +314,24 @@ extension _GamePages on _TableWorkspaceState {
   }
 
   List<Widget> _playerCommanderContent(PlayerState player) => [
-    SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      title: const Text('Has partner'),
-      value: c.session.hasPartner(player.id),
-      onChanged: _working
-          ? null
-          : (value) => _run(() => c.setHasPartner(player.id, value)),
+    _PartnerToggle(
+      enabled: c.session.hasPartner(player.id),
+      busy: _working || _closing || _navigating,
+      blockReason: () => c.partnerToggleBlockReason(player.id),
+      onChange: (value, showGuidance) => _run(() async {
+        String? blocked;
+        final saved = await c.setHasPartner(
+          player.id,
+          value,
+          onBlocked: (reason) {
+            blocked = reason;
+            showGuidance(reason);
+          },
+        );
+        // Only the typed, expected guard is local. Storage/scope failures still
+        // return false to the existing workspace/global error handling.
+        return blocked == null ? saved : null;
+      }),
     ),
   ];
 
@@ -956,4 +967,53 @@ extension _GamePages on _TableWorkspaceState {
       ),
     ]),
   ]);
+}
+
+/// Expected partner constraints belong beside their toggle, not in global errors.
+class _PartnerToggle extends StatefulWidget {
+  const _PartnerToggle({
+    required this.enabled,
+    required this.busy,
+    required this.blockReason,
+    required this.onChange,
+  });
+  final bool enabled, busy;
+  final String? Function() blockReason;
+  final Future<void> Function(bool, ValueChanged<String>) onChange;
+  @override
+  State<_PartnerToggle> createState() => _PartnerToggleState();
+}
+
+class _PartnerToggleState extends State<_PartnerToggle> {
+  String? _guidance;
+  @override
+  void didUpdateWidget(covariant _PartnerToggle oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.blockReason() == null) _guidance = null;
+  }
+
+  void _showGuidance(String reason) {
+    if (mounted) setState(() => _guidance = reason);
+  }
+
+  @override
+  Widget build(BuildContext context) => SwitchListTile(
+    contentPadding: EdgeInsets.zero,
+    title: const Text('Has partner'),
+    subtitle: _guidance == null
+        ? null
+        : Text(_guidance!, key: const ValueKey('partner-toggle-guidance')),
+    value: widget.enabled,
+    onChanged: widget.busy
+        ? null
+        : (value) async {
+            final reason = value ? null : widget.blockReason();
+            if (reason != null) {
+              _showGuidance(reason);
+              return;
+            }
+            setState(() => _guidance = null);
+            await widget.onChange(value, _showGuidance);
+          },
+  );
 }

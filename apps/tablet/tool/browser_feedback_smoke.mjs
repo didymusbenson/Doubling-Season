@@ -356,6 +356,9 @@ try {
   await click('qa, player details');
   assert(!(await semantics()).some(node => node.name.includes('Commander name')), 'Player setup still requires commander naming.');
   await click('Has partner');
+  await selected('Has partner');
+  await find('Has partner', { role: 'switch' });
+  await sleep(300); // Capture the committed switch after its visual transition.
   await capture('03b-player-partner-enabled');
   await click('Close workspace');
   await click('qa, commander damage ', { startsWith: true, role: 'button' });
@@ -366,6 +369,9 @@ try {
   await click('qa, player details');
   await click('Has partner');
   await find('Set this partner’s damage to zero for everyone first.', { contains: true });
+  await until('guarded partner remains enabled', async () => (await semantics()).some(node =>
+    node.role === 'switch' && node.name.startsWith('Has partner') && ['true', true].includes(node.checked)));
+  assert(!(await semantics()).some(node => node.name.includes('Bad state:')), 'Expected partner guard surfaced as a global application error.');
   await capture('03d-partner-off-guarded');
   await click('Close workspace');
   await click('qa, commander damage ', { startsWith: true, role: 'button' });
@@ -413,7 +419,7 @@ try {
   log('PASS direct Day/Night taps and Dice controls; hold outcomes recorded separately');
 
   await click('qa, add token');
-  await click('Search tokens, abilities, type, or P/T. Current value:', { startsWith: true });
+  await click('Search tokens, abilities, type, or P/T. Current value:', { contains: true, role: 'button' });
   for (const letter of 'scute') await click(letter, { role: 'button' });
   await click('Done');
   await click('Scute Swarm', { startsWith: true });
@@ -436,11 +442,11 @@ try {
   await find('qa, Scute Swarm, Choose artwork', { contains: true, role: 'button' });
   await capture('08-expanded-token-full-art');
   await click('qa, Scute Swarm, Choose artwork', { contains: true, role: 'button' });
-  await find('Artwork image URL. Current value:', { startsWith: true, role: 'button' });
+  await find('Artwork image URL. Current value:', { contains: true, role: 'button' });
   await capture('09-current-artwork-editor');
-  await click('Artwork image URL. Current value:', { startsWith: true, role: 'button' });
+  await click('Artwork image URL. Current value:', { contains: true, role: 'button' });
   await typeSoftwareText(expectedScuteArtwork);
-  await find(`Artwork image URL. Current value: ${expectedScuteArtwork}`, { startsWith: true, role: 'button' });
+  await find(`Artwork image URL. Current value: ${expectedScuteArtwork}`, { contains: true, role: 'button' });
   await capture('10-artwork-url-keyboard-draft');
   await click('Done');
   await click('Preview image URL');

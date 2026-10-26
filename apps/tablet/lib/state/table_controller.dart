@@ -76,7 +76,7 @@ class TableController extends ChangeNotifier {
         result.complete(true);
       } catch (failure) {
         _openGroupId = null;
-        error = _message(failure);
+        if (failure is! _PartnerToggleBlocked) error = _message(failure);
         result.complete(false);
       } finally {
         _pending--;
@@ -488,56 +488,82 @@ class TableController extends ChangeNotifier {
   Future<bool> setDayNight(String value) =>
       commit('Set day/night: $value', mutate: (game) => game.dayNight = value);
 
+  /// Expected partner guard guidance, suitable for local UI preflight.
+  String? partnerToggleBlockReason(String playerId) =>
+      _partnerToggleBlockReason(session, playerId);
+
+  static String? _partnerToggleBlockReason(GameSession game, String playerId) {
+    final owned = game.commanders
+        .where((source) => source.ownerPlayerId == playerId)
+        .toList();
+    if (owned.length > 2) {
+      return 'Manage additional commander sources individually.';
+    }
+    if (owned.length < 2 || !owned[1].active) return null;
+    if (game.players.any(
+      (recipient) => (recipient.commanderDamage[owned[1].id] ?? 0) != 0,
+    )) {
+      return 'Set this partner’s damage to zero for everyone first.';
+    }
+    return null;
+  }
+
   /// Toggle the optional second source without replacing ledger identities.
-  Future<bool> setHasPartner(String playerId, bool enabled) => commit(
-    enabled ? 'Enable partner commander' : 'Disable partner commander',
-    playerId: playerId,
-    mutate: (game) {
-      game.player(playerId); // Reject stale owners before creating any source.
-      final owned = game.commanders
-          .where((source) => source.ownerPlayerId == playerId)
-          .toList();
-      if (!enabled) {
-        if (owned.length > 2) {
-          throw StateError('Manage additional commander sources individually.');
+  Future<bool> setHasPartner(
+    String playerId,
+    bool enabled, {
+    ValueChanged<String>? onBlocked,
+  }) async {
+    String? blockedReason;
+    final result = await commit(
+      enabled ? 'Enable partner commander' : 'Disable partner commander',
+      playerId: playerId,
+      mutate: (game) {
+        game.player(
+          playerId,
+        ); // Reject stale owners before creating any source.
+        final owned = game.commanders
+            .where((source) => source.ownerPlayerId == playerId)
+            .toList();
+        if (!enabled) {
+          final reason = _partnerToggleBlockReason(game, playerId);
+          if (reason != null) {
+            blockedReason = reason;
+            throw const _PartnerToggleBlocked();
+          }
+          if (owned.length < 2 || !owned[1].active) return;
+          final partner = owned[1];
+          partner.active = false;
+          return;
         }
-        if (owned.length < 2 || !owned[1].active) return;
-        final partner = owned[1];
-        if (game.players.any(
-          (recipient) => (recipient.commanderDamage[partner.id] ?? 0) != 0,
-        )) {
-          throw StateError(
-            'Set this partner’s damage to zero for everyone first.',
+        if (game.hasPartner(playerId)) return;
+        if (owned.isEmpty) {
+          final primary = CommanderSource(
+            id: 'default-commander:$playerId',
+            ownerPlayerId: playerId,
+            name: 'Commander',
+          );
+          game.commanders.add(primary);
+          owned.add(primary);
+        }
+        // Imported inactive primaries retain their identity when reactivated.
+        owned.first.active = true;
+        if (owned.length > 1) {
+          owned[1].active = true;
+        } else {
+          game.commanders.add(
+            CommanderSource(
+              id: newEntityId(),
+              ownerPlayerId: playerId,
+              name: 'Partner',
+            ),
           );
         }
-        partner.active = false;
-        return;
-      }
-      if (game.hasPartner(playerId)) return;
-      if (owned.isEmpty) {
-        final primary = CommanderSource(
-          id: 'default-commander:$playerId',
-          ownerPlayerId: playerId,
-          name: 'Commander',
-        );
-        game.commanders.add(primary);
-        owned.add(primary);
-      }
-      // Imported inactive primaries retain their identity when reactivated.
-      owned.first.active = true;
-      if (owned.length > 1) {
-        owned[1].active = true;
-      } else {
-        game.commanders.add(
-          CommanderSource(
-            id: newEntityId(),
-            ownerPlayerId: playerId,
-            name: 'Partner',
-          ),
-        );
-      }
-    },
-  );
+      },
+    );
+    if (blockedReason != null) onBlocked?.call(blockedReason!);
+    return result;
+  }
 
   Future<bool> addCommander(String playerId, String name) => commit(
     'Add commander source: $name',
@@ -1006,3 +1032,8 @@ int? _listIndex(List<dynamic> list, dynamic key) {
 
 dynamic _jsonValueCopy(dynamic value) =>
     value == null ? null : jsonDecode(jsonEncode(value));
+
+/// Known user-correctable guard, never a global persistence error.
+class _PartnerToggleBlocked implements Exception {
+  const _PartnerToggleBlocked();
+}
