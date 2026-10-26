@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tripling_table/ui/artwork_selection.dart';
 
 class MemoryPicker extends FilePicker {
   int calls = 0;
+  PlatformException? failure;
   @override
   Future<FilePickerResult?> pickFiles({
     String? dialogTitle,
@@ -22,6 +24,7 @@ class MemoryPicker extends FilePicker {
     bool readSequential = false,
   }) async {
     calls++;
+    if (failure != null) throw failure!;
     expect(type, FileType.image);
     expect(withData, isTrue);
     final bytes = base64Decode(
@@ -34,6 +37,54 @@ class MemoryPicker extends FilePicker {
 }
 
 void main() {
+  testWidgets(
+    'platform failure reports diagnostic and a later retry remains possible',
+    (tester) async {
+      final picker = MemoryPicker()
+        ..failure = PlatformException(
+          code: 'file_picker_error',
+          message: 'Failed to process any images',
+          details: 'Provider failed',
+        );
+      FilePicker.platform = picker;
+      Object? failure;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () async {
+                  try {
+                    await pickTabletArtwork(context);
+                  } catch (error) {
+                    failure = error;
+                  }
+                },
+                child: const Text('Import'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Import'));
+      await tester.pumpAndSettle();
+      expect(failure, isA<ArtworkImportException>());
+      expect(failure.toString(), contains('Provider failed'));
+      expect(find.text('Use crop'), findsNothing);
+      picker.failure = null;
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Import'));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pumpAndSettle();
+      expect(picker.calls, 2);
+      expect(find.text('Use crop'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
   testWidgets(
     'image bytes reach player-facing crop, cancellation does not save',
     (tester) async {
@@ -61,6 +112,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(picker.calls, 1);
       expect(find.text('Use crop'), findsOneWidget);
+      expect(
+        tester.getSize(find.byKey(const ValueKey('table-modal-surface'))),
+        const Size(600, 450),
+      );
       expect(
         tester.widget<RotatedBox>(find.byType(RotatedBox).first).quarterTurns,
         2,

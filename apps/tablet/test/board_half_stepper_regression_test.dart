@@ -314,14 +314,14 @@ void main() {
           );
           await tester.pump(const Duration(milliseconds: 550));
           await tester.pump(const Duration(milliseconds: 350));
-          expect(fixture.controller.player(player.id).life, 50);
-          expectLifeDelta(tester, player.id, '+10');
+          expect(fixture.controller.player(player.id).life, 60);
+          expectLifeDelta(tester, player.id, '+20');
           await held.up();
           await tester.pumpAndSettle();
           await tester.pump(const Duration(milliseconds: 350));
           expect(
             fixture.controller.player(player.id).life,
-            50,
+            60,
             reason: 'A released pointer must stop repeat.',
           );
           await tester.pump(const Duration(milliseconds: 1501));
@@ -361,20 +361,20 @@ void main() {
             pointer: 99,
           );
           await tester.pump(const Duration(milliseconds: 550));
-          expect(fixture.controller.player(player.id).life, 45);
+          expect(fixture.controller.player(player.id).life, 50);
           await tester.tap(find.byKey(ValueKey('${player.id}-player-details')));
           await tester.pumpAndSettle();
           expect(find.byTooltip('Close workspace'), findsOneWidget);
           await tester.pump(const Duration(milliseconds: 900));
           expect(
             fixture.controller.player(player.id).life,
-            45,
+            50,
             reason:
                 'Opening the full-table workspace must stop the held board action.',
           );
           await heldWhileOpening.up();
           await tester.pumpAndSettle();
-          expect(fixture.controller.player(player.id).life, 45);
+          expect(fixture.controller.player(player.id).life, 50);
           await tester.tap(find.byTooltip('Close workspace'));
           await tester.pumpAndSettle();
           expect(await fixture.controller.undo(), isTrue);

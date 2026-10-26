@@ -78,6 +78,40 @@ void main() {
     });
   }
 
+  Future<void> reveal(WidgetTester tester, Finder target) async {
+    // Forms now scroll within a fixed shell. Reveal lazily built children without
+    // weakening their actual hit-target assertions.
+    if (target.evaluate().isEmpty) {
+      final lists = find.byType(ListView).evaluate().toList();
+      for (final list in lists) {
+        final scrolls = find.descendant(
+          of: find.byWidget(list.widget),
+          matching: find.byType(Scrollable),
+        );
+        if (scrolls.evaluate().isEmpty) continue;
+        final state = tester.state<ScrollableState>(scrolls.first);
+        for (
+          double offset = 0;
+          offset <= state.position.maxScrollExtent + 1;
+          offset += 160
+        ) {
+          state.position.jumpTo(
+            offset.clamp(0, state.position.maxScrollExtent),
+          );
+          await tester.pumpAndSettle();
+          if (target.evaluate().isNotEmpty) break;
+        }
+        if (target.evaluate().isNotEmpty) break;
+        state.position.jumpTo(state.position.maxScrollExtent);
+        await tester.pumpAndSettle();
+      }
+    }
+    expect(target, findsOneWidget);
+    await tester.ensureVisible(target);
+    await tester.pumpAndSettle();
+    expect(target.hitTestable(), findsOneWidget);
+  }
+
   const scenes = <String, WorkspacePage>{
     'life-edit': WorkspacePage.player,
     'appearance': WorkspacePage.player,
@@ -91,7 +125,7 @@ void main() {
     'storm': WorkspacePage.utilities,
     'utility-selection': WorkspacePage.utilities,
     'rules': WorkspacePage.rules,
-    'rules-custom': WorkspacePage.rules,
+    'existing-custom-effects': WorkspacePage.rules,
     'dice': WorkspacePage.dice,
     'reset-new-game': WorkspacePage.reset,
     'reset-three-player': WorkspacePage.reset,
@@ -178,6 +212,18 @@ void main() {
               modifiers: ['doubling_season'],
             );
             final player = state.session.players.first;
+            if (scene.key == 'existing-custom-effects') {
+              player.rules.add(
+                ModifierSource(
+                  id: 'existing-custom',
+                  ownerPlayerId: player.id,
+                  definitionId: 'custom',
+                  name: 'Saved custom effect',
+                  count: 1,
+                  enabled: true,
+                ),
+              );
+            }
             player.counters.addAll({
               'energy': 5,
               'poison': 2,
@@ -329,11 +375,13 @@ void main() {
             await tester.pumpAndSettle();
             switch (scene.key) {
               case 'appearance':
-                await tester.tap(find.widgetWithText(ChoiceChip, 'Appearance'));
+                await reveal(tester, find.text('Name & color'));
               case 'edit-commanders':
-                await tester.tap(find.widgetWithText(ChoiceChip, 'Commanders'));
+                await reveal(tester, find.text('Your commanders'));
               case 'commander-setup':
-                await tester.tap(find.byTooltip('Edit commander sources'));
+                await tester.tap(find.widgetWithText(ChoiceChip, 'Player'));
+                await tester.pumpAndSettle();
+                await reveal(tester, find.text('Your commanders'));
               case 'commander-correction':
                 await tester.tap(
                   find.byKey(const ValueKey('commander-edit-partner-a')),
@@ -352,13 +400,15 @@ void main() {
                 await tester.tap(
                   find.widgetWithText(ChoiceChip, 'Board wipes'),
                 );
-              case 'rules-custom':
-                await tester.ensureVisible(find.text('Create a custom rule'));
-                await tester.tap(find.text('Create a custom rule'));
+              case 'existing-custom-effects':
+                await reveal(tester, find.text('Saved custom effect'));
+                expect(find.text('Create a custom rule'), findsNothing);
               case 'counter-correction':
+                await reveal(tester, find.byTooltip('Set radiation total'));
                 await tester.tap(find.byTooltip('Set radiation total'));
               case 'token-art-preview':
-                await tester.tap(find.text('TEST\nTest artist'));
+                await reveal(tester, find.text('TEST').last);
+                await tester.tap(find.text('TEST').last);
                 await tester.runAsync(
                   () => Future<void>.delayed(const Duration(milliseconds: 80)),
                 );
@@ -375,38 +425,19 @@ void main() {
               find.byTooltip('Close workspace').hitTestable(),
               findsOneWidget,
             );
-            if ({
-              'life-edit',
-              'rules-custom',
-              'counters',
-              'dice',
-              'token-custom',
-              'token-details',
-              'token-create',
-              'token-status',
-              'reset-new-game',
-              'reset-three-player',
-              'reset-wipes',
-              'settings',
-            }.contains(scene.key)) {
-              for (final list in find.byType(ListView).evaluate()) {
-                final scroll = find
-                    .descendant(
-                      of: find.byWidget(list.widget),
-                      matching: find.byType(Scrollable),
-                    )
-                    .first;
-                if (scroll.evaluate().isEmpty) continue;
-                expect(
-                  tester
-                      .state<ScrollableState>(scroll)
-                      .position
-                      .maxScrollExtent,
-                  lessThanOrEqualTo(1),
-                  reason: '${scene.key} fixed controls fit',
-                );
-              }
-            }
+            final frameFinder =
+                find
+                    .byKey(const ValueKey('context-workspace'))
+                    .evaluate()
+                    .isNotEmpty
+                ? find.byKey(const ValueKey('context-workspace'))
+                : find.byKey(const ValueKey('commander-workspace'));
+            expect(
+              tester.getSize(frameFinder),
+              turns.isOdd
+                  ? Size(size.height * .75, size.width * .75)
+                  : Size(size.width * .75, size.height * .75),
+            );
             if (scene.key == 'counters') {
               expect(find.byType(TextField), findsNothing);
               final steppers = <Rect>[];
@@ -416,6 +447,7 @@ void main() {
                 'experience',
                 'radiation',
               ]) {
+                await reveal(tester, find.byTooltip('Set $name total'));
                 expect(
                   find.byTooltip('Set $name total').hitTestable(),
                   findsOneWidget,
@@ -440,15 +472,10 @@ void main() {
                 steppers[1].center.dx,
                 closeTo(steppers[3].center.dx, .01),
               );
-              expect(
-                tester
-                    .getSize(find.byKey(const ValueKey('context-workspace')))
-                    .height,
-                lessThanOrEqualTo(420),
-              );
             }
             if (scene.key == 'counter-correction') {
               expect(find.byType(TextField), findsOneWidget);
+              await reveal(tester, find.text('Set'));
               expect(find.text('Set').hitTestable(), findsOneWidget);
               expect(
                 find.byTooltip('Cancel counter correction').hitTestable(),
@@ -461,10 +488,7 @@ void main() {
                 find.text('Global · applies to the entire table'),
                 findsOneWidget,
               );
-              expect(
-                find.text('Create a custom rule').hitTestable(),
-                findsOneWidget,
-              );
+              expect(find.text('Create a custom rule'), findsNothing);
             }
             if (scene.key == 'reset-new-game') {
               final field = find.byWidgetPredicate(
@@ -475,24 +499,31 @@ void main() {
               expect(tester.getSize(field).width, lessThanOrEqualTo(160));
               expect(find.text('20 life').hitTestable(), findsOneWidget);
               expect(find.text('40 life').hitTestable(), findsOneWidget);
-              expect(
-                tester
-                    .getSize(find.byKey(const ValueKey('context-workspace')))
-                    .height,
-                lessThanOrEqualTo(size.width < 760 ? 520 : 480),
-              );
             }
             if ({'reset-new-game', 'reset-three-player'}.contains(scene.key)) {
-              final frame = tester.renderObject<RenderBox>(find.byKey(const ValueKey('context-workspace')));
+              final frame = tester.renderObject<RenderBox>(
+                find.byKey(const ValueKey('context-workspace')),
+              );
               if (scene.key == 'reset-three-player') {
-                expect(frame.size.height, lessThanOrEqualTo(600));
+                expect(frame.size.height, size.height * .75);
               }
-              for (final label in ['Reset with current configuration', 'Complete reset']) {
+              for (final label in [
+                'Reset with current configuration',
+                'Complete reset',
+              ]) {
                 final button = find.widgetWithText(OutlinedButton, label);
+                await reveal(tester, button);
                 final box = tester.renderObject<RenderBox>(button);
-                final bounds = MatrixUtils.transformRect(box.getTransformTo(frame), Offset.zero & box.size);
+                final bounds = MatrixUtils.transformRect(
+                  box.getTransformTo(frame),
+                  Offset.zero & box.size,
+                );
                 expect(bounds.top, greaterThanOrEqualTo(0));
-                expect(bounds.bottom, lessThanOrEqualTo(frame.size.height - 12), reason: '$label fits wholly inside the reset modal');
+                expect(
+                  bounds.bottom,
+                  lessThanOrEqualTo(frame.size.height - 12),
+                  reason: '$label fits wholly inside the reset modal',
+                );
                 expect(button.hitTestable(), findsOneWidget);
               }
             }
@@ -504,12 +535,21 @@ void main() {
               final parent = tester.renderObject<RenderBox>(
                 find.byKey(const ValueKey('context-workspace')),
               );
-              final positions = [
-                for (final chip in chips)
-                  parent.globalToLocal(tester.getCenter(chip)),
-              ];
-              for (final point in positions) {
-                expect(point.dy, closeTo(positions.first.dy, .01));
+              final chipBounds = <Rect>[];
+              for (final chip in chips) {
+                await reveal(tester, chip);
+                final box = tester.renderObject<RenderBox>(chip);
+                final bounds = MatrixUtils.transformRect(
+                  box.getTransformTo(parent),
+                  Offset.zero & box.size,
+                );
+                expect(bounds.left, greaterThanOrEqualTo(0));
+                expect(bounds.right, lessThanOrEqualTo(parent.size.width));
+                expect(bounds.height, greaterThanOrEqualTo(44));
+                for (final earlier in chipBounds) {
+                  expect(bounds.overlaps(earlier), isFalse);
+                }
+                chipBounds.add(bounds);
               }
               final create = parent.globalToLocal(
                 tester.getTopLeft(
@@ -522,51 +562,29 @@ void main() {
               expect(create.dx, closeTo(quantity.dx, .01));
             }
             if (scene.key == 'token-art-many') {
-              final choices = tester.state<ScrollableState>(
-                find
-                    .descendant(
-                      of: find.byKey(const ValueKey('artwork-options-scroll')),
-                      matching: find.byType(Scrollable),
-                    )
-                    .first,
-              );
-              expect(choices.position.maxScrollExtent, greaterThan(0));
+              await reveal(tester, find.text('Preview image URL'));
               expect(
                 find.text('Preview image URL').hitTestable(),
                 findsOneWidget,
               );
+              await reveal(tester, find.text('Fixture 19'));
             }
             if (scene.key == 'token-art-empty') {
-              expect(
-                tester
-                    .getSize(find.byKey(const ValueKey('context-workspace')))
-                    .height,
-                lessThanOrEqualTo(360),
-              );
+              await reveal(tester, find.text('Preview image URL'));
               expect(
                 find.text('Preview image URL').hitTestable(),
                 findsOneWidget,
               );
             }
             if (scene.key == 'token-art-preview') {
+              await reveal(tester, find.text('Use this artwork'));
               expect(
                 find.text('Use this artwork').hitTestable(),
                 findsOneWidget,
               );
-              expect(
-                tester
-                    .getSize(find.byKey(const ValueKey('context-workspace')))
-                    .height,
-                lessThanOrEqualTo(640),
-              );
             }
             if (scene.key == 'token-art') {
-              expect(
-                tester
-                    .getSize(find.byKey(const ValueKey('context-workspace')))
-                    .height,
-                lessThanOrEqualTo(580),
-              );
+              await reveal(tester, find.text('Preview image URL'));
               expect(
                 find.text('Preview image URL').hitTestable(),
                 findsOneWidget,

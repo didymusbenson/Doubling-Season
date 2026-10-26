@@ -4,11 +4,14 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../domain/table_state.dart';
 import '../features/board_service.dart';
 import '../services/tablet_catalog.dart';
 import '../services/tablet_media_store.dart';
 import 'table_artwork.dart';
+import 'table_modal_frame.dart';
+import 'artwork_credit.dart';
 import 'workspace/player_keyboard.dart';
 
 /// Native selection remains staged until crop and image decoding both succeed.
@@ -16,10 +19,15 @@ Future<String?> pickTabletArtwork(
   BuildContext context, {
   int quarterTurns = 0,
 }) async {
-  final picked = await FilePicker.platform.pickFiles(
-    type: FileType.image,
-    withData: true,
-  );
+  final FilePickerResult? picked;
+  try {
+    picked = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+  } on PlatformException catch (error) {
+    throw ArtworkImportException(error);
+  }
   if (picked == null || !context.mounted) return null;
   final bytes = picked.files.single.bytes;
   if (bytes == null || bytes.isEmpty || bytes.length > 8 * 1024 * 1024) {
@@ -40,7 +48,8 @@ Future<String?> pickTabletArtwork(
     final cropped = await showDialog<Uint8List>(
       context: context,
       barrierDismissible: true,
-      builder: (_) => RotatedBox(
+      useSafeArea: false,
+      builder: (_) => TableModalFrame(
         quarterTurns: quarterTurns,
         child: _ArtworkCrop(image: image),
       ),
@@ -51,6 +60,19 @@ Future<String?> pickTabletArtwork(
   }
 }
 
+/// Preserve the platform diagnostic while giving a safe next step. This does
+/// not imply that a native provider/permission failure has been repaired.
+class ArtworkImportException implements Exception {
+  const ArtworkImportException(this.cause);
+  final PlatformException cause;
+  @override
+  String toString() =>
+      'Image selection failed. Try again, or choose a local JPEG/PNG. '
+      'Your current artwork is unchanged.\n'
+      '${cause.code}: ${cause.message ?? "No platform message"}'
+      '${cause.details == null ? "" : "\n${cause.details}"}';
+}
+
 class TabletArtworkSelection extends StatefulWidget {
   final BoardService board;
   final TabletCatalog catalog;
@@ -58,6 +80,7 @@ class TabletArtworkSelection extends StatefulWidget {
   final TokenState token;
   final int quarterTurns;
   final ValueChanged<bool>? onPreviewChanged;
+  final Future<void> Function(String)? validate;
   const TabletArtworkSelection({
     super.key,
     required this.board,
@@ -66,6 +89,7 @@ class TabletArtworkSelection extends StatefulWidget {
     required this.token,
     this.quarterTurns = 0,
     this.onPreviewChanged,
+    this.validate,
   });
   @override
   State<TabletArtworkSelection> createState() => _TabletArtworkSelectionState();
@@ -105,12 +129,35 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
     }
   }
 
+  Future<void> _validate(String source) async {
+    if (widget.validate != null) {
+      await widget.validate!(source);
+    } else {
+      await TableArtwork.validatedBytes(source);
+    }
+  }
+
   Future<void> choose(Map<String, dynamic> art) async {
-    await TableArtwork.validatedBytes(art['url'] as String);
+    await _validate(art['url'] as String);
     if (mounted) {
       setState(() => candidate = art);
       widget.onPreviewChanged?.call(true);
+      _revealCandidate();
     }
+  }
+
+  final _candidateKey = GlobalKey();
+
+  void _revealCandidate() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = _candidateKey.currentContext;
+      if (mounted && target != null) {
+        Scrollable.ensureVisible(
+          target,
+          duration: const Duration(milliseconds: 180),
+        );
+      }
+    });
   }
 
   @override
@@ -149,13 +196,39 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
               '',
         };
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          '${token.name} · artwork',
-          style: Theme.of(context).textTheme.titleLarge,
+        PlayerField(controller: url, label: 'Artwork image URL'),
+        const SizedBox(height: 8),
+        const Text(
+          'Use a direct HTTP(S) image link, not a webpage (up to 12 MB).',
         ),
-        const Text('Selections belong to this player and this game.'),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.icon(
+            onPressed: busy
+                ? null
+                : () => run(() async {
+                    final source = url.text.trim();
+                    final uri = Uri.tryParse(source);
+                    if (uri == null ||
+                        !{'http', 'https'}.contains(uri.scheme) ||
+                        uri.host.isEmpty) {
+                      throw const FormatException(
+                        'Enter a complete http:// or https:// image URL.',
+                      );
+                    }
+                    await choose({
+                      'url': source,
+                      'artist': '',
+                      'set': 'Custom URL',
+                    });
+                  }),
+            icon: const Icon(Icons.preview_outlined),
+            label: const Text('Preview image URL'),
+          ),
+        ),
+        if (busy) const LinearProgressIndicator(),
         if (error != null)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -164,148 +237,72 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
-        if (busy) const LinearProgressIndicator(),
-        const SizedBox(height: 8),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (selected['url'] != null)
-              SizedBox(
-                width: 240,
-                child: Column(
-                  children: [
-                    if (selected['url'] != null) ...[
-                      Center(
-                        child: SizedBox(
-                          width: 240,
-                          height: 160,
-                          child: TableArtwork(
-                            url: selected['url'] as String?,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                      Center(
-                        child: Text(
-                          '${selected['set'] ?? ''} · ${selected['artist'] ?? ''}',
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      Center(
-                        child: Text(
-                          candidate == null
-                              ? 'Current artwork'
-                              : 'Preview — confirm to apply',
-                        ),
-                      ),
-                    ],
-                    if (candidate != null)
-                      Center(
-                        child: FilledButton.icon(
-                          onPressed: busy
-                              ? null
-                              : () => run(() async {
-                                  final art = candidate!;
-                                  await TableArtwork.validatedBytes(
-                                    art['url'] as String,
-                                  );
-                                  if (!mounted) return;
-                                  await widget.board.setArtwork(
-                                    widget.player.id,
-                                    token.id,
-                                    art['url'] as String,
-                                    set: art['set'] as String?,
-                                    artist: art['artist'] as String?,
-                                    captured: scope,
-                                  );
-                                  if (mounted) {
-                                    setState(() => candidate = null);
-                                    widget.onPreviewChanged?.call(false);
-                                  }
-                                }),
-                          icon: const Icon(Icons.check),
-                          label: const Text('Use this artwork'),
-                        ),
-                      ),
-                  ],
+        if (selected['url'] != null)
+          Padding(
+            key: _candidateKey,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              children: [
+                Text(
+                  candidate == null ? 'Current artwork' : 'Preview — not saved',
                 ),
-              ),
-            if (selected['url'] != null) const SizedBox(width: 12),
-            Expanded(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: selected['url'] != null ? 200 : 120,
-                ),
-                child: SingleChildScrollView(
-                  key: const ValueKey('artwork-options-scroll'),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final art in options)
-                        SizedBox(
-                          width: 132,
-                          child: InkWell(
-                            onTap: busy ? null : () => run(() => choose(art)),
-                            child: Column(
-                              children: [
-                                Stack(
-                                  children: [
-                                    SizedBox(
-                                      width: 132,
-                                      height: 108,
-                                      child: TableArtwork(
-                                        url: art['url'] as String?,
-                                      ),
-                                    ),
-                                    if (art['url'] == token.artworkUrl)
-                                      const Positioned(
-                                        right: 4,
-                                        top: 4,
-                                        child: Icon(
-                                          Icons.check_circle,
-                                          color: Colors.lightGreenAccent,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                Text(
-                                  '${art['set'] ?? ''}\n${art['artist'] ?? ''}',
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
+                SizedBox(
+                  height: 160,
+                  child: TableArtwork(
+                    url: selected['url'] as String?,
+                    fit: BoxFit.contain,
                   ),
                 ),
-              ),
-            ),
-          ],
-        ),
-        if (options.isNotEmpty)
-          TextButton.icon(
-            onPressed: busy
-                ? null
-                : () => run(() async {
-                    var count = 0;
-                    for (final art in options) {
-                      await TableArtwork.validatedBytes(art['url'] as String);
-                      count++;
-                      if (mounted) setState(() => downloaded = count);
-                    }
-                  }),
-            icon: const Icon(Icons.download),
-            label: Text(
-              downloaded == 0
-                  ? 'Download all artwork'
-                  : 'Downloaded $downloaded / ${options.length}',
+                if ((selected['set'] as String? ?? '').isNotEmpty)
+                  Text(selected['set'] as String),
+                TabletArtworkCredit(
+                  url: selected['url'] as String?,
+                  artist: selected['artist'] as String?,
+                ),
+                if (candidate != null)
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      TextButton(
+                        onPressed: busy
+                            ? null
+                            : () {
+                                setState(() => candidate = null);
+                                widget.onPreviewChanged?.call(false);
+                              },
+                        child: const Text('Discard preview'),
+                      ),
+                      FilledButton.icon(
+                        onPressed: busy
+                            ? null
+                            : () => run(() async {
+                                final art = candidate!;
+                                await _validate(art['url'] as String);
+                                if (!mounted) return;
+                                await widget.board.setArtwork(
+                                  widget.player.id,
+                                  token.id,
+                                  art['url'] as String,
+                                  set: art['set'] as String?,
+                                  artist: art['artist'] as String?,
+                                  captured: scope,
+                                );
+                                if (mounted) {
+                                  setState(() => candidate = null);
+                                  widget.onPreviewChanged?.call(false);
+                                }
+                              }),
+                        icon: const Icon(Icons.check),
+                        label: const Text('Use this artwork'),
+                      ),
+                    ],
+                  ),
+              ],
             ),
           ),
-        const SizedBox(height: 12),
         Wrap(
           spacing: 8,
+          runSpacing: 8,
           children: [
             for (final style in {
               'full': 'Full artwork',
@@ -371,17 +368,73 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
               ),
           ],
         ),
-        PlayerField(controller: url, label: 'Artwork image URL'),
-        TextButton.icon(
-          onPressed: busy
-              ? null
-              : () => run(
-                  () =>
-                      choose({'url': url.text.trim(), 'artist': 'Custom URL'}),
+        if (options.isNotEmpty) ...[
+          const Divider(height: 24),
+          const Text('Choose a printing'),
+          const SizedBox(height: 8),
+          Wrap(
+            key: const ValueKey('artwork-options-scroll'),
+            spacing: 8,
+            runSpacing: 12,
+            children: [
+              for (final art in options)
+                SizedBox(
+                  width: 132,
+                  child: InkWell(
+                    onTap: busy ? null : () => run(() => choose(art)),
+                    child: Column(
+                      children: [
+                        Stack(
+                          children: [
+                            SizedBox(
+                              width: 132,
+                              height: 108,
+                              child: TableArtwork(url: art['url'] as String?),
+                            ),
+                            if (art['url'] == token.artworkUrl)
+                              const Positioned(
+                                right: 4,
+                                top: 4,
+                                child: Icon(
+                                  Icons.check_circle,
+                                  color: Colors.lightGreenAccent,
+                                ),
+                              ),
+                          ],
+                        ),
+                        Text(
+                          art['set'] as String? ?? '',
+                          textAlign: TextAlign.center,
+                        ),
+                        TabletArtworkCredit(
+                          url: art['url'] as String?,
+                          artist: art['artist'] as String?,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-          icon: const Icon(Icons.preview_outlined),
-          label: const Text('Preview image URL'),
-        ),
+            ],
+          ),
+          TextButton.icon(
+            onPressed: busy
+                ? null
+                : () => run(() async {
+                    var count = 0;
+                    for (final art in options) {
+                      await TableArtwork.validatedBytes(art['url'] as String);
+                      count++;
+                      if (mounted) setState(() => downloaded = count);
+                    }
+                  }),
+            icon: const Icon(Icons.download),
+            label: Text(
+              downloaded == 0
+                  ? 'Download all artwork'
+                  : 'Downloaded $downloaded / ${options.length}',
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -514,84 +567,96 @@ class _ArtworkCropState extends State<_ArtworkCrop> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Crop artwork'),
-    content: SizedBox(
-      width: 420,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (error != null)
-              Text(
-                error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            AspectRatio(
-              aspectRatio: 4 / 3,
-              child: GestureDetector(
-                onPanUpdate: busy
-                    ? null
-                    : (details) => setState(() {
-                        x = (x - details.delta.dx / 100).clamp(-1, 1);
-                        y = (y - details.delta.dy / 100).clamp(-1, 1);
-                      }),
-                child: CustomPaint(
-                  painter: _CropPainter(image, source, quarterTurns),
-                ),
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+  Widget build(BuildContext context) => Column(
+    children: [
+      const Padding(padding: EdgeInsets.all(16), child: Text('Crop artwork')),
+      Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                IconButton(
-                  tooltip: 'Rotate artwork counterclockwise',
-                  onPressed: busy ? null : () => rotate(-1),
-                  icon: const Icon(Icons.rotate_left),
+                if (error != null)
+                  Text(
+                    error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                AspectRatio(
+                  aspectRatio: 4 / 3,
+                  child: GestureDetector(
+                    onPanUpdate: busy
+                        ? null
+                        : (details) => setState(() {
+                            x = (x - details.delta.dx / 100).clamp(-1, 1);
+                            y = (y - details.delta.dy / 100).clamp(-1, 1);
+                          }),
+                    child: CustomPaint(
+                      painter: _CropPainter(image, source, quarterTurns),
+                    ),
+                  ),
                 ),
-                Text('${quarterTurns * 90}°'),
-                IconButton(
-                  tooltip: 'Rotate artwork clockwise',
-                  onPressed: busy ? null : () => rotate(1),
-                  icon: const Icon(Icons.rotate_right),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      tooltip: 'Rotate artwork counterclockwise',
+                      onPressed: busy ? null : () => rotate(-1),
+                      icon: const Icon(Icons.rotate_left),
+                    ),
+                    Text('${quarterTurns * 90}°'),
+                    IconButton(
+                      tooltip: 'Rotate artwork clockwise',
+                      onPressed: busy ? null : () => rotate(1),
+                      icon: const Icon(Icons.rotate_right),
+                    ),
+                  ],
+                ),
+                const Text('Drag to position. Pinpoint with the sliders.'),
+                const Text('Zoom'),
+                Slider(
+                  value: zoom,
+                  min: 1,
+                  max: 4,
+                  label: zoom.toStringAsFixed(1),
+                  onChanged: busy ? null : (v) => setState(() => zoom = v),
+                ),
+                const Text('Horizontal position'),
+                Slider(
+                  value: x,
+                  min: -1,
+                  max: 1,
+                  onChanged: busy ? null : (v) => setState(() => x = v),
+                ),
+                const Text('Vertical position'),
+                Slider(
+                  value: y,
+                  min: -1,
+                  max: 1,
+                  onChanged: busy ? null : (v) => setState(() => y = v),
                 ),
               ],
             ),
-            const Text('Drag to position. Pinpoint with the sliders.'),
-            const Text('Zoom'),
-            Slider(
-              value: zoom,
-              min: 1,
-              max: 4,
-              label: zoom.toStringAsFixed(1),
-              onChanged: busy ? null : (v) => setState(() => zoom = v),
+          ),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: busy ? null : () => Navigator.pop(context),
+              child: const Text('Cancel'),
             ),
-            const Text('Horizontal position'),
-            Slider(
-              value: x,
-              min: -1,
-              max: 1,
-              onChanged: busy ? null : (v) => setState(() => x = v),
-            ),
-            const Text('Vertical position'),
-            Slider(
-              value: y,
-              min: -1,
-              max: 1,
-              onChanged: busy ? null : (v) => setState(() => y = v),
+            FilledButton(
+              onPressed: busy ? null : save,
+              child: const Text('Use crop'),
             ),
           ],
         ),
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: busy ? null : () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: busy ? null : save,
-        child: const Text('Use crop'),
       ),
     ],
   );

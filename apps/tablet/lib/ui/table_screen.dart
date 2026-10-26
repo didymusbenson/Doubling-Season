@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'package:doubling_season/widgets/mana/mana_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import '../domain/table_state.dart';
 import '../state/table_controller.dart';
 import '../services/tablet_catalog.dart';
 import '../features/board_service.dart';
 import 'workspace/table_workspace.dart';
 import 'table_artwork.dart';
+import 'table_modal_frame.dart';
 import 'tablet_token_card.dart';
 import 'half_stepper.dart';
 import 'monarch_crown.dart';
@@ -91,23 +93,40 @@ class _TableScreenState extends State<TableScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
-      builder: (context) => RotatedBox(
+      useSafeArea: false,
+      builder: (context) => TableModalFrame(
         quarterTurns: turns,
-        child: AlertDialog(
-          title: Text('Hide ${utility.name}?'),
-          content: const Text(
-            'Its values will be kept. You can bring it back from Utilities.',
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Hide ${utility.name}?',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Its values will be kept. You can bring it back from Utilities.',
+                ),
+                const SizedBox(height: 24),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Hide utility'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Hide utility'),
-            ),
-          ],
         ),
       ),
     );
@@ -281,6 +300,30 @@ class _TableScreenState extends State<TableScreen> {
                                 ],
                               ),
                             ),
+                            // Two-seat token lanes meet at the true center.
+                            // Keep direct tools in opposite life corners there,
+                            // rather than expanding the token hub obstruction.
+                            Positioned(
+                              left:
+                                  table.maxWidth / 2 -
+                                  (two ? table.maxWidth * .1 + 26 : 54) -
+                                  22,
+                              top: table.maxHeight / 2 - (two ? 26 : 0) - 22,
+                              child: _SharedTableControl(
+                                controlKey: const ValueKey('shared-dice'),
+                                label: 'Roll dice',
+                                icon: Icons.casino_outlined,
+                                onTap: () => open(WorkspacePage.dice),
+                              ),
+                            ),
+                            Positioned(
+                              left:
+                                  table.maxWidth / 2 +
+                                  (two ? table.maxWidth * .1 + 26 : 54) -
+                                  22,
+                              top: table.maxHeight / 2 + (two ? 26 : 0) - 22,
+                              child: _DayNightControl(controller: controller),
+                            ),
                             Positioned(
                               left: (table.maxWidth - 52) / 2,
                               top: (table.maxHeight - 52) / 2,
@@ -301,6 +344,94 @@ class _TableScreenState extends State<TableScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SharedTableControl extends StatelessWidget {
+  final Key controlKey;
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  final bool active;
+  const _SharedTableControl({
+    required this.controlKey,
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.onLongPress,
+    this.active = true,
+  });
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: label,
+    child: Material(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      shape: CircleBorder(
+        side: BorderSide(color: Theme.of(context).colorScheme.outline),
+      ),
+      clipBehavior: Clip.antiAlias,
+      elevation: 3,
+      child: Semantics(
+        label: label,
+        button: true,
+        onTap: onTap,
+        onLongPress: onLongPress,
+        customSemanticsActions: onLongPress == null
+            ? null
+            : {
+                const CustomSemanticsAction(label: 'Clear Day/Night'):
+                    onLongPress!,
+              },
+        excludeSemantics: true,
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          child: SizedBox(
+            key: controlKey,
+            width: 44,
+            height: 44,
+            child: Icon(
+              icon,
+              size: 23,
+              color: active
+                  ? null
+                  : Theme.of(
+                      context,
+                    ).colorScheme.onSurfaceVariant.withValues(alpha: .5),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _DayNightControl extends StatelessWidget {
+  final TableController controller;
+  const _DayNightControl({required this.controller});
+  @override
+  Widget build(BuildContext context) {
+    final state = controller.session.dayNight;
+    return _SharedTableControl(
+      controlKey: const ValueKey('shared-day-night'),
+      label: 'Day/Night: $state. Tap to change; hold to clear',
+      icon: state == 'night'
+          ? Icons.dark_mode
+          : state == 'day'
+          ? Icons.light_mode
+          : Icons.brightness_4_outlined,
+      active: state != 'neither',
+      // Resolve inside the serialized command, so rapid taps do not all
+      // capture the same pre-save state. Publication remains durable.
+      onTap: () => controller.commit(
+        'Cycle day/night',
+        mutate: (game) {
+          game.dayNight = game.dayNight == 'day' ? 'night' : 'day';
+        },
+      ),
+      onLongPress: () => controller.setDayNight('neither'),
     );
   }
 }
@@ -573,10 +704,13 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
         return Column(
           children: [
             _LifePanel(
-              height: (lane.maxHeight * .30 + 32).clamp(
-                140.0,
-                lane.maxWidth < 200 ? 148.0 : 180.0,
-              ),
+              height:
+                  (lane.maxHeight * .30 + 32).clamp(
+                    140.0,
+                    lane.maxWidth < 200 ? 148.0 : 180.0,
+                  ) +
+                  26,
+              twoPlayer: widget.hubInTokenLane,
               centerNotch: widget.centerNotch,
               centerNotchAtStart: widget.centerNotchAtStart,
               player: p,
@@ -716,6 +850,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
 }
 
 class _LifePanel extends StatelessWidget {
+  final bool twoPlayer;
   final double height;
   final double centerNotch;
   final bool centerNotchAtStart;
@@ -727,6 +862,7 @@ class _LifePanel extends StatelessWidget {
   final VoidCallback onMonarch, onClearMonarch, onBlessing;
   final void Function(WorkspacePage, [String?]) onOpen;
   const _LifePanel({
+    required this.twoPlayer,
     required this.height,
     required this.centerNotch,
     required this.centerNotchAtStart,
@@ -835,7 +971,9 @@ class _LifePanel extends StatelessWidget {
           clipper: _LifeHubNotch(
             atStart: centerNotchAtStart,
             inset: -1.5,
-            enabled: centerNotch > 0,
+            enabled: true,
+            sharedControls: true,
+            twoPlayer: twoPlayer,
           ),
           child: _ArtworkSurface(
             key: ValueKey('${player.id}-life-surface'),
@@ -851,7 +989,8 @@ class _LifePanel extends StatelessWidget {
                   value: '${player.life}',
                   height: height,
                   iconSize: 22,
-                  iconY: -28 / height,
+                  iconY: -54 / height,
+                  iconPadding: twoPlayer ? 52 : 8,
                   decreaseKey: ValueKey('${player.id}-life-decrease'),
                   increaseKey: ValueKey('${player.id}-life-increase'),
                   decreaseLabel: '${profile.name}, decrease life by one',
@@ -860,12 +999,60 @@ class _LifePanel extends StatelessWidget {
                   onIncrease: () => onChange(1),
                   onDecreaseHoldStep: (amount) => onChange(-amount),
                   onIncreaseHoldStep: onChange,
+                  holdStep: 10,
                   interactionEpoch: epoch,
                   foregroundColor: artColor,
                   displayOverlay: Column(
                     children: [
+                      const SizedBox(height: 24),
+                      Expanded(
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: twoPlayer ? 76 : 32,
+                                ),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    '${player.life}',
+                                    key: ValueKey('${player.id}-life-number'),
+                                    style: TextStyle(
+                                      fontSize: (height * .64).clamp(
+                                        64.0,
+                                        80.0,
+                                      ),
+                                      fontWeight: FontWeight.w400,
+                                      height: 1,
+                                      color: artColor,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            _LifeDelta(
+                              key: ValueKey('${player.id}-life-delta'),
+                              centered: twoPlayer,
+                              entry:
+                                  controller.session.history.isNotEmpty &&
+                                      !controller.session.history.last.undone &&
+                                      controller
+                                              .session
+                                              .history
+                                              .last
+                                              .groupKey ==
+                                          'life:${player.id}'
+                                  ? controller.session.history.last
+                                  : null,
+                            ),
+                          ],
+                        ),
+                      ),
                       SizedBox(
-                        height: 24,
+                        height: 26,
                         child: Padding(
                           padding: EdgeInsets.fromLTRB(12, 4, 12, 0),
                           child: Stack(
@@ -893,27 +1080,6 @@ class _LifePanel extends StatelessWidget {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    _LifeDelta(
-                                      key: ValueKey('${player.id}-life-delta'),
-                                      entry:
-                                          controller
-                                                  .session
-                                                  .history
-                                                  .isNotEmpty &&
-                                              !controller
-                                                  .session
-                                                  .history
-                                                  .last
-                                                  .undone &&
-                                              controller
-                                                      .session
-                                                      .history
-                                                      .last
-                                                      .groupKey ==
-                                                  'life:${player.id}'
-                                          ? controller.session.history.last
-                                          : null,
-                                    ),
                                     if (player.warnings.isNotEmpty)
                                       Tooltip(
                                         message: player.warnings.join('\n'),
@@ -927,26 +1093,6 @@ class _LifePanel extends StatelessWidget {
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 32),
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                '${player.life}',
-                                key: ValueKey('${player.id}-life-number'),
-                                style: TextStyle(
-                                  fontSize: (height * .64).clamp(64.0, 80.0),
-                                  fontWeight: FontWeight.w400,
-                                  height: 1,
-                                  color: artColor,
-                                ),
-                              ),
-                            ),
                           ),
                         ),
                       ),
@@ -1040,10 +1186,13 @@ class _LifeHubNotch extends CustomClipper<Path> {
   final bool atStart;
   final double inset;
   final bool enabled;
+  final bool sharedControls, twoPlayer;
   const _LifeHubNotch({
     required this.atStart,
     required this.inset,
     this.enabled = true,
+    this.sharedControls = false,
+    this.twoPlayer = false,
   });
   @override
   Path getClip(Size size) => !enabled
@@ -1051,18 +1200,32 @@ class _LifeHubNotch extends CustomClipper<Path> {
       : Path.combine(
           PathOperation.difference,
           Path()..addRect(Offset.zero & size),
-          Path()..addOval(
-            Rect.fromCircle(
-              center: Offset(atStart ? inset : size.width - inset, -1.5),
-              radius: 30,
+          Path()
+            ..addOval(
+              Rect.fromCircle(
+                center: twoPlayer
+                    ? const Offset(26, 26)
+                    : Offset(atStart ? inset : size.width - inset, -1.5),
+                radius: twoPlayer ? 26 : 30,
+              ),
+            )
+            ..addOval(
+              Rect.fromCircle(
+                center: Offset(
+                  atStart ? inset + 54 : size.width - inset - 54,
+                  -1.5,
+                ),
+                radius: sharedControls && !twoPlayer ? 26 : 0,
+              ),
             ),
-          ),
         );
   @override
   bool shouldReclip(covariant _LifeHubNotch oldClipper) =>
       atStart != oldClipper.atStart ||
       inset != oldClipper.inset ||
-      enabled != oldClipper.enabled;
+      enabled != oldClipper.enabled ||
+      sharedControls != oldClipper.sharedControls ||
+      twoPlayer != oldClipper.twoPlayer;
 }
 
 class _StatusBadge extends StatelessWidget {
@@ -1567,7 +1730,8 @@ class _ArtworkSurface extends StatelessWidget {
 
 class _LifeDelta extends StatefulWidget {
   final HistoryEntry? entry;
-  const _LifeDelta({super.key, this.entry});
+  final bool centered;
+  const _LifeDelta({super.key, this.entry, this.centered = false});
   @override
   State<_LifeDelta> createState() => _LifeDeltaState();
 }
@@ -1618,16 +1782,25 @@ class _LifeDeltaState extends State<_LifeDelta> {
   @override
   Widget build(BuildContext context) => delta == null
       ? const SizedBox.shrink()
-      : Semantics(
-          label: 'Life change ${delta! >= 0 ? '+' : ''}$delta',
-          liveRegion: true,
-          child: Text(
-            '${delta! >= 0 ? '+' : ''}$delta',
-            style: TextStyle(
-              fontSize: 14,
-              height: 1,
-              fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.primary,
+      : Align(
+          alignment: Alignment(delta! < 0 ? -1 : 1, widget.centered ? .2 : -.8),
+          child: SizedBox(
+            width: 32,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Semantics(
+                label: 'Life change ${delta! >= 0 ? '+' : ''}$delta',
+                liveRegion: true,
+                child: Text(
+                  '${delta! >= 0 ? '+' : ''}$delta',
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1,
+                    fontWeight: FontWeight.w700,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ),
             ),
           ),
         );

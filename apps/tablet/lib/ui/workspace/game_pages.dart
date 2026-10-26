@@ -3,143 +3,143 @@ part of 'table_workspace.dart';
 extension _GamePages on _TableWorkspaceState {
   Widget _playerPage() {
     final player = p;
-    if (player == null) {
-      return _list([
-        const Text('Open a player’s menu to edit their life and appearance.'),
-      ]);
-    }
-    return _GamePageTabs(
-      labels: const [
-        'Life & status',
-        'Appearance',
-        'Commanders',
-        'Saved setups',
-      ],
-      onChanged: (index) => _update(() => _playerTabIndex = index),
-      builder: (index) => switch (index) {
-        1 => _playerAppearance(player),
-        2 => _playerCommanders(player),
-        3 => _presetsPage(),
-        _ => _list([
-          if (player.warnings.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(player.warnings.join(' · ')),
-            ),
-          _gameGrid([
-            _gamePanel('Life · ${player.life}', [
-              LayoutBuilder(
-                builder: (context, constraints) => Row(
-                  children: [
-                    for (final delta in [1, 5, 10])
-                      Expanded(
-                        child: HalfStepper(
-                          height: 48,
-                          label: 'Life by $delta',
-                          value: '$delta',
-                          decreaseLabel: 'Decrease life by $delta',
-                          increaseLabel: 'Increase life by $delta',
-                          onDecrease: _working
-                              ? null
-                              : () =>
-                                    _run(() => c.adjustLife(player.id, -delta)),
-                          onIncrease: _working
-                              ? null
-                              : () =>
-                                    _run(() => c.adjustLife(player.id, delta)),
-                          valueStyle: Theme.of(context).textTheme.titleMedium,
+    if (player == null) return _list([const Text('Select a player first.')]);
+    final editing = c.session.commanderTrackingSources
+        .where((source) => source.id == _editingCommanderId)
+        .firstOrNull;
+    if (editing != null) return _commanderEditor(player, editing);
+    final commander = _commanderContent(player);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+          child: Row(
+            children: [
+              for (final (index, label) in [(0, 'Player'), (1, 'Counters')])
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(label),
+                    selected: _playerTabIndex == index,
+                    onSelected: (_) async {
+                      if (!await _flushInline() || !mounted) return;
+                      _update(() => _playerTabIndex = index);
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView(
+            key: PageStorageKey('player-section-$_playerTabIndex'),
+            controller: _playerTabIndex == 0 ? _playerScroll : _counterScroll,
+            padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
+            children: _playerTabIndex == 0
+                ? [
+                    ..._playerAppearanceContent(player),
+                    const SizedBox(height: 16),
+                    ..._playerCommanderContent(player),
+                    const SizedBox(height: 16),
+                    _gamePanel('Saved setups', [
+                      _button(
+                        'Saved setups',
+                        () => _go(WorkspacePage.presets),
+                        icon: Icons.save_outlined,
+                      ),
+                    ]),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Summoning sickness'),
+                      value: player.summoningSicknessEnabled,
+                      onChanged: (value) => _run(
+                        () => c.updateState(
+                          'Summoning sickness setting',
+                          (state) =>
+                              state.session
+                                      .player(player.id)
+                                      .summoningSicknessEnabled =
+                                  value,
+                          recordHistory: true,
                         ),
                       ),
+                    ),
+                  ]
+                : [
+                    if (player.warnings.isNotEmpty)
+                      Text(player.warnings.join(' · ')),
+                    if (_commanderRegionFirst) ...commander,
+                    _gamePanel('Life', [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: HalfStepper(
+                              height: 48,
+                              label: 'Life',
+                              value: '${player.life}',
+                              decreaseLabel: 'Decrease life by 1',
+                              increaseLabel: 'Increase life by 1',
+                              onDecrease: _working
+                                  ? null
+                                  : () =>
+                                        _run(() => c.adjustLife(player.id, -1)),
+                              onIncrease: _working
+                                  ? null
+                                  : () =>
+                                        _run(() => c.adjustLife(player.id, 1)),
+                            ),
+                          ),
+                          _button(
+                            'Correct life',
+                            () => _go(WorkspacePage.lifeCorrection),
+                            icon: Icons.edit_outlined,
+                          ),
+                        ],
+                      ),
+                    ]),
+                    ..._counterContent(player),
+                    if (!_commanderRegionFirst) ...commander,
                   ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              _gameFieldAction(
-                _input(
-                  'life.delta',
-                  'Change life by',
-                  initial: '-1',
-                  numeric: true,
-                ),
-                _button(
-                  'Apply',
-                  () => _run(
-                    () => c.adjustLife(player.id, _integer('life.delta')),
-                  ),
-                  primary: true,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Correct total',
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-              _gameFieldAction(
-                _input(
-                  'life.set',
-                  'Set life total to',
-                  initial: '${player.life}',
-                  numeric: true,
-                ),
-                _button(
-                  'Set',
-                  () => _run(() => c.setLife(player.id, _integer('life.set'))),
-                ),
-              ),
-              _button(
-                'Reset life to ${c.session.startingLife}',
-                () => _confirm(
-                  'Reset $_seatName’s life?',
-                  'Set life to ${c.session.startingLife}. Commander damage, player counters, tokens, and other players remain as they are.',
-                  () => c.setLife(player.id, c.session.startingLife),
-                ),
-                icon: Icons.restart_alt,
-              ),
-            ]),
-            _gamePanel('Status & trackers', [
-              _playerStatusBadges(player),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _button(
-                    'Commander damage',
-                    () => _go(WorkspacePage.commanderDamage),
-                    icon: Icons.shield_outlined,
-                  ),
-                  _button(
-                    'Player counters',
-                    () => _go(WorkspacePage.counters),
-                    icon: Icons.hexagon_outlined,
-                  ),
-                ],
-              ),
-              const Divider(height: 24),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Summoning sickness'),
-                subtitle: const Text(
-                  'Creature tokens without haste enter sick.',
-                ),
-                value: player.summoningSicknessEnabled,
-                onChanged: (value) => _run(
-                  () => c.updateState(
-                    'Summoning sickness setting',
-                    (state) =>
-                        state.session
-                                .player(player.id)
-                                .summoningSicknessEnabled =
-                            value,
-                    recordHistory: true,
-                  ),
-                ),
-              ),
-            ]),
-          ]),
-        ]),
-      },
+          ),
+        ),
+      ],
     );
+  }
+
+  Widget _lifeCorrectionPage() {
+    final player = p;
+    if (player == null) return _list([const Text('Select a player first.')]);
+    return _list([
+      _gameFieldAction(
+        _input('life.delta', 'Change life by', initial: '-1', numeric: true),
+        _button(
+          'Apply',
+          () => _run(() => c.adjustLife(player.id, _integer('life.delta'))),
+          primary: true,
+        ),
+      ),
+      _gameFieldAction(
+        _input(
+          'life.set',
+          'Set life total to',
+          initial: '${player.life}',
+          numeric: true,
+        ),
+        _button(
+          'Set',
+          () => _run(() => c.setLife(player.id, _integer('life.set'))),
+        ),
+      ),
+      _button(
+        'Reset life to ${c.session.startingLife}',
+        () => _confirm(
+          'Reset $_seatName’s life?',
+          'Only life changes. Commander damage, counters, tokens and other players remain.',
+          () => c.setLife(player.id, c.session.startingLife),
+        ),
+        icon: Icons.restart_alt,
+      ),
+    ]);
   }
 
   Widget _playerStatusBadges(PlayerState player) {
@@ -152,7 +152,7 @@ extension _GamePages on _TableWorkspaceState {
           runSpacing: 8,
           children: [
             FilterChip(
-              avatar: const Icon(Icons.auto_awesome, size: 18),
+              avatar: const Icon(TableManaIcons.ascend, size: 18),
               label: Text(
                 'City’s blessing · ${player.citysBlessing ? 'On' : 'Off'}',
               ),
@@ -171,13 +171,13 @@ extension _GamePages on _TableWorkspaceState {
             ),
           ],
         ),
-        const SizedBox(height: 6),
-        Text(
-          c.session.monarchPlayerId == null
-              ? 'Tap Monarch to claim it.'
-              : 'Monarch: ${_nameForPlayer(c.session.monarchPlayerId!)}',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        if (c.session.monarchPlayerId != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            'Monarch: ${_nameForPlayer(c.session.monarchPlayerId!)}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
       ],
     );
   }
@@ -220,13 +220,9 @@ extension _GamePages on _TableWorkspaceState {
     ],
   );
 
-  Widget _playerAppearance(PlayerState player) {
+  List<Widget> _playerAppearanceContent(PlayerState player) {
     final profile = c.profile(player.seatId);
-    return _list([
-      _section(
-        'Saved player appearance',
-        detail: 'Name, color and life artwork persist between games.',
-      ),
+    return [
       _gameGrid([
         _gamePanel('Name & color', [
           _input(
@@ -234,7 +230,6 @@ extension _GamePages on _TableWorkspaceState {
             'Player name',
             initial: profile.name,
             live: true,
-            helper: 'Valid name changes save as you type.',
             onCommit: (value) async {
               final name = value.trim();
               if (name.isEmpty) {
@@ -351,30 +346,11 @@ extension _GamePages on _TableWorkspaceState {
           ),
         ]),
       ]),
-    ]);
+    ];
   }
 
-  Widget _playerCommanders(
-    PlayerState player, {
-    bool chooseOwner = false,
-  }) => _list([
-    if (chooseOwner)
-      Wrap(
-        spacing: 6,
-        children: [
-          for (final owner in c.session.players)
-            ChoiceChip(
-              label: Text(_nameForPlayer(owner.id)),
-              selected: owner.id == player.id,
-              onSelected: (_) => _update(() => _commanderOwnerId = owner.id),
-            ),
-        ],
-      ),
-    _section(
-      'Your commanders',
-      detail:
-          'Each source keeps its identity and damage when renamed, including same-name partners.',
-    ),
+  List<Widget> _playerCommanderContent(PlayerState player) => [
+    _section('Your commanders'),
     _gameGrid([
       for (final commander in c.session.commanders.where(
         (source) => source.ownerPlayerId == player.id,
@@ -425,7 +401,7 @@ extension _GamePages on _TableWorkspaceState {
         ),
       ]),
     ]),
-  ]);
+  ];
 
   String _nameForPlayer(String id) {
     for (final player in c.session.players) {
@@ -434,9 +410,7 @@ extension _GamePages on _TableWorkspaceState {
     return 'Previous player';
   }
 
-  Widget _countersPage() {
-    final player = p;
-    if (player == null) return _list([const Text('Select a player first.')]);
+  List<Widget> _counterContent(PlayerState player) {
     final counters = {
       'energy': 0,
       'poison': 0,
@@ -444,12 +418,11 @@ extension _GamePages on _TableWorkspaceState {
       'radiation': 0,
       ...player.counters,
     };
-    return _list([
-      _section(
-        'Counters on $_seatName',
-        detail:
-            'Life: ${player.life} · Player counters ignore token counter modifiers.',
-      ),
+    return [
+      const SizedBox(height: 12),
+      _playerStatusBadges(player),
+      const SizedBox(height: 12),
+      _section('Player counters'),
       _gameGrid([
         for (final counter in counters.entries)
           Card(
@@ -559,48 +532,16 @@ extension _GamePages on _TableWorkspaceState {
             ),
           ),
       ]),
-      const SizedBox(height: 12),
-      _playerStatusBadges(player),
-    ]);
+    ];
   }
 
-  Widget _commanderPage() {
-    final player = p;
-    if (player == null) {
-      return _list([const Text('Select the player receiving damage first.')]);
-    }
+  List<Widget> _commanderContent(PlayerState player) {
     final sources = c.session.commanderTrackingSources;
-    if (_commanderSetup) {
-      final owner = c.session.players.firstWhere(
-        (p) => p.id == (_commanderOwnerId ?? player.id),
-        orElse: () => player,
-      );
-      return Column(
-        children: [
-          _button(
-            'Back to damage',
-            () => _update(() => _commanderSetup = false),
-          ),
-          Expanded(child: _playerCommanders(owner, chooseOwner: true)),
-        ],
-      );
-    }
-    final editing = sources
-        .where((s) => s.id == _editingCommanderId)
-        .firstOrNull;
-    if (editing != null) return _commanderEditor(player, editing);
-    return _list([
-      Row(
-        children: [
-          const Expanded(
-            child: Text('− / + changes damage and life · Hold for more'),
-          ),
-          IconButton(
-            tooltip: 'Edit commander sources',
-            onPressed: () => _update(() => _commanderSetup = true),
-            icon: const Icon(Icons.settings_outlined),
-          ),
-        ],
+    return [
+      const SizedBox(height: 12),
+      if (_page != WorkspacePage.commanderDamage) _section('Commander damage'),
+      const Text(
+        '− / + records damage and changes life. Edit corrects the ledger.',
       ),
       CommanderSeatLayout(
         players: c.session.players,
@@ -640,7 +581,7 @@ extension _GamePages on _TableWorkspaceState {
           () => _run(() => c.undo()),
           icon: Icons.undo,
         ),
-    ]);
+    ];
   }
 
   String _commanderSourceLabel(CommanderSource source) {
@@ -764,7 +705,6 @@ extension _GamePages on _TableWorkspaceState {
   }
 
   Widget _commanderEditor(PlayerState player, CommanderSource source) => _list([
-    _button('Back to damage', () => _update(() => _editingCommanderId = null)),
     _section(
       '${_nameForPlayer(source.ownerPlayerId)} · ${_commanderSourceLabel(source)}',
     ),
@@ -863,6 +803,7 @@ extension _GamePages on _TableWorkspaceState {
 
   Widget _resetPage() => _GamePageTabs(
     labels: const ['New game', 'Archives', 'Board wipes'],
+    initialIndex: _resetTabIndex,
     onChanged: (index) => _update(() => _resetTabIndex = index),
     builder: (index) => switch (index) {
       1 => _list([
@@ -894,8 +835,30 @@ extension _GamePages on _TableWorkspaceState {
         _section(
           'Board wipes',
           detail:
-              'A wipe affects only the named player’s tokens. Life, commander damage, player counters and modifier sources remain.',
+              'Remove tokens from one player or everyone. Life, counters, utilities and modifiers remain.',
         ),
+        _gamePanel('Everyone', [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final (action, label) in [
+                ('wipe_creatures', 'Wipe all creatures'),
+                ('wipe_all', 'Wipe all tokens'),
+              ])
+                _button(
+                  label,
+                  () => _confirm(
+                    '$label for everyone?',
+                    'Remove ${action == 'wipe_all' ? 'every token, including emblems' : 'creature tokens'} from all active players. Utilities and non-token state remain. One Undo restores the whole wipe.',
+                    () => _board.wipeEveryone(action),
+                    button: label,
+                  ),
+                  icon: Icons.delete_outline,
+                ),
+            ],
+          ),
+        ]),
         for (final player in c.session.players)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1323,7 +1286,9 @@ class _GamePageTabs extends StatefulWidget {
     required this.labels,
     required this.builder,
     this.onChanged,
+    this.initialIndex = 0,
   });
+  final int initialIndex;
   final List<String> labels;
   final Widget Function(int index) builder;
   final ValueChanged<int>? onChanged;
@@ -1333,7 +1298,7 @@ class _GamePageTabs extends StatefulWidget {
 }
 
 class _GamePageTabsState extends State<_GamePageTabs> {
-  int selected = 0;
+  late int selected = widget.initialIndex;
 
   @override
   Widget build(BuildContext context) => Column(

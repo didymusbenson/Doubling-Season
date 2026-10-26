@@ -1,6 +1,6 @@
 # Tripling Table: October 26 feedback batch
 
-Status: implementation plan, not implemented. Prepared from user feedback and read-only source audits at `729f8402bc45df46917c3dc3a7b10e71c8a16129`. Installed iPad build 3 is based on `1f93a39a4101d8cd1e85bf8f42cc350d74167f89`; inspected tablet code is unchanged between these points. Verify current head again before execution.
+Status: reviewed plan; cloud implementation in progress (draft PR 53). Prepared from user feedback and read-only source audits at `729f8402bc45df46917c3dc3a7b10e71c8a16129`. Installed iPad build 3 is based on `1f93a39a4101d8cd1e85bf8f42cc350d74167f89`; inspected tablet code is unchanged between these points. Verify current head again before execution.
 
 ## 1. Outcome and scope
 
@@ -48,6 +48,8 @@ Verified Lifetap precedent supports Player/Counters and compact-grid-to-expanded
 
 Keep the existing hub at the true table center. Add direct compact dice and Day/Night status controls within its shared life-zone control cluster, not in token lanes or a control-bearing divider. Dice opens the existing dice workspace directly. Day/Night visibly communicates neither/day/night and invokes the existing shared undoable state command. Place a compact sun/moon state control adjacent to the central hub in the life-zone cluster, with Dice on the opposite side and explicit reserved clearance. Tap transitions Neither → Day, then Day ↔ Night. A deliberate hold clears to Neither; expose that operation in a discoverable tooltip and accessible Clear Day/Night action. Each actual change is one undoable command. A hold must not produce a trailing tap. In the Neither state, the inactive sun/moon treatment must remain distinguishable from Day and Night. Capture and verify the exact glyph, state indication and target bounds in the early layout review. Configuration, support, catalog maintenance and appearance do not belong beside live gameplay controls.
 
+**Implementation geometry clarification (parent-reviewed October 26):** in the two-player 60/40 layout, the existing true-center hub occupies already-clipped token-lane corners. Adjacent new controls cannot simultaneously remain inside the life lanes. Preserve the centered hub and place Dice and Day/Night at the opposite life-zone inner corners for two players; retain the adjacent cluster for three/four players. Require populated visual and hit-region verification of this adaptation. Do not extend the shared pocket into token content.
+
 Validate all 2/3/4-seat layouts before accepting this placement. Additional controls must not collide with life totals, signed deltas, commander targets, token clearance or opposite-corner overlays. Do not enlarge the cluster into an unlabeled obstruction or reintroduce permanently labeled rows.
 
 ## 4. Implementation workstreams and dependencies
@@ -66,6 +68,8 @@ The current life pipeline waits for durable save before notifying. There is no e
 **Early layout feasibility gate, before broad migration:** create a populated prototype of the shared 75% shell using real fonts and representative content, including the longest keyboard command row, an active text field, inline error and primary actions. Render it in every seat rotation and portrait/landscape on the supported tablet viewport matrix. Record actual logical dimensions, safe-area insets, text scale and hit regions. Do not claim any exact fit from arithmetic alone.
 
 Budget the shell height explicitly for header/navigation, active field and feedback, keyboard, and actions. The normal arrangement scrolls the form body while keeping editing context and actions reachable. If these regions cannot fit with touch targets at least 44 logical pixels, use coordinated scrolling **inside the unchanged shell**, including the keyboard region when needed. Maintain a visible or automatically revealed active-input context; focusing a field, changing input mode, showing an error or producing an artwork candidate must reveal the relevant region. Keyboard Done and the primary action must remain reachable without losing draft or selection. Do not solve the budget by shrinking targets, clipping controls, silently enlarging/clamping the shell, or introducing conflicting nested-scroll traps.
+
+**Prototype review refinement (October 26):** a short-landscape prototype that exposed only a clipped first keyboard row was rejected despite no RenderFlex overflow. In constrained height, use a keyboard-focused mode inside the unchanged shell: temporarily replace duplicated form/header with the active value, editing controls, full key bank and Done/Close. Restore the mounted form and its draft/selection after Done. Do not claim a vertically scrolled/clipped keyboard is ergonomically accepted. Any impossible large-text case must be recorded explicitly.
 
 List the supported tablet sizes tested and any narrow or accessibility configuration that cannot yet meet this contract. An unresolved layout case blocks broad migration and must be resolved or explicitly reported, not marked covered by a different viewport. Review this populated prototype before continuing.
 

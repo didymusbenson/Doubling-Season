@@ -32,11 +32,13 @@ void main() {
       ];
     });
     fixture.catalog.loaded = true;
-    await tester.binding.setSurfaceSize(const Size(1024, 768));
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1;
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox());
       fixture.dispose();
-      await tester.binding.setSurfaceSize(null);
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
     });
     await tester.pumpWidget(
       MaterialApp(
@@ -81,6 +83,10 @@ void main() {
               .first,
         );
         expect(rotation.quarterTurns, turns);
+        expect(
+          tester.getSize(find.byKey(const ValueKey('life-artwork-modal'))),
+          turns.isOdd ? const Size(576, 768) : const Size(768, 576),
+        );
         await tester.tap(find.byType(PlayerField));
         await tester.pumpAndSettle();
         expect(find.text('Done'), findsOneWidget);
@@ -89,9 +95,10 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.text('Soldier'));
         await tester.pumpAndSettle();
-        expect(find.text('FIRST · Artist A'), findsOneWidget);
-        expect(find.text('SECOND · Artist B'), findsOneWidget);
-        await tester.tap(find.text('SECOND · Artist B'));
+        expect(find.text('FIRST'), findsOneWidget);
+        expect(find.text('Artist A'), findsOneWidget);
+        expect(find.text('SECOND'), findsOneWidget);
+        await tester.tap(find.text('SECOND'));
         await tester.pumpAndSettle();
         expect(find.text('Use artwork'), findsOneWidget);
         expect(find.byType(TableArtwork), findsWidgets);
@@ -112,7 +119,7 @@ void main() {
       await tester.tap(find.text('Soldier'));
       await tester.pumpAndSettle();
       final before = tester.getRect(find.byType(LifeArtworkPicker));
-      await tester.tap(find.text('FIRST · Artist A'));
+      await tester.tap(find.text('FIRST'));
       await tester.pump();
       expect(tester.getRect(find.byType(LifeArtworkPicker)), before);
       expect(find.byType(LinearProgressIndicator), findsOneWidget);

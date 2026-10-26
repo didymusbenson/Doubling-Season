@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:doubling_season/models/token_definition.dart';
+import '../artwork_credit.dart';
 import 'package:doubling_season/database/counter_database.dart';
 import 'package:doubling_season/widgets/mana/mana_text.dart';
 import 'package:doubling_season/providers/rules_provider.dart'
@@ -19,6 +20,8 @@ import '../../features/ring_service.dart';
 import '../../services/tablet_catalog.dart';
 import 'player_keyboard.dart';
 import '../table_artwork.dart';
+import '../table_modal_frame.dart';
+import '../table_mana_icons.dart';
 import '../half_stepper.dart';
 import '../commander_ledger.dart';
 import '../monarch_crown.dart';
@@ -45,6 +48,7 @@ enum WorkspacePage {
   player,
   commanderDamage,
   counters,
+  lifeCorrection,
   history,
   reset,
   dice,
@@ -108,12 +112,10 @@ class _TableWorkspace extends StatefulWidget {
 
 class _TableWorkspaceState extends State<_TableWorkspace> {
   late WorkspacePage _page;
-  String? _commanderOwnerId;
-  bool _commanderSetup = false;
+  bool _commanderRegionFirst = false;
   int _playerTabIndex = 0;
   int _resetTabIndex = 0;
   String? _editingPlayerCounter;
-  bool _artworkPreviewActive = false;
   String? _editingCommanderId;
   Future<void> _directQueue = Future.value();
   // Failure survives later successful writes and close-in-progress rebuilds.
@@ -144,7 +146,20 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   String? _editingNumber;
   TokenDefinition? _selectedDefinition;
   _Confirmation? _confirmation;
-  final _navigation = <(WorkspacePage, String?)>[];
+  final _navigation =
+      <(WorkspacePage, String?, int, bool, String?, double, double)>[];
+  final _playerScroll = ScrollController();
+  final _counterScroll = ScrollController();
+
+  void _rememberLocation() => _navigation.add((
+    _page,
+    _itemId,
+    _playerTabIndex,
+    _commanderRegionFirst,
+    _editingCommanderId,
+    _playerScroll.hasClients ? _playerScroll.offset : 0,
+    _counterScroll.hasClients ? _counterScroll.offset : 0,
+  ));
   int _resetCount = 4;
   int _emptySlot = 3;
   String? _editingRuleId;
@@ -182,6 +197,12 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     _sessionId = c.session.id;
     _sessionGeneration = c.session.generation;
     _page = widget.initialPage;
+    _playerTabIndex =
+        _page == WorkspacePage.counters ||
+            _page == WorkspacePage.commanderDamage
+        ? 1
+        : 0;
+    _commanderRegionFirst = _page == WorkspacePage.commanderDamage;
     _itemId = widget.itemId;
     for (final player in c.session.players) {
       if (player.seatId == widget.seatId || player.id == widget.seatId) {
@@ -339,6 +360,10 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
 
   Future<void> _back() async {
     if (_working || _closing || _navigating) return;
+    if (_confirmation != null) {
+      setState(() => _confirmation = null);
+      return;
+    }
     setState(() => _navigating = true);
     try {
       if (!await _flushInline() || !mounted || _closing) return;
@@ -346,6 +371,22 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         final destination = _navigation.removeLast();
         _page = destination.$1;
         _itemId = destination.$2;
+        _playerTabIndex = destination.$3;
+        _commanderRegionFirst = destination.$4;
+        _editingCommanderId = destination.$5;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (_playerScroll.hasClients) {
+            _playerScroll.jumpTo(
+              destination.$6.clamp(0, _playerScroll.position.maxScrollExtent),
+            );
+          }
+          if (_counterScroll.hasClients) {
+            _counterScroll.jumpTo(
+              destination.$7.clamp(0, _counterScroll.position.maxScrollExtent),
+            );
+          }
+        });
         _confirmation = null;
       });
     } finally {
@@ -431,6 +472,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       await _directQueue;
       if (!mounted || !_validScope || _closing) return;
       setState(() {
+        _rememberLocation();
         _field('damage.${source.id}').text = '1';
         _field('damageCorrection.${source.id}').text =
             '${c.player(player.id).commanderDamage[source.id] ?? 0}';
@@ -469,9 +511,15 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     try {
       if (!await _flushInline() || !mounted || _closing) return;
       setState(() {
-        _navigation.add((_page, _itemId));
+        _rememberLocation();
         _page = page;
         if (page == WorkspacePage.player) _playerTabIndex = 0;
+        if (page == WorkspacePage.counters ||
+            page == WorkspacePage.commanderDamage) {
+          _playerTabIndex = 1;
+        }
+        _commanderRegionFirst = page == WorkspacePage.commanderDamage;
+        _editingCommanderId = null;
         _itemId = itemId;
         _confirmation = null;
         _error = null;
@@ -694,6 +742,8 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     for (final field in _fields.values) {
       field.dispose();
     }
+    _playerScroll.dispose();
+    _counterScroll.dispose();
     super.dispose();
   }
 
@@ -708,9 +758,10 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     WorkspacePage.utilities => 'Utilities',
     WorkspacePage.rules => 'Rules',
     WorkspacePage.presets => 'Saved setups',
-    WorkspacePage.player => 'Life & player',
+    WorkspacePage.player => 'Player & counters',
     WorkspacePage.commanderDamage => 'Commander damage',
-    WorkspacePage.counters => 'Player counters',
+    WorkspacePage.counters => 'Player & counters',
+    WorkspacePage.lifeCorrection => 'Correct life',
     WorkspacePage.history => 'Game history',
     WorkspacePage.reset => 'Reset & restore',
     WorkspacePage.dice => 'Dice',
@@ -769,8 +820,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       WorkspacePage.rules => _rulesPage(),
       WorkspacePage.presets => _presetsPage(),
       WorkspacePage.player => _playerPage(),
-      WorkspacePage.commanderDamage => _commanderPage(),
-      WorkspacePage.counters => _countersPage(),
+      WorkspacePage.commanderDamage => _playerPage(),
+      WorkspacePage.counters => _playerPage(),
+      WorkspacePage.lifeCorrection => _lifeCorrectionPage(),
       WorkspacePage.history => _historyPage(),
       WorkspacePage.reset => _resetPage(),
       WorkspacePage.dice => _dicePage(),
@@ -780,280 +832,176 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
     final visibleError = _directFailure ?? _error;
-    final rotated = widget.quarterTurns.isOdd;
     final focusedCommander = _page == WorkspacePage.commanderDamage;
-    final commanderSetup = _commanderSetup || _editingCommanderId != null;
-    const commanderWidth = 680.0;
     final utility = _page == WorkspacePage.utilities && p != null
         ? p!.utilities.where((u) => u.id == _itemId).firstOrNull
         : null;
-    final utilityArtwork =
+    final compactUtility =
         utility != null &&
-        _field('utility.${utility.id}.panel').text == 'artwork';
-    final compactUtility = utility != null && !utilityArtwork;
-    final artworkToken = _page == WorkspacePage.tokenArtwork
-        ? p?.tokens.where((t) => t.id == _itemId).firstOrNull
-        : null;
-    final hasArtwork = artworkToken?.artworkUrl != null;
-    final hasArtworkOptions =
-        (artworkToken?.artworkOptions.isNotEmpty ?? false) ||
-        (catalog.byId(artworkToken?.definitionId ?? '')?.artwork.isNotEmpty ??
-            false);
-    // Frames follow the task's content. Search/artwork/timelines keep a taller
-    // list viewport; fixed controls do not inherit a nearly full-screen form.
-    final (panelWidth, panelHeight) = switch (_page) {
-      WorkspacePage.player => (
-        900.0,
-        _playerTabIndex == 3
-            ? 760.0
-            : _playerTabIndex == 0
-            ? ((rotated ? size.height : size.width) < 760 ? 620.0 : 540.0)
-            : 600.0,
-      ),
-      WorkspacePage.counters => (
-        680.0,
-        _editingPlayerCounter == null ? 420.0 : 470.0,
-      ),
-      WorkspacePage.dice => (800.0, 580.0),
-      WorkspacePage.reset => (
-        760.0,
-        _resetTabIndex == 0
-            ? (_resetCount == 3
-                  ? 600.0
-                  : (rotated ? size.height : size.width) < 760
-                  ? 520.0
-                  : 480.0)
-            : 650.0,
-      ),
-      WorkspacePage.settings => (760.0, 760.0),
-      WorkspacePage.tokenArtwork => (
-        760.0,
-        _artworkPreviewActive
-            ? 640.0
-            : hasArtwork
-            ? 580.0
-            : hasArtworkOptions
-            ? 520.0
-            : 360.0,
-      ),
-      WorkspacePage.tokenStatus => (600.0, 440.0),
-      WorkspacePage.tokenCounters => (680.0, 640.0),
-      WorkspacePage.tokenSplit => (680.0, 560.0),
-      WorkspacePage.tokenSummary => (700.0, 650.0),
-      WorkspacePage.token => (820.0, 760.0),
-      WorkspacePage.tokens when _selectedDefinition != null => (720.0, 520.0),
-      WorkspacePage.tokens when _createCustom => (760.0, 600.0),
-      WorkspacePage.utilities when compactUtility => (
-        utility.kind == 'mana_pool' ? 960.0 : 760.0,
-        utility.kind == RingService.kind
-            ? 700.0
-            : utility.kind == 'mana_pool'
-            ? ((rotated ? size.height : size.width) >= 760 ? 560.0 : 650.0)
-            : utility.configuration['hasAction'] == true
-            ? (utility.kind == 'brudiclad_telchor_engineer' ? 600.0 : 460.0)
-            : 330.0,
-      ),
-      WorkspacePage.utilities => (820.0, 760.0),
-      WorkspacePage.rules => (900.0, 760.0),
-      WorkspacePage.presets => (820.0, 760.0),
-      _ => (920.0, 800.0),
-    };
-    final width = min(
-      focusedCommander ? commanderWidth : panelWidth,
-      (rotated ? size.height : size.width) - 40,
-    );
-    final commanderRows = CommanderSeatLayout.rowsFor(
-      c.session.players,
-      widget.quarterTurns,
-    ).length;
-    final height = min(
-      _confirmation != null
-          ? 460.0
-          : focusedCommander
-          ? commanderSetup
-                ? 520.0
-                : min(680.0, 196.0 + commanderRows * 184)
-          : panelHeight,
-      (rotated ? size.width : size.height) - 40,
-    );
-    final content = Center(
-      child: RotatedBox(
-        quarterTurns: widget.quarterTurns,
-        child: SizedBox(
-          key: focusedCommander
-              ? const ValueKey('commander-workspace')
-              : const ValueKey('context-workspace'),
-          width: width,
-          height: height,
-          child: Material(
-            color: Theme.of(context).colorScheme.surface,
-            elevation: 24,
-            clipBehavior: Clip.antiAlias,
-            borderRadius: BorderRadius.circular(22),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 10, 4),
-                  child: Row(
-                    children: [
-                      if (_navigation.isNotEmpty)
-                        IconButton(
-                          tooltip: 'Back',
-                          onPressed: _back,
-                          icon: const Icon(Icons.arrow_back),
+        _field('utility.${utility.id}.panel').text != 'artwork';
+    final content = TableModalFrame(
+      quarterTurns: widget.quarterTurns,
+      surfaceKey: focusedCommander
+          ? const ValueKey('commander-workspace')
+          : const ValueKey('context-workspace'),
+      child: PlayerKeyboardHost(
+        enabled: !_closing && !_working && !_navigating,
+        canEdit: () => !_closing && !_working && !_navigating,
+        onClose: _requestClose,
+        key: ValueKey(
+          '$_page:$_itemId:${_selectedDefinition?.id}:$_createCustom:${_confirmation?.title}:$_editingCommanderId',
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 10, 4),
+              child: Row(
+                children: [
+                  if (_navigation.isNotEmpty || _confirmation != null)
+                    IconButton(
+                      tooltip: 'Back',
+                      onPressed: _back,
+                      icon: const Icon(Icons.arrow_back),
+                    ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          focusedCommander
+                              ? '$_seatName · ${p?.life ?? 0} life'
+                              : _seatName,
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
                         ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              focusedCommander
-                                  ? '$_seatName · ${p?.life ?? 0} life'
-                                  : _seatName,
-                              style: Theme.of(context).textTheme.labelLarge
-                                  ?.copyWith(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
-                                  ),
-                            ),
-                            Text(
-                              _title,
-                              style: Theme.of(context).textTheme.headlineSmall,
-                            ),
-                          ],
+                        Text(
+                          _title,
+                          style: Theme.of(context).textTheme.headlineSmall,
                         ),
-                      ),
-                      if (focusedCommander)
-                        IconButton(
-                          tooltip: 'Correct life separately',
-                          onPressed: _working
-                              ? null
-                              : () => _go(WorkspacePage.player),
-                          icon: const Icon(Icons.edit_note, size: 22),
-                        ),
-                      IconButton(
-                        tooltip: 'Close workspace',
-                        onPressed: _requestClose,
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                if (_playerId != null &&
-                    !_createCustom &&
-                    _selectedDefinition == null &&
-                    !compactUtility &&
-                    !{
-                      WorkspacePage.player,
+                  if (focusedCommander)
+                    IconButton(
+                      tooltip: 'Correct life separately',
+                      onPressed: _working
+                          ? null
+                          : () => _go(WorkspacePage.lifeCorrection),
+                      icon: const Icon(Icons.edit_note, size: 22),
+                    ),
+                  IconButton(
+                    tooltip: 'Close workspace',
+                    onPressed: _requestClose,
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            if (_playerId != null &&
+                !_createCustom &&
+                _selectedDefinition == null &&
+                !compactUtility &&
+                !{
+                  WorkspacePage.player,
+                  WorkspacePage.rules,
+                  WorkspacePage.presets,
+                  WorkspacePage.counters,
+                  WorkspacePage.lifeCorrection,
+                  WorkspacePage.token,
+                  WorkspacePage.commanderDamage,
+                  WorkspacePage.tokenStatus,
+                  WorkspacePage.tokenCounters,
+                  WorkspacePage.tokenSplit,
+                  WorkspacePage.tokenArtwork,
+                  WorkspacePage.tokenSummary,
+                }.contains(_page))
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Row(
+                  children: [
+                    for (final page in [
+                      WorkspacePage.tokens,
+                      WorkspacePage.utilities,
                       WorkspacePage.rules,
                       WorkspacePage.presets,
-                      WorkspacePage.counters,
-                      WorkspacePage.token,
-                      WorkspacePage.commanderDamage,
-                      WorkspacePage.tokenStatus,
-                      WorkspacePage.tokenCounters,
-                      WorkspacePage.tokenSplit,
-                      WorkspacePage.tokenArtwork,
-                      WorkspacePage.tokenSummary,
-                    }.contains(_page))
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Row(
-                      children: [
-                        for (final page in [
-                          WorkspacePage.tokens,
-                          WorkspacePage.utilities,
-                          WorkspacePage.rules,
-                          WorkspacePage.presets,
-                          WorkspacePage.player,
-                        ])
-                          Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: ChoiceChip(
-                              label: Text(switch (page) {
-                                WorkspacePage.tokens => 'Tokens',
-                                WorkspacePage.utilities => 'Utilities',
-                                WorkspacePage.rules => 'Rules',
-                                WorkspacePage.presets => 'Setups',
-                                _ => 'Player',
-                              }),
-                              selected: _page == page,
-                              onSelected: (_) => _go(page),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                if (_playerId == null && _page != WorkspacePage.reset)
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Row(
-                      children: [
-                        for (final page in [
-                          WorkspacePage.history,
-                          WorkspacePage.reset,
-                          WorkspacePage.dice,
-                          WorkspacePage.settings,
-                        ])
-                          Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: ChoiceChip(
-                              label: Text(switch (page) {
-                                WorkspacePage.history => 'History',
-                                WorkspacePage.reset => 'Reset',
-                                WorkspacePage.dice => 'Dice',
-                                _ => 'Settings',
-                              }),
-                              selected: _page == page,
-                              onSelected: (_) => _go(page),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                SizedBox(
-                  height: 2,
-                  child: _working
-                      ? const LinearProgressIndicator(minHeight: 2)
-                      : null,
+                      WorkspacePage.player,
+                    ])
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ChoiceChip(
+                          label: Text(switch (page) {
+                            WorkspacePage.tokens => 'Tokens',
+                            WorkspacePage.utilities => 'Utilities',
+                            WorkspacePage.rules => 'Rules',
+                            WorkspacePage.presets => 'Setups',
+                            _ => 'Player',
+                          }),
+                          selected: _page == page,
+                          onSelected: (_) => _go(page),
+                        ),
+                      ),
+                  ],
                 ),
-                if (visibleError != null || _status != null)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 9,
-                    ),
-                    color: visibleError == null
-                        ? Theme.of(context).colorScheme.secondaryContainer
-                        : Theme.of(context).colorScheme.errorContainer,
-                    child: Text(
-                      visibleError != null
-                          ? (visibleError == _directFailure
-                                ? '$visibleError\nClose again to dismiss.'
-                                : '$visibleError\nYour draft is retained. You can retry or close and reopen.')
-                          : _status!,
-                    ),
-                  ),
-                const Divider(height: 12),
-                Expanded(
-                  child: PlayerKeyboardHost(
-                    enabled: !_closing && !_working && !_navigating,
-                    canEdit: () => !_closing && !_working && !_navigating,
-                    key: ValueKey(
-                      '$_page:$_itemId:${_selectedDefinition?.id}:$_createCustom:${_confirmation?.title}',
-                    ),
-                    child: _content(),
-                  ),
+              ),
+            if (_playerId == null && _page != WorkspacePage.reset)
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Row(
+                  children: [
+                    for (final page in [
+                      WorkspacePage.history,
+                      WorkspacePage.reset,
+                      WorkspacePage.dice,
+                      WorkspacePage.settings,
+                    ])
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ChoiceChip(
+                          label: Text(switch (page) {
+                            WorkspacePage.history => 'History',
+                            WorkspacePage.reset => 'Reset',
+                            WorkspacePage.dice => 'Dice',
+                            _ => 'Settings',
+                          }),
+                          selected: _page == page,
+                          onSelected: (_) => _go(page),
+                        ),
+                      ),
+                  ],
                 ),
-              ],
+              ),
+            SizedBox(
+              height: 2,
+              child: _working
+                  ? const LinearProgressIndicator(minHeight: 2)
+                  : null,
             ),
-          ),
+            if (visibleError != null || _status != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 9,
+                ),
+                color: visibleError == null
+                    ? Theme.of(context).colorScheme.secondaryContainer
+                    : Theme.of(context).colorScheme.errorContainer,
+                child: Text(
+                  visibleError != null
+                      ? (visibleError == _directFailure
+                            ? '$visibleError\nClose again to dismiss.'
+                            : '$visibleError\nYour draft is retained. You can retry or close and reopen.')
+                      : _status!,
+                ),
+              ),
+            const Divider(height: 12),
+            Expanded(child: _content()),
+          ],
         ),
       ),
     );

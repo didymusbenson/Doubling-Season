@@ -1,11 +1,11 @@
-import 'dart:math' as math;
-
 import 'package:doubling_season/models/token_definition.dart';
 import 'package:flutter/material.dart';
 
 import '../services/tablet_catalog.dart';
 import 'artwork_selection.dart';
 import 'table_artwork.dart';
+import 'table_modal_frame.dart';
+import 'artwork_credit.dart';
 import 'workspace/player_keyboard.dart';
 
 /// A seat-facing catalog chooser, independent of board tokens/preferences.
@@ -19,6 +19,7 @@ Future<String?> showLifeArtworkPicker(
 }) => showDialog<String>(
   context: context,
   barrierDismissible: true,
+  useSafeArea: false,
   builder: (_) => LifeArtworkPicker(
     catalog: catalog,
     seatName: seatName,
@@ -51,6 +52,7 @@ class LifeArtworkPicker extends StatefulWidget {
 
 class _LifeArtworkPickerState extends State<LifeArtworkPicker> {
   final query = TextEditingController();
+  final _scroll = ScrollController();
   TokenDefinition? definition;
   ArtworkVariant? variant;
   String? candidate;
@@ -60,6 +62,7 @@ class _LifeArtworkPickerState extends State<LifeArtworkPicker> {
   @override
   void dispose() {
     query.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -72,10 +75,19 @@ class _LifeArtworkPickerState extends State<LifeArtworkPicker> {
     try {
       await action();
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) {
+        setState(() => error = '$e');
+        _revealTop();
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
+  }
+
+  void _revealTop() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _scroll.hasClients) _scroll.jumpTo(0);
+    });
   }
 
   Future<void> _validate(String source) async {
@@ -93,237 +105,207 @@ class _LifeArtworkPickerState extends State<LifeArtworkPicker> {
       candidate = art.url;
       variant = art;
     });
+    _revealTop();
   });
 
   @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final available = widget.quarterTurns.isOdd
-        ? Size(size.height, size.width)
-        : size;
-    return Center(
-      child: RotatedBox(
-        quarterTurns: widget.quarterTurns,
-        child: SizedBox(
-          width: math.min(660, available.width - 32),
-          height: math.min(650, available.height - 32),
-          child: Material(
-            borderRadius: BorderRadius.circular(18),
-            clipBehavior: Clip.antiAlias,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      if (definition != null || candidate != null)
-                        IconButton(
-                          tooltip: 'Back to token art search',
-                          onPressed: busy
-                              ? null
-                              : () => setState(() {
-                                  definition = null;
-                                  candidate = null;
-                                  variant = null;
-                                }),
-                          icon: const Icon(Icons.arrow_back),
-                        ),
-                      Expanded(
+  Widget build(BuildContext context) => TableModalFrame(
+    quarterTurns: widget.quarterTurns,
+    surfaceKey: const ValueKey('life-artwork-modal'),
+    child: PlayerKeyboardHost(
+      key: ValueKey('${definition?.id}:${candidate != null}'),
+      enabled: !busy,
+      canEdit: () => !busy,
+      onClose: () => Navigator.pop(context),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 8, 0),
+            child: Row(
+              children: [
+                if (definition != null || candidate != null)
+                  IconButton(
+                    tooltip: 'Back to token art search',
+                    onPressed: busy
+                        ? null
+                        : () => setState(() {
+                            definition = null;
+                            candidate = null;
+                            variant = null;
+                          }),
+                    icon: const Icon(Icons.arrow_back),
+                  ),
+                Expanded(
+                  child: Text(
+                    '${widget.seatName} · life artwork',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Close artwork search',
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 4,
+            child: busy ? const LinearProgressIndicator() : null,
+          ),
+          Expanded(
+            child: ListenableBuilder(
+              listenable: Listenable.merge([query, widget.catalog]),
+              builder: (context, _) {
+                final results = widget.catalog
+                    .search(query.text)
+                    .where((t) => t.artwork.isNotEmpty)
+                    .toList();
+                return ListView(
+                  key: const PageStorageKey('life-artwork-content'),
+                  controller: _scroll,
+                  padding: const EdgeInsets.all(12),
+                  children: [
+                    if (error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
                         child: Text(
-                          '${widget.seatName} · life artwork',
-                          style: Theme.of(context).textTheme.titleMedium,
+                          error!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
                         ),
                       ),
-                      IconButton(
-                        tooltip: 'Close artwork search',
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close),
+                    if (candidate != null) ...[
+                      const Text('Preview — not saved'),
+                      SizedBox(
+                        height: 140,
+                        child: TableArtwork(
+                          url: candidate,
+                          crop: true,
+                          showLoadStatus: true,
+                        ),
                       ),
+                      if (variant != null) Text(variant!.set),
+                      TabletArtworkCredit(
+                        url: candidate,
+                        artist: variant?.artist,
+                      ),
+                      FilledButton.icon(
+                        onPressed: busy
+                            ? null
+                            : () => _run(() async {
+                                final selected = candidate!;
+                                await _validate(selected);
+                                if (context.mounted) {
+                                  Navigator.pop(context, selected);
+                                }
+                              }),
+                        icon: const Icon(Icons.check),
+                        label: const Text('Use artwork'),
+                      ),
+                      const Divider(height: 24),
                     ],
-                  ),
-                  if (error != null)
-                    Text(
-                      error!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  SizedBox(
-                    height: 4,
-                    child: busy ? const LinearProgressIndicator() : null,
-                  ),
-                  Expanded(
-                    child: PlayerKeyboardHost(
-                      key: ValueKey(
-                        '${definition?.id ?? 'life-art-search'}:${candidate ?? ''}',
-                      ),
-                      enabled: !busy,
-                      canEdit: () => !busy,
-                      child: Column(
-                        children: [
-                          if (candidate != null) ...[
-                            SizedBox(
-                              height: 110,
-                              width: double.infinity,
+                    if (definition == null && candidate == null) ...[
+                      PlayerField(controller: query, label: 'Search token art'),
+                      const SizedBox(height: 8),
+                      if (!widget.catalog.loaded &&
+                          widget.catalog.error == null)
+                        const Center(child: CircularProgressIndicator())
+                      else if (results.isEmpty)
+                        Text(
+                          widget.catalog.error ??
+                              'No matching token art. Try another search.',
+                        )
+                      else
+                        for (final token in results)
+                          ListTile(
+                            leading: SizedBox(
+                              width: 54,
+                              height: 54,
                               child: TableArtwork(
-                                url: candidate,
+                                url: token.artwork.first.url,
                                 crop: true,
                                 showLoadStatus: true,
                               ),
                             ),
-                            if (variant != null)
-                              Text('${variant!.set} · ${variant!.artist}'),
-                            FilledButton.icon(
-                              onPressed: busy
-                                  ? null
-                                  : () => _run(() async {
-                                      final selected = candidate!;
-                                      await _validate(selected);
-                                      if (context.mounted) {
-                                        Navigator.pop(context, selected);
-                                      }
-                                    }),
-                              icon: const Icon(Icons.check),
-                              label: const Text('Use artwork'),
+                            title: Text(token.name),
+                            subtitle: Text(
+                              '${token.pt} ${token.cleanType}'.trim(),
                             ),
-                          ],
-                          if (definition == null && candidate == null) ...[
-                            PlayerField(
-                              controller: query,
-                              label: 'Search token art',
-                            ),
-                            const SizedBox(height: 8),
-                            Expanded(
-                              child: ListenableBuilder(
-                                listenable: Listenable.merge([
-                                  query,
-                                  widget.catalog,
-                                ]),
-                                builder: (context, _) {
-                                  final results = widget.catalog
-                                      .search(query.text)
-                                      .where((t) => t.artwork.isNotEmpty)
-                                      .toList();
-                                  if (!widget.catalog.loaded &&
-                                      widget.catalog.error == null) {
-                                    return const Center(
-                                      child: CircularProgressIndicator(),
-                                    );
-                                  }
-                                  if (results.isEmpty) {
-                                    return Center(
-                                      child: Text(
-                                        widget.catalog.error ??
-                                            'No matching token art. Try another search.',
+                            onTap: busy
+                                ? null
+                                : () => setState(() {
+                                    definition = token;
+                                    candidate = null;
+                                    variant = null;
+                                  }),
+                          ),
+                    ] else if (definition != null) ...[
+                      Text(
+                        definition!.name,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 12,
+                        children: [
+                          for (final art in definition!.artwork)
+                            SizedBox(
+                              width: 170,
+                              child: InkWell(
+                                onTap: busy ? null : () => _choose(art),
+                                child: Column(
+                                  children: [
+                                    SizedBox(
+                                      height: 120,
+                                      child: TableArtwork(
+                                        url: art.url,
+                                        crop: true,
+                                        showLoadStatus: true,
                                       ),
-                                    );
-                                  }
-                                  return ListView.builder(
-                                    itemCount: results.length,
-                                    itemBuilder: (context, index) {
-                                      final token = results[index];
-                                      return ListTile(
-                                        leading: SizedBox(
-                                          width: 54,
-                                          height: 54,
-                                          child: TableArtwork(
-                                            url: token.artwork.first.url,
-                                            crop: true,
-                                            showLoadStatus: true,
-                                          ),
-                                        ),
-                                        title: Text(token.name),
-                                        subtitle: Text(
-                                          '${token.pt} ${token.cleanType}'
-                                              .trim(),
-                                        ),
-                                        onTap: busy
-                                            ? null
-                                            : () => setState(() {
-                                                definition = token;
-                                                candidate = null;
-                                                variant = null;
-                                              }),
-                                      );
-                                    },
-                                  );
-                                },
+                                    ),
+                                    Text(art.set),
+                                    TabletArtworkCredit(
+                                      url: art.url,
+                                      artist: art.artist,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ] else if (definition != null) ...[
-                            Text(definition!.name),
-                            Expanded(
-                              child: GridView.builder(
-                                gridDelegate:
-                                    const SliverGridDelegateWithMaxCrossAxisExtent(
-                                      maxCrossAxisExtent: 190,
-                                      mainAxisExtent: 150,
-                                      crossAxisSpacing: 8,
-                                      mainAxisSpacing: 8,
-                                    ),
-                                itemCount: definition!.artwork.length,
-                                itemBuilder: (context, index) {
-                                  final art = definition!.artwork[index];
-                                  return InkWell(
-                                    onTap: busy ? null : () => _choose(art),
-                                    child: Column(
-                                      children: [
-                                        Expanded(
-                                          child: TableArtwork(
-                                            url: art.url,
-                                            crop: true,
-                                            showLoadStatus: true,
-                                          ),
-                                        ),
-                                        Text(
-                                          '${art.set} · ${art.artist}',
-                                          maxLines: 2,
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ] else
-                            const Expanded(child: SizedBox()),
                         ],
                       ),
+                    ],
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      icon: const Icon(Icons.file_upload_outlined),
+                      label: const Text('Import custom image'),
+                      onPressed: busy
+                          ? null
+                          : () => _run(() async {
+                              final imported =
+                                  await (widget.importArtwork?.call() ??
+                                      pickTabletArtwork(
+                                        context,
+                                        quarterTurns: widget.quarterTurns,
+                                      ));
+                              if (!mounted || imported == null) return;
+                              setState(() {
+                                candidate = imported;
+                                variant = null;
+                              });
+                              _revealTop();
+                            }),
                     ),
-                  ),
-                  TextButton.icon(
-                    icon: const Icon(Icons.file_upload_outlined),
-                    label: const Text('Import custom image'),
-                    onPressed: busy
-                        ? null
-                        : () => _run(() async {
-                            final Future<String?> importResult;
-                            if (widget.importArtwork != null) {
-                              importResult = widget.importArtwork!();
-                            } else {
-                              importResult = pickTabletArtwork(
-                                context,
-                                quarterTurns: widget.quarterTurns,
-                              );
-                            }
-                            final imported = await importResult;
-                            if (!mounted || imported == null) return;
-                            setState(() {
-                              candidate = imported;
-                              variant = null;
-                            });
-                          }),
-                  ),
-                  const Text(
-                    'Device browsing follows system orientation; cropping faces you.',
-                    style: TextStyle(fontSize: 11),
-                  ),
-                ],
-              ),
+                  ],
+                );
+              },
             ),
           ),
-        ),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }

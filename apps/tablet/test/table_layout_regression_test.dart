@@ -35,7 +35,7 @@ void main() {
         'MaterialIcons': 'MaterialIcons-Regular.otf',
       }.entries) {
         final file = File(
-          '/opt/homebrew/share/flutter/bin/cache/artifacts/material_fonts/${font.value}',
+          '${Platform.environment['FLUTTER_ROOT'] ?? '/opt/homebrew/share/flutter'}/bin/cache/artifacts/material_fonts/${font.value}',
         );
         if (await file.exists()) {
           await (FontLoader(
@@ -128,7 +128,7 @@ void main() {
   }
 
   bool allowsUtilityScroll(Size size, int seats) =>
-      size == const Size(1133, 744);
+      size == const Size(1133, 744) || size == const Size(744, 1133);
 
   ScrollController utilityScroll(WidgetTester tester, PlayerState player) =>
       tester
@@ -154,10 +154,7 @@ void main() {
             bounds.bottom > height - 20)) {
       // A partially clipped control can pass the center-point hit test. Reveal
       // its whole touch target before checking the scrollable utility lane.
-      await Scrollable.ensureVisible(
-        tester.element(control),
-        alignment: .5,
-      );
+      await Scrollable.ensureVisible(tester.element(control), alignment: .5);
       await tester.pumpAndSettle();
     }
     expect(
@@ -271,10 +268,14 @@ void main() {
               expect(
                 utilities.scrollController!.position.maxScrollExtent,
                 lessThanOrEqualTo(
-                  allowsUtilityScroll(size, seats) ? (seats == 2 ? 48 : 80) : 1,
+                  allowsUtilityScroll(size, seats)
+                      ? (size.width < size.height
+                            ? 28
+                            : (seats == 2 ? 74 : 106))
+                      : 1,
                 ),
                 reason:
-                    'Only short mini-tablet seats may scroll; the six life tools retain full targets.',
+                    'Shared-control clearance permits modest utility scrolling; all life and mana controls retain full targets.',
               );
               final ledger = find.byKey(
                 ValueKey('${player.id}-commander-ledger'),

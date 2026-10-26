@@ -38,11 +38,26 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
-      - run: flutter build web --release --base-href "/Doubling-Season/tablet/" --pwa-strategy=none
-      - run: flutter build apk --release
+      - id: web-build
+        run: flutter build web --release --base-href "/Doubling-Season/tablet/" --pwa-strategy=none
+      - name: Exercise release UI in runner Chrome
+        timeout-minutes: 8
+        run: node tool/browser_feedback_smoke.mjs
+      - name: Preserve browser interaction and screenshot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tablet-browser-feedback-${{ github.sha }}
+          path: apps/tablet/build/browser-smoke
+          if-no-files-found: warn
+      - name: Build Android even if the browser smoke needs diagnosis
+        if: ${{ !cancelled() && steps.web-build.outcome == 'success' }}
+        run: flutter build apk --release
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: tablet-web-and-android
+          if-no-files-found: warn
           path: |
             apps/tablet/build/web
             apps/tablet/build/app/outputs/flutter-apk/app-release.apk

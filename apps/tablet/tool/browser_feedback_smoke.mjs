@@ -1,0 +1,269 @@
+#!/usr/bin/env node
+/** Real release-UI smoke using runner-provided Chrome + Node built-ins only.
+ * No app state injection, dependencies, external hosting, or persistent profile.
+ * All app clicks use current accessibility names and CDP-resolved rendered bounds.
+ * The sole DOM click activates Flutter's offscreen assistive-technology opt-in.
+ */
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { createServer } from 'node:http';
+import { access, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, extname, join, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const app = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const build = resolve(process.argv[2] || join(app, 'build/web'));
+const output = resolve(process.argv[3] || join(app, 'build/browser-smoke'));
+const prefix = '/Doubling-Season/tablet/';
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const evidence = {
+  started: new Date().toISOString(), status: 'running',
+  source: { sha: process.env.GITHUB_SHA || 'local-uncommitted', ref: process.env.GITHUB_REF, run: process.env.GITHUB_RUN_ID },
+  viewport: { width: 1133, height: 744, deviceScaleFactor: 1 },
+  build, steps: [], console: [], exceptions: [], networkFailures: [], images: [],
+};
+let chrome, server, profile, cdp;
+let chromeLog = '';
+let expectedScuteArtwork;
+await mkdir(output, { recursive: true });
+function log(message, data = {}) {
+  const entry = { at: new Date().toISOString(), message, ...data };
+  evidence.steps.push(entry);
+  console.log(JSON.stringify(entry));
+}
+async function until(description, action, timeout = 30000) {
+  const end = Date.now() + timeout;
+  let last;
+  while (Date.now() < end) {
+    try { const value = await action(); if (value) return value; } catch (error) { last = error; }
+    await sleep(150);
+  }
+  throw new Error(`Timed out: ${description}${last ? `; last observation: ${last.message}` : ''}`);
+}
+class CDP {
+  constructor(socket) {
+    this.socket = socket; this.id = 0; this.pending = new Map(); this.listeners = new Map();
+    socket.addEventListener('message', event => {
+      const message = JSON.parse(event.data);
+      if (message.id) {
+        const request = this.pending.get(message.id);
+        if (!request) return;
+        clearTimeout(request.timer); this.pending.delete(message.id);
+        if (message.error) request.reject(new Error(JSON.stringify(message.error)));
+        else request.resolve(message.result);
+      } else for (const listener of this.listeners.get(message.method) || []) listener(message.params);
+    });
+    socket.addEventListener('close', () => {
+      for (const request of this.pending.values()) { clearTimeout(request.timer); request.reject(new Error('Chrome CDP connection closed')); }
+      this.pending.clear();
+    });
+  }
+  on(method, listener) { this.listeners.set(method, [...(this.listeners.get(method) || []), listener]); }
+  send(method, params = {}) {
+    const id = ++this.id;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { this.pending.delete(id); reject(new Error(`CDP timeout: ${method}`)); }, 15000);
+      this.pending.set(id, { resolve, reject, timer });
+      this.socket.send(JSON.stringify({ id, method, params }));
+    });
+  }
+  async evaluate(expression) {
+    const result = await this.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+    if (result.exceptionDetails) throw new Error(result.exceptionDetails.text);
+    return result.result.value;
+  }
+}
+async function semantics() {
+  const { nodes } = await cdp.send('Accessibility.getFullAXTree');
+  return nodes.filter(node => !node.ignored && node.name?.value).map(node => ({
+    id: node.nodeId, backend: node.backendDOMNodeId, role: node.role?.value,
+    name: node.name.value, value: node.value?.value,
+    disabled: node.properties?.some(property => property.name === 'disabled' && property.value?.value === true),
+  }));
+}
+async function bounds(node) {
+  if (!node.backend) return null;
+  try {
+    const { model } = await cdp.send('DOM.getBoxModel', { backendNodeId: node.backend });
+    const points = model.border;
+    const xs = points.filter((_, index) => index % 2 === 0), ys = points.filter((_, index) => index % 2 === 1);
+    const rect = { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+    if (rect.width <= 0 || rect.height <= 0 || rect.x + rect.width <= 0 || rect.y + rect.height <= 0 || rect.x >= evidence.viewport.width || rect.y >= evidence.viewport.height) return null;
+    return rect;
+  } catch { return null; }
+}
+function matches(node, name, startsWith) { return startsWith ? node.name.startsWith(name) : node.name === name; }
+async function find(name, { startsWith = false, role, timeout = 30000 } = {}) {
+  return until(`visible semantic control ${JSON.stringify(name)}`, async () => {
+    const nodes = (await semantics()).filter(node => matches(node, name, startsWith) && !node.disabled && (!role || node.role === role));
+    // Prefer the actionable merged semantic node over a redundant text descendant.
+    nodes.sort((a, b) => Number(b.role === 'button') - Number(a.role === 'button'));
+    for (const node of nodes) { const rect = await bounds(node); if (rect) return { ...node, rect }; }
+    return null;
+  }, timeout);
+}
+async function click(name, options = {}) {
+  const node = await find(name, options);
+  const x = node.rect.x + node.rect.width / 2, y = node.rect.y + node.rect.height / 2;
+  assert(x >= 0 && y >= 0 && x < evidence.viewport.width && y < evidence.viewport.height, `Control center is clipped: ${name}`);
+  log(options.hold ? 'pointer hold from rendered semantic bounds' : 'pointer click from rendered semantic bounds', { name: node.name, role: node.role, rect: node.rect });
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 });
+  await sleep(options.hold || 40);
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1 });
+  await sleep(120);
+}
+async function capture(name) {
+  const shot = await cdp.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+  await writeFile(join(output, `${name}.png`), Buffer.from(shot.data, 'base64'));
+  await writeFile(join(output, `${name}.semantics.json`), JSON.stringify(await semantics(), null, 2));
+  log('captured rendered UI and semantic evidence', { name });
+}
+async function enableSemantics() {
+  await until('Flutter accessibility bootstrap', async () => cdp.evaluate(`(() => {
+    const all = [];
+    function visit(root) { for (const element of root.querySelectorAll('*')) { all.push(element); if (element.shadowRoot) visit(element.shadowRoot); } }
+    visit(document);
+    const placeholder = all.find(element => element.tagName.toLowerCase() === 'flt-semantics-placeholder');
+    if (placeholder) { placeholder.click(); return true; }
+    return all.some(element => element.tagName.toLowerCase() === 'flt-semantics');
+  })()`), 90000);
+  log('enabled Flutter accessibility through its AT placeholder');
+}
+try {
+  assert.equal(typeof WebSocket, 'function', `Installed Node ${process.version} lacks global WebSocket; runner needs a supported preinstalled Node runtime. No package installation attempted.`);
+  const candidates = [process.env.CHROME_EXECUTABLE, '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser'].filter(Boolean);
+  let binary;
+  for (const candidate of candidates) { try { await access(candidate, constants.X_OK); binary = candidate; break; } catch {} }
+  assert(binary, 'No runner-provided Chrome binary found. No browser installation attempted.');
+  evidence.node = process.version; evidence.chromeBinary = binary;
+  evidence.buildHashes = {};
+  for (const file of ['index.html', 'flutter_bootstrap.js', 'main.dart.js']) {
+    evidence.buildHashes[file] = createHash('sha256').update(await readFile(join(build, file))).digest('hex');
+  }
+  const tokens = JSON.parse(await readFile(join(build, 'assets/packages/doubling_season/assets/token_database.json'), 'utf8'));
+  expectedScuteArtwork = tokens.find(token => token.name === 'Scute Swarm')?.artwork?.[0]?.url;
+  assert(expectedScuteArtwork, 'Bundled catalog lacks the expected Scute Swarm artwork fixture.');
+  evidence.expectedArtwork = expectedScuteArtwork;
+  assert((await readFile(join(build, 'index.html'), 'utf8')).includes(`<base href="${prefix}">`), 'Build must use the existing tablet release base href.');
+  const mime = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.wasm': 'application/wasm', '.png': 'image/png', '.jpg': 'image/jpeg', '.ttf': 'font/ttf', '.otf': 'font/otf', '.woff2': 'font/woff2' };
+  server = createServer(async (request, response) => {
+    try {
+      const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
+      if (!pathname.startsWith(prefix)) { response.writeHead(404).end(); return; }
+      const path = resolve(build, pathname.slice(prefix.length) || 'index.html');
+      if (path !== build && !path.startsWith(build + sep)) { response.writeHead(403).end(); return; }
+      if (!(await stat(path)).isFile()) { response.writeHead(404).end(); return; }
+      response.writeHead(200, { 'content-type': mime[extname(path)] || 'application/octet-stream', 'cache-control': 'no-store' });
+      response.end(await readFile(path));
+    } catch { response.writeHead(404).end(); }
+  });
+  await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
+  const url = `http://127.0.0.1:${server.address().port}${prefix}`;
+  evidence.url = url;
+  profile = await mkdtemp(join(tmpdir(), 'tripling-table-ci-chrome-'));
+  chrome = spawn(binary, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', '--disable-dev-shm-usage', 'about:blank'], { stdio: ['ignore', 'pipe', 'pipe'] });
+  chrome.stdout.on('data', data => { chromeLog += data; });
+  chrome.stderr.on('data', data => { chromeLog += data; });
+  chrome.on('error', error => { chromeLog += error.stack; });
+  const port = await until('Chrome DevToolsActivePort', async () => {
+    if (chrome.exitCode !== null) throw new Error(`Chrome exited ${chrome.exitCode}: ${chromeLog.slice(-2000)}`);
+    return (await readFile(join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0];
+  }, 30000);
+  const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
+  const target = targets.find(target => target.type === 'page');
+  assert(target?.webSocketDebuggerUrl, 'Chrome did not expose an initial page target.');
+  const socket = new WebSocket(target.webSocketDebuggerUrl);
+  await new Promise((resolve, reject) => { socket.addEventListener('open', resolve, { once: true }); socket.addEventListener('error', reject, { once: true }); });
+  cdp = new CDP(socket);
+  cdp.on('Runtime.consoleAPICalled', event => evidence.console.push({ type: event.type, text: event.args.map(arg => arg.value ?? arg.description).join(' ') }));
+  cdp.on('Runtime.exceptionThrown', event => evidence.exceptions.push(event.exceptionDetails));
+  cdp.on('Network.loadingFailed', event => evidence.networkFailures.push(event));
+  cdp.on('Network.responseReceived', event => { if (event.response.mimeType.startsWith('image/')) evidence.images.push({ requestId: event.requestId, url: event.response.url, status: event.response.status, mime: event.response.mimeType }); });
+  cdp.on('Network.loadingFinished', event => { const image = evidence.images.find(image => image.requestId === event.requestId); if (image) { image.finished = true; image.encodedBytes = event.encodedDataLength; } });
+  await Promise.all(['Page.enable', 'Runtime.enable', 'Network.enable', 'Accessibility.enable'].map(method => cdp.send(method)));
+  evidence.browser = await cdp.send('Browser.getVersion');
+  await cdp.send('Emulation.setDeviceMetricsOverride', { ...evidence.viewport, mobile: false });
+  await cdp.send('Page.navigate', { url });
+  await enableSemantics();
+  await find('Player 1, player details', { timeout: 90000 });
+  await capture('01-initial-four-seat-table');
+
+  await click('Player 1, player details');
+  await click('Player name. Current value:', { startsWith: true });
+  await click('Select all');
+  await click('q', { role: 'button' });
+  await find('Player name. Current value: q');
+  await click('a', { role: 'button' });
+  await find('Player name. Current value: qa');
+  await capture('02-player-keyboard-qa');
+  await click('Done');
+  await click('Close workspace');
+  await find('qa, player details');
+  await cdp.send('Page.reload', { ignoreCache: true });
+  await enableSemantics();
+  await find('qa, player details', { timeout: 90000 });
+  await capture('03-name-persisted-after-reload');
+  log('PASS software q→a typing, Done, durable rename and reload');
+
+  await click('Day/Night: neither.', { startsWith: true });
+  await find('Day/Night: day.', { startsWith: true });
+  await click('Day/Night: day.', { startsWith: true });
+  await find('Day/Night: night.', { startsWith: true });
+  await capture('04-direct-day-night');
+  await click('Day/Night: night.', { startsWith: true, hold: 750 });
+  await find('Day/Night: neither.', { startsWith: true });
+  await sleep(250);
+  await find('Day/Night: neither.', { startsWith: true });
+  await click('Roll dice');
+  await click('Roll selected dice');
+  const roll = await find('Total:', { startsWith: true });
+  const total = Number(roll.name.match(/^Total:\s*(\d+)/)?.[1]);
+  assert(total >= 1 && total <= 6, `Default one-d6 roll was not in range: ${roll.name}`);
+  await find('1d6:', { startsWith: true });
+  await capture('05-direct-dice-results');
+  await click('Close workspace');
+  log('PASS direct Day/Night and Dice controls');
+
+  await click('qa, add token');
+  await click('Search tokens, abilities, type, or P/T. Current value:', { startsWith: true });
+  for (const letter of 'scute') await click(letter, { role: 'button' });
+  await click('Done');
+  await click('Scute Swarm', { startsWith: true });
+  await find('Create tokens');
+  await until('real catalog artwork response', async () => evidence.images.some(image => image.status === 200 && image.finished && image.url === expectedScuteArtwork), 30000);
+  const loadedArt = evidence.images.find(image => image.url === expectedScuteArtwork && image.finished);
+  const imageBody = await cdp.send('Network.getResponseBody', { requestId: loadedArt.requestId });
+  const imageBytes = Buffer.from(imageBody.body, imageBody.base64Encoded ? 'base64' : 'utf8');
+  assert(imageBytes.length > 0, 'Catalog artwork response was empty.');
+  loadedArt.bytes = imageBytes.length;
+  loadedArt.sha256 = createHash('sha256').update(imageBytes).digest('hex');
+  await sleep(750); // Allow the downloaded image's decode and paint before capture.
+  await capture('06-scute-catalog-real-artwork');
+  await click('Create tokens');
+  await find('qa, player details');
+  await capture('07-populated-token-table');
+  log('PASS real catalog token creation with downloaded artwork evidence');
+  assert.equal(evidence.exceptions.length, 0, 'Unhandled browser runtime exceptions occurred; inspect evidence.json.');
+  evidence.status = 'passed';
+} catch (error) {
+  evidence.status = 'failed'; evidence.failure = error.stack || String(error);
+  console.error(evidence.failure);
+  if (cdp) { try { await capture('failure'); } catch (captureError) { evidence.captureFailure = String(captureError); } }
+  process.exitCode = 1;
+} finally {
+  evidence.finished = new Date().toISOString();
+  await writeFile(join(output, 'evidence.json'), JSON.stringify(evidence, null, 2));
+  await writeFile(join(output, 'chrome.log'), chromeLog);
+  cdp?.socket.close();
+  if (chrome && chrome.exitCode === null) {
+    chrome.kill('SIGTERM');
+    await Promise.race([new Promise(resolve => chrome.once('exit', resolve)), sleep(5000)]);
+    if (chrome.exitCode === null) chrome.kill('SIGKILL');
+  }
+  if (server) await new Promise(resolve => server.close(resolve));
+  if (profile) await rm(profile, { recursive: true, force: true });
+}
