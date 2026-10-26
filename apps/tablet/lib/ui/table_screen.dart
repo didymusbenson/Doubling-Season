@@ -458,7 +458,7 @@ class _GameHub extends StatelessWidget {
       label: controller.busy ? 'Saving game' : 'Game saved',
       child: IconButton(
         tooltip: 'Game controls',
-        onPressed: () => onOpen(WorkspacePage.settings),
+        onPressed: () => onOpen(WorkspacePage.tableHub),
         icon: const Icon(Icons.tune),
         style: IconButton.styleFrom(
           shape: const CircleBorder(),

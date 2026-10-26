@@ -1155,6 +1155,7 @@ class PlayerField extends StatelessWidget {
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: controller,
       builder: (context, value, _) => Semantics(
+        container: true,
         label: kIsWeb
             ? '$label. Current value: ${value.text.isEmpty ? 'empty' : value.text}'
             : label,

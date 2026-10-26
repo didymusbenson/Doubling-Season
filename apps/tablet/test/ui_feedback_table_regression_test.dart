@@ -563,9 +563,16 @@ void main() {
         final before = fixture.controller.session.toJson();
         await tester.tap(find.byTooltip('Game controls'));
         await tester.pumpAndSettle();
-        for (final label in ['History', 'Reset', 'Dice', 'Settings']) {
+        for (final label in [
+          'Dice',
+          'History',
+          'New game',
+          'Archives',
+          'Board wipes',
+          'Settings',
+        ]) {
           expect(
-            find.widgetWithText(ChoiceChip, label).hitTestable(),
+            find.widgetWithText(OutlinedButton, label).hitTestable(),
             findsOneWidget,
           );
         }
@@ -813,17 +820,18 @@ void main() {
           }
           for (final source in fixture.controller.session.commanders) {
             final card = find.byKey(ValueKey('commander-tracker-${source.id}'));
-            await tester.ensureVisible(card);
-            await tester.pumpAndSettle();
+            expect(
+              card.hitTestable(),
+              findsOneWidget,
+              reason: 'All eight sources fit without scrolling',
+            );
             final add = find.descendant(
               of: card,
-              matching: find.byTooltip(
-                'Increase ${source.name} commander damage',
-              ),
+              matching: find.byKey(ValueKey('commander-increase-${source.id}')),
             );
             expect(add.hitTestable(), findsOneWidget);
             expect(tester.getSize(add).width, greaterThanOrEqualTo(44));
-            expect(tester.getSize(add).height, 140);
+            expect(tester.getSize(add).height, greaterThanOrEqualTo(44));
             await tester.tap(add);
             await tester.pumpAndSettle();
             expect(
@@ -876,7 +884,7 @@ void main() {
         await tester.tap(
           find.descendant(
             of: direct,
-            matching: find.byTooltip('Increase Commander commander damage'),
+            matching: find.byKey(ValueKey('commander-increase-$sourceId')),
           ),
         );
         await tester.pumpAndSettle();
@@ -889,49 +897,31 @@ void main() {
         await tester.pumpAndSettle();
         expect(fixture.controller.session.commanders, isEmpty);
         expect(fixture.controller.player(player.id).life, 40);
-        await tester.tap(find.widgetWithText(ChoiceChip, 'Player'));
+        await tester.tap(find.byTooltip('Close workspace'));
         await tester.pumpAndSettle();
-        final addCommander = find.text('Add commander');
-        await tester.scrollUntilVisible(
-          addCommander,
-          160,
-          scrollable: find
-              .descendant(
-                of: find.byType(ListView).last,
-                matching: find.byType(Scrollable),
-              )
-              .first,
-        );
+        await tester.tap(find.byKey(ValueKey('${player.id}-player-details')));
         await tester.pumpAndSettle();
-        expect(addCommander.hitTestable(), findsOneWidget);
-        final input = find.byWidgetPredicate(
-          (w) => w is TextField && w.decoration?.labelText == 'Commander name',
-        );
-        tester.widget<TextField>(input).controller!.text = 'New partner';
-        await tester.tap(find.text('Add commander'));
+        await tester.tap(find.widgetWithText(SwitchListTile, 'Has partner'));
         await tester.pumpAndSettle();
-        expect(
-          fixture.controller.session.commanders.single.ownerPlayerId,
-          player.id,
-        );
-        expect(
-          fixture.controller.session.commanders.single.name,
-          'New partner',
-        );
-        await tester.tap(find.widgetWithText(ChoiceChip, 'Counters'));
+        expect(fixture.controller.session.hasPartner(player.id), isTrue);
+        final activeSources = fixture
+            .controller
+            .session
+            .commanderTrackingSources
+            .where((source) => source.ownerPlayerId == player.id)
+            .toList();
+        expect(activeSources, hasLength(2));
+        final partnerId = activeSources.last.id;
+        await tester.tap(find.byTooltip('Close workspace'));
+        await tester.pumpAndSettle();
+        await tester.tap(ledger);
         await tester.pumpAndSettle();
         expect(
           fixture.controller.session.players.map((p) => p.life).toList(),
           beforeLife,
         );
         expect(
-          find
-              .byKey(
-                ValueKey(
-                  'commander-tracker-${fixture.controller.session.commanders.single.id}',
-                ),
-              )
-              .hitTestable(),
+          find.byKey(ValueKey('commander-tracker-$partnerId')).hitTestable(),
           findsOneWidget,
         );
         await capture(
@@ -1018,11 +1008,30 @@ void main() {
         await tester.ensureVisible(chip);
         await tester.pumpAndSettle();
         expect(chip.hitTestable(), findsOneWidget);
+        final siblings = fixture.controller.session.commanderTrackingSources
+            .where((item) => item.ownerPlayerId == source.ownerPlayerId)
+            .toList();
+        final role = siblings.indexWhere((item) => item.id == source.id) == 0
+            ? 'Commander'
+            : 'Partner';
         final sourceLabel = find.descendant(
           of: chip,
-          matching: find.textContaining(source.name),
+          matching: find.text(role),
         );
-        expect(tester.widget<Text>(sourceLabel).data, startsWith(source.name));
+        expect(tester.widget<Text>(sourceLabel).data, role);
+        expect(
+          tester
+              .widgetList<Semantics>(
+                find.descendant(of: chip, matching: find.byType(Semantics)),
+              )
+              .any(
+                (widget) =>
+                    widget.properties.label?.contains(source.name) == true,
+              ),
+          isTrue,
+          reason:
+              'Saved source identity remains accessible when the compact label uses its role',
+        );
         expect(
           bounds(tester, sourceLabel).right,
           lessThanOrEqualTo(bounds(tester, chip).right - 7),
@@ -1045,7 +1054,7 @@ void main() {
               .url,
           identity.artworkUrl,
         );
-        final add = find.byTooltip('Increase ${source.name} commander damage');
+        final add = find.byKey(ValueKey('commander-increase-${source.id}'));
         expect(add.hitTestable(), findsOneWidget);
         expect(tester.getSize(add).width, greaterThanOrEqualTo(44));
         expect(tester.getSize(add).height, greaterThanOrEqualTo(44));
@@ -1082,14 +1091,18 @@ void main() {
         1,
       );
       await tester.ensureVisible(
-        find.byTooltip('Decrease Partner A commander damage'),
+        find.byKey(const ValueKey('commander-decrease-partner-a')),
       );
       await tester.pumpAndSettle();
       expect(
-        find.byTooltip('Decrease Partner A commander damage').hitTestable(),
+        find
+            .byKey(const ValueKey('commander-decrease-partner-a'))
+            .hitTestable(),
         findsOneWidget,
       );
-      await tester.tap(find.byTooltip('Decrease Partner A commander damage'));
+      await tester.tap(
+        find.byKey(const ValueKey('commander-decrease-partner-a')),
+      );
       await tester.pumpAndSettle();
       expect(fixture.controller.player(recipient.id).life, 39);
       expect(

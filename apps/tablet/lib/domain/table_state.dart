@@ -155,7 +155,7 @@ class GameSession {
             .where((s) => s.ownerPlayerId == owner.id)
             .toList();
         return configured.isNotEmpty
-            ? configured
+            ? configured.where((source) => source.active).toList()
             : [
                 CommanderSource(
                   id: 'default-commander:${owner.id}',
@@ -165,6 +165,12 @@ class GameSession {
               ];
       })(),
   ];
+
+  bool hasPartner(String playerId) =>
+      commanders
+          .where((source) => source.ownerPlayerId == playerId && source.active)
+          .length >=
+      2;
 
   PlayerState player(String id) => players.firstWhere(
     (value) => value.id == id,
@@ -488,21 +494,25 @@ class CommanderSource {
   String id;
   String ownerPlayerId;
   String name;
+  bool active;
   CommanderSource({
     required this.id,
     required this.ownerPlayerId,
     required this.name,
+    this.active = true,
   });
   factory CommanderSource.fromJson(Map<String, dynamic> json) =>
       CommanderSource(
         id: json['id'] as String,
         ownerPlayerId: json['ownerPlayerId'] as String,
         name: json['name'] as String,
+        active: json['active'] as bool? ?? true,
       );
   Map<String, dynamic> toJson() => {
     'id': id,
     'ownerPlayerId': ownerPlayerId,
     'name': name,
+    'active': active,
   };
   CommanderSource copy() => CommanderSource.fromJson(toJson());
 }

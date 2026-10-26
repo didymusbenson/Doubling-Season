@@ -32,6 +32,7 @@ import '../support_sheet.dart';
 
 part 'token_pages.dart';
 part 'game_pages.dart';
+part 'commander_page.dart';
 part 'library_pages.dart';
 
 enum WorkspacePage {
@@ -50,6 +51,9 @@ enum WorkspacePage {
   counters,
   lifeCorrection,
   history,
+  tableHub,
+  archives,
+  boardWipes,
   reset,
   dice,
   settings,
@@ -113,9 +117,6 @@ class _TableWorkspace extends StatefulWidget {
 
 class _TableWorkspaceState extends State<_TableWorkspace> {
   late WorkspacePage _page;
-  bool _commanderRegionFirst = false;
-  int _playerTabIndex = 0;
-  int _resetTabIndex = 0;
   String? _editingPlayerCounter;
   String? _editingCommanderId;
   Future<void> _directQueue = Future.value();
@@ -148,16 +149,13 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   String? _editingNumber;
   TokenDefinition? _selectedDefinition;
   _Confirmation? _confirmation;
-  final _navigation =
-      <(WorkspacePage, String?, int, bool, String?, double, double)>[];
+  final _navigation = <(WorkspacePage, String?, String?, double, double)>[];
   final _playerScroll = ScrollController();
   final _counterScroll = ScrollController();
 
   void _rememberLocation() => _navigation.add((
     _page,
     _itemId,
-    _playerTabIndex,
-    _commanderRegionFirst,
     _editingCommanderId,
     _playerScroll.hasClients ? _playerScroll.offset : 0,
     _counterScroll.hasClients ? _counterScroll.offset : 0,
@@ -199,12 +197,6 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     _sessionId = c.session.id;
     _sessionGeneration = c.session.generation;
     _page = widget.initialPage;
-    _playerTabIndex =
-        _page == WorkspacePage.counters ||
-            _page == WorkspacePage.commanderDamage
-        ? 1
-        : 0;
-    _commanderRegionFirst = _page == WorkspacePage.commanderDamage;
     _itemId = widget.itemId;
     for (final player in c.session.players) {
       if (player.seatId == widget.seatId || player.id == widget.seatId) {
@@ -330,7 +322,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   }
 
   Future<void> _requestClose() async {
-    if (_closing) return;
+    if (_closing || _working || _navigating) return;
     setState(() => _closing = true);
     await WidgetsBinding.instance.endOfFrame;
     await _directQueue;
@@ -399,19 +391,17 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         final destination = _navigation.removeLast();
         _page = destination.$1;
         _itemId = destination.$2;
-        _playerTabIndex = destination.$3;
-        _commanderRegionFirst = destination.$4;
-        _editingCommanderId = destination.$5;
+        _editingCommanderId = destination.$3;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           if (_playerScroll.hasClients) {
             _playerScroll.jumpTo(
-              destination.$6.clamp(0, _playerScroll.position.maxScrollExtent),
+              destination.$4.clamp(0, _playerScroll.position.maxScrollExtent),
             );
           }
           if (_counterScroll.hasClients) {
             _counterScroll.jumpTo(
-              destination.$7.clamp(0, _counterScroll.position.maxScrollExtent),
+              destination.$5.clamp(0, _counterScroll.position.maxScrollExtent),
             );
           }
         });
@@ -541,12 +531,6 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       setState(() {
         _rememberLocation();
         _page = page;
-        if (page == WorkspacePage.player) _playerTabIndex = 0;
-        if (page == WorkspacePage.counters ||
-            page == WorkspacePage.commanderDamage) {
-          _playerTabIndex = 1;
-        }
-        _commanderRegionFirst = page == WorkspacePage.commanderDamage;
         _editingCommanderId = null;
         _itemId = itemId;
         _confirmation = null;
@@ -663,14 +647,67 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     ),
   );
 
-  Widget _list(List<Widget> children) => ListView(
+  bool get _ownsCommanderControls =>
+      _page == WorkspacePage.commanderDamage &&
+      _confirmation == null &&
+      _validScope;
+  double get _controlWidth =>
+      (_navigation.isNotEmpty || _confirmation != null) ? 88 : 44;
+
+  Widget _dismissControls() => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (_navigation.isNotEmpty || _confirmation != null)
+        SizedBox(
+          width: 44,
+          height: 44,
+          child: IconButton(
+            tooltip: 'Back',
+            padding: EdgeInsets.zero,
+            onPressed: _back,
+            icon: const Icon(Icons.arrow_back),
+          ),
+        ),
+      SizedBox(
+        width: 44,
+        height: 44,
+        child: IconButton(
+          tooltip: 'Close workspace',
+          padding: EdgeInsets.zero,
+          onPressed: _working || _navigating ? null : _requestClose,
+          icon: const Icon(Icons.close),
+        ),
+      ),
+    ],
+  );
+
+  // Only the actual corner occupied by dismissal controls is reserved. There is
+  // no app bar, divider, full-width heading band or full-height side rail.
+  Widget _contentTop(Widget child) => _ownsCommanderControls
+      ? child
+      : Padding(
+          padding: EdgeInsets.only(right: _controlWidth),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 50),
+            child: child,
+          ),
+        );
+
+  Widget _list(
+    List<Widget> children, {
+    bool controls = true,
+    ScrollController? controller,
+  }) => ListView(
+    controller: controller,
     padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
     children: [
-      for (final child in children)
-        if (child is ButtonStyleButton)
-          Align(alignment: Alignment.centerLeft, child: child)
+      for (var index = 0; index < children.length; index++)
+        if (index == 0 && controls)
+          _contentTop(children[index])
+        else if (children[index] is ButtonStyleButton)
+          Align(alignment: Alignment.centerLeft, child: children[index])
         else
-          child,
+          children[index],
     ],
   );
 
@@ -786,13 +823,15 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     WorkspacePage.utilities => 'Utilities',
     WorkspacePage.rules => 'Rules',
     WorkspacePage.presets => 'Saved setups',
-    WorkspacePage.player => 'Player & counters',
-    WorkspacePage.commanderDamage =>
-      _playerTabIndex == 1 ? 'Commander damage' : 'Player & counters',
-    WorkspacePage.counters => 'Player & counters',
+    WorkspacePage.player => 'Player customization',
+    WorkspacePage.commanderDamage => 'Commander damage',
+    WorkspacePage.counters => 'Counters',
     WorkspacePage.lifeCorrection => 'Correct life',
     WorkspacePage.history => 'Game history',
-    WorkspacePage.reset => 'Reset & restore',
+    WorkspacePage.reset => 'New game',
+    WorkspacePage.tableHub => 'Table tools',
+    WorkspacePage.archives => 'Archives',
+    WorkspacePage.boardWipes => 'Board wipes',
     WorkspacePage.dice => 'Dice',
     WorkspacePage.settings => 'Table settings',
   };
@@ -849,11 +888,14 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       WorkspacePage.rules => _rulesPage(),
       WorkspacePage.presets => _presetsPage(),
       WorkspacePage.player => _playerPage(),
-      WorkspacePage.commanderDamage => _playerPage(),
-      WorkspacePage.counters => _playerPage(),
+      WorkspacePage.commanderDamage => _focusedCommanderPage(),
+      WorkspacePage.counters => _countersPage(),
       WorkspacePage.lifeCorrection => _lifeCorrectionPage(),
       WorkspacePage.history => _historyPage(),
       WorkspacePage.reset => _resetPage(),
+      WorkspacePage.tableHub => _tableHubPage(),
+      WorkspacePage.archives => _archivesPage(),
+      WorkspacePage.boardWipes => _boardWipesPage(),
       WorkspacePage.dice => _dicePage(),
       WorkspacePage.settings => _settingsPage(),
     };
@@ -862,14 +904,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   @override
   Widget build(BuildContext context) {
     final visibleError = _directFailure ?? _error;
-    final focusedCommander =
-        _page == WorkspacePage.commanderDamage && _playerTabIndex == 1;
-    final utility = _page == WorkspacePage.utilities && p != null
-        ? p!.utilities.where((u) => u.id == _itemId).firstOrNull
-        : null;
-    final compactUtility =
-        utility != null &&
-        _field('utility.${utility.id}.panel').text != 'artwork';
+    final focusedCommander = _ownsCommanderControls;
     final content = TableModalFrame(
       quarterTurns: widget.quarterTurns,
       surfaceKey: focusedCommander
@@ -884,127 +919,6 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         ),
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 10, 4),
-              child: Row(
-                children: [
-                  if (_navigation.isNotEmpty || _confirmation != null)
-                    IconButton(
-                      tooltip: 'Back',
-                      onPressed: _back,
-                      icon: const Icon(Icons.arrow_back),
-                    ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          focusedCommander
-                              ? '$_seatName · ${p?.life ?? 0} life'
-                              : _seatName,
-                          style: Theme.of(context).textTheme.labelLarge
-                              ?.copyWith(
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                        ),
-                        Text(
-                          _title,
-                          style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (focusedCommander)
-                    IconButton(
-                      tooltip: 'Correct life separately',
-                      onPressed: _working
-                          ? null
-                          : () => _go(WorkspacePage.lifeCorrection),
-                      icon: const Icon(Icons.edit_note, size: 22),
-                    ),
-                  IconButton(
-                    tooltip: 'Close workspace',
-                    onPressed: _requestClose,
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-            ),
-            if (_playerId != null &&
-                !_createCustom &&
-                _selectedDefinition == null &&
-                !compactUtility &&
-                !{
-                  WorkspacePage.player,
-                  WorkspacePage.rules,
-                  WorkspacePage.presets,
-                  WorkspacePage.counters,
-                  WorkspacePage.lifeCorrection,
-                  WorkspacePage.token,
-                  WorkspacePage.commanderDamage,
-                  WorkspacePage.tokenStatus,
-                  WorkspacePage.tokenCounters,
-                  WorkspacePage.tokenSplit,
-                  WorkspacePage.tokenArtwork,
-                  WorkspacePage.tokenSummary,
-                }.contains(_page))
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Row(
-                  children: [
-                    for (final page in [
-                      WorkspacePage.tokens,
-                      WorkspacePage.utilities,
-                      WorkspacePage.rules,
-                      WorkspacePage.presets,
-                      WorkspacePage.player,
-                    ])
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: ChoiceChip(
-                          label: Text(switch (page) {
-                            WorkspacePage.tokens => 'Tokens',
-                            WorkspacePage.utilities => 'Utilities',
-                            WorkspacePage.rules => 'Rules',
-                            WorkspacePage.presets => 'Setups',
-                            _ => 'Player',
-                          }),
-                          selected: _page == page,
-                          onSelected: (_) => _go(page),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            if (_playerId == null && _page != WorkspacePage.reset)
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Row(
-                  children: [
-                    for (final page in [
-                      WorkspacePage.history,
-                      WorkspacePage.reset,
-                      WorkspacePage.dice,
-                      WorkspacePage.settings,
-                    ])
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: ChoiceChip(
-                          label: Text(switch (page) {
-                            WorkspacePage.history => 'History',
-                            WorkspacePage.reset => 'Reset',
-                            WorkspacePage.dice => 'Dice',
-                            _ => 'Settings',
-                          }),
-                          selected: _page == page,
-                          onSelected: (_) => _go(page),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
             SizedBox(
               height: 2,
               child: _working
@@ -1023,9 +937,11 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
                     : Theme.of(context).colorScheme.errorContainer,
                 child: Text(
                   visibleError != null
-                      ? (visibleError == _directFailure && !_closeSaveFailed
+                      ? (_closeSaveFailed
+                            ? '$visibleError\nYour draft is retained only for this app session; it is not saved to storage.'
+                            : visibleError == _directFailure
                             ? '$visibleError\nClose again to dismiss.'
-                            : '$visibleError\nYour draft is retained only for this app session; it is not saved to storage.')
+                            : visibleError)
                       : _status!,
                 ),
               ),
@@ -1046,8 +962,27 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
                   ],
                 ),
               ),
-            const Divider(height: 12),
-            Expanded(child: _content()),
+            Expanded(
+              child: focusedCommander
+                  ? _content()
+                  : Stack(
+                      children: [
+                        Positioned.fill(
+                          child: ClipPath(
+                            clipper: _WorkspaceControlCutout(_controlWidth + 8),
+                            child: Semantics(
+                              container: true,
+                              explicitChildNodes: true,
+                              namesRoute: true,
+                              label: _title,
+                              child: _content(),
+                            ),
+                          ),
+                        ),
+                        Positioned(top: 6, right: 8, child: _dismissControls()),
+                      ],
+                    ),
+            ),
           ],
         ),
       ),
@@ -1061,10 +996,11 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         fit: StackFit.expand,
         children: [
           Positioned.fill(
-            child: Semantics(
-              label: 'Close workspace',
-              button: true,
-              onTap: _requestClose,
+            // A full-window actionable semantics node can sit above dialog
+            // controls in Flutter web's DOM hit order after a state update.
+            // Outside pointer taps still dismiss; assistive technology uses the
+            // visible 44px Close button (or the focused keyboard's Close).
+            child: ExcludeSemantics(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: _requestClose,
@@ -1130,4 +1066,20 @@ class _InlineEdit {
   Future<dynamic> Function(String value) save;
   Future<bool>? saving;
   Timer? timer;
+}
+
+class _WorkspaceControlCutout extends CustomClipper<Path> {
+  const _WorkspaceControlCutout(this.width);
+  final double width;
+  @override
+  Path getClip(Size size) => Path()
+    ..moveTo(0, 0)
+    ..lineTo(size.width - width, 0)
+    ..lineTo(size.width - width, 52)
+    ..lineTo(size.width, 52)
+    ..lineTo(size.width, size.height)
+    ..lineTo(0, size.height)
+    ..close();
+  @override
+  bool shouldReclip(_WorkspaceControlCutout old) => old.width != width;
 }

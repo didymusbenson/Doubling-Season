@@ -188,7 +188,11 @@ void main() {
               reason: '${utility.kind}: $label',
             );
           }
-          await reachable(tester, find.byTooltip('Hide this utility'));
+          await reachable(
+            tester,
+            find.byTooltip('Hide this utility'),
+            reason: utility.kind,
+          );
           expect(find.byType(ExpansionTile), findsNothing);
           if (utility.kind == 'mana_pool') {
             for (final color in PlayerState.manaColors) {

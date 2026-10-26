@@ -109,14 +109,12 @@ void main() {
   });
   Finder card() => find.byKey(ValueKey('commander-tracker-$sourceId'));
   Future<void> plus(WidgetTester tester) async {
-    final rect = tester.getRect(card());
-    await tester.tapAt(rect.center + const Offset(35, -10));
+    await tester.tap(find.byKey(ValueKey('commander-increase-$sourceId')));
     await tester.pump();
   }
 
   Future<void> minus(WidgetTester tester) async {
-    final rect = tester.getRect(card());
-    await tester.tapAt(rect.center - const Offset(35, 10));
+    await tester.tap(find.byKey(ValueKey('commander-decrease-$sourceId')));
     await tester.pump();
   }
 
@@ -263,7 +261,7 @@ void main() {
       await open(tester);
       repo.delay = true;
       final gesture = await tester.startGesture(
-        tester.getRect(card()).center + const Offset(35, -10),
+        tester.getCenter(find.byKey(ValueKey('commander-increase-$sourceId'))),
       );
       await tester.pump(const Duration(milliseconds: 650));
       expect(repo.waits.length, 1);

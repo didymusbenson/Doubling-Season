@@ -135,26 +135,28 @@ extension _TokenPages on _TableWorkspaceState {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-          child: Row(
-            children: [
-              Expanded(
-                child: PlayerField(
-                  controller: query,
-                  label: 'Search tokens, abilities, type, or P/T',
+          child: _contentTop(
+            Row(
+              children: [
+                Expanded(
+                  child: PlayerField(
+                    controller: query,
+                    label: 'Search tokens, abilities, type, or P/T',
+                  ),
                 ),
-              ),
-              IconButton(
-                tooltip: 'Clear token search',
-                onPressed: () => _update(query.clear),
-                icon: const Icon(Icons.clear),
-              ),
-              const SizedBox(width: 4),
-              _button(
-                'Custom token',
-                () => _update(() => _createCustom = true),
-                icon: Icons.add,
-              ),
-            ],
+                IconButton(
+                  tooltip: 'Clear token search',
+                  onPressed: () => _update(query.clear),
+                  icon: const Icon(Icons.clear),
+                ),
+                const SizedBox(width: 4),
+                _button(
+                  'Custom token',
+                  () => _update(() => _createCustom = true),
+                  icon: Icons.add,
+                ),
+              ],
+            ),
           ),
         ),
         SingleChildScrollView(

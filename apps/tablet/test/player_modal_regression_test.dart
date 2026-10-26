@@ -172,35 +172,42 @@ void main() {
     );
   }
 
-  testWidgets(
-    'direct commander entry changes heading and tools with Player/Counters',
-    (tester) async {
-      final f = TableFixture();
-      await f.initialize();
-      addTearDown(f.dispose);
-      await open(tester, f, page: WorkspacePage.commanderDamage);
-      expect(find.byTooltip('Correct life separately'), findsOneWidget);
-      expect(find.text('Commander damage'), findsOneWidget);
-      await tester.tap(find.widgetWithText(ChoiceChip, 'Player'));
-      await tester.pumpAndSettle();
-      expect(find.text('Player & counters'), findsOneWidget);
-      expect(find.text('Commander damage'), findsNothing);
-      expect(find.byTooltip('Correct life separately'), findsNothing);
-      expect(field('Player name'), findsOneWidget);
-      await tester.tap(find.widgetWithText(ChoiceChip, 'Counters'));
-      await tester.pumpAndSettle();
-      expect(find.text('Commander damage'), findsOneWidget);
-      expect(find.byTooltip('Correct life separately'), findsOneWidget);
+  testWidgets('Player, Counters and Commander are isolated direct routes', (
+    tester,
+  ) async {
+    final f = TableFixture();
+    await f.initialize();
+    addTearDown(f.dispose);
+    for (final page in [
+      WorkspacePage.player,
+      WorkspacePage.counters,
+      WorkspacePage.commanderDamage,
+    ]) {
+      await open(tester, f, page: page);
+      expect(find.widgetWithText(ChoiceChip, 'Player'), findsNothing);
+      expect(find.widgetWithText(ChoiceChip, 'Counters'), findsNothing);
+      expect(
+        field('Player name'),
+        page == WorkspacePage.player ? findsOneWidget : findsNothing,
+      );
       expect(
         find.byKey(
           ValueKey('commander-tracker-default-commander:${f.playerId}'),
         ),
-        findsOneWidget,
+        page == WorkspacePage.commanderDamage ? findsOneWidget : findsNothing,
+      );
+      expect(
+        find.text('Player counters'),
+        page == WorkspacePage.counters ? findsOneWidget : findsNothing,
+      );
+      expect(
+        find.byTooltip('Correct life separately'),
+        page == WorkspacePage.commanderDamage ? findsOneWidget : findsNothing,
       );
       expect(tester.takeException(), isNull);
       await close(tester);
-    },
-  );
+    }
+  });
 
   for (final size in [const Size(1133, 744), const Size(844, 480)]) {
     testWidgets(
@@ -278,8 +285,8 @@ void main() {
         expect(surface, Size(size.width * .75, size.height * .75));
         await reveal(tester, find.text('Search token art'));
         expect(find.text('Search token art').hitTestable(), findsOneWidget);
-        await reveal(tester, find.text('Add commander'));
-        expect(find.text('Add commander').hitTestable(), findsOneWidget);
+        await reveal(tester, find.text('Has partner'));
+        expect(find.text('Has partner').hitTestable(), findsOneWidget);
         final saved = find.widgetWithText(OutlinedButton, 'Saved setups');
         await reveal(tester, saved);
         await tester.tap(saved);
@@ -290,15 +297,16 @@ void main() {
         await tester.tap(find.byTooltip('Back'));
         await tester.pumpAndSettle();
         expect(saved.hitTestable(), findsOneWidget); // exact originating scroll
-        await tester.tap(find.widgetWithText(ChoiceChip, 'Counters'));
-        await tester.pumpAndSettle();
+        await close(tester);
+        await open(tester, f, page: WorkspacePage.counters, size: size);
         await capture(
           tester,
           'counters-${size.width.toInt()}x${size.height.toInt()}',
         );
-        await tester.tap(find.byTooltip('Increase life by 1'));
+        await tester.tap(find.byTooltip('Increase energy'));
         await tester.pumpAndSettle();
-        expect(f.player.life, 41);
+        expect(f.player.counters['energy'], 1);
+        expect(f.player.life, 40);
         expect(find.byType(SnackBar), findsNothing);
         expect(tester.takeException(), isNull);
         await close(tester);
@@ -314,11 +322,9 @@ void main() {
       final f = TableFixture(state);
       await f.initialize();
       addTearDown(f.dispose);
-      await open(tester, f, page: WorkspacePage.reset);
+      await open(tester, f, page: WorkspacePage.boardWipes);
       final shell = find.byKey(const ValueKey('context-workspace'));
       final rect = tester.getRect(shell);
-      await tester.tap(find.widgetWithText(ChoiceChip, 'Board wipes'));
-      await tester.pumpAndSettle();
       await tester.tap(find.text('Wipe all tokens').first);
       await tester.pumpAndSettle();
       expect(find.text('Wipe all tokens for everyone?'), findsOneWidget);
@@ -332,12 +338,8 @@ void main() {
         isTrue,
       );
       expect(f.controller.session.history, hasLength(1));
-      expect(
-        tester
-            .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Board wipes'))
-            .selected,
-        isTrue,
-      );
+      expect(find.text('Wipe all tokens').first, findsOneWidget);
+      expect(find.widgetWithText(ChoiceChip, 'Board wipes'), findsNothing);
       expect(await f.controller.undo(), isTrue);
       expect(f.controller.session.players[0].tokens, hasLength(1));
       expect(f.controller.session.players[1].tokens, hasLength(1));
@@ -367,12 +369,8 @@ void main() {
       expect(f.player.life, 27);
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Counters'))
-            .selected,
-        isTrue,
-      );
+      expect(find.text('Player counters'), findsOneWidget);
+      expect(find.widgetWithText(ChoiceChip, 'Counters'), findsNothing);
       expect(find.text('Correct life').hitTestable(), findsOneWidget);
       expect(tester.getRect(shell), rect);
       expect(tester.takeException(), isNull);
@@ -491,7 +489,7 @@ void main() {
       await tester.tap(
         find.descendant(
           of: partner,
-          matching: find.byTooltip('Increase Partner commander damage'),
+          matching: find.byKey(const ValueKey('commander-increase-self-b')),
         ),
       );
       await tester.pumpAndSettle();
@@ -501,7 +499,7 @@ void main() {
       await tester.tap(
         find.descendant(
           of: first,
-          matching: find.byTooltip('Increase Partner commander damage'),
+          matching: find.byKey(const ValueKey('commander-increase-self-a')),
         ),
       );
       await tester.pumpAndSettle();
@@ -510,7 +508,7 @@ void main() {
       await tester.tap(
         find.descendant(
           of: first,
-          matching: find.byTooltip('Decrease Partner commander damage'),
+          matching: find.byKey(const ValueKey('commander-decrease-self-a')),
         ),
       );
       await tester.pumpAndSettle();

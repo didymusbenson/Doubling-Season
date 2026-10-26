@@ -119,8 +119,21 @@ async function hitTarget(node) {
       functionDeclaration: `function(x, y) {
         let hit = document.elementFromPoint(x, y);
         while (hit && hit.shadowRoot) { const inner = hit.shadowRoot.elementFromPoint(x, y); if (!inner || inner === hit) break; hit = inner; }
+        const describe = element => {
+          if (!element) return null;
+          const style = getComputedStyle(element), rect = element.getBoundingClientRect();
+          return { tag: element.tagName, id: element.id, role: element.getAttribute('role'),
+            label: element.getAttribute('aria-label'), text: element.textContent?.slice(0, 140),
+            zIndex: style.zIndex, pointerEvents: style.pointerEvents, transform: style.transform,
+            rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } };
+        };
+        const chain = element => { const result = []; for (let i = 0; element && i < 8; i++, element = element.parentElement) result.push(describe(element)); return result; };
+        const actionSelector = '[role="button"],[role="switch"],[role="checkbox"],[role="textbox"],[flt-tappable]';
+        const selectedAction = this.closest(actionSelector), hitAction = hit?.closest(actionSelector);
         return { tag: hit?.tagName, label: hit?.getAttribute('aria-label'), text: hit?.textContent?.slice(0, 220),
-          selectedContainsHit: !!hit && (this === hit || this.contains(hit)), hitContainsSelected: !!hit && hit.contains(this) };
+          sameAction: !!selectedAction && selectedAction === hitAction,
+          selectedContainsHit: !!hit && (this === hit || this.contains(hit)), hitContainsSelected: !!hit && hit.contains(this),
+          selectedChain: chain(this), hitChain: chain(hit), atPoint: document.elementsFromPoint(x, y).slice(0, 10).map(describe) };
       }`,
     });
     return result.value;
@@ -195,15 +208,35 @@ async function diagnoseHold(input) {
   log('observed hold outcome', record);
   await capture(`04-${input}-hold-after-release`);
   await click('Game controls');
-  await click('History');
+  const hubChoices = ['Dice', 'History', 'New game', 'Archives', 'Board wipes', 'Settings'];
+  for (const label of hubChoices) {
+    await find(label, { role: 'button' });
+    assert.equal((await semantics()).filter(node => node.role === 'button' && node.name === label).length, 1, `Hub repeats ${label}`);
+  }
+  await capture(`04-${input}-focused-table-hub`);
+  await click('History', { role: 'button' });
+  assert(!(await semantics()).some(node => node.role === 'button' && hubChoices.includes(node.name)), 'Focused history still has sibling navigation tabs.');
   await capture(`04-${input}-hold-chronological-history`);
+  await click('Back', { role: 'button' });
+  await find('Archives', { role: 'button' });
   await click('Close workspace');
 }
 async function click(name, options = {}) {
-  const node = await find(name, options);
+  let node = await find(name, options);
+  let target = await hitTarget(node);
+  if (!target.sameAction) {
+    evidence.unmatchedTargets ||= [];
+    evidence.unmatchedTargets.push({ name, at: new Date().toISOString(), node, target });
+    await until(`current DOM hit target for ${JSON.stringify(name)}`, async () => {
+      node = await find(name, options);
+      target = await hitTarget(node);
+      evidence.unmatchedTargets.push({ name, at: new Date().toISOString(), node, target });
+      return target.sameAction;
+    }, 3000);
+  }
   const x = node.rect.x + node.rect.width / 2, y = node.rect.y + node.rect.height / 2;
   assert(x >= 0 && y >= 0 && x < evidence.viewport.width && y < evidence.viewport.height, `Control center is clipped: ${name}`);
-  log(options.hold ? 'pointer hold from rendered semantic bounds' : 'pointer click from rendered semantic bounds', { name: node.name, role: node.role, rect: node.rect, hit: await hitTarget(node) });
+  log(options.hold ? 'pointer hold from rendered semantic bounds' : 'pointer click from rendered semantic bounds', { name: node.name, role: node.role, rect: node.rect, hit: target });
   await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
   await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 });
   await sleep(options.hold || 40);
@@ -322,6 +355,53 @@ try {
   await capture('03-name-persisted-after-reload');
   log('PASS software q→a typing, Done, durable rename and reload');
 
+  // Partner setup requires no naming, and its stable ledger is not erased by Off.
+  await click('qa, player details');
+  assert(!(await semantics()).some(node => node.name.includes('Commander name')), 'Player setup still requires commander naming.');
+  await click('Has partner');
+  await selected('Has partner');
+  await find('Has partner', { role: 'switch' });
+  await sleep(300); // Capture the committed switch after its visual transition.
+  await capture('03b-player-partner-enabled');
+  await click('Close workspace');
+  await click('qa, commander damage ', { startsWith: true, role: 'button' });
+  await click('Increase Partner #2 damage from qa; lose one life', { startsWith: true, role: 'button' });
+  await find('qa · 39 life', { contains: true });
+  await capture('03c-focused-partner-damage');
+  await click('Close workspace');
+  await click('qa, player details');
+  await click('Has partner');
+  await find('Set this partner’s damage to zero for everyone first.', { contains: true });
+  await until('guarded partner remains enabled', async () => (await semantics()).some(node =>
+    node.role === 'switch' && node.name.startsWith('Has partner') && ['true', true].includes(node.checked)));
+  assert(!(await semantics()).some(node => node.name.includes('Bad state:')), 'Expected partner guard surfaced as a global application error.');
+  await capture('03d-partner-off-guarded');
+  await click('Close workspace');
+  await click('qa, commander damage ', { startsWith: true, role: 'button' });
+  await click('Correct Partner #2 damage from qa; life unchanged');
+  await click('Set damage total. Current value:', { startsWith: true });
+  await click('Select all');
+  await click('0', { role: 'button' });
+  await click('Done');
+  await click('Correct ledger only');
+  await find('qa · 39 life', { contains: true });
+  await click('Back');
+  await capture('03e-partner-corrected-without-life-change');
+  await click('Close workspace');
+  await click('qa, player details');
+  await click('Has partner');
+  await click('Close workspace');
+  await cdp.send('Page.reload', { ignoreCache: true });
+  await enableSemantics();
+  await find('qa, player details', { timeout: 90000 });
+  await click('qa, commander damage ', { startsWith: true, role: 'button' });
+  assert(!(await semantics()).some(node => node.name.includes('Increase Partner #2 damage from qa')), 'Inactive partner remained visible after reload.');
+  await capture('03f-partner-off-persisted');
+  await click('Close workspace');
+  await installInputObservation();
+  log('PASS focused partner setup, separate damage, guarded Off, ledger-only correction and persisted deactivation');
+
+
   await click('Day/Night: neither.', { startsWith: true });
   await find('Day/Night: day.', { startsWith: true });
   await click('Day/Night: day.', { startsWith: true });
@@ -342,7 +422,7 @@ try {
   log('PASS direct Day/Night taps and Dice controls; hold outcomes recorded separately');
 
   await click('qa, add token');
-  await click('Search tokens, abilities, type, or P/T. Current value:', { startsWith: true });
+  await click('Search tokens, abilities, type, or P/T. Current value:', { contains: true, role: 'button' });
   for (const letter of 'scute') await click(letter, { role: 'button' });
   await click('Done');
   await click('Scute Swarm', { startsWith: true });
@@ -365,11 +445,11 @@ try {
   await find('qa, Scute Swarm, Choose artwork', { contains: true, role: 'button' });
   await capture('08-expanded-token-full-art');
   await click('qa, Scute Swarm, Choose artwork', { contains: true, role: 'button' });
-  await find('Artwork image URL. Current value:', { startsWith: true, role: 'button' });
+  await find('Artwork image URL. Current value:', { contains: true, role: 'button' });
   await capture('09-current-artwork-editor');
-  await click('Artwork image URL. Current value:', { startsWith: true, role: 'button' });
+  await click('Artwork image URL. Current value:', { contains: true, role: 'button' });
   await typeSoftwareText(expectedScuteArtwork);
-  await find(`Artwork image URL. Current value: ${expectedScuteArtwork}`, { startsWith: true, role: 'button' });
+  await find(`Artwork image URL. Current value: ${expectedScuteArtwork}`, { contains: true, role: 'button' });
   await capture('10-artwork-url-keyboard-draft');
   await click('Done');
   await click('Preview image URL');
@@ -425,5 +505,5 @@ try {
     if (chrome.exitCode === null) chrome.kill('SIGKILL');
   }
   if (server) await new Promise(resolve => server.close(resolve));
-  if (profile) await rm(profile, { recursive: true, force: true });
+  if (profile) await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 }
