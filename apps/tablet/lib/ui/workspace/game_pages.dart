@@ -1008,7 +1008,8 @@ extension _GamePages on _TableWorkspaceState {
     builder: (context, constraints) {
       final columns = constraints.maxWidth >= 800 ? 3 : 2;
       final width = (constraints.maxWidth - 40 - (columns - 1) * 12) / columns;
-      return Padding(
+      return SingleChildScrollView(
+        key: const PageStorageKey('dice-scroll'),
         padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1088,30 +1089,21 @@ extension _GamePages on _TableWorkspaceState {
             ),
             if (_diceTotal != null) ...[
               _section('Total: $_diceTotal'),
-              Flexible(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: columns == 3 ? 120 : 160,
-                  ),
-                  child: SingleChildScrollView(
-                    key: const ValueKey('dice-results'),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (final result in _diceResults)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            child: Text(
-                              result,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                          ),
-                        if (_diceResults.isEmpty)
-                          const Text('Select at least one die.'),
-                      ],
+              Column(
+                key: const ValueKey('dice-results'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final result in _diceResults)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Text(
+                        result,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                     ),
-                  ),
-                ),
+                  if (_diceResults.isEmpty)
+                    const Text('Select at least one die.'),
+                ],
               ),
             ],
           ],

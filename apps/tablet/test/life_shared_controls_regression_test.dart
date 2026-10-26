@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -14,7 +15,19 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory catalog;
   final captures = Platform.environment['TABLET_CAPTURE_DIR'];
+  String? captureArt;
+  const artSource =
+      'https://cards.scryfall.io/large/front/e/a/ea630ba1-22f9-4a10-bdc6-0d03128214f4.jpg?1726285123';
+  // Optional local evidence asset: Scute Swarm (DSC), Alex Konstad.
+  // Production-equivalent art_crop/front/e/a/ea630ba1-22f9-4a10-bdc6-0d03128214f4.jpg?1726285123
+  // SHA256 39931b6a7567d7ee87f63a12e886edc6886ea2e230d1dc82389512d8b7897004.
+  // Asset is not committed and tests do not require a network download.
   setUpAll(() async {
+    final artFile = Platform.environment['TABLET_CAPTURE_ART_FILE'];
+    if (artFile != null) {
+      captureArt =
+          'data:image/jpeg;base64,${base64Encode(await File(artFile).readAsBytes())}';
+    }
     catalog = await Directory.systemTemp.createTemp('shared-controls-');
     Hive.init(catalog.path);
     await Hive.openBox<String>('tripling_season_tablet_catalog_v1');
@@ -45,10 +58,13 @@ void main() {
     Size size,
     int seats, {
     int empty = 0,
+    bool safeArea = true,
   }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = size;
-    tester.view.padding = const FakeViewPadding(top: 24, bottom: 20);
+    tester.view.padding = safeArea
+        ? const FakeViewPadding(top: 24, bottom: 20)
+        : const FakeViewPadding();
     addTearDown(tester.view.reset);
     final state = TabletState.initial();
     if (seats == 2) {
@@ -61,10 +77,27 @@ void main() {
           sampleToken(
             id: '${p.id}-$i',
             name: 'Scute Swarm $i',
+            type: 'Creature — Insect',
+            artworkUrl: captureArt,
             abilities:
                 'Landfall — Whenever a land you control enters, create a 1/1 green Insect creature token. If you control six or more lands, create a token that is a copy of Scute Swarm instead.',
           ),
       ];
+      if (captureArt != null) {
+        for (var i = 0; i < p.tokens.length; i++) {
+          final token = p.tokens[i];
+          token.artworkSet = 'DSC';
+          token.artworkOptions = [
+            {
+              'url': captureArt,
+              'set': 'DSC',
+              'artist': 'Alex Konstad',
+              'source': artSource,
+            },
+          ];
+          token.extra['artworkDisplayStyle'] = i.isEven ? 'fadeout' : 'full';
+        }
+      }
     }
     final f = TableFixture(state);
     await f.initialize();
@@ -83,6 +116,43 @@ void main() {
       f.dispose();
     });
     return f;
+  }
+
+  Future<void> capture(WidgetTester tester, String name) async {
+    if (captures == null) return;
+    // Decode the actual rendered providers outside fake test time, then wait
+    // for their fade-in frame before recording visual evidence.
+    if (captureArt != null) {
+      final context = tester.element(find.byType(TableScreen));
+      final providers = tester
+          .widgetList<Image>(find.byType(Image))
+          .map((image) => image.image)
+          .toList();
+      await tester.runAsync(
+        () => Future.wait(
+          providers.map((provider) => precacheImage(provider, context)),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .renderObjectList<RenderImage>(find.byType(RawImage))
+            .any((image) => image.image != null),
+        isTrue,
+      );
+    }
+    await tester.pump();
+    final boundary = tester.renderObject<RenderRepaintBoundary>(
+      find.byKey(const ValueKey('capture')),
+    );
+    await tester.runAsync(() async {
+      final image = await boundary.toImage();
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      await File(
+        '$captures/$name.png',
+      ).writeAsBytes(bytes!.buffer.asUint8List());
+      image.dispose();
+    });
   }
 
   Rect localRect(WidgetTester tester, Finder child, Finder ancestor) {
@@ -188,9 +258,20 @@ void main() {
               }
 
               expect(
-                localRect(tester, deltaText(), surface).right,
-                lessThanOrEqualTo(localRect(tester, number, surface).left),
+                localRect(tester, deltaText(), surface).center.dy,
+                closeTo(localRect(tester, number, surface).center.dy, .01),
               );
+              expect(
+                localRect(tester, number, surface).left -
+                    localRect(tester, deltaText(), surface).right,
+                closeTo(4, .01),
+              );
+              if (empty == 0 && [0, 2].contains(p.slot)) {
+                await capture(
+                  tester,
+                  'delta-negative-$seats-seat${p.slot + 1}-${size.width.toInt()}x${size.height.toInt()}',
+                );
+              }
               expect(
                 localRect(tester, number, surface).center.dx,
                 closeTo(center, .01),
@@ -204,9 +285,20 @@ void main() {
                 );
               }
               expect(
-                localRect(tester, deltaText(), surface).left,
-                greaterThanOrEqualTo(localRect(tester, number, surface).right),
+                localRect(tester, deltaText(), surface).center.dy,
+                closeTo(localRect(tester, number, surface).center.dy, .01),
               );
+              expect(
+                localRect(tester, deltaText(), surface).left -
+                    localRect(tester, number, surface).right,
+                closeTo(4, .01),
+              );
+              if (empty == 0 && [0, 2].contains(p.slot)) {
+                await capture(
+                  tester,
+                  'delta-positive-$seats-seat${p.slot + 1}-${size.width.toInt()}x${size.height.toInt()}',
+                );
+              }
               expect(
                 localRect(tester, number, surface).center.dx,
                 closeTo(center, .01),
@@ -217,20 +309,10 @@ void main() {
               );
             }
             if (captures != null && empty == 0) {
-              await tester.pump();
-              final boundary = tester.renderObject<RenderRepaintBoundary>(
-                find.byKey(const ValueKey('capture')),
+              await capture(
+                tester,
+                'shared-$seats-${size.width.toInt()}x${size.height.toInt()}',
               );
-              await tester.runAsync(() async {
-                final image = await boundary.toImage();
-                final bytes = await image.toByteData(
-                  format: ui.ImageByteFormat.png,
-                );
-                await File(
-                  '$captures/shared-$seats-${size.width.toInt()}x${size.height.toInt()}.png',
-                ).writeAsBytes(bytes!.buffer.asUint8List());
-                image.dispose();
-              });
             }
             expect(tester.takeException(), isNull);
           },
@@ -327,6 +409,316 @@ void main() {
         ),
         isTrue,
       );
+    },
+  );
+  testWidgets(
+    'real artwork fixture preserves expanded fade and full treatments',
+    (tester) async {
+      final f = await show(tester, const Size(1133, 744), 4);
+      final player = f.controller.session.players.first;
+      final id = '${player.id}-0';
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(ValueKey(id)),
+          matching: find.text('Scute Swarm 0'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await capture(tester, 'real-art-expanded-fade');
+      await f.board.setArtworkStyle(player.id, id, 'full');
+      await tester.pumpAndSettle();
+      await capture(tester, 'real-art-expanded-full');
+      expect(tester.takeException(), isNull);
+    },
+  );
+  for (final total in [999999, -999999]) {
+    testWidgets(
+      'wide signed life $total reserves adjacent delta without moving center',
+      (tester) async {
+        final f = await show(tester, const Size(744, 1133), 4);
+        for (final player in f.controller.session.players) {
+          await f.controller.setLife(player.id, total);
+          await tester.pump();
+          final surface = find.byKey(ValueKey('${player.id}-life-surface'));
+          final number = find.byKey(ValueKey('${player.id}-life-number'));
+          final center = localRect(tester, number, surface).center;
+          for (final change in [-999, 1998]) {
+            await f.controller.adjustLife(player.id, change);
+            await tester.pump();
+            final text = find.descendant(
+              of: find.byKey(ValueKey('${player.id}-life-delta')),
+              matching: find.byType(Text),
+            );
+            final deltaBox = localRect(tester, text, surface);
+            final numberBox = localRect(tester, number, surface);
+            expect(numberBox.center.dx, closeTo(center.dx, .01));
+            expect(numberBox.center.dy, closeTo(center.dy, .01));
+            expect(deltaBox.center.dy, closeTo(center.dy, .01));
+            expect(deltaBox.overlaps(numberBox), isFalse);
+            expect(deltaBox.left, greaterThanOrEqualTo(0));
+            expect(
+              deltaBox.right,
+              lessThanOrEqualTo(tester.getSize(surface).width),
+            );
+          }
+        }
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+  for (final size in [const Size(650, 480), const Size(844, 480)]) {
+    for (final seats in [2, 3, 4]) {
+      testWidgets(
+        'short board $size $seats seats scrolls tools without changing life',
+        (tester) async {
+          final f = await show(tester, size, seats, safeArea: false);
+          final lives = f.controller.session.players
+              .map((p) => p.life)
+              .toList();
+          for (final p in f.controller.session.players) {
+            final surface = find.byKey(ValueKey('${p.id}-life-surface'));
+            final originalSurface = tester.getRect(surface);
+            final footer = find.byKey(ValueKey('${p.id}-life-footer-scroll'));
+            if (footer.evaluate().isNotEmpty) {
+              final box = tester.renderObject<RenderBox>(footer);
+              final from = box.localToGlobal(
+                Offset(box.size.width / 2, box.size.height * .8),
+              );
+              final to = box.localToGlobal(
+                Offset(box.size.width / 2, box.size.height * .2),
+              );
+              await tester.dragFrom(from, to - from);
+              await tester.pumpAndSettle();
+            }
+            for (final target in [
+              find.byKey(ValueKey('${p.id}-player-details')),
+              find.byKey(ValueKey('${p.id}-manage-utilities')),
+              for (final color in PlayerState.manaColors)
+                find.byKey(ValueKey('${p.id}-mana-$color-add')),
+            ]) {
+              // Slivers deliberately instantiate offscreen utilities lazily.
+              // Advance the one scroll owner until the requested control exists.
+              final section = find.byKey(ValueKey('${p.id}-utility-section'));
+              final scrollable = tester.state<ScrollableState>(
+                find
+                    .descendant(of: section, matching: find.byType(Scrollable))
+                    .first,
+              );
+              for (
+                var attempt = 0;
+                target.evaluate().isEmpty && attempt < 30;
+                attempt++
+              ) {
+                scrollable.position.jumpTo(
+                  (scrollable.position.pixels + 40).clamp(
+                    0,
+                    scrollable.position.maxScrollExtent,
+                  ),
+                );
+                await tester.pumpAndSettle();
+              }
+              await tester.ensureVisible(target);
+              await tester.pumpAndSettle();
+              expect(target.hitTestable(), findsOneWidget);
+              expect(tester.getSize(target).height, greaterThanOrEqualTo(44));
+              expect(
+                tester
+                    .getRect(target)
+                    .deflate(.01)
+                    .overlaps(tester.getRect(surface)),
+                isFalse,
+                reason:
+                    '${p.id} $target bounds ${tester.getRect(target)} surface ${tester.getRect(surface)}',
+              );
+            }
+            expect(tester.getRect(surface), originalSurface);
+          }
+          expect(
+            f.controller.session.players.map((p) => p.life).toList(),
+            lives,
+          );
+          expect(f.controller.session.history, isEmpty);
+          for (final key in ['shared-dice', 'shared-day-night']) {
+            expect(find.byKey(ValueKey(key)).hitTestable(), findsOneWidget);
+            expect(
+              tester.getSize(find.byKey(ValueKey(key))),
+              const Size(44, 44),
+            );
+          }
+          if (seats == 4) {
+            await capture(tester, 'short-board-${size.width.toInt()}x480');
+          }
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+  testWidgets(
+    'short footer reorder auto-scrolls and expanded edits lock dragging',
+    (tester) async {
+      final f = await show(tester, const Size(650, 480), 4, safeArea: false);
+      final p = f.controller.session.players.first;
+      await f.controller.updateState('Seed reorder fixture', (state) {
+        state.session.player(p.id).utilities = [
+          for (var i = 0; i < 8; i++)
+            UtilityState(id: 'short-reorder-$i', name: 'Reorder $i'),
+        ];
+      });
+      await tester.pumpAndSettle();
+      final enter = find.byKey(ValueKey('${p.id}-start-utility-reorder'));
+      tester
+          .widget<CustomScrollView>(
+            find.byKey(ValueKey('${p.id}-life-footer-scroll')),
+          )
+          .controller!
+          .jumpTo(96);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(enter);
+      await tester.pumpAndSettle();
+      final initialIds = f.controller
+          .player(p.id)
+          .utilities
+          .map((u) => u.id)
+          .toList();
+      final initialHistory = f.controller.session.history.length;
+      await tester.tap(enter);
+      await tester.pumpAndSettle();
+      expect(
+        f.controller.player(p.id).utilities.map((u) => u.id).toList(),
+        initialIds,
+      );
+      expect(f.controller.session.history.length, initialHistory);
+      final footer = find.byKey(ValueKey('${p.id}-compact-utility-reorder'));
+      final scroll = tester.widget<CustomScrollView>(footer).controller!;
+      await capture(tester, 'short-compact-reorder-650x480');
+      final row = find.byKey(const ValueKey('compact-reorder-short-reorder-0'));
+      expect(tester.getSize(row).height, 44);
+      final gesture = await tester.startGesture(tester.getCenter(row));
+      await tester.pump(const Duration(milliseconds: 600));
+      final box = tester.renderObject<RenderBox>(footer);
+      // An outside pointer must not pull the drag proxy outside its seat.
+      await gesture.moveTo(
+        box.localToGlobal(Offset(-60, box.size.height + 100)),
+      );
+      for (var i = 0; i < 35; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(scroll.offset, greaterThan(60));
+      final bounds = tester.getRect(
+        find.byKey(ValueKey('${p.id}-utility-reorder-boundary')),
+      );
+      final proxy = tester.getRect(
+        find.byKey(ValueKey('${p.id}-utility-reorder-proxy')),
+      );
+      expect(bounds.inflate(.01).contains(proxy.topLeft), isTrue);
+      expect(bounds.inflate(.01).contains(proxy.bottomRight), isTrue);
+      await capture(tester, 'short-compact-reorder-drag-650x480');
+      await gesture.up();
+      await tester.pumpAndSettle();
+      final ids = f.controller.player(p.id).utilities.map((u) => u.id).toList();
+      expect(ids.first, isNot('short-reorder-0'));
+      expect(ids.toSet().length, 8);
+      final reloaded = await f.repository.open();
+      expect(
+        reloaded.state.session.player(p.id).utilities.map((u) => u.id).toList(),
+        ids,
+      );
+      // Cancel and stationary hold are both no-ops.
+      for (final cancel in [true, false]) {
+        scroll.jumpTo(0);
+        await tester.pumpAndSettle();
+        final history = f.controller.session.history.length;
+        final held = await tester.startGesture(
+          tester.getCenter(
+            find.byKey(ValueKey('compact-reorder-${ids.first}')),
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 600));
+        if (cancel) {
+          await held.cancel();
+        } else {
+          await held.up();
+        }
+        await tester.pumpAndSettle();
+        expect(
+          f.controller.player(p.id).utilities.map((u) => u.id).toList(),
+          ids,
+        );
+        expect(f.controller.session.history.length, history);
+      }
+      await tester.tap(find.byKey(ValueKey('${p.id}-finish-utility-reorder')));
+      await tester.pumpAndSettle();
+      expect(footer, findsNothing);
+      final normal = find.byKey(ValueKey('${p.id}-life-footer-scroll'));
+      final normalScroll = tester.widget<CustomScrollView>(normal).controller!;
+      normalScroll.jumpTo(140);
+      await tester.pumpAndSettle();
+      final firstName = f.controller.player(p.id).utilities.first.name;
+      await tester.ensureVisible(find.text(firstName));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(firstName));
+      await tester.pumpAndSettle();
+      normalScroll.jumpTo(96);
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextButton>(enter).onPressed, isNull);
+      expect(f.controller.session.players.every((p) => p.life == 40), isTrue);
+      expect(
+        f.controller.player(p.id).utilities.every((u) => u.value == 0),
+        isTrue,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
+    'short reorder mode exits for modal and lifecycle without changes',
+    (tester) async {
+      final f = await show(tester, const Size(650, 480), 4, safeArea: false);
+      final p = f.controller.session.players.first;
+      Future<void> enter() async {
+        final normal = find.byKey(ValueKey('${p.id}-life-footer-scroll'));
+        tester.widget<CustomScrollView>(normal).controller!.jumpTo(96);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(ValueKey('${p.id}-start-utility-reorder')));
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(ValueKey('${p.id}-compact-utility-reorder')),
+          findsOneWidget,
+        );
+      }
+
+      final before = f.controller.session.toJson();
+      await enter();
+      await tester.tap(find.byKey(const ValueKey('shared-dice')));
+      await tester.pumpAndSettle();
+      expect(
+        tester.takeException(),
+        isNull,
+        reason:
+            'Opening Dice from constrained reorder mode must fit the workspace.',
+      );
+      expect(
+        find.byKey(ValueKey('${p.id}-compact-utility-reorder')),
+        findsNothing,
+      );
+      await tester.tap(find.byTooltip('Close workspace'));
+      await tester.pumpAndSettle();
+      await enter();
+      final held = await tester.startGesture(
+        tester.getCenter(
+          find.byKey(ValueKey('compact-reorder-${p.utilities.first.id}')),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(ValueKey('${p.id}-compact-utility-reorder')),
+        findsNothing,
+      );
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await held.up();
+      await tester.pumpAndSettle();
+      expect(f.controller.session.toJson(), before);
     },
   );
 }

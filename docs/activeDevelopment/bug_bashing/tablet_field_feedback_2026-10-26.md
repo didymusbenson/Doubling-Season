@@ -38,8 +38,8 @@ by this document.
 | --- | --- | --- |
 | Reviewed complete plan | Passed | Parent and independent review before implementation |
 | Populated 75% shell geometry gate | Passed | Parent-reviewed supported tablet matrix; explicit narrow-case limits below |
-| Exact-head analysis/tests/builds | Pending final head | Checkpoint 9285129 analyzer, full tests, web/APK/iOS simulator and combined Pages build passed; later review fixes require rerun |
-| Integrated visual and interaction review | In progress | Parent accepted shell, navigation, measured signed deltas and real-art parity; release-browser flows still being completed |
+| Exact-head analysis/tests/builds | Pending | Checkpoint 9285129 analyzer, full tests, web/APK/iOS simulator and combined Pages build passed; later review fixes require rerun |
+| Integrated visual and interaction review | Pending | Parent accepted shell, navigation, measured signed deltas and real-art parity; release-browser flows still being completed |
 | Combined Pages publication | Pending | Original and tablet artifact verification required |
 | Physical iPad picker | Pending | Real selection/cancel/retry/preservation |
 | Physical iPad editing | Pending | Selection toolbar, Paste, keyboard accuracy |
@@ -94,19 +94,19 @@ errors actionable and retryable without changing permissions or plugin majors.
 
 Parent reviewed the populated focused-keyboard rendering before broad migration.
 Supported tablet cases 1133×744, 744×1133, 1024×600 and 600×1024 pass all four
-rotations with player-local modal width at least450px; short844×480/844×390
-landscape cases pass actual table seat rotations0/2. Text scale1.5,44px key
+rotations with player-local modal width at least 450px; short 844×480/844×390
+landscape cases pass actual table seat rotations 0/2. Text scale 1.5, 44px key
 bounds, active text/Close/Done, typing and restored-form Apply are covered.
-Short-view odd quarter turns produce360/292.5px local widths and require
+Short-view odd quarter turns produce 360/292.5px local widths and require
 horizontal keyboard scrolling; those narrow cases are explicitly **unsupported
 and not ergonomically accepted**, not universal all-rotation passes. The table
-itself currently uses seat rotations0/2.
+itself currently uses seat rotations 0/2.
 
 The shared shell now covers workspace pages/secondary corrections/confirmations,
 life artwork, crop, support and hide-utility confirmation. Standalone board
 keyboard and native OS pickers remain the documented structural exclusions.
 No page-specific geometry caps remain. Quarter turns swap local dimensions while
-retaining the physical75% viewport rectangle. Root dialogs disable external
+retaining the physical 75% viewport rectangle. Root dialogs disable external
 SafeArea sizing so safe-area fixtures do not silently shrink the contract.
 
 The two-player direct-control geometry adaptation is recorded in the plan:
@@ -116,10 +116,10 @@ Life numbers retain their prior centers; names move below totals to reserve
 shared-control clearance. Utility lanes may scroll modestly further rather than
 shrinking controls.
 
-Current focused evidence before integrated CI:120 modal/utility tests,53 player/
-commander navigation tests,27 keyboard tests,20 artwork tests,20 shared-control
-matrix tests,58 existing life/layout tests,2 custom-effect visibility/state tests
-and1 utility artwork staging/failure/retry test pass. These overlapping focused
+Current focused evidence before integrated CI: 120 modal/utility tests, 53 player/
+commander navigation tests, 27 keyboard tests, 20 artwork tests, 20 shared-control
+matrix tests, 58 existing life/layout tests, 2 custom-effect visibility/state tests
+and 1 utility artwork staging/failure/retry test pass. These overlapping focused
 runs are not summed into a claimed unique test count. Full exact-head suite,
 release browser interaction, combined publication and native gates remain open.
 
@@ -166,7 +166,57 @@ picker, editing or latency acceptance.
 
 Short-footer follow-up remains in progress: the native reorder autoscroller
 requires a dragged item no taller than its viewport. At the 480px boundary the
-footer can be about72px, smaller than tracker/mana rows. Parent approved a
-limited compact Reorder/Done mode with44px name rows for this case, preserving
+footer can be about 72px, smaller than tracker/mana rows. Parent approved a
+limited compact Reorder/Done mode with 44px name rows for this case, preserving
 normal gameplay controls and fixed life. Actual containment, edge autoscroll,
 cancel/no-op and lifecycle restoration must pass before acceptance.
+
+Checkpoint `28c89b202e7bc42c50a5f8c78316a64425f71da8` publishes the reviewed
+modal/context/failed-Close repairs and browser selector correction. A local
+rerun of support safe-area and player modal regressions passed all 20 cases.
+The latest delta/short-footer work is not included in that checkpoint; it
+remains gated by actual compact-mode reorder testing. A subsequent exact-URL
+artwork candidate enrichment restores known artist/set metadata in the token
+preview; near-matching unknown URLs must still show unknown attribution.
+
+The release-browser smoke at `28c89b2` passed (run 40362277883, artifact
+12669251051): software q→a/Done, durable rename/reload, direct Day/Night taps,
+mouse and emulated-touch held clear with no trailing tap, dice total consistency,
+software-keyboard catalog search, real Scute Swarm image HTTP 200/hash and token
+creation. Parent review receives the actual catalog and populated-board PNGs.
+The downloaded full-card image SHA-256 is
+`5a60eb716f3074d33d4ffdd8d944c5665e72ab9578b091a4f93c6b4e21f05d8a`;
+the production art crop also downloaded and painted. This closes the earlier
+selector-only failure, not the remaining exact-final-head or native gates.
+
+### Reproduction and preserved scope
+
+From `apps/tablet`, use the pinned Flutter 3.41.2 toolchain:
+
+```sh
+flutter analyze
+flutter test
+flutter build web --release --base-href /Doubling-Season/tablet/ --pwa-strategy=none
+node tool/browser_feedback_smoke.mjs
+```
+
+The browser harness requires an already installed compatible Chrome and Node
+with built-in WebSocket support; it does not install packages or alter browser
+security flags. CI preserves `evidence.json`, PNGs, semantic snapshots and image
+hashes under its browser artifact. Five ordinary-suite skips are intentional:
+four opt-in memory latency diagnostics and one web-only network-image fixture.
+The latency diagnostics were run separately; release-browser image checks are
+separate from the skipped Flutter web-only fixture.
+
+Comparison against base `729f8402` confirms the original app source, bundled OTA
+assets, both app versions/lockfiles and native project configuration are unchanged.
+No schema migration, signing change or store build is part of this batch.
+
+Latest integration review closes the short-footer reorder blocker with the
+approved compact mode: actual proxy containment, native edge autoscroll beyond
+60px, durable eight-ID reorder, cancellation/stationary no-op, Done restoration
+and expanded-item lock pass; independent review reran the real drag case.
+Ordinary life/counter values remain unchanged. The same boundary test exposed
+Dice overflow at 650×480; its entire body now scrolls in one viewport, with all
+six die controls, results and total reachable. Three dice regressions pass,
+including exact 487.5×360 modal bounds at that smallest case.

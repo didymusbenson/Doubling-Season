@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:doubling_season/widgets/mana/mana_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -366,6 +367,7 @@ class _SharedTableControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Tooltip(
     message: label,
+    excludeFromSemantics: true,
     child: Material(
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       shape: CircleBorder(
@@ -553,7 +555,36 @@ class _PlayerSpace extends StatefulWidget {
   State<_PlayerSpace> createState() => _PlayerSpaceState();
 }
 
-class _PlayerSpaceState extends State<_PlayerSpace> {
+class _PlayerSpaceState extends State<_PlayerSpace>
+    with WidgetsBindingObserver {
+  bool compactUtilityReorder = false;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didUpdateWidget(covariant _PlayerSpace oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.interactionEpoch != widget.interactionEpoch ||
+        oldWidget.player.generation != widget.player.generation) {
+      compactUtilityReorder = false;
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed && compactUtilityReorder) {
+      setState(() => compactUtilityReorder = false);
+    }
+  }
+
+  void setUtilityReorder(bool value) {
+    if (utilityScroll.hasClients) utilityScroll.jumpTo(0);
+    setState(() => compactUtilityReorder = value);
+  }
+
   String? expandedId;
   String? error;
   final tokenScroll = ScrollController(), utilityScroll = ScrollController();
@@ -570,6 +601,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     tokenScroll.dispose();
     utilityScroll.dispose();
     super.dispose();
@@ -701,117 +733,223 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
         // Short player-local seats keep utility padding compact so the taller
         // life chip and tools never require shrinking the utility touch targets.
         final compactUtilities = lane.maxHeight < 420;
-        return Column(
-          children: [
-            _LifePanel(
-              height:
-                  (lane.maxHeight * .30 + 32).clamp(
-                    140.0,
-                    lane.maxWidth < 200 ? 148.0 : 180.0,
-                  ) +
-                  26,
-              twoPlayer: widget.hubInTokenLane,
-              centerNotch: widget.centerNotch,
-              centerNotchAtStart: widget.centerNotchAtStart,
-              player: p,
-              profile: profile,
-              controller: widget.controller,
-              epoch: Object.hash(
+        final lifeHeight =
+            (lane.maxHeight * .30 + 32).clamp(
+              140.0,
+              lane.maxWidth < 200 ? 148.0 : 180.0,
+            ) +
+            26;
+        final toolHeight = lane.maxWidth >= 260 ? 48.0 : 96.0;
+        // Keep the life surface fixed even at the existing 480px boundary.
+        // Tools and utilities share the remaining viewport instead of shrinking
+        // touch targets, adding a menu, or overflowing the seat.
+        final shortFooter = lane.maxHeight < lifeHeight + toolHeight + 44;
+        void reorderUtilities(int old, int next) => perform(() async {
+          final ids = visible.map((u) => u.id).toList();
+          if (next > old) next--;
+          ids.insert(next, ids.removeAt(old));
+          await widget.board.reorderVisibleUtilities(p.id, ids);
+        });
+        Widget utilityItem(BuildContext context, int index) {
+          final u = visible[index];
+          return ReorderableDelayedDragStartListener(
+            key: ValueKey(u.id),
+            index: index,
+            enabled: !shortFooter && expandedId == null,
+            child: _UtilityRow(
+              compactSpacing: compactUtilities,
+              interactionEpoch: Object.hash(
                 widget.interactionEpoch,
-                p.generation,
                 widget.controller.session.generation,
+                p.generation,
               ),
-              enabledRules: enabled,
-              onOpen: widget.onOpen,
-              onChange: (d) =>
-                  perform(() => widget.controller.adjustLife(p.id, d)),
-              onMonarch: () =>
-                  perform(() => widget.controller.setMonarch(p.id)),
-              onClearMonarch: () =>
-                  perform(() => widget.controller.setMonarch(null)),
-              onBlessing: () => perform(
-                () =>
-                    widget.controller.setCitysBlessing(p.id, !p.citysBlessing),
+              utility: u,
+              player: p,
+              board: widget.board,
+              expanded: expandedId == u.id,
+              onExpand: () => expand(u.id),
+              onHide: () => widget.onHide(u),
+              onOpen: () => widget.onOpen(WorkspacePage.utilities, u.id),
+              onChange: (delta) =>
+                  perform(() => widget.board.adjustUtility(p.id, u.id, delta)),
+              onToggle: () =>
+                  perform(() => widget.board.toggleUtility(p.id, u.id)),
+              onMana: (mana, delta) => perform(
+                () => widget.controller.adjustMana(p.id, mana, delta),
+              ),
+            ),
+          );
+        }
+
+        final utilities = visible.isEmpty
+            ? LayoutBuilder(
+                builder: (context, space) =>
+                    shortFooter || space.maxHeight < 130
+                    ? Center(
+                        child: TextButton(
+                          onPressed: () =>
+                              widget.onOpen(WorkspacePage.utilities),
+                          child: const Text('Choose utilities'),
+                        ),
+                      )
+                    : _EmptyLane(
+                        icon: Icons.widgets_outlined,
+                        text: 'Tools for your game',
+                        action: 'Choose utilities',
+                        onTap: () => widget.onOpen(WorkspacePage.utilities),
+                      ),
+              )
+            : DragBoundary(
+                child: ReorderableListView.builder(
+                  scrollController: utilityScroll,
+                  buildDefaultDragHandles: false,
+                  itemCount: visible.length,
+                  onReorder: reorderUtilities,
+                  proxyDecorator: (child, index, animation) =>
+                      Material(elevation: 5, child: child),
+                  itemBuilder: utilityItem,
+                ),
+              );
+        // Native reorder measures the entire utility (mana can be taller than
+        // this viewport). A deliberate compact mode keeps native drag/autoscroll
+        // bounded without shrinking gameplay controls or replacing the engine.
+        final compactReorderList = Row(
+          children: [
+            SizedBox(
+              width: 44,
+              child: IconButton(
+                key: ValueKey('${p.id}-finish-utility-reorder'),
+                tooltip: 'Done reordering utilities',
+                onPressed: () => setUtilityReorder(false),
+                icon: const Icon(Icons.done),
               ),
             ),
             Expanded(
-              key: ValueKey('${p.id}-utility-section'),
-              child: visible.isEmpty
-                  ? LayoutBuilder(
-                      builder: (context, space) => space.maxHeight < 130
-                          ? Center(
-                              child: TextButton(
-                                onPressed: () =>
-                                    widget.onOpen(WorkspacePage.utilities),
-                                child: const Text('Choose utilities'),
-                              ),
-                            )
-                          : _EmptyLane(
-                              icon: Icons.widgets_outlined,
-                              text: 'Tools for your game',
-                              action: 'Choose utilities',
-                              onTap: () =>
-                                  widget.onOpen(WorkspacePage.utilities),
-                            ),
-                    )
-                  : DragBoundary(
-                      child: ReorderableListView.builder(
-                        scrollController: utilityScroll,
-                        buildDefaultDragHandles: false,
+              child: DragBoundary(
+                key: ValueKey('${p.id}-utility-reorder-boundary'),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: CustomScrollView(
+                    key: ValueKey('${p.id}-compact-utility-reorder'),
+                    controller: utilityScroll,
+                    slivers: [
+                      SliverReorderableList(
                         itemCount: visible.length,
-                        onReorder: (old, next) => perform(() async {
-                          final ids = visible.map((u) => u.id).toList();
-                          if (next > old) next--;
-                          ids.insert(next, ids.removeAt(old));
-                          await widget.board.reorderVisibleUtilities(p.id, ids);
-                        }),
-                        proxyDecorator: (child, index, animation) =>
-                            Material(elevation: 5, child: child),
+                        onReorder: reorderUtilities,
+                        proxyDecorator: (child, index, animation) => Material(
+                          key: ValueKey('${p.id}-utility-reorder-proxy'),
+                          elevation: 5,
+                          child: child,
+                        ),
                         itemBuilder: (context, index) {
                           final u = visible[index];
                           return ReorderableDelayedDragStartListener(
-                            key: ValueKey(u.id),
+                            key: ValueKey('compact-reorder-${u.id}'),
                             index: index,
                             enabled: expandedId == null,
-                            child: _UtilityRow(
-                              compactSpacing: compactUtilities,
-                              interactionEpoch: Object.hash(
-                                widget.interactionEpoch,
-                                widget.controller.session.generation,
-                                p.generation,
-                              ),
-                              utility: u,
-                              player: p,
-                              board: widget.board,
-                              expanded: expandedId == u.id,
-                              onExpand: () => expand(u.id),
-                              onHide: () => widget.onHide(u),
-                              onOpen: () =>
-                                  widget.onOpen(WorkspacePage.utilities, u.id),
-                              onChange: (delta) => perform(
-                                () => widget.board.adjustUtility(
-                                  p.id,
-                                  u.id,
-                                  delta,
-                                ),
-                              ),
-                              onToggle: () => perform(
-                                () => widget.board.toggleUtility(p.id, u.id),
-                              ),
-                              onMana: (mana, delta) => perform(
-                                () => widget.controller.adjustMana(
-                                  p.id,
-                                  mana,
-                                  delta,
+                            child: Semantics(
+                              label: 'Reorder ${u.name}',
+                              excludeSemantics: true,
+                              hint: 'Hold and drag to reorder',
+                              child: SizedBox(
+                                height: 44,
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.drag_handle, size: 18),
+                                    Expanded(
+                                      child: Text(
+                                        u.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
                           );
                         },
                       ),
-                    ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ],
+        );
+        return _LifePanel(
+          compose: (surface, tools) => Column(
+            children: [
+              surface,
+              if (!shortFooter) tools,
+              Expanded(
+                key: ValueKey('${p.id}-utility-section'),
+                child: shortFooter
+                    ? compactUtilityReorder
+                          ? compactReorderList
+                          : CustomScrollView(
+                              key: ValueKey('${p.id}-life-footer-scroll'),
+                              controller: utilityScroll,
+                              slivers: [
+                                SliverToBoxAdapter(child: tools),
+                                if (visible.length > 1)
+                                  SliverToBoxAdapter(
+                                    child: SizedBox(
+                                      height: 44,
+                                      child: TextButton.icon(
+                                        key: ValueKey(
+                                          '${p.id}-start-utility-reorder',
+                                        ),
+                                        onPressed: expandedId == null
+                                            ? () => setUtilityReorder(true)
+                                            : null,
+                                        icon: const Icon(
+                                          Icons.reorder,
+                                          size: 18,
+                                        ),
+                                        label: const Text(
+                                          'Reorder utilities',
+                                          maxLines: 2,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                if (visible.isEmpty)
+                                  SliverToBoxAdapter(child: utilities)
+                                else
+                                  SliverList(
+                                    delegate: SliverChildBuilderDelegate(
+                                      utilityItem,
+                                      childCount: visible.length,
+                                    ),
+                                  ),
+                              ],
+                            )
+                    : utilities,
+              ),
+            ],
+          ),
+          height: lifeHeight,
+          twoPlayer: widget.hubInTokenLane,
+          centerNotch: widget.centerNotch,
+          centerNotchAtStart: widget.centerNotchAtStart,
+          player: p,
+          profile: profile,
+          controller: widget.controller,
+          epoch: Object.hash(
+            widget.interactionEpoch,
+            p.generation,
+            widget.controller.session.generation,
+          ),
+          enabledRules: enabled,
+          onOpen: widget.onOpen,
+          onChange: (d) => perform(() => widget.controller.adjustLife(p.id, d)),
+          onMonarch: () => perform(() => widget.controller.setMonarch(p.id)),
+          onClearMonarch: () =>
+              perform(() => widget.controller.setMonarch(null)),
+          onBlessing: () => perform(
+            () => widget.controller.setCitysBlessing(p.id, !p.citysBlessing),
+          ),
         );
       },
     );
@@ -850,6 +988,7 @@ class _PlayerSpaceState extends State<_PlayerSpace> {
 }
 
 class _LifePanel extends StatelessWidget {
+  final Widget Function(Widget surface, Widget tools) compose;
   final bool twoPlayer;
   final double height;
   final double centerNotch;
@@ -862,6 +1001,7 @@ class _LifePanel extends StatelessWidget {
   final VoidCallback onMonarch, onClearMonarch, onBlessing;
   final void Function(WorkspacePage, [String?]) onOpen;
   const _LifePanel({
+    required this.compose,
     required this.twoPlayer,
     required this.height,
     required this.centerNotch,
@@ -971,7 +1111,7 @@ class _LifePanel extends StatelessWidget {
           clipper: _LifeHubNotch(
             atStart: centerNotchAtStart,
             inset: -1.5,
-            enabled: true,
+            enabled: centerNotch > 0 || twoPlayer,
             sharedControls: true,
             twoPlayer: twoPlayer,
           ),
@@ -989,8 +1129,8 @@ class _LifePanel extends StatelessWidget {
                   value: '${player.life}',
                   height: height,
                   iconSize: 22,
-                  iconY: -54 / height,
-                  iconPadding: twoPlayer ? 52 : 8,
+                  // Symbols sit beside the name, leaving the total/delta row clear.
+                  iconY: 1 - 130 / height,
                   decreaseKey: ValueKey('${player.id}-life-decrease'),
                   increaseKey: ValueKey('${player.id}-life-increase'),
                   decreaseLabel: '${profile.name}, decrease life by one',
@@ -1004,51 +1144,26 @@ class _LifePanel extends StatelessWidget {
                   foregroundColor: artColor,
                   displayOverlay: Column(
                     children: [
+                      // Shared tools occupy the top edge. The original total
+                      // region stays fixed; the name moves into the added 26px
+                      // footer instead of pushing the number down or clipping.
                       const SizedBox(height: 24),
                       Expanded(
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            Center(
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: twoPlayer ? 76 : 32,
-                                ),
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    '${player.life}',
-                                    key: ValueKey('${player.id}-life-number'),
-                                    style: TextStyle(
-                                      fontSize: (height * .64).clamp(
-                                        64.0,
-                                        80.0,
-                                      ),
-                                      fontWeight: FontWeight.w400,
-                                      height: 1,
-                                      color: artColor,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            _LifeDelta(
-                              key: ValueKey('${player.id}-life-delta'),
-                              centered: twoPlayer,
-                              entry:
-                                  controller.session.history.isNotEmpty &&
-                                      !controller.session.history.last.undone &&
-                                      controller
-                                              .session
-                                              .history
-                                              .last
-                                              .groupKey ==
-                                          'life:${player.id}'
-                                  ? controller.session.history.last
-                                  : null,
-                            ),
-                          ],
+                        child: _LifeDelta(
+                          entry:
+                              controller.session.history.isNotEmpty &&
+                                  !controller.session.history.last.undone &&
+                                  controller.session.history.last.groupKey ==
+                                      'life:${player.id}'
+                              ? controller.session.history.last
+                              : null,
+                          builder: (delta) => _LifeNumber(
+                            playerId: player.id,
+                            life: player.life,
+                            delta: delta,
+                            color: artColor,
+                            fontSize: (height * .64).clamp(64.0, 80.0),
+                          ),
                         ),
                       ),
                       SizedBox(
@@ -1175,7 +1290,7 @@ class _LifePanel extends StatelessWidget {
             ],
           ),
         );
-        return Column(children: [surface, tools]);
+        return compose(surface, tools);
       },
     );
   }
@@ -1730,8 +1845,8 @@ class _ArtworkSurface extends StatelessWidget {
 
 class _LifeDelta extends StatefulWidget {
   final HistoryEntry? entry;
-  final bool centered;
-  const _LifeDelta({super.key, this.entry, this.centered = false});
+  final Widget Function(int?) builder;
+  const _LifeDelta({this.entry, required this.builder});
   @override
   State<_LifeDelta> createState() => _LifeDeltaState();
 }
@@ -1780,28 +1895,108 @@ class _LifeDeltaState extends State<_LifeDelta> {
   }
 
   @override
-  Widget build(BuildContext context) => delta == null
-      ? const SizedBox.shrink()
-      : Align(
-          alignment: Alignment(delta! < 0 ? -1 : 1, widget.centered ? .2 : -.8),
-          child: SizedBox(
-            width: 32,
+  Widget build(BuildContext context) => widget.builder(delta);
+}
+
+/// Fit the total symmetrically, then anchor the delta to its painted text bounds.
+/// Delta presence/sign never shifts the total, and neither depends on corner
+/// alignment. Reserved side slots also bound long signed changes.
+class _LifeNumber extends StatelessWidget {
+  final String playerId;
+  final int life;
+  final int? delta;
+  final Color? color;
+  final double fontSize;
+  const _LifeNumber({
+    required this.playerId,
+    required this.life,
+    required this.delta,
+    required this.color,
+    required this.fontSize,
+  });
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final style = DefaultTextStyle.of(context).style.merge(
+        TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.w400,
+          height: 1,
+          color: color,
+        ),
+      );
+      final scaler = MediaQuery.textScalerOf(context);
+      final painter = TextPainter(
+        text: TextSpan(text: '$life', style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: scaler,
+      )..layout();
+      final slot = box.maxWidth < 180 ? 26.0 : 42.0;
+      const gap = 4.0;
+      final available = math.max(1.0, box.maxWidth - 2 * (slot + gap + 2));
+      final scale = math.min(
+        1.0,
+        math.min(available / painter.width, box.maxHeight / painter.height),
+      );
+      final width = painter.width * scale;
+      final height = painter.height * scale;
+      painter.dispose();
+      final positive = (delta ?? 0) >= 0;
+      return Stack(
+        children: [
+          Positioned(
+            left: (box.maxWidth - width) / 2,
+            top: (box.maxHeight - height) / 2,
+            width: width,
+            height: height,
             child: FittedBox(
               fit: BoxFit.scaleDown,
-              child: Semantics(
-                label: 'Life change ${delta! >= 0 ? '+' : ''}$delta',
-                liveRegion: true,
-                child: Text(
-                  '${delta! >= 0 ? '+' : ''}$delta',
-                  style: TextStyle(
-                    fontSize: 14,
-                    height: 1,
-                    fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
+              child: Text(
+                '$life',
+                key: ValueKey('$playerId-life-number'),
+                textDirection: TextDirection.ltr,
+                textScaler: scaler,
+                style: style,
               ),
             ),
           ),
-        );
+          Positioned(
+            left: positive
+                ? (box.maxWidth + width) / 2 + gap
+                : (box.maxWidth - width) / 2 - gap - slot,
+            top: 0,
+            bottom: 0,
+            width: slot,
+            child: KeyedSubtree(
+              key: ValueKey('$playerId-life-delta'),
+              child: delta == null
+                  ? const SizedBox.shrink()
+                  : Align(
+                      alignment: positive
+                          ? Alignment.centerLeft
+                          : Alignment.centerRight,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Semantics(
+                          label: 'Life change ${positive ? '+' : ''}$delta',
+                          liveRegion: true,
+                          child: Text(
+                            '${positive ? '+' : ''}$delta',
+                            textDirection: TextDirection.ltr,
+                            style: TextStyle(
+                              fontSize: 14,
+                              height: 1,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
 }

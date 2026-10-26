@@ -27,7 +27,7 @@ const evidence = {
 };
 let chrome, server, profile, cdp;
 let chromeLog = '';
-let expectedScuteArtwork;
+let expectedScuteArtwork, expectedScuteArtist;
 await mkdir(output, { recursive: true });
 function log(message, data = {}) {
   const entry = { at: new Date().toISOString(), message, ...data };
@@ -82,6 +82,7 @@ async function semantics() {
     id: node.nodeId, backend: node.backendDOMNodeId, role: node.role?.value,
     name: node.name.value, value: node.value?.value,
     disabled: node.properties?.some(property => property.name === 'disabled' && property.value?.value === true),
+    checked: node.properties?.find(property => property.name === 'checked')?.value?.value,
   }));
 }
 async function bounds(node) {
@@ -209,6 +210,21 @@ async function click(name, options = {}) {
   await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1 });
   await sleep(120);
 }
+async function typeSoftwareText(text) {
+  let symbols = false;
+  for (const character of text) {
+    const letter = /^[a-z]$/i.test(character);
+    if (letter === symbols) {
+      await click(symbols ? 'ABC' : '123', { role: 'button' });
+      symbols = !symbols;
+    }
+    if (letter && character !== character.toLowerCase()) await click('Shift', { role: 'button' });
+    await click(character, { role: 'button' });
+  }
+}
+async function selected(name) {
+  return until(`selected ${name}`, async () => (await semantics()).some(node => node.name === name && ['true', true].includes(node.checked)));
+}
 async function capture(name) {
   const shot = await cdp.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
   await writeFile(join(output, `${name}.png`), Buffer.from(shot.data, 'base64'));
@@ -238,9 +254,12 @@ try {
     evidence.buildHashes[file] = createHash('sha256').update(await readFile(join(build, file))).digest('hex');
   }
   const tokens = JSON.parse(await readFile(join(build, 'assets/packages/doubling_season/assets/token_database.json'), 'utf8'));
-  expectedScuteArtwork = tokens.find(token => token.name === 'Scute Swarm')?.artwork?.[0]?.url;
+  const scutePrinting = tokens.find(token => token.name === 'Scute Swarm')?.artwork?.[0];
+  expectedScuteArtwork = scutePrinting?.url;
+  expectedScuteArtist = scutePrinting?.artist;
   assert(expectedScuteArtwork, 'Bundled catalog lacks the expected Scute Swarm artwork fixture.');
   evidence.expectedArtwork = expectedScuteArtwork;
+  evidence.expectedArtist = expectedScuteArtist;
   assert((await readFile(join(build, 'index.html'), 'utf8')).includes(`<base href="${prefix}">`), 'Build must use the existing tablet release base href.');
   const mime = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.wasm': 'application/wasm', '.png': 'image/png', '.jpg': 'image/jpeg', '.ttf': 'font/ttf', '.otf': 'font/otf', '.woff2': 'font/woff2' };
   server = createServer(async (request, response) => {
@@ -341,6 +360,47 @@ try {
   await find('qa, player details');
   await capture('07-populated-token-table');
   log('PASS real catalog token creation with downloaded artwork evidence');
+
+  await click('qa, Scute Swarm, Name', { startsWith: true, role: 'button' });
+  await find('qa, Scute Swarm, Choose artwork', { contains: true, role: 'button' });
+  await capture('08-expanded-token-full-art');
+  await click('qa, Scute Swarm, Choose artwork', { contains: true, role: 'button' });
+  await find('Artwork image URL. Current value:', { startsWith: true, role: 'button' });
+  await capture('09-current-artwork-editor');
+  await click('Artwork image URL. Current value:', { startsWith: true, role: 'button' });
+  await typeSoftwareText(expectedScuteArtwork);
+  await find(`Artwork image URL. Current value: ${expectedScuteArtwork}`, { startsWith: true, role: 'button' });
+  await capture('10-artwork-url-keyboard-draft');
+  await click('Done');
+  await click('Preview image URL');
+  await find('Preview — not saved', { contains: true });
+  await find(expectedScuteArtist, { contains: true });
+  await find('Use this artwork', { role: 'button' });
+  await capture('11-known-printing-preview-not-saved');
+  await click('Use this artwork', { role: 'button' });
+  await find('Current artwork', { contains: true });
+  assert(!(await semantics()).some(node => node.name.includes('Preview — not saved')), 'Apply left an unsaved preview visible.');
+  await find(expectedScuteArtist, { contains: true });
+  await capture('12-artwork-applied-with-credit');
+  await click('Fadeout');
+  await selected('Fadeout');
+  await click('Close workspace');
+  await capture('13-expanded-token-fadeout');
+  await cdp.send('Page.reload', { ignoreCache: true });
+  await enableSemantics();
+  await find('qa, Scute Swarm, Name', { startsWith: true, role: 'button', timeout: 90000 });
+  await capture('14-reloaded-collapsed-token-fadeout');
+  await click('qa, Scute Swarm, Name', { startsWith: true, role: 'button' });
+  await find('qa, Scute Swarm, Choose artwork', { contains: true, role: 'button' });
+  await capture('15-reloaded-expanded-token-fadeout');
+  await click('qa, Scute Swarm, Choose artwork', { contains: true, role: 'button' });
+  await selected('Fadeout');
+  await find('Current artwork', { contains: true });
+  await find(expectedScuteArtist, { contains: true });
+  await capture('16-reloaded-artwork-editor-credit-and-mode');
+  await click('Close workspace');
+  log('PASS real artwork editor URL typing, staged preview, Apply, credit and Fadeout persistence across reload');
+
   // With semantics enabled, Flutter3.41.2 buffers tappable pointerdown200ms
   // before the framework's500ms recognizer; durable publication adds latency.
   // Keep the750ms observation, but assert actual recognized clear + no trailing

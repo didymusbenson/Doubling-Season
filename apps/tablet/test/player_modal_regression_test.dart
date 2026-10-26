@@ -524,6 +524,69 @@ void main() {
       await close(tester);
     },
   );
+  testWidgets(
+    '650x480 dice scrolls controls and all results inside unchanged shell',
+    (tester) async {
+      final f = TableFixture();
+      await f.initialize();
+      addTearDown(f.dispose);
+      await open(
+        tester,
+        f,
+        page: WorkspacePage.dice,
+        size: const Size(650, 480),
+      );
+      final shell = find.byKey(const ValueKey('context-workspace'));
+      final rect = tester.getRect(shell);
+      expect(rect, const Rect.fromLTWH(81.25, 60, 487.5, 360));
+      Future<void> reach(Finder target) async {
+        await tester.ensureVisible(target);
+        await tester.pumpAndSettle();
+        expect(target.hitTestable(), findsOneWidget);
+        expect(tester.getRect(shell), rect);
+      }
+
+      for (final die in [4, 6, 8, 10, 12, 20]) {
+        final increase = find.byTooltip('Increase d$die');
+        await reach(increase);
+        expect(tester.getSize(increase).height, greaterThanOrEqualTo(48));
+        await tester.tap(increase);
+        await tester.pumpAndSettle();
+      }
+      final roll = find.text('Roll selected dice');
+      await reach(roll);
+      await tester.tap(roll);
+      await tester.pumpAndSettle();
+      final results = tester
+          .widgetList<Text>(
+            find.descendant(
+              of: find.byKey(const ValueKey('dice-results')),
+              matching: find.byType(Text),
+            ),
+          )
+          .map((text) => text.data!)
+          .toList();
+      expect(results, hasLength(6));
+      var total = 0;
+      for (final result in results) {
+        await reach(find.text(result));
+        final parts = result.split(': ');
+        final sides = int.parse(parts.first.split('d').last);
+        for (final value in parts.last.split(' · ').map(int.parse)) {
+          expect(value, inInclusiveRange(1, sides));
+          total += value;
+        }
+      }
+      await reach(find.text('Total: $total'));
+      await reach(roll);
+      await tester.tap(roll);
+      await tester.pumpAndSettle();
+      expect(f.controller.session.history, isEmpty);
+      expect(tester.takeException(), isNull);
+      await close(tester);
+    },
+  );
+
   for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
     testWidgets(
       'dice fixed options fit and mixed results preserve total at $size',

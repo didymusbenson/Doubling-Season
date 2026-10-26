@@ -140,7 +140,37 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
   Future<void> choose(Map<String, dynamic> art) async {
     await _validate(art['url'] as String);
     if (mounted) {
-      setState(() => candidate = art);
+      // Pasting a known printing URL must not lose its authoritative credit.
+      // Match only the exact source URL; do not infer an artist from provenance
+      // or download any additional image to recover metadata.
+      final source = art['url'];
+      final known = <Map<String, dynamic>>[
+        ...widget.token.artworkOptions,
+        ...?widget.catalog
+            .byId(widget.token.definitionId)
+            ?.artwork
+            .map((variant) => variant.toJson()),
+      ].where((option) => option['url'] == source).toList();
+      final providedArtist = (art['artist'] as String? ?? '').trim();
+      final providedSet = (art['set'] as String? ?? '').trim();
+      final knownArtist = known
+          .map((option) => option['artist'] as String? ?? '')
+          .where((credit) => credit.trim().isNotEmpty && credit != 'Custom URL')
+          .firstOrNull;
+      final knownSet = known
+          .map((option) => option['set'] as String? ?? '')
+          .where((set) => set.trim().isNotEmpty && set != 'Custom URL')
+          .firstOrNull;
+      final enriched = <String, dynamic>{
+        ...art,
+        if ((providedArtist.isEmpty || providedArtist == 'Custom URL') &&
+            knownArtist != null)
+          'artist': knownArtist,
+        if ((providedSet.isEmpty || providedSet == 'Custom URL') &&
+            knownSet != null)
+          'set': knownSet,
+      };
+      setState(() => candidate = enriched);
       widget.onPreviewChanged?.call(true);
       _revealCandidate();
     }

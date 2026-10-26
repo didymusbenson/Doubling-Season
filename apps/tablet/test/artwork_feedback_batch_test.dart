@@ -175,4 +175,76 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+  for (final pastedKnownUrl in [true, false]) {
+    testWidgets('URL preview credit uses exact known URL: $pastedKnownUrl', (
+      tester,
+    ) async {
+      const knownUrl = 'https://example.test/scute.png';
+      final token = sampleToken();
+      token.artworkOptions.add({
+        'url': knownUrl,
+        'set': 'ZNR',
+        'artist': 'Alex Konstad',
+      });
+      final fixture = TableFixture(stateWithTokens([token]));
+      await fixture.initialize();
+      addTearDown(fixture.dispose);
+      tester.view.physicalSize = const Size(1024, 768);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final before = fixture.repository.encoded;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TableModalFrame(
+              child: PlayerKeyboardHost(
+                child: ListView(
+                  children: [
+                    TabletArtworkSelection(
+                      board: fixture.board,
+                      catalog: fixture.catalog,
+                      player: fixture.player,
+                      token: fixture.token('source'),
+                      validate: (_) async {},
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      tester.widget<PlayerField>(find.byType(PlayerField)).controller.text =
+          pastedKnownUrl ? knownUrl : '$knownUrl?other-printing';
+      await tester.tap(find.text('Preview image URL'));
+      await tester.pumpAndSettle();
+      final preview = find
+          .ancestor(
+            of: find.text('Preview — not saved'),
+            matching: find.byType(Column),
+          )
+          .first;
+      expect(
+        find.descendant(
+          of: preview,
+          matching: find.text(
+            pastedKnownUrl ? 'Alex Konstad' : 'Artist unknown',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: preview,
+          matching: find.text(pastedKnownUrl ? 'ZNR' : 'Custom URL'),
+        ),
+        findsOneWidget,
+      );
+      expect(fixture.repository.encoded, before);
+      expect(fixture.token('source').artworkUrl, isNull);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
 }
