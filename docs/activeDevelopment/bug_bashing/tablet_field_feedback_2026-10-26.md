@@ -220,3 +220,19 @@ Ordinary life/counter values remain unchanged. The same boundary test exposed
 Dice overflow at 650×480; its entire body now scrolls in one viewport, with all
 six die controls, results and total reachable. Three dice regressions pass,
 including exact 487.5×360 modal bounds at that smallest case.
+
+The integrated checkpoint is `dfb529aecaf26b0ac24591254a5f3e7e763e5ed1`.
+An unfrozen local full run completed 632 passes, 5 intentional skips and 1 failure:
+an earlier test left Dice open, so the workspace-open guard prevented the later
+modal-reset test from opening. The test now explicitly closes its real route;
+sequential retesting passes. A final warning-glyph/name-row overlap regression
+is being fixed before freezing and rerunning the exact complete tree. Neither
+this intermediate run nor a focused rerun is reported as final-suite success.
+
+Extended release-browser editor checks passed at `dfb529a` (run 40363887745,
+artifact 12670210330): actual expanded token → artwork editor, complete known
+URL typed through software letters/symbols, not-saved preview with Alex Konstad
+credit, Apply, Fadeout selection, reload and reopened editor credit/mode checks.
+Screenshots 08–16 preserve these states. Production and tests are now frozen
+after the warning overlap and test-route cleanup; final exact-tree gates run
+without concurrent edits. Native clipboard/picker/latency remain unverified.

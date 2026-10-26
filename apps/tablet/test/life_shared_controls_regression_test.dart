@@ -349,6 +349,8 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('shared-dice')));
       await tester.pumpAndSettle();
       expect(find.byTooltip('Close workspace'), findsOneWidget);
+      await tester.tap(find.byTooltip('Close workspace'));
+      await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     },
   );
@@ -700,6 +702,12 @@ void main() {
         find.byKey(ValueKey('${p.id}-compact-utility-reorder')),
         findsNothing,
       );
+      expect(
+        find.byKey(const ValueKey('table-modal-surface')),
+        findsOneWidget,
+        reason: 'Dice must actually open before testing modal restoration.',
+      );
+      expect(find.byTooltip('Close workspace'), findsOneWidget);
       await tester.tap(find.byTooltip('Close workspace'));
       await tester.pumpAndSettle();
       await enter();
@@ -719,6 +727,59 @@ void main() {
       await held.up();
       await tester.pumpAndSettle();
       expect(f.controller.session.toJson(), before);
+    },
+  );
+  testWidgets(
+    'warned long-name seats keep warning clear of life symbols and delta',
+    (tester) async {
+      final f = await show(tester, const Size(744, 1133), 4);
+      await f.controller.updateState('Seed warnings', (state) {
+        for (final player in state.session.players) {
+          player.counters['poison'] = 10;
+          state.profiles
+                  .firstWhere((profile) => profile.id == player.seatId)
+                  .name =
+              'A very long player name that must truncate';
+        }
+      });
+      await tester.pumpAndSettle();
+      for (final p in f.controller.session.players) {
+        await f.controller.adjustLife(p.id, 1);
+        await tester.pump();
+        final warning = find.byKey(ValueKey('${p.id}-life-warning'));
+        final surface = find.byKey(ValueKey('${p.id}-life-surface'));
+        final symbols = find.descendant(
+          of: surface,
+          matching: find.byWidgetPredicate(
+            (w) => w is Icon && (w.icon == Icons.add || w.icon == Icons.remove),
+          ),
+        );
+        for (final symbol in symbols.evaluate()) {
+          expect(
+            tester
+                .getRect(warning)
+                .overlaps(tester.getRect(find.byWidget(symbol.widget))),
+            isFalse,
+          );
+        }
+        final name = find.byKey(ValueKey('${p.id}-player-name'));
+        expect(tester.widget<Text>(name).overflow, TextOverflow.ellipsis);
+        expect(
+          tester.getRect(name).deflate(.01).overlaps(tester.getRect(warning)),
+          isFalse,
+        );
+        final number = find.byKey(ValueKey('${p.id}-life-number'));
+        final delta = find.descendant(
+          of: find.byKey(ValueKey('${p.id}-life-delta')),
+          matching: find.byType(Text),
+        );
+        expect(
+          localRect(tester, number, surface).center.dy,
+          closeTo(localRect(tester, delta, surface).center.dy, .01),
+        );
+      }
+      await capture(tester, 'warned-long-name-seats-744x1133');
+      expect(tester.takeException(), isNull);
     },
   );
 }

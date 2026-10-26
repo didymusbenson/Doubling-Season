@@ -1170,44 +1170,43 @@ class _LifePanel extends StatelessWidget {
                         height: 26,
                         child: Padding(
                           padding: EdgeInsets.fromLTRB(12, 4, 12, 0),
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              Center(
-                                child: Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 20),
-                                  child: Text(
-                                    profile.name,
-                                    key: ValueKey('${player.id}-player-name'),
-                                    textAlign: TextAlign.center,
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                    style: TextStyle(
-                                      color: artColor ?? color,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 14,
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      profile.name,
+                                      key: ValueKey('${player.id}-player-name'),
+                                      textAlign: TextAlign.center,
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                      style: TextStyle(
+                                        color: artColor ?? color,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (player.warnings.isNotEmpty)
-                                      Tooltip(
-                                        message: player.warnings.join('\n'),
-                                        child: const Icon(
-                                          Icons.warning_amber_rounded,
-                                          color: Color(0xFFFFB485),
-                                          size: 18,
+                                  if (player.warnings.isNotEmpty)
+                                    Tooltip(
+                                      message: player.warnings.join('\n'),
+                                      child: Icon(
+                                        Icons.warning_amber_rounded,
+                                        key: ValueKey(
+                                          '${player.id}-life-warning',
                                         ),
+                                        color: const Color(0xFFFFB485),
+                                        size: 18,
                                       ),
-                                  ],
-                                ),
+                                    ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
