@@ -236,3 +236,10 @@ credit, Apply, Fadeout selection, reload and reopened editor credit/mode checks.
 Screenshots 08–16 preserve these states. Production and tests are now frozen
 after the warning overlap and test-route cleanup; final exact-tree gates run
 without concurrent edits. Native clipboard/picker/latency remain unverified.
+
+The next frozen run at `9bb17ae` caught an incorrect new test key: Dice explicitly
+uses the shared frame key `context-workspace`, not the helper's fallback
+`table-modal-surface`. Independent review identified that distinction. The
+presence assertion is corrected to the real route key while retaining its
+Close and lifecycle checks; no global guard reset or production workaround is
+used. The exact complete suite is rerun after this test-only correction.

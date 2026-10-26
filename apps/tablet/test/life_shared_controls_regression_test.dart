@@ -703,7 +703,7 @@ void main() {
         findsNothing,
       );
       expect(
-        find.byKey(const ValueKey('table-modal-surface')),
+        find.byKey(const ValueKey('context-workspace')),
         findsOneWidget,
         reason: 'Dice must actually open before testing modal restoration.',
       );
