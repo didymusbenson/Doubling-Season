@@ -1,6 +1,8 @@
 # Tripling Table field feedback — October 26, 2026
 
-Implementation is in progress on the feature branch. The complete reviewed scope
+Code and cloud validation passed at the frozen source checkpoint below. Physical
+iPad acceptance remains open; this is not a claim that every reported native bug
+is fixed. The complete reviewed scope
 and dependency order are in [the batch plan](../in_progress_features/ipad_edition/feedback_batch_2026-10-26_plan.md).
 This document distinguishes source findings from native acceptance. No data
 migration, release-version change or physical-device installation is authorized
@@ -32,15 +34,15 @@ by this document.
   durable storage; token expansion is different. Capture comparable timing before
   altering durability. Memory-fixture timing is not Hive or physical-iPad timing.
 
-## Acceptance ledger
+## Acceptance ledger — pre-merge checkpoint, October 26, 2026
 
 | Area | Status | Evidence |
 | --- | --- | --- |
 | Reviewed complete plan | Passed | Parent and independent review before implementation |
 | Populated 75% shell geometry gate | Passed | Parent-reviewed supported tablet matrix; explicit narrow-case limits below |
-| Exact-head analysis/tests/builds | Pending | Checkpoint 9285129 analyzer, full tests, web/APK/iOS simulator and combined Pages build passed; later review fixes require rerun |
-| Integrated visual and interaction review | Pending | Parent accepted shell, navigation, measured signed deltas and real-art parity; release-browser flows still being completed |
-| Combined Pages publication | Pending | Original and tablet artifact verification required |
+| Exact-head analysis/tests/builds | Passed | Frozen `edfe5e8`: clean analyzer, 634 tests passed/5 intentional skips; CI web/APK/iOS simulator passed in run 40365244975 attempt 2 |
+| Integrated visual and interaction review | Passed | Parent-reviewed rendered shell/navigation/deltas/reorder and real-art flows; exact-source Chrome release smoke passed, artifact 12670676142 |
+| Combined Pages publication | Pending at this checkpoint | Combined original/tablet build 40365244960 passed; merge/deployment must be verified separately through PR 53 and public deployment.json |
 | Physical iPad picker | Pending | Real selection/cancel/retry/preservation |
 | Physical iPad editing | Pending | Selection toolbar, Paste, keyboard accuracy |
 | Physical iPad life latency | Pending | Comparable input/save/frame timings |
@@ -243,3 +245,50 @@ uses the shared frame key `context-workspace`, not the helper's fallback
 presence assertion is corrected to the real route key while retaining its
 Close and lifecycle checks; no global guard reset or production workaround is
 used. The exact complete suite is rerun after this test-only correction.
+
+## Final frozen-source validation
+
+Tested source/test/workflow commit: `edfe5e8486a52bfa89ee526b55d9f76398e9fa74`.
+Local analyzer is clean; full tablet suite passed **634 tests with 5 intentional
+skips**. Independent scoped review passed on that commit, as did all 34 final
+real-font/art layout cases. The release Chrome harness passed its full keyboard,
+state/reload, Day/Night, dice, catalog and artwork URL Preview/Apply/credit/style
+flows with no unhandled runtime exceptions.
+
+[Tablet CI run 40365244975](https://github.com/didymusbenson/Doubling-Season/actions/runs/40365244975)
+passed analyzer/tests, release web/APK, browser interaction and iOS simulator
+compilation. The first simulator job was cancelled before any steps with no
+assigned runner; a failed-jobs-only retry acquired a runner and passed. This was
+not a native application failure or a physical-device test.
+[Combined Pages build 40365244960](https://github.com/didymusbenson/Doubling-Season/actions/runs/40365244960)
+passed original/tablet assembly; PR deployment was correctly skipped.
+
+The following documentation-only checkpoint does not alter the tested app,
+tests, workflow, dependency locks, native projects or OTA data. Publication
+status is intentionally separate from code acceptance and is verified in the
+[PR 53 handoff](https://github.com/didymusbenson/Doubling-Season/pull/53) and
+`/Doubling-Season/deployment.json` after merge.
+
+## Original feedback acceptance map
+
+| Feedback | Implemented and cloud-verified | Still open or deferred |
+| --- | --- | --- |
+| Life tap delay | Memory-fixture command timing; durable save-before-publish preserved | Physical iPad input/save/frame timing and root cause unresolved; not claimed fixed |
+| Signed life preview and holds | Negative delta left, positive right beside centered total; life-only hold starts at ±10 | Physical touch feel remains native QA |
+| Modal size and wording | Shared centered 75% shell, concise routine copy, scrolling and short-height keyboard-focused mode | Narrow short-view odd-quarter-turn keyboard cases explicitly unsupported/unaccepted |
+| Player/commander settings and life customization | Unified Player/Counters, direct commander region, single Back path, separate damage/correction semantics | Native usability check on corrected build |
+| Table menu, Day/Night and dice | Direct controls, tested tap/held clear, scrollable dice controls/results | Native touch acceptance |
+| Everyone board wipe | Atomic active-player transaction and one chronological Undo; established filters preserved | No additional native-specific logic |
+| Custom keyboard and Paste | Staggered 44px keys, one-shot Shift, selection toolbar, clipboard errors, cancellation; actual browser typing | Physical iPad selection handles, Paste and typing accuracy unverified |
+| Image URL confidence | Explicit not-saved Preview versus Apply/current artwork, known-credit enrichment, validation/error preservation and reload | Native clipboard path unverified |
+| All iPad uploads fail | Shared importer diagnostics, retry and previous-artwork preservation | Exact PlatformException and physical picker repair unresolved; not claimed fixed |
+| Artist nub | Original Mana artist-nib caption and authoritative credits restored | Native rendering check |
+| Token description and expanded artwork | Complete three-line ellipsis; full expanded descriptions; Full/Fadeout preference and reload verified | Native rendering check |
+| Custom Rules | New authoring hidden; presets and existing saved effects preserved | Complete implementation deliberately deferred |
+| Mana pool steppers | Recorded, not implemented | Mana default, optional steppers and possible Storm integration deliberately deferred |
+
+Short-footer compact Reorder/Done is a bounded geometry adaptation, not a new
+global mode. Ordinary gameplay controls remain directly reachable; native
+bounded drag/autoscroll, stable ordering, cancellation and lifecycle restoration
+are preserved. Supported tablet layouts and actual seat rotations 0/2 passed;
+narrow unsupported keyboard cases are not represented as universal coverage.

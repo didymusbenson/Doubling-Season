@@ -1,6 +1,6 @@
 # Tripling Table: October 26 feedback batch
 
-Status: reviewed plan; cloud implementation in progress (draft PR 53). Prepared from user feedback and read-only source audits at `729f8402bc45df46917c3dc3a7b10e71c8a16129`. Installed iPad build 3 is based on `1f93a39a4101d8cd1e85bf8f42cc350d74167f89`; inspected tablet code is unchanged between these points. Verify current head again before execution.
+Status: reviewed plan implemented and cloud-validated at `edfe5e8`; PR 53 publication gate and physical iPad acceptance remain separate. Prepared from user feedback and read-only source audits at `729f8402bc45df46917c3dc3a7b10e71c8a16129`. Installed iPad build 3 is based on `1f93a39a4101d8cd1e85bf8f42cc350d74167f89`; inspected tablet code is unchanged between these points. Verify current head again before execution.
 
 ## 1. Outcome and scope
 
