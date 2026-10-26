@@ -61,7 +61,11 @@ extension _GamePages on _TableWorkspaceState {
         padding: const EdgeInsets.only(bottom: 8),
         child: Align(
           alignment: Alignment.centerLeft,
-          child: _button(label, () => _go(page), icon: icon),
+          child: SizedBox(
+            width: 280,
+            height: 48,
+            child: _button(label, () => _go(page), icon: icon),
+          ),
         ),
       ),
   ]);

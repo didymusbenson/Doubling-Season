@@ -1,6 +1,6 @@
 # Focused modal correction — 2026-10-26
 
-Status: approved correction plan; first commander render gate in progress. Supersedes the shared Player/Counters panel and global sibling-tab decisions in the earlier feedback plan, not its other validated features.
+Status: implemented and checkpointed in draft PR #54; final exact-head validation is in progress. Parent accepted the commander and integrated focused-dialog visual gates. Supersedes the shared Player/Counters panel and global sibling-tab decisions in the earlier feedback plan, not its other validated features.
 
 ## Evidence and cause
 
@@ -28,3 +28,14 @@ Physical iPad upload root cause, life latency and native paste/keyboard acceptan
 Commander names are not required setup. Replace naming/Add/Remove controls with **Has partner**. Show compact generic Commander/Partner labels while preserving existing names as metadata and accessible detail. Each has a separate stable source ID and separate 21-damage threshold; never sum partner damage for that threshold.
 
 Turning on creates/reactivates the same partner source atomically and preserves the implicit primary identity. Turning off is refused while any recipient has nonzero damage from that partner. At zero it marks the partner inactive, not deleted; reenabling restores the same ID/name. An optional source `active` field defaults true for older data. Existing archives/history survive and reset carries configuration. Older builds that ignore the new flag may display an inactive source; backward reading is lossless, not equivalent active-visibility behavior. Imported extra sources remain explicitly accessible rather than capped or silently hidden.
+
+
+## Validation checkpoint
+
+The maximum-eight-source grid passed portrait and short-landscape render gates with 44px minimum action targets. Integrated Player, Counters, hub, New game and mixed-source layouts were reviewed; the hub uses consistent bounded button widths. Dedicated tests cover route isolation, hub-to-destination Back navigation, independent partner damage, guarded deactivation, persistence, archives, reset, Undo, pending-save dismissal and retained failure visibility. Final full-suite, analyzer and release-browser evidence will be recorded in PR #54 before publication.
+
+The header-removal regression checks also cover utility and Ring top-row actions, which must reserve the actual Close corner without introducing a full header strip. Capture helpers follow Flutter's golden matcher ordering: start `toImage` in the test frame zone before awaiting it in `runAsync`; this avoids missing retained-layer glyphs in screenshots.
+
+### Imported source edge cases
+
+Normal setup supports a primary plus one partner. Existing active groups with more than two sources remain available through an explicit over-density correction list; the partner toggle refuses to deactivate such a group implicitly. Inactive sources retain their full data. An explicit imported inactive source with recorded damage is not normalized or deleted; the ordinary primary/partner pair can be reactivated with Has partner. Arbitrary inactive third-or-later imported sources are a preserved-data recovery limitation, not claimed as normal supported setup.

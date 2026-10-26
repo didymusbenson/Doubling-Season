@@ -127,8 +127,9 @@ void main() {
           final offset = (y * image.width + x) * 4;
           if (rgba.getUint8(offset) > 120 &&
               rgba.getUint8(offset + 1) > 120 &&
-              rgba.getUint8(offset + 2) > 120)
+              rgba.getUint8(offset + 2) > 120) {
             paintedClosePixels++;
+          }
         }
       }
       expect(
