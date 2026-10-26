@@ -128,7 +128,10 @@ async function hitTarget(node) {
             rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } };
         };
         const chain = element => { const result = []; for (let i = 0; element && i < 8; i++, element = element.parentElement) result.push(describe(element)); return result; };
+        const actionSelector = '[role="button"],[role="switch"],[role="checkbox"],[role="textbox"],[flt-tappable]';
+        const selectedAction = this.closest(actionSelector), hitAction = hit?.closest(actionSelector);
         return { tag: hit?.tagName, label: hit?.getAttribute('aria-label'), text: hit?.textContent?.slice(0, 220),
+          sameAction: !!selectedAction && selectedAction === hitAction,
           selectedContainsHit: !!hit && (this === hit || this.contains(hit)), hitContainsSelected: !!hit && hit.contains(this),
           selectedChain: chain(this), hitChain: chain(hit), atPoint: document.elementsFromPoint(x, y).slice(0, 10).map(describe) };
       }`,
@@ -221,14 +224,14 @@ async function diagnoseHold(input) {
 async function click(name, options = {}) {
   let node = await find(name, options);
   let target = await hitTarget(node);
-  if (!target.selectedContainsHit && !target.hitContainsSelected) {
+  if (!target.sameAction) {
     evidence.unmatchedTargets ||= [];
     evidence.unmatchedTargets.push({ name, at: new Date().toISOString(), node, target });
     await until(`current DOM hit target for ${JSON.stringify(name)}`, async () => {
       node = await find(name, options);
       target = await hitTarget(node);
       evidence.unmatchedTargets.push({ name, at: new Date().toISOString(), node, target });
-      return target.selectedContainsHit || target.hitContainsSelected;
+      return target.sameAction;
     }, 3000);
   }
   const x = node.rect.x + node.rect.width / 2, y = node.rect.y + node.rect.height / 2;

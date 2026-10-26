@@ -47,3 +47,7 @@ Chrome interaction testing identified a real accessibility hit-order defect afte
 ### Partner guard presentation
 
 Expected blocked deactivation is local guidance beside Has partner, not a failed-save or global error banner. The UI preflights current damage; a typed guard inside the serialized controller command handles a queued-damage race without publishing an error or changing data. Genuine storage and scope failures retain the existing error path. Tests cover the preflight, race, unchanged partner/history, clearing guidance after correction, and real save failure. Browser captures wait for the committed switch state and its visual transition.
+
+### Bounded accessibility actions
+
+Release Chrome revealed that the route label could merge with its first field and expose a modal-sized search action whose center selected an unrelated token. Route context now uses explicit child semantics; each PlayerField owns its own bounded semantics container. Regression tests assert separate route/field nodes, non-actionable route context, field-sized bounds, semantic activation and typing for catalog search and artwork URL. Browser clicks also require the same nearest actionable DOM node, not merely ancestor/descendant containment.

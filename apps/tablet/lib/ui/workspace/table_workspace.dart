@@ -971,6 +971,8 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
                           child: ClipPath(
                             clipper: _WorkspaceControlCutout(_controlWidth + 8),
                             child: Semantics(
+                              container: true,
+                              explicitChildNodes: true,
                               namesRoute: true,
                               label: _title,
                               child: _content(),
