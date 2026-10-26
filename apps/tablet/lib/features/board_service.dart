@@ -906,6 +906,49 @@ class BoardService {
         }
       });
 
+  /// Wipe the active table as one durable command and one chronological Undo.
+  /// The persistent seat roster and archived games are not active boards.
+  Future<void> wipeEveryone(String action) async {
+    if (action != 'wipe_all' && action != 'wipe_creatures') {
+      throw ArgumentError.value(action, 'action', 'Choose a board wipe');
+    }
+    final before = controller.session;
+    final generations = {
+      for (final player in before.players) player.id: player.generation,
+    };
+    final ok = await controller.commit(
+      action == 'wipe_all'
+          ? 'Everyone: wipe all tokens'
+          : 'Everyone: wipe creature tokens',
+      expectedSessionId: before.id,
+      expectedGeneration: before.generation,
+      mutate: (session) {
+        // Check every scope before editing any draft board. A queued reset or
+        // wipe must not silently apply this action to a replacement board.
+        for (final player in session.players) {
+          if (generations[player.id] != player.generation) {
+            throw StateError(
+              'A player’s board changed. Reopen the action to continue.',
+            );
+          }
+        }
+        for (final player in session.players) {
+          final oldCount = player.tokens.length;
+          if (action == 'wipe_all') {
+            player.tokens.clear();
+          } else {
+            // Keep the existing single-seat P/T-based creature definition.
+            player.tokens.removeWhere(_creature);
+          }
+          if (player.tokens.length != oldCount) player.generation++;
+        }
+      },
+    );
+    if (!ok) {
+      throw StateError(controller.error ?? 'The wipe could not be saved');
+    }
+  }
+
   Future<void> bulk(
     String playerId,
     String action, {

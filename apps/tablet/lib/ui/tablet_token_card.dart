@@ -545,6 +545,26 @@ class _TabletTokenCardState extends State<TabletTokenCard>
     ),
   );
 
+  Widget _abilityDescription(String abilities, Color color) {
+    final text = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: ManaText(
+        abilities.isEmpty ? 'Abilities' : abilities,
+        maxLines: widget.expanded ? null : 3,
+        overflow: widget.expanded ? TextOverflow.clip : TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 12, color: color),
+      ),
+    );
+    // Let the renderer reserve three complete lines in the collapsed card.
+    // A fixed pixel viewport can cut a line in half with the real font, mana
+    // symbols or larger accessibility text, even when maxLines is correct.
+    if (!widget.expanded) return text;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 102),
+      child: SingleChildScrollView(child: text),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -567,7 +587,8 @@ class _TabletTokenCardState extends State<TabletTokenCard>
         child: TableArtworkSurface(
           url: token.artworkUrl,
           style: token.extra['artworkDisplayStyle'] as String? ?? 'full',
-          expanded: widget.expanded,
+          // Token expansion reveals editing controls, not a different art mode.
+          // Match the original TokenCard: keep the selected fade/full treatment.
           shadeArtwork: false,
           child: DecoratedBox(
             decoration: BoxDecoration(
@@ -724,38 +745,9 @@ class _TabletTokenCardState extends State<TabletTokenCard>
                                             label: 'Abilities',
                                             value: token.abilities,
                                             multiline: true,
-                                            child: ConstrainedBox(
-                                              constraints: BoxConstraints(
-                                                maxHeight: widget.expanded
-                                                    ? 102
-                                                    : 48,
-                                              ),
-                                              child: SingleChildScrollView(
-                                                physics: widget.expanded
-                                                    ? null
-                                                    : const NeverScrollableScrollPhysics(),
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        vertical: 3,
-                                                      ),
-                                                  child: ManaText(
-                                                    abilities.isEmpty
-                                                        ? 'Abilities'
-                                                        : abilities,
-                                                    maxLines: widget.expanded
-                                                        ? null
-                                                        : 3,
-                                                    overflow: widget.expanded
-                                                        ? TextOverflow.clip
-                                                        : TextOverflow.ellipsis,
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: color,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
+                                            child: _abilityDescription(
+                                              abilities,
+                                              color,
                                             ),
                                           )
                                         : const SizedBox.shrink(),
