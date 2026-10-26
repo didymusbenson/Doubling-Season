@@ -165,7 +165,7 @@ async function diagnoseHold(input) {
   await restoreNight();
   const node = await find('Day/Night: night.', { startsWith: true, role: 'button' });
   const x = node.rect.x + node.rect.width / 2, y = node.rect.y + node.rect.height / 2;
-  const record = { input, before: await dayNightState(), rect: node.rect, hit: target };
+  const record = { input, before: await dayNightState(), rect: node.rect, hit: await hitTarget(node) };
   const eventOffset = await cdp.evaluate('window.__tableSmokeInputEvents.length');
   const started = Date.now();
   log('begin observed long press', record);
