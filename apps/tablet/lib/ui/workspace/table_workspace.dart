@@ -23,6 +23,8 @@ import '../table_artwork.dart';
 import '../table_modal_frame.dart';
 import '../table_mana_icons.dart';
 import '../half_stepper.dart';
+import '../die_outline.dart';
+import 'dice_roll.dart';
 import '../commander_ledger.dart';
 import '../monarch_crown.dart';
 import '../artwork_selection.dart';
@@ -32,6 +34,7 @@ import '../support_sheet.dart';
 
 part 'token_pages.dart';
 part 'game_pages.dart';
+part 'dice_pages.dart';
 part 'commander_page.dart';
 part 'library_pages.dart';
 
@@ -56,6 +59,7 @@ enum WorkspacePage {
   boardWipes,
   reset,
   dice,
+  diceResults,
   settings,
 }
 
@@ -171,8 +175,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   String _customEffect = 'multiply';
   bool _customGlobal = false;
   final Map<int, int> _diceCounts = {4: 0, 6: 1, 8: 0, 10: 0, 12: 0, 20: 0};
-  final List<String> _diceResults = [];
-  int? _diceTotal;
+  DiceRoll? _diceRoll;
 
   TableController get c => widget.controller;
   TabletCatalog get catalog => widget.catalog;
@@ -833,6 +836,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     WorkspacePage.archives => 'Archives',
     WorkspacePage.boardWipes => 'Board wipes',
     WorkspacePage.dice => 'Dice',
+    WorkspacePage.diceResults => 'Dice results',
     WorkspacePage.settings => 'Table settings',
   };
 
@@ -897,6 +901,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       WorkspacePage.archives => _archivesPage(),
       WorkspacePage.boardWipes => _boardWipesPage(),
       WorkspacePage.dice => _dicePage(),
+      WorkspacePage.diceResults => _diceResultsPage(),
       WorkspacePage.settings => _settingsPage(),
     };
   }
