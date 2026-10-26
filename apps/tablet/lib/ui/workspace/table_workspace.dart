@@ -994,10 +994,11 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         fit: StackFit.expand,
         children: [
           Positioned.fill(
-            child: Semantics(
-              label: 'Close workspace',
-              button: true,
-              onTap: _requestClose,
+            // A full-window actionable semantics node can sit above dialog
+            // controls in Flutter web's DOM hit order after a state update.
+            // Outside pointer taps still dismiss; assistive technology uses the
+            // visible 44px Close button (or the focused keyboard's Close).
+            child: ExcludeSemantics(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: _requestClose,

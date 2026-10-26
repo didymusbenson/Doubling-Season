@@ -39,3 +39,7 @@ The header-removal regression checks also cover utility and Ring top-row actions
 ### Imported source edge cases
 
 Normal setup supports a primary plus one partner. Existing active groups with more than two sources remain available through an explicit over-density correction list; the partner toggle refuses to deactivate such a group implicitly. Inactive sources retain their full data. An explicit imported inactive source with recorded damage is not normalized or deleted; the ordinary primary/partner pair can be reactivated with Has partner. Arbitrary inactive third-or-later imported sources are a preserved-data recovery limitation, not claimed as normal supported setup.
+
+### Release-browser dismissal interception repair
+
+Chrome interaction testing identified a real accessibility hit-order defect after a state update: a full-window actionable `Close workspace` semantics node sat above the visible modal controls. Twenty fresh DOM hit checks across three seconds identified the same 1133×744 dismissal target over the 44px Close button; an earlier Back click had therefore dismissed the route instead of returning to the commander grid. The outside-tap layer now excludes semantics while retaining its raw pointer dismissal behavior. Assistive technology retains the visible Close control and the keyboard's focused Close control. Regression coverage checks the semantics surface and pending-save/outside-tap behavior; actual browser target correspondence remains required before publication.

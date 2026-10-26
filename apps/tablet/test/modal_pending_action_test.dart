@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tripling_table/domain/table_state.dart';
 import 'package:tripling_table/services/tablet_catalog.dart';
@@ -28,6 +29,104 @@ class _DelayedPartnerRepository extends MemoryTableRepository {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('only visible Close is actionable; raw outside tap is consumed', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1133, 744);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final semantics = tester.ensureSemantics();
+    final controller = TableController(
+      repository: MemoryTableRepository(TabletState.initial()),
+    );
+    await controller.initialize();
+    final catalog = TabletCatalog(controller)..loaded = true;
+    addTearDown(catalog.dispose);
+    addTearDown(controller.dispose);
+    var boardTaps = 0;
+    var dismissed = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => boardTaps++,
+            child: Center(
+              child: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () async {
+                    await showTableWorkspace(
+                      context,
+                      controller,
+                      catalog: catalog,
+                      seatId: controller.session.players.first.seatId,
+                      initialPage: WorkspacePage.player,
+                    );
+                    dismissed++;
+                  },
+                  child: const Text('Open player'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open player'));
+    await tester.pumpAndSettle();
+    final nodes = <SemanticsNode>[];
+    void collect(SemanticsNode node) {
+      nodes.add(node);
+      node.visitChildren((child) {
+        collect(child);
+        return true;
+      });
+    }
+
+    var root = tester.getSemantics(
+      find.byWidgetPredicate(
+        (widget) => widget is IconButton && widget.tooltip == 'Close workspace',
+      ),
+    );
+    while (root.parent != null) {
+      root = root.parent!;
+    }
+    collect(root);
+    final actionable = nodes.where(
+      (node) => node.getSemanticsData().hasAction(SemanticsAction.tap),
+    );
+    final close = actionable
+        .where(
+          (node) =>
+              (node.getSemanticsData().label == 'Close workspace' ||
+              node.getSemanticsData().tooltip == 'Close workspace'),
+        )
+        .toList();
+    expect(close, hasLength(1), reason: root.toStringDeep());
+    expect(close.single.rect.size, const Size(44, 44));
+    expect(
+      actionable.where(
+        (node) => node.rect.width >= 1133 && node.rect.height >= 744,
+      ),
+      isEmpty,
+      reason: 'A full-window accessible tap target must not cover the modal.',
+    );
+    final before = boardTaps;
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+    expect(dismissed, 1);
+    expect(find.text('Has partner'), findsNothing);
+    expect(boardTaps, before, reason: 'Dismissal must not click the board.');
+    // Prove that this coordinate is actionable on the underlying page once
+    // the modal has gone, rather than passing because the board is inert.
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+    expect(boardTaps, before + 1);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    semantics.dispose();
+  });
 
   for (final dismiss in ['Close button', 'outside barrier']) {
     for (final fail in [false, true]) {
