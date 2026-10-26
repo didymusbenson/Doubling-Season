@@ -487,6 +487,58 @@ class TableController extends ChangeNotifier {
   );
   Future<bool> setDayNight(String value) =>
       commit('Set day/night: $value', mutate: (game) => game.dayNight = value);
+
+  /// Toggle the optional second source without replacing ledger identities.
+  Future<bool> setHasPartner(String playerId, bool enabled) => commit(
+    enabled ? 'Enable partner commander' : 'Disable partner commander',
+    playerId: playerId,
+    mutate: (game) {
+      game.player(playerId); // Reject stale owners before creating any source.
+      final owned = game.commanders
+          .where((source) => source.ownerPlayerId == playerId)
+          .toList();
+      if (!enabled) {
+        if (owned.length > 2) {
+          throw StateError('Manage additional commander sources individually.');
+        }
+        if (owned.length < 2 || !owned[1].active) return;
+        final partner = owned[1];
+        if (game.players.any(
+          (recipient) => (recipient.commanderDamage[partner.id] ?? 0) != 0,
+        )) {
+          throw StateError(
+            'Set this partner’s damage to zero for everyone first.',
+          );
+        }
+        partner.active = false;
+        return;
+      }
+      if (game.hasPartner(playerId)) return;
+      if (owned.isEmpty) {
+        final primary = CommanderSource(
+          id: 'default-commander:$playerId',
+          ownerPlayerId: playerId,
+          name: 'Commander',
+        );
+        game.commanders.add(primary);
+        owned.add(primary);
+      }
+      // Imported inactive primaries retain their identity when reactivated.
+      owned.first.active = true;
+      if (owned.length > 1) {
+        owned[1].active = true;
+      } else {
+        game.commanders.add(
+          CommanderSource(
+            id: newEntityId(),
+            ownerPlayerId: playerId,
+            name: 'Partner',
+          ),
+        );
+      }
+    },
+  );
+
   Future<bool> addCommander(String playerId, String name) => commit(
     'Add commander source: $name',
     playerId: playerId,
@@ -549,6 +601,11 @@ class TableController extends ChangeNotifier {
         '${adjustLife ? '' : 'Correct '}${_commanderName(sourceId)} damage '
         '${actual >= 0 ? '+' : ''}$actual',
     mutate: (game) {
+      if (game.commanders.any(
+        (source) => source.id == sourceId && !source.active,
+      )) {
+        throw StateError('This commander source is inactive.');
+      }
       if (!game.commanders.any((value) => value.id == sourceId)) {
         final projected = game.commanderTrackingSources.firstWhereOrNull(
           (s) => s.id == sourceId,
@@ -576,6 +633,11 @@ class TableController extends ChangeNotifier {
     playerId: recipientId,
     mutate: (game) {
       if (value < 0) throw ArgumentError('Damage cannot be negative.');
+      if (game.commanders.any(
+        (source) => source.id == sourceId && !source.active,
+      )) {
+        throw StateError('This commander source is inactive.');
+      }
       if (!game.commanders.any((s) => s.id == sourceId)) {
         final projected = game.commanderTrackingSources.firstWhereOrNull(
           (s) => s.id == sourceId,
@@ -773,6 +835,7 @@ class TableController extends ChangeNotifier {
             id: newEntityId(),
             ownerPlayerId: owner,
             name: source.name,
+            active: source.active,
           ),
         );
       }

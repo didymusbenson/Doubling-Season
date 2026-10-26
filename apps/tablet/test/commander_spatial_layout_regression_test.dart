@@ -167,11 +167,10 @@ void main() {
                   .session
                   .commanderTrackingSources
                   .firstWhere((s) => s.ownerPlayerId == player.id);
-              final selfBox = tester.renderObject<RenderBox>(
-                find.byKey(ValueKey('commander-tracker-${selfSource.id}')),
-              );
-              await tester.tapAt(
-                selfBox.localToGlobal(Offset(selfBox.size.width * .75, 35)),
+              // Target the actual action, not a coordinate in the identity
+              // block. Flutter resolves this through the seat rotation.
+              await tester.tap(
+                find.byKey(ValueKey('commander-increase-${selfSource.id}')),
               );
               await tester.pumpAndSettle();
               expect(fixture.controller.player(player.id).life, 39);

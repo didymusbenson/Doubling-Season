@@ -195,8 +195,17 @@ async function diagnoseHold(input) {
   log('observed hold outcome', record);
   await capture(`04-${input}-hold-after-release`);
   await click('Game controls');
-  await click('History');
+  const hubChoices = ['Dice', 'History', 'New game', 'Archives', 'Board wipes', 'Settings'];
+  for (const label of hubChoices) {
+    await find(label, { role: 'button' });
+    assert.equal((await semantics()).filter(node => node.role === 'button' && node.name === label).length, 1, `Hub repeats ${label}`);
+  }
+  await capture(`04-${input}-focused-table-hub`);
+  await click('History', { role: 'button' });
+  assert(!(await semantics()).some(node => node.role === 'button' && hubChoices.includes(node.name)), 'Focused history still has sibling navigation tabs.');
   await capture(`04-${input}-hold-chronological-history`);
+  await click('Back', { role: 'button' });
+  await find('Archives', { role: 'button' });
   await click('Close workspace');
 }
 async function click(name, options = {}) {
@@ -321,6 +330,47 @@ try {
   await installInputObservation();
   await capture('03-name-persisted-after-reload');
   log('PASS software q→a typing, Done, durable rename and reload');
+
+  // Partner setup requires no naming, and its stable ledger is not erased by Off.
+  await click('qa, player details');
+  assert(!(await semantics()).some(node => node.name.includes('Commander name')), 'Player setup still requires commander naming.');
+  await click('Has partner');
+  await capture('03b-player-partner-enabled');
+  await click('Close workspace');
+  await click('qa, commander damage by source', { startsWith: true, role: 'button' });
+  await click('Increase Partner #2 damage from qa; lose one life');
+  await find('qa · 39 life', { contains: true });
+  await capture('03c-focused-partner-damage');
+  await click('Close workspace');
+  await click('qa, player details');
+  await click('Has partner');
+  await find('Set this partner’s damage to zero for everyone first.', { contains: true });
+  await capture('03d-partner-off-guarded');
+  await click('Close workspace');
+  await click('qa, commander damage by source', { startsWith: true, role: 'button' });
+  await click('Correct Partner #2 damage from qa; life unchanged');
+  await click('Set damage total. Current value:', { startsWith: true });
+  await click('Select all');
+  await click('0', { role: 'button' });
+  await click('Done');
+  await click('Correct ledger only');
+  await find('qa · 39 life', { contains: true });
+  await click('Back');
+  await capture('03e-partner-corrected-without-life-change');
+  await click('Close workspace');
+  await click('qa, player details');
+  await click('Has partner');
+  await click('Close workspace');
+  await cdp.send('Page.reload', { ignoreCache: true });
+  await enableSemantics();
+  await find('qa, player details', { timeout: 90000 });
+  await click('qa, commander damage by source', { startsWith: true, role: 'button' });
+  assert(!(await semantics()).some(node => node.name.includes('Increase Partner #2 damage from qa')), 'Inactive partner remained visible after reload.');
+  await capture('03f-partner-off-persisted');
+  await click('Close workspace');
+  await installInputObservation();
+  log('PASS focused partner setup, separate damage, guarded Off, ledger-only correction and persisted deactivation');
+
 
   await click('Day/Night: neither.', { startsWith: true });
   await find('Day/Night: day.', { startsWith: true });

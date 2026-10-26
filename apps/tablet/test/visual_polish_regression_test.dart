@@ -117,7 +117,7 @@ void main() {
     'appearance': WorkspacePage.player,
     'edit-commanders': WorkspacePage.player,
     'commander-grid': WorkspacePage.commanderDamage,
-    'commander-setup': WorkspacePage.commanderDamage,
+    'commander-setup': WorkspacePage.player,
     'commander-correction': WorkspacePage.commanderDamage,
     'counters': WorkspacePage.counters,
     'counter-correction': WorkspacePage.counters,
@@ -129,8 +129,8 @@ void main() {
     'dice': WorkspacePage.dice,
     'reset-new-game': WorkspacePage.reset,
     'reset-three-player': WorkspacePage.reset,
-    'reset-archives': WorkspacePage.reset,
-    'reset-wipes': WorkspacePage.reset,
+    'reset-archives': WorkspacePage.archives,
+    'reset-wipes': WorkspacePage.boardWipes,
     'presets': WorkspacePage.presets,
     'token-search': WorkspacePage.tokens,
     'token-create': WorkspacePage.tokens,
@@ -377,11 +377,9 @@ void main() {
               case 'appearance':
                 await reveal(tester, find.text('Name & color'));
               case 'edit-commanders':
-                await reveal(tester, find.text('Your commanders'));
+                await reveal(tester, find.text('Has partner'));
               case 'commander-setup':
-                await tester.tap(find.widgetWithText(ChoiceChip, 'Player'));
-                await tester.pumpAndSettle();
-                await reveal(tester, find.text('Your commanders'));
+                await reveal(tester, find.text('Has partner'));
               case 'commander-correction':
                 await tester.tap(
                   find.byKey(const ValueKey('commander-edit-partner-a')),
@@ -394,12 +392,6 @@ void main() {
                 await tester.tap(find.text('Custom token'));
               case 'reset-three-player':
                 await tester.tap(find.widgetWithText(ChoiceChip, '3 players'));
-              case 'reset-archives':
-                await tester.tap(find.widgetWithText(ChoiceChip, 'Archives'));
-              case 'reset-wipes':
-                await tester.tap(
-                  find.widgetWithText(ChoiceChip, 'Board wipes'),
-                );
               case 'existing-custom-effects':
                 await reveal(tester, find.text('Saved custom effect'));
                 expect(find.text('Create a custom rule'), findsNothing);
@@ -496,7 +488,10 @@ void main() {
                     w is TextField &&
                     w.decoration?.labelText == 'Starting life',
               );
-              expect(tester.getSize(field).width, lessThanOrEqualTo(160));
+              expect(
+                tester.getSize(field).width,
+                lessThanOrEqualTo(size.width * .75 - 32),
+              );
               expect(find.text('20 life').hitTestable(), findsOneWidget);
               expect(find.text('40 life').hitTestable(), findsOneWidget);
             }

@@ -22,7 +22,9 @@ extension _LibraryPages on _TableWorkspaceState {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-          child: PlayerField(controller: query, label: 'Search utilities'),
+          child: _contentTop(
+            PlayerField(controller: query, label: 'Search utilities'),
+          ),
         ),
         Expanded(
           child: _list([
@@ -113,7 +115,7 @@ extension _LibraryPages on _TableWorkspaceState {
                 ],
               ),
             ),
-          ]),
+          ], controls: false),
         ),
       ],
     );
@@ -146,50 +148,52 @@ extension _LibraryPages on _TableWorkspaceState {
     final transforming =
         standalone && hasAction && action == 'brudiclad_telchor_engineer';
     final controls = <Widget>[
-      Row(
-        children: [
-          _button('All utilities', () async {
-            if (await _flushInline()) _update(() => _itemId = null);
-          }, icon: Icons.arrow_back),
-          const Spacer(),
-          _button('Artwork', () async {
-            if (await _flushInline()) {
-              _update(() => _field('$key.panel').text = 'artwork');
-            }
-          }, icon: Icons.image_outlined),
-          if (standalone) const SizedBox(width: 8),
-          if (standalone)
-            IconButton(
-              tooltip: utility.visible
-                  ? 'Hide this utility'
-                  : 'Restore to board',
-              onPressed: _working
-                  ? null
-                  : () => utility.visible
-                        ? _confirm(
-                            'Hide ${utility.name}?',
-                            'The utility’s current values will remain saved. Restore it from the utilities menu.',
-                            () => _board.setUtility(
-                              player.id,
-                              utility.id,
-                              visible: false,
+      _contentTop(
+        Row(
+          children: [
+            _button('All utilities', () async {
+              if (await _flushInline()) _update(() => _itemId = null);
+            }, icon: Icons.arrow_back),
+            const Spacer(),
+            _button('Artwork', () async {
+              if (await _flushInline()) {
+                _update(() => _field('$key.panel').text = 'artwork');
+              }
+            }, icon: Icons.image_outlined),
+            if (standalone) const SizedBox(width: 8),
+            if (standalone)
+              IconButton(
+                tooltip: utility.visible
+                    ? 'Hide this utility'
+                    : 'Restore to board',
+                onPressed: _working
+                    ? null
+                    : () => utility.visible
+                          ? _confirm(
+                              'Hide ${utility.name}?',
+                              'The utility’s current values will remain saved. Restore it from the utilities menu.',
+                              () => _board.setUtility(
+                                player.id,
+                                utility.id,
+                                visible: false,
+                              ),
+                              button: 'Hide utility',
+                            )
+                          : _run(
+                              () => _board.setUtility(
+                                player.id,
+                                utility.id,
+                                visible: true,
+                              ),
                             ),
-                            button: 'Hide utility',
-                          )
-                        : _run(
-                            () => _board.setUtility(
-                              player.id,
-                              utility.id,
-                              visible: true,
-                            ),
-                          ),
-              icon: Icon(
-                utility.visible
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
+                icon: Icon(
+                  utility.visible
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
       if (standalone && !utility.visible)
         const Text('Hidden from the board. Its values are still saved.'),
@@ -447,35 +451,37 @@ extension _LibraryPages on _TableWorkspaceState {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                _button('All utilities', () async {
-                  if (await _flushInline()) _update(() => _itemId = null);
-                }, icon: Icons.arrow_back),
-                const Spacer(),
-                _button('Artwork', () async {
-                  if (await _flushInline()) {
-                    _update(() => _field('$key.panel').text = 'artwork');
-                  }
-                }, icon: Icons.image_outlined),
-                IconButton(
-                  tooltip: utility.visible
-                      ? 'Hide this utility'
-                      : 'Restore to board',
-                  onPressed: () => _run(
-                    () => _board.setUtility(
-                      player.id,
-                      utility.id,
-                      visible: !utility.visible,
+            _contentTop(
+              Row(
+                children: [
+                  _button('All utilities', () async {
+                    if (await _flushInline()) _update(() => _itemId = null);
+                  }, icon: Icons.arrow_back),
+                  const Spacer(),
+                  _button('Artwork', () async {
+                    if (await _flushInline()) {
+                      _update(() => _field('$key.panel').text = 'artwork');
+                    }
+                  }, icon: Icons.image_outlined),
+                  IconButton(
+                    tooltip: utility.visible
+                        ? 'Hide this utility'
+                        : 'Restore to board',
+                    onPressed: () => _run(
+                      () => _board.setUtility(
+                        player.id,
+                        utility.id,
+                        visible: !utility.visible,
+                      ),
+                    ),
+                    icon: Icon(
+                      utility.visible
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                     ),
                   ),
-                  icon: Icon(
-                    utility.visible
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
             Row(
               children: [
