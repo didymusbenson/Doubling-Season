@@ -119,8 +119,18 @@ async function hitTarget(node) {
       functionDeclaration: `function(x, y) {
         let hit = document.elementFromPoint(x, y);
         while (hit && hit.shadowRoot) { const inner = hit.shadowRoot.elementFromPoint(x, y); if (!inner || inner === hit) break; hit = inner; }
+        const describe = element => {
+          if (!element) return null;
+          const style = getComputedStyle(element), rect = element.getBoundingClientRect();
+          return { tag: element.tagName, id: element.id, role: element.getAttribute('role'),
+            label: element.getAttribute('aria-label'), text: element.textContent?.slice(0, 140),
+            zIndex: style.zIndex, pointerEvents: style.pointerEvents, transform: style.transform,
+            rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } };
+        };
+        const chain = element => { const result = []; for (let i = 0; element && i < 8; i++, element = element.parentElement) result.push(describe(element)); return result; };
         return { tag: hit?.tagName, label: hit?.getAttribute('aria-label'), text: hit?.textContent?.slice(0, 220),
-          selectedContainsHit: !!hit && (this === hit || this.contains(hit)), hitContainsSelected: !!hit && hit.contains(this) };
+          selectedContainsHit: !!hit && (this === hit || this.contains(hit)), hitContainsSelected: !!hit && hit.contains(this),
+          selectedChain: chain(this), hitChain: chain(hit), atPoint: document.elementsFromPoint(x, y).slice(0, 10).map(describe) };
       }`,
     });
     return result.value;
@@ -155,7 +165,7 @@ async function diagnoseHold(input) {
   await restoreNight();
   const node = await find('Day/Night: night.', { startsWith: true, role: 'button' });
   const x = node.rect.x + node.rect.width / 2, y = node.rect.y + node.rect.height / 2;
-  const record = { input, before: await dayNightState(), rect: node.rect, hit: await hitTarget(node) };
+  const record = { input, before: await dayNightState(), rect: node.rect, hit: target };
   const eventOffset = await cdp.evaluate('window.__tableSmokeInputEvents.length');
   const started = Date.now();
   log('begin observed long press', record);
@@ -209,10 +219,21 @@ async function diagnoseHold(input) {
   await click('Close workspace');
 }
 async function click(name, options = {}) {
-  const node = await find(name, options);
+  let node = await find(name, options);
+  let target = await hitTarget(node);
+  if (!target.selectedContainsHit && !target.hitContainsSelected) {
+    evidence.unmatchedTargets ||= [];
+    evidence.unmatchedTargets.push({ name, at: new Date().toISOString(), node, target });
+    await until(`current DOM hit target for ${JSON.stringify(name)}`, async () => {
+      node = await find(name, options);
+      target = await hitTarget(node);
+      evidence.unmatchedTargets.push({ name, at: new Date().toISOString(), node, target });
+      return target.selectedContainsHit || target.hitContainsSelected;
+    }, 3000);
+  }
   const x = node.rect.x + node.rect.width / 2, y = node.rect.y + node.rect.height / 2;
   assert(x >= 0 && y >= 0 && x < evidence.viewport.width && y < evidence.viewport.height, `Control center is clipped: ${name}`);
-  log(options.hold ? 'pointer hold from rendered semantic bounds' : 'pointer click from rendered semantic bounds', { name: node.name, role: node.role, rect: node.rect, hit: await hitTarget(node) });
+  log(options.hold ? 'pointer hold from rendered semantic bounds' : 'pointer click from rendered semantic bounds', { name: node.name, role: node.role, rect: node.rect, hit: target });
   await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
   await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 });
   await sleep(options.hold || 40);
