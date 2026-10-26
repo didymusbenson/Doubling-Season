@@ -337,8 +337,8 @@ try {
   await click('Has partner');
   await capture('03b-player-partner-enabled');
   await click('Close workspace');
-  await click('qa, commander damage by source', { startsWith: true, role: 'button' });
-  await click('Increase Partner #2 damage from qa; lose one life');
+  await click('qa, commander damage ', { startsWith: true, role: 'button' });
+  await click('Increase Partner #2 damage from qa; lose one life', { startsWith: true, role: 'button' });
   await find('qa · 39 life', { contains: true });
   await capture('03c-focused-partner-damage');
   await click('Close workspace');
@@ -347,7 +347,7 @@ try {
   await find('Set this partner’s damage to zero for everyone first.', { contains: true });
   await capture('03d-partner-off-guarded');
   await click('Close workspace');
-  await click('qa, commander damage by source', { startsWith: true, role: 'button' });
+  await click('qa, commander damage ', { startsWith: true, role: 'button' });
   await click('Correct Partner #2 damage from qa; life unchanged');
   await click('Set damage total. Current value:', { startsWith: true });
   await click('Select all');
@@ -364,7 +364,7 @@ try {
   await cdp.send('Page.reload', { ignoreCache: true });
   await enableSemantics();
   await find('qa, player details', { timeout: 90000 });
-  await click('qa, commander damage by source', { startsWith: true, role: 'button' });
+  await click('qa, commander damage ', { startsWith: true, role: 'button' });
   assert(!(await semantics()).some(node => node.name.includes('Increase Partner #2 damage from qa')), 'Inactive partner remained visible after reload.');
   await capture('03f-partner-off-persisted');
   await click('Close workspace');
@@ -475,5 +475,5 @@ try {
     if (chrome.exitCode === null) chrome.kill('SIGKILL');
   }
   if (server) await new Promise(resolve => server.close(resolve));
-  if (profile) await rm(profile, { recursive: true, force: true });
+  if (profile) await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 }
