@@ -405,7 +405,9 @@ void main() {
                   () => Future<void>.delayed(const Duration(milliseconds: 80)),
                 );
               case 'dice':
-                await tester.tap(find.text('Roll selected dice'));
+                final roll = find.byKey(const ValueKey('dice-roll-button'));
+                await reveal(tester, roll);
+                await tester.tap(roll);
             }
             await tester.pumpAndSettle();
             expect(

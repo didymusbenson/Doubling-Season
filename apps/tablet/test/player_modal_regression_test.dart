@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tripling_table/domain/table_state.dart';
 import 'package:tripling_table/ui/table_theme.dart';
+import 'package:tripling_table/ui/die_outline.dart';
 import 'package:tripling_table/ui/workspace/table_workspace.dart';
 
 import 'support/table_fixture.dart';
@@ -551,33 +552,40 @@ void main() {
         await tester.tap(increase);
         await tester.pumpAndSettle();
       }
-      final roll = find.text('Roll selected dice');
+      final roll = find.byKey(const ValueKey('dice-roll-button'));
       await reach(roll);
       await tester.tap(roll);
       await tester.pumpAndSettle();
       final results = tester
-          .widgetList<Text>(
+          .widgetList<DieOutline>(
             find.descendant(
               of: find.byKey(const ValueKey('dice-results')),
-              matching: find.byType(Text),
+              matching: find.byType(DieOutline),
             ),
           )
-          .map((text) => text.data!)
           .toList();
-      expect(results, hasLength(6));
+      expect(results, hasLength(7)); // One of each plus the default d6.
       var total = 0;
-      for (final result in results) {
-        await reach(find.text(result));
-        final parts = result.split(': ');
-        final sides = int.parse(parts.first.split('d').last);
-        for (final value in parts.last.split(' · ').map(int.parse)) {
-          expect(value, inInclusiveRange(1, sides));
-          total += value;
+      for (final die in [4, 6, 8, 10, 12, 20]) {
+        final count = die == 6 ? 2 : 1;
+        expect(
+          results.where((result) => result.sides == die),
+          hasLength(count),
+        );
+        for (var index = 0; index < count; index++) {
+          final face = find.byKey(ValueKey('dice-result-d$die-$index'));
+          await reach(face);
+          final result = tester.widget<DieOutline>(face);
+          expect(result.value, inInclusiveRange(1, die));
+          total += result.value;
         }
       }
-      await reach(find.text('Total: $total'));
-      await reach(roll);
-      await tester.tap(roll);
+      await reach(find.byKey(const ValueKey('dice-summary')));
+      expect(find.text('Total: $total'), findsOneWidget);
+      final reroll = find.byKey(const ValueKey('dice-reroll-button'));
+      await reach(reroll);
+      expect(tester.getSize(reroll).height, greaterThanOrEqualTo(48));
+      await tester.tap(reroll);
       await tester.pumpAndSettle();
       expect(f.controller.session.history, isEmpty);
       expect(tester.takeException(), isNull);
@@ -594,57 +602,70 @@ void main() {
         addTearDown(f.dispose);
         await open(tester, f, page: WorkspacePage.dice, size: size);
         for (final die in [4, 6, 8, 10, 12, 20]) {
-          expect(find.text('d$die'), findsOneWidget);
+          expect(find.byKey(ValueKey('dice-count-d$die')), findsOneWidget);
           final increase = find.byTooltip('Increase d$die');
           expect(increase.hitTestable(), findsOneWidget);
           expect(tester.getSize(increase).width, greaterThanOrEqualTo(48));
           expect(tester.getSize(increase).height, greaterThanOrEqualTo(48));
         }
-        expect(find.text('Roll selected dice').hitTestable(), findsOneWidget);
+        final roll = find.byKey(const ValueKey('dice-roll-button'));
+        expect(roll.hitTestable(), findsOneWidget);
         expect(find.byType(ListView), findsNothing);
-        final expectedColumns = size.width > size.height ? 3 : 2;
+        final shell = find.byKey(const ValueKey('context-workspace'));
+        final rect = tester.getRect(shell);
+        expect(rect.size, Size(size.width * .75, size.height * .75));
+        final expectedColumns = rect.width >= 800
+            ? 6
+            : rect.width >= 400
+            ? 3
+            : 2;
         final dice = [4, 6, 8, 10, 12, 20];
+        Finder count(int die) => find.byKey(ValueKey('dice-count-d$die'));
         expect(
-          tester.getTopLeft(find.text('d4')).dy,
-          tester.getTopLeft(find.text('d${dice[expectedColumns - 1]}')).dy,
+          tester.getTopLeft(count(4)).dy,
+          tester.getTopLeft(count(dice[expectedColumns - 1])).dy,
         );
-        expect(
-          tester.getTopLeft(find.text('d${dice[expectedColumns]}')).dy,
-          greaterThan(tester.getTopLeft(find.text('d4')).dy),
-        );
+        if (expectedColumns < dice.length) {
+          expect(
+            tester.getTopLeft(count(dice[expectedColumns])).dy,
+            greaterThan(tester.getTopLeft(count(4)).dy),
+          );
+        }
         await tester.tap(find.byTooltip('Increase d4'));
         await tester.tap(find.byTooltip('Increase d4'));
         await tester.tap(find.byTooltip('Increase d20'));
-        await tester.tap(find.text('Roll selected dice'));
+        await tester.tap(roll);
         await tester.pumpAndSettle();
         final results = tester
-            .widgetList<Text>(
+            .widgetList<DieOutline>(
               find.descendant(
                 of: find.byKey(const ValueKey('dice-results')),
-                matching: find.byType(Text),
+                matching: find.byType(DieOutline),
               ),
             )
-            .map((text) => text.data!)
             .toList();
-        expect(results, hasLength(3));
-        expect(results[0], startsWith('2d4: '));
-        expect(results[1], startsWith('1d6: '));
-        expect(results[2], startsWith('1d20: '));
+        expect(results, hasLength(4));
+        expect(results.map((result) => result.sides), [4, 4, 6, 20]);
         var total = 0;
         for (final result in results) {
-          final parts = result.split(': ');
-          final sides = int.parse(parts.first.split('d').last);
-          for (final roll in parts.last.split(' · ').map(int.parse)) {
-            expect(roll, inInclusiveRange(1, sides));
-            total += roll;
-          }
+          final face = find.byKey(result.key!);
+          await tester.ensureVisible(face);
+          await tester.pumpAndSettle();
+          expect(face.hitTestable(), findsOneWidget);
+          expect(result.value, inInclusiveRange(1, result.sides));
+          total += result.value;
+          expect(tester.getRect(shell), rect);
         }
+        final summary = find.byKey(const ValueKey('dice-summary'));
+        await tester.ensureVisible(summary);
+        await tester.pumpAndSettle();
         expect(find.text('Total: $total').hitTestable(), findsOneWidget);
-        expect(
-          tester.getSize(find.byKey(const ValueKey('dice-results'))).height,
-          lessThanOrEqualTo(size.width > size.height ? 120 : 160),
-        );
-        expect(find.text('Roll selected dice').hitTestable(), findsOneWidget);
+        final reroll = find.byKey(const ValueKey('dice-reroll-button'));
+        await tester.ensureVisible(reroll);
+        await tester.pumpAndSettle();
+        expect(reroll.hitTestable(), findsOneWidget);
+        expect(tester.getSize(reroll).height, greaterThanOrEqualTo(48));
+        expect(tester.getRect(shell), rect);
         expect(f.controller.session.history, isEmpty);
         expect(tester.takeException(), isNull);
         await capture(

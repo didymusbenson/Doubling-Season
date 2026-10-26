@@ -410,16 +410,56 @@ try {
   await diagnoseHold('mouse');
   await diagnoseHold('touch');
   await click('Roll dice', { startsWith: true, role: 'button' });
-  await click('Roll selected dice');
-  // Flutter can merge section text into its containing group AX name.
-  const roll = await find('Total:', { contains: true });
-  const total = Number(roll.name.match(/\bTotal:\s*(\d+)/)?.[1]);
-  assert(total >= 1 && total <= 6, `Default one-d6 roll was not in range: ${roll.name}`);
-  const die = await find('1d6:', { startsWith: true });
-  assert.equal(Number(die.name.match(/^1d6:\s*(\d+)/)?.[1]), total, 'Displayed die and total disagree.');
+  await find('D6 quantity: 1');
+  await capture('05a-dice-selector-outlines');
+  await click('Roll 1 die', { role: 'button' });
+  async function verifyDiceResults(expected) {
+    const rows = new Map();
+    for (const node of await semantics()) {
+      const match = node.name.match(/^D(4|6|8|10|12|20) result (\d+): (\d+)$/);
+      if (!match) continue;
+      const [, sidesText, indexText, valueText] = match;
+      const sides = Number(sidesText), index = Number(indexText), value = Number(valueText);
+      assert(value >= 1 && value <= sides, `Out-of-range D${sides} result ${value}`);
+      const key = `${sides}:${index}`;
+      if (rows.has(key)) assert.equal(rows.get(key).value, value, 'Duplicate semantic result disagrees.');
+      rows.set(key, { sides, index, value });
+    }
+    for (const [sides, count] of Object.entries(expected)) {
+      assert.equal([...rows.values()].filter(row => row.sides === Number(sides)).length, count, `Wrong D${sides} count`);
+    }
+    assert.equal(rows.size, Object.values(expected).reduce((sum, count) => sum + count, 0), 'Unexpected extra result');
+    const summary = await find('Total:', { startsWith: true });
+    const total = Number(summary.name.match(/^Total:\s*(\d+)/)?.[1]);
+    assert.equal(total, [...rows.values()].reduce((sum, row) => sum + row.value, 0), 'Dice total differs from individual values.');
+  }
+  await find('Roll again', { role: 'button' });
+  await verifyDiceResults({ 6: 1 });
   await capture('05-direct-dice-results');
+  await click('Back', { role: 'button' });
+  await find('D6 quantity: 1');
+  await click('Increase d4', { startsWith: true, role: 'button' });
+  await click('Increase d4', { startsWith: true, role: 'button' });
+  await click('Increase d20', { startsWith: true, role: 'button' });
+  await find('D4 quantity: 2');
+  await capture('05b-dice-mixed-selection');
+  await click('Roll 4 dice', { role: 'button' });
+  await find('Roll again', { role: 'button' });
+  await verifyDiceResults({ 4: 2, 6: 1, 20: 1 });
+  await capture('05c-dice-mixed-results');
+  await click('Roll again', { role: 'button' });
+  await verifyDiceResults({ 4: 2, 6: 1, 20: 1 });
+  await click('Back', { role: 'button' });
+  await find('D4 quantity: 2');
+  await find('D20 quantity: 1');
+  for (const sides of [4, 4, 6, 20]) await click(`Decrease d${sides}`, { startsWith: true, role: 'button' });
+  await find('D6 quantity: 0');
+  await click('Roll dice', { role: 'button' });
+  await find('Select at least one die.', { contains: true });
+  await verifyDiceResults({});
+  await capture('05d-dice-empty-selection');
   await click('Close workspace');
-  log('PASS direct Day/Night taps and Dice controls; hold outcomes recorded separately');
+  log('PASS direct Day/Night and outlined Dice selection, individual results, sums, reroll, Back preservation and empty selection; hold outcomes recorded separately');
 
   await click('qa, add token');
   await click('Search tokens, abilities, type, or P/T. Current value:', { contains: true, role: 'button' });
