@@ -38,8 +38,8 @@ by this document.
 | --- | --- | --- |
 | Reviewed complete plan | Passed | Parent and independent review before implementation |
 | Populated 75% shell geometry gate | Passed | Parent-reviewed supported tablet matrix; explicit narrow-case limits below |
-| Exact-head analysis/tests/builds | Pending | Not yet run |
-| Integrated visual and interaction review | Pending | Cloud browser/rendered checks required |
+| Exact-head analysis/tests/builds | Pending final head | Checkpoint 9285129 analyzer, full tests, web/APK/iOS simulator and combined Pages build passed; later review fixes require rerun |
+| Integrated visual and interaction review | In progress | Parent accepted shell, navigation, measured signed deltas and real-art parity; release-browser flows still being completed |
 | Combined Pages publication | Pending | Original and tablet artifact verification required |
 | Physical iPad picker | Pending | Real selection/cancel/retry/preservation |
 | Physical iPad editing | Pending | Selection toolbar, Paste, keyboard accuracy |
@@ -128,3 +128,45 @@ workaround was adopted. The feature-branch CI harness uses the runner's installe
 Chrome and Node built-ins to serve the exact release output locally, exercise
 real UI input, and preserve screenshot/accessibility/network/commit evidence.
 This does not deploy a new site or validate physical iPad behavior.
+
+### Integrated review and release-browser evidence
+
+Checkpoint `9285129f745652f4c11a813a7d54d00885a62091` passed the full tablet
+suite, analyzer, release web/APK build and iOS simulator compile in CI run
+40358008058. Combined original/tablet Pages build 40358008048 passed; deployment
+was correctly skipped on the draft PR. Simulator compilation is not device QA.
+
+Independent review found two navigation defects, repaired after that checkpoint:
+workspace safe-area sizing could shrink the literal shell, and commander-entry
+header/context could remain stale after switching tabs. Failed Close now keeps
+the route open with Retry; explicit “Close and keep draft” describes session-only
+retention when storage failed. Reopening and retry are covered, with no claim of
+disk persistence until a save succeeds. Four additional support-sheet tests
+cover all rotations with nonzero safe-area insets.
+
+Parent visual review accepted positive seat-1 and negative seat-3 deltas after
+moving them directly beside the measured total text, centered vertically with a
+small gap. Big totals remain centered; +/- glyphs do not compete with deltas.
+Real Scute Swarm art-crop rendering confirms expanded full/fade parity and a
+complete ellipsized third description line. Fixture art is Alex Konstad's bundled
+DSC printing, not synthetic attribution; temporary image bytes are not committed.
+
+The diagnostic-only checkpoint `c735459eef892b1de4d73a2bd4666b48576422b1`
+retained the same app source while strengthening the browser harness. CI run
+40360427093 artifact 12668645299 records Chrome 155 release-rendered input,
+DOM hit bounds, pointer events, screenshots and build hashes. Software keyboard
+q→a, Done, durable rename/reload and direct Day/Night cycling passed. Both mouse
+and emulated-touch holds stayed Night at 750 ms, cleared while still pressed by
+1100 ms, and stayed Neither after release: the initially suspected trailing tap
+was not reproduced. Web semantic-event debounce is distinct from native timing.
+The run subsequently stopped waiting for a dice-result selector; browser QA
+remains open until that and artwork flows are resolved. No runtime exceptions
+were recorded in those completed flows. These observations do not waive native
+picker, editing or latency acceptance.
+
+Short-footer follow-up remains in progress: the native reorder autoscroller
+requires a dragged item no taller than its viewport. At the 480px boundary the
+footer can be about72px, smaller than tracker/mana rows. Parent approved a
+limited compact Reorder/Done mode with44px name rows for this case, preserving
+normal gameplay controls and fixed life. Actual containment, edge autoscroll,
+cancel/no-op and lifecycle restoration must pass before acceptance.

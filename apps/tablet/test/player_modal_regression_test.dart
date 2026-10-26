@@ -61,9 +61,25 @@ void main() {
     TableFixture fixture, {
     WorkspacePage page = WorkspacePage.player,
     Size size = const Size(1133, 744),
+    int quarterTurns = 0,
+    bool asymmetricInsets = false,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
+    if (asymmetricInsets) {
+      tester.view.padding = const FakeViewPadding(
+        left: 44,
+        top: 24,
+        bottom: 20,
+      );
+      tester.view.viewPadding = const FakeViewPadding(
+        left: 44,
+        top: 24,
+        bottom: 20,
+      );
+      addTearDown(tester.view.resetPadding);
+      addTearDown(tester.view.resetViewPadding);
+    }
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     fixture.catalog.loaded = true;
@@ -83,6 +99,7 @@ void main() {
                       ? null
                       : fixture.player.seatId,
                   initialPage: page,
+                  quarterTurns: quarterTurns,
                 ),
                 child: const Text('Open'),
               ),
@@ -94,6 +111,7 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     addTearDown(() async {
+      fixture.repository.failSave = false;
       if (find.byTooltip('Close workspace').evaluate().isNotEmpty) {
         await tester.tap(find.byTooltip('Close workspace'));
         await tester.pumpAndSettle();
@@ -125,6 +143,120 @@ void main() {
       }
       await tester.pumpAndSettle();
     }
+  }
+
+  for (var turns = 0; turns < 4; turns++) {
+    testWidgets(
+      'workspace is viewport-centered with asymmetric safe insets at rotation $turns',
+      (tester) async {
+        final f = TableFixture();
+        await f.initialize();
+        addTearDown(f.dispose);
+        await open(tester, f, quarterTurns: turns, asymmetricInsets: true);
+        final box = tester.renderObject<RenderBox>(
+          find.byKey(const ValueKey('context-workspace')),
+        );
+        final rect = MatrixUtils.transformRect(
+          box.getTransformTo(null),
+          Offset.zero & box.size,
+        );
+        expect(rect.left, closeTo(1133 * .125, .01));
+        expect(rect.top, closeTo(744 * .125, .01));
+        expect(rect.right, closeTo(1133 * .875, .01));
+        expect(rect.bottom, closeTo(744 * .875, .01));
+        expect(rect.center.dx, closeTo(1133 / 2, .01));
+        expect(rect.center.dy, closeTo(744 / 2, .01));
+        expect(tester.takeException(), isNull);
+        await close(tester);
+      },
+    );
+  }
+
+  testWidgets(
+    'direct commander entry changes heading and tools with Player/Counters',
+    (tester) async {
+      final f = TableFixture();
+      await f.initialize();
+      addTearDown(f.dispose);
+      await open(tester, f, page: WorkspacePage.commanderDamage);
+      expect(find.byTooltip('Correct life separately'), findsOneWidget);
+      expect(find.text('Commander damage'), findsOneWidget);
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Player'));
+      await tester.pumpAndSettle();
+      expect(find.text('Player & counters'), findsOneWidget);
+      expect(find.text('Commander damage'), findsNothing);
+      expect(find.byTooltip('Correct life separately'), findsNothing);
+      expect(field('Player name'), findsOneWidget);
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Counters'));
+      await tester.pumpAndSettle();
+      expect(find.text('Commander damage'), findsOneWidget);
+      expect(find.byTooltip('Correct life separately'), findsOneWidget);
+      expect(
+        find.byKey(
+          ValueKey('commander-tracker-default-commander:${f.playerId}'),
+        ),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      await close(tester);
+    },
+  );
+
+  for (final size in [const Size(1133, 744), const Size(844, 480)]) {
+    testWidgets(
+      'failed Close stays open; explicit session draft close reopens and retries at $size',
+      (tester) async {
+        final f = TableFixture();
+        await f.initialize();
+        addTearDown(f.dispose);
+        await open(tester, f, size: size);
+        final original = f.controller.profile(f.player.seatId).name;
+        final name = tester.widget<TextField>(field('Player name')).controller!;
+        await tester.tap(field('Player name'));
+        await tester.pumpAndSettle();
+        f.repository.failSave = true;
+        name.text = 'Unwritten name';
+        await tester.pump();
+        await tester.tap(
+          find.byTooltip('Close').evaluate().isNotEmpty
+              ? find.byTooltip('Close')
+              : find.byTooltip('Close workspace'),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byTooltip('Close workspace'), findsOneWidget);
+        expect(find.text('Retry'), findsOneWidget);
+        expect(
+          find.textContaining('only for this app session'),
+          findsOneWidget,
+        );
+        expect(f.controller.profile(f.player.seatId).name, original);
+        expect(
+          tester.widget<TextField>(field('Player name')).controller!.text,
+          'Unwritten name',
+        );
+        await tester.tap(find.text('Close and keep draft'));
+        await tester.pumpAndSettle();
+        expect(find.byTooltip('Close workspace'), findsNothing);
+        expect(f.controller.profile(f.player.seatId).name, original);
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        expect(
+          tester.widget<TextField>(field('Player name')).controller!.text,
+          'Unwritten name',
+        );
+        await tester.tap(find.byTooltip('Close workspace'));
+        await tester.pumpAndSettle();
+        expect(find.text('Retry'), findsOneWidget);
+        f.repository.failSave = false;
+        await tester.tap(find.text('Retry'));
+        await tester.pumpAndSettle();
+        expect(f.controller.profile(f.player.seatId).name, 'Unwritten name');
+        expect(find.text('Close and keep draft'), findsNothing);
+        await close(tester);
+        expect(find.byTooltip('Close workspace'), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
   for (final size in [const Size(1133, 744), const Size(744, 1133)]) {

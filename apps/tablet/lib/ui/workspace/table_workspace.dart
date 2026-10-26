@@ -77,6 +77,7 @@ Future<void> showTableWorkspace(
       barrierLabel: 'Close workspace',
       barrierColor: Colors.black.withValues(alpha: .76),
       useRootNavigator: true,
+      useSafeArea: false,
       builder: (context) => _TableWorkspace(
         controller: controller,
         catalog: catalog,
@@ -132,6 +133,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   final _inlineEdits = <String, _InlineEdit>{};
   bool _allowPop = false;
   bool _closing = false;
+  bool _closeSaveFailed = false;
   bool _navigating = false;
   String? _error;
   String? _status;
@@ -332,8 +334,17 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     setState(() => _closing = true);
     await WidgetsBinding.instance.endOfFrame;
     await _directQueue;
-    await _flushInline();
+    final saved = await _flushInline();
     if (!mounted) return;
+    if (!saved) {
+      setState(() {
+        _closing = false;
+        _closeSaveFailed = true;
+        _error ??= 'Your changes could not be saved.';
+      });
+      return;
+    }
+    _closeSaveFailed = false;
     if (_directFailureNeedsAcknowledgement) {
       setState(() {
         _closing = false;
@@ -342,6 +353,23 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       });
       return; // Show the failed action once; explicit Close can then dismiss.
     }
+    _finishClose();
+  }
+
+  Future<void> _retryCloseSave() async {
+    if (_working || _closing || _navigating) return;
+    setState(() => _working = true);
+    final saved = await _flushInline();
+    if (!mounted) return;
+    setState(() {
+      _working = false;
+      _closeSaveFailed = !saved;
+    });
+  }
+
+  void _closeKeepingSessionDraft() {
+    if (_working || _closing || _navigating) return;
+    _retainDrafts();
     _finishClose();
   }
 
@@ -759,7 +787,8 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     WorkspacePage.rules => 'Rules',
     WorkspacePage.presets => 'Saved setups',
     WorkspacePage.player => 'Player & counters',
-    WorkspacePage.commanderDamage => 'Commander damage',
+    WorkspacePage.commanderDamage =>
+      _playerTabIndex == 1 ? 'Commander damage' : 'Player & counters',
     WorkspacePage.counters => 'Player & counters',
     WorkspacePage.lifeCorrection => 'Correct life',
     WorkspacePage.history => 'Game history',
@@ -833,7 +862,8 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   @override
   Widget build(BuildContext context) {
     final visibleError = _directFailure ?? _error;
-    final focusedCommander = _page == WorkspacePage.commanderDamage;
+    final focusedCommander =
+        _page == WorkspacePage.commanderDamage && _playerTabIndex == 1;
     final utility = _page == WorkspacePage.utilities && p != null
         ? p!.utilities.where((u) => u.id == _itemId).firstOrNull
         : null;
@@ -850,7 +880,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         canEdit: () => !_closing && !_working && !_navigating,
         onClose: _requestClose,
         key: ValueKey(
-          '$_page:$_itemId:${_selectedDefinition?.id}:$_createCustom:${_confirmation?.title}:$_editingCommanderId',
+          '$_page:$_itemId:${_selectedDefinition?.id}:$_createCustom:${_confirmation?.title}:$_editingCommanderId:$_closeSaveFailed',
         ),
         child: Column(
           children: [
@@ -993,10 +1023,27 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
                     : Theme.of(context).colorScheme.errorContainer,
                 child: Text(
                   visibleError != null
-                      ? (visibleError == _directFailure
+                      ? (visibleError == _directFailure && !_closeSaveFailed
                             ? '$visibleError\nClose again to dismiss.'
-                            : '$visibleError\nYour draft is retained. You can retry or close and reopen.')
+                            : '$visibleError\nYour draft is retained only for this app session; it is not saved to storage.')
                       : _status!,
+                ),
+              ),
+            if (_closeSaveFailed)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Wrap(
+                  spacing: 8,
+                  children: [
+                    FilledButton(
+                      onPressed: _working ? null : _retryCloseSave,
+                      child: const Text('Retry'),
+                    ),
+                    OutlinedButton(
+                      onPressed: _working ? null : _closeKeepingSessionDraft,
+                      child: const Text('Close and keep draft'),
+                    ),
+                  ],
                 ),
               ),
             const Divider(height: 12),
