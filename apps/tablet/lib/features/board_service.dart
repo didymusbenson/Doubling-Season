@@ -64,6 +64,7 @@ class BoardService {
     int? delta,
     int? expectedRevision,
     bool gameOrigin = false,
+    List<String>? affectedPlayerIds,
     int Function(GameSession before, GameSession after)? effectiveDelta,
     String Function(int delta)? describeDelta,
   }) async {
@@ -71,7 +72,7 @@ class BoardService {
     final ok = await controller.commit(
       label,
       playerId: gameOrigin ? null : playerId,
-      affectedPlayerIds: gameOrigin ? [playerId] : null,
+      affectedPlayerIds: affectedPlayerIds ?? (gameOrigin ? [playerId] : null),
       groupKey: groupKey,
       delta: delta,
       effectiveDelta: effectiveDelta,
@@ -1030,6 +1031,8 @@ class BoardService {
     'citys_blessing',
     'monarch',
     'day_night',
+    'initiative',
+    'the_initiative',
   };
   bool isStandaloneUtilityKind(String kind) =>
       !_builtInUtilityKinds.contains(kind);
@@ -1039,11 +1042,7 @@ class BoardService {
   List<WidgetDefinition> get utilityDefinitions {
     final db = WidgetDatabase();
     final list = db.filteredWidgets
-        .where(
-          (d) =>
-              isStandaloneUtilityKind(d.id) &&
-              !{'initiative', 'commander_tax'}.contains(d.id),
-        )
+        .where((d) => isStandaloneUtilityKind(d.id) && d.id != 'commander_tax')
         .toList();
     db.dispose();
     return [
@@ -1101,6 +1100,87 @@ class BoardService {
       ),
       ...list,
     ];
+  }
+
+  /// Initiative is a built-in status stored in the existing utility payload.
+  /// Visibility only controls the legacy utility lane, not who holds a status.
+  /// No read-time migration rewrites old IDs, art, values or settings.
+  static bool isInitiativeKind(String kind) =>
+      kind == 'initiative' || kind == 'the_initiative';
+
+  bool hasInitiative(String playerId) => _player(controller.session, playerId)
+      .utilities
+      .any((utility) => isInitiativeKind(utility.kind) && utility.isActive);
+
+  List<String>? _initiativeAffectedPlayers(String playerId, String id) {
+    final owner = controller.session.players
+        .where((player) => player.id == playerId)
+        .firstOrNull;
+    final utility = owner?.utilities
+        .where((utility) => utility.id == id)
+        .firstOrNull;
+    return utility != null && isInitiativeKind(utility.kind)
+        ? controller.session.players.map((player) => player.id).toList()
+        : null;
+  }
+
+  static void _setInitiative(
+    GameSession session,
+    String? playerId, {
+    String? preferredUtilityId,
+  }) {
+    final target = playerId == null ? null : session.player(playerId);
+    UtilityState? selected;
+    if (target != null) {
+      final existing = target.utilities
+          .where((utility) => isInitiativeKind(utility.kind))
+          .toList();
+      for (final utility in existing) {
+        if (utility.id == preferredUtilityId) selected = utility;
+      }
+      // Preserve the current identity when historical saves have duplicates.
+      selected ??= existing.where((utility) => utility.isActive).firstOrNull;
+      selected ??= existing.firstOrNull;
+      if (selected == null) {
+        selected = UtilityState(
+          id: newEntityId(),
+          kind: 'initiative',
+          name: 'The Initiative',
+          description: 'You have the Initiative.',
+          configuration: {
+            'type': 'toggle',
+            'offDescription': 'You do not have the Initiative.',
+          },
+        );
+        target.utilities.add(selected);
+      }
+    }
+    for (final player in session.players) {
+      for (final utility in player.utilities) {
+        if (isInitiativeKind(utility.kind)) {
+          utility.isActive = identical(utility, selected);
+        }
+      }
+    }
+  }
+
+  /// Claim, transfer or clear in one durable, undoable command. A claim only
+  /// affects active players in this session; saved setups/archives stay intact.
+  Future<void> setInitiative(String? playerId) async {
+    final session = controller.session;
+    final target = playerId == null ? null : _player(session, playerId);
+    final saved = await controller.commit(
+      playerId == null ? 'Clear initiative' : 'Claim initiative',
+      playerId: playerId,
+      affectedPlayerIds: session.players.map((player) => player.id).toList(),
+      expectedSessionId: session.id,
+      expectedGeneration: session.generation,
+      expectedPlayerGeneration: target?.generation,
+      mutate: (game) => _setInitiative(game, playerId),
+    );
+    if (!saved) {
+      throw StateError(controller.error ?? 'The change could not be saved');
+    }
   }
 
   int utilityValue(String playerId, String utilityId) {
@@ -1264,6 +1344,20 @@ class BoardService {
           }
         } else if (u.kind == 'day_night') {
           s.dayNight = isActive ? 'day' : 'night';
+        } else if (isInitiativeKind(u.kind)) {
+          // Turning an already-inactive legacy entry off must not clear
+          // another player's status. Explicit on/owner-off still resolves
+          // old duplicate entries in one atomic command.
+          if (isActive ||
+              p.utilities.any(
+                (utility) => isInitiativeKind(utility.kind) && utility.isActive,
+              )) {
+            _setInitiative(
+              s,
+              isActive ? playerId : null,
+              preferredUtilityId: u.id,
+            );
+          }
         } else {
           u.isActive = isActive;
         }
@@ -1271,6 +1365,9 @@ class BoardService {
     },
     groupKey: value == null ? null : 'utility:$id',
     captured: captured,
+    affectedPlayerIds: isActive == null
+        ? null
+        : _initiativeAffectedPlayers(playerId, id),
   );
 
   /// Relative gestures resolve values inside the serialized writer, so a burst
@@ -1298,19 +1395,29 @@ class BoardService {
     groupKey: 'utility:$id:${delta.sign}',
     delta: delta,
   );
-  Future<void> toggleUtility(String playerId, String id) =>
-      _commit(playerId, 'Toggle utility', (s, p) {
-        final u = _utility(p, id);
-        if (u.kind == 'citys_blessing') {
-          p.citysBlessing = !p.citysBlessing;
-        } else if (u.kind == 'monarch') {
-          s.monarchPlayerId = s.monarchPlayerId == playerId ? null : playerId;
-        } else if (u.kind == 'day_night') {
-          s.dayNight = s.dayNight == 'day' ? 'night' : 'day';
-        } else {
-          u.isActive = !u.isActive;
-        }
-      });
+  Future<void> toggleUtility(String playerId, String id) => _commit(
+    playerId,
+    'Toggle utility',
+    (s, p) {
+      final u = _utility(p, id);
+      if (u.kind == 'citys_blessing') {
+        p.citysBlessing = !p.citysBlessing;
+      } else if (u.kind == 'monarch') {
+        s.monarchPlayerId = s.monarchPlayerId == playerId ? null : playerId;
+      } else if (u.kind == 'day_night') {
+        s.dayNight = s.dayNight == 'day' ? 'night' : 'day';
+      } else if (isInitiativeKind(u.kind)) {
+        _setInitiative(
+          s,
+          u.isActive ? null : playerId,
+          preferredUtilityId: u.id,
+        );
+      } else {
+        u.isActive = !u.isActive;
+      }
+    },
+    affectedPlayerIds: _initiativeAffectedPlayers(playerId, id),
+  );
   Future<void> reorderVisibleUtilities(String playerId, List<String> ids) =>
       _commit(playerId, 'Reorder utilities', (s, p) {
         final visible = p.utilities.where(isUtilityVisible).toList();

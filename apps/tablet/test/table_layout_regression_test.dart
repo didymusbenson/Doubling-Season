@@ -438,7 +438,15 @@ void main() {
           ),
         );
         final bounds = tester.getRect(stepper);
-        expect(bounds.width, greaterThan(130));
+        final storm = player.utilities.firstWhere(
+          (utility) => utility.kind == 'storm_count',
+        );
+        final valueSurface = find.byKey(ValueKey('${storm.id}-value-surface'));
+        expect(tester.getSize(valueSurface).width, greaterThan(130));
+        expect(
+          bounds.width,
+          closeTo(tester.getSize(valueSurface).width - 2, .01),
+        );
         expect(bounds.height, 44);
         final value = find.descendant(
           of: stepper,

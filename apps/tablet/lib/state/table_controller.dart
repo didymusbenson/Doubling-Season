@@ -442,13 +442,15 @@ class TableController extends ChangeNotifier {
     _openGroupId = null;
   });
 
-  Future<bool> adjustLife(String playerId, int delta) => commit(
-    'Life ${delta >= 0 ? '+' : ''}$delta',
-    playerId: playerId,
-    groupKey: 'life:$playerId',
-    delta: delta,
-    mutate: (game) => game.player(playerId).life += delta,
-  );
+  Future<bool> adjustLife(String playerId, int delta, {String? commandId}) =>
+      commit(
+        'Life ${delta >= 0 ? '+' : ''}$delta',
+        playerId: playerId,
+        groupKey: 'life:$playerId',
+        commandId: commandId,
+        delta: delta,
+        mutate: (game) => game.player(playerId).life += delta,
+      );
   Future<bool> setLife(String playerId, int value) => commit(
     'Set life to $value',
     playerId: playerId,

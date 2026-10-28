@@ -31,6 +31,14 @@
 
   <title>Tripling Table</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    /* Flutter's web button label is DOM text. Contain its invisible text within
+       this action's bounds while retaining the full accessible label/actions.
+       The engine supplies inline overflow:visible, requiring this override. */
+    flt-semantics[flt-semantics-identifier="shared-day-night"] {
+      overflow: hidden !important;
+    }
+  </style>
 </head>
 <body>
   <!--

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -13,9 +14,15 @@ import 'support/table_fixture.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final captures = Platform.environment['TABLET_CAPTURE_DIR'];
+  String? captureArtwork;
   setUpAll(() async {
     if (captures == null) return;
     await Directory(captures).create(recursive: true);
+    final artFile = Platform.environment['TABLET_CAPTURE_ART_FILE'];
+    if (artFile != null) {
+      captureArtwork =
+          'data:image/jpeg;base64,${base64Encode(await File(artFile).readAsBytes())}';
+    }
     for (final font in {
       'sans-serif': 'Roboto-Regular.ttf',
       'MaterialIcons': 'MaterialIcons-Regular.otf',
@@ -34,11 +41,23 @@ void main() {
     int seats,
     int turns, {
     int sources = 2,
+    bool artwork = false,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final state = TabletState.initial();
+    for (final profile in state.profiles) {
+      profile.name = '${profile.name} with an exceptionally long display name';
+      if (artwork) {
+        // Opaque white tests strongest contrast without network dependencies.
+        // Optional local art produces real visual-review evidence only.
+        profile.artworkUrl =
+            captureArtwork ??
+            'data:image/png;base64,'
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC';
+      }
+    }
     state.session.players = state.session.players.take(seats).toList();
     state.session.commanders = [
       for (final p in state.session.players)
@@ -96,6 +115,29 @@ void main() {
 
   Future<void> capture(WidgetTester tester, String name) async {
     if (captures == null) return;
+    final providers = tester
+        .widgetList<Image>(find.byType(Image))
+        .map((image) => image.image)
+        .toList();
+    if (providers.isNotEmpty) {
+      final context = tester.element(
+        find.byKey(const ValueKey('capture-focused-commander')),
+      );
+      await tester.runAsync(
+        () => Future.wait(
+          providers.map((provider) => precacheImage(provider, context)),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .renderObjectList<RenderImage>(find.byType(RawImage))
+            .where((image) => image.image != null)
+            .length,
+        providers.length,
+        reason: 'Capture only after every owner artwork decodes',
+      );
+    }
     final boundary = tester.renderObject<RenderRepaintBoundary>(
       find.byKey(const ValueKey('capture-focused-commander')),
     );
@@ -115,7 +157,7 @@ void main() {
     const Size(1133, 744),
   ]) {
     for (final seats in [2, 3, 4]) {
-      for (final turns in [0, 2]) {
+      for (final turns in [0, 1, 2, 3]) {
         testWidgets(
           '$seats owners max partners $size rotation $turns fit without scroll',
           (tester) async {
@@ -127,7 +169,15 @@ void main() {
               find.descendant(of: grid, matching: find.byType(Scrollable)),
               findsNothing,
             );
-            final surface = tester.getRect(
+            Rect painted(Finder finder) {
+              final box = tester.renderObject<RenderBox>(finder);
+              return MatrixUtils.transformRect(
+                box.getTransformTo(null),
+                Offset.zero & box.size,
+              );
+            }
+
+            final surface = painted(
               find.byKey(const ValueKey('commander-workspace')),
             );
             for (final source
@@ -139,13 +189,28 @@ void main() {
               ]) {
                 final target = find.byKey(ValueKey('$prefix${source.id}'));
                 expect(target.hitTestable(), findsOneWidget);
-                final rect = tester.getRect(target);
-                expect(rect.width, greaterThanOrEqualTo(44));
-                expect(rect.height, greaterThanOrEqualTo(44));
+                final rect = painted(target);
+                expect(rect.width, greaterThanOrEqualTo(44 - .000001));
+                expect(rect.height, greaterThanOrEqualTo(44 - .000001));
                 expect(surface.inflate(.01).contains(rect.topLeft), isTrue);
                 expect(surface.inflate(.01).contains(rect.bottomRight), isTrue);
               }
             }
+            final gridBounds = tester.renderObject<RenderBox>(grid).size;
+            final lastOwner = f.controller.session.players.last;
+            final ownerBox = tester.renderObject<RenderBox>(
+              find.byKey(ValueKey('commander-owner-${lastOwner.id}')),
+            );
+            final rows = CommanderSeatLayout.rowsFor(
+              f.controller.session.players,
+              turns,
+            ).length;
+            expect(
+              ownerBox.size.height * rows + (rows - 1) * 6,
+              closeTo(gridBounds.height, .01),
+              reason:
+                  'Artwork tiles fill the grid instead of clumping at its top',
+            );
             final expected = CommanderSeatLayout.rowsFor(
               f.controller.session.players,
               turns,
@@ -200,6 +265,88 @@ void main() {
           },
         );
       }
+    }
+  }
+  testWidgets(
+    'artwork partners retain separate values and accessible actions',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final f = await open(tester, const Size(744, 1133), 4, 2, artwork: true);
+      final sources = f.controller.session.commanderTrackingSources;
+      final recipient = f.controller.session.players.first;
+      final a = sources[0];
+      final b = sources[1];
+      for (final id in [a.id, b.id, b.id]) {
+        await tester.tap(find.byKey(ValueKey('commander-increase-$id')));
+        await tester.pumpAndSettle();
+      }
+      expect(f.controller.player(recipient.id).commanderDamage[a.id], 1);
+      expect(f.controller.player(recipient.id).commanderDamage[b.id], 2);
+      expect(f.controller.player(recipient.id).life, 37);
+      final decrease = find.byKey(ValueKey('commander-decrease-${b.id}'));
+      final node = tester.getSemantics(decrease);
+      expect(node.label, contains('restore one life'));
+      expect(node.value, '2');
+      await tester.tap(decrease);
+      await tester.pumpAndSettle();
+      expect(f.controller.player(recipient.id).commanderDamage[a.id], 1);
+      expect(f.controller.player(recipient.id).commanderDamage[b.id], 1);
+      expect(f.controller.player(recipient.id).life, 38);
+      expect(
+        find.byType(Image),
+        findsNWidgets(4),
+        reason: 'Partners share one artwork surface per owner',
+      );
+      await capture(tester, 'commander-art-partners-744x1133-rotation2');
+      await tester.tap(find.byTooltip('Close workspace'));
+      await tester.pumpAndSettle();
+      semantics.dispose();
+      expect(tester.takeException(), isNull);
+    },
+  );
+  for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
+    for (final turns in [0, 1, 2, 3]) {
+      testWidgets(
+        'artwork owner grid $size rotation $turns retains every partner',
+        (tester) async {
+          final fixture = await open(tester, size, 4, turns, artwork: true);
+          expect(
+            find.byKey(const ValueKey('focused-commander-grid')),
+            findsOneWidget,
+          );
+          expect(
+            find.byKey(const ValueKey('commander-density-fallback')),
+            findsNothing,
+          );
+          expect(find.byType(Image), findsNWidgets(4));
+          for (final source
+              in fixture.controller.session.commanderTrackingSources) {
+            expect(
+              find
+                  .byKey(ValueKey('commander-increase-${source.id}'))
+                  .hitTestable(),
+              findsOneWidget,
+            );
+            expect(
+              find
+                  .byKey(ValueKey('commander-decrease-${source.id}'))
+                  .hitTestable(),
+              findsOneWidget,
+            );
+            expect(
+              find.byKey(ValueKey('commander-edit-${source.id}')).hitTestable(),
+              findsOneWidget,
+            );
+          }
+          await capture(
+            tester,
+            'commander-art-${size.width.toInt()}x${size.height.toInt()}-rotation$turns',
+          );
+          await tester.tap(find.byTooltip('Close workspace'));
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+        },
+      );
     }
   }
   testWidgets(

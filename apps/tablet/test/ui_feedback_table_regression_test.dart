@@ -337,28 +337,28 @@ void main() {
             );
             expect(
               find.descendant(of: tools, matching: find.byType(MonarchCrown)),
+              findsNothing,
+            );
+            final counterSummary = find.byKey(
+              ValueKey('${player.id}-life-counter-summary'),
+            );
+            expect(
+              find.descendant(of: life, matching: counterSummary),
               findsOneWidget,
             );
-            final monarch = find.byTooltip('$name, Monarch, disabled');
-            final blessing = find.byTooltip('$name, City’s blessing, disabled');
-            final crownPosition = bounds(tester, monarch, within: tools).center;
-            final blessingPosition = bounds(
-              tester,
-              blessing,
-              within: tools,
-            ).center;
-            expect(crownPosition.dy, blessingPosition.dy);
-            expect(crownPosition.dx, lessThan(blessingPosition.dx));
+            expect(counterSummary.hitTestable(), findsOneWidget);
+            expect(
+              tester.getSize(counterSummary).width,
+              greaterThanOrEqualTo(44),
+            );
+            expect(tester.getSize(counterSummary).height, 44);
+            expect(tester.getSize(tools).height, 48);
             final editPosition = bounds(
               tester,
               find.byKey(ValueKey('${player.id}-player-details')),
               within: tools,
             ).center;
-            for (final label in [
-              '$name, player counters',
-              '$name, rules',
-              '$name, Manage utilities',
-            ]) {
+            for (final label in ['$name, rules', '$name, Manage utilities']) {
               final button = find.byTooltip(label);
               expect(button.hitTestable(), findsOneWidget);
               final point = bounds(tester, button, within: tools).center;
@@ -378,7 +378,7 @@ void main() {
             expect(managePosition.dy, editPosition.dy);
             expect(
               editPosition.dx - managePosition.dx,
-              inInclusiveRange(40, 52),
+              greaterThanOrEqualTo(44),
             );
             expect(
               find.descendant(of: tools, matching: manage),
@@ -464,12 +464,10 @@ void main() {
               EdgeInsets.only(top: seats == 2 ? 30 : 0, bottom: 88),
               reason: 'Compact corner controls must not reserve a header.',
             );
-            for (final status in ['Monarch', 'City’s blessing']) {
-              expect(
-                find.byTooltip('$name, $status, disabled').hitTestable(),
-                findsOneWidget,
-              );
-            }
+            expect(
+              find.byTooltip('$name, player counters').hitTestable(),
+              findsOneWidget,
+            );
           }
           expect(find.byTooltip('Game controls').hitTestable(), findsOneWidget);
           expect(tester.takeException(), isNull);
@@ -748,11 +746,15 @@ void main() {
       String name(int index) =>
           fixture.controller.profile(players[index].seatId).name;
       Future<void> tapStatus(int index, String status, bool enabled) async {
-        await tester.tap(
-          find.byTooltip(
-            '${name(index)}, $status, ${enabled ? 'enabled' : 'disabled'}',
-          ),
+        await tester.tap(find.byTooltip('${name(index)}, player counters'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('$status · ${enabled ? 'On' : 'Off'}'));
+        await tester.pumpAndSettle();
+        expect(
+          find.byTooltip('$status · ${enabled ? 'Off' : 'On'}'),
+          findsOneWidget,
         );
+        await tester.tap(find.byTooltip('Close workspace'));
         await tester.pumpAndSettle();
       }
 
@@ -764,8 +766,20 @@ void main() {
       await tapStatus(1, 'City’s blessing', false);
       await tapStatus(1, 'Monarch', false);
       expect(fixture.controller.session.monarchPlayerId, players[1].id);
-      expect(find.byTooltip('${name(0)}, Monarch, disabled'), findsOneWidget);
-      expect(find.byTooltip('${name(1)}, Monarch, enabled'), findsOneWidget);
+      final oldSummary = find.byKey(
+        ValueKey('${players[0].id}-life-counter-summary'),
+      );
+      final newSummary = find.byKey(
+        ValueKey('${players[1].id}-life-counter-summary'),
+      );
+      expect(
+        find.descendant(of: oldSummary, matching: find.byType(MonarchCrown)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: newSummary, matching: find.byType(MonarchCrown)),
+        findsOneWidget,
+      );
       expect(
         players
             .take(2)
@@ -775,8 +789,14 @@ void main() {
       expect(await fixture.controller.undo(), isTrue);
       await tester.pumpAndSettle();
       expect(fixture.controller.session.monarchPlayerId, players[0].id);
-      expect(find.byTooltip('${name(0)}, Monarch, enabled'), findsOneWidget);
-      expect(find.byTooltip('${name(1)}, Monarch, disabled'), findsOneWidget);
+      expect(
+        find.descendant(of: oldSummary, matching: find.byType(MonarchCrown)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: newSummary, matching: find.byType(MonarchCrown)),
+        findsNothing,
+      );
       expect(fixture.controller.player(players[1].id).citysBlessing, isTrue);
       expect(await fixture.controller.undo(), isTrue);
       await tester.pumpAndSettle();
@@ -1011,14 +1031,15 @@ void main() {
         final siblings = fixture.controller.session.commanderTrackingSources
             .where((item) => item.ownerPlayerId == source.ownerPlayerId)
             .toList();
-        final role = siblings.indexWhere((item) => item.id == source.id) == 0
-            ? 'Commander'
-            : 'Partner';
-        final sourceLabel = find.descendant(
-          of: chip,
-          matching: find.text(role),
-        );
-        expect(tester.widget<Text>(sourceLabel).data, role);
+        if (siblings.length > 1) {
+          final label = siblings.indexWhere((item) => item.id == source.id) == 0
+              ? 'A'
+              : 'B';
+          expect(
+            find.descendant(of: chip, matching: find.text(label)),
+            findsOneWidget,
+          );
+        }
         expect(
           tester
               .widgetList<Semantics>(
@@ -1030,30 +1051,24 @@ void main() {
               ),
           isTrue,
           reason:
-              'Saved source identity remains accessible when the compact label uses its role',
+              'Saved source identity remains accessible behind visual partner labels.',
         );
+        final owner = find.byKey(ValueKey('commander-owner-${sourceOwner.id}'));
+        final decoration =
+            tester.widget<DecoratedBox>(owner).decoration as BoxDecoration;
         expect(
-          bounds(tester, sourceLabel).right,
-          lessThanOrEqualTo(bounds(tester, chip).right - 7),
-          reason:
-              'Source labels retain their own space above the adjustment halves.',
+          (decoration.border! as Border).top.color,
+          Color(identity.color).withValues(alpha: .6),
         );
-        final card = tester.widget<Card>(chip);
-        expect(
-          (card.shape! as RoundedRectangleBorder).side.color,
-          Color(identity.color),
+        final art = find.descendant(
+          of: owner,
+          matching: find.byType(TableArtwork),
         );
-        expect(
-          tester
-              .widget<TableArtworkSurface>(
-                find.descendant(
-                  of: chip,
-                  matching: find.byType(TableArtworkSurface),
-                ),
-              )
-              .url,
-          identity.artworkUrl,
-        );
+        if (identity.artworkUrl == null) {
+          expect(art, findsNothing);
+        } else {
+          expect(tester.widget<TableArtwork>(art).url, identity.artworkUrl);
+        }
         final add = find.byKey(ValueKey('commander-increase-${source.id}'));
         expect(add.hitTestable(), findsOneWidget);
         expect(tester.getSize(add).width, greaterThanOrEqualTo(44));

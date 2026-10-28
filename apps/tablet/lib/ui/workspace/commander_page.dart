@@ -50,14 +50,13 @@ extension _FocusedCommanderPage on _TableWorkspaceState {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      Text(
-                        editing == null
-                            ? '±: life + damage · Edit: damage only'
-                            : 'Correct damage; life stays unchanged.',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 11, height: 1.1),
-                      ),
+                      if (editing != null)
+                        const Text(
+                          'Correct damage; life stays unchanged.',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11, height: 1.1),
+                        ),
                     ],
                   ),
                 ),
@@ -96,21 +95,20 @@ extension _FocusedCommanderPage on _TableWorkspaceState {
                                 .length,
                           )
                           .fold<int>(1, max);
-                      final stackPartners =
-                          ownerWidth < 260 && ownerHeight >= 200;
-                      final rowHeight = min(
-                        ownerHeight,
-                        stackPartners
-                            ? largestGroup * 104.0 + (largestGroup - 1) * 4
-                            : 110.0,
-                      );
+                      // Fill the available owner slots rather than parking
+                      // small numeric controls above an empty modal. Partners
+                      // share one artwork surface, splitting only its controls.
+                      final stackPartners = ownerWidth < largestGroup * 88;
                       final sourceWidth = stackPartners
                           ? ownerWidth
-                          : (ownerWidth - (largestGroup - 1) * 4) /
-                                largestGroup;
+                          : (ownerWidth - (largestGroup - 1)) / largestGroup;
+                      final sourceHeight = stackPartners
+                          ? (ownerHeight - 20 - (largestGroup - 1)) /
+                                largestGroup
+                          : ownerHeight - 20;
                       if (largestGroup > 2 ||
                           sourceWidth < 88 ||
-                          ownerHeight < 108) {
+                          sourceHeight < 88) {
                         return ListView(
                           key: const ValueKey('commander-density-fallback'),
                           children: [
@@ -139,7 +137,7 @@ extension _FocusedCommanderPage on _TableWorkspaceState {
                           for (var r = 0; r < rows.length; r++) ...[
                             if (r > 0) const SizedBox(height: 6),
                             SizedBox(
-                              height: rowHeight,
+                              height: ownerHeight,
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
@@ -158,7 +156,6 @@ extension _FocusedCommanderPage on _TableWorkspaceState {
                                               sources,
                                               disabled,
                                               stackPartners,
-                                              rowHeight,
                                             ),
                                     ),
                                   ],
@@ -220,73 +217,102 @@ extension _FocusedCommanderPage on _TableWorkspaceState {
     List<CommanderSource> sources,
     bool disabled,
     bool stackPartners,
-    double rowHeight,
   ) {
+    final identity = c.profile(owner.seatId);
     final owned = sources.where((s) => s.ownerPlayerId == owner.id).toList();
-    final bodyHeight = rowHeight - 20;
-    final body = stackPartners
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var index = 0; index < owned.length; index++) ...[
-                if (index > 0) const SizedBox(height: 4),
-                SizedBox(
-                  height: min(
-                    104.0,
-                    (bodyHeight - (owned.length - 1) * 4) / owned.length,
-                  ),
-                  child: _focusedCommanderTracker(
-                    recipient,
-                    owner,
-                    owned[index],
-                    disabled,
-                  ),
+    final body = <Widget>[
+      for (var index = 0; index < owned.length; index++) ...[
+        if (index > 0)
+          stackPartners
+              ? const Divider(height: 1, thickness: 1, color: Colors.white24)
+              : const VerticalDivider(
+                  width: 1,
+                  thickness: 1,
+                  color: Colors.white24,
                 ),
-              ],
-            ],
-          )
-        : Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var index = 0; index < owned.length; index++) ...[
-                if (index > 0) const SizedBox(width: 4),
-                Expanded(
-                  child: _focusedCommanderTracker(
-                    recipient,
-                    owner,
-                    owned[index],
-                    disabled,
-                  ),
-                ),
-              ],
-            ],
-          );
-    return Column(
-      key: ValueKey('commander-owner-${owner.id}'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          height: 20,
-          child: Text(
-            '${_nameForPlayer(owner.id)}${owner.id == recipient.id ? ' · self' : ''}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12, height: 1.1),
+        Expanded(
+          child: _focusedCommanderTracker(
+            recipient,
+            owner,
+            owned[index],
+            disabled,
+            partnerIndex: owned.length > 1 ? index : null,
           ),
         ),
-        Expanded(
-          child: owned.length == 1
-              ? Align(
-                  alignment: Alignment.topCenter,
-                  child: SizedBox(
-                    width: 220,
-                    height: min(bodyHeight, 110.0),
-                    child: body,
-                  ),
-                )
-              : body,
-        ),
       ],
+    ];
+    return DecoratedBox(
+      key: ValueKey('commander-owner-${owner.id}'),
+      position: DecorationPosition.foreground,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Color(identity.color).withValues(alpha: .6)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ColoredBox(
+              color: Color.alphaBlend(
+                const Color(0x88000000),
+                Color(identity.color),
+              ),
+            ),
+            if (identity.artworkUrl != null) ...[
+              TableArtwork(url: identity.artworkUrl, crop: true),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xAA000000),
+                      Color(0x8A000000),
+                      Color(0x99000000),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  height: 20,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Center(
+                      child: Text(
+                        '${identity.name}${owner.id == recipient.id ? ' · me' : ''}',
+                        key: ValueKey('commander-owner-label-${owner.id}'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          height: 1.1,
+                          color: Color(0xDDFFFFFF),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: stackPartners
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: body,
+                        )
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: body,
+                        ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -294,135 +320,109 @@ extension _FocusedCommanderPage on _TableWorkspaceState {
     PlayerState recipient,
     PlayerState owner,
     CommanderSource source,
-    bool disabled,
-  ) {
+    bool disabled, {
+    int? partnerIndex,
+  }) {
     final identity = c.profile(owner.seatId);
     final label = _commanderSourceLabel(source);
-    final displayLabel = _focusedCommanderRole(source);
     final ownerLabel =
         '${identity.name}${owner.id == recipient.id ? ' · self' : ''}';
     final damage = recipient.commanderDamage[source.id] ?? 0;
-    return Card(
+    return Column(
       key: ValueKey('commander-tracker-${source.id}'),
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Color(identity.color), width: 2),
-      ),
-      child: TableArtworkSurface(
-        url: identity.artworkUrl,
-        child: ColoredBox(
-          color: Color(identity.color).withValues(alpha: .16),
-          child: Column(
+      children: [
+        SizedBox(
+          height: 44,
+          child: Row(
             children: [
-              SizedBox(
-                height: 44,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 4),
-                        child: Semantics(
-                          label:
-                              '$ownerLabel, $label${damage >= 21 ? ', 21 damage warning' : ''}',
-                          excludeSemantics: true,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              for (final text in [displayLabel])
-                                Text(
-                                  text,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    height: 1.1,
-                                    color: identity.artworkUrl == null
-                                        ? null
-                                        : Colors.white,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
+              Expanded(
+                child: Semantics(
+                  label:
+                      '$ownerLabel, $label${damage >= 21 ? ', 21 damage warning' : ''}',
+                  excludeSemantics: true,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 12),
+                    child: Text(
+                      partnerIndex == null
+                          ? ''
+                          : (partnerIndex == 0 ? 'A' : 'B'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white70,
                       ),
                     ),
-                    SizedBox(
-                      width: 44,
-                      height: 44,
-                      child: IconButton(
-                        key: ValueKey('commander-edit-${source.id}'),
-                        tooltip:
-                            'Correct $label damage from ${identity.name}; life unchanged',
-                        padding: EdgeInsets.zero,
-                        onPressed: disabled
-                            ? null
-                            : () => _editCommander(recipient, source),
-                        icon: Icon(
-                          Icons.edit_outlined,
-                          size: 18,
-                          color: identity.artworkUrl == null
-                              ? null
-                              : Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, bounds) => HalfStepper(
-                    height: bounds.maxHeight,
-                    label: '$label commander damage from ${identity.name}',
-                    value: '$damage',
-                    valueStyle: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: damage >= 21 ? const Color(0xFFFFB485) : null,
-                    ),
-                    foregroundColor: identity.artworkUrl == null
-                        ? null
-                        : Colors.white,
-                    iconSize: 16,
-                    iconPadding: 4,
-                    displayPadding: 20,
-                    decreaseKey: ValueKey('commander-decrease-${source.id}'),
-                    increaseKey: ValueKey('commander-increase-${source.id}'),
-                    decreaseLabel:
-                        'Decrease $label damage from ${identity.name}; restore one life',
-                    increaseLabel:
-                        'Increase $label damage from ${identity.name}; lose one life',
-                    onDecrease: disabled
-                        ? null
-                        : () => _stepCommander(recipient, source, -1),
-                    onIncrease: disabled
-                        ? null
-                        : () => _stepCommander(recipient, source, 1),
-                    onDecreaseHoldStep: disabled
-                        ? null
-                        : (amount) =>
-                              _stepCommander(recipient, source, -amount),
-                    onIncreaseHoldStep: disabled
-                        ? null
-                        : (amount) => _stepCommander(recipient, source, amount),
-                    interactionEpoch: Object.hash(
-                      _sessionId,
-                      _sessionGeneration,
-                      _closing,
-                      _navigating,
-                      _editingCommanderId,
-                      _directFailureEpoch,
-                    ),
+              SizedBox(
+                width: 44,
+                height: 44,
+                child: IconButton(
+                  key: ValueKey('commander-edit-${source.id}'),
+                  tooltip:
+                      'Correct $label damage from ${identity.name}; life unchanged',
+                  padding: EdgeInsets.zero,
+                  onPressed: disabled
+                      ? null
+                      : () => _editCommander(recipient, source),
+                  icon: const Icon(
+                    Icons.edit_outlined,
+                    size: 18,
+                    color: Colors.white70,
                   ),
                 ),
               ),
             ],
           ),
         ),
-      ),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, bounds) => HalfStepper(
+              height: bounds.maxHeight,
+              label: '$label commander damage from ${identity.name}',
+              value: '$damage',
+              valueStyle: TextStyle(
+                fontSize: (bounds.maxHeight * .65).clamp(28, 100),
+                height: 1,
+                fontWeight: FontWeight.w500,
+                color: damage >= 21 ? const Color(0xFFFFB485) : Colors.white,
+                shadows: const [Shadow(color: Colors.black87, blurRadius: 8)],
+              ),
+              foregroundColor: Colors.white,
+              iconSize: 19,
+              iconPadding: 9,
+              displayPadding: 30,
+              decreaseKey: ValueKey('commander-decrease-${source.id}'),
+              increaseKey: ValueKey('commander-increase-${source.id}'),
+              decreaseLabel:
+                  'Decrease $label damage from ${identity.name}; restore one life',
+              increaseLabel:
+                  'Increase $label damage from ${identity.name}; lose one life',
+              onDecrease: disabled
+                  ? null
+                  : () => _stepCommander(recipient, source, -1),
+              onIncrease: disabled
+                  ? null
+                  : () => _stepCommander(recipient, source, 1),
+              onDecreaseHoldStep: disabled
+                  ? null
+                  : (amount) => _stepCommander(recipient, source, -amount),
+              onIncreaseHoldStep: disabled
+                  ? null
+                  : (amount) => _stepCommander(recipient, source, amount),
+              interactionEpoch: Object.hash(
+                _sessionId,
+                _sessionGeneration,
+                _closing,
+                _navigating,
+                _editingCommanderId,
+                _directFailureEpoch,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

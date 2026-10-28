@@ -32,7 +32,7 @@ void main() {
       'MaterialIcons': 'MaterialIcons-Regular.otf',
     }.entries) {
       final file = File(
-        '/opt/homebrew/share/flutter/bin/cache/artifacts/material_fonts/${font.value}',
+        '${Platform.environment['FLUTTER_ROOT'] ?? '/opt/homebrew/share/flutter'}/bin/cache/artifacts/material_fonts/${font.value}',
       );
       if (await file.exists()) {
         await (FontLoader(
@@ -62,6 +62,10 @@ void main() {
     final fixture = TableFixture(state);
     await fixture.initialize();
     addTearDown(() async {
+      if (find.byTooltip('Close workspace').evaluate().isNotEmpty) {
+        await tester.tap(find.byTooltip('Close workspace'));
+        await tester.pumpAndSettle();
+      }
       await tester.pumpWidget(const SizedBox());
       fixture.dispose();
     });
@@ -108,11 +112,13 @@ void main() {
       (tester) async {
         final f = await board(tester, size);
         final p = f.playerId;
-        await tester.tap(find.byTooltip('Player 1, Monarch, disabled'));
+        await tester.tap(find.byTooltip('Player 1, player counters'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Monarch · Off'));
         await tester.pumpAndSettle();
         expect(f.controller.session.monarchPlayerId, p);
         final gesture = await tester.startGesture(
-          tester.getCenter(find.byTooltip('Player 1, Monarch, enabled')),
+          tester.getCenter(find.byTooltip('Monarch · On')),
         );
         await tester.pump(const Duration(milliseconds: 650));
         expect(f.controller.session.monarchPlayerId, isNull);
@@ -124,15 +130,22 @@ void main() {
           isNull,
           reason: 'Release must not trail into claim.',
         );
-        expect(find.byTooltip('Player 1, Monarch, disabled'), findsOneWidget);
+        expect(find.byTooltip('Monarch · Off'), findsOneWidget);
         await f.controller.undo();
         await tester.pumpAndSettle();
         expect(f.controller.session.monarchPlayerId, p);
         final next = f.controller.session.players[1];
-        await tester.tap(find.byTooltip('Player 2, Monarch, disabled'));
+        await tester.tap(find.byTooltip('Close workspace'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Player 2, player counters'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Monarch · Off'));
         await tester.pumpAndSettle();
         expect(f.controller.session.monarchPlayerId, next.id);
-        expect(find.byIcon(TableManaIcons.ascend), findsNWidgets(4));
+        expect(find.byIcon(TableManaIcons.ascend), findsOneWidget);
+        await tester.tap(find.byTooltip('Close workspace'));
+        await tester.pumpAndSettle();
+        expect(find.byTooltip('Close workspace'), findsNothing);
       },
     );
 
