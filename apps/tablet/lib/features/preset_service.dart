@@ -148,11 +148,7 @@ class PresetService {
           final m = Map<String, dynamic>.from(raw as Map);
           final kind = m['kind'] as String? ?? 'custom_tracker';
           final visible = m['visible'] as bool? ?? true;
-          final boardView = {
-            RingService.kind,
-            'mana_pool',
-            'storm_count',
-          }.contains(kind);
+          final ringView = kind == RingService.kind;
           // Bound utility projections must never introduce a second authoritative pool.
           if ({
                 RingService.kind,
@@ -165,9 +161,9 @@ class PresetService {
                 'radiation_counters',
                 'citys_blessing',
               }.contains(kind) &&
-              (!boardView || visible) &&
+              (!ringView || visible) &&
               p.utilities.any(
-                (u) => u.kind == kind && (!boardView || u.visible),
+                (u) => u.kind == kind && (!ringView || u.visible),
               )) {
             continue;
           }

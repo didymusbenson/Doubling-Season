@@ -78,58 +78,6 @@ void main() {
     },
   );
 
-  test(
-    'Add is fresh and keeps hidden legacy values until explicit restore',
-    () async {
-      final legacy = f.player.utilities.first.toJson();
-      await f.board.addUtility(f.playerId, 'storm_count');
-      final fresh = f.player.utilities.singleWhere(
-        (u) => u.kind == 'storm_count' && u.visible,
-      );
-      expect(fresh.id, isNot('legacy-hidden'));
-      expect(fresh.value, fresh.defaultValue);
-      expect(fresh.configuration, isNot(contains('legacySetting')));
-      expect(f.player.utilities.first.toJson(), legacy);
-      final freshId = fresh.id;
-      final reopened = TableController(repository: f.repository);
-      await reopened.initialize();
-      addTearDown(reopened.dispose);
-      expect(
-        reopened.player(f.playerId).utilities.map((u) => u.toJson()).toList(),
-        utilities(),
-      );
-      await f.board.adjustUtility(f.playerId, freshId, 3);
-      expect(f.board.utilityValue(f.playerId, freshId), fresh.defaultValue + 3);
-      expect(f.player.utilities.first.toJson(), legacy);
-      await f.board.addUtility(f.playerId, 'storm_count');
-      expect(
-        f.player.utilities.where((u) => u.kind == 'storm_count').length,
-        2,
-      );
-      await f.board.removeUtility(f.playerId, freshId);
-      await f.board.addUtility(f.playerId, 'storm_count');
-      expect(
-        f.player.utilities
-            .singleWhere((u) => u.kind == 'storm_count' && u.visible)
-            .id,
-        isNot(freshId),
-      );
-      expect(f.player.utilities.first.toJson(), legacy);
-      await expectLater(
-        f.board.setUtility(f.playerId, 'legacy-hidden', visible: true),
-        throwsStateError,
-      );
-      expect(f.player.utilities.first.toJson(), legacy);
-      final replacement = f.player.utilities.singleWhere(
-        (u) => u.kind == 'storm_count' && u.visible,
-      );
-      await f.board.removeUtility(f.playerId, replacement.id);
-      await f.board.setUtility(f.playerId, 'legacy-hidden', visible: true);
-      expect(f.player.utilities.first.value, 17);
-      expect(f.player.utilities.first.configuration['legacySetting'], isTrue);
-    },
-  );
-
   test('Remove and fresh Mana view preserve player mana and locks', () async {
     await f.board.addUtility(f.playerId, 'mana_pool');
     final mana = f.player.utilities.singleWhere((u) => u.kind == 'mana_pool');
@@ -147,29 +95,6 @@ void main() {
     expect(f.player.mana['U'], 7);
     expect(f.player.manaLocks, {'U'});
   });
-
-  test(
-    'Saved setups keep both the hidden legacy and fresh visible view',
-    () async {
-      await f.board.addUtility(f.playerId, 'storm_count');
-      final presets = PresetService(f.controller, f.catalog);
-      final saved = await presets.save(f.playerId, 'With retained legacy');
-      final templates =
-          cloneJson({'items': saved['utilities']})['items'] as List;
-      await presets.load(f.playerId, saved['id']);
-      expect(f.player.utilities.length, templates.length);
-      final storms = f.player.utilities
-          .where((u) => u.kind == 'storm_count')
-          .toList();
-      expect(storms.length, 2);
-      expect(storms.where((u) => u.visible).length, 1);
-      expect(
-        storms.singleWhere((u) => !u.visible).configuration['legacySetting'],
-        isTrue,
-      );
-      expect(presets.presets.single['utilities'], templates);
-    },
-  );
 
   test(
     'Hidden and built-in projections cannot be removed through board action',

@@ -1216,7 +1216,11 @@ class BoardService {
     int? expectedRevision,
   }) => _commit(
     playerId,
-    'Add utility',
+    switch (definitionId) {
+      'storm_count' => 'Add fresh Storm',
+      'mana_pool' => 'Add fresh Mana pool',
+      _ => 'Add utility',
+    },
     (s, p) {
       final d = utilityDefinitions.firstWhere(
         (d) => d.id == definitionId,
@@ -1237,29 +1241,39 @@ class BoardService {
           if (u.kind == definitionId && u.visible) return;
         }
       }
-      p.utilities.add(
-        UtilityState(
-          id: newEntityId(),
-          kind: d.id,
-          name: d.name,
-          description: d.description,
-          colors: d.colorIdentity,
-          value: d.defaultValue ?? 0,
-          defaultValue: d.defaultValue ?? 0,
-          artworkUrl: d.artwork.isEmpty ? null : d.artwork.first.url,
-          configuration: {
-            'type': d.type == WidgetType.toggle ? 'toggle' : 'tracker',
-            'tapIncrement': d.tapIncrement,
-            'longPressIncrement': d.longPressIncrement,
-            'hasAction': d.hasAction,
-            'actionType': d.actionType,
-            'actionOnly': d.actionOnly,
-            'actionButtonText': d.actionButtonText,
-            'offDescription': d.offDescription,
-            'artworkOptions': d.artwork.map((a) => a.toJson()).toList(),
-          },
-        ),
+      final fresh = UtilityState(
+        id: newEntityId(),
+        kind: d.id,
+        name: d.name,
+        description: d.description,
+        colors: d.colorIdentity,
+        value: d.defaultValue ?? 0,
+        defaultValue: d.defaultValue ?? 0,
+        artworkUrl: d.artwork.isEmpty ? null : d.artwork.first.url,
+        configuration: {
+          'type': d.type == WidgetType.toggle ? 'toggle' : 'tracker',
+          'tapIncrement': d.tapIncrement,
+          'longPressIncrement': d.longPressIncrement,
+          'hasAction': d.hasAction,
+          'actionType': d.actionType,
+          'actionOnly': d.actionOnly,
+          'actionButtonText': d.actionButtonText,
+          'offDescription': d.offDescription,
+          'artworkOptions': d.artwork.map((a) => a.toJson()).toList(),
+        },
       );
+      // Storm and Mana retain their existing on-disk singleton invariant.
+      // Replacing a hidden copy is one atomic command; History retains its
+      // complete previous payload and position for undo.
+      final hiddenIndex =
+          definitionId == 'storm_count' || definitionId == 'mana_pool'
+          ? p.utilities.indexWhere((u) => u.kind == definitionId && !u.visible)
+          : -1;
+      if (hiddenIndex >= 0) {
+        p.utilities[hiddenIndex] = fresh;
+      } else {
+        p.utilities.add(fresh);
+      }
     },
     captured: captured,
     expectedRevision: expectedRevision,
