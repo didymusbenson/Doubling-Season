@@ -128,7 +128,9 @@ void main() {
   }
 
   Future<void> reveal(WidgetTester tester, Finder target) async {
-    final list = find.byType(ListView).last;
+    final list = find.byType(ListView).evaluate().isNotEmpty
+        ? find.byType(ListView).last
+        : find.byType(SingleChildScrollView).last;
     if (target.evaluate().isEmpty) {
       final scroll = tester.state<ScrollableState>(
         find.descendant(of: list, matching: find.byType(Scrollable)).first,
@@ -146,9 +148,28 @@ void main() {
     }
   }
 
+  Future<void> enableCounter(WidgetTester tester, String counter) async {
+    await reveal(tester, find.text('Add counter'));
+    await tester.tap(find.text('Add counter'));
+    await tester.pumpAndSettle();
+    await reveal(tester, find.text('Enable $counter'));
+    await tester.tap(find.text('Enable $counter'));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> undoInHistory(WidgetTester tester, TableFixture fixture) async {
+    await close(tester);
+    await open(tester, fixture, page: WorkspacePage.history);
+    final undo = find.textContaining('Undo latest:');
+    await reveal(tester, undo);
+    await tester.tap(undo);
+    await tester.pumpAndSettle();
+    await close(tester);
+  }
+
   for (var turns = 0; turns < 4; turns++) {
     testWidgets(
-      'workspace is viewport-centered with asymmetric safe insets at rotation $turns',
+      'workspace stays bounded and centered inside safe insets at rotation $turns',
       (tester) async {
         final f = TableFixture();
         await f.initialize();
@@ -161,19 +182,21 @@ void main() {
           box.getTransformTo(null),
           Offset.zero & box.size,
         );
-        expect(rect.left, closeTo(1133 * .125, .01));
-        expect(rect.top, closeTo(744 * .125, .01));
-        expect(rect.right, closeTo(1133 * .875, .01));
-        expect(rect.bottom, closeTo(744 * .875, .01));
-        expect(rect.center.dx, closeTo(1133 / 2, .01));
-        expect(rect.center.dy, closeTo(744 / 2, .01));
+        expect(rect.left, greaterThanOrEqualTo(44 + 16 - .01));
+        expect(rect.top, greaterThanOrEqualTo(24 + 16 - .01));
+        expect(rect.right, lessThanOrEqualTo(1133 - 16 + .01));
+        expect(rect.bottom, lessThanOrEqualTo(744 - 20 - 16 + .01));
+        expect(box.size.width, lessThanOrEqualTo(720));
+        expect(box.size.height, lessThanOrEqualTo(640));
+        expect(rect.center.dx, closeTo(44 + (1133 - 44) / 2, .01));
+        expect(rect.center.dy, closeTo(24 + (744 - 24 - 20) / 2, .01));
         expect(tester.takeException(), isNull);
         await close(tester);
       },
     );
   }
 
-  testWidgets('Player, Counters and Commander are isolated direct routes', (
+  testWidgets('Player is distinct and both damage routes include counters', (
     tester,
   ) async {
     final f = TableFixture();
@@ -195,16 +218,15 @@ void main() {
         find.byKey(
           ValueKey('commander-tracker-default-commander:${f.playerId}'),
         ),
-        page == WorkspacePage.commanderDamage ? findsOneWidget : findsNothing,
+        page != WorkspacePage.player ? findsOneWidget : findsNothing,
       );
       expect(
         find.text('Player counters'),
-        page == WorkspacePage.counters ? findsOneWidget : findsNothing,
+        page != WorkspacePage.player ? findsOneWidget : findsNothing,
       );
-      expect(
-        find.byTooltip('Correct life separately'),
-        page == WorkspacePage.commanderDamage ? findsOneWidget : findsNothing,
-      );
+      expect(find.byTooltip('Correct life separately'), findsNothing);
+      expect(find.text('Correct life'), findsNothing);
+      expect(find.byIcon(Icons.edit_outlined), findsNothing);
       expect(tester.takeException(), isNull);
       await close(tester);
     }
@@ -283,7 +305,7 @@ void main() {
         final surface = tester.getSize(
           find.byKey(const ValueKey('context-workspace')),
         );
-        expect(surface, Size(size.width * .75, size.height * .75));
+        expect(surface, Size(size.width == 744 ? 712 : 720, 640));
         await reveal(tester, find.text('Search token art'));
         expect(find.text('Search token art').hitTestable(), findsOneWidget);
         await reveal(tester, find.text('Has partner'));
@@ -304,6 +326,8 @@ void main() {
           tester,
           'counters-${size.width.toInt()}x${size.height.toInt()}',
         );
+        await enableCounter(tester, 'energy');
+        await reveal(tester, find.byTooltip('Increase energy'));
         await tester.tap(find.byTooltip('Increase energy'));
         await tester.pumpAndSettle();
         expect(f.player.counters['energy'], 1);
@@ -341,39 +365,40 @@ void main() {
       expect(f.controller.session.history, hasLength(1));
       expect(find.text('Wipe all tokens').first, findsOneWidget);
       expect(find.widgetWithText(ChoiceChip, 'Board wipes'), findsNothing);
-      expect(await f.controller.undo(), isTrue);
+      await undoInHistory(tester, f);
       expect(f.controller.session.players[0].tokens, hasLength(1));
       expect(f.controller.session.players[1].tokens, hasLength(1));
       expect(tester.takeException(), isNull);
-      await close(tester);
     },
   );
 
   testWidgets(
-    'life correction is secondary and Back restores Counters without changing shell',
+    'empty combined popup enables a counter without exposing manual life editing',
     (tester) async {
       final f = TableFixture();
       await f.initialize();
       addTearDown(f.dispose);
       await open(tester, f, page: WorkspacePage.counters);
-      final shell = find.byKey(const ValueKey('context-workspace'));
-      final rect = tester.getRect(shell);
+      expect(f.player.counters.values.every((value) => value == 0), isTrue);
+      expect(find.byKey(const ValueKey('commander-workspace')), findsOneWidget);
       expect(field('Set life total to'), findsNothing);
-      await tester.tap(find.text('Correct life'));
+      expect(find.text('Correct life'), findsNothing);
+      expect(find.byTooltip('Set energy total'), findsNothing);
+      await enableCounter(tester, 'energy');
+      expect(f.player.counters['energy'], 0);
+      await reveal(tester, find.byTooltip('Set energy total'));
+      await tester.tap(find.byTooltip('Set energy total'));
       await tester.pumpAndSettle();
-      expect(find.byTooltip('Back'), findsOneWidget);
-      expect(tester.getRect(shell), rect);
-      tester.widget<TextField>(field('Set life total to')).controller!.text =
-          '27';
+      tester.widget<TextField>(field('Set total')).controller!.text = '27';
+      await reveal(tester, find.widgetWithText(OutlinedButton, 'Set'));
       await tester.tap(find.widgetWithText(OutlinedButton, 'Set'));
       await tester.pumpAndSettle();
-      expect(f.player.life, 27);
-      await tester.tap(find.byTooltip('Back'));
-      await tester.pumpAndSettle();
+      expect(f.player.counters['energy'], 27);
+      expect(f.player.life, 40);
       expect(find.text('Player counters'), findsOneWidget);
       expect(find.widgetWithText(ChoiceChip, 'Counters'), findsNothing);
-      expect(find.text('Correct life').hitTestable(), findsOneWidget);
-      expect(tester.getRect(shell), rect);
+      expect(field('Set life total to'), findsNothing);
+      expect(find.text('Correct life'), findsNothing);
       expect(tester.takeException(), isNull);
       await close(tester);
     },
@@ -389,6 +414,7 @@ void main() {
       expect(find.byType(TextField), findsNothing);
       final originalLife = f.player.life;
       for (final counter in ['energy', 'poison', 'experience', 'radiation']) {
+        await enableCounter(tester, counter);
         await reveal(tester, find.byTooltip('Set $counter total'));
         await tester.tap(find.byTooltip('Set $counter total'));
         await tester.pumpAndSettle();
@@ -409,9 +435,9 @@ void main() {
         expect(f.player.counters[counter], 7);
         expect(f.player.life, originalLife);
         expect(find.byType(TextField), findsNothing);
-        expect(await f.controller.undo(), isTrue);
-        await tester.pumpAndSettle();
+        await undoInHistory(tester, f);
         expect(f.player.counters[counter] ?? 0, 0);
+        await open(tester, f, page: WorkspacePage.counters);
       }
       expect(tester.takeException(), isNull);
       await close(tester);
@@ -432,8 +458,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(f.controller.session.monarchPlayerId, f.playerId);
       expect(find.byTooltip('Monarch · On'), findsOneWidget);
-      await f.controller.undo();
-      await tester.pumpAndSettle();
+      await undoInHistory(tester, f);
+      await open(tester, f, page: WorkspacePage.counters);
       expect(f.controller.session.monarchPlayerId, previous);
       expect(find.byTooltip('Monarch · Off'), findsOneWidget);
       await tester.tap(find.byTooltip('City’s blessing · Off'));
@@ -520,8 +546,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(f.player.commanderDamage['self-a'], 0);
       expect(f.player.life, 39);
-      await f.controller.undo();
-      await tester.pumpAndSettle();
+      await undoInHistory(tester, f);
+      await open(tester, f, page: WorkspacePage.commanderDamage);
       expect(f.player.commanderDamage['self-a'], 1);
       expect(f.player.life, 38);
       expect(tester.takeException(), isNull);
@@ -542,7 +568,7 @@ void main() {
       );
       final shell = find.byKey(const ValueKey('context-workspace'));
       final rect = tester.getRect(shell);
-      expect(rect, const Rect.fromLTWH(81.25, 60, 487.5, 360));
+      expect(rect, const Rect.fromLTWH(16, 16, 618, 448));
       Future<void> reach(Finder target) async {
         await tester.ensureVisible(target);
         await tester.pumpAndSettle();
@@ -618,7 +644,7 @@ void main() {
         expect(find.byType(ListView), findsNothing);
         final shell = find.byKey(const ValueKey('context-workspace'));
         final rect = tester.getRect(shell);
-        expect(rect.size, Size(size.width * .75, size.height * .75));
+        expect(rect.size, Size(size.width == 744 ? 712 : 720, 640));
         final expectedColumns = rect.width >= 800
             ? 6
             : rect.width >= 400

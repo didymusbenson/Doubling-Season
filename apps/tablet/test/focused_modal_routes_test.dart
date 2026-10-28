@@ -147,8 +147,13 @@ void main() {
   Finder field(String label) => find.byWidgetPredicate(
     (w) => w is TextField && w.decoration?.labelText == label,
   );
+  Finder workspace() => find.byWidgetPredicate(
+    (widget) =>
+        widget.key == const ValueKey('context-workspace') ||
+        widget.key == const ValueKey('commander-workspace'),
+  );
   void assertClearControls(WidgetTester tester) {
-    final surface = find.byKey(const ValueKey('context-workspace'));
+    final surface = workspace();
     final close = find.byTooltip('Close workspace');
     final closeRect = tester.getRect(close);
     expect(close.hitTestable(), findsOneWidget);
@@ -193,10 +198,17 @@ void main() {
         expect(find.widgetWithText(ChoiceChip, 'Counters'), findsNothing);
         expect(find.widgetWithText(ChoiceChip, 'Settings'), findsNothing);
         expect(find.byTooltip('Back'), findsNothing);
-        expect(
-          tester.getSize(find.byKey(const ValueKey('context-workspace'))),
-          Size(size.width * .75, size.height * .75),
-        );
+        final shell = tester.getRect(workspace());
+        expect(shell.left, greaterThanOrEqualTo(16));
+        expect(shell.top, greaterThanOrEqualTo(16));
+        expect(shell.right, lessThanOrEqualTo(size.width - 16));
+        expect(shell.bottom, lessThanOrEqualTo(size.height - 16));
+        if (entry.value == WorkspacePage.counters) {
+          expect(shell.width, size.width == 600 ? 568 : 620);
+          expect(shell.height, lessThan(640));
+        } else {
+          expect(shell.size, Size(size.width == 600 ? 568 : 720, 640));
+        }
         assertClearControls(tester);
         if (entry.value == WorkspacePage.player) {
           expect(find.text('Has partner'), findsOneWidget);
@@ -224,9 +236,18 @@ void main() {
           expect(field('Player name'), findsNothing);
           expect(
             find.byKey(const ValueKey('focused-commander-grid')),
-            findsNothing,
+            findsOneWidget,
           );
           expect(find.text('Player counters'), findsOneWidget);
+          expect(find.byTooltip('Set energy total'), findsNothing);
+          await tester.tap(find.text('Add counter'));
+          await tester.pumpAndSettle();
+          await tester.ensureVisible(find.text('Enable energy'));
+          await tester.tap(find.text('Enable energy'));
+          await tester.pumpAndSettle();
+          expect(f.player.counters['energy'], 0);
+          expect(find.byTooltip('Set energy total'), findsOneWidget);
+          assertClearControls(tester);
         }
         if (entry.value == WorkspacePage.reset) {
           expect(find.text('Friday Commander'), findsNothing);
@@ -306,13 +327,17 @@ void main() {
         findsNothing,
       );
       for (final source in sources) {
+        for (final action in ['increase', 'decrease']) {
+          final target = find.byKey(ValueKey('commander-$action-${source.id}'));
+          await tester.ensureVisible(target);
+          await tester.pumpAndSettle();
+          expect(target.hitTestable(), findsOneWidget);
+          expect(tester.getSize(target).width, greaterThanOrEqualTo(44));
+          expect(tester.getSize(target).height, greaterThanOrEqualTo(44));
+        }
         expect(
-          find.byKey(ValueKey('commander-increase-${source.id}')).hitTestable(),
-          findsOneWidget,
-        );
-        expect(
-          find.byKey(ValueKey('commander-edit-${source.id}')).hitTestable(),
-          findsOneWidget,
+          find.byKey(ValueKey('commander-edit-${source.id}')),
+          findsNothing,
         );
       }
       await capture(

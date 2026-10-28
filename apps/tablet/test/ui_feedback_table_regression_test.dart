@@ -343,15 +343,10 @@ void main() {
               ValueKey('${player.id}-life-counter-summary'),
             );
             expect(
-              find.descendant(of: life, matching: counterSummary),
-              findsOneWidget,
+              counterSummary,
+              findsNothing,
+              reason: 'Zero counters and inactive statuses reserve no strip.',
             );
-            expect(counterSummary.hitTestable(), findsOneWidget);
-            expect(
-              tester.getSize(counterSummary).width,
-              greaterThanOrEqualTo(44),
-            );
-            expect(tester.getSize(counterSummary).height, 44);
             expect(tester.getSize(tools).height, 48);
             final editPosition = bounds(
               tester,
@@ -465,7 +460,9 @@ void main() {
               reason: 'Compact corner controls must not reserve a header.',
             );
             expect(
-              find.byTooltip('$name, player counters').hitTestable(),
+              find
+                  .byKey(ValueKey('${player.id}-commander-ledger'))
+                  .hitTestable(),
               findsOneWidget,
             );
           }
@@ -743,10 +740,10 @@ void main() {
         tableFor(4),
       );
       final players = fixture.controller.session.players;
-      String name(int index) =>
-          fixture.controller.profile(players[index].seatId).name;
       Future<void> tapStatus(int index, String status, bool enabled) async {
-        await tester.tap(find.byTooltip('${name(index)}, player counters'));
+        await tester.tap(
+          find.byKey(ValueKey('${players[index].id}-commander-ledger')),
+        );
         await tester.pumpAndSettle();
         await tester.tap(find.byTooltip('$status · ${enabled ? 'On' : 'Off'}'));
         await tester.pumpAndSettle();
@@ -1000,15 +997,15 @@ void main() {
         find.textContaining('− / + changes damage and life together'),
         findsNothing,
       );
-      final correctLife = find.byTooltip('Correct life separately');
-      expect(correctLife.hitTestable(), findsOneWidget);
-      expect(tester.getSize(correctLife).width, lessThanOrEqualTo(48));
+      expect(find.byTooltip('Correct life separately'), findsNothing);
+      expect(find.byTooltip('Undo latest action'), findsNothing);
       expect(
         tester
             .getSize(find.byKey(const ValueKey('commander-workspace')))
             .height,
-        744 * .75,
-        reason: 'The shared shell uses exactly 75% of the viewport.',
+        lessThan(600),
+        reason:
+            'The popup follows its compact content within the safe viewport.',
       );
       final recipientSlot = bounds(
         tester,
@@ -1033,8 +1030,8 @@ void main() {
             .toList();
         if (siblings.length > 1) {
           final label = siblings.indexWhere((item) => item.id == source.id) == 0
-              ? 'A'
-              : 'B';
+              ? 'Commander'
+              : 'Partner';
           expect(
             find.descendant(of: chip, matching: find.text(label)),
             findsOneWidget,

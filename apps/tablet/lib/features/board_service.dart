@@ -1051,7 +1051,7 @@ class BoardService {
         type: WidgetType.special,
         name: 'The Ring',
         description:
-            'The Ring tempts you: choose your bearer and advance up to four abilities.',
+            'Track temptations and up to four abilities, with an optional bearer label.',
         colorIdentity: '',
         defaultValue: 0,
         actionOnly: true,
@@ -1234,10 +1234,7 @@ class BoardService {
         'citys_blessing',
       }.contains(definitionId)) {
         for (final u in p.utilities) {
-          if (u.kind == definitionId) {
-            u.visible = true;
-            return;
-          }
+          if (u.kind == definitionId && u.visible) return;
         }
       }
       p.utilities.add(
@@ -1267,6 +1264,21 @@ class BoardService {
     captured: captured,
     expectedRevision: expectedRevision,
   );
+
+  /// Removing a board instance is reversible through the normal history.
+  /// Legacy hidden instances and player-owned game state stay untouched.
+  Future<void> removeUtility(
+    String playerId,
+    String id, {
+    BoardScope? captured,
+  }) => _commit(playerId, 'Remove utility', (s, p) {
+    final utility = _utility(p, id);
+    if (!isUtilityVisible(utility)) {
+      throw StateError('This utility is not on the board');
+    }
+    p.utilities.removeWhere((candidate) => candidate.id == id);
+  }, captured: captured);
+
   Future<void> setUtility(
     String playerId,
     String id, {

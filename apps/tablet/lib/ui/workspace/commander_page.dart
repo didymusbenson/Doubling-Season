@@ -1,25 +1,50 @@
 part of 'table_workspace.dart';
 
-/// Direct commander tracking: bounded owner slots, never a scrolling ledger.
+/// Damage and counters share one compact, player-facing popup. Owner positions
+/// remain table-relative; additional sources grow their owner's row, not a form.
 extension _FocusedCommanderPage on _TableWorkspaceState {
+  int _largestCommanderGroup() => c.session.players
+      .map(
+        (owner) => c.session.commanderTrackingSources
+            .where((source) => source.ownerPlayerId == owner.id)
+            .length,
+      )
+      .fold<int>(1, max);
+
+  double _commanderRowHeight(double ownerWidth) {
+    final count = _largestCommanderGroup();
+    return 20 +
+        (ownerWidth < count * 88 ? count : 1) * (count > 1 ? 108.0 : 88.0);
+  }
+
+  double _combinedContentHeight(double width) {
+    final rows = CommanderSeatLayout.rowsFor(
+      c.session.players,
+      widget.quarterTurns,
+    );
+    final ownerWidth =
+        (width - 24 - (rows.first.length - 1) * 8) / rows.first.length;
+    final counterColumns = width - 24 >= 380 ? 2 : 1;
+    final counterRows =
+        ((p == null ? 0 : _visiblePlayerCounters(p!).length) / counterColumns)
+            .ceil();
+    // Progress strip (2), outer padding (12), header (44), and counter gap (4).
+    return 62 +
+        rows.length * _commanderRowHeight(ownerWidth) +
+        (rows.length - 1) * 6 +
+        12 +
+        _playerStatusHeight +
+        48 +
+        counterRows * 80 +
+        (_counterPickerOpen ? 210 : 0) +
+        (_editingPlayerCounter == null ? 0 : 88) +
+        ((p?.warnings.isNotEmpty ?? false) ? 32 : 0);
+  }
+
   Widget _focusedCommanderPage() {
     final recipient = p;
     if (recipient == null) return const Center(child: Text('Select a player.'));
-    final editing = c.session.commanderTrackingSources
-        .where((source) => source.id == _editingCommanderId)
-        .firstOrNull;
     final disabled = _working || _closing || _navigating || !_validScope;
-    Widget action(String label, IconData icon, VoidCallback? callback) =>
-        SizedBox(
-          width: 44,
-          height: 44,
-          child: IconButton(
-            tooltip: label,
-            padding: EdgeInsets.zero,
-            onPressed: callback,
-            icon: Icon(icon, size: 21),
-          ),
-        );
     final sources = c.session.commanderTrackingSources;
     final rows = CommanderSeatLayout.rowsFor(
       c.session.players,
@@ -33,111 +58,60 @@ extension _FocusedCommanderPage on _TableWorkspaceState {
             height: 44,
             child: Row(
               children: [
-                if (editing != null)
-                  action('Back', Icons.arrow_back, disabled ? null : _back),
                 Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '$_seatName · ${recipient.life} life',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          height: 1.1,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (editing != null)
-                        const Text(
-                          'Correct damage; life stays unchanged.',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 11, height: 1.1),
-                        ),
-                    ],
+                  child: Text(
+                    '$_seatName · ${recipient.life} life',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-                if (editing == null) ...[
-                  action(
-                    'Undo latest action',
-                    Icons.undo,
-                    disabled || !c.canUndo ? null : () => _run(() => c.undo()),
+                if (_navigation.isNotEmpty)
+                  SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: IconButton(
+                      tooltip: 'Back',
+                      onPressed: disabled ? null : _back,
+                      icon: const Icon(Icons.arrow_back),
+                    ),
                   ),
-                  action(
-                    'Correct life separately',
-                    Icons.edit_note,
-                    disabled ? null : () => _go(WorkspacePage.lifeCorrection),
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: IconButton(
+                    tooltip: 'Close workspace',
+                    onPressed: disabled ? null : _requestClose,
+                    icon: const Icon(Icons.close),
                   ),
-                ],
-                action('Close workspace', Icons.close, _requestClose),
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 6),
           Expanded(
-            child: editing != null
-                ? _focusedCommanderEditor(recipient, editing)
-                : LayoutBuilder(
-                    builder: (context, bounds) {
-                      final columns = rows.first.length;
-                      final ownerWidth =
-                          (bounds.maxWidth - (columns - 1) * 8) / columns;
-                      final ownerHeight =
-                          (bounds.maxHeight - (rows.length - 1) * 6) /
-                          rows.length;
-                      final largestGroup = c.session.players
-                          .map(
-                            (owner) => sources
-                                .where((s) => s.ownerPlayerId == owner.id)
-                                .length,
-                          )
-                          .fold<int>(1, max);
-                      // Fill the available owner slots rather than parking
-                      // small numeric controls above an empty modal. Partners
-                      // share one artwork surface, splitting only its controls.
-                      final stackPartners = ownerWidth < largestGroup * 88;
-                      final sourceWidth = stackPartners
-                          ? ownerWidth
-                          : (ownerWidth - (largestGroup - 1)) / largestGroup;
-                      final sourceHeight = stackPartners
-                          ? (ownerHeight - 20 - (largestGroup - 1)) /
-                                largestGroup
-                          : ownerHeight - 20;
-                      if (largestGroup > 2 ||
-                          sourceWidth < 88 ||
-                          sourceHeight < 88) {
-                        return ListView(
-                          key: const ValueKey('commander-density-fallback'),
-                          children: [
-                            const Text(
-                              'More commander sources than this grid can fit. All sources remain available below.',
-                            ),
-                            for (final source in sources)
-                              ListTile(
-                                title: Text(
-                                  '${_nameForPlayer(source.ownerPlayerId)} · ${_focusedCommanderRole(source)}',
-                                ),
-                                subtitle: Text(
-                                  '${recipient.commanderDamage[source.id] ?? 0} damage',
-                                ),
-                                trailing: const Icon(Icons.edit_outlined),
-                                onTap: disabled
-                                    ? null
-                                    : () => _editCommander(recipient, source),
-                              ),
-                          ],
-                        );
-                      }
-                      return Column(
+            child: SingleChildScrollView(
+              controller: _counterScroll,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: LayoutBuilder(
+                builder: (context, bounds) {
+                  final ownerWidth =
+                      (bounds.maxWidth - (rows.first.length - 1) * 8) /
+                      rows.first.length;
+                  final stackPartners =
+                      ownerWidth < _largestCommanderGroup() * 88;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Column(
                         key: const ValueKey('focused-commander-grid'),
                         children: [
                           for (var r = 0; r < rows.length; r++) ...[
                             if (r > 0) const SizedBox(height: 6),
                             SizedBox(
-                              height: ownerHeight,
+                              height: _commanderRowHeight(ownerWidth),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
@@ -164,9 +138,16 @@ extension _FocusedCommanderPage on _TableWorkspaceState {
                             ),
                           ],
                         ],
-                      );
-                    },
-                  ),
+                      ),
+                      const SizedBox(height: 12),
+                      ..._counterContent(recipient),
+                      if (recipient.warnings.isNotEmpty)
+                        Text(recipient.warnings.join(' · ')),
+                    ],
+                  );
+                },
+              ),
+            ),
           ),
         ],
       ),
@@ -184,32 +165,6 @@ extension _FocusedCommanderPage on _TableWorkspaceState {
         ? 'Partner'
         : 'Commander ${index + 1}';
   }
-
-  Widget _focusedCommanderEditor(
-    PlayerState recipient,
-    CommanderSource source,
-  ) => _list([
-    _section(
-      '${_nameForPlayer(source.ownerPlayerId)} · ${_focusedCommanderRole(source)}',
-    ),
-    _input(
-      'damageCorrection.${source.id}',
-      'Set damage total',
-      initial: '${recipient.commanderDamage[source.id] ?? 0}',
-      numeric: true,
-    ),
-    _button(
-      'Correct ledger only',
-      () => _run(
-        () => c.setCommanderDamage(
-          recipient.id,
-          source.id,
-          _integer('damageCorrection.${source.id}', min: 0),
-        ),
-      ),
-      primary: true,
-    ),
-  ]);
 
   Widget _focusedCommanderOwner(
     PlayerState recipient,
@@ -325,57 +280,18 @@ extension _FocusedCommanderPage on _TableWorkspaceState {
   }) {
     final identity = c.profile(owner.seatId);
     final label = _commanderSourceLabel(source);
-    final ownerLabel =
-        '${identity.name}${owner.id == recipient.id ? ' · self' : ''}';
     final damage = recipient.commanderDamage[source.id] ?? 0;
     return Column(
       key: ValueKey('commander-tracker-${source.id}'),
       children: [
-        SizedBox(
-          height: 44,
-          child: Row(
-            children: [
-              Expanded(
-                child: Semantics(
-                  label:
-                      '$ownerLabel, $label${damage >= 21 ? ', 21 damage warning' : ''}',
-                  excludeSemantics: true,
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 12),
-                    child: Text(
-                      partnerIndex == null
-                          ? ''
-                          : (partnerIndex == 0 ? 'A' : 'B'),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: 44,
-                height: 44,
-                child: IconButton(
-                  key: ValueKey('commander-edit-${source.id}'),
-                  tooltip:
-                      'Correct $label damage from ${identity.name}; life unchanged',
-                  padding: EdgeInsets.zero,
-                  onPressed: disabled
-                      ? null
-                      : () => _editCommander(recipient, source),
-                  icon: const Icon(
-                    Icons.edit_outlined,
-                    size: 18,
-                    color: Colors.white70,
-                  ),
-                ),
-              ),
-            ],
+        if (partnerIndex != null)
+          SizedBox(
+            height: 20,
+            child: Text(
+              _focusedCommanderRole(source),
+              style: const TextStyle(fontSize: 11, color: Colors.white70),
+            ),
           ),
-        ),
         Expanded(
           child: LayoutBuilder(
             builder: (context, bounds) => HalfStepper(
@@ -416,7 +332,6 @@ extension _FocusedCommanderPage on _TableWorkspaceState {
                 _sessionGeneration,
                 _closing,
                 _navigating,
-                _editingCommanderId,
                 _directFailureEpoch,
               ),
             ),

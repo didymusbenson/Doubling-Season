@@ -7,9 +7,9 @@ import '../domain/table_state.dart';
 import '../state/table_controller.dart';
 import '../services/tablet_catalog.dart';
 import '../features/board_service.dart';
+import '../features/ring_service.dart';
 import 'workspace/table_workspace.dart';
 import 'table_artwork.dart';
-import 'table_modal_frame.dart';
 import 'tablet_token_card.dart';
 import 'half_stepper.dart';
 import 'life_tap_feedback.dart';
@@ -82,78 +82,6 @@ class _TableScreenState extends State<TableScreen> {
     }
   }
 
-  Future<void> hideUtility(
-    PlayerState player,
-    UtilityState utility,
-    int turns,
-  ) async {
-    if (modalOpen) return;
-    setState(() {
-      modalOpen = true;
-      interactionEpoch++;
-    });
-    final confirmed = await showDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      useSafeArea: false,
-      builder: (context) => TableModalFrame(
-        quarterTurns: turns,
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Hide ${utility.name}?',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Its values will be kept. You can bring it back from Utilities.',
-                ),
-                const SizedBox(height: 24),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel'),
-                    ),
-                    FilledButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Hide utility'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-    if (confirmed == true) {
-      await widget.controller.updateState(
-        'Hide utility',
-        (state) {
-          final found = state.session
-              .player(player.id)
-              .utilities
-              .firstWhere((u) => u.id == utility.id);
-          found.visible = false;
-        },
-        recordHistory: true,
-        playerId: player.id,
-      );
-    }
-    if (mounted) {
-      setState(() {
-        modalOpen = false;
-        interactionEpoch++;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
@@ -211,7 +139,6 @@ class _TableScreenState extends State<TableScreen> {
                   onInputLock: setInputLock,
                   onOpen: (page, [itemId]) =>
                       open(page, player: player, itemId: itemId, turns: turns),
-                  onHide: (u) => hideUtility(player, u, turns),
                 );
               }
 
@@ -553,7 +480,6 @@ class _PlayerSpace extends StatefulWidget {
   final bool centerNotchAtStart;
   final bool hubInTokenLane;
   final void Function(WorkspacePage, [String?]) onOpen;
-  final ValueChanged<UtilityState> onHide;
   final ValueChanged<bool> onInputLock;
   const _PlayerSpace({
     super.key,
@@ -567,7 +493,6 @@ class _PlayerSpace extends StatefulWidget {
     required this.hubInTokenLane,
     required this.interactionEpoch,
     required this.onOpen,
-    required this.onHide,
     required this.onInputLock,
   });
   @override
@@ -804,7 +729,15 @@ class _PlayerSpaceState extends State<_PlayerSpace>
               board: widget.board,
               expanded: expandedId == u.id,
               onExpand: () => expand(u.id),
-              onHide: () => widget.onHide(u),
+              onRemove: () => perform(() async {
+                await widget.board.removeUtility(p.id, u.id);
+                if (mounted && expandedId == u.id) {
+                  setState(() => expandedId = null);
+                }
+              }),
+              onTempt: () => perform(
+                () => RingService(widget.controller).tempt(p.id, u.id),
+              ),
               onOpen: () => widget.onOpen(WorkspacePage.utilities, u.id),
               onChange: (delta) =>
                   perform(() => widget.board.adjustUtility(p.id, u.id, delta)),
@@ -1257,15 +1190,28 @@ class _LifePanel extends StatelessWidget {
                           onOpen: () => onOpen(WorkspacePage.commanderDamage),
                         ),
                       ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: _LifeCounterSummary(
-                          player: player,
-                          profile: profile,
-                          controller: controller,
-                          onOpen: () => onOpen(WorkspacePage.counters),
+                      if (_LifeCounterSummary.hasContent(
+                        player,
+                        controller,
+                      )) ...[
+                        const SizedBox(width: 4),
+                        Flexible(
+                          fit: FlexFit.loose,
+                          child: SizedBox(
+                            width: _LifeCounterSummary.preferredWidth(
+                              player,
+                              controller,
+                            ),
+                            child: _LifeCounterSummary(
+                              player: player,
+                              profile: profile,
+                              controller: controller,
+                              onOpen: () =>
+                                  onOpen(WorkspacePage.commanderDamage),
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -1314,8 +1260,34 @@ class _LifeCounterSummary extends StatelessWidget {
     required this.onOpen,
   });
 
+  static double preferredWidth(PlayerState player, TableController controller) {
+    final count =
+        player.counters.values.where((value) => value != 0).length +
+        (controller.session.monarchPlayerId == player.id ? 1 : 0) +
+        (player.citysBlessing ? 1 : 0) +
+        (player.utilities.any(
+              (utility) =>
+                  {'initiative', 'the_initiative'}.contains(utility.kind) &&
+                  utility.isActive,
+            )
+            ? 1
+            : 0);
+    return (count * 30.0).clamp(44.0, 180.0);
+  }
+
+  static bool hasContent(PlayerState player, TableController controller) =>
+      controller.session.monarchPlayerId == player.id ||
+      player.citysBlessing ||
+      player.counters.values.any((value) => value != 0) ||
+      player.utilities.any(
+        (utility) =>
+            {'initiative', 'the_initiative'}.contains(utility.kind) &&
+            utility.isActive,
+      );
+
   @override
   Widget build(BuildContext context) {
+    if (!hasContent(player, controller)) return const SizedBox.shrink();
     final monarch = controller.session.monarchPlayerId == player.id;
     final initiative = player.utilities.any(
       (utility) =>
@@ -1363,8 +1335,8 @@ class _LifeCounterSummary extends StatelessWidget {
       message: '${profile.name}, player counters',
       child: Semantics(
         label: '${profile.name}, player counters',
-        value: summary.isEmpty ? 'No active counters or statuses' : summary,
-        hint: 'Edit counters, Monarch, City’s blessing and Initiative',
+        value: summary,
+        hint: 'Open Commander damage and player counters',
         button: true,
         excludeSemantics: true,
         onTap: onOpen,
@@ -1551,7 +1523,7 @@ class _UtilityRow extends StatelessWidget {
   final PlayerState player;
   final BoardService board;
   final bool expanded;
-  final VoidCallback onExpand, onHide, onOpen, onToggle;
+  final VoidCallback onExpand, onRemove, onOpen, onToggle, onTempt;
   final Future<void> Function(int) onChange;
   final Future<void> Function(String, int) onMana;
   const _UtilityRow({
@@ -1562,7 +1534,8 @@ class _UtilityRow extends StatelessWidget {
     required this.board,
     required this.expanded,
     required this.onExpand,
-    required this.onHide,
+    required this.onRemove,
+    required this.onTempt,
     required this.onOpen,
     required this.onChange,
     required this.onToggle,
@@ -1732,12 +1705,17 @@ class _UtilityRow extends StatelessWidget {
                                   '${utility.name}, details and actions',
                                   onOpen,
                                 ),
-                              icon(
-                                Icons.visibility_off_outlined,
-                                'Hide ${utility.name}',
-                                onHide,
-                              ),
                             ],
+                            SizedBox(
+                              key: ValueKey('remove-utility-${utility.id}'),
+                              width: 44,
+                              height: 44,
+                              child: icon(
+                                Icons.close,
+                                'Remove ${utility.name}',
+                                onRemove,
+                              ),
+                            ),
                           ],
                         ),
                         if (narrowToggle)
@@ -1862,7 +1840,7 @@ class _UtilityRow extends StatelessWidget {
                         if (utility.kind == 'the_ring')
                           RingInline(
                             utility: utility,
-                            onTempt: onOpen,
+                            onTempt: onTempt,
                             trailing: expanded
                                 ? Row(
                                     mainAxisSize: MainAxisSize.min,
@@ -1871,11 +1849,6 @@ class _UtilityRow extends StatelessWidget {
                                         Icons.edit_outlined,
                                         '${utility.name}, details and actions',
                                         onOpen,
-                                      ),
-                                      icon(
-                                        Icons.visibility_off_outlined,
-                                        'Hide ${utility.name}',
-                                        onHide,
                                       ),
                                     ],
                                   )
@@ -1893,11 +1866,6 @@ class _UtilityRow extends StatelessWidget {
                                       Icons.edit_outlined,
                                       '${utility.name}, details and actions',
                                       onOpen,
-                                    ),
-                                    icon(
-                                      Icons.visibility_off_outlined,
-                                      'Hide ${utility.name}',
-                                      onHide,
                                     ),
                                   ]
                                 : const [],

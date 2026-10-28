@@ -399,15 +399,16 @@ try {
   await capture('03d-partner-off-guarded');
   await click('Close workspace');
   await click('qa, commander damage ', { startsWith: true, role: 'button' });
-  await click('Correct Partner #2 damage from qa; life unchanged');
-  await click('Set damage total. Current value:', { startsWith: true });
-  await click('Select all');
-  await click('0', { role: 'button' });
-  await click('Done');
-  await click('Correct ledger only');
-  await find('qa · 39 life', { contains: true });
-  await click('Back');
-  await capture('03e-partner-corrected-without-life-change');
+  assert(!(await semantics()).some(node => /Correct .*damage|Set damage total|Correct life|Undo latest action/.test(node.name)),
+    'Combined popup exposes a removed correction or standalone Undo route.');
+  await click('Close workspace');
+  await click('Game controls');
+  await click('History', { role: 'button' });
+  await click('Undo latest:', { startsWith: true, role: 'button' });
+  await click('Close workspace');
+  await click('qa, commander damage ', { startsWith: true, role: 'button' });
+  await find('qa · 40 life', { contains: true });
+  await capture('03e-partner-history-undo-restores-damage-and-life');
   await click('Close workspace');
   await click('qa, player details');
   await click('Has partner');
@@ -420,7 +421,7 @@ try {
   await capture('03f-partner-off-persisted');
   await click('Close workspace');
   await installInputObservation();
-  log('PASS focused partner setup, separate damage, guarded Off, ledger-only correction and persisted deactivation');
+  log('PASS focused partner setup, separate damage, guarded Off, History-only undo and persisted deactivation');
 
 
   await click('Day/Night: neither.', { startsWith: true });
@@ -544,11 +545,14 @@ try {
 
   // Exercise the relocated statuses and immediate-life route in the real
   // release build, without injecting state or relying on widget-only fixtures.
-  await click('qa, player counters', { contains: true, role: 'button' });
+  await click('qa, commander damage ', { startsWith: true, role: 'button' });
+  await find('Add counter', { role: 'button' });
   for (const status of ['Monarch', 'City’s blessing', 'Initiative']) {
     await click(`${status}, Off`, { contains: true, role: 'switch' });
     await find(`${status}, On`, { contains: true, role: 'switch' });
   }
+  await click('Add counter', { role: 'button' });
+  await click('Enable energy', { role: 'button' });
   await click('Increase energy', { startsWith: true, role: 'button' });
   await click('Increase energy', { startsWith: true, role: 'button' });
   await capture('17-visual-counters-and-three-statuses');
@@ -563,16 +567,16 @@ try {
       node.name.includes(`${name}, increase life by one`) &&
       new RegExp(`(^|[^0-9])${total}([^0-9]|$)`).test(`${node.name} ${node.value ?? ''}`)));
   }
-  await expectLife('qa', 41);
+  await expectLife('qa', 42);
   // The life chip projects accepted taps before storage. This sequence reaches
-  // 41 only on its final command; the Commander header reads canonical life,
+  // 42 only on its final command; the Commander header reads canonical life,
   // making it a durable UI barrier before reload rather than an arbitrary wait.
   await click('qa, commander damage ', { startsWith: true, role: 'button' });
-  await find('qa · 41 life', { startsWith: true });
+  await find('qa · 42 life', { startsWith: true });
   await click('Close workspace');
   await cdp.send('Page.reload', { ignoreCache: true });
   await enableSemantics();
-  await expectLife('qa', 41);
+  await expectLife('qa', 42);
   await click('qa, player counters', { contains: true, role: 'button' });
   for (const status of ['Monarch', 'City’s blessing', 'Initiative']) {
     await find(`${status}, On`, { contains: true, role: 'switch' });

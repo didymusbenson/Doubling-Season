@@ -352,7 +352,10 @@ void validateTabletState(TabletState state) {
       for (final utility in player.utilities) {
         entityIds.add(utility.id);
         bounded(utility.value, 'Utility value', signed: true);
-        if (utility.kind == 'mana_pool' || utility.kind == 'storm_count') {
+        // Hidden legacy views retain their settings while Add creates a fresh
+        // board view. Only the visible views need to remain singletons.
+        if (utility.visible &&
+            (utility.kind == 'mana_pool' || utility.kind == 'storm_count')) {
           require(
             singletonUtilities.add(utility.kind),
             'Duplicate ${utility.kind} utility.',

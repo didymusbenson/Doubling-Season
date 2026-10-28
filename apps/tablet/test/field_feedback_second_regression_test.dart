@@ -106,17 +106,40 @@ void main() {
     }))!;
   }
 
+  Future<void> undoThroughHistory(WidgetTester tester) async {
+    if (find.byTooltip('Close workspace').evaluate().isNotEmpty) {
+      await tester.tap(find.byTooltip('Close workspace'));
+      await tester.pumpAndSettle();
+    }
+    expect(find.byIcon(Icons.undo), findsNothing);
+    await tester.tap(find.byTooltip('Game controls'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(OutlinedButton, 'History'));
+    await tester.pumpAndSettle();
+    final undo = find.textContaining('Undo latest:');
+    expect(undo.hitTestable(), findsOneWidget);
+    await tester.tap(undo);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Close workspace'));
+    await tester.pumpAndSettle();
+  }
+
   for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
     testWidgets(
       'owned Monarch hold clears once, stays visible and undo restores at $size',
       (tester) async {
         final f = await board(tester, size);
         final p = f.playerId;
-        await tester.tap(find.byTooltip('Player 1, player counters'));
+        expect(find.byTooltip('Player 1, player counters'), findsNothing);
+        await tester.tap(find.byKey(ValueKey('$p-commander-ledger')));
         await tester.pumpAndSettle();
+        await tester.ensureVisible(find.byTooltip('Monarch · Off'));
+        await tester.pumpAndSettle();
+        expect(find.byTooltip('Monarch · Off').hitTestable(), findsOneWidget);
         await tester.tap(find.byTooltip('Monarch · Off'));
         await tester.pumpAndSettle();
         expect(f.controller.session.monarchPlayerId, p);
+        final historyBeforeHold = f.controller.session.history.length;
         final gesture = await tester.startGesture(
           tester.getCenter(find.byTooltip('Monarch · On')),
         );
@@ -131,14 +154,17 @@ void main() {
           reason: 'Release must not trail into claim.',
         );
         expect(find.byTooltip('Monarch · Off'), findsOneWidget);
-        await f.controller.undo();
-        await tester.pumpAndSettle();
+        expect(f.controller.session.history.length, historyBeforeHold + 1);
+        await undoThroughHistory(tester);
         expect(f.controller.session.monarchPlayerId, p);
+        expect((await f.repository.open()).state.session.monarchPlayerId, p);
         final next = f.controller.session.players[1];
-        await tester.tap(find.byTooltip('Close workspace'));
+        expect(find.byTooltip('Player 2, player counters'), findsNothing);
+        await tester.tap(find.byKey(ValueKey('${next.id}-commander-ledger')));
         await tester.pumpAndSettle();
-        await tester.tap(find.byTooltip('Player 2, player counters'));
+        await tester.ensureVisible(find.byTooltip('Monarch · Off'));
         await tester.pumpAndSettle();
+        expect(find.byTooltip('Monarch · Off').hitTestable(), findsOneWidget);
         await tester.tap(find.byTooltip('Monarch · Off'));
         await tester.pumpAndSettle();
         expect(f.controller.session.monarchPlayerId, next.id);
@@ -216,8 +242,7 @@ void main() {
         await gesture.up();
         await tester.pumpAndSettle();
         if (f.controller.player(p.id).tokens.isEmpty) {
-          await f.controller.undo();
-          await tester.pumpAndSettle();
+          await undoThroughHistory(tester);
         }
         expect(f.controller.player(p.id).tokens, hasLength(1));
         expect(tester.takeException(), isNull);

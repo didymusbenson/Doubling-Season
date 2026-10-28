@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tripling_table/ui/support_sheet.dart';
+import 'package:tripling_table/ui/table_theme.dart';
 
 void main() {
   for (var turns = 0; turns < 4; turns++) {
-    testWidgets('support shell centers in full viewport at rotation $turns', (
+    testWidgets('support shell fits safe viewport at rotation $turns', (
       tester,
     ) async {
       SharedPreferences.setMockInitialValues({});
@@ -20,6 +21,7 @@ void main() {
       var opened = 0;
       await tester.pumpWidget(
         MaterialApp(
+          theme: tableTheme(Brightness.dark),
           home: Scaffold(
             body: Builder(
               builder: (context) => GestureDetector(
@@ -43,10 +45,19 @@ void main() {
         box.getTransformTo(null),
         Offset.zero & box.size,
       );
-      expect(rect.width, closeTo(1133 * .75, .01));
-      expect(rect.height, closeTo(744 * .75, .01));
-      expect(rect.center.dx, closeTo(1133 / 2, .001));
-      expect(rect.center.dy, closeTo(744 / 2, .001));
+      expect(
+        box.size,
+        turns.isOdd ? const Size(668, 640) : const Size(720, 640),
+      );
+      expect(rect.left, greaterThanOrEqualTo(44 + 16 - .01));
+      expect(rect.right, lessThanOrEqualTo(1133 - 16 + .01));
+      expect(rect.top, greaterThanOrEqualTo(24 + 16 - .01));
+      expect(rect.bottom, lessThanOrEqualTo(744 - 20 - 16 + .01));
+      expect(rect.center.dx, closeTo((44 + 1133) / 2, .001));
+      expect(rect.center.dy, closeTo((24 + 744 - 20) / 2, .001));
+      final close = find.byTooltip('Close support');
+      expect(tester.getSize(close).shortestSide, greaterThanOrEqualTo(44));
+      expect(close.hitTestable(), findsOneWidget);
       expect(find.textContaining('Support is optional'), findsOneWidget);
       expect(
         find.textContaining('Support purchases aren’t available'),

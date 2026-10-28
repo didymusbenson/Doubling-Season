@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -113,12 +114,11 @@ void main() {
   }
 
   const scenes = <String, WorkspacePage>{
-    'life-edit': WorkspacePage.player,
+    'player-details': WorkspacePage.player,
     'appearance': WorkspacePage.player,
     'edit-commanders': WorkspacePage.player,
     'commander-grid': WorkspacePage.commanderDamage,
     'commander-setup': WorkspacePage.player,
-    'commander-correction': WorkspacePage.commanderDamage,
     'counters': WorkspacePage.counters,
     'counter-correction': WorkspacePage.counters,
     'mana': WorkspacePage.utilities,
@@ -158,7 +158,7 @@ void main() {
         0,
         if (size.width == 1133 &&
             {
-              'life-edit',
+              'player-details',
               'mana',
               'token-status',
               'commander-grid',
@@ -380,10 +380,6 @@ void main() {
                 await reveal(tester, find.text('Has partner'));
               case 'commander-setup':
                 await reveal(tester, find.text('Has partner'));
-              case 'commander-correction':
-                await tester.tap(
-                  find.byKey(const ValueKey('commander-edit-partner-a')),
-                );
               case 'token-create':
                 await tester.tap(find.widgetWithText(ChoiceChip, 'Custom'));
                 await tester.pumpAndSettle();
@@ -426,11 +422,47 @@ void main() {
                     .isNotEmpty
                 ? find.byKey(const ValueKey('context-workspace'))
                 : find.byKey(const ValueKey('commander-workspace'));
+            final frameSize = tester.getSize(frameFinder);
+            final safeViewport = Size(size.width, size.height - 44);
+            final localViewport = turns.isOdd
+                ? Size(safeViewport.height, safeViewport.width)
+                : safeViewport;
+            final combined = find
+                .byKey(const ValueKey('commander-workspace'))
+                .evaluate()
+                .isNotEmpty;
             expect(
-              tester.getSize(frameFinder),
-              turns.isOdd
-                  ? Size(size.height * .75, size.width * .75)
-                  : Size(size.width * .75, size.height * .75),
+              frameSize.width,
+              math.min(combined ? 620 : 720, localViewport.width - 32),
+            );
+            if (combined) {
+              expect(frameSize.height, greaterThanOrEqualTo(44));
+              expect(
+                frameSize.height,
+                lessThanOrEqualTo(math.min(640, localViewport.height - 32)),
+              );
+            } else {
+              expect(
+                frameSize.height,
+                math.min(640, localViewport.height - 32),
+              );
+            }
+            final frameBox = tester.renderObject<RenderBox>(frameFinder);
+            final globalFrame = MatrixUtils.transformRect(
+              frameBox.getTransformTo(null),
+              Offset.zero & frameBox.size,
+            );
+            expect(globalFrame.left, greaterThanOrEqualTo(16 - .01));
+            expect(globalFrame.right, lessThanOrEqualTo(size.width - 16 + .01));
+            expect(globalFrame.top, greaterThanOrEqualTo(24 + 16 - .01));
+            expect(
+              globalFrame.bottom,
+              lessThanOrEqualTo(size.height - 20 - 16 + .01),
+            );
+            expect(globalFrame.center.dx, closeTo(size.width / 2, .01));
+            expect(
+              globalFrame.center.dy,
+              closeTo((24 + size.height - 20) / 2, .01),
             );
             if (scene.key == 'counters') {
               expect(find.byType(TextField), findsNothing);
@@ -492,7 +524,7 @@ void main() {
               );
               expect(
                 tester.getSize(field).width,
-                lessThanOrEqualTo(size.width * .75 - 32),
+                lessThanOrEqualTo(frameSize.width - 32),
               );
               expect(find.text('20 life').hitTestable(), findsOneWidget);
               expect(find.text('40 life').hitTestable(), findsOneWidget);
@@ -502,7 +534,10 @@ void main() {
                 find.byKey(const ValueKey('context-workspace')),
               );
               if (scene.key == 'reset-three-player') {
-                expect(frame.size.height, size.height * .75);
+                expect(
+                  frame.size.height,
+                  math.min(640, localViewport.height - 32),
+                );
               }
               for (final label in [
                 'Reset with current configuration',

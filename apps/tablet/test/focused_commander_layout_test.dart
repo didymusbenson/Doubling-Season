@@ -23,6 +23,9 @@ void main() {
       captureArtwork =
           'data:image/jpeg;base64,${base64Encode(await File(artFile).readAsBytes())}';
     }
+    await (FontLoader(
+      'Mana',
+    )..addFont(rootBundle.load('assets/fonts/mana.ttf'))).load();
     for (final font in {
       'sans-serif': 'Roboto-Regular.ttf',
       'MaterialIcons': 'MaterialIcons-Regular.otf',
@@ -84,16 +87,26 @@ void main() {
           ),
           home: Scaffold(
             body: Builder(
-              builder: (context) => TextButton(
-                onPressed: () => showTableWorkspace(
-                  context,
-                  f.controller,
-                  catalog: f.catalog,
-                  seatId: f.controller.session.players.first.id,
-                  quarterTurns: turns,
-                  initialPage: WorkspacePage.commanderDamage,
-                ),
-                child: const Text('Open'),
+              builder: (context) => Column(
+                children: [
+                  for (final page in [
+                    WorkspacePage.commanderDamage,
+                    WorkspacePage.history,
+                  ])
+                    TextButton(
+                      onPressed: () => showTableWorkspace(
+                        context,
+                        f.controller,
+                        catalog: f.catalog,
+                        seatId: f.controller.session.players.first.id,
+                        quarterTurns: turns,
+                        initialPage: page,
+                      ),
+                      child: Text(
+                        page == WorkspacePage.history ? 'History' : 'Open',
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -159,15 +172,29 @@ void main() {
     for (final seats in [2, 3, 4]) {
       for (final turns in [0, 1, 2, 3]) {
         testWidgets(
-          '$seats owners max partners $size rotation $turns fit without scroll',
+          '$seats owners max partners $size rotation $turns remain reachable with bounded scrolling',
           (tester) async {
             final f = await open(tester, size, seats, turns);
             final grid = find.byKey(const ValueKey('focused-commander-grid'));
             expect(grid, findsOneWidget);
+            if (size == const Size(1133, 744)) {
+              final scroller = tester.state<ScrollableState>(
+                find.ancestor(of: grid, matching: find.byType(Scrollable)),
+              );
+              expect(
+                scroller.position.maxScrollExtent,
+                lessThanOrEqualTo(.01),
+                reason:
+                    'Short combined content must include frame padding in its height, not acquire a few pixels of unnecessary scroll.',
+              );
+            }
             expect(find.byType(ChoiceChip), findsNothing);
             expect(
-              find.descendant(of: grid, matching: find.byType(Scrollable)),
-              findsNothing,
+              find.ancestor(
+                of: grid,
+                matching: find.byType(SingleChildScrollView),
+              ),
+              findsOneWidget,
             );
             Rect painted(Finder finder) {
               final box = tester.renderObject<RenderBox>(finder);
@@ -185,9 +212,10 @@ void main() {
               for (final prefix in [
                 'commander-increase-',
                 'commander-decrease-',
-                'commander-edit-',
               ]) {
                 final target = find.byKey(ValueKey('$prefix${source.id}'));
+                await tester.ensureVisible(target);
+                await tester.pumpAndSettle();
                 expect(target.hitTestable(), findsOneWidget);
                 final rect = painted(target);
                 expect(rect.width, greaterThanOrEqualTo(44 - .000001));
@@ -209,7 +237,7 @@ void main() {
               ownerBox.size.height * rows + (rows - 1) * 6,
               closeTo(gridBounds.height, .01),
               reason:
-                  'Artwork tiles fill the grid instead of clumping at its top',
+                  'Compact owner rows preserve their positions within the scrollable grid',
             );
             final expected = CommanderSeatLayout.rowsFor(
               f.controller.session.players,
@@ -236,27 +264,57 @@ void main() {
             }
             final source = f.controller.session.commanderTrackingSources.first;
             final recipient = f.controller.session.players.first;
-            await tester.tap(
-              find.byKey(ValueKey('commander-increase-${source.id}')),
+            final increase = find.byKey(
+              ValueKey('commander-increase-${source.id}'),
             );
+            await tester.ensureVisible(increase);
+            await tester.tap(increase);
             await tester.pumpAndSettle();
             expect(f.controller.player(recipient.id).life, 39);
             expect(
               f.controller.player(recipient.id).commanderDamage[source.id],
               1,
             );
-            await tester.tap(find.byTooltip('Undo latest action'));
+            expect(find.byTooltip('Undo latest action'), findsNothing);
+            expect(
+              find.byKey(ValueKey('commander-edit-${source.id}')),
+              findsNothing,
+            );
+            await tester.tap(find.byTooltip('Close workspace'));
+            await tester.pumpAndSettle();
+            await tester.tap(find.text('History'));
+            await tester.pumpAndSettle();
+            await tester.tap(find.textContaining('Undo latest:'));
             await tester.pumpAndSettle();
             expect(f.controller.player(recipient.id).life, 40);
             expect(
               f.controller.player(recipient.id).commanderDamage[source.id] ?? 0,
               0,
             );
+            expect(find.text('Latest action undone.'), findsNothing);
+            await tester.tap(find.byTooltip('Close workspace'));
+            await tester.pumpAndSettle();
+            await tester.tap(find.text('Open'));
+            await tester.pumpAndSettle();
             expect(tester.takeException(), isNull);
-            if (seats == 4 && turns == 0) {
+            if (captures != null &&
+                seats == 4 &&
+                (size == const Size(1133, 744) ||
+                    size == const Size(600, 1024))) {
               await capture(
                 tester,
-                'commander-${size.width.toInt()}x${size.height.toInt()}-max8-scale13',
+                'commander-${size.width.toInt()}x${size.height.toInt()}-rotation$turns-partners',
+              );
+              await f.controller.setPlayerCounter(recipient.id, 'energy', 3);
+              await f.controller.setCitysBlessing(recipient.id, true);
+              await tester.pumpAndSettle();
+              await tester.ensureVisible(
+                find.byKey(const ValueKey('player-counter-energy')),
+              );
+              await tester.pumpAndSettle();
+              await capture(
+                tester,
+                'commander-${size.width.toInt()}x${size.height.toInt()}-rotation$turns-partners-counters',
               );
             }
             await tester.tap(find.byTooltip('Close workspace'));
@@ -277,13 +335,17 @@ void main() {
       final a = sources[0];
       final b = sources[1];
       for (final id in [a.id, b.id, b.id]) {
-        await tester.tap(find.byKey(ValueKey('commander-increase-$id')));
+        final target = find.byKey(ValueKey('commander-increase-$id'));
+        await tester.ensureVisible(target);
+        await tester.tap(target);
         await tester.pumpAndSettle();
       }
       expect(f.controller.player(recipient.id).commanderDamage[a.id], 1);
       expect(f.controller.player(recipient.id).commanderDamage[b.id], 2);
       expect(f.controller.player(recipient.id).life, 37);
       final decrease = find.byKey(ValueKey('commander-decrease-${b.id}'));
+      await tester.ensureVisible(decrease);
+      await tester.pumpAndSettle();
       final node = tester.getSemantics(decrease);
       expect(node.label, contains('restore one life'));
       expect(node.value, '2');
@@ -322,25 +384,41 @@ void main() {
           for (final source
               in fixture.controller.session.commanderTrackingSources) {
             expect(
-              find
-                  .byKey(ValueKey('commander-increase-${source.id}'))
-                  .hitTestable(),
-              findsOneWidget,
+              find.byKey(ValueKey('commander-edit-${source.id}')),
+              findsNothing,
             );
-            expect(
-              find
-                  .byKey(ValueKey('commander-decrease-${source.id}'))
-                  .hitTestable(),
-              findsOneWidget,
-            );
-            expect(
-              find.byKey(ValueKey('commander-edit-${source.id}')).hitTestable(),
-              findsOneWidget,
-            );
+            for (final prefix in [
+              'commander-increase-',
+              'commander-decrease-',
+            ]) {
+              final target = find.byKey(ValueKey('$prefix${source.id}'));
+              await tester.ensureVisible(target);
+              await tester.pumpAndSettle();
+              expect(target.hitTestable(), findsOneWidget);
+            }
           }
+          await Scrollable.ensureVisible(
+            tester.element(
+              find.byKey(const ValueKey('focused-commander-grid')),
+            ),
+            alignment: 0,
+          );
+          await tester.pumpAndSettle();
           await capture(
             tester,
             'commander-art-${size.width.toInt()}x${size.height.toInt()}-rotation$turns',
+          );
+          final recipient = fixture.controller.session.players.first;
+          await fixture.controller.setPlayerCounter(recipient.id, 'energy', 3);
+          await fixture.controller.setCitysBlessing(recipient.id, true);
+          await tester.pumpAndSettle();
+          final counter = find.byKey(const ValueKey('player-counter-energy'));
+          await tester.ensureVisible(counter);
+          await tester.pumpAndSettle();
+          expect(counter.hitTestable(), findsOneWidget);
+          await capture(
+            tester,
+            'commander-art-${size.width.toInt()}x${size.height.toInt()}-rotation$turns-counters',
           );
           await tester.tap(find.byTooltip('Close workspace'));
           await tester.pumpAndSettle();
@@ -354,52 +432,60 @@ void main() {
     (tester) async {
       final f = await open(tester, const Size(600, 1024), 4, 0, sources: 3);
       expect(
-        find.byKey(const ValueKey('commander-density-fallback')),
+        find.byKey(const ValueKey('focused-commander-grid')),
         findsOneWidget,
       );
       expect(f.controller.session.commanderTrackingSources.length, 12);
+      for (final source in f.controller.session.commanderTrackingSources) {
+        expect(
+          find.byKey(ValueKey('commander-edit-${source.id}')),
+          findsNothing,
+        );
+        for (final prefix in ['commander-increase-', 'commander-decrease-']) {
+          final target = find.byKey(ValueKey('$prefix${source.id}'));
+          await tester.ensureVisible(target);
+          await tester.pumpAndSettle();
+          expect(target.hitTestable(), findsOneWidget);
+          final size = tester.getSize(target);
+          expect(size.width, greaterThanOrEqualTo(44));
+          expect(size.height, greaterThanOrEqualTo(44));
+        }
+      }
       expect(f.controller.session.history, isEmpty);
       expect(tester.takeException(), isNull);
       await tester.tap(find.byTooltip('Close workspace'));
       await tester.pumpAndSettle();
     },
   );
-  testWidgets(
-    'single-source owners stay visible and edit only corrects ledger',
-    (tester) async {
-      final f = await open(tester, const Size(600, 1024), 4, 0, sources: 1);
-      final recipient = f.controller.session.players.first;
-      final source = f.controller.session.commanderTrackingSources.last;
-      expect(
-        find.byKey(const ValueKey('focused-commander-grid')),
-        findsOneWidget,
-      );
-      await tester.tap(find.byKey(ValueKey('commander-increase-${source.id}')));
-      await tester.pumpAndSettle();
-      expect(f.controller.player(recipient.id).life, 39);
-      await tester.tap(find.byKey(ValueKey('commander-edit-${source.id}')));
-      await tester.pumpAndSettle();
-      expect(find.text('Record damage'), findsNothing);
-      final field = find.byWidgetPredicate(
-        (w) => w is TextField && w.decoration?.labelText == 'Set damage total',
-      );
-      tester.widget<TextField>(field).controller!.text = '7';
-      final correction = find.text('Correct ledger only');
-      await tester.ensureVisible(correction);
-      await tester.tap(correction);
-      await tester.pumpAndSettle();
-      expect(f.controller.player(recipient.id).life, 39);
-      expect(f.controller.player(recipient.id).commanderDamage[source.id], 7);
-      await tester.tap(find.byTooltip('Back'));
-      await tester.pumpAndSettle();
-      expect(
-        find.byKey(const ValueKey('focused-commander-grid')),
-        findsOneWidget,
-      );
-      expect(find.byType(ChoiceChip), findsNothing);
-      expect(tester.takeException(), isNull);
-      await tester.tap(find.byTooltip('Close workspace'));
-      await tester.pumpAndSettle();
-    },
-  );
+  testWidgets('single-source owners expose only coupled damage steppers', (
+    tester,
+  ) async {
+    final f = await open(tester, const Size(600, 1024), 4, 0, sources: 1);
+    final recipient = f.controller.session.players.first;
+    final source = f.controller.session.commanderTrackingSources.last;
+    expect(
+      find.byKey(const ValueKey('focused-commander-grid')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(ValueKey('commander-increase-${source.id}')));
+    await tester.pumpAndSettle();
+    expect(f.controller.player(recipient.id).life, 39);
+    expect(find.byKey(ValueKey('commander-edit-${source.id}')), findsNothing);
+    expect(find.widgetWithText(TextField, 'Set damage total'), findsNothing);
+    expect(find.text('Correct ledger only'), findsNothing);
+    final minus = find.byKey(ValueKey('commander-decrease-${source.id}'));
+    await tester.ensureVisible(minus);
+    await tester.tap(minus);
+    await tester.pumpAndSettle();
+    expect(f.controller.player(recipient.id).life, 40);
+    expect(f.controller.player(recipient.id).commanderDamage[source.id], 0);
+    expect(
+      find.byKey(const ValueKey('focused-commander-grid')),
+      findsOneWidget,
+    );
+    expect(find.byType(ChoiceChip), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byTooltip('Close workspace'));
+    await tester.pumpAndSettle();
+  });
 }

@@ -130,6 +130,15 @@ void main() {
     );
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
+    if (target == _Target.counter && initial == 0) {
+      repository.delay = false;
+      await tester.tap(find.text('Add counter'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Enable energy'));
+      await tester.tap(find.text('Enable energy'));
+      await tester.pumpAndSettle();
+      repository.delay = true;
+    }
     addTearDown(() {
       catalog.dispose();
       controller.dispose();
@@ -363,24 +372,39 @@ void main() {
   });
 
   testWidgets(
-    'navigation waits for accepted direct counter taps without replaying them on the destination',
+    'counter correction waits for direct taps and saves the new total exactly once',
     (tester) async {
       await open(tester, _Target.counter, initial: 0);
       await tap(tester, _Target.counter);
       await tap(tester, _Target.counter);
-      await tester.ensureVisible(find.text('Correct life'));
-      await tester.tap(find.text('Correct life'));
+      await tester.tap(find.byTooltip('Set energy total'));
       await tester.pump();
-      expect(find.text('Change life by'), findsNothing);
+      expect(find.widgetWithText(TextField, 'Set total'), findsNothing);
       await release(tester, 0);
       await release(tester, 1);
       await tester.pumpAndSettle();
-      expect(find.text('Change life by'), findsOneWidget);
+      final field = tester.widget<TextField>(
+        find.widgetWithText(TextField, 'Set total'),
+      );
+      expect(field.controller!.text, '2');
       expect(_Target.counter.value(player()), 2);
       expect(player().life, 40);
-      await tester.tap(find.byTooltip('Back'));
-      await tester.pumpAndSettle();
+      field.controller!.text = '7';
+      await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Set'));
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Set'));
+      await tester.pump();
+      expect(repository.waits, hasLength(3));
       expect(_Target.counter.value(player()), 2);
+      await release(tester, 2);
+      await tester.pumpAndSettle();
+      expect(_Target.counter.value(player()), 7);
+      expect(player().life, 40);
+      expect(
+        (await repository.open()).state.session
+            .player(playerId)
+            .counters['energy'],
+        7,
+      );
       expect(find.byType(LinearProgressIndicator), findsNothing);
       await finish(tester);
       expect(tester.takeException(), isNull);

@@ -34,11 +34,15 @@ void main() {
     fixture.catalog.loaded = true;
     tester.view.physicalSize = const Size(1024, 768);
     tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 24, bottom: 20);
+    tester.view.viewPadding = const FakeViewPadding(top: 24, bottom: 20);
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox());
       fixture.dispose();
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
+      tester.view.resetPadding();
+      tester.view.resetViewPadding();
     });
     await tester.pumpWidget(
       MaterialApp(
@@ -47,6 +51,7 @@ void main() {
             builder: (context) => TextButton(
               onPressed: () => showDialog<String>(
                 context: context,
+                useSafeArea: false,
                 builder: (_) => LifeArtworkPicker(
                   catalog: fixture.catalog,
                   seatName: 'Alice',
@@ -83,16 +88,31 @@ void main() {
               .first,
         );
         expect(rotation.quarterTurns, turns);
-        expect(
-          tester.getSize(find.byKey(const ValueKey('life-artwork-modal'))),
-          turns.isOdd ? const Size(576, 768) : const Size(768, 576),
+        final surface = find.byKey(const ValueKey('life-artwork-modal'));
+        final shell = tester.renderObject<RenderBox>(surface);
+        final rect = MatrixUtils.transformRect(
+          shell.getTransformTo(null),
+          Offset.zero & shell.size,
         );
+        expect(
+          shell.size,
+          turns.isOdd ? const Size(692, 640) : const Size(720, 640),
+        );
+        expect(rect.left, greaterThanOrEqualTo(16 - .01));
+        expect(rect.right, lessThanOrEqualTo(1024 - 16 + .01));
+        expect(rect.top, greaterThanOrEqualTo(24 + 16 - .01));
+        expect(rect.bottom, lessThanOrEqualTo(768 - 20 - 16 + .01));
+        expect(rect.center.dx, closeTo(512, .01));
+        expect(rect.center.dy, closeTo(386, .01));
+        final restingSize = shell.size;
         await tester.tap(find.byType(PlayerField));
         await tester.pumpAndSettle();
+        expect(tester.getSize(surface), restingSize);
         expect(find.text('Done'), findsOneWidget);
         expect(tester.takeException(), isNull);
         await tester.tap(find.text('Done'));
         await tester.pumpAndSettle();
+        expect(tester.getSize(surface), restingSize);
         await tester.tap(find.text('Soldier'));
         await tester.pumpAndSettle();
         expect(find.text('FIRST'), findsOneWidget);

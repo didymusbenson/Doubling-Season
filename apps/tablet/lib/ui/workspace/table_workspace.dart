@@ -6,6 +6,7 @@ import 'package:doubling_season/models/token_definition.dart';
 import '../artwork_credit.dart';
 import 'package:doubling_season/database/counter_database.dart';
 import 'package:doubling_season/widgets/mana/mana_text.dart';
+import 'package:doubling_season/widgets/mana/mana_icons.dart';
 import 'package:doubling_season/providers/rules_provider.dart'
     show TokenCreationResult;
 import 'package:flutter/material.dart';
@@ -27,6 +28,7 @@ import '../die_outline.dart';
 import 'dice_roll.dart';
 import '../commander_ledger.dart';
 import '../monarch_crown.dart';
+import '../custom_token_fields.dart';
 import '../artwork_selection.dart';
 import '../life_artwork_picker.dart';
 import '../token_board_summary.dart';
@@ -52,7 +54,6 @@ enum WorkspacePage {
   player,
   commanderDamage,
   counters,
-  lifeCorrection,
   history,
   tableHub,
   archives,
@@ -122,7 +123,8 @@ class _TableWorkspace extends StatefulWidget {
 class _TableWorkspaceState extends State<_TableWorkspace> {
   late WorkspacePage _page;
   String? _editingPlayerCounter;
-  String? _editingCommanderId;
+  bool _counterPickerOpen = false;
+  final Set<String> _enabledPlayerCounters = {};
   Future<void> _directQueue = Future.value();
   int _directPending = 0;
   // Failure survives later successful writes and close-in-progress rebuilds.
@@ -154,14 +156,13 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   String? _editingNumber;
   TokenDefinition? _selectedDefinition;
   _Confirmation? _confirmation;
-  final _navigation = <(WorkspacePage, String?, String?, double, double)>[];
+  final _navigation = <(WorkspacePage, String?, double, double)>[];
   final _playerScroll = ScrollController();
   final _counterScroll = ScrollController();
 
   void _rememberLocation() => _navigation.add((
     _page,
     _itemId,
-    _editingCommanderId,
     _playerScroll.hasClients ? _playerScroll.offset : 0,
     _counterScroll.hasClients ? _counterScroll.offset : 0,
   ));
@@ -207,6 +208,12 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         _playerId = player.id;
       }
     }
+    _enabledPlayerCounters.addAll(
+      p?.counters.entries
+              .where((entry) => entry.value != 0)
+              .map((entry) => entry.key) ??
+          <String>[],
+    );
     _resetCount = c.session.players.length;
     _emptySlot = List.generate(4, (index) => index).firstWhere(
       (slot) => !c.session.players.any((player) => player.slot == slot),
@@ -396,17 +403,16 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         final destination = _navigation.removeLast();
         _page = destination.$1;
         _itemId = destination.$2;
-        _editingCommanderId = destination.$3;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           if (_playerScroll.hasClients) {
             _playerScroll.jumpTo(
-              destination.$4.clamp(0, _playerScroll.position.maxScrollExtent),
+              destination.$3.clamp(0, _playerScroll.position.maxScrollExtent),
             );
           }
           if (_counterScroll.hasClients) {
             _counterScroll.jumpTo(
-              destination.$5.clamp(0, _counterScroll.position.maxScrollExtent),
+              destination.$4.clamp(0, _counterScroll.position.maxScrollExtent),
             );
           }
         });
@@ -419,7 +425,6 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
 
   Future<void> _run(
     Future<dynamic> Function() action, {
-    String? success,
     VoidCallback? after,
     bool closeOnSuccess = false,
   }) async {
@@ -439,7 +444,6 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       _failedDrafts.remove(_draftKey);
       if (mounted) {
         setState(() {
-          if (success != null) _status = success;
           after?.call();
         });
         if (closeOnSuccess) _finishClose();
@@ -507,27 +511,6 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     }
   }
 
-  Future<void> _editCommander(
-    PlayerState player,
-    CommanderSource source,
-  ) async {
-    if (_working || _closing || _navigating || !_validScope) return;
-    setState(() => _working = true);
-    try {
-      await _directQueue;
-      if (!mounted || !_validScope || _closing) return;
-      setState(() {
-        _rememberLocation();
-        _field('damage.${source.id}').text = '1';
-        _field('damageCorrection.${source.id}').text =
-            '${c.player(player.id).commanderDamage[source.id] ?? 0}';
-        _editingCommanderId = source.id;
-      });
-    } finally {
-      if (mounted) setState(() => _working = false);
-    }
-  }
-
   int _integer(String field, {int min = -1000000000, int max = 1000000000}) {
     return _wholeNumber(_field(field).text, min: min, max: max);
   }
@@ -559,7 +542,6 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       setState(() {
         _rememberLocation();
         _page = page;
-        _editingCommanderId = null;
         _itemId = itemId;
         _confirmation = null;
         _error = null;
@@ -615,6 +597,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     bool numeric = false,
     int maxLines = 1,
     String? helper,
+    Widget? prefixIcon,
     Future<dynamic> Function(String value)? onCommit,
     bool live = false,
   }) {
@@ -658,6 +641,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         numeric: numeric,
         maxLines: maxLines,
         helperText: helper,
+        prefixIcon: prefixIcon,
         onExit: onCommit == null ? null : () => _commitInline(id),
       ),
     );
@@ -676,7 +660,8 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   );
 
   bool get _ownsCommanderControls =>
-      _page == WorkspacePage.commanderDamage &&
+      (_page == WorkspacePage.commanderDamage ||
+          _page == WorkspacePage.counters) &&
       _confirmation == null &&
       _validScope;
   double get _controlWidth =>
@@ -856,9 +841,8 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     WorkspacePage.rules => 'Rules',
     WorkspacePage.presets => 'Saved setups',
     WorkspacePage.player => 'Player customization',
-    WorkspacePage.commanderDamage => 'Commander damage',
-    WorkspacePage.counters => 'Counters',
-    WorkspacePage.lifeCorrection => 'Correct life',
+    WorkspacePage.commanderDamage ||
+    WorkspacePage.counters => 'Damage & counters',
     WorkspacePage.history => 'Game history',
     WorkspacePage.reset => 'New game',
     WorkspacePage.tableHub => 'Table tools',
@@ -922,8 +906,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       WorkspacePage.presets => _presetsPage(),
       WorkspacePage.player => _playerPage(),
       WorkspacePage.commanderDamage => _focusedCommanderPage(),
-      WorkspacePage.counters => _countersPage(),
-      WorkspacePage.lifeCorrection => _lifeCorrectionPage(),
+      WorkspacePage.counters => _focusedCommanderPage(),
       WorkspacePage.history => _historyPage(),
       WorkspacePage.reset => _resetPage(),
       WorkspacePage.tableHub => _tableHubPage(),
@@ -939,8 +922,21 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   Widget build(BuildContext context) {
     final visibleError = _directFailure ?? _error;
     final focusedCommander = _ownsCommanderControls;
+    final media = MediaQuery.of(context);
+    final localBounds = TableModalFrame.localSize(
+      Size(
+        media.size.width - media.padding.horizontal,
+        media.size.height - media.padding.vertical,
+      ),
+      widget.quarterTurns,
+    );
     final content = TableModalFrame(
       quarterTurns: widget.quarterTurns,
+      preferredWidth: focusedCommander ? 620 : 720,
+      preferredHeight: focusedCommander
+          ? _combinedContentHeight(min(620.0, localBounds.width)) +
+                (visibleError == null && _status == null ? 0 : 64)
+          : 640,
       surfaceKey: focusedCommander
           ? const ValueKey('commander-workspace')
           : const ValueKey('context-workspace'),
@@ -949,7 +945,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         canEdit: () => !_closing && !_working && !_navigating,
         onClose: _requestClose,
         key: ValueKey(
-          '$_page:$_itemId:${_selectedDefinition?.id}:$_createCustom:${_confirmation?.title}:$_editingCommanderId:$_closeSaveFailed',
+          '$_page:$_itemId:${_selectedDefinition?.id}:$_createCustom:${_confirmation?.title}:$_closeSaveFailed',
         ),
         child: Column(
           children: [

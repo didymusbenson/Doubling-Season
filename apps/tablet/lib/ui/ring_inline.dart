@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../domain/table_state.dart';
 import '../features/ring_service.dart';
 
-/// A temptation chooses a bearer before committing; no silent default choice.
+/// Ring progress is independent of an optional bearer label in its details.
 class RingInline extends StatelessWidget {
   final UtilityState utility;
   final VoidCallback onTempt;

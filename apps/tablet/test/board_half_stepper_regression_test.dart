@@ -243,8 +243,14 @@ void main() {
               fixture.controller.session.players.map((p) => p.life).toList(),
               before,
             );
+            expect(
+              find.byTooltip(
+                '${fixture.controller.profile(player.seatId).name}, player counters',
+              ),
+              findsNothing,
+              reason: 'Zero counters take no space on the life chip.',
+            );
             for (final label in [
-              'player counters',
               'rules',
               'commander damage',
               'player details',
@@ -277,9 +283,9 @@ void main() {
       '$platform life local halves step through center text and preserve separate footer controls',
       (tester) async {
         final fixture = await showTable(tester);
-        // The bottom 44px now belongs to explicit Commander/Counters controls.
+        // The bottom 44px contains the combined commander/counter entry.
         // Keep the three-point half coverage in the actual life-hit region;
-        // the preceding test independently exercises both footer routes and
+        // the preceding test exercises the separate footer controls and
         // the one-pixel life padding below them without altering totals.
         const lifePoints = [Offset(.02, .35), Offset(.5, .5), Offset(.98, .5)];
         for (final player in fixture.controller.session.players) {
@@ -422,9 +428,19 @@ void main() {
           expect(fixture.controller.session.history.last.playerId, player.id);
           expect(find.byTooltip('Close workspace'), findsNothing);
           expect(
-            find.byTooltip('Hide Storm'),
+            find.descendant(
+              of: seat,
+              matching: find.byTooltip('Storm, details and actions'),
+            ),
             findsNothing,
             reason: 'Stepping must not expand the utility.',
+          );
+          expect(
+            find
+                .descendant(of: seat, matching: find.byTooltip('Remove Storm'))
+                .hitTestable(),
+            findsOneWidget,
+            reason: 'Remove remains directly available while collapsed.',
           );
           expect(await fixture.controller.undo(), isTrue);
           await tester.pumpAndSettle();
@@ -467,12 +483,15 @@ void main() {
               0,
             );
             expect(fixture.controller.player(player.id).life, 40);
-            // The bottom-right pencil is deliberately not a damage hit target.
-            for (final point in const [
-              Offset(.02, .35),
-              Offset(.5, .5),
-              Offset(.98, .5),
-            ]) {
+            // Direct edit was removed; the whole half is now a damage target.
+            expect(
+              find.descendant(
+                of: chip,
+                matching: find.byIcon(Icons.edit_outlined),
+              ),
+              findsNothing,
+            );
+            for (final point in edgePoints) {
               await tapAtFraction(tester, increase, point);
             }
             expect(
@@ -511,10 +530,21 @@ void main() {
       (tester) async {
         final fixture = await showTable(tester);
         for (final player in fixture.controller.session.players) {
-          final name = fixture.controller.profile(player.seatId).name;
-          await tester.tap(find.byTooltip('$name, player counters'));
+          await tester.tap(
+            find.byKey(ValueKey('${player.id}-commander-ledger')),
+          );
+          await tester.pumpAndSettle();
+          final addCounter = find.text('Add counter');
+          await tester.ensureVisible(addCounter);
+          await tester.tap(addCounter);
+          await tester.pumpAndSettle();
+          final enablePoison = find.text('Enable poison');
+          await tester.ensureVisible(enablePoison);
+          await tester.tap(enablePoison);
           await tester.pumpAndSettle();
           final poison = stepper('poison');
+          await tester.ensureVisible(poison);
+          await tester.pumpAndSettle();
           expect(poison.hitTestable(), findsOneWidget);
           final decrease = half(poison, increase: false);
           final increase = half(poison, increase: true);
