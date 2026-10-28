@@ -34,11 +34,15 @@ void main() {
           throwsStateError,
         );
       }
+      for (final kind in ['initiative', 'the_initiative']) {
+        final u = UtilityState(id: kind, kind: kind, name: 'The Initiative');
+        expect(f.board.isUtilityVisible(u), isFalse, reason: kind);
+        expect(ids, isNot(contains(kind)));
+      }
       expect(ids, containsAll(retainedUtilityKinds));
       for (final kind in [
         ...retainedUtilityKinds,
         'commander_tax',
-        'initiative',
         'custom_tracker',
         'custom_toggle',
       ]) {

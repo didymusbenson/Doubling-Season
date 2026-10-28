@@ -220,11 +220,11 @@ void main() {
                 }
               }
               final center = localRect(tester, number, surface).center.dx;
-              // Adding shared controls must not push the established life total
-              // away from its old center: only the name/ledger footer grows.
+              // The name is an overlay above the number, not a separate footer.
+              // The life total remains centered in its stable number region.
               expect(
                 localRect(tester, number, surface).center.dy,
-                closeTo((tester.getSize(surface).height - 26) / 2 - 14, .01),
+                closeTo(tester.getSize(surface).height / 2 - 3, .01),
               );
               await f.controller.adjustLife(p.id, -1);
               await tester.pump();

@@ -185,7 +185,10 @@ void main() {
               ),
               ancestor: surfaceBox,
             );
-            expect(gridRect.center.dx, closeTo(surfaceBox.size.width / 2, .01));
+            expect(
+              gridRect.left,
+              closeTo(surfaceBox.size.width < 132 ? 0 : 6, .01),
+            );
             // Every owner retains a visible position, even before configuration.
             for (final source
                 in fixture.controller.session.commanderTrackingSources) {
@@ -201,13 +204,16 @@ void main() {
               expect(cellRect.right, lessThanOrEqualTo(gridRect.right + .01));
               expect(cellRect.bottom, lessThanOrEqualTo(gridRect.bottom + .01));
             }
-            expect(numberRect.center.dx, closeTo(gridRect.center.dx, .01));
+            expect(
+              numberRect.center.dx,
+              closeTo(surfaceBox.size.width / 2, .01),
+            );
             expect(numberRect.bottom, lessThanOrEqualTo(gridRect.top));
-            expect(numberRect.bottom, lessThanOrEqualTo(nameRect.top + .01));
+            expect(nameRect.bottom, lessThanOrEqualTo(numberRect.top + .01));
             expect(nameRect.bottom, lessThanOrEqualTo(gridRect.top + .01));
             expect(gridRect.bottom, lessThan(surfaceBox.size.height));
             expect(gridRect.height, 44);
-            expect(surfaceBox.size.height, greaterThanOrEqualTo(140));
+            expect(surfaceBox.size.height, inInclusiveRange(160, 180));
             expect(
               numberRect.height,
               greaterThanOrEqualTo(

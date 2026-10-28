@@ -23,6 +23,8 @@ import '../table_artwork.dart';
 import '../table_modal_frame.dart';
 import '../table_mana_icons.dart';
 import '../half_stepper.dart';
+import '../die_outline.dart';
+import 'dice_roll.dart';
 import '../commander_ledger.dart';
 import '../monarch_crown.dart';
 import '../artwork_selection.dart';
@@ -32,6 +34,7 @@ import '../support_sheet.dart';
 
 part 'token_pages.dart';
 part 'game_pages.dart';
+part 'dice_pages.dart';
 part 'commander_page.dart';
 part 'library_pages.dart';
 
@@ -56,6 +59,7 @@ enum WorkspacePage {
   boardWipes,
   reset,
   dice,
+  diceResults,
   settings,
 }
 
@@ -120,6 +124,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   String? _editingPlayerCounter;
   String? _editingCommanderId;
   Future<void> _directQueue = Future.value();
+  int _directPending = 0;
   // Failure survives later successful writes and close-in-progress rebuilds.
   String? _directFailure;
   int _directFailureEpoch = 0;
@@ -171,8 +176,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   String _customEffect = 'multiply';
   bool _customGlobal = false;
   final Map<int, int> _diceCounts = {4: 0, 6: 1, 8: 0, 10: 0, 12: 0, 20: 0};
-  final List<String> _diceResults = [];
-  int? _diceTotal;
+  DiceRoll? _diceRoll;
 
   TableController get c => widget.controller;
   TabletCatalog get catalog => widget.catalog;
@@ -386,6 +390,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     }
     setState(() => _navigating = true);
     try {
+      await _directQueue;
       if (!await _flushInline() || !mounted || _closing) return;
       setState(() {
         final destination = _navigation.removeLast();
@@ -452,12 +457,16 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     if (_working || _closing || _navigating || !_validScope) {
       return Future.value();
     }
+    // Keep the display committed, but permit a queued reversal at a displayed
+    // boundary (for example + then - while zero is still being saved).
+    setState(() => _directPending++);
     final operation = _directQueue.then((_) async {
       try {
         if (!mounted || !_validScope) return;
         if (!await _flushInline()) {
           throw StateError('The current text edit could not be saved.');
         }
+        if (!mounted || !_validScope) return;
         final result = await action();
         if (result == false) {
           throw StateError(c.error ?? 'The change could not be saved.');
@@ -468,6 +477,8 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         _directFailureNeedsAcknowledgement = true;
         _directFailureEpoch++;
         if (mounted) setState(() => _error = _directFailure);
+      } finally {
+        if (mounted) setState(() => _directPending--);
       }
     });
     _directQueue = operation;
@@ -479,6 +490,22 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     CommanderSource source,
     int delta,
   ) => _runDirect(() => c.adjustCommanderDamage(player.id, source.id, delta));
+
+  Future<void> _editPlayerCounter(String playerId, String key) async {
+    if (_working || _closing || _navigating || !_validScope) return;
+    setState(() => _navigating = true);
+    try {
+      await _directQueue;
+      if (!mounted || !_validScope || _closing) return;
+      setState(() {
+        _editingPlayerCounter = key;
+        _field('counter.$key').text =
+            '${c.player(playerId).counters[key] ?? 0}';
+      });
+    } finally {
+      if (mounted) setState(() => _navigating = false);
+    }
+  }
 
   Future<void> _editCommander(
     PlayerState player,
@@ -527,6 +554,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     if (_working || _closing || _navigating) return;
     setState(() => _navigating = true);
     try {
+      await _directQueue;
       if (!await _flushInline() || !mounted || _closing) return;
       setState(() {
         _rememberLocation();
@@ -756,10 +784,14 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
             value: '$value',
             decreaseLabel: 'Decrease $label',
             increaseLabel: 'Increase $label',
-            onDecrease: _working || (minimum != null && value <= minimum)
+            onDecrease:
+                _working ||
+                    (_directPending == 0 && minimum != null && value <= minimum)
                 ? null
                 : minus,
-            onIncrease: _working || (maximum != null && value >= maximum)
+            onIncrease:
+                _working ||
+                    (_directPending == 0 && maximum != null && value >= maximum)
                 ? null
                 : plus,
             onDecreaseHold: _working ? null : holdMinus,
@@ -833,6 +865,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     WorkspacePage.archives => 'Archives',
     WorkspacePage.boardWipes => 'Board wipes',
     WorkspacePage.dice => 'Dice',
+    WorkspacePage.diceResults => 'Dice results',
     WorkspacePage.settings => 'Table settings',
   };
 
@@ -897,6 +930,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       WorkspacePage.archives => _archivesPage(),
       WorkspacePage.boardWipes => _boardWipesPage(),
       WorkspacePage.dice => _dicePage(),
+      WorkspacePage.diceResults => _diceResultsPage(),
       WorkspacePage.settings => _settingsPage(),
     };
   }

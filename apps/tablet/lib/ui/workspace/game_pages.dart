@@ -108,40 +108,95 @@ extension _GamePages on _TableWorkspaceState {
 
   Widget _playerStatusBadges(PlayerState player) {
     final monarch = c.session.monarchPlayerId == player.id;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            FilterChip(
-              avatar: const Icon(TableManaIcons.ascend, size: 18),
-              label: Text(
-                'City’s blessing · ${player.citysBlessing ? 'On' : 'Off'}',
+    final initiative = _board.hasInitiative(player.id);
+    Widget status(
+      String label,
+      Widget icon,
+      bool active,
+      Future<dynamic> Function() action, {
+      Future<dynamic> Function()? clear,
+    }) {
+      final color = active
+          ? Theme.of(context).colorScheme.primaryContainer
+          : Theme.of(context).colorScheme.surfaceContainerHighest;
+      return Expanded(
+        child: Semantics(
+          label: '$label, ${active ? 'On' : 'Off'}',
+          button: true,
+          enabled: true,
+          toggled: active,
+          excludeSemantics: true,
+          onTap: () => _runDirect(action),
+          onLongPress: clear == null ? null : () => _runDirect(clear),
+          hint: clear == null ? null : 'Hold to clear $label',
+          child: Tooltip(
+            message: '$label · ${active ? 'On' : 'Off'}',
+            child: Material(
+              color: color,
+              borderRadius: BorderRadius.circular(12),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => _runDirect(action),
+                onLongPress: clear == null ? null : () => _runDirect(clear),
+                child: SizedBox(
+                  height: 72,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconTheme(
+                        data: IconThemeData(
+                          color: active
+                              ? Theme.of(context).colorScheme.onPrimaryContainer
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                          size: 26,
+                        ),
+                        child: icon,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              selected: player.citysBlessing,
-              onSelected: _working
-                  ? null
-                  : (value) => _run(() => c.setCitysBlessing(player.id, value)),
             ),
-            FilterChip(
-              avatar: const MonarchCrown(),
-              label: Text('Monarch · ${monarch ? 'On' : 'Off'}'),
-              selected: monarch,
-              onSelected: _working
-                  ? null
-                  : (_) => _run(() => c.setMonarch(monarch ? null : player.id)),
-            ),
-          ],
-        ),
-        if (c.session.monarchPlayerId != null) ...[
-          const SizedBox(height: 6),
-          Text(
-            'Monarch: ${_nameForPlayer(c.session.monarchPlayerId!)}',
-            style: Theme.of(context).textTheme.bodySmall,
           ),
-        ],
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        status(
+          'Monarch',
+          const MonarchCrown(),
+          monarch,
+          () => c.setMonarch(
+            c.session.monarchPlayerId == player.id ? null : player.id,
+          ),
+          clear: monarch ? () => c.setMonarch(null) : null,
+        ),
+        const SizedBox(width: 8),
+        status(
+          'City’s blessing',
+          const Icon(TableManaIcons.ascend),
+          player.citysBlessing,
+          () =>
+              c.setCitysBlessing(player.id, !c.player(player.id).citysBlessing),
+        ),
+        const SizedBox(width: 8),
+        status(
+          'Initiative',
+          const Icon(Icons.explore_outlined),
+          initiative,
+          () => _board.setInitiative(
+            _board.hasInitiative(player.id) ? null : player.id,
+          ),
+          clear: initiative ? () => _board.setInitiative(null) : null,
+        ),
       ],
     );
   }
@@ -388,9 +443,11 @@ extension _GamePages on _TableWorkspaceState {
                           ),
                           decreaseLabel: 'Decrease ${counter.key}',
                           increaseLabel: 'Increase ${counter.key}',
-                          onDecrease: _working || counter.value == 0
+                          onDecrease:
+                              _working ||
+                                  (_directPending == 0 && counter.value == 0)
                               ? null
-                              : () => _run(
+                              : () => _runDirect(
                                   () => c.adjustPlayerCounter(
                                     player.id,
                                     counter.key,
@@ -399,7 +456,7 @@ extension _GamePages on _TableWorkspaceState {
                                 ),
                           onIncrease: _working
                               ? null
-                              : () => _run(
+                              : () => _runDirect(
                                   () => c.adjustPlayerCounter(
                                     player.id,
                                     counter.key,
@@ -416,11 +473,8 @@ extension _GamePages on _TableWorkspaceState {
                           icon: const Icon(Icons.edit_outlined, size: 19),
                           onPressed: _working
                               ? null
-                              : () => _update(() {
-                                  _editingPlayerCounter = counter.key;
-                                  _field('counter.${counter.key}').text =
-                                      '${counter.value}';
-                                }),
+                              : () =>
+                                    _editPlayerCounter(player.id, counter.key),
                         ),
                       ),
                     ],
@@ -695,116 +749,6 @@ extension _GamePages on _TableWorkspaceState {
       ],
     ),
   ]);
-
-  Widget _dicePage() => LayoutBuilder(
-    builder: (context, constraints) {
-      final columns = constraints.maxWidth >= 800 ? 3 : 2;
-      final width = (constraints.maxWidth - 40 - (columns - 1) * 12) / columns;
-      return SingleChildScrollView(
-        key: const PageStorageKey('dice-scroll'),
-        padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _contentTop(
-              Align(
-                alignment: Alignment.centerLeft,
-                child: _button(
-                  'Roll selected dice',
-                  () => _update(() {
-                    final random = Random.secure();
-                    _diceResults.clear();
-                    _diceTotal = 0;
-                    for (final entry in _diceCounts.entries) {
-                      if (entry.value == 0) continue;
-                      final rolls = List.generate(
-                        entry.value,
-                        (_) => random.nextInt(entry.key) + 1,
-                      );
-                      _diceResults.add(
-                        '${entry.value}d${entry.key}: ${rolls.join(' · ')}',
-                      );
-                      _diceTotal =
-                          _diceTotal! +
-                          rolls.fold(0, (sum, value) => sum + value);
-                    }
-                  }),
-                  icon: Icons.casino,
-                  primary: true,
-                ),
-              ),
-            ),
-            Wrap(
-              spacing: 12,
-              runSpacing: 4,
-              children: [
-                for (final entry in _diceCounts.entries)
-                  SizedBox(
-                    width: width,
-                    child: IconButtonTheme(
-                      data: IconButtonThemeData(
-                        style: IconButton.styleFrom(
-                          minimumSize: const Size(48, 48),
-                        ),
-                      ),
-                      child: _stepper(
-                        'd${entry.key}',
-                        entry.value,
-                        () => _update(
-                          () => _diceCounts[entry.key] = max(
-                            0,
-                            _diceCounts[entry.key]! - 1,
-                          ),
-                        ),
-                        () => _update(
-                          () => _diceCounts[entry.key] = min(
-                            20,
-                            _diceCounts[entry.key]! + 1,
-                          ),
-                        ),
-                        holdMinusStep: (amount) => _update(
-                          () => _diceCounts[entry.key] = max(
-                            0,
-                            _diceCounts[entry.key]! - amount,
-                          ),
-                        ),
-                        holdPlusStep: (amount) => _update(
-                          () => _diceCounts[entry.key] = min(
-                            20,
-                            _diceCounts[entry.key]! + amount,
-                          ),
-                        ),
-                        maximum: 20,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (_diceTotal != null) ...[
-              _section('Total: $_diceTotal'),
-              Column(
-                key: const ValueKey('dice-results'),
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final result in _diceResults)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Text(
-                        result,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                  if (_diceResults.isEmpty)
-                    const Text('Select at least one die.'),
-                ],
-              ),
-            ],
-          ],
-        ),
-      );
-    },
-  );
 
   Widget _settingsPage() => _list([
     Semantics(

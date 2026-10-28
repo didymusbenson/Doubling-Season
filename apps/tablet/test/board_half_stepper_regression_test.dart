@@ -115,8 +115,12 @@ void main() {
 
   const edgePoints = [Offset(.02, .35), Offset(.5, .9), Offset(.98, .5)];
 
-  Future<void> tapEntireHalf(WidgetTester tester, Finder target) async {
-    for (final point in edgePoints) {
+  Future<void> tapEntireHalf(
+    WidgetTester tester,
+    Finder target, {
+    List<Offset> points = edgePoints,
+  }) async {
+    for (final point in points) {
       await tapAtFraction(tester, target, point);
     }
   }
@@ -270,9 +274,14 @@ void main() {
     );
 
     testWidgets(
-      '$platform life entire local halves step through center text and preserve separate details',
+      '$platform life local halves step through center text and preserve separate footer controls',
       (tester) async {
         final fixture = await showTable(tester);
+        // The bottom 44px now belongs to explicit Commander/Counters controls.
+        // Keep the three-point half coverage in the actual life-hit region;
+        // the preceding test independently exercises both footer routes and
+        // the one-pixel life padding below them without altering totals.
+        const lifePoints = [Offset(.02, .35), Offset(.5, .5), Offset(.98, .5)];
         for (final player in fixture.controller.session.players) {
           final decrease = find.byKey(ValueKey('${player.id}-life-decrease'));
           final increase = find.byKey(ValueKey('${player.id}-life-increase'));
@@ -283,7 +292,7 @@ void main() {
             closeTo(tester.getSize(increase).width, .01),
           );
           expect(tester.getSize(decrease).height, greaterThanOrEqualTo(104));
-          await tapEntireHalf(tester, decrease);
+          await tapEntireHalf(tester, decrease, points: lifePoints);
           expect(fixture.controller.player(player.id).life, 37);
           expectLifeDelta(tester, player.id, '-3');
           expect(fixture.controller.session.history.last.commands.length, 3);
@@ -297,7 +306,7 @@ void main() {
           await tester.pumpAndSettle();
           expect(fixture.controller.player(player.id).life, 40);
           expectLifeDelta(tester, player.id, null);
-          await tapEntireHalf(tester, increase);
+          await tapEntireHalf(tester, increase, points: lifePoints);
           expect(fixture.controller.player(player.id).life, 43);
           expectLifeDelta(tester, player.id, '+3');
           await tapAtFraction(tester, decrease, const Offset(.98, .5));

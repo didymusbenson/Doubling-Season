@@ -258,10 +258,10 @@ extension _LibraryPages on _TableWorkspaceState {
               child: _stepper(
                 'Value',
                 currentValue,
-                () => _run(
+                () => _runDirect(
                   () => _board.adjustUtility(player.id, utility.id, -step),
                 ),
-                () => _run(
+                () => _runDirect(
                   () => _board.adjustUtility(player.id, utility.id, step),
                 ),
                 minimum: utility.kind == 'life_total' ? null : 0,
@@ -874,12 +874,14 @@ extension _LibraryPages on _TableWorkspaceState {
               value: '${player.mana[color] ?? 0}',
               decreaseLabel: 'Decrease $name mana',
               increaseLabel: 'Increase $name mana',
-              onDecrease: _working || (player.mana[color] ?? 0) == 0
+              onDecrease:
+                  _working ||
+                      (_directPending == 0 && (player.mana[color] ?? 0) == 0)
                   ? null
-                  : () => _run(() => c.adjustMana(player.id, color, -1)),
+                  : () => _runDirect(() => c.adjustMana(player.id, color, -1)),
               onIncrease: _working
                   ? null
-                  : () => _run(() => c.adjustMana(player.id, color, 1)),
+                  : () => _runDirect(() => c.adjustMana(player.id, color, 1)),
               onDecreaseHoldStep: (amount) =>
                   _runDirect(() => c.adjustMana(player.id, color, -amount)),
               onIncreaseHoldStep: (amount) =>
@@ -915,12 +917,19 @@ extension _LibraryPages on _TableWorkspaceState {
                     value: '10',
                     decreaseLabel: 'Decrease $name mana by ten',
                     increaseLabel: 'Increase $name mana by ten',
-                    onDecrease: _working || (player.mana[color] ?? 0) == 0
+                    onDecrease:
+                        _working ||
+                            (_directPending == 0 &&
+                                (player.mana[color] ?? 0) == 0)
                         ? null
-                        : () => _run(() => c.adjustMana(player.id, color, -10)),
+                        : () => _runDirect(
+                            () => c.adjustMana(player.id, color, -10),
+                          ),
                     onIncrease: _working
                         ? null
-                        : () => _run(() => c.adjustMana(player.id, color, 10)),
+                        : () => _runDirect(
+                            () => c.adjustMana(player.id, color, 10),
+                          ),
                     onDecreaseHoldStep: (amount) => _runDirect(
                       () => c.adjustMana(player.id, color, -amount),
                     ),
