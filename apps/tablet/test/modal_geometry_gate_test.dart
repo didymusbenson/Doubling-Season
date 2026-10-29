@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -130,10 +131,33 @@ void main() {
           ),
         );
         final surface = find.byKey(const ValueKey('table-modal-surface'));
+        final localViewport = turns.isOdd
+            ? Size(viewport.height, viewport.width)
+            : viewport;
         expect(
           tester.getSize(surface),
-          TableModalFrame.localSize(viewport, turns),
+          Size(
+            math.min(720, localViewport.width - 32),
+            math.min(640, localViewport.height - 32),
+          ),
         );
+        final surfaceBox = tester.renderObject<RenderBox>(surface);
+        final globalBounds = MatrixUtils.transformRect(
+          surfaceBox.getTransformTo(null),
+          Offset.zero & surfaceBox.size,
+        );
+        expect(globalBounds.left, greaterThanOrEqualTo(16 - .01));
+        expect(globalBounds.top, greaterThanOrEqualTo(16 - .01));
+        expect(
+          globalBounds.right,
+          lessThanOrEqualTo(viewport.width - 16 + .01),
+        );
+        expect(
+          globalBounds.bottom,
+          lessThanOrEqualTo(viewport.height - 16 + .01),
+        );
+        expect(globalBounds.center.dx, closeTo(viewport.width / 2, .01));
+        expect(globalBounds.center.dy, closeTo(viewport.height / 2, .01));
         await tester.tap(find.byType(TextField));
         await tester.pumpAndSettle();
         expect(find.text('Done'), findsOneWidget);

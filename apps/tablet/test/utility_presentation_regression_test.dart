@@ -169,7 +169,7 @@ void main() {
             find.descendant(of: detail, matching: find.byType(SwitchListTile)),
             findsNothing,
           );
-          expect(find.byTooltip('Hide this utility'), findsNothing);
+          expect(find.byTooltip('Remove this utility'), findsNothing);
           expect(find.text('Set value'), findsNothing);
           expect(find.text('Artwork'), findsOneWidget);
           if (!upper) {

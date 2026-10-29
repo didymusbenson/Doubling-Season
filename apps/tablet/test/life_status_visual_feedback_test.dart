@@ -274,6 +274,13 @@ void main() {
                 ).overlaps(local(tester, ledger, surface)),
                 isFalse,
               );
+              final ledgerBounds = local(tester, ledger, surface);
+              final summaryBounds = local(tester, summary, surface);
+              expect(summaryBounds.left, closeTo(ledgerBounds.right + 4, .01));
+              expect(
+                summaryBounds.center.dy,
+                closeTo(ledgerBounds.center.dy, .01),
+              );
               expect(
                 find.descendant(of: surface, matching: summary),
                 findsOneWidget,
@@ -376,6 +383,14 @@ void main() {
                 find.byTooltip('${profile.name}, player counters'),
               );
               await tester.pumpAndSettle();
+              expect(
+                find.byKey(const ValueKey('commander-workspace')),
+                findsOneWidget,
+              );
+              expect(
+                find.byKey(const ValueKey('focused-commander-grid')),
+                findsOneWidget,
+              );
               expect(find.byTooltip('Initiative · On'), findsOneWidget);
               expect(find.byTooltip('City’s blessing · On'), findsOneWidget);
               expect(
@@ -407,10 +422,18 @@ void main() {
         try {
           final f = await show(tester, const Size(1133, 744), 4, active: false);
           final originalLife = f.player.life;
-          await tester.tap(
+          expect(
             find.byKey(ValueKey('${f.playerId}-life-counter-summary')),
+            findsNothing,
+          );
+          await tester.tap(
+            find.byKey(ValueKey('${f.playerId}-commander-ledger')),
           );
           await tester.pumpAndSettle();
+          expect(
+            find.byKey(const ValueKey('commander-workspace')),
+            findsOneWidget,
+          );
 
           bool activeState() => switch (label) {
             'Monarch' => f.controller.session.monarchPlayerId == f.playerId,
@@ -457,15 +480,22 @@ void main() {
   }
 
   testWidgets(
-    'new-game Initiative claim transfer hold-clear undo and reload via Counters',
+    'new-game Initiative claim transfer hold-clear and History undo persist',
     (tester) async {
       final f = await show(tester, const Size(1133, 744), 4, active: false);
       final first = f.controller.session.players.first;
       final second = f.controller.session.players[1];
-      Future<void> open(PlayerState player) async {
-        await tester.tap(
+      for (final player in f.controller.session.players) {
+        expect(
           find.byKey(ValueKey('${player.id}-life-counter-summary')),
+          findsNothing,
         );
+        final ledger = find.byKey(ValueKey('${player.id}-commander-ledger'));
+        expect(tester.getSize(ledger).width, greaterThanOrEqualTo(44));
+        expect(tester.getSize(ledger).height, greaterThanOrEqualTo(44));
+      }
+      Future<void> open(PlayerState player) async {
+        await tester.tap(find.byKey(ValueKey('${player.id}-commander-ledger')));
         await tester.pumpAndSettle();
       }
 
@@ -490,7 +520,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(f.board.hasInitiative(second.id), isFalse);
       expect(f.controller.session.history.length, history + 1);
-      expect(await f.controller.undo(), isTrue);
+      await tester.tap(find.byTooltip('Close workspace'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Game controls'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('History'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.textContaining('Undo latest:'));
       await tester.pumpAndSettle();
       expect(f.board.hasInitiative(second.id), isTrue);
       final loaded = await f.repository.open();

@@ -33,21 +33,6 @@ extension _GamePages on _TableWorkspaceState {
     ], controller: _playerScroll);
   }
 
-  Widget _countersPage() {
-    final player = p;
-    if (player == null) return _list([const Text('Select a player first.')]);
-    return _list([
-      ..._counterContent(player),
-      if (player.warnings.isNotEmpty) Text(player.warnings.join(' · ')),
-      const SizedBox(height: 12),
-      _button(
-        'Correct life',
-        () => _go(WorkspacePage.lifeCorrection),
-        icon: Icons.edit_outlined,
-      ),
-    ], controller: _counterScroll);
-  }
-
   Widget _tableHubPage() => _list([
     for (final (label, page, icon) in [
       ('Dice', WorkspacePage.dice, Icons.casino_outlined),
@@ -70,41 +55,8 @@ extension _GamePages on _TableWorkspaceState {
       ),
   ]);
 
-  Widget _lifeCorrectionPage() {
-    final player = p;
-    if (player == null) return _list([const Text('Select a player first.')]);
-    return _list([
-      _gameFieldAction(
-        _input('life.delta', 'Change life by', initial: '-1', numeric: true),
-        _button(
-          'Apply',
-          () => _run(() => c.adjustLife(player.id, _integer('life.delta'))),
-          primary: true,
-        ),
-      ),
-      _gameFieldAction(
-        _input(
-          'life.set',
-          'Set life total to',
-          initial: '${player.life}',
-          numeric: true,
-        ),
-        _button(
-          'Set',
-          () => _run(() => c.setLife(player.id, _integer('life.set'))),
-        ),
-      ),
-      _button(
-        'Reset life to ${c.session.startingLife}',
-        () => _confirm(
-          'Reset $_seatName’s life?',
-          'Only life changes. Commander damage, counters, tokens and other players remain.',
-          () => c.setLife(player.id, c.session.startingLife),
-        ),
-        icon: Icons.restart_alt,
-      ),
-    ]);
-  }
+  double get _playerStatusHeight =>
+      max(72.0, MediaQuery.textScalerOf(context).scale(72));
 
   Widget _playerStatusBadges(PlayerState player) {
     final monarch = c.session.monarchPlayerId == player.id;
@@ -139,7 +91,7 @@ extension _GamePages on _TableWorkspaceState {
                 onTap: () => _runDirect(action),
                 onLongPress: clear == null ? null : () => _runDirect(clear),
                 child: SizedBox(
-                  height: 72,
+                  height: _playerStatusHeight,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -397,19 +349,76 @@ extension _GamePages on _TableWorkspaceState {
     return 'Previous player';
   }
 
+  Map<String, int> _visiblePlayerCounters(PlayerState player) =>
+      Map.fromEntries(
+        player.counters.entries.where(
+          (entry) =>
+              entry.value != 0 || _enabledPlayerCounters.contains(entry.key),
+        ),
+      );
+
   List<Widget> _counterContent(PlayerState player) {
-    final counters = {
-      'energy': 0,
-      'poison': 0,
-      'experience': 0,
-      'radiation': 0,
-      ...player.counters,
-    };
+    final counters = _visiblePlayerCounters(player);
     return [
       _playerStatusBadges(player),
-      const SizedBox(height: 12),
-      _section('Player counters'),
-      _gameGrid([
+      const SizedBox(height: 4),
+      Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Player counters',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+          ),
+          TextButton.icon(
+            onPressed: _working
+                ? null
+                : () => _update(() => _counterPickerOpen = !_counterPickerOpen),
+            icon: Icon(_counterPickerOpen ? Icons.close : Icons.add, size: 20),
+            label: Text(
+              _counterPickerOpen ? 'Close counter choices' : 'Add counter',
+            ),
+          ),
+        ],
+      ),
+      if (_counterPickerOpen) ...[
+        Wrap(
+          spacing: 6,
+          children: [
+            for (final key in ['energy', 'poison', 'experience', 'radiation'])
+              if (!counters.containsKey(key))
+                _button(
+                  'Enable $key',
+                  () => _run(
+                    () => c.setPlayerCounter(player.id, key, 0),
+                    after: () {
+                      _enabledPlayerCounters.add(key);
+                      _counterPickerOpen = false;
+                    },
+                  ),
+                  icon: Icons.add,
+                ),
+          ],
+        ),
+        _gameFieldAction(
+          _input('counter.new', 'Counter name'),
+          _button('Enable counter', () {
+            final name = _field('counter.new').text.trim();
+            if (name.isEmpty) {
+              _update(() => _error = 'Enter a counter name.');
+              return;
+            }
+            _run(
+              () => c.setPlayerCounter(player.id, name, counters[name] ?? 0),
+              after: () {
+                _enabledPlayerCounters.add(name);
+                _counterPickerOpen = false;
+              },
+            );
+          }, icon: Icons.add),
+        ),
+      ],
+      _counterGrid([
         for (final counter in counters.entries)
           Card(
             key: ValueKey('player-counter-${counter.key}'),
@@ -520,6 +529,20 @@ extension _GamePages on _TableWorkspaceState {
     ];
   }
 
+  Widget _counterGrid(List<Widget> children) => LayoutBuilder(
+    builder: (context, bounds) {
+      final columns = bounds.maxWidth >= 380 ? 2 : 1;
+      final width = (bounds.maxWidth - (columns - 1) * 8) / columns;
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final child in children) SizedBox(width: width, child: child),
+        ],
+      );
+    },
+  );
+
   String _commanderSourceLabel(CommanderSource source) {
     final siblings = c.session.commanderTrackingSources
         .where((s) => s.ownerPlayerId == source.ownerPlayerId)
@@ -531,7 +554,7 @@ extension _GamePages on _TableWorkspaceState {
     if (c.canUndo)
       _button(
         'Undo latest: ${c.session.history.lastWhere((entry) => !entry.undone).summary}',
-        () => _run(() => c.undo(), success: 'Latest action undone.'),
+        () => _run(() => c.undo()),
         icon: Icons.undo,
         primary: true,
       ),
@@ -818,7 +841,6 @@ extension _GamePages on _TableWorkspaceState {
                   if (!mounted || !_validScope) return;
                   if (update.error != null) throw StateError(update.error!);
                   if (update.version <= catalog.version) {
-                    _update(() => _status = 'Your token database is current.');
                     return;
                   }
                   _confirm(

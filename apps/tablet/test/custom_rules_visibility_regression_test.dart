@@ -8,7 +8,11 @@ import 'package:tripling_table/ui/workspace/table_workspace.dart';
 import 'support/table_fixture.dart';
 
 void main() {
-  Future<void> open(WidgetTester tester, TableFixture fixture) async {
+  Future<void> open(
+    WidgetTester tester,
+    TableFixture fixture, {
+    WorkspacePage page = WorkspacePage.rules,
+  }) async {
     tester.view.physicalSize = const Size(1133, 744);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -23,7 +27,7 @@ void main() {
                 fixture.controller,
                 catalog: fixture.catalog,
                 seatId: fixture.playerId,
-                initialPage: WorkspacePage.rules,
+                initialPage: page,
               ),
               child: const Text('Open'),
             ),
@@ -115,16 +119,36 @@ void main() {
         of: find.text('Saved multiplier'),
         matching: find.byType(SwitchListTile),
       );
-      await tester.tap(toggle);
-      await tester.pumpAndSettle();
+      Future<void> tapToggle() async {
+        final control = find.descendant(
+          of: toggle,
+          matching: find.byType(Switch),
+        );
+        await tester.ensureVisible(control);
+        await tester.pumpAndSettle();
+        expect(control.hitTestable(), findsOneWidget);
+        await tester.tap(control);
+        await tester.pumpAndSettle();
+      }
+
+      await tapToggle();
       expect(fixture.player.rules.single.enabled, isFalse);
       expect(fixture.player.rules.single.configuration['legacy'], 'preserve');
-      await fixture.controller.undo();
+      expect(find.byIcon(Icons.undo), findsNothing);
+      await close(tester);
+      await open(tester, fixture, page: WorkspacePage.history);
+      final undo = find.textContaining('Undo latest:');
+      expect(undo.hitTestable(), findsOneWidget);
+      await tester.tap(undo);
       await tester.pumpAndSettle();
       expect(jsonEncode(fixture.player.rules.single.toJson()), original);
+      await close(tester);
+      await open(tester, fixture);
       fixture.repository.failSave = true;
-      await tester.tap(toggle);
-      await tester.pumpAndSettle();
+      final historyBefore = fixture.controller.session.history.length;
+      await tapToggle();
+      expect(find.textContaining('Simulated storage failure'), findsOneWidget);
+      expect(fixture.controller.session.history.length, historyBefore);
       expect(fixture.player.rules.single.enabled, isTrue);
       expect(fixture.player.rules.single.configuration['legacy'], 'preserve');
       fixture.repository.failSave = false;

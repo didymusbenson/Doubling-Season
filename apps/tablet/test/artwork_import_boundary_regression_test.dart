@@ -88,6 +88,11 @@ void main() {
   testWidgets(
     'image bytes reach player-facing crop, cancellation does not save',
     (tester) async {
+      tester.view.physicalSize = const Size(800, 600);
+      tester.view.devicePixelRatio = 1;
+      tester.view.padding = const FakeViewPadding(top: 24, bottom: 20);
+      tester.view.viewPadding = const FakeViewPadding(top: 24, bottom: 20);
+      addTearDown(tester.view.reset);
       final picker = MemoryPicker();
       FilePicker.platform = picker;
       String? result = 'pending';
@@ -112,10 +117,18 @@ void main() {
       await tester.pumpAndSettle();
       expect(picker.calls, 1);
       expect(find.text('Use crop'), findsOneWidget);
-      expect(
-        tester.getSize(find.byKey(const ValueKey('table-modal-surface'))),
-        const Size(600, 450),
+      final shell = tester.renderObject<RenderBox>(
+        find.byKey(const ValueKey('table-modal-surface')),
       );
+      expect(shell.size, const Size(720, 524));
+      final rect = MatrixUtils.transformRect(
+        shell.getTransformTo(null),
+        Offset.zero & shell.size,
+      );
+      expect(rect.left, closeTo(40, .01));
+      expect(rect.top, closeTo(40, .01));
+      expect(rect.right, closeTo(760, .01));
+      expect(rect.bottom, closeTo(564, .01));
       expect(
         tester.widget<RotatedBox>(find.byType(RotatedBox).first).quarterTurns,
         2,

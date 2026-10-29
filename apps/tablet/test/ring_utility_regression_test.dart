@@ -53,31 +53,23 @@ void main() {
     },
   );
 
-  test(
-    'failed save, blank choice and stale seat leave both fields unchanged',
-    () async {
-      final before = utility().toJson();
-      await expectLater(
-        ring.tempt(f.playerId, id, bearer: ''),
-        throwsStateError,
-      );
-      expect(utility().toJson(), before);
-      f.repository.failSave = true;
-      await expectLater(
-        ring.tempt(f.playerId, id, bearer: 'Sam'),
-        throwsStateError,
-      );
-      expect(utility().toJson(), before);
-      f.repository.failSave = false;
-      final captured = f.board.scope(f.playerId);
-      await f.controller.resetGame(keepBoard: true);
-      await expectLater(
-        ring.tempt(f.playerId, id, bearer: 'Sam', captured: captured),
-        throwsStateError,
-      );
-      expect(f.controller.session.players.first.utilities.last.value, 0);
-    },
-  );
+  test('failed save and stale seat leave both fields unchanged', () async {
+    final before = utility().toJson();
+    f.repository.failSave = true;
+    await expectLater(
+      ring.tempt(f.playerId, id, bearer: 'Sam'),
+      throwsStateError,
+    );
+    expect(utility().toJson(), before);
+    f.repository.failSave = false;
+    final captured = f.board.scope(f.playerId);
+    await f.controller.resetGame(keepBoard: true);
+    await expectLater(
+      ring.tempt(f.playerId, id, bearer: 'Sam', captured: captured),
+      throwsStateError,
+    );
+    expect(f.controller.session.players.first.utilities.last.value, 0);
+  });
 
   test('reload and start turn persist progress; new game resets it', () async {
     await ring.tempt(f.playerId, id, bearer: 'Squirrel token');
@@ -179,7 +171,7 @@ void main() {
 
   for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
     testWidgets(
-      'Ring choices commit atomically, cancel leaves progress at $size',
+      'Ring progresses without a label and optional notes commit atomically at $size',
       (tester) async {
         f.dispose();
         f = TableFixture();
@@ -219,15 +211,10 @@ void main() {
           findsOneWidget,
         );
         expect(find.text('The Ring tempts you').hitTestable(), findsOneWidget);
-        await tester.tap(find.byKey(const ValueKey('ring-no-creatures')));
-        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('ring-no-creatures')), findsNothing);
+        expect(find.text('Cancel choice'), findsNothing);
+        expect(f.player.tokens, isEmpty);
         final before = f.controller.session.history.length;
-        await tester.tap(find.text('Cancel choice'));
-        await tester.pumpAndSettle();
-        expect(utility().value, 0);
-        expect(f.controller.session.history.length, before);
-        await tester.tap(find.byKey(const ValueKey('ring-no-creatures')));
-        await tester.pumpAndSettle();
         await tester.tap(find.text('The Ring tempts you'));
         await tester.pumpAndSettle();
         expect(utility().value, 1);
@@ -236,7 +223,9 @@ void main() {
         // A physical creature label uses the shared player-facing keyboard and
         // remains a draft until the complete temptation is committed.
         final field = find.byWidgetPredicate(
-          (w) => w is TextField && w.decoration?.labelText == 'Ring-bearer',
+          (w) =>
+              w is TextField &&
+              w.decoration?.labelText == 'Ring-bearer label (optional)',
         );
         await tester.ensureVisible(field);
         await tester.tap(field);
@@ -252,6 +241,12 @@ void main() {
         await tester.pumpAndSettle();
         expect(utility().value, 2);
         expect(RingService.bearer(utility()), 'f');
+        await tester.ensureVisible(find.text('Clear bearer'));
+        await tester.tap(find.text('Clear bearer'));
+        await tester.pumpAndSettle();
+        expect(utility().value, 2);
+        expect(RingService.bearer(utility()), isEmpty);
+        expect(f.player.tokens, isEmpty);
         expect(tester.takeException(), isNull);
         await tester.tap(find.byTooltip('Close workspace'));
         await tester.pumpAndSettle();

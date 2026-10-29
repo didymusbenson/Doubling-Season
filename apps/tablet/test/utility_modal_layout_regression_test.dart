@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tripling_table/domain/table_state.dart';
 import 'package:tripling_table/ui/table_theme.dart';
+import 'package:tripling_table/ui/table_modal_frame.dart';
 import 'package:tripling_table/ui/workspace/table_workspace.dart';
 
 import 'support/table_fixture.dart';
@@ -125,9 +126,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       tester.getSize(find.byKey(const ValueKey('context-workspace'))),
-      quarterTurns.isOdd
-          ? Size(size.height * .75, size.width * .75)
-          : Size(size.width * .75, size.height * .75),
+      TableModalFrame.localSize(
+        Size(size.width, size.height - 44),
+        quarterTurns,
+      ),
     );
   }
 
@@ -139,7 +141,7 @@ void main() {
 
   for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
     testWidgets(
-      'every utility exposes reachable options inside the fixed 75% shell at $size',
+      'every utility exposes reachable options inside the bounded responsive shell at $size',
       (tester) async {
         final fixture = TableFixture();
         await fixture.initialize();
@@ -170,7 +172,7 @@ void main() {
           expect(detail, findsOneWidget, reason: utility.kind);
           expect(
             tester.getSize(find.byKey(const ValueKey('context-workspace'))),
-            Size(size.width * .75, size.height * .75),
+            TableModalFrame.localSize(Size(size.width, size.height - 44), 0),
           );
           for (final label in ['Name', 'Description']) {
             await reachable(
@@ -190,7 +192,7 @@ void main() {
           }
           await reachable(
             tester,
-            find.byTooltip('Hide this utility'),
+            find.byTooltip('Remove this utility'),
             reason: utility.kind,
           );
           expect(find.byType(ExpansionTile), findsNothing);
@@ -414,10 +416,7 @@ void main() {
           final outer = tester.state<ScrollableState>(
             find.descendant(of: fixed, matching: find.byType(Scrollable)).first,
           );
-          expect(
-            outer.position.viewportDimension,
-            inInclusiveRange(44, 744 * .75),
-          );
+          expect(outer.position.viewportDimension, inInclusiveRange(44, 640));
           final preview = find.byKey(const ValueKey('utility-action-preview'));
           final scroll = tester.state<ScrollableState>(
             find

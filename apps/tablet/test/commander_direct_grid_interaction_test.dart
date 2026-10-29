@@ -192,42 +192,74 @@ void main() {
     await close(tester);
     await tester.pumpAndSettle();
   });
+  Future<void> enableEnergy(WidgetTester tester) async {
+    await tester.ensureVisible(find.text('Add counter'));
+    await tester.tap(find.text('Add counter'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Enable energy'));
+    await tester.tap(find.text('Enable energy'));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> setEnergy(WidgetTester tester, String value) async {
+    final field = find.widgetWithText(TextField, 'Set total');
+    await tester.ensureVisible(field);
+    await tester.tap(field);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Select all'));
+    await tester.tap(find.text(value));
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Set'));
+    await tester.tap(find.text('Set'));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets(
-    'correction starts from latest total and placeholder correction does not deduct life',
+    'counter correction starts from latest total without changing life or damage',
     (tester) async {
       await open(tester);
-      await tester.tap(find.byKey(ValueKey('commander-edit-$sourceId')));
+      expect(find.byKey(ValueKey('commander-edit-$sourceId')), findsNothing);
+      expect(find.text('Set damage total'), findsNothing);
+      expect(find.byTooltip('Undo latest action'), findsNothing);
+      await enableEnergy(tester);
+      await tester.ensureVisible(find.byTooltip('Set energy total'));
+      await tester.tap(find.byTooltip('Set energy total'));
       await tester.pumpAndSettle();
-      final field = find.widgetWithText(TextField, 'Set damage total');
-      await tester.tap(field);
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Select all'));
-      await tester.tap(find.text('7'));
-      await tester.tap(find.text('Done'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Correct ledger only'));
-      await tester.pumpAndSettle();
+      await setEnergy(tester, '7');
       expect(controller.player(playerId).life, 40);
-      expect(controller.player(playerId).commanderDamage[sourceId], 7);
-      await tester.tap(find.byTooltip('Back'));
+      expect(controller.player(playerId).commanderDamage[sourceId] ?? 0, 0);
+      expect(controller.player(playerId).counters['energy'], 7);
+      final plus = find.byWidgetPredicate(
+        (widget) =>
+            widget is Semantics && widget.properties.label == 'Increase energy',
+      );
+      await tester.ensureVisible(plus);
+      await tester.tap(plus);
       await tester.pumpAndSettle();
-      await plus(tester);
+      await tester.tap(find.byTooltip('Set energy total'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(ValueKey('commander-edit-$sourceId')));
-      await tester.pumpAndSettle();
+      final field = find.widgetWithText(TextField, 'Set total');
       expect(tester.widget<TextField>(field).controller!.text, '8');
       await close(tester);
       await tester.pumpAndSettle();
     },
   );
   testWidgets(
-    'queued failure survives entering correction and a successful correction',
+    'queued commander failure survives entering and saving counter correction',
     (tester) async {
       await open(tester);
+      await enableEnergy(tester);
       repo.delay = true;
       await plus(tester);
-      await tester.tap(find.byKey(ValueKey('commander-edit-$sourceId')));
+      await tester.ensureVisible(find.byTooltip('Set energy total'));
+      await tester.tap(find.byTooltip('Set energy total'));
       await tester.pump();
+      expect(
+        find.widgetWithText(TextField, 'Set total'),
+        findsNothing,
+        reason: 'Counter editing must wait for the accepted commander write.',
+      );
       repo.waits[0].completeError(StateError('Queued save failed'));
       await tester.pumpAndSettle();
       expect(
@@ -235,15 +267,10 @@ void main() {
         findsOneWidget,
       );
       repo.delay = false;
-      await tester.tap(find.widgetWithText(TextField, 'Set damage total'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Select all'));
-      await tester.tap(find.text('4'));
-      await tester.tap(find.text('Done'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Correct ledger only'));
-      await tester.pumpAndSettle();
-      expect(controller.player(playerId).commanderDamage[sourceId], 4);
+      await setEnergy(tester, '4');
+      expect(controller.player(playerId).commanderDamage[sourceId] ?? 0, 0);
+      expect(controller.player(playerId).life, 40);
+      expect(controller.player(playerId).counters['energy'], 4);
       expect(
         find.textContaining('Some changes were not saved.'),
         findsOneWidget,

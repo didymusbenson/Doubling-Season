@@ -123,7 +123,7 @@ void main() {
         );
         final hide = find.descendant(
           of: seat,
-          matching: find.byTooltip('Hide ${utility.name}'),
+          matching: find.byTooltip('Remove ${utility.name}'),
         );
         expect(edit.hitTestable(), findsOneWidget);
         expect(hide.hitTestable(), findsOneWidget);

@@ -308,46 +308,72 @@ extension _TokenPages on _TableWorkspaceState {
   }
 
   Widget _customTokenPage() => _list([
-    _section(
-      'Create a reusable custom token',
-      detail:
-          'Saving adds this definition to the custom library. Choose it to create tokens for $_seatName.',
-    ),
+    _section('Custom token'),
     _gameGrid([
       _input('custom.name', 'Name'),
-      _input('custom.pt', 'Base power / toughness', initial: '1/1'),
-      _input('custom.type', 'Type', initial: 'Creature'),
-      _input(
-        'custom.colors',
-        'Color identity',
-        helper: 'W, U, B, R, G, or leave empty for colorless',
+      Row(
+        children: [
+          Expanded(
+            child: _input(
+              'custom.power',
+              'Power',
+              prefixIcon: const Icon(ManaIcons.power),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _input(
+              'custom.toughness',
+              'Toughness',
+              prefixIcon: const Icon(ManaIcons.toughness),
+            ),
+          ),
+        ],
       ),
     ]),
-    _input('custom.abilities', 'Abilities', maxLines: 3),
-    if (_field('custom.artwork').text.isNotEmpty)
-      Align(
-        alignment: Alignment.centerLeft,
-        child: _art(_field('custom.artwork').text, width: 180, height: 140),
+    _input('custom.type', 'Type', initial: 'Creature'),
+    Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: CustomTokenColorPicker(
+        controller: _field('custom.colors'),
+        enabled: !_working,
       ),
-    Wrap(
-      spacing: 8,
+    ),
+    _input('custom.abilities', 'Abilities', maxLines: 3),
+    Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _button(
-          'Choose artwork',
-          () => _run(() async {
-            final image = await _pickArtwork();
-            if (image != null) _field('custom.artwork').text = image;
-          }),
-          icon: Icons.add_photo_alternate_outlined,
-        ),
-        if (_field('custom.artwork').text.isNotEmpty)
-          _button(
-            'Remove artwork',
-            () => _update(() => _field('custom.artwork').clear()),
-            icon: Icons.hide_image_outlined,
+        if (_field('custom.artwork').text.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: _art(_field('custom.artwork').text, width: 88, height: 88),
           ),
+        ],
+        Expanded(
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _button(
+                'Choose artwork',
+                () => _run(() async {
+                  final image = await _pickArtwork();
+                  if (image != null) _field('custom.artwork').text = image;
+                }),
+                icon: Icons.add_photo_alternate_outlined,
+              ),
+              if (_field('custom.artwork').text.isNotEmpty)
+                _button(
+                  'Remove artwork',
+                  () => _update(() => _field('custom.artwork').clear()),
+                  icon: Icons.hide_image_outlined,
+                ),
+            ],
+          ),
+        ),
       ],
     ),
+    const SizedBox(height: 12),
     Wrap(
       spacing: 10,
       children: [
@@ -355,12 +381,7 @@ extension _TokenPages on _TableWorkspaceState {
           'Cancel',
           () => _update(() {
             _createCustom = false;
-            for (final key
-                in _fields.keys
-                    .where((k) => k.startsWith('custom.'))
-                    .toList()) {
-              _fields[key]!.clear();
-            }
+            _clearCustomTokenDraft();
           }),
           icon: Icons.close,
         ),
@@ -379,9 +400,16 @@ extension _TokenPages on _TableWorkspaceState {
                 'Use W, U, B, R and G for color identity.',
               );
             }
+            final power = _field('custom.power').text.trim();
+            final toughness = _field('custom.toughness').text.trim();
+            if (power.isEmpty != toughness.isEmpty) {
+              throw const FormatException(
+                'Enter both power and toughness, or leave both empty.',
+              );
+            }
             final definition = TokenDefinition(
               name: name,
-              pt: _field('custom.pt').text.trim(),
+              pt: power.isEmpty ? '' : '$power/$toughness',
               type: _field('custom.type').text.trim(),
               colors: colors,
               abilities: _field('custom.abilities').text.trim(),
@@ -397,14 +425,23 @@ extension _TokenPages on _TableWorkspaceState {
                     ],
             );
             await catalog.saveCustom(definition);
+            _clearCustomTokenDraft();
             _selectToken(definition);
             _createCustom = false;
-          }, success: 'Custom token saved.'),
+          }),
           primary: true,
         ),
       ],
     ),
   ]);
+
+  void _clearCustomTokenDraft() {
+    for (final key
+        in _fields.keys.where((key) => key.startsWith('custom.')).toList()) {
+      _fields[key]!.clear();
+    }
+    _field('custom.type').text = 'Creature';
+  }
 
   void _selectToken(TokenDefinition definition) => _update(() {
     _selectedDefinition = definition;

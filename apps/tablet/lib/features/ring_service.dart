@@ -31,22 +31,22 @@ class RingService {
   Future<void> tempt(
     String playerId,
     String utilityId, {
-    required String bearer,
+    String? bearer,
     bool noCreatures = false,
     BoardScope? captured,
   }) => _change(playerId, utilityId, 'The Ring tempts you', (utility) {
-    if (!noCreatures && bearer.trim().isEmpty) {
-      throw const FormatException(
-        'Name your Ring-bearer or choose No creatures.',
-      );
-    }
     if (utility.value >= maxTemptations) {
       throw const FormatException(
         'Correct the temptation count before continuing.',
       );
     }
     utility.value = utility.value.clamp(0, maxTemptations) + 1;
-    utility.configuration[bearerKey] = noCreatures ? '' : bearer.trim();
+    // The actual bearer may be a physical creature that is not represented in
+    // this app. Its optional label must never gate temptation progress. An
+    // omitted label preserves existing notes; an explicit blank clears them.
+    if (noCreatures || bearer != null) {
+      utility.configuration[bearerKey] = noCreatures ? '' : bearer!.trim();
+    }
   }, captured: captured);
 
   Future<void> clearBearer(
@@ -65,14 +65,14 @@ class RingService {
     String playerId,
     String utilityId, {
     required int temptations,
-    required String bearer,
+    String? bearer,
     BoardScope? captured,
   }) => _change(playerId, utilityId, 'Correct The Ring', (utility) {
     if (temptations < 0 || temptations > maxTemptations) {
       throw const FormatException('Use a nonnegative temptation count.');
     }
     utility.value = temptations;
-    utility.configuration[bearerKey] = bearer.trim();
+    if (bearer != null) utility.configuration[bearerKey] = bearer.trim();
   }, captured: captured);
 
   Future<void> _change(

@@ -150,6 +150,7 @@ void main() {
     const Size(600, 1024),
     const Size(1133, 744),
     const Size(650, 480),
+    const Size(650, 390),
   ]) {
     for (final scale in [1.0, 1.3]) {
       testWidgets('dice selector and focused results $size scale $scale', (
@@ -196,12 +197,17 @@ void main() {
         final selectorScroll = find
             .ancestor(of: roll, matching: find.byType(Scrollable))
             .first;
-        final savedOffset = tester
+        final selectorPosition = tester
             .state<ScrollableState>(selectorScroll)
-            .position
-            .pixels;
-        if (size.height == 480) {
+            .position;
+        final savedOffset = selectorPosition.pixels;
+        if (selectorPosition.maxScrollExtent > 0) {
           expect(savedOffset, greaterThan(0));
+        } else {
+          final frame = tester.getRect(key('context-workspace'));
+          final rollBounds = tester.getRect(roll);
+          expect(rollBounds.top, greaterThanOrEqualTo(frame.top));
+          expect(rollBounds.bottom, lessThanOrEqualTo(frame.bottom));
         }
         await tap(tester, roll);
         expect(key('dice-results'), findsOneWidget);
@@ -304,7 +310,7 @@ void main() {
   }
 
   testWidgets(
-    'facing dice flow preserves full shell with asymmetric safe insets',
+    'facing dice flow fits bounded shell with asymmetric safe insets',
     (tester) async {
       const size = Size(1133, 744);
       final fixture = await open(
@@ -316,10 +322,14 @@ void main() {
       );
       final before = fixture.controller.state.toJson();
       final rect = tester.getRect(key('context-workspace'));
-      expect(rect.width, closeTo(size.width * .75, .01));
-      expect(rect.height, closeTo(size.height * .75, .01));
-      expect(rect.center.dx, closeTo(size.width / 2, .01));
-      expect(rect.center.dy, closeTo(size.height / 2, .01));
+      expect(rect.width, closeTo(720, .01));
+      expect(rect.height, closeTo(640, .01));
+      expect(rect.left, greaterThanOrEqualTo(23 + 16 - .01));
+      expect(rect.right, lessThanOrEqualTo(size.width - 7 - 16 + .01));
+      expect(rect.top, greaterThanOrEqualTo(12 + 16 - .01));
+      expect(rect.bottom, lessThanOrEqualTo(size.height - 18 - 16 + .01));
+      expect(rect.center.dx, closeTo((23 + size.width - 7) / 2, .01));
+      expect(rect.center.dy, closeTo((12 + size.height - 18) / 2, .01));
       await tap(tester, find.byTooltip('Increase d4'));
       await tap(tester, find.byTooltip('Increase d4'));
       await tap(tester, find.byTooltip('Decrease d4'));

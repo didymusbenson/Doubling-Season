@@ -72,7 +72,7 @@ Future<void> showTableSupport(
                   trailing: service.owned.contains(product.id)
                       ? const Icon(Icons.check_circle_outline)
                       : FilledButton(
-                          onPressed: service.pending
+                          onPressed: service.pending || service.restoring
                               ? null
                               : () => service.buy(product),
                           child: Text(product.price),
@@ -103,7 +103,9 @@ Future<void> showTableSupport(
                 ),
               if (service.available)
                 TextButton(
-                  onPressed: service.pending ? null : service.restore,
+                  onPressed: service.pending || service.restoring
+                      ? null
+                      : service.restore,
                   child: const Text('Restore purchases'),
                 ),
             ],

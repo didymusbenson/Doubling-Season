@@ -1117,6 +1117,7 @@ class PlayerField extends StatelessWidget {
     this.maxLines = 1,
     this.helperText,
     this.errorText,
+    this.prefixIcon,
     this.onExit,
   });
   final TextEditingController controller;
@@ -1125,6 +1126,7 @@ class PlayerField extends StatelessWidget {
   final int maxLines;
   final String? helperText;
   final String? errorText;
+  final Widget? prefixIcon;
   final Future<bool> Function()? onExit;
 
   @override
@@ -1207,6 +1209,7 @@ class PlayerField extends StatelessWidget {
               labelText: label,
               helperText: helperText,
               errorText: errorText,
+              prefixIcon: prefixIcon,
               border: const OutlineInputBorder(),
             ),
             onTap: activate,

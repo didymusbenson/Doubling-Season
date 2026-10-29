@@ -4,6 +4,13 @@ part of 'table_workspace.dart';
 const _customRuleAuthoringEnabled = false;
 
 extension _LibraryPages on _TableWorkspaceState {
+  Future<void> _removeBoardUtility(UtilityState utility) => _run(
+    () => _board.removeUtility(p!.id, utility.id),
+    after: () {
+      if (_itemId == utility.id) _itemId = null;
+    },
+  );
+
   Widget _utilitiesPage() {
     final player = p;
     if (player == null) {
@@ -49,24 +56,13 @@ extension _LibraryPages on _TableWorkspaceState {
                   ),
                   trailing: IconButton(
                     tooltip: utility.visible
-                        ? 'Hide utility'
+                        ? 'Remove utility'
                         : 'Restore utility',
                     icon: Icon(
-                      utility.visible
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
+                      utility.visible ? Icons.close : Icons.visibility_outlined,
                     ),
                     onPressed: () => utility.visible
-                        ? _confirm(
-                            'Hide ${utility.name}?',
-                            'Hide this utility for the current game. Stored values remain available in this menu.',
-                            () => _board.setUtility(
-                              player.id,
-                              utility.id,
-                              visible: false,
-                            ),
-                            button: 'Hide utility',
-                          )
+                        ? _removeBoardUtility(utility)
                         : _run(
                             () => _board.setUtility(
                               player.id,
@@ -109,7 +105,6 @@ extension _LibraryPages on _TableWorkspaceState {
                       trailing: const Icon(Icons.add),
                       onTap: () => _run(
                         () => _board.addUtility(player.id, definition.id),
-                        success: '${definition.name} added for $_seatName.',
                       ),
                     ),
                 ],
@@ -164,21 +159,12 @@ extension _LibraryPages on _TableWorkspaceState {
             if (standalone)
               IconButton(
                 tooltip: utility.visible
-                    ? 'Hide this utility'
+                    ? 'Remove this utility'
                     : 'Restore to board',
                 onPressed: _working
                     ? null
                     : () => utility.visible
-                          ? _confirm(
-                              'Hide ${utility.name}?',
-                              'The utility’s current values will remain saved. Restore it from the utilities menu.',
-                              () => _board.setUtility(
-                                player.id,
-                                utility.id,
-                                visible: false,
-                              ),
-                              button: 'Hide utility',
-                            )
+                          ? _removeBoardUtility(utility)
                           : _run(
                               () => _board.setUtility(
                                 player.id,
@@ -187,9 +173,7 @@ extension _LibraryPages on _TableWorkspaceState {
                               ),
                             ),
                 icon: Icon(
-                  utility.visible
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
+                  utility.visible ? Icons.close : Icons.visibility_outlined,
                 ),
               ),
           ],
@@ -436,11 +420,9 @@ extension _LibraryPages on _TableWorkspaceState {
     final scope = _board.scope(player.id);
     final ring = RingService(c);
     final bearer = _field('$key.ringBearer', RingService.bearer(utility));
-    final noCreatures = _field('$key.noCreatures', 'false');
     final correction = _field('$key.correct').text == 'true';
     void resetChoice() {
       bearer.text = RingService.bearer(utility);
-      noCreatures.text = 'false';
     }
 
     return Padding(
@@ -465,19 +447,19 @@ extension _LibraryPages on _TableWorkspaceState {
                   }, icon: Icons.image_outlined),
                   IconButton(
                     tooltip: utility.visible
-                        ? 'Hide this utility'
+                        ? 'Remove this utility'
                         : 'Restore to board',
-                    onPressed: () => _run(
-                      () => _board.setUtility(
-                        player.id,
-                        utility.id,
-                        visible: !utility.visible,
-                      ),
-                    ),
+                    onPressed: () => utility.visible
+                        ? _removeBoardUtility(utility)
+                        : _run(
+                            () => _board.setUtility(
+                              player.id,
+                              utility.id,
+                              visible: true,
+                            ),
+                          ),
                     icon: Icon(
-                      utility.visible
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
+                      utility.visible ? Icons.close : Icons.visibility_outlined,
                     ),
                   ),
                 ],
@@ -566,22 +548,10 @@ extension _LibraryPages on _TableWorkspaceState {
               ),
             _input(
               '$key.ringBearer',
-              'Ring-bearer',
+              'Ring-bearer label (optional)',
               initial: RingService.bearer(utility),
-              helper:
-                  'Any creature you control; keep the name or choose another.',
+              helper: 'A creature on the table needs no token or label here.',
             ),
-            if (!correction)
-              CheckboxListTile(
-                key: const ValueKey('ring-no-creatures'),
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                dense: true,
-                title: const Text('No creatures'),
-                value: noCreatures.text == 'true',
-                onChanged: (value) =>
-                    _update(() => noCreatures.text = '$value'),
-              ),
             Wrap(
               spacing: 8,
               children: [
@@ -600,7 +570,6 @@ extension _LibraryPages on _TableWorkspaceState {
                             player.id,
                             utility.id,
                             bearer: bearer.text,
-                            noCreatures: noCreatures.text == 'true',
                             captured: scope,
                           ),
                     after: () {
@@ -609,13 +578,11 @@ extension _LibraryPages on _TableWorkspaceState {
                           .utilities
                           .firstWhere((u) => u.id == utility.id);
                       bearer.text = RingService.bearer(saved);
-                      noCreatures.text = 'false';
                       _field('$key.correct').clear();
                     },
                   ),
                   primary: true,
                 ),
-                _button('Cancel choice', () => _update(resetChoice)),
                 _button(
                   'Clear bearer',
                   () => _run(
@@ -632,7 +599,7 @@ extension _LibraryPages on _TableWorkspaceState {
             const Padding(
               padding: EdgeInsets.only(top: 6),
               child: Text(
-                'Manual reminders. Clear the bearer if it leaves or changes controller; combat effects resolve at the table.',
+                'Manual reminders. Creature eligibility and combat effects resolve at the table.',
                 style: TextStyle(fontSize: 11),
               ),
             ),
@@ -1213,7 +1180,7 @@ extension _LibraryPages on _TableWorkspaceState {
           () => _run(() async {
             final outcome = _ruleOutcome();
             _update(() => _customRuleOutcomes.add(outcome));
-          }, success: 'Outcome added. Save the rule to apply it.'),
+          }),
           icon: Icons.add,
         ),
         for (var index = 0; index < _customRuleOutcomes.length; index++)
@@ -1274,7 +1241,6 @@ extension _LibraryPages on _TableWorkspaceState {
                 : List<Map<String, dynamic>>.from(_customRuleOutcomes),
           });
         },
-        success: 'Custom rule saved.',
         after: () {
           _ruleEditorOpen = false;
           _editingRuleId = null;
@@ -1347,7 +1313,6 @@ extension _LibraryPages on _TableWorkspaceState {
               _field('preset.name').text.trim(),
               imageUrl: c.profile(player.seatId).artworkUrl,
             ),
-            success: 'Setup saved to the library.',
           ),
           icon: Icons.save_outlined,
           primary: true,
@@ -1385,7 +1350,6 @@ extension _LibraryPages on _TableWorkspaceState {
           final bytes = result.files.single.bytes;
           if (bytes == null) throw StateError('The file could not be read.');
           _field('preset.import').text = utf8.decode(bytes);
-          _status = 'File loaded. Review and choose the import type below.';
         }),
         icon: Icons.file_open_outlined,
       ),
@@ -1400,10 +1364,7 @@ extension _LibraryPages on _TableWorkspaceState {
         children: [
           _button(
             'Import setup JSON',
-            () => _run(
-              () => _presets.importJson(_field('preset.import').text),
-              success: 'Setup imported. Select Replace or Append to load it.',
-            ),
+            () => _run(() => _presets.importJson(_field('preset.import').text)),
           ),
           _button(
             'Find tokens from decklist',
@@ -1414,7 +1375,6 @@ extension _LibraryPages on _TableWorkspaceState {
                     ? null
                     : _field('preset.name').text.trim(),
               ),
-              success: 'Matching token setup imported. Review before loading.',
             ),
           ),
         ],
@@ -1495,7 +1455,6 @@ extension _LibraryPages on _TableWorkspaceState {
                       applyImage: _applyPresetImage,
                       captured: _board.scope(player.id),
                     ),
-                    success: '$name appended to $_seatName’s board.',
                   ),
                 ),
                 _button(
@@ -1585,7 +1544,7 @@ extension _LibraryPages on _TableWorkspaceState {
         button: 'Export with these limitations',
       );
     } else {
-      _run(export, success: 'Setup export completed.');
+      _run(export);
     }
   }
 }
