@@ -1,3 +1,4 @@
+import '../storage/storage_namespace.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart' show ChangeNotifier;
@@ -46,7 +47,7 @@ class TabletCatalog extends ChangeNotifier {
           .toList();
   bool isFavorite(String id) => _ids('favorites').contains(id);
 
-  static const _cacheBox = 'tripling_season_tablet_catalog_v1';
+  static const _cacheBox = TableStorageKeys.catalog;
   Future<Box<String>> _cache() => Hive.openBox<String>(_cacheBox);
   Future<void> load() async {
     String? cacheFailure;

@@ -1,3 +1,4 @@
+import '../storage/storage_namespace.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
@@ -74,8 +75,8 @@ class TableSupportService extends ChangeNotifier {
     notifyListeners();
     try {
       final prefs = await SharedPreferences.getInstance();
-      owned.addAll(prefs.getStringList('tablet_support_owned_v1') ?? []);
-      heartColor = prefs.getInt('tablet_support_heart_color') ?? heartColor;
+      owned.addAll(prefs.getStringList(TableStorageKeys.supportOwned) ?? []);
+      heartColor = prefs.getInt(TableStorageKeys.supportColor) ?? heartColor;
       if (kIsWeb || _productIds.any((id) => id.isEmpty)) {
         _setMessage(
           'Support purchases aren’t available in this build. All gameplay is included.',
@@ -166,7 +167,7 @@ class TableSupportService extends ChangeNotifier {
         try {
           owned.add(purchase.productID);
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setStringList('tablet_support_owned_v1', owned.toList());
+          await prefs.setStringList(TableStorageKeys.supportOwned, owned.toList());
           if (purchase.pendingCompletePurchase) {
             await _store.completePurchase(purchase);
           }
@@ -193,7 +194,7 @@ class TableSupportService extends ChangeNotifier {
   Future<void> setHeartColor(int color) async {
     if (tier < 3) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('tablet_support_heart_color', color);
+    await prefs.setInt(TableStorageKeys.supportColor, color);
     heartColor = color;
     notifyListeners();
   }

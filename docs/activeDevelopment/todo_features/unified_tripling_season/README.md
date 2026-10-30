@@ -25,6 +25,13 @@ The owner requested three speculative documents:
 3. [Focused Seat 1 phone experience](focused_seat.md): compact life above tokens,
    complete commander/counter controls, utilities and thumb-reachable actions.
 
+## Feature-branch preview infrastructure
+
+Phone implementation stays on a separate feature branch; main remains the stable
+tablet delivery line. See [temporary Pages preview and mandatory cutover cleanup](preview_workflow.md)
+for the custom publisher and isolated browser storage. Infrastructure setup does
+not start the deferred phone UI.
+
 ## Existing implementation is not this proposal
 
 As inspected at `3d3723ecbfbe4fb1c868e11433c5c359cd5e5877`, original and tablet

@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../domain/table_state.dart';
+import 'storage_namespace.dart';
 
 class TableLoadResult {
   final TabletState state;
@@ -21,7 +22,7 @@ class UnsupportedTableFormat implements Exception {
 /// A single aggregate is the transaction boundary for gameplay, undo and archives.
 /// The previous validated generation is flushed before promoting its successor.
 class TableRepository {
-  static const boxName = 'tripling_season_tablet_aggregate_v1';
+  static const boxName = TableStorageKeys.aggregate;
   Box<String>? _box;
   Box<String>? _backup;
   String? _lastGood;

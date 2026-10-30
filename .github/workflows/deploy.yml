@@ -7,49 +7,151 @@ on:
     paths:
       - '.github/workflows/deploy.yml'
       - '.github/workflows/tablet-build.yml'
-  workflow_dispatch:  # Allow manual trigger
+      - 'tool/pages/**'
+  workflow_dispatch:
+    inputs:
+      phone_ref:
+        description: 'Phone feature branch or exact SHA to validate and publish (blank: retain last successful preview)'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
+# One publisher owns the complete root + tablet + optional phone site.
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
-  build:
+  phone-preview:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.phone_ref != ''
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: publisher
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.phone_ref }}
+          path: phone-source
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.2'
+          channel: stable
+      - name: Validate selected source and isolated storage
+        working-directory: phone-source/apps/tablet
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+          flutter test --dart-define=TABLE_STORAGE_NAMESPACE=phone_preview_v1 test/storage_namespace_test.dart
+      - name: Build isolated feature preview
+        working-directory: phone-source/apps/tablet
+        run: flutter build web --release --base-href "/Doubling-Season/preview/phone/" --pwa-strategy=none --dart-define=TABLE_STORAGE_NAMESPACE=phone_preview_v1
+      - name: Record and validate the exact preview
+        env:
+          REQUESTED_REF: ${{ inputs.phone_ref }}
+        run: |
+          python3 - <<'PYTHON'
+          import json, os, pathlib, subprocess
+          root = pathlib.Path('phone-source/apps/tablet/build/web')
+          sha = subprocess.check_output(['git', '-C', 'phone-source', 'rev-parse', 'HEAD'], text=True).strip()
+          (root / 'preview.json').write_text(json.dumps({'commit': sha, 'requestedRef': os.environ['REQUESTED_REF'], 'storageNamespace': 'phone_preview_v1', 'baseHref': '/Doubling-Season/preview/phone/', 'publisherRunId': int(os.environ['GITHUB_RUN_ID'])}))
+          PYTHON
+          python3 publisher/tool/pages/verify_phone_preview.py phone-source/apps/tablet/build/web
+      - name: Verify browser storage isolation across reload
+        timeout-minutes: 4
+        run: node publisher/tool/pages/browser_preview_storage.mjs phone-source/apps/tablet/build/web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phone-preview-web
+          path: phone-source/apps/tablet/build/web
+          include-hidden-files: true
+          retention-days: 90
+          if-no-files-found: error
 
+  build:
+    needs: phone-preview
+    if: ${{ always() && (needs.phone-preview.result == 'success' || needs.phone-preview.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      # Manual feature publication must never build the stable routes from that feature.
+      # PR runs validate candidate publisher changes but never deploy.
+      - name: Checkout stable source or PR validation candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.sha || 'main' }}
+          persist-credentials: false
+      - name: Test preview artifact checks
+        run: python3 -m unittest discover -s tool/pages -p "test_*.py"
+      - name: Select successful preview artifact
+        id: preview
+        uses: actions/github-script@v7
+        env:
+          NEW_PREVIEW: ${{ needs.phone-preview.result }}
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            let selected;
+            if (process.env.NEW_PREVIEW === 'success') {
+              const result = await github.rest.actions.listWorkflowRunArtifacts({owner, repo, run_id: context.runId});
+              selected = result.data.artifacts.find(a => a.name === 'phone-preview-web' && !a.expired);
+              if (!selected) throw new Error('New validated preview artifact is missing');
+              core.setOutput('run_id', String(context.runId));
+            } else {
+              const live = await fetch('https://didymusbenson.github.io/Doubling-Season/preview/phone/preview.json?retention=' + Date.now());
+              if (live.ok) {
+                const marker = await live.json();
+                if (!Number.isSafeInteger(marker.publisherRunId) || !/^[a-f0-9]{40}$/.test(marker.commit)) throw new Error('Invalid published preview provenance');
+                const run = (await github.rest.actions.getWorkflowRun({owner, repo, run_id: marker.publisherRunId})).data;
+                if (run.conclusion !== 'success' || run.head_branch !== 'main' || run.event !== 'workflow_dispatch' || run.path !== '.github/workflows/deploy.yml') throw new Error('Published preview was not produced by a successful main publisher');
+                const result = await github.rest.actions.listWorkflowRunArtifacts({owner, repo, run_id: marker.publisherRunId});
+                selected = result.data.artifacts.find(a => a.name === 'phone-preview-web' && !a.expired);
+                if (!selected) throw new Error('Exact published preview artifact expired or unavailable. Refresh with phone_ref; refusing to erase or roll back preview.');
+                core.setOutput('run_id', String(marker.publisherRunId));
+                core.setOutput('expected_commit', marker.commit);
+              } else if (live.status !== 404) {
+                throw new Error('Cannot establish published preview state: ' + live.status);
+              }
+            }
+            core.setOutput('artifact_id', selected ? String(selected.id) : '');
+      - name: Download the retained or newly validated phone preview
+        if: steps.preview.outputs.artifact_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ steps.preview.outputs.artifact_id }}
+          run-id: ${{ steps.preview.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: phone-preview-output
+          merge-multiple: true
       - name: Setup Flutter for original app
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.38.x'
-          channel: 'stable'
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Build original web app
+          channel: stable
+      - run: flutter pub get
+      - name: Build original from stable source
         run: flutter build web --release --base-href "/Doubling-Season/"
-
       - name: Setup Flutter for tablet app
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.41.2'
-          channel: 'stable'
-
-      - name: Build tablet web preview
+          channel: stable
+      - name: Build stable tablet preview
         working-directory: apps/tablet
-        # Do not introduce a second service worker/cache on the original origin.
         run: flutter build web --release --base-href "/Doubling-Season/tablet/" --pwa-strategy=none
-
-      - name: Assemble and verify combined Pages site
+      - name: Assemble and verify all routes
+        env:
+          PREVIEW_ID: ${{ steps.preview.outputs.artifact_id }}
+          EXPECTED_PREVIEW_COMMIT: ${{ steps.preview.outputs.expected_commit }}
         run: |
           test ! -e build/web/tablet
           cp -R apps/tablet/build/web build/web/tablet
@@ -62,23 +164,37 @@ jobs:
           done
           test -s build/web/tablet/assets/packages/doubling_season/assets/token_database.json
           test ! -s build/web/tablet/flutter_service_worker.js
-          printf '{"commit":"%s"}\n' "$GITHUB_SHA" > build/web/deployment.json
-
-      - name: Upload artifact
+          if [ -n "$PREVIEW_ID" ]; then
+            python3 tool/pages/verify_phone_preview.py phone-preview-output
+            mkdir -p build/web/preview
+            cp -R phone-preview-output build/web/preview/phone
+          fi
+          python3 - <<'PYTHON'
+          import json, pathlib, subprocess
+          root = pathlib.Path('build/web')
+          sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          marker = {'commit': sha}
+          preview = root / 'preview/phone/preview.json'
+          if preview.exists():
+              marker['phonePreview'] = json.loads(preview.read_text())
+          (root / 'deployment.json').write_text(json.dumps(marker))
+          PYTHON
+      - name: Upload complete site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'build/web'
+          path: build/web
 
   deploy:
-    if: github.ref == 'refs/heads/main'
+    if: ${{ always() && needs.build.result == 'success' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
     needs: build
     runs-on: ubuntu-latest
-
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
-      - name: Deploy to GitHub Pages
+      - name: Deploy complete site
         id: deployment
         uses: actions/deploy-pages@v4

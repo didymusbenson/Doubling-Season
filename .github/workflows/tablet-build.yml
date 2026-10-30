@@ -38,6 +38,8 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
+      - name: Validate preview storage namespace
+        run: flutter test --dart-define=TABLE_STORAGE_NAMESPACE=phone_preview_v1 test/storage_namespace_test.dart
       - id: web-build
         run: flutter build web --release --base-href "/Doubling-Season/tablet/" --pwa-strategy=none
       - name: Build Android release
