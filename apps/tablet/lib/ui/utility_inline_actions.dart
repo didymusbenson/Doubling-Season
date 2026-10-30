@@ -172,11 +172,12 @@ class _UtilityInlineActionsState extends State<UtilityInlineActions> {
               ),
             ),
           ),
-          Tooltip(
-            message: 'Create the Myr and skip transformation',
-            child: OutlinedButton(
-              key: ValueKey('utility-skip-${widget.utility.id}'),
-              onPressed: _working ? null : () => _resolve(skip: true),
+          OutlinedButton(
+            key: ValueKey('utility-skip-${widget.utility.id}'),
+            onPressed: _working ? null : () => _resolve(skip: true),
+            child: Semantics(
+              label: 'Create the Myr and skip transformation',
+              excludeSemantics: true,
               child: const Text('Create Myr only'),
             ),
           ),

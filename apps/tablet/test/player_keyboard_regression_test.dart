@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
@@ -205,7 +206,7 @@ void main() {
             await tester.pumpAndSettle();
           }
 
-          await tap(find.byTooltip('Select all'));
+          await tap(byControlLabel('Select all'));
           expect(
             controller.selection,
             const TextSelection(baseOffset: 0, extentOffset: 13),
@@ -228,7 +229,7 @@ void main() {
           expect(controller.text, 'qza');
           await tap(find.byIcon(Icons.backspace_outlined));
           expect(controller.text, 'qa');
-          await tap(find.byTooltip('Select all'));
+          await tap(byControlLabel('Select all'));
           await tap(find.text('z'));
           expect(controller.text, 'z');
           await tap(find.text('Done'));
@@ -328,7 +329,7 @@ void main() {
       );
       expect(field.focusNode.hasFocus, isTrue);
 
-      await tester.tap(find.byTooltip('Select all'));
+      await tester.tap(byControlLabel('Select all'));
       await tester.pump();
       final editable = tester.state<EditableTextState>(fieldFinder);
       expect(

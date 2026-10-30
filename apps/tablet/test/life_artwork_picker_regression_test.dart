@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -124,7 +125,7 @@ void main() {
         expect(find.byType(TableArtwork), findsWidgets);
         expect(tester.takeException(), isNull);
         expect(fixture.controller.state.toJson().toString(), before);
-        await tester.tap(find.byTooltip('Close artwork search'));
+        await tester.tap(byControlLabel('Close artwork search'));
         await tester.pumpAndSettle();
         expect(fixture.controller.state.toJson().toString(), before);
       },

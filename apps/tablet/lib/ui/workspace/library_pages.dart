@@ -54,22 +54,28 @@ extension _LibraryPages on _TableWorkspaceState {
                         ? 'Mana total: ${player.mana.values.fold(0, (a, b) => a + b)}${utility.visible ? '' : ' · hidden'}'
                         : '${_board.utilityValue(player.id, utility.id)}${utility.isActive ? ' · active' : ''}${utility.visible ? '' : ' · hidden'}',
                   ),
-                  trailing: IconButton(
-                    tooltip: utility.visible
-                        ? 'Remove utility'
-                        : 'Restore utility',
-                    icon: Icon(
-                      utility.visible ? Icons.close : Icons.visibility_outlined,
+                  trailing: MergeSemantics(
+                    child: Semantics(
+                      label: utility.visible
+                          ? 'Remove utility'
+                          : 'Restore utility',
+                      child: IconButton(
+                        icon: Icon(
+                          utility.visible
+                              ? Icons.close
+                              : Icons.visibility_outlined,
+                        ),
+                        onPressed: () => utility.visible
+                            ? _removeBoardUtility(utility)
+                            : _run(
+                                () => _board.setUtility(
+                                  player.id,
+                                  utility.id,
+                                  visible: true,
+                                ),
+                              ),
+                      ),
                     ),
-                    onPressed: () => utility.visible
-                        ? _removeBoardUtility(utility)
-                        : _run(
-                            () => _board.setUtility(
-                              player.id,
-                              utility.id,
-                              visible: true,
-                            ),
-                          ),
                   ),
                   onTap: () => _update(() => _itemId = utility.id),
                 ),
@@ -157,23 +163,27 @@ extension _LibraryPages on _TableWorkspaceState {
             }, icon: Icons.image_outlined),
             if (standalone) const SizedBox(width: 8),
             if (standalone)
-              IconButton(
-                tooltip: utility.visible
-                    ? 'Remove this utility'
-                    : 'Restore to board',
-                onPressed: _working
-                    ? null
-                    : () => utility.visible
-                          ? _removeBoardUtility(utility)
-                          : _run(
-                              () => _board.setUtility(
-                                player.id,
-                                utility.id,
-                                visible: true,
-                              ),
-                            ),
-                icon: Icon(
-                  utility.visible ? Icons.close : Icons.visibility_outlined,
+              MergeSemantics(
+                child: Semantics(
+                  label: utility.visible
+                      ? 'Remove this utility'
+                      : 'Restore to board',
+                  child: IconButton(
+                    onPressed: _working
+                        ? null
+                        : () => utility.visible
+                              ? _removeBoardUtility(utility)
+                              : _run(
+                                  () => _board.setUtility(
+                                    player.id,
+                                    utility.id,
+                                    visible: true,
+                                  ),
+                                ),
+                    icon: Icon(
+                      utility.visible ? Icons.close : Icons.visibility_outlined,
+                    ),
+                  ),
                 ),
               ),
           ],
@@ -445,21 +455,27 @@ extension _LibraryPages on _TableWorkspaceState {
                       _update(() => _field('$key.panel').text = 'artwork');
                     }
                   }, icon: Icons.image_outlined),
-                  IconButton(
-                    tooltip: utility.visible
-                        ? 'Remove this utility'
-                        : 'Restore to board',
-                    onPressed: () => utility.visible
-                        ? _removeBoardUtility(utility)
-                        : _run(
-                            () => _board.setUtility(
-                              player.id,
-                              utility.id,
-                              visible: true,
-                            ),
-                          ),
-                    icon: Icon(
-                      utility.visible ? Icons.close : Icons.visibility_outlined,
+                  MergeSemantics(
+                    child: Semantics(
+                      label: utility.visible
+                          ? 'Remove this utility'
+                          : 'Restore to board',
+                      child: IconButton(
+                        onPressed: () => utility.visible
+                            ? _removeBoardUtility(utility)
+                            : _run(
+                                () => _board.setUtility(
+                                  player.id,
+                                  utility.id,
+                                  visible: true,
+                                ),
+                              ),
+                        icon: Icon(
+                          utility.visible
+                              ? Icons.close
+                              : Icons.visibility_outlined,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -916,21 +932,30 @@ extension _LibraryPages on _TableWorkspaceState {
                     valueStyle: Theme.of(context).textTheme.labelLarge,
                   ),
                 ),
-                IconButton(
-                  tooltip: '${locked ? 'Unlock' : 'Lock'} $name mana for Empty',
-                  isSelected: locked,
-                  onPressed: _working
-                      ? null
-                      : () => _run(() => c.toggleManaLock(player.id, color)),
-                  icon: const Icon(Icons.lock_open),
-                  selectedIcon: const Icon(Icons.lock),
+                MergeSemantics(
+                  child: Semantics(
+                    label: '${locked ? 'Unlock' : 'Lock'} $name mana for Empty',
+                    child: IconButton(
+                      isSelected: locked,
+                      onPressed: _working
+                          ? null
+                          : () =>
+                                _run(() => c.toggleManaLock(player.id, color)),
+                      icon: const Icon(Icons.lock_open),
+                      selectedIcon: const Icon(Icons.lock),
+                    ),
+                  ),
                 ),
-                IconButton(
-                  tooltip: 'Convert all mana to $name',
-                  onPressed: _working
-                      ? null
-                      : () => _run(() => c.convertMana(player.id, color)),
-                  icon: const Icon(Icons.compare_arrows),
+                MergeSemantics(
+                  child: Semantics(
+                    label: 'Convert all mana to $name',
+                    child: IconButton(
+                      onPressed: _working
+                          ? null
+                          : () => _run(() => c.convertMana(player.id, color)),
+                      icon: const Icon(Icons.compare_arrows),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -1186,11 +1211,15 @@ extension _LibraryPages on _TableWorkspaceState {
         for (var index = 0; index < _customRuleOutcomes.length; index++)
           ListTile(
             title: Text(_outcomeLabel(_customRuleOutcomes[index])),
-            trailing: IconButton(
-              tooltip: 'Remove outcome',
-              onPressed: () =>
-                  _update(() => _customRuleOutcomes.removeAt(index)),
-              icon: const Icon(Icons.close),
+            trailing: MergeSemantics(
+              child: Semantics(
+                label: 'Remove outcome',
+                child: IconButton(
+                  onPressed: () =>
+                      _update(() => _customRuleOutcomes.removeAt(index)),
+                  icon: const Icon(Icons.close),
+                ),
+              ),
             ),
           ),
       ]),

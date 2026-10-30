@@ -77,56 +77,53 @@ class CustomTokenColorPicker extends StatelessWidget {
     VoidCallback select,
   ) {
     final scheme = Theme.of(context).colorScheme;
-    return Tooltip(
-      message: name,
-      child: Semantics(
-        key: ValueKey('custom-token-color-$code'),
-        label: '$name color identity',
-        button: true,
-        enabled: enabled,
-        toggled: selected,
-        onTap: enabled ? select : null,
-        excludeSemantics: true,
-        child: Material(
-          color: selected ? scheme.secondaryContainer : Colors.transparent,
-          shape: CircleBorder(
-            side: BorderSide(
-              color: selected ? scheme.primary : scheme.outline,
-              width: selected ? 3 : 1,
-            ),
+    return Semantics(
+      key: ValueKey('custom-token-color-$code'),
+      label: '$name color identity',
+      button: true,
+      enabled: enabled,
+      toggled: selected,
+      onTap: enabled ? select : null,
+      excludeSemantics: true,
+      child: Material(
+        color: selected ? scheme.secondaryContainer : Colors.transparent,
+        shape: CircleBorder(
+          side: BorderSide(
+            color: selected ? scheme.primary : scheme.outline,
+            width: selected ? 3 : 1,
           ),
-          child: InkWell(
-            onTap: enabled ? select : null,
-            excludeFromSemantics: true,
-            customBorder: const CircleBorder(),
-            child: SizedBox(
-              width: 48,
-              height: 48,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Opacity(
-                    opacity: enabled ? 1 : .45,
-                    child: ManaSymbol(code: code, size: 32),
-                  ),
-                  if (selected)
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: scheme.primary,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.check,
-                          size: 15,
-                          color: scheme.onPrimary,
-                        ),
+        ),
+        child: InkWell(
+          onTap: enabled ? select : null,
+          excludeFromSemantics: true,
+          customBorder: const CircleBorder(),
+          child: SizedBox(
+            width: 48,
+            height: 48,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Opacity(
+                  opacity: enabled ? 1 : .45,
+                  child: ManaSymbol(code: code, size: 32),
+                ),
+                if (selected)
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: scheme.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.check,
+                        size: 15,
+                        color: scheme.onPrimary,
                       ),
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
           ),
         ),

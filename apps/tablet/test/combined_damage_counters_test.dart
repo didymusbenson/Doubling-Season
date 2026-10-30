@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -86,7 +87,7 @@ void main() {
   }
 
   Future<void> close(WidgetTester tester) async {
-    await tester.tap(find.byTooltip('Close workspace'));
+    await tester.tap(byControlLabel('Close workspace'));
     await tester.pumpAndSettle();
   }
 
@@ -106,7 +107,7 @@ void main() {
             await open(tester, 'commanderDamage');
             expect(find.text('Add counter'), findsOneWidget);
             expect(find.text('Monarch'), findsOneWidget);
-            expect(find.byTooltip('Undo latest action'), findsNothing);
+            expect(byControlLabel('Undo latest action'), findsNothing);
             expect(find.text('Set damage total'), findsNothing);
             expect(find.text('Correct life'), findsNothing);
             expect(

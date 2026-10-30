@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -62,8 +63,8 @@ void main() {
     final fixture = TableFixture(state);
     await fixture.initialize();
     addTearDown(() async {
-      if (find.byTooltip('Close workspace').evaluate().isNotEmpty) {
-        await tester.tap(find.byTooltip('Close workspace'));
+      if (byControlLabel('Close workspace').evaluate().isNotEmpty) {
+        await tester.tap(byControlLabel('Close workspace'));
         await tester.pumpAndSettle();
       }
       await tester.pumpWidget(const SizedBox());
@@ -107,12 +108,12 @@ void main() {
   }
 
   Future<void> undoThroughHistory(WidgetTester tester) async {
-    if (find.byTooltip('Close workspace').evaluate().isNotEmpty) {
-      await tester.tap(find.byTooltip('Close workspace'));
+    if (byControlLabel('Close workspace').evaluate().isNotEmpty) {
+      await tester.tap(byControlLabel('Close workspace'));
       await tester.pumpAndSettle();
     }
     expect(find.byIcon(Icons.undo), findsNothing);
-    await tester.tap(find.byTooltip('Game controls'));
+    await tester.tap(byControlLabel('Game controls'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(OutlinedButton, 'History'));
     await tester.pumpAndSettle();
@@ -120,7 +121,7 @@ void main() {
     expect(undo.hitTestable(), findsOneWidget);
     await tester.tap(undo);
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Close workspace'));
+    await tester.tap(byControlLabel('Close workspace'));
     await tester.pumpAndSettle();
   }
 
@@ -130,18 +131,18 @@ void main() {
       (tester) async {
         final f = await board(tester, size);
         final p = f.playerId;
-        expect(find.byTooltip('Player 1, player counters'), findsNothing);
+        expect(byControlLabel('Player 1, player counters'), findsNothing);
         await tester.tap(find.byKey(ValueKey('$p-commander-ledger')));
         await tester.pumpAndSettle();
-        await tester.ensureVisible(find.byTooltip('Monarch · Off'));
+        await tester.ensureVisible(byControlLabel('Monarch, Off'));
         await tester.pumpAndSettle();
-        expect(find.byTooltip('Monarch · Off').hitTestable(), findsOneWidget);
-        await tester.tap(find.byTooltip('Monarch · Off'));
+        expect(byControlLabel('Monarch, Off').hitTestable(), findsOneWidget);
+        await tester.tap(byControlLabel('Monarch, Off'));
         await tester.pumpAndSettle();
         expect(f.controller.session.monarchPlayerId, p);
         final historyBeforeHold = f.controller.session.history.length;
         final gesture = await tester.startGesture(
-          tester.getCenter(find.byTooltip('Monarch · On')),
+          tester.getCenter(byControlLabel('Monarch, On')),
         );
         await tester.pump(const Duration(milliseconds: 650));
         expect(f.controller.session.monarchPlayerId, isNull);
@@ -153,25 +154,25 @@ void main() {
           isNull,
           reason: 'Release must not trail into claim.',
         );
-        expect(find.byTooltip('Monarch · Off'), findsOneWidget);
+        expect(byControlLabel('Monarch, Off'), findsOneWidget);
         expect(f.controller.session.history.length, historyBeforeHold + 1);
         await undoThroughHistory(tester);
         expect(f.controller.session.monarchPlayerId, p);
         expect((await f.repository.open()).state.session.monarchPlayerId, p);
         final next = f.controller.session.players[1];
-        expect(find.byTooltip('Player 2, player counters'), findsNothing);
+        expect(byControlLabel('Player 2, player counters'), findsNothing);
         await tester.tap(find.byKey(ValueKey('${next.id}-commander-ledger')));
         await tester.pumpAndSettle();
-        await tester.ensureVisible(find.byTooltip('Monarch · Off'));
+        await tester.ensureVisible(byControlLabel('Monarch, Off'));
         await tester.pumpAndSettle();
-        expect(find.byTooltip('Monarch · Off').hitTestable(), findsOneWidget);
-        await tester.tap(find.byTooltip('Monarch · Off'));
+        expect(byControlLabel('Monarch, Off').hitTestable(), findsOneWidget);
+        await tester.tap(byControlLabel('Monarch, Off'));
         await tester.pumpAndSettle();
         expect(f.controller.session.monarchPlayerId, next.id);
         expect(find.byIcon(TableManaIcons.ascend), findsOneWidget);
-        await tester.tap(find.byTooltip('Close workspace'));
+        await tester.tap(byControlLabel('Close workspace'));
         await tester.pumpAndSettle();
-        expect(find.byTooltip('Close workspace'), findsNothing);
+        expect(byControlLabel('Close workspace'), findsNothing);
       },
     );
 

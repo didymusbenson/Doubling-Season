@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -116,8 +117,8 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     addTearDown(() async {
-      if (find.byTooltip('Close workspace').evaluate().isNotEmpty) {
-        await tester.tap(find.byTooltip('Close workspace'));
+      if (byControlLabel('Close workspace').evaluate().isNotEmpty) {
+        await tester.tap(byControlLabel('Close workspace'));
         await tester.pumpAndSettle();
       }
       await tester.pumpWidget(const SizedBox.shrink());
@@ -275,12 +276,12 @@ void main() {
               f.controller.player(recipient.id).commanderDamage[source.id],
               1,
             );
-            expect(find.byTooltip('Undo latest action'), findsNothing);
+            expect(byControlLabel('Undo latest action'), findsNothing);
             expect(
               find.byKey(ValueKey('commander-edit-${source.id}')),
               findsNothing,
             );
-            await tester.tap(find.byTooltip('Close workspace'));
+            await tester.tap(byControlLabel('Close workspace'));
             await tester.pumpAndSettle();
             await tester.tap(find.text('History'));
             await tester.pumpAndSettle();
@@ -292,7 +293,7 @@ void main() {
               0,
             );
             expect(find.text('Latest action undone.'), findsNothing);
-            await tester.tap(find.byTooltip('Close workspace'));
+            await tester.tap(byControlLabel('Close workspace'));
             await tester.pumpAndSettle();
             await tester.tap(find.text('Open'));
             await tester.pumpAndSettle();
@@ -317,9 +318,9 @@ void main() {
                 'commander-${size.width.toInt()}x${size.height.toInt()}-rotation$turns-partners-counters',
               );
             }
-            await tester.tap(find.byTooltip('Close workspace'));
+            await tester.tap(byControlLabel('Close workspace'));
             await tester.pumpAndSettle();
-            expect(find.byTooltip('Close workspace'), findsNothing);
+            expect(byControlLabel('Close workspace'), findsNothing);
           },
         );
       }
@@ -360,7 +361,7 @@ void main() {
         reason: 'Partners share one artwork surface per owner',
       );
       await capture(tester, 'commander-art-partners-744x1133-rotation2');
-      await tester.tap(find.byTooltip('Close workspace'));
+      await tester.tap(byControlLabel('Close workspace'));
       await tester.pumpAndSettle();
       semantics.dispose();
       expect(tester.takeException(), isNull);
@@ -420,7 +421,7 @@ void main() {
             tester,
             'commander-art-${size.width.toInt()}x${size.height.toInt()}-rotation$turns-counters',
           );
-          await tester.tap(find.byTooltip('Close workspace'));
+          await tester.tap(byControlLabel('Close workspace'));
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
         },
@@ -453,7 +454,7 @@ void main() {
       }
       expect(f.controller.session.history, isEmpty);
       expect(tester.takeException(), isNull);
-      await tester.tap(find.byTooltip('Close workspace'));
+      await tester.tap(byControlLabel('Close workspace'));
       await tester.pumpAndSettle();
     },
   );
@@ -485,7 +486,7 @@ void main() {
     );
     expect(find.byType(ChoiceChip), findsNothing);
     expect(tester.takeException(), isNull);
-    await tester.tap(find.byTooltip('Close workspace'));
+    await tester.tap(byControlLabel('Close workspace'));
     await tester.pumpAndSettle();
   });
 }

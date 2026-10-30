@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -87,7 +88,7 @@ void main() {
   }
 
   Future<void> close(WidgetTester tester) async {
-    await tester.tap(find.byTooltip('Close workspace'));
+    await tester.tap(byControlLabel('Close workspace'));
     await tester.pumpAndSettle();
   }
 

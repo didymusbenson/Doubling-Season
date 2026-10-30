@@ -131,87 +131,82 @@ class CommanderLedger extends StatelessWidget {
         final width = constraints.maxWidth.isFinite
             ? constraints.maxWidth
             : 68.0;
-        return Tooltip(
-          message: '$name, commander damage',
-          child: Semantics(
-            button: true,
-            label: '$name, commander damage by source',
-            value: sources
-                .map(
-                  (s) =>
-                      '${controller.profile(controller.player(s.ownerPlayerId).seatId).name}, ${s.name}: ${recipient.commanderDamage[s.id] ?? 0}',
-                )
-                .join('; '),
-            hint: 'Expand source trackers',
-            onTap: onOpen,
-            excludeSemantics: true,
-            child: Material(
-              type: MaterialType.transparency,
-              child: InkWell(
-                onTap: onOpen,
-                child: SizedBox(
-                  width: width,
-                  height: 44,
-                  child: IgnorePointer(
-                    child: CommanderSeatLayout(
-                      players: owners,
-                      quarterTurns: CommanderSeatLayout.turnsForPlayer(
-                        owners,
-                        recipient,
-                      ),
-                      rowHeight: 22,
-                      ownerBuilder: (owner) => SizedBox(
-                        key: ValueKey(
-                          '${recipient.id}-ledger-owner-${owner.id}',
-                        ),
-                        height: 22,
-                        child: Row(
-                          children: [
-                            for (final source in sources.where(
-                              (s) => s.ownerPlayerId == owner.id,
-                            ))
-                              Expanded(
-                                child: Container(
-                                  key: ValueKey(
-                                    '${recipient.id}-ledger-source-${source.id}',
-                                  ),
-                                  decoration: BoxDecoration(
+        return Semantics(
+          button: true,
+          label: '$name, commander damage by source',
+          value: sources
+              .map(
+                (s) =>
+                    '${controller.profile(controller.player(s.ownerPlayerId).seatId).name}, ${s.name}: ${recipient.commanderDamage[s.id] ?? 0}',
+              )
+              .join('; '),
+          hint: 'Expand source trackers',
+          onTap: onOpen,
+          excludeSemantics: true,
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: onOpen,
+              child: SizedBox(
+                width: width,
+                height: 44,
+                child: IgnorePointer(
+                  child: CommanderSeatLayout(
+                    players: owners,
+                    quarterTurns: CommanderSeatLayout.turnsForPlayer(
+                      owners,
+                      recipient,
+                    ),
+                    rowHeight: 22,
+                    ownerBuilder: (owner) => SizedBox(
+                      key: ValueKey('${recipient.id}-ledger-owner-${owner.id}'),
+                      height: 22,
+                      child: Row(
+                        children: [
+                          for (final source in sources.where(
+                            (s) => s.ownerPlayerId == owner.id,
+                          ))
+                            Expanded(
+                              child: Container(
+                                key: ValueKey(
+                                  '${recipient.id}-ledger-source-${source.id}',
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Color(
+                                    controller.profile(owner.seatId).color,
+                                  ).withValues(alpha: .22),
+                                  border: Border.all(
                                     color: Color(
                                       controller.profile(owner.seatId).color,
-                                    ).withValues(alpha: .22),
-                                    border: Border.all(
-                                      color: Color(
-                                        controller.profile(owner.seatId).color,
-                                      ),
                                     ),
                                   ),
-                                  child: TableArtworkSurface(
-                                    url: controller
-                                        .profile(owner.seatId)
-                                        .artworkUrl,
-                                    child: Center(
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        child: Text(
-                                          owner.id == recipient.id &&
-                                                  (recipient.commanderDamage[source
-                                                              .id] ??
-                                                          0) ==
-                                                      0
-                                              ? 'me'
-                                              : '${recipient.commanderDamage[source.id] ?? 0}',
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w700,
-                                          ),
+                                ),
+                                child: TableArtworkSurface(
+                                  url: controller
+                                      .profile(owner.seatId)
+                                      .artworkUrl,
+                                  child: Center(
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        owner.id == recipient.id &&
+                                                (recipient.commanderDamage[source
+                                                            .id] ??
+                                                        0) ==
+                                                    0
+                                            ? 'me'
+                                            : '${recipient.commanderDamage[source.id] ?? 0}',
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
-                          ],
-                        ),
+                            ),
+                        ],
                       ),
                     ),
                   ),

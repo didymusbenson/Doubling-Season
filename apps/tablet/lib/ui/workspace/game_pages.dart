@@ -81,37 +81,34 @@ extension _GamePages on _TableWorkspaceState {
           onTap: () => _runDirect(action),
           onLongPress: clear == null ? null : () => _runDirect(clear),
           hint: clear == null ? null : 'Hold to clear $label',
-          child: Tooltip(
-            message: '$label · ${active ? 'On' : 'Off'}',
-            child: Material(
-              color: color,
-              borderRadius: BorderRadius.circular(12),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () => _runDirect(action),
-                onLongPress: clear == null ? null : () => _runDirect(clear),
-                child: SizedBox(
-                  height: _playerStatusHeight,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconTheme(
-                        data: IconThemeData(
-                          color: active
-                              ? Theme.of(context).colorScheme.onPrimaryContainer
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
-                          size: 26,
-                        ),
-                        child: icon,
+          child: Material(
+            color: color,
+            borderRadius: BorderRadius.circular(12),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => _runDirect(action),
+              onLongPress: clear == null ? null : () => _runDirect(clear),
+              child: SizedBox(
+                height: _playerStatusHeight,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconTheme(
+                      data: IconThemeData(
+                        color: active
+                            ? Theme.of(context).colorScheme.onPrimaryContainer
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                        size: 26,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        label,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.labelSmall,
-                      ),
-                    ],
-                  ),
+                      child: icon,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -477,13 +474,19 @@ extension _GamePages on _TableWorkspaceState {
                       SizedBox(
                         width: 44,
                         height: 48,
-                        child: IconButton(
-                          tooltip: 'Set ${counter.key} total',
-                          icon: const Icon(Icons.edit_outlined, size: 19),
-                          onPressed: _working
-                              ? null
-                              : () =>
-                                    _editPlayerCounter(player.id, counter.key),
+                        child: MergeSemantics(
+                          child: Semantics(
+                            label: 'Set ${counter.key} total',
+                            child: IconButton(
+                              icon: const Icon(Icons.edit_outlined, size: 19),
+                              onPressed: _working
+                                  ? null
+                                  : () => _editPlayerCounter(
+                                      player.id,
+                                      counter.key,
+                                    ),
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -513,11 +516,15 @@ extension _GamePages on _TableWorkspaceState {
                             after: () => _editingPlayerCounter = null,
                           ),
                         ),
-                        IconButton(
-                          tooltip: 'Cancel counter correction',
-                          onPressed: () =>
-                              _update(() => _editingPlayerCounter = null),
-                          icon: const Icon(Icons.close, size: 19),
+                        MergeSemantics(
+                          child: Semantics(
+                            label: 'Cancel counter correction',
+                            child: IconButton(
+                              onPressed: () =>
+                                  _update(() => _editingPlayerCounter = null),
+                              icon: const Icon(Icons.close, size: 19),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -921,10 +928,7 @@ extension _GamePages on _TableWorkspaceState {
               ),
               _button(
                 'Support this app',
-                () => showTableSupport(
-                  context,
-                  quarterTurns: widget.quarterTurns,
-                ),
+                () => _go(WorkspacePage.support),
                 icon: Icons.favorite_outline,
               ),
             ],

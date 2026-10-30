@@ -28,11 +28,61 @@ class TableScreen extends StatefulWidget {
   State<TableScreen> createState() => _TableScreenState();
 }
 
-class _TableScreenState extends State<TableScreen> {
+class _TableScreenState extends State<TableScreen>
+    with SingleTickerProviderStateMixin {
   late final TabletCatalog catalog = TabletCatalog(widget.controller);
   late final BoardService board = BoardService(widget.controller, catalog);
   bool modalOpen = false;
   int interactionEpoch = 0;
+  final drawerController = GameDrawerController();
+  final drawerWorkspaceKey = GlobalKey(debugLabel: 'game-drawer-shell');
+  late final AnimationController drawerAnimation = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 320),
+    reverseDuration: const Duration(milliseconds: 220),
+    upperBound: 1.025,
+  );
+  bool drawerMounted = false;
+  WorkspacePage drawerPage = WorkspacePage.tableHub;
+
+  Future<void> _closeDrawer() async {
+    await drawerController.close();
+  }
+
+  void _drawerClosed() {
+    drawerAnimation
+        .animateBack(
+          0,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+        )
+        .then((_) {
+          if (mounted && drawerAnimation.isDismissed) {
+            setState(() {
+              drawerMounted = false;
+              interactionEpoch++;
+            });
+          }
+        });
+  }
+
+  void _openDrawer(WorkspacePage page) {
+    if (drawerMounted) {
+      if (drawerAnimation.status == AnimationStatus.reverse) return;
+      unawaited(drawerController.open(page));
+      return;
+    }
+    setState(() {
+      drawerMounted = true;
+      drawerPage = page;
+      interactionEpoch++;
+    });
+    drawerAnimation.animateTo(
+      1,
+      duration: const Duration(milliseconds: 320),
+      curve: _DrawerSpringCurve(),
+    );
+  }
 
   @override
   void initState() {
@@ -42,6 +92,7 @@ class _TableScreenState extends State<TableScreen> {
 
   @override
   void dispose() {
+    drawerAnimation.dispose();
     catalog.dispose();
     super.dispose();
   }
@@ -61,6 +112,11 @@ class _TableScreenState extends State<TableScreen> {
     int turns = 0,
   }) async {
     if (modalOpen) return;
+    if (isGameDrawerPage(page)) {
+      _openDrawer(page);
+      return;
+    }
+    if (drawerMounted) return;
     setState(() {
       modalOpen = true;
       interactionEpoch++;
@@ -88,10 +144,25 @@ class _TableScreenState extends State<TableScreen> {
     return Scaffold(
       body: SafeArea(
         child: ListenableBuilder(
-          listenable: controller,
+          listenable: Listenable.merge([controller, drawerAnimation]),
           builder: (context, _) => LayoutBuilder(
             builder: (context, constraints) {
               if (constraints.maxWidth < 650 || constraints.maxHeight < 480) {
+                if (drawerMounted) {
+                  return Center(
+                    child: SizedBox(
+                      width: math.min(480, constraints.maxWidth),
+                      child: GameDrawerWorkspace(
+                        key: drawerWorkspaceKey,
+                        controller: controller,
+                        catalog: catalog,
+                        drawerController: drawerController,
+                        initialPage: drawerPage,
+                        onClose: _drawerClosed,
+                      ),
+                    ),
+                  );
+                }
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(40),
@@ -120,6 +191,13 @@ class _TableScreenState extends State<TableScreen> {
                 );
               }
               final two = controller.session.players.length == 2;
+              final progress = drawerAnimation.value;
+              final drawerWidth = math.min(
+                480.0,
+                constraints.maxWidth * .4 - 12,
+              );
+              final gap = drawerWidth * progress;
+
               Widget seat(PlayerState player) {
                 final turns = two
                     ? (controller.session.players.indexOf(player) == 0 ? 0 : 2)
@@ -136,6 +214,9 @@ class _TableScreenState extends State<TableScreen> {
                   centerNotchAtStart: two || !tokenLeft,
                   hubInTokenLane: two,
                   interactionEpoch: interactionEpoch,
+                  drawerShift: gap / 2,
+                  drawerOpen: drawerMounted,
+                  onCloseDrawer: _closeDrawer,
                   onInputLock: setInputLock,
                   onOpen: (page, [itemId]) =>
                       open(page, player: player, itemId: itemId, turns: turns),
@@ -149,9 +230,30 @@ class _TableScreenState extends State<TableScreen> {
                 if (players.isNotEmpty) return seat(players.first);
                 return RotatedBox(
                   quarterTurns: number == 1 || number == 2 ? 2 : 0,
-                  child: _EmptyControlSpace(
-                    onOpen: (page) =>
-                        open(page, turns: number == 1 || number == 2 ? 2 : 0),
+                  child: Transform.translate(
+                    offset: Offset(
+                      (number == 0 || number == 2 ? -1 : 1) * gap / 2,
+                      0,
+                    ),
+                    child: Material(
+                      color: Theme.of(context).colorScheme.surface,
+                      child: IgnorePointer(
+                        ignoring: drawerMounted,
+                        child: ExcludeSemantics(
+                          excluding: drawerMounted,
+                          child: Opacity(
+                            key: ValueKey('empty-table-controls-$number'),
+                            opacity: (1 - progress * 3).clamp(0.0, 1.0),
+                            child: _EmptyControlSpace(
+                              onOpen: (page) => open(
+                                page,
+                                turns: number == 1 || number == 2 ? 2 : 0,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 );
               }
@@ -205,61 +307,141 @@ class _TableScreenState extends State<TableScreen> {
                         return Stack(
                           key: const ValueKey('table-surface'),
                           children: [
-                            Positioned.fill(
-                              child: Column(
-                                children: [
-                                  Expanded(
-                                    child: two
-                                        ? seat(controller.session.players[1])
-                                        : row(1, 2),
-                                  ),
-                                  Divider(
-                                    key: const ValueKey(
-                                      'player-horizontal-divider',
+                            if (drawerMounted)
+                              Positioned(
+                                key: const ValueKey('table-drawer-layer'),
+                                left: (table.maxWidth - drawerWidth) / 2,
+                                top: 0,
+                                bottom: 0,
+                                width: drawerWidth,
+                                child: ClipRect(
+                                  clipper: _DrawerRevealClipper(gap),
+                                  child: IgnorePointer(
+                                    ignoring:
+                                        drawerAnimation.status ==
+                                        AnimationStatus.reverse,
+                                    child: ExcludeSemantics(
+                                      excluding:
+                                          drawerAnimation.status !=
+                                          AnimationStatus.completed,
+                                      child: Semantics(
+                                        identifier: 'game-drawer',
+                                        container: true,
+                                        explicitChildNodes: true,
+                                        label: 'Game drawer',
+                                        child: GameDrawerWorkspace(
+                                          key: drawerWorkspaceKey,
+                                          controller: controller,
+                                          catalog: catalog,
+                                          drawerController: drawerController,
+                                          initialPage: drawerPage,
+                                          onClose: _drawerClosed,
+                                        ),
+                                      ),
                                     ),
-                                    height: 3,
-                                    thickness: 3,
-                                    color: dividerColor,
                                   ),
-                                  Expanded(
-                                    child: two
-                                        ? seat(controller.session.players[0])
-                                        : row(0, 3),
-                                  ),
-                                ],
+                                ),
+                              ),
+                            Positioned.fill(
+                              key: const ValueKey('table-board-layer'),
+                              child: ClipPath(
+                                key: const ValueKey('drawer-board-mask'),
+                                clipper: _DrawerBoardClipper(
+                                  gap: gap,
+                                  enabled: drawerMounted,
+                                ),
+                                child: Column(
+                                  children: [
+                                    Expanded(
+                                      child: two
+                                          ? seat(controller.session.players[1])
+                                          : row(1, 2),
+                                    ),
+                                    Divider(
+                                      key: const ValueKey(
+                                        'player-horizontal-divider',
+                                      ),
+                                      height: 3,
+                                      thickness: 3,
+                                      color: dividerColor,
+                                    ),
+                                    Expanded(
+                                      child: two
+                                          ? seat(controller.session.players[0])
+                                          : row(0, 3),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
+                            if (drawerMounted)
+                              Positioned.fill(
+                                key: const ValueKey('table-drawer-walls'),
+                                child: IgnorePointer(
+                                  child: CustomPaint(
+                                    painter: _DrawerWallPainter(
+                                      gap,
+                                      dividerColor,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             // Two-seat token lanes meet at the true center.
                             // Keep direct tools in opposite life corners there,
                             // rather than expanding the token hub obstruction.
                             Positioned(
+                              key: const ValueKey('table-dice-layer'),
                               left:
                                   table.maxWidth / 2 -
-                                  (two ? table.maxWidth * .1 + 26 : 54) -
+                                  (two
+                                      ? (table.maxWidth * .1 + 26) *
+                                                (1 - progress) +
+                                            54 * progress
+                                      : 54) -
+                                  gap / 2 -
                                   22,
-                              top: table.maxHeight / 2 - (two ? 26 : 0) - 22,
+                              top:
+                                  table.maxHeight / 2 -
+                                  (two ? 26 * (1 - progress) : 0) -
+                                  22,
                               child: _SharedTableControl(
                                 controlKey: const ValueKey('shared-dice'),
                                 label: 'Roll dice',
+                                enabled:
+                                    drawerAnimation.status !=
+                                    AnimationStatus.reverse,
                                 icon: Icons.casino_outlined,
                                 onTap: () => open(WorkspacePage.dice),
                               ),
                             ),
                             Positioned(
+                              key: const ValueKey('table-day-night-layer'),
                               left:
                                   table.maxWidth / 2 +
-                                  (two ? table.maxWidth * .1 + 26 : 54) -
+                                  (two
+                                      ? (table.maxWidth * .1 + 26) *
+                                                (1 - progress) +
+                                            54 * progress
+                                      : 54) +
+                                  gap / 2 -
                                   22,
-                              top: table.maxHeight / 2 + (two ? 26 : 0) - 22,
+                              top:
+                                  table.maxHeight / 2 +
+                                  (two ? 26 * (1 - progress) : 0) -
+                                  22,
                               child: _DayNightControl(controller: controller),
                             ),
                             Positioned(
-                              left: (table.maxWidth - 52) / 2,
+                              key: const ValueKey('table-menu-layer'),
+                              left: (table.maxWidth - gap - 52) / 2,
                               top: (table.maxHeight - 52) / 2,
                               child: _GameHub(
                                 key: const ValueKey('central-game-controls'),
                                 controller: controller,
-                                onOpen: (page) => open(page),
+                                expanded: drawerMounted,
+                                onPressed: () => drawerMounted
+                                    ? _closeDrawer()
+                                    : open(WorkspacePage.tableHub),
                               ),
                             ),
                           ],
@@ -277,13 +459,95 @@ class _TableScreenState extends State<TableScreen> {
   }
 }
 
+class _DrawerRevealClipper extends CustomClipper<Rect> {
+  final double width;
+  const _DrawerRevealClipper(this.width);
+  @override
+  Rect getClip(Size size) =>
+      Rect.fromLTWH((size.width - width) / 2, 0, width, size.height);
+  @override
+  Rect getApproximateClipRect(Size size) => getClip(size);
+  @override
+  bool shouldReclip(_DrawerRevealClipper oldClipper) =>
+      width != oldClipper.width;
+}
+
+class _DrawerWallPainter extends CustomPainter {
+  final double gap;
+  final Color color;
+  const _DrawerWallPainter(this.gap, this.color);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    for (final side in [-1, 1]) {
+      final x = center.dx + side * gap / 2;
+      final circle = Rect.fromCircle(center: Offset(x, center.dy), radius: 30);
+      final wall = Path()
+        ..moveTo(x, 0)
+        ..lineTo(x, center.dy - 30)
+        ..arcTo(circle, -math.pi / 2, side * math.pi, false)
+        ..lineTo(x, size.height);
+      canvas.drawPath(wall, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DrawerWallPainter old) =>
+      gap != old.gap || color != old.color;
+}
+
+/// Fast settle with a small, bounded overshoot rather than elastic wobble.
+class _DrawerSpringCurve extends Curve {
+  @override
+  double transformInternal(double t) {
+    const overshoot = .8;
+    final x = t - 1;
+    return 1 + (overshoot + 1) * x * x * x + overshoot * x * x;
+  }
+}
+
+/// The cutout belongs to the opposite wall, while Menu stays one whole widget.
+/// In two-seat mode the center passes through a stationary token viewport: only
+/// its visible clip changes; its layout, coordinates and scroll offset do not.
+class _DrawerBoardClipper extends CustomClipper<Path> {
+  final double gap;
+  final bool enabled;
+  const _DrawerBoardClipper({required this.gap, required this.enabled});
+  @override
+  Path getClip(Size size) {
+    final board = Path()..addRect(Offset.zero & size);
+    if (!enabled) return board;
+    final center = size.center(Offset.zero);
+    return Path.combine(
+      PathOperation.difference,
+      board,
+      Path()
+        ..addRect(Rect.fromLTWH(center.dx - gap / 2, 0, gap, size.height))
+        ..addOval(
+          Rect.fromCircle(center: center + Offset(gap / 2, 0), radius: 30),
+        )
+        ..addOval(
+          Rect.fromCircle(center: center - Offset(gap / 2, 0), radius: 30),
+        ),
+    );
+  }
+
+  @override
+  bool shouldReclip(_DrawerBoardClipper oldClipper) =>
+      gap != oldClipper.gap || enabled != oldClipper.enabled;
+}
+
 class _SharedTableControl extends StatelessWidget {
   final ValueKey<String> controlKey;
   final String label;
   final IconData icon;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
-  final bool active;
+  final bool active, enabled;
   final Color? backgroundColor, foregroundColor;
   const _SharedTableControl({
     required this.controlKey,
@@ -292,53 +556,51 @@ class _SharedTableControl extends StatelessWidget {
     required this.onTap,
     this.onLongPress,
     this.active = true,
+    this.enabled = true,
     this.backgroundColor,
     this.foregroundColor,
   });
   @override
-  Widget build(BuildContext context) => Tooltip(
-    message: label,
-    excludeFromSemantics: true,
-    child: Material(
-      color:
-          backgroundColor ??
-          Theme.of(context).colorScheme.surfaceContainerHighest,
-      shape: CircleBorder(
-        side: BorderSide(
-          color: foregroundColor ?? Theme.of(context).colorScheme.outline,
-        ),
+  Widget build(BuildContext context) => Material(
+    color:
+        backgroundColor ??
+        Theme.of(context).colorScheme.surfaceContainerHighest,
+    shape: CircleBorder(
+      side: BorderSide(
+        color: foregroundColor ?? Theme.of(context).colorScheme.outline,
       ),
-      clipBehavior: Clip.antiAlias,
-      elevation: 3,
-      child: Semantics(
-        identifier: controlKey.value,
-        label: label,
-        button: true,
-        onTap: onTap,
-        onLongPress: onLongPress,
-        customSemanticsActions: onLongPress == null
-            ? null
-            : {
-                const CustomSemanticsAction(label: 'Clear Day/Night'):
-                    onLongPress!,
-              },
-        excludeSemantics: true,
-        child: InkWell(
-          onTap: onTap,
-          onLongPress: onLongPress,
-          child: SizedBox(
-            key: controlKey,
-            width: 44,
-            height: 44,
-            child: Icon(
-              icon,
-              size: 23,
-              color: active
-                  ? foregroundColor
-                  : Theme.of(
-                      context,
-                    ).colorScheme.onSurfaceVariant.withValues(alpha: .5),
-            ),
+    ),
+    clipBehavior: Clip.antiAlias,
+    elevation: 3,
+    child: Semantics(
+      identifier: controlKey.value,
+      label: label,
+      button: true,
+      enabled: enabled,
+      onTap: enabled ? onTap : null,
+      onLongPress: enabled ? onLongPress : null,
+      customSemanticsActions: onLongPress == null
+          ? null
+          : {
+              const CustomSemanticsAction(label: 'Clear Day/Night'):
+                  onLongPress!,
+            },
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        onLongPress: enabled ? onLongPress : null,
+        child: SizedBox(
+          key: controlKey,
+          width: 44,
+          height: 44,
+          child: Icon(
+            icon,
+            size: 23,
+            color: active && enabled
+                ? foregroundColor
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurfaceVariant.withValues(alpha: .5),
           ),
         ),
       ),
@@ -384,11 +646,17 @@ class _DayNightControl extends StatelessWidget {
   }
 }
 
-/// A standalone shared control at the life-zone junction, never a divider.
+/// A whole circular handle attached to the moving left drawer wall.
 class _GameHub extends StatelessWidget {
   final TableController controller;
-  final ValueChanged<WorkspacePage> onOpen;
-  const _GameHub({super.key, required this.controller, required this.onOpen});
+  final bool expanded;
+  final VoidCallback onPressed;
+  const _GameHub({
+    super.key,
+    required this.controller,
+    required this.expanded,
+    required this.onPressed,
+  });
   @override
   Widget build(BuildContext context) => Material(
     shape: CircleBorder(
@@ -401,10 +669,16 @@ class _GameHub extends StatelessWidget {
     elevation: 4,
     clipBehavior: Clip.antiAlias,
     child: Semantics(
-      label: controller.busy ? 'Saving game' : 'Game saved',
+      identifier: 'game-menu',
+      label: 'Game controls',
+      value:
+          '${expanded ? 'Expanded' : 'Collapsed'}, ${controller.busy ? 'Saving game' : 'Game saved'}',
+      button: true,
+      expanded: expanded,
+      onTap: onPressed,
+      excludeSemantics: true,
       child: IconButton(
-        tooltip: 'Game controls',
-        onPressed: () => onOpen(WorkspacePage.tableHub),
+        onPressed: onPressed,
         icon: const Icon(Icons.tune),
         style: IconButton.styleFrom(
           shape: const CircleBorder(),
@@ -479,6 +753,9 @@ class _PlayerSpace extends StatefulWidget {
   final double centerNotch;
   final bool centerNotchAtStart;
   final bool hubInTokenLane;
+  final double drawerShift;
+  final bool drawerOpen;
+  final VoidCallback onCloseDrawer;
   final void Function(WorkspacePage, [String?]) onOpen;
   final ValueChanged<bool> onInputLock;
   const _PlayerSpace({
@@ -491,6 +768,9 @@ class _PlayerSpace extends StatefulWidget {
     required this.centerNotch,
     required this.centerNotchAtStart,
     required this.hubInTokenLane,
+    required this.drawerShift,
+    required this.drawerOpen,
+    required this.onCloseDrawer,
     required this.interactionEpoch,
     required this.onOpen,
     required this.onInputLock,
@@ -644,9 +924,13 @@ class _PlayerSpaceState extends State<_PlayerSpace>
               height: 44,
               child: IconButton(
                 key: ValueKey('${p.id}-start-turn'),
-                tooltip: '${profile.name}, Start turn',
+
                 onPressed: () => perform(() => widget.board.startTurn(p.id)),
-                icon: const Icon(ManaIcons.untap, size: 20),
+                icon: Icon(
+                  ManaIcons.untap,
+                  size: 20,
+                  semanticLabel: '${profile.name}, Start turn',
+                ),
                 padding: EdgeInsets.zero,
               ),
             ),
@@ -661,9 +945,13 @@ class _PlayerSpaceState extends State<_PlayerSpace>
             shape: const CircleBorder(),
             child: IconButton(
               key: ValueKey('${p.id}-board-summary'),
-              tooltip: '${profile.name}, board summary',
+
               onPressed: () => widget.onOpen(WorkspacePage.tokenSummary),
-              icon: const Icon(Icons.style_outlined, size: 20),
+              icon: Icon(
+                Icons.style_outlined,
+                size: 20,
+                semanticLabel: '${profile.name}, board summary',
+              ),
             ),
           ),
         ),
@@ -673,9 +961,9 @@ class _PlayerSpaceState extends State<_PlayerSpace>
           child: FloatingActionButton.small(
             key: ValueKey('${p.id}-add-token'),
             heroTag: '${p.id}-add-token',
-            tooltip: '${profile.name}, add token',
+
             onPressed: () => widget.onOpen(WorkspacePage.tokens),
-            child: const Icon(Icons.add),
+            child: Icon(Icons.add, semanticLabel: '${profile.name}, add token'),
           ),
         ),
       ],
@@ -688,6 +976,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
           clipper: _LifeHubNotch(
             atStart: true,
             inset: (constraints.maxWidth / .6 + 1) / 2,
+            radiusScale: (1 - widget.drawerShift / 40).clamp(0.0, 1.0),
           ),
           child: lane,
         ),
@@ -788,9 +1077,12 @@ class _PlayerSpaceState extends State<_PlayerSpace>
               width: 44,
               child: IconButton(
                 key: ValueKey('${p.id}-finish-utility-reorder'),
-                tooltip: 'Done reordering utilities',
+
                 onPressed: () => setUtilityReorder(false),
-                icon: const Icon(Icons.done),
+                icon: const Icon(
+                  Icons.done,
+                  semanticLabel: 'Done reordering utilities',
+                ),
               ),
             ),
             Expanded(
@@ -900,6 +1192,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
           ),
           height: lifeHeight,
           twoPlayer: widget.hubInTokenLane,
+          hubNotchScale: (1 - widget.drawerShift / 40).clamp(0.0, 1.0),
           centerNotch: widget.centerNotch,
           centerNotchAtStart: widget.centerNotchAtStart,
           player: p,
@@ -921,53 +1214,143 @@ class _PlayerSpaceState extends State<_PlayerSpace>
     );
     return RotatedBox(
       quarterTurns: widget.turns,
-      child: Material(
-        color: Theme.of(context).colorScheme.surface,
-        child: Column(
-          children: [
-            if (lifeFeedback.error != null || error != null)
-              Container(
-                color: Theme.of(context).colorScheme.errorContainer,
-                width: double.infinity,
-                padding: const EdgeInsets.all(6),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        lifeFeedback.error ?? error!,
-                        style: const TextStyle(fontSize: 12),
-                      ),
+      child: Column(
+        children: [
+          if (lifeFeedback.error != null || error != null)
+            Container(
+              color: Theme.of(context).colorScheme.errorContainer,
+              width: double.infinity,
+              padding: const EdgeInsets.all(6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      lifeFeedback.error ?? error!,
+                      style: const TextStyle(fontSize: 12),
                     ),
-                    if (lifeFeedback.error != null)
-                      SizedBox(
+                  ),
+                  if (lifeFeedback.error != null)
+                    Semantics(
+                      label: 'Acknowledge life save warning',
+                      button: true,
+                      onTap: lifeFeedback.clearError,
+                      excludeSemantics: true,
+                      child: SizedBox(
                         width: 44,
                         height: 44,
                         child: IconButton(
                           key: ValueKey('${p.id}-acknowledge-life-error'),
-                          tooltip: 'Acknowledge life save warning',
                           onPressed: lifeFeedback.clearError,
                           icon: const Icon(Icons.close),
                         ),
                       ),
-                  ],
-                ),
-              ),
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (widget.tokenLeft)
-                    Expanded(flex: 3, child: ClipRect(child: tokenLane)),
-                  if (widget.tokenLeft) const VerticalDivider(width: 1),
-                  Expanded(flex: 2, child: innerLane),
-                  if (!widget.tokenLeft) const VerticalDivider(width: 1),
-                  if (!widget.tokenLeft)
-                    Expanded(flex: 3, child: ClipRect(child: tokenLane)),
+                    ),
                 ],
               ),
             ),
-          ],
-        ),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, box) {
+                final tokenWidth = (box.maxWidth - 1) * .6;
+                final railWidth = (box.maxWidth - 1) * .4;
+                final railOffset = widget.hubInTokenLane
+                    ? math.max(0.0, widget.drawerShift - box.maxWidth * .1)
+                    : (widget.tokenLeft
+                          ? -widget.drawerShift
+                          : widget.drawerShift);
+                return Stack(
+                  clipBehavior: Clip.hardEdge,
+                  children: [
+                    Positioned(
+                      left: widget.tokenLeft
+                          ? tokenWidth + 1 + railOffset
+                          : railOffset,
+                      top: 0,
+                      bottom: 0,
+                      width: railWidth,
+                      child: IgnorePointer(
+                        ignoring: widget.drawerOpen,
+                        child: ExcludeSemantics(
+                          excluding: widget.drawerOpen,
+                          child: Material(
+                            key: ValueKey('${p.id}-sliding-rail'),
+                            color: Theme.of(context).colorScheme.surface,
+                            child: innerLane,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: widget.tokenLeft ? tokenWidth : railWidth,
+                      top: 0,
+                      bottom: 0,
+                      width: 1,
+                      child: ColoredBox(color: Theme.of(context).dividerColor),
+                    ),
+                    Positioned(
+                      left: widget.tokenLeft ? 0 : railWidth + 1,
+                      top: 0,
+                      bottom: 0,
+                      width: tokenWidth,
+                      child: Material(
+                        color: Theme.of(context).colorScheme.surface,
+                        child: ClipRect(
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              ExcludeSemantics(
+                                excluding: widget.drawerOpen,
+                                child: IgnorePointer(
+                                  ignoring: widget.drawerOpen,
+                                  child: tokenLane,
+                                ),
+                              ),
+                              if (widget.drawerOpen)
+                                Positioned(
+                                  left: 0,
+                                  top: 0,
+                                  bottom: 0,
+                                  // Native path clipping does not narrow the
+                                  // browser accessibility hit rectangle. Keep
+                                  // this action inside the visible token area
+                                  // while the token layout stays stationary.
+                                  width: widget.hubInTokenLane
+                                      ? math.min(
+                                          tokenWidth,
+                                          math.max(
+                                            0.0,
+                                            box.maxWidth / 2 -
+                                                widget.drawerShift,
+                                          ),
+                                        )
+                                      : tokenWidth,
+                                  child: Semantics(
+                                    identifier: '${p.id}-dismiss-drawer',
+                                    label: 'Close game drawer',
+                                    button: true,
+                                    excludeSemantics: true,
+                                    onTap: widget.onCloseDrawer,
+                                    child: GestureDetector(
+                                      key: ValueKey('${p.id}-dismiss-drawer'),
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: widget.onCloseDrawer,
+                                      child: const ColoredBox(
+                                        color: Colors.transparent,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -976,6 +1359,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
 class _LifePanel extends StatelessWidget {
   final Widget Function(Widget surface, Widget tools) compose;
   final bool twoPlayer;
+  final double hubNotchScale;
   final double height;
   final double centerNotch;
   final bool centerNotchAtStart;
@@ -989,6 +1373,7 @@ class _LifePanel extends StatelessWidget {
   const _LifePanel({
     required this.compose,
     required this.twoPlayer,
+    this.hubNotchScale = 1,
     required this.height,
     required this.centerNotch,
     required this.centerNotchAtStart,
@@ -1010,34 +1395,33 @@ class _LifePanel extends StatelessWidget {
       String label,
       WorkspacePage page, {
       int? count,
-    }) => Tooltip(
-      message: '${profile.name}, $label',
-      child: Semantics(
-        label: '${profile.name}, $label${count == null ? '' : ', $count'}',
-        button: true,
-        excludeSemantics: true,
-        child: InkWell(
-          onTap: () => onOpen(page),
-          child: SizedBox(
-            height: 44,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 19, color: artColor),
-                if (count != null && count != 0) ...[
-                  const SizedBox(width: 3),
-                  Flexible(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        '$count',
-                        style: TextStyle(fontSize: 11, color: artColor),
-                      ),
+    }) => Semantics(
+      label: '${profile.name}, $label',
+      value: count == null ? null : '$count',
+      button: true,
+      onTap: () => onOpen(page),
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: () => onOpen(page),
+        child: SizedBox(
+          height: 44,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 19, color: artColor),
+              if (count != null && count != 0) ...[
+                const SizedBox(width: 3),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '$count',
+                      style: TextStyle(fontSize: 11, color: artColor),
                     ),
                   ),
-                ],
+                ),
               ],
-            ),
+            ],
           ),
         ),
       ),
@@ -1060,16 +1444,55 @@ class _LifePanel extends StatelessWidget {
       SizedBox(
         key: ValueKey('${player.id}-player-details'),
         height: 44,
-        child: IconButton(
-          tooltip: '${profile.name}, player details',
-          onPressed: () => onOpen(WorkspacePage.player),
-          icon: const Icon(Icons.edit_outlined, size: 19),
-          padding: EdgeInsets.zero,
+        child: Semantics(
+          label: '${profile.name}, player details',
+          button: true,
+          onTap: () => onOpen(WorkspacePage.player),
+          excludeSemantics: true,
+          child: IconButton(
+            onPressed: () => onOpen(WorkspacePage.player),
+            icon: const Icon(Icons.edit_outlined, size: 19),
+            padding: EdgeInsets.zero,
+          ),
         ),
       ),
     ];
     return LayoutBuilder(
       builder: (context, constraints) {
+        // One set of rectangles owns both overlay placement and life-ink
+        // exclusion, so resizing/rail animation cannot desynchronize them.
+        const overlayHeight = 44.0;
+        const overlayBottom = 6.0;
+        const overlayGap = 4.0;
+        final overlayInset = constraints.maxWidth < 132 ? 0.0 : 6.0;
+        final ledgerWidth = constraints.maxWidth < 132
+            ? 44.0
+            : constraints.maxWidth < 180
+            ? 64.0
+            : 80.0;
+        final ledgerRect = Rect.fromLTWH(
+          overlayInset,
+          height - overlayBottom - overlayHeight,
+          ledgerWidth,
+          overlayHeight,
+        );
+        final summaryRect = _LifeCounterSummary.hasContent(player, controller)
+            ? Rect.fromLTWH(
+                ledgerRect.right + overlayGap,
+                ledgerRect.top,
+                math.min(
+                  _LifeCounterSummary.preferredWidth(player, controller),
+                  math.max(
+                    0.0,
+                    constraints.maxWidth -
+                        overlayInset -
+                        ledgerRect.right -
+                        overlayGap,
+                  ),
+                ),
+                overlayHeight,
+              )
+            : null;
         final surface = ClipPath(
           key: ValueKey('${player.id}-life-clip'),
           clipper: _LifeHubNotch(
@@ -1078,6 +1501,7 @@ class _LifePanel extends StatelessWidget {
             enabled: centerNotch > 0 || twoPlayer,
             sharedControls: true,
             twoPlayer: twoPlayer,
+            radiusScale: hubNotchScale,
           ),
           child: _ArtworkSurface(
             key: ValueKey('${player.id}-life-surface'),
@@ -1093,6 +1517,7 @@ class _LifePanel extends StatelessWidget {
                   label: '${profile.name}, life',
                   value: '${lifeFeedback.life}',
                   height: height,
+                  inkExclusions: [ledgerRect, ?summaryRect],
                   iconSize: 22,
                   // The signs stay beside the number, not the subdued name.
                   iconY: -10 / height,
@@ -1171,50 +1596,25 @@ class _LifePanel extends StatelessWidget {
                     ),
                   ),
                 ),
-                Positioned(
-                  left: constraints.maxWidth < 132 ? 0 : 6,
-                  right: constraints.maxWidth < 132 ? 0 : 6,
-                  bottom: 6,
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: constraints.maxWidth < 132
-                            ? 44
-                            : constraints.maxWidth < 180
-                            ? 64
-                            : 80,
-                        child: CommanderLedger(
-                          key: ValueKey('${player.id}-commander-ledger'),
-                          controller: controller,
-                          recipient: player,
-                          onOpen: () => onOpen(WorkspacePage.commanderDamage),
-                        ),
-                      ),
-                      if (_LifeCounterSummary.hasContent(
-                        player,
-                        controller,
-                      )) ...[
-                        const SizedBox(width: 4),
-                        Flexible(
-                          fit: FlexFit.loose,
-                          child: SizedBox(
-                            width: _LifeCounterSummary.preferredWidth(
-                              player,
-                              controller,
-                            ),
-                            child: _LifeCounterSummary(
-                              player: player,
-                              profile: profile,
-                              controller: controller,
-                              onOpen: () =>
-                                  onOpen(WorkspacePage.commanderDamage),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                Positioned.fromRect(
+                  rect: ledgerRect,
+                  child: CommanderLedger(
+                    key: ValueKey('${player.id}-commander-ledger'),
+                    controller: controller,
+                    recipient: player,
+                    onOpen: () => onOpen(WorkspacePage.commanderDamage),
                   ),
                 ),
+                if (summaryRect != null)
+                  Positioned.fromRect(
+                    rect: summaryRect,
+                    child: _LifeCounterSummary(
+                      player: player,
+                      profile: profile,
+                      controller: controller,
+                      onOpen: () => onOpen(WorkspacePage.commanderDamage),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -1331,94 +1731,91 @@ class _LifeCounterSummary extends StatelessWidget {
     final foreground = profile.artworkUrl == null
         ? Theme.of(context).colorScheme.onSurface
         : Colors.white;
-    return Tooltip(
-      message: '${profile.name}, player counters',
-      child: Semantics(
-        label: '${profile.name}, player counters',
-        value: summary,
-        hint: 'Open Commander damage and player counters',
-        button: true,
-        excludeSemantics: true,
-        onTap: onOpen,
-        child: Material(
-          color: profile.artworkUrl == null
-              ? Colors.black.withValues(alpha: .13)
-              : Colors.black.withValues(alpha: .45),
-          borderRadius: BorderRadius.circular(7),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onOpen,
-            child: SizedBox(
-              key: ValueKey('${player.id}-life-counter-summary'),
-              height: 44,
-              child: IconTheme(
-                data: IconThemeData(size: 16, color: foreground),
-                child: DefaultTextStyle.merge(
-                  style: TextStyle(color: foreground),
-                  child: LayoutBuilder(
-                    builder: (context, box) {
-                      final columns = math.max(
-                        1,
-                        ((box.maxWidth - 4) / 30).floor(),
-                      );
-                      final slots = columns * (statuses.isEmpty ? 2 : 1);
-                      final shown = entries.length > slots
-                          ? [
-                              ...entries.take(slots - 1),
-                              Text(
-                                '+${entries.length - slots + 1}',
-                                style: const TextStyle(fontSize: 11),
-                              ),
-                            ]
-                          : entries;
-                      return Center(
-                        child: statuses.isEmpty && entries.isEmpty
-                            ? const Icon(Icons.hexagon_outlined, size: 22)
-                            : Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (statuses.isNotEmpty)
-                                    SizedBox(
-                                      height: 18,
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            for (final status in statuses)
-                                              Padding(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 2,
-                                                    ),
-                                                child: status,
-                                              ),
-                                          ],
-                                        ),
+    return Semantics(
+      label: '${profile.name}, player counters',
+      value: summary,
+      hint: 'Open Commander damage and player counters',
+      button: true,
+      excludeSemantics: true,
+      onTap: onOpen,
+      child: Material(
+        color: profile.artworkUrl == null
+            ? Colors.black.withValues(alpha: .13)
+            : Colors.black.withValues(alpha: .45),
+        borderRadius: BorderRadius.circular(7),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onOpen,
+          child: SizedBox(
+            key: ValueKey('${player.id}-life-counter-summary'),
+            height: 44,
+            child: IconTheme(
+              data: IconThemeData(size: 16, color: foreground),
+              child: DefaultTextStyle.merge(
+                style: TextStyle(color: foreground),
+                child: LayoutBuilder(
+                  builder: (context, box) {
+                    final columns = math.max(
+                      1,
+                      ((box.maxWidth - 4) / 30).floor(),
+                    );
+                    final slots = columns * (statuses.isEmpty ? 2 : 1);
+                    final shown = entries.length > slots
+                        ? [
+                            ...entries.take(slots - 1),
+                            Text(
+                              '+${entries.length - slots + 1}',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                          ]
+                        : entries;
+                    return Center(
+                      child: statuses.isEmpty && entries.isEmpty
+                          ? const Icon(Icons.hexagon_outlined, size: 22)
+                          : Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (statuses.isNotEmpty)
+                                  SizedBox(
+                                    height: 18,
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          for (final status in statuses)
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 2,
+                                                  ),
+                                              child: status,
+                                            ),
+                                        ],
                                       ),
                                     ),
-                                  if (statuses.isNotEmpty && shown.isNotEmpty)
-                                    const SizedBox(height: 3),
-                                  Wrap(
-                                    alignment: WrapAlignment.center,
-                                    runSpacing: 3,
-                                    children: [
-                                      for (final entry in shown)
-                                        SizedBox(
-                                          width: (box.maxWidth - 4) / columns,
-                                          height: 16,
-                                          child: FittedBox(
-                                            fit: BoxFit.scaleDown,
-                                            child: entry,
-                                          ),
-                                        ),
-                                    ],
                                   ),
-                                ],
-                              ),
-                      );
-                    },
-                  ),
+                                if (statuses.isNotEmpty && shown.isNotEmpty)
+                                  const SizedBox(height: 3),
+                                Wrap(
+                                  alignment: WrapAlignment.center,
+                                  runSpacing: 3,
+                                  children: [
+                                    for (final entry in shown)
+                                      SizedBox(
+                                        width: (box.maxWidth - 4) / columns,
+                                        height: 16,
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: entry,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -1435,12 +1832,14 @@ class _LifeHubNotch extends CustomClipper<Path> {
   final double inset;
   final bool enabled;
   final bool sharedControls, twoPlayer;
+  final double radiusScale;
   const _LifeHubNotch({
     required this.atStart,
     required this.inset,
     this.enabled = true,
     this.sharedControls = false,
     this.twoPlayer = false,
+    this.radiusScale = 1,
   });
   @override
   Path getClip(Size size) => !enabled
@@ -1454,7 +1853,7 @@ class _LifeHubNotch extends CustomClipper<Path> {
                 center: twoPlayer
                     ? const Offset(26, 26)
                     : Offset(atStart ? inset : size.width - inset, -1.5),
-                radius: twoPlayer ? 26 : 30,
+                radius: (twoPlayer ? 26 : 30) * radiusScale,
               ),
             )
             ..addOval(
@@ -1463,7 +1862,7 @@ class _LifeHubNotch extends CustomClipper<Path> {
                   atStart ? inset + 54 : size.width - inset - 54,
                   -1.5,
                 ),
-                radius: sharedControls && !twoPlayer ? 26 : 0,
+                radius: sharedControls && !twoPlayer ? 26 * radiusScale : 0,
               ),
             ),
         );
@@ -1473,7 +1872,8 @@ class _LifeHubNotch extends CustomClipper<Path> {
       inset != oldClipper.inset ||
       enabled != oldClipper.enabled ||
       sharedControls != oldClipper.sharedControls ||
-      twoPlayer != oldClipper.twoPlayer;
+      twoPlayer != oldClipper.twoPlayer ||
+      radiusScale != oldClipper.radiusScale;
 }
 
 class _EmptyLane extends StatelessWidget {
@@ -1563,16 +1963,21 @@ class _UtilityRow extends StatelessWidget {
     final color = utility.artworkUrl == null
         ? Theme.of(context).colorScheme.onSurface
         : Colors.white;
-    Widget icon(IconData data, String label, VoidCallback action) => IconButton(
-      tooltip: label,
-      onPressed: action,
-      icon: Icon(data, size: 19, color: color),
-      style: IconButton.styleFrom(
-        padding: EdgeInsets.zero,
-        minimumSize: const Size(40, 44),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
-    );
+    Widget icon(IconData data, String label, VoidCallback action) =>
+        MergeSemantics(
+          child: Semantics(
+            label: label,
+            child: IconButton(
+              onPressed: action,
+              icon: Icon(data, size: 19, color: color),
+              style: IconButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(40, 44),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ),
+        );
     return LayoutBuilder(
       builder: (context, constraints) {
         final compactStorm =
@@ -1647,37 +2052,34 @@ class _UtilityRow extends StatelessWidget {
                         Row(
                           children: [
                             Expanded(
-                              child: Tooltip(
-                                message: utility.name,
-                                child: Semantics(
-                                  label:
-                                      '${utility.name}, ${expanded ? 'collapse' : 'expand'}',
-                                  button: true,
-                                  excludeSemantics: true,
-                                  child: InkWell(
-                                    onTap: onExpand,
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 10,
-                                      ),
-                                      child: compactStorm && !narrowStorm
-                                          ? Icon(
-                                              Icons.bolt_outlined,
-                                              size: 22,
-                                              color: color,
-                                            )
-                                          : Text(
-                                              utility.name,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 13,
-                                              ),
-                                              maxLines: expanded ? null : 2,
-                                              overflow: expanded
-                                                  ? null
-                                                  : TextOverflow.ellipsis,
-                                            ),
+                              child: Semantics(
+                                label:
+                                    '${utility.name}, ${expanded ? 'collapse' : 'expand'}',
+                                button: true,
+                                excludeSemantics: true,
+                                child: InkWell(
+                                  onTap: onExpand,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 10,
                                     ),
+                                    child: compactStorm && !narrowStorm
+                                        ? Icon(
+                                            Icons.bolt_outlined,
+                                            size: 22,
+                                            color: color,
+                                          )
+                                        : Text(
+                                            utility.name,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                            ),
+                                            maxLines: expanded ? null : 2,
+                                            overflow: expanded
+                                                ? null
+                                                : TextOverflow.ellipsis,
+                                          ),
                                   ),
                                 ),
                               ),
@@ -1776,9 +2178,9 @@ class _UtilityRow extends StatelessWidget {
                                               'Spend one ${_manaName(type)} mana',
                                           increaseLabel:
                                               '${_manaName(type)} mana ${player.mana[type] ?? 0}, add one',
-                                          decreaseTooltip:
+                                          decreaseHint:
                                               'Spend ${_manaName(type)} mana; hold to spend ten',
-                                          increaseTooltip:
+                                          increaseHint:
                                               'Add ${_manaName(type)} mana; hold to add ten',
                                           onDecrease: () => onMana(type, -1),
                                           onIncrease: () => onMana(type, 1),

@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -102,7 +103,7 @@ void main() {
       expect(find.textContaining('Simulated storage failure'), findsOneWidget);
       expect(find.text('Open workspace').hitTestable(), findsNothing);
       expect(tester.takeException(), isNull);
-      await tester.tap(find.byTooltip('Close workspace'));
+      await tester.tap(byControlLabel('Close workspace'));
       await tester.pumpAndSettle();
     },
   );
@@ -143,7 +144,7 @@ void main() {
     expect(find.textContaining('Affected: Player 1'), findsOneWidget);
     expect(find.textContaining('Table ·'), findsOneWidget);
     expect(find.textContaining('wipe_creatures'), findsNothing);
-    await tester.tap(find.byTooltip('Close workspace'));
+    await tester.tap(byControlLabel('Close workspace'));
     await tester.pumpAndSettle();
   });
 

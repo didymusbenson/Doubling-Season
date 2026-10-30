@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -86,8 +87,8 @@ void main() {
     tester.view.padding = const FakeViewPadding(top: 24, bottom: 20);
     addTearDown(tester.view.reset);
     addTearDown(() async {
-      if (find.byTooltip('Close workspace').evaluate().isNotEmpty) {
-        await tap(tester, find.byTooltip('Close workspace'));
+      if (byControlLabel('Close workspace').evaluate().isNotEmpty) {
+        await tap(tester, byControlLabel('Close workspace'));
         await tester.pumpAndSettle();
       }
       await tester.pumpWidget(const SizedBox.shrink());
@@ -134,7 +135,7 @@ void main() {
   }
 
   Future<void> closeUtility(WidgetTester tester) async {
-    await tap(tester, find.byTooltip('Close workspace'));
+    await tap(tester, byControlLabel('Close workspace'));
     await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox.shrink());
   }
@@ -192,7 +193,7 @@ void main() {
           }
           await reachable(
             tester,
-            find.byTooltip('Remove this utility'),
+            byControlLabel('Remove this utility'),
             reason: utility.kind,
           );
           expect(find.byType(ExpansionTile), findsNothing);
@@ -201,22 +202,34 @@ void main() {
               final card = find.byKey(ValueKey('utility-mana-$color'));
               for (final control
                   in tester
-                      .widgetList<Tooltip>(
+                      .widgetList<Semantics>(
                         find.descendant(
                           of: card,
-                          matching: find.byType(Tooltip),
+                          matching: find.byType(Semantics),
                         ),
                       )
                       .toList()) {
-                await reachable(tester, find.byTooltip(control.message!));
+                final label = control.properties.label;
+                if (label != null &&
+                    label.isNotEmpty &&
+                    (control.properties.button == true ||
+                        find
+                            .descendant(
+                              of: find.byWidget(control),
+                              matching: find.byType(IconButton),
+                            )
+                            .evaluate()
+                            .isNotEmpty)) {
+                  await reachable(tester, byControlLabel(label));
+                }
               }
             }
             await reachable(tester, find.text('Empty unlocked mana'));
           } else if (utility.configuration['type'] == 'toggle') {
             await reachable(tester, find.byType(SwitchListTile));
           } else if (utility.configuration['actionOnly'] != true) {
-            await reachable(tester, find.byTooltip('Increase Value'));
-            await reachable(tester, find.byTooltip('Decrease Value'));
+            await reachable(tester, byControlLabel('Increase Value'));
+            await reachable(tester, byControlLabel('Decrease Value'));
             await reachable(
               tester,
               find.widgetWithText(OutlinedButton, 'Set value'),
@@ -273,14 +286,14 @@ void main() {
       );
       final otherSeat = fixture.controller.session.players[1].toJson();
       await showUtility(tester, fixture, utility, const Size(1133, 744));
-      await tap(tester, find.byTooltip('Increase White mana'));
+      await tap(tester, byControlLabel('Increase White mana'));
       await tester.pumpAndSettle();
-      await tester.longPress(find.byTooltip('Increase White mana'));
+      await tester.longPress(byControlLabel('Increase White mana'));
       await tester.pumpAndSettle();
       expect(fixture.player.mana['W'], 11);
-      await tap(tester, find.byTooltip('Lock White mana for Empty'));
+      await tap(tester, byControlLabel('Lock White mana for Empty'));
       await tester.pumpAndSettle();
-      await tap(tester, find.byTooltip('Increase Blue mana'));
+      await tap(tester, byControlLabel('Increase Blue mana'));
       await tester.pumpAndSettle();
       await tap(tester, find.text('Empty unlocked mana'));
       await tester.pumpAndSettle();
@@ -290,7 +303,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(fixture.player.mana['W'], 11);
       expect(fixture.player.mana['U'], 0);
-      await tap(tester, find.byTooltip('Convert all mana to Blue'));
+      await tap(tester, byControlLabel('Convert all mana to Blue'));
       await tester.pumpAndSettle();
       expect(fixture.player.mana['W'], 0);
       expect(fixture.player.mana['U'], 11);
@@ -335,7 +348,7 @@ void main() {
       );
       await tester.tapAt(const Offset(4, 500));
       await tester.pumpAndSettle();
-      expect(find.byTooltip('Close workspace'), findsNothing);
+      expect(byControlLabel('Close workspace'), findsNothing);
       expect(backgroundTaps, 1);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());

@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'package:doubling_season/models/token_definition.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -41,8 +42,8 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     addTearDown(() async {
-      if (find.byTooltip('Close workspace').evaluate().isNotEmpty) {
-        await tester.tap(find.byTooltip('Close workspace'));
+      if (byControlLabel('Close workspace').evaluate().isNotEmpty) {
+        await tester.tap(byControlLabel('Close workspace'));
         await tester.pumpAndSettle();
       }
       await tester.pumpWidget(const SizedBox());
@@ -80,8 +81,8 @@ void main() {
           turns,
           itemId: mana.id,
         );
-        final add = find.byTooltip('Increase White mana');
-        final spend = find.byTooltip('Decrease White mana');
+        final add = byControlLabel('Increase White mana');
+        final spend = byControlLabel('Decrease White mana');
         expect(tester.getSize(add).height, 48);
         expect(tester.getSize(add).width, greaterThanOrEqualTo(48));
         for (final point in [
@@ -145,19 +146,19 @@ void main() {
         await tester.pumpAndSettle();
         expect(fixture.player.mana['W'], 0);
         expect(fixture.controller.session.players[1].toJson(), otherBefore);
-        expect(find.byTooltip('Select all'), findsNothing);
+        expect(byControlLabel('Select all'), findsNothing);
         expect(
-          find.byTooltip('Lock White mana for Empty').hitTestable(),
+          byControlLabel('Lock White mana for Empty').hitTestable(),
           findsOneWidget,
         );
         expect(
-          find.byTooltip('Convert all mana to White').hitTestable(),
+          byControlLabel('Convert all mana to White').hitTestable(),
           findsOneWidget,
         );
         expect(tester.takeException(), isNull);
-        await tester.tap(find.byTooltip('Close workspace'));
+        await tester.tap(byControlLabel('Close workspace'));
         await tester.pumpAndSettle();
-        expect(find.byTooltip('Close workspace'), findsNothing);
+        expect(byControlLabel('Close workspace'), findsNothing);
       },
     );
 
@@ -180,8 +181,8 @@ void main() {
         await open(tester, fixture, WorkspacePage.tokens, turns);
         await tester.tap(find.text('Half-stepper Saproling · 1/1'));
         await tester.pumpAndSettle();
-        final add = find.byTooltip('Increase creation quantity');
-        final spend = find.byTooltip('Decrease creation quantity');
+        final add = byControlLabel('Increase creation quantity');
+        final spend = byControlLabel('Decrease creation quantity');
         PlayerField amountField() => tester.widget<PlayerField>(
           find.byWidgetPredicate(
             (w) => w is PlayerField && w.label == 'Quantity before modifiers',
@@ -201,7 +202,7 @@ void main() {
         }
         expect(amountField().controller.text, '1');
         expect(
-          find.byTooltip('Select all'),
+          byControlLabel('Select all'),
           findsNothing,
           reason: 'Stepping beside the value must not open the exact editor.',
         );

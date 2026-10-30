@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -81,8 +82,9 @@ void main() {
   var dismissed = 0;
 
   PlayerState player() => controller.player(playerId);
-  Finder close() => find.byWidgetPredicate(
-    (widget) => widget is IconButton && widget.tooltip == 'Close workspace',
+  Finder close() => find.descendant(
+    of: byControlLabel('Close workspace'),
+    matching: find.byType(IconButton),
   );
   Finder stepper(_Target target) => find.byWidgetPredicate(
     (widget) => widget is HalfStepper && widget.label == target.label,
@@ -167,7 +169,7 @@ void main() {
     bool decrease = false,
   }) async {
     await tester.tap(
-      find.byTooltip('${decrease ? 'Decrease' : 'Increase'} ${target.label}'),
+      byControlLabel('${decrease ? 'Decrease' : 'Increase'} ${target.label}'),
     );
     await tester.pump();
   }
@@ -357,7 +359,7 @@ void main() {
     await open(tester, _Target.counter, initial: 0);
     await tap(tester, _Target.counter);
     await tap(tester, _Target.counter);
-    await tester.tap(find.byTooltip('Set energy total'));
+    await tester.tap(byControlLabel('Set energy total'));
     await tester.pump();
     expect(find.widgetWithText(TextField, 'Set total'), findsNothing);
     await release(tester, 0);
@@ -377,7 +379,7 @@ void main() {
       await open(tester, _Target.counter, initial: 0);
       await tap(tester, _Target.counter);
       await tap(tester, _Target.counter);
-      await tester.tap(find.byTooltip('Set energy total'));
+      await tester.tap(byControlLabel('Set energy total'));
       await tester.pump();
       expect(find.widgetWithText(TextField, 'Set total'), findsNothing);
       await release(tester, 0);

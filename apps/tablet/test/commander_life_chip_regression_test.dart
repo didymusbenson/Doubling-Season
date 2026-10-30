@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -237,14 +238,14 @@ void main() {
                 box.localToGlobal(Offset(box.size.width * x, 22)),
               );
               await tester.pumpAndSettle();
-              expect(find.byTooltip('Close workspace'), findsOneWidget);
+              expect(byControlLabel('Close workspace'), findsOneWidget);
               expect(fixture.controller.session.toJson(), before);
               if (x == .5 && player.id == fixture.playerId && populated) {
                 await capture(tester, 'renderer-$label-source-grid');
               }
               await tester.tapAt(const Offset(2, 30));
               await tester.pumpAndSettle();
-              expect(find.byTooltip('Close workspace'), findsNothing);
+              expect(byControlLabel('Close workspace'), findsNothing);
               expect(fixture.controller.session.toJson(), before);
             }
             // The padding immediately beside and below the grid remains life.
@@ -259,7 +260,7 @@ void main() {
               await tester.tapAt(surfaceBox.localToGlobal(point));
               await tester.pumpAndSettle();
               expect(fixture.controller.player(player.id).life, expected);
-              expect(find.byTooltip('Close workspace'), findsNothing);
+              expect(byControlLabel('Close workspace'), findsNothing);
             }
           }
           expect(tester.takeException(), isNull);

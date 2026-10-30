@@ -80,8 +80,10 @@ void main() {
                               ),
                               IconButton(
                                 onPressed: () {},
-                                tooltip: 'Close',
-                                icon: const Icon(Icons.close),
+                                icon: const Icon(
+                                  Icons.close,
+                                  semanticLabel: 'Close',
+                                ),
                               ),
                             ],
                           ),

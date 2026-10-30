@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'dart:ui' as ui;
@@ -348,8 +349,8 @@ void main() {
       );
       await tester.tap(find.byKey(const ValueKey('shared-dice')));
       await tester.pumpAndSettle();
-      expect(find.byTooltip('Close workspace'), findsOneWidget);
-      await tester.tap(find.byTooltip('Close workspace'));
+      expect(byControlLabel('Close workspace'), findsOneWidget);
+      await tester.tap(byControlLabel('Close workspace'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     },
@@ -399,18 +400,18 @@ void main() {
       final remove = find.byKey(ValueKey('remove-utility-${storm.id}'));
       expect(remove.hitTestable(), findsOneWidget);
       expect(tester.getSize(remove), const Size(44, 44));
-      expect(find.byTooltip('Storm, details and actions'), findsNothing);
+      expect(byControlLabel('Storm, details and actions'), findsNothing);
       expect(find.byIcon(Icons.undo), findsNothing);
       await tester.tap(remove);
       await tester.pumpAndSettle();
       expect(f.player.utilities.any((u) => u.id == storm.id), isFalse);
-      expect(find.byTooltip('Close workspace'), findsNothing);
+      expect(byControlLabel('Close workspace'), findsNothing);
       expect(find.byKey(const ValueKey('table-modal-surface')), findsNothing);
       expect(find.byType(SnackBar), findsNothing);
       expect(find.byIcon(Icons.undo), findsNothing);
       expect(f.controller.session.players.map((p) => p.life).toList(), lives);
 
-      await tester.tap(find.byTooltip('Game controls'));
+      await tester.tap(byControlLabel('Game controls'));
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.undo), findsNothing);
       await tester.tap(find.widgetWithText(OutlinedButton, 'History'));
@@ -419,7 +420,7 @@ void main() {
       expect(undo.hitTestable(), findsOneWidget);
       await tester.tap(undo);
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Close workspace'));
+      await tester.tap(byControlLabel('Close workspace'));
       await tester.pumpAndSettle();
       expect(f.player.utilities.map((u) => u.toJson()).toList(), before);
       expect(f.controller.session.players.map((p) => p.life).toList(), lives);
@@ -686,7 +687,7 @@ void main() {
     },
   );
   testWidgets(
-    'short reorder mode exits for modal and lifecycle without changes',
+    'short reorder mode exits for drawer and lifecycle without changes',
     (tester) async {
       final f = await show(tester, const Size(650, 480), 4, safeArea: false);
       final p = f.controller.session.players.first;
@@ -717,12 +718,13 @@ void main() {
         findsNothing,
       );
       expect(
-        find.byKey(const ValueKey('context-workspace')),
+        find.byKey(const ValueKey('game-drawer-workspace')),
         findsOneWidget,
-        reason: 'Dice must actually open before testing modal restoration.',
+        reason:
+            'Dice must open inside the channel before testing drawer restoration.',
       );
-      expect(find.byTooltip('Close workspace'), findsOneWidget);
-      await tester.tap(find.byTooltip('Close workspace'));
+      expect(byControlLabel('Close workspace'), findsOneWidget);
+      await tester.tap(byControlLabel('Close workspace'));
       await tester.pumpAndSettle();
       await enter();
       final held = await tester.startGesture(

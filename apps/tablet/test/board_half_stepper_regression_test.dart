@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -173,7 +174,7 @@ void main() {
       final row = find.byKey(ValueKey('${fixture.playerId}-life-surface'));
       await tapAtFraction(tester, row, const Offset(.25, .5));
       expect(fixture.player.life, 39);
-      expect(find.byTooltip('Close workspace'), findsNothing);
+      expect(byControlLabel('Close workspace'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -217,7 +218,7 @@ void main() {
               await tester.tapAt(box.localToGlobal(point));
               await tester.pumpAndSettle();
               expect(fixture.controller.player(player.id).life, expected);
-              expect(find.byTooltip('Close workspace'), findsNothing);
+              expect(byControlLabel('Close workspace'), findsNothing);
             }
             final name = find.descendant(
               of: surface,
@@ -236,7 +237,7 @@ void main() {
               await tester.pumpAndSettle();
               expect(fixture.controller.player(player.id).life, expected);
             }
-            expect(find.byTooltip('Close workspace'), findsNothing);
+            expect(byControlLabel('Close workspace'), findsNothing);
             expect(await fixture.controller.undo(), isTrue);
             await tester.pumpAndSettle();
             expect(
@@ -244,7 +245,7 @@ void main() {
               before,
             );
             expect(
-              find.byTooltip(
+              byControlLabel(
                 '${fixture.controller.profile(player.seatId).name}, player counters',
               ),
               findsNothing,
@@ -252,24 +253,24 @@ void main() {
             );
             for (final label in [
               'rules',
-              'commander damage',
+              'commander damage by source',
               'player details',
             ]) {
               final snapshot = fixture.controller.session.players
                   .map((p) => p.life)
                   .toList();
               await tester.tap(
-                find.byTooltip(
+                byControlLabel(
                   '${fixture.controller.profile(player.seatId).name}, $label',
                 ),
               );
               await tester.pumpAndSettle();
-              expect(find.byTooltip('Close workspace'), findsOneWidget);
+              expect(byControlLabel('Close workspace'), findsOneWidget);
               expect(
                 fixture.controller.session.players.map((p) => p.life).toList(),
                 snapshot,
               );
-              await tester.tap(find.byTooltip('Close workspace'));
+              await tester.tap(byControlLabel('Close workspace'));
               await tester.pumpAndSettle();
             }
           }
@@ -304,7 +305,7 @@ void main() {
           expect(fixture.controller.session.history.last.commands.length, 3);
           expect(fixture.controller.session.history.last.playerId, player.id);
           expect(
-            find.byTooltip('Close workspace'),
+            byControlLabel('Close workspace'),
             findsNothing,
             reason: 'The number must not intercept center-adjacent half taps.',
           );
@@ -366,9 +367,9 @@ void main() {
           final beforeDetails = fixture.controller.session.toJson();
           await tester.tap(find.byKey(ValueKey('${player.id}-player-details')));
           await tester.pumpAndSettle();
-          expect(find.byTooltip('Close workspace'), findsOneWidget);
+          expect(byControlLabel('Close workspace'), findsOneWidget);
           expect(fixture.controller.session.toJson(), beforeDetails);
-          await tester.tap(find.byTooltip('Close workspace'));
+          await tester.tap(byControlLabel('Close workspace'));
           await tester.pumpAndSettle();
 
           final heldWhileOpening = await tester.startGesture(
@@ -379,7 +380,7 @@ void main() {
           expect(fixture.controller.player(player.id).life, 50);
           await tester.tap(find.byKey(ValueKey('${player.id}-player-details')));
           await tester.pumpAndSettle();
-          expect(find.byTooltip('Close workspace'), findsOneWidget);
+          expect(byControlLabel('Close workspace'), findsOneWidget);
           await tester.pump(const Duration(milliseconds: 900));
           expect(
             fixture.controller.player(player.id).life,
@@ -390,7 +391,7 @@ void main() {
           await heldWhileOpening.up();
           await tester.pumpAndSettle();
           expect(fixture.controller.player(player.id).life, 50);
-          await tester.tap(find.byTooltip('Close workspace'));
+          await tester.tap(byControlLabel('Close workspace'));
           await tester.pumpAndSettle();
           expect(await fixture.controller.undo(), isTrue);
           await tester.pumpAndSettle();
@@ -426,18 +427,18 @@ void main() {
           expect(getStorm(), 3);
           expect(fixture.controller.session.history.last.commands.length, 3);
           expect(fixture.controller.session.history.last.playerId, player.id);
-          expect(find.byTooltip('Close workspace'), findsNothing);
+          expect(byControlLabel('Close workspace'), findsNothing);
           expect(
             find.descendant(
               of: seat,
-              matching: find.byTooltip('Storm, details and actions'),
+              matching: byControlLabel('Storm, details and actions'),
             ),
             findsNothing,
             reason: 'Stepping must not expand the utility.',
           );
           expect(
             find
-                .descendant(of: seat, matching: find.byTooltip('Remove Storm'))
+                .descendant(of: seat, matching: byControlLabel('Remove Storm'))
                 .hitTestable(),
             findsOneWidget,
             reason: 'Remove remains directly available while collapsed.',
@@ -501,7 +502,7 @@ void main() {
             expect(fixture.controller.player(player.id).life, 37);
             expect(fixture.controller.session.history.last.commands.length, 3);
             expect(fixture.controller.session.history.last.playerId, player.id);
-            expect(find.byTooltip('Close workspace'), findsOneWidget);
+            expect(byControlLabel('Close workspace'), findsOneWidget);
             expect(await fixture.controller.undo(), isTrue);
             await tester.pumpAndSettle();
             expect(
@@ -517,7 +518,7 @@ void main() {
               ownerUnchanged,
             );
           }
-          await tester.tap(find.byTooltip('Close workspace'));
+          await tester.tap(byControlLabel('Close workspace'));
           await tester.pumpAndSettle();
         }
         expect(tester.takeException(), isNull);
@@ -569,7 +570,7 @@ void main() {
             fixture.controller.player(player.id).counters['poison'] ?? 0,
             0,
           );
-          await tester.tap(find.byTooltip('Close workspace'));
+          await tester.tap(byControlLabel('Close workspace'));
           await tester.pumpAndSettle();
         }
         expect(tester.takeException(), isNull);

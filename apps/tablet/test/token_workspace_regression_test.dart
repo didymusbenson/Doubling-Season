@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'package:doubling_season/models/token_definition.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -41,7 +42,7 @@ void main() {
   }
 
   Future<void> closeWorkspace(WidgetTester tester) async {
-    final close = find.byTooltip('Close workspace');
+    final close = byControlLabel('Close workspace');
     if (close.evaluate().isNotEmpty) {
       await tester.tap(close);
       await tester.pumpAndSettle();
@@ -77,12 +78,12 @@ void main() {
     fixture.repository.failSave = true;
     await tester.tap(find.text('Create tokens'));
     await tester.pumpAndSettle();
-    expect(find.byTooltip('Close workspace'), findsOneWidget);
+    expect(byControlLabel('Close workspace'), findsOneWidget);
     expect(fixture.player.tokens.length, 1);
     fixture.repository.failSave = false;
     await tester.tap(find.text('Create tokens'));
     await tester.pumpAndSettle();
-    expect(find.byTooltip('Close workspace'), findsNothing);
+    expect(byControlLabel('Close workspace'), findsNothing);
     expect(fixture.player.tokens.last.name, 'UI test Saproling');
     expect(fixture.player.tokens.last.amount, 3);
     await closeWorkspace(tester);
@@ -91,7 +92,7 @@ void main() {
   testWidgets('Counter number opens exact Set including zero', (tester) async {
     await initialize();
     await openWorkspace(tester, WorkspacePage.tokenCounters);
-    await tester.tap(find.byTooltip('Edit +1/+1'));
+    await tester.tap(byControlLabel('Edit +1/+1'));
     await tester.pumpAndSettle();
     final field = tester.widget<PlayerField>(
       find.byWidgetPredicate(
@@ -125,7 +126,7 @@ void main() {
     await tester.ensureVisible(find.text('Split & Add to One'));
     await tester.tap(find.text('Split & Add to One'));
     await tester.pumpAndSettle();
-    expect(find.byTooltip('Close workspace'), findsNothing);
+    expect(byControlLabel('Close workspace'), findsNothing);
     expect(fixture.player.tokens.map((token) => token.amount), [2, 1]);
     expect(fixture.player.tokens.first.counters, isEmpty);
     expect(fixture.player.tokens.last.counters['Shield'], 1);

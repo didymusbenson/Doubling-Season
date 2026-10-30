@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -107,7 +108,7 @@ void main() {
       await capture(tester, 'legacy-menu-$dimensions');
       expect(fixture.player.utilities.map((u) => u.toJson()).toList(), before);
       expect(tester.takeException(), isNull);
-      await tester.tap(find.byTooltip('Close workspace'));
+      await tester.tap(byControlLabel('Close workspace'));
       await tester.pumpAndSettle();
     });
   }
@@ -169,7 +170,7 @@ void main() {
             find.descendant(of: detail, matching: find.byType(SwitchListTile)),
             findsNothing,
           );
-          expect(find.byTooltip('Remove this utility'), findsNothing);
+          expect(byControlLabel('Remove this utility'), findsNothing);
           expect(find.text('Set value'), findsNothing);
           expect(find.text('Artwork'), findsOneWidget);
           if (!upper) {
@@ -189,7 +190,7 @@ void main() {
                 .toList(),
             before,
           );
-          await tester.tap(find.byTooltip('Close workspace'));
+          await tester.tap(byControlLabel('Close workspace'));
           await tester.pumpAndSettle();
           expect(f.controller.player(playerId).life, 37);
           expect(f.controller.player(playerId).counters['poison'], 5);
@@ -224,7 +225,7 @@ void main() {
       expect(find.text('Add a utility'), findsOneWidget);
       expect(find.text('Life Total'), findsNothing);
       expect(tester.takeException(), isNull);
-      await tester.tap(find.byTooltip('Close workspace'));
+      await tester.tap(byControlLabel('Close workspace'));
       await tester.pumpAndSettle();
     },
   );

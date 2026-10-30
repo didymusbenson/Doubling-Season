@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -97,11 +98,11 @@ void main() {
             }
             return null;
           });
-      await tester.tap(find.byTooltip('Paste'));
+      await tester.tap(byControlLabel('Paste'));
       await tester.pumpAndSettle();
       expect(find.textContaining('No text is available'), findsOneWidget);
       denied = true;
-      await tester.tap(find.byTooltip('Paste'));
+      await tester.tap(byControlLabel('Paste'));
       await tester.pumpAndSettle();
       expect(find.textContaining('Paste is unavailable'), findsOneWidget);
       expect(c.text, 'keep');
@@ -149,7 +150,7 @@ void main() {
         await tester.tap(find.text('Paste'));
         await tester.pumpAndSettle();
         expect(c.text, 'keep');
-        await tester.tap(find.byTooltip('Text editing actions'));
+        await tester.tap(byControlLabel('Text editing actions'));
         await tester.pumpAndSettle();
         expect(menu, findsNothing);
         await tester.pumpWidget(const SizedBox());
@@ -169,7 +170,7 @@ void main() {
         });
     await open(tester, c);
     c.selection = const TextSelection(baseOffset: 0, extentOffset: 8);
-    await tester.tap(find.byTooltip('Text editing actions'));
+    await tester.tap(byControlLabel('Text editing actions'));
     await tester.pump();
     await tester.tap(find.text('Cut'));
     await tester.pump();
@@ -264,7 +265,7 @@ void main() {
           await tester.tap(find.byType(TextField));
           await tester.pumpAndSettle();
           expect(find.text('Artwork editor'), findsNothing);
-          expect(find.byTooltip('Close'), findsOneWidget);
+          expect(byControlLabel('Close'), findsOneWidget);
           final shell = tester.getRect(
             find.byKey(const ValueKey('test-shell')),
           );
@@ -286,7 +287,7 @@ void main() {
           await tester.tap(find.text(numeric ? '2' : 'a'));
           await tester.pump();
           expect(c.text, numeric ? 'draft12' : 'draftqa');
-          await tester.tap(find.byTooltip('Close'));
+          await tester.tap(byControlLabel('Close'));
           await tester.pump();
           expect(closed, 1);
           await tester.tap(find.text('Done'));

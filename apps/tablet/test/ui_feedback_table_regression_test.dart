@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'dart:ui' as ui;
@@ -354,8 +355,11 @@ void main() {
               within: tools,
             ).center;
             for (final label in ['$name, rules', '$name, Manage utilities']) {
-              final button = find.byTooltip(label);
+              final button = byControlLabel(label);
               expect(button.hitTestable(), findsOneWidget);
+              if (label.endsWith(', rules')) {
+                expect(tester.widget<Semantics>(button).properties.value, '0');
+              }
               final point = bounds(tester, button, within: tools).center;
               expect(
                 point.dy < editPosition.dy ||
@@ -364,7 +368,7 @@ void main() {
                 reason: 'Edit is last in player-local tool order.',
               );
             }
-            expect(find.byTooltip('$name, saved presets'), findsNothing);
+            expect(byControlLabel('$name, saved presets'), findsNothing);
             final manage = find.byKey(
               ValueKey('${player.id}-manage-utilities'),
             );
@@ -432,7 +436,7 @@ void main() {
                 reason: 'Token boards remain outside the center hub.',
               );
             }
-            final summary = find.byTooltip('$name, board summary');
+            final summary = byControlLabel('$name, board summary');
             expect(summary.hitTestable(), findsOneWidget);
             expect(
               find.descendant(of: lane, matching: summary),
@@ -466,7 +470,7 @@ void main() {
               findsOneWidget,
             );
           }
-          expect(find.byTooltip('Game controls').hitTestable(), findsOneWidget);
+          expect(byControlLabel('Game controls').hitTestable(), findsOneWidget);
           expect(tester.takeException(), isNull);
           await capture(
             tester,
@@ -556,7 +560,7 @@ void main() {
       (tester) async {
         final fixture = await showTable(tester, size, tableFor(2));
         final before = fixture.controller.session.toJson();
-        await tester.tap(find.byTooltip('Game controls'));
+        await tester.tap(byControlLabel('Game controls'));
         await tester.pumpAndSettle();
         for (final label in [
           'Dice',
@@ -705,7 +709,7 @@ void main() {
       ]) {
         final action = find.descendant(
           of: lastCard,
-          matching: find.byTooltip(RegExp(RegExp.escape(label))),
+          matching: byControlLabel(RegExp(RegExp.escape(label))),
         );
         expect(action.hitTestable(), findsOneWidget, reason: label);
         expect(
@@ -716,7 +720,7 @@ void main() {
       }
       final addCounter = find.descendant(
         of: lastCard,
-        matching: find.byTooltip('Add +1/+1 counter; hold to add ten'),
+        matching: byControlLabel('Add +1/+1 counter; hold to add ten'),
       );
       expect(addCounter.hitTestable(), findsOneWidget);
       await tester.tap(addCounter);
@@ -745,13 +749,13 @@ void main() {
           find.byKey(ValueKey('${players[index].id}-commander-ledger')),
         );
         await tester.pumpAndSettle();
-        await tester.tap(find.byTooltip('$status · ${enabled ? 'On' : 'Off'}'));
+        await tester.tap(byControlLabel('$status, ${enabled ? 'On' : 'Off'}'));
         await tester.pumpAndSettle();
         expect(
-          find.byTooltip('$status · ${enabled ? 'Off' : 'On'}'),
+          byControlLabel('$status, ${enabled ? 'Off' : 'On'}'),
           findsOneWidget,
         );
-        await tester.tap(find.byTooltip('Close workspace'));
+        await tester.tap(byControlLabel('Close workspace'));
         await tester.pumpAndSettle();
       }
 
@@ -872,7 +876,7 @@ void main() {
               before,
             );
           }
-          await tester.tap(find.byTooltip('Close workspace'));
+          await tester.tap(byControlLabel('Close workspace'));
           await tester.pumpAndSettle();
         }
         expect(tester.takeException(), isNull);
@@ -914,7 +918,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(fixture.controller.session.commanders, isEmpty);
         expect(fixture.controller.player(player.id).life, 40);
-        await tester.tap(find.byTooltip('Close workspace'));
+        await tester.tap(byControlLabel('Close workspace'));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(ValueKey('${player.id}-player-details')));
         await tester.pumpAndSettle();
@@ -929,7 +933,7 @@ void main() {
             .toList();
         expect(activeSources, hasLength(2));
         final partnerId = activeSources.last.id;
-        await tester.tap(find.byTooltip('Close workspace'));
+        await tester.tap(byControlLabel('Close workspace'));
         await tester.pumpAndSettle();
         await tester.tap(ledger);
         await tester.pumpAndSettle();
@@ -945,7 +949,7 @@ void main() {
           tester,
           '4p-${size.width.toInt()}x${size.height.toInt()}-commander-source-setup',
         );
-        await tester.tap(find.byTooltip('Close workspace'));
+        await tester.tap(byControlLabel('Close workspace'));
         await tester.pumpAndSettle();
         expect(ledger.hitTestable(), findsOneWidget);
         expect(
@@ -997,8 +1001,8 @@ void main() {
         find.textContaining('− / + changes damage and life together'),
         findsNothing,
       );
-      expect(find.byTooltip('Correct life separately'), findsNothing);
-      expect(find.byTooltip('Undo latest action'), findsNothing);
+      expect(byControlLabel('Correct life separately'), findsNothing);
+      expect(byControlLabel('Undo latest action'), findsNothing);
       expect(
         tester
             .getSize(find.byKey(const ValueKey('commander-workspace')))
@@ -1131,7 +1135,7 @@ void main() {
       final beforeDismiss = fixture.controller.session.toJson();
       await tester.tapAt(const Offset(2, 30));
       await tester.pumpAndSettle();
-      expect(find.byTooltip('Close workspace'), findsNothing);
+      expect(byControlLabel('Close workspace'), findsNothing);
       expect(fixture.controller.session.toJson(), beforeDismiss);
       final cell = find.byKey(
         ValueKey('${recipient.id}-ledger-source-partner-a'),

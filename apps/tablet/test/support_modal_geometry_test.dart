@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -55,7 +56,7 @@ void main() {
       expect(rect.bottom, lessThanOrEqualTo(744 - 20 - 16 + .01));
       expect(rect.center.dx, closeTo((44 + 1133) / 2, .001));
       expect(rect.center.dy, closeTo((24 + 744 - 20) / 2, .001));
-      final close = find.byTooltip('Close support');
+      final close = byControlLabel('Close support');
       expect(tester.getSize(close).shortestSide, greaterThanOrEqualTo(44));
       expect(close.hitTestable(), findsOneWidget);
       expect(find.textContaining('Support is optional'), findsOneWidget);
@@ -66,7 +67,7 @@ void main() {
       await tester.tapAt(const Offset(1, 1));
       await tester.pumpAndSettle();
       expect(opened, 1);
-      expect(find.byTooltip('Close support'), findsNothing);
+      expect(byControlLabel('Close support'), findsNothing);
       await tester.pumpWidget(const SizedBox.shrink());
       expect(tester.takeException(), isNull);
     });

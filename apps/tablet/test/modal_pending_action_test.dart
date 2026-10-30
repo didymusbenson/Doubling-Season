@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -85,8 +86,9 @@ void main() {
     }
 
     var root = tester.getSemantics(
-      find.byWidgetPredicate(
-        (widget) => widget is IconButton && widget.tooltip == 'Close workspace',
+      find.descendant(
+        of: byControlLabel('Close workspace'),
+        matching: find.byType(IconButton),
       ),
     );
     while (root.parent != null) {
@@ -97,11 +99,7 @@ void main() {
       (node) => node.getSemanticsData().hasAction(SemanticsAction.tap),
     );
     final close = actionable
-        .where(
-          (node) =>
-              (node.getSemanticsData().label == 'Close workspace' ||
-              node.getSemanticsData().tooltip == 'Close workspace'),
-        )
+        .where((node) => node.getSemanticsData().label == 'Close workspace')
         .toList();
     expect(close, hasLength(1), reason: root.toStringDeep());
     expect(close.single.rect.size, const Size(44, 44));
@@ -178,9 +176,9 @@ void main() {
           expect(repository.started.isCompleted, isTrue);
           expect(controller.session.hasPartner(owner.id), isFalse);
           expect(repository.encoded, before);
-          final close = find.byWidgetPredicate(
-            (widget) =>
-                widget is IconButton && widget.tooltip == 'Close workspace',
+          final close = find.descendant(
+            of: byControlLabel('Close workspace'),
+            matching: find.byType(IconButton),
           );
           expect(tester.widget<IconButton>(close).onPressed, isNull);
 

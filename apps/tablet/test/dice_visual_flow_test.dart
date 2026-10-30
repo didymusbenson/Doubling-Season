@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -71,7 +72,7 @@ void main() {
   void expectCornerClear(WidgetTester tester, Finder die) {
     final dieBounds = tester.getRect(die);
     for (final label in ['Back', 'Close workspace']) {
-      final control = find.byTooltip(label);
+      final control = byControlLabel(label);
       expect(control, findsOneWidget);
       expect(
         dieBounds.overlaps(tester.getRect(control)),
@@ -168,7 +169,7 @@ void main() {
           expect(outline.sides, die);
           expect(outline.value, die == 6 ? 1 : 0);
           for (final direction in ['Increase', 'Decrease']) {
-            final action = find.byTooltip('$direction d$die');
+            final action = byControlLabel('$direction d$die');
             expect(action, findsOneWidget);
             final bounds = tester.getSize(action);
             expect(bounds.width, greaterThanOrEqualTo(44));
@@ -188,7 +189,7 @@ void main() {
         // One of every die plus the default d6: a focused result must retain
         // each individual outcome, not only a sum or the latest die.
         for (final die in sides.where((value) => value != 6)) {
-          await tap(tester, find.byTooltip('Increase d$die'));
+          await tap(tester, byControlLabel('Increase d$die'));
         }
         await scrollToStart(tester, key('dice-count-d4'));
         await capture(tester, '$tag-populated-selector');
@@ -240,7 +241,7 @@ void main() {
         await scrollToStart(tester, key('dice-result-d4-0'));
         expectCornerClear(tester, key('dice-result-d4-0'));
         await capture(tester, '$tag-results');
-        await tap(tester, find.byTooltip('Back'));
+        await tap(tester, byControlLabel('Back'));
         expect(key('dice-selector'), findsOneWidget);
         final restoredScroll = find
             .ancestor(
@@ -262,7 +263,7 @@ void main() {
         expect(fixture.controller.state.toJson(), before);
         expect(fixture.repository.encoded, persisted);
         expect(tester.takeException(), isNull);
-        await tap(tester, find.byTooltip('Close workspace'));
+        await tap(tester, byControlLabel('Close workspace'));
         await tester.pumpWidget(const SizedBox.shrink());
       });
     }
@@ -277,9 +278,9 @@ void main() {
       final fixture = await open(tester, size, 1.3);
       final before = fixture.controller.state.toJson();
       final tag = '${size.width.toInt()}x${size.height.toInt()}-scale1.3';
-      await tap(tester, find.byTooltip('Increase d4'));
-      await tap(tester, find.byTooltip('Increase d4'));
-      await tap(tester, find.byTooltip('Increase d20'));
+      await tap(tester, byControlLabel('Increase d4'));
+      await tap(tester, byControlLabel('Increase d4'));
+      await tap(tester, byControlLabel('Increase d20'));
       await tap(tester, key('dice-roll-button'));
       expect(key('dice-result-d4-1'), findsOneWidget);
       expect(key('dice-result-d6-0'), findsOneWidget);
@@ -287,11 +288,11 @@ void main() {
       expect(key('dice-result-d4-2'), findsNothing);
       expectCornerClear(tester, key('dice-result-d4-0'));
       await capture(tester, '$tag-mixed-results');
-      await tap(tester, find.byTooltip('Back'));
-      await tap(tester, find.byTooltip('Decrease d6'));
-      await tap(tester, find.byTooltip('Decrease d20'));
+      await tap(tester, byControlLabel('Back'));
+      await tap(tester, byControlLabel('Decrease d6'));
+      await tap(tester, byControlLabel('Decrease d20'));
       for (var i = 0; i < 18; i++) {
-        await tap(tester, find.byTooltip('Increase d4'));
+        await tap(tester, byControlLabel('Increase d4'));
       }
       await tap(tester, key('dice-roll-button'));
       expectCornerClear(tester, key('dice-result-d4-0'));
@@ -304,7 +305,7 @@ void main() {
       expect(key('dice-result-d4-20'), findsNothing);
       expect(fixture.controller.state.toJson(), before);
       expect(tester.takeException(), isNull);
-      await tap(tester, find.byTooltip('Close workspace'));
+      await tap(tester, byControlLabel('Close workspace'));
       await tester.pumpWidget(const SizedBox.shrink());
     });
   }
@@ -330,19 +331,19 @@ void main() {
       expect(rect.bottom, lessThanOrEqualTo(size.height - 18 - 16 + .01));
       expect(rect.center.dx, closeTo((23 + size.width - 7) / 2, .01));
       expect(rect.center.dy, closeTo((12 + size.height - 18) / 2, .01));
-      await tap(tester, find.byTooltip('Increase d4'));
-      await tap(tester, find.byTooltip('Increase d4'));
-      await tap(tester, find.byTooltip('Decrease d4'));
+      await tap(tester, byControlLabel('Increase d4'));
+      await tap(tester, byControlLabel('Increase d4'));
+      await tap(tester, byControlLabel('Decrease d4'));
       expect(tester.widget<DieOutline>(key('dice-count-d4')).value, 1);
       await tap(tester, key('dice-roll-button'));
       expect(key('dice-result-d4-0'), findsOneWidget);
       expect(key('dice-result-d6-0'), findsOneWidget);
       expect(find.text('2 dice rolled'), findsOneWidget);
       expectCornerClear(tester, key('dice-result-d4-0'));
-      await tap(tester, find.byTooltip('Back'));
+      await tap(tester, byControlLabel('Back'));
       expect(tester.widget<DieOutline>(key('dice-count-d4')).value, 1);
       expect(fixture.controller.state.toJson(), before);
-      await tap(tester, find.byTooltip('Close workspace'));
+      await tap(tester, byControlLabel('Close workspace'));
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     },
@@ -352,7 +353,7 @@ void main() {
     'dice hold starts at five, repeats to clamp and cancels cleanly',
     (tester) async {
       await open(tester, const Size(1133, 744), 1);
-      final plus = find.byTooltip('Increase d4');
+      final plus = byControlLabel('Increase d4');
       final gesture = await tester.startGesture(tester.getCenter(plus));
       await tester.pump(const Duration(milliseconds: 650));
       expect(tester.widget<DieOutline>(key('dice-count-d4')).value, 5);
@@ -361,7 +362,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
       expect(tester.widget<DieOutline>(key('dice-count-d4')).value, 20);
-      await tap(tester, find.byTooltip('Decrease d4'));
+      await tap(tester, byControlLabel('Decrease d4'));
       final cancelled = await tester.startGesture(tester.getCenter(plus));
       await tester.pump(const Duration(milliseconds: 100));
       await cancelled.cancel();
@@ -371,7 +372,7 @@ void main() {
       expect(key('dice-result-d4-18'), findsOneWidget);
       expect(key('dice-result-d4-19'), findsNothing);
       expect(tester.takeException(), isNull);
-      await tap(tester, find.byTooltip('Close workspace'));
+      await tap(tester, byControlLabel('Close workspace'));
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
@@ -382,11 +383,11 @@ void main() {
       final fixture = await open(tester, const Size(1133, 744), 1);
       final before = fixture.controller.state.toJson();
       for (var i = 0; i < 22; i++) {
-        await tap(tester, find.byTooltip('Increase d4'));
+        await tap(tester, byControlLabel('Increase d4'));
       }
       // Repeated decrements at zero must not create negative dice.
       for (var i = 0; i < 3; i++) {
-        await tap(tester, find.byTooltip('Decrease d6'));
+        await tap(tester, byControlLabel('Decrease d6'));
       }
       await tap(tester, key('dice-roll-button'));
       for (var i = 0; i < 20; i++) {
@@ -398,12 +399,12 @@ void main() {
       expect(key('dice-result-d4-20'), findsNothing);
       expect(key('dice-result-d6-0'), findsNothing);
       expect(fixture.controller.state.toJson(), before);
-      await tap(tester, find.byTooltip('Back'));
+      await tap(tester, byControlLabel('Back'));
       await tap(tester, key('dice-roll-button'));
       expect(key('dice-result-d4-19'), findsOneWidget);
       expect(key('dice-result-d4-20'), findsNothing);
       expect(tester.takeException(), isNull);
-      await tap(tester, find.byTooltip('Close workspace'));
+      await tap(tester, byControlLabel('Close workspace'));
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );

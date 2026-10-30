@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -281,8 +282,8 @@ void main() {
             await f.initialize();
             addTearDown(() async {
               try {
-                if (find.byTooltip('Close workspace').evaluate().isNotEmpty) {
-                  await tester.tap(find.byTooltip('Close workspace'));
+                if (byControlLabel('Close workspace').evaluate().isNotEmpty) {
+                  await tester.tap(byControlLabel('Close workspace'));
                   await tester.pumpAndSettle();
                 }
               } finally {
@@ -392,8 +393,8 @@ void main() {
                 await reveal(tester, find.text('Saved custom effect'));
                 expect(find.text('Create a custom rule'), findsNothing);
               case 'counter-correction':
-                await reveal(tester, find.byTooltip('Set radiation total'));
-                await tester.tap(find.byTooltip('Set radiation total'));
+                await reveal(tester, byControlLabel('Set radiation total'));
+                await tester.tap(byControlLabel('Set radiation total'));
               case 'token-art-preview':
                 await reveal(tester, find.text('TEST').last);
                 await tester.tap(find.text('TEST').last);
@@ -412,7 +413,7 @@ void main() {
               reason: '${scene.key} layout',
             );
             expect(
-              find.byTooltip('Close workspace').hitTestable(),
+              byControlLabel('Close workspace').hitTestable(),
               findsOneWidget,
             );
             final frameFinder =
@@ -473,9 +474,9 @@ void main() {
                 'experience',
                 'radiation',
               ]) {
-                await reveal(tester, find.byTooltip('Set $name total'));
+                await reveal(tester, byControlLabel('Set $name total'));
                 expect(
-                  find.byTooltip('Set $name total').hitTestable(),
+                  byControlLabel('Set $name total').hitTestable(),
                   findsOneWidget,
                 );
                 steppers.add(
@@ -504,7 +505,7 @@ void main() {
               await reveal(tester, find.text('Set'));
               expect(find.text('Set').hitTestable(), findsOneWidget);
               expect(
-                find.byTooltip('Cancel counter correction').hitTestable(),
+                byControlLabel('Cancel counter correction').hitTestable(),
                 findsOneWidget,
               );
             }
@@ -629,7 +630,7 @@ void main() {
             final snapshot = f.controller.session.toJson();
             await tester.tapAt(const Offset(1, 25));
             await tester.pumpAndSettle();
-            expect(find.byTooltip('Close workspace'), findsNothing);
+            expect(byControlLabel('Close workspace'), findsNothing);
             expect(launches, 1);
             expect(f.controller.session.toJson(), snapshot);
           },
