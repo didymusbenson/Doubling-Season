@@ -298,13 +298,20 @@ class _TableScreenState extends State<TableScreen>
                         // both 60% token lanes instead of their life rails.
                         final horizontalExtent = math.min(
                           440.0,
-                          math.max(140.0, table.maxHeight - 403),
+                          // Even at minimum height, show one complete menu
+                          // action below the attached header and handle clearance.
+                          math.max(
+                            _TwoPlayerControlsGeometry.minimumOpening,
+                            table.maxHeight - 403,
+                          ),
                         );
                         final opening = two ? horizontalExtent * progress : gap;
                         final leftWall = (table.maxWidth - gap) / 2;
                         final rightWall = (table.maxWidth + gap) / 2;
-                        final topWall = (table.maxHeight - opening) / 2;
-                        final bottomWall = (table.maxHeight + opening) / 2;
+                        final twoPlayerControls = _TwoPlayerControlsGeometry(
+                          Size(table.maxWidth, table.maxHeight),
+                          opening,
+                        );
                         Widget row(int left, int right) => Row(
                           children: [
                             Expanded(child: slot(left)),
@@ -315,6 +322,14 @@ class _TableScreenState extends State<TableScreen>
                             ),
                             Expanded(child: slot(right)),
                           ],
+                        );
+                        final workspace = GameDrawerWorkspace(
+                          key: drawerWorkspaceKey,
+                          controller: controller,
+                          catalog: catalog,
+                          drawerController: drawerController,
+                          initialPage: drawerPage,
+                          onClose: _drawerClosed,
                         );
                         return Stack(
                           key: const ValueKey('table-surface'),
@@ -365,14 +380,17 @@ class _TableScreenState extends State<TableScreen>
                                         container: true,
                                         explicitChildNodes: true,
                                         label: 'Game drawer',
-                                        child: GameDrawerWorkspace(
-                                          key: drawerWorkspaceKey,
-                                          controller: controller,
-                                          catalog: catalog,
-                                          drawerController: drawerController,
-                                          initialPage: drawerPage,
-                                          onClose: _drawerClosed,
-                                        ),
+                                        child: two
+                                            ? Padding(
+                                                key: const ValueKey(
+                                                  'two-player-drawer-content-clearance',
+                                                ),
+                                                padding:
+                                                    _TwoPlayerControlsGeometry
+                                                        .drawerContentInsets,
+                                                child: workspace,
+                                              )
+                                            : workspace,
                                       ),
                                     ),
                                   ),
@@ -430,15 +448,16 @@ class _TableScreenState extends State<TableScreen>
                                   ),
                                 ),
                               ),
-                            // In two-seat mode all shared controls stay over
-                            // life, leaving the full first token row untouched.
+                            // Two-seat controls stay center-stage and follow
+                            // the horizontal walls. First-card content clears
+                            // their overhang while artwork reaches the seam.
                             Positioned(
                               key: const ValueKey('table-dice-layer'),
                               left: two
-                                  ? (table.maxWidth - 1) * .4 - 26 - 22
+                                  ? twoPlayerControls.dice.dx - 22
                                   : leftWall - 54 - 22,
                               top: two
-                                  ? topWall - 26 - 22
+                                  ? twoPlayerControls.dice.dy - 22
                                   : table.maxHeight / 2 - 22,
                               child: _SharedTableControl(
                                 controlKey: const ValueKey('shared-dice'),
@@ -453,23 +472,22 @@ class _TableScreenState extends State<TableScreen>
                             Positioned(
                               key: const ValueKey('table-day-night-layer'),
                               left: two
-                                  ? (table.maxWidth - 1) * .6 + 1 + 26 - 22
+                                  ? twoPlayerControls.dayNight.dx - 22
                                   : rightWall + 54 - 22,
                               top: two
-                                  ? bottomWall + 26 - 22
+                                  ? twoPlayerControls.dayNight.dy - 22
                                   : table.maxHeight / 2 - 22,
                               child: _DayNightControl(controller: controller),
                             ),
                             Positioned(
                               key: const ValueKey('table-menu-layer'),
-                              // Menu remains one whole target on the right:
-                              // the right vertical wall for 3/4 seats, or the
-                              // lower-right life edge for two opposing seats.
-                              left: two ? table.maxWidth - 56 : rightWall - 26,
+                              // One whole Menu target follows the lower wall
+                              // in two seats, and the right wall in 3/4 seats.
+                              left: two
+                                  ? twoPlayerControls.menu.dx - 26
+                                  : rightWall - 26,
                               top: two
-                                  ? bottomWall +
-                                        26 * (1 - progress.clamp(0.0, 1.0)) -
-                                        26
+                                  ? twoPlayerControls.menu.dy - 26
                                   : (table.maxHeight - 52) / 2,
                               child: _GameHub(
                                 key: const ValueKey('central-game-controls'),
@@ -493,6 +511,61 @@ class _TableScreenState extends State<TableScreen>
       ),
     );
   }
+}
+
+/// Shared geometry for the centered two-seat controls and their wall cutouts.
+class _TwoPlayerControlsGeometry {
+  _TwoPlayerControlsGeometry(Size size, double opening)
+    : upper = size.center(Offset.zero) - Offset(0, opening / 2),
+      lower = size.center(Offset.zero) + Offset(0, opening / 2);
+
+  static const firstTokenContentInset = 30.0;
+  static const flankRadius = 22.0;
+  // Control insets + header + full menu target + existing body padding.
+  static const minimumOpening = 26.0 + 30 + 56 + 92 + 24;
+  // Keep scrolled rows and fixed headers clear of each circle's inward half,
+  // with four pixels between the actual target and usable drawer viewport.
+  static const drawerContentInsets = EdgeInsets.only(
+    top: 22 + 4,
+    bottom: 26 + 4,
+  );
+  final Offset upper, lower;
+  Offset get dice => upper - const Offset(54, 0);
+  Offset get menu => lower;
+  Offset get dayNight => lower + const Offset(54, 0);
+  Offset notch(int side) => side < 0 ? upper : lower;
+}
+
+/// Only the part of the actual centered flank control crossing into life is
+/// excluded. This clip belongs to the rail viewport, so an inner short-rail
+/// scroll cannot drag the clearance away from its stationary shared button.
+class _TwoPlayerLifeControlClipper extends CustomClipper<Path> {
+  const _TwoPlayerLifeControlClipper({
+    required this.center,
+    required this.enabled,
+  });
+  final Offset center;
+  final bool enabled;
+
+  @override
+  Path getClip(Size size) {
+    final rail = Path()..addRect(Offset.zero & size);
+    if (!enabled) return rail;
+    return Path.combine(
+      PathOperation.difference,
+      rail,
+      Path()..addOval(
+        Rect.fromCircle(
+          center: center,
+          radius: _TwoPlayerControlsGeometry.flankRadius,
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldReclip(_TwoPlayerLifeControlClipper old) =>
+      center != old.center || enabled != old.enabled;
 }
 
 class _DrawerRevealClipper extends CustomClipper<Rect> {
@@ -530,8 +603,9 @@ class _DrawerWallPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
     for (final side in [-1, 1]) {
       if (horizontal) {
-        final y = center.dy + side * gap / 2;
-        final x = side < 0 ? 30.0 : size.width - 30;
+        final notch = _TwoPlayerControlsGeometry(size, gap).notch(side);
+        final x = notch.dx;
+        final y = notch.dy;
         final radius = 30 * notchScale;
         final wall = Path()
           ..moveTo(0, y)
@@ -570,9 +644,9 @@ class _DrawerWallPainter extends CustomPainter {
       notchScale != old.notchScale;
 }
 
-// Paint and board clipping share this opening. Horizontal two-seat cutouts
-// extend only into the life-side corners: never into either token viewport,
-// including while the gap is narrower than the handle during animation.
+// Paint, wall outlines and board clipping share the centered two-seat opening.
+// The first token's internal content inset clears its shallow wall notches;
+// artwork continues underneath the intact controls to the player seam.
 Path _drawerOpeningPath(
   Size size,
   double gap, {
@@ -595,8 +669,9 @@ Path _drawerOpeningPath(
   final radius = 30 * notchScale;
   if (radius > 0) {
     for (final side in [-1, 1]) {
-      final x = side < 0 ? 30.0 : size.width - 30;
-      final y = center.dy + side * gap / 2;
+      final notch = _TwoPlayerControlsGeometry(size, gap).notch(side);
+      final x = notch.dx;
+      final y = notch.dy;
       path.addPath(
         Path()
           ..addArc(
@@ -1045,6 +1120,10 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                         enabled: expandedId == null,
                         child: TabletTokenCard(
                           token: t,
+                          topContentInset: widget.twoPlayerLayout && index == 0
+                              ? _TwoPlayerControlsGeometry
+                                    .firstTokenContentInset
+                              : 0,
                           player: p,
                           board: widget.board,
                           playerName: profile.name,
@@ -1342,7 +1421,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
           height: lifeHeight,
           twoPlayer: widget.twoPlayerLayout,
           hubNotchScale: widget.twoPlayerLayout
-              ? (lifeFeedback.error != null || error != null ? 0 : 1)
+              ? 0
               : (1 - widget.drawerShift / 40).clamp(0.0, 1.0),
           centerNotch: widget.centerNotch,
           centerNotchAtStart: widget.centerNotchAtStart,
@@ -1372,13 +1451,12 @@ class _PlayerSpaceState extends State<_PlayerSpace>
               builder: (context, warning) => Container(
                 color: Theme.of(context).colorScheme.errorContainer,
                 width: double.infinity,
-                // The two-seat shared controls occupy life-side corners.
-                // Keep actual warning text and its action entirely in the token
-                // side, without reserving any normal token-list header space.
+                // Only a visible warning needs this internal clearance below
+                // the centered two-seat controls. Ordinary cards have no margin.
                 padding: EdgeInsets.fromLTRB(
                   6,
+                  widget.twoPlayerLayout ? 32 : 6,
                   6,
-                  widget.twoPlayerLayout ? warning.maxWidth * .4 + 6 : 6,
                   6,
                 ),
                 child: Row(
@@ -1419,6 +1497,26 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                     : (widget.tokenLeft
                           ? -widget.drawerShift
                           : widget.drawerShift);
+                final rail = IgnorePointer(
+                  ignoring: widget.drawerOpen,
+                  child: ExcludeSemantics(
+                    excluding: widget.drawerOpen,
+                    child: Material(
+                      key: ValueKey('${p.id}-sliding-rail'),
+                      color: Theme.of(context).colorScheme.surface,
+                      child: innerLane,
+                    ),
+                  ),
+                );
+                // Rotation maps each seat's outward flank to the same local
+                // position. Use the actual player width and lane divider;
+                // warnings already move the rail below the shared circles.
+                final flankCenter =
+                    _TwoPlayerControlsGeometry(
+                      Size(box.maxWidth, 0),
+                      0,
+                    ).dayNight -
+                    Offset(tokenWidth + 1, 1.5);
                 return Stack(
                   clipBehavior: Clip.hardEdge,
                   children: [
@@ -1429,17 +1527,17 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                       top: 0,
                       bottom: 0,
                       width: railWidth,
-                      child: IgnorePointer(
-                        ignoring: widget.drawerOpen,
-                        child: ExcludeSemantics(
-                          excluding: widget.drawerOpen,
-                          child: Material(
-                            key: ValueKey('${p.id}-sliding-rail'),
-                            color: Theme.of(context).colorScheme.surface,
-                            child: innerLane,
-                          ),
-                        ),
-                      ),
+                      child: widget.twoPlayerLayout
+                          ? ClipPath(
+                              key: ValueKey('${p.id}-life-clip'),
+                              clipper: _TwoPlayerLifeControlClipper(
+                                center: flankCenter,
+                                enabled:
+                                    lifeFeedback.error == null && error == null,
+                              ),
+                              child: rail,
+                            )
+                          : rail,
                     ),
                     Positioned(
                       left: widget.tokenLeft ? tokenWidth : railWidth,
@@ -1654,11 +1752,11 @@ class _LifePanel extends StatelessWidget {
               )
             : null;
         final surface = ClipPath(
-          key: ValueKey('${player.id}-life-clip'),
+          key: twoPlayer ? null : ValueKey('${player.id}-life-clip'),
           clipper: _LifeHubNotch(
             atStart: centerNotchAtStart,
             inset: -1.5,
-            enabled: centerNotch > 0 || twoPlayer,
+            enabled: centerNotch > 0,
             sharedControls: true,
             twoPlayer: twoPlayer,
             radiusScale: hubNotchScale,
@@ -1714,8 +1812,8 @@ class _LifePanel extends StatelessWidget {
                 ),
                 Positioned(
                   top: 28,
-                  left: twoPlayer ? 54 : 26,
-                  right: twoPlayer ? 60 : 26,
+                  left: 26,
+                  right: 26,
                   height: 18,
                   child: IgnorePointer(
                     child: ExcludeSemantics(

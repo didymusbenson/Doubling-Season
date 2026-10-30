@@ -451,16 +451,66 @@ async function verifyCutoutSurface(bytes, stage, { horizontal = false } = {}) {
   };
   // The opposite wall's exposed semicircle must use the same actual surface
   // as its adjacent empty gutter. Both points avoid strokes, icons and text.
-  const notchPoint = horizontal ? { x: 30, y: drawer.y - 12 } : { x: drawer.x - 12, y };
-  const surfacePoint = horizontal ? { x: 90, y: drawer.y + 8 } : { x: drawer.x + 8, y: y - 60 };
+  const notchPoint = horizontal ? { x: png.width / 2, y: drawer.y - 12 } : { x: drawer.x - 12, y };
+  const surfacePoint = horizontal ? { x: png.width / 2 + 90, y: drawer.y + 8 } : { x: drawer.x + 8, y: y - 60 };
   const notch = sample(notchPoint.x, notchPoint.y), surface = sample(surfacePoint.x, surfacePoint.y);
   assert(notch.every((value, index) => Math.abs(value - surface[index]) <= 3),
     `${stage}: wall cutout does not match the current theme surface: ${notch} versus ${surface}.`);
   evidence.cutoutPixels ||= [];
   evidence.cutoutPixels.push({ stage, viewport: { ...evidence.viewport }, notchPoint, surfacePoint, notch, surface });
 }
-async function captureDrawerTransition(name, action) {
+async function sharedControlGeometry() {
+  const controls = {};
+  for (const [name, identifier] of Object.entries({ dice: 'shared-dice', menu: 'game-menu', dayNight: 'shared-day-night' })) {
+    const rect = await identifierRect(identifier);
+    assert(rect, `Missing shared ${name} control.`);
+    controls[name] = rect;
+  }
+  return controls;
+}
+function assertCenteredTwoPlayerControls(controls, viewport, stage, opening) {
+  const center = rect => ({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 });
+  const dice = center(controls.dice), menu = center(controls.menu), day = center(controls.dayNight);
+  for (const [name, rect] of Object.entries(controls)) {
+    const size = name === 'menu' ? 52 : 44;
+    assert(Math.abs(rect.width - size) < .1 && Math.abs(rect.height - size) < .1,
+      `${stage}: ${name} changed its whole circular target size.`);
+    assert(rect.x >= 0 && rect.y >= 0 && rect.x + rect.width <= viewport.width && rect.y + rect.height <= viewport.height,
+      `${stage}: ${name} is clipped by the viewport.`);
+  }
+  assert(Math.abs(dice.x - (viewport.width / 2 - 54)) < 1 &&
+    Math.abs(menu.x - viewport.width / 2) < 1 && Math.abs(day.x - (viewport.width / 2 + 54)) < 1,
+  `${stage}: two-player controls left their centered horizontal positions.`);
+  assert(Math.abs(dice.y + menu.y - viewport.height) < 1 && Math.abs(day.y - menu.y) < 1,
+    `${stage}: two-player controls do not follow the opposing horizontal walls.`);
+  if (opening !== undefined) {
+    assert(Math.abs(menu.y - (viewport.height + opening) / 2) < 1 &&
+      Math.abs(dice.y - (viewport.height - opening) / 2) < 1,
+    `${stage}: two-player controls do not match the actual drawer opening.`);
+  }
+  return menu.y - dice.y;
+}
+async function captureDrawerTransition(name, action, { centeredTwoPlayer = false } = {}) {
   const frames = [];
+  if (centeredTwoPlayer) await cdp.evaluate(`(() => {
+    const state = { active: true, frames: [] };
+    window.__tableSmokeControlGeometry = state;
+    const sample = at => {
+      if (!state.active) return;
+      const controls = {};
+      for (const [name, id] of Object.entries({ dice: 'shared-dice', menu: 'game-menu', dayNight: 'shared-day-night' })) {
+        const element = document.querySelector('[flt-semantics-identifier="' + id + '"]');
+        if (element) {
+          const r = element.getBoundingClientRect();
+          controls[name] = { x: r.x, y: r.y, width: r.width, height: r.height };
+        }
+      }
+      state.frames.push({ at, controls });
+      requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+    return true;
+  })()`);
   transitionFrames = frames;
   await cdp.send('Page.startScreencast', { format: 'png', everyNthFrame: 1 });
   try {
@@ -491,6 +541,20 @@ async function captureDrawerTransition(name, action) {
   } finally {
     await cdp.send('Page.stopScreencast');
     transitionFrames = null;
+    if (centeredTwoPlayer) await cdp.evaluate('window.__tableSmokeControlGeometry.active = false');
+  }
+  if (centeredTwoPlayer) {
+    const geometry = await cdp.evaluate('window.__tableSmokeControlGeometry.frames');
+    const file = `${name}-control-geometry.json`;
+    await writeFile(join(output, file), JSON.stringify(geometry, null, 2));
+    const openings = geometry.map(({ at, controls }) => ({ at,
+      opening: assertCenteredTwoPlayerControls(controls, evidence.viewport, `${name} frame ${at}`) }));
+    const maximum = Math.max(...openings.map(frame => frame.opening));
+    assert(maximum > 100 && openings.some(frame => frame.opening > 5 && frame.opening < maximum - 5),
+      `${name}: no actual intermediate shared-control geometry was observed.`);
+    evidence.twoPlayerControlTransitions ||= [];
+    evidence.twoPlayerControlTransitions.push({ name, file, frames: geometry.length,
+      intermediateFrames: openings.filter(frame => frame.opening > 5 && frame.opening < maximum - 5).length, maximum });
   }
   const records = [];
   for (const [index, frame] of frames.entries()) {
@@ -1250,21 +1314,68 @@ try {
   }
   async function twoPlayerTokenBaseline(viewport, file) {
     const rows = [];
+    const shared = await sharedControlGeometry();
+    assertCenteredTwoPlayerControls(shared, viewport, 'populated two-player closed table', 0);
     for (const owner of ['qa', 'Player 2']) {
       const controls = [];
       for (const node of (await semantics()).filter(node => node.role === 'button' && node.name.startsWith(`${owner}, Scute Swarm,`))) {
         const rect = await bounds(node);
-        if (rect) controls.push({ name: node.name, rect });
+        if (rect) controls.push({ ...node, rect });
       }
       assert(controls.length >= 8, `${owner}: populated two-player token fixture is missing its real controls.`);
       const name = controls.find(node => node.name.startsWith(`${owner}, Scute Swarm, Name`));
       const upper = name.rect.y + name.rect.height / 2 < viewport.height / 2;
       const nearest = upper ? Math.max(...controls.map(node => node.rect.y + node.rect.height)) : Math.min(...controls.map(node => node.rect.y));
       const seamInset = Math.abs(nearest - viewport.height / 2);
-      assert(seamInset < 18, `${owner}: the first token row still reserves a blank seam strip (${seamInset}px).`);
-      rows.push({ owner, upper, controls, seamInset });
+      assert(seamInset >= 32 && seamInset < 43,
+        `${owner}: first-token content does not have the agreed internal 30px clearance (${seamInset}px).`);
+      for (const control of controls) for (const [sharedName, rect] of Object.entries(shared)) {
+        const cx = rect.x + rect.width / 2, cy = rect.y + rect.height / 2;
+        const nearestX = Math.max(control.rect.x, Math.min(cx, control.rect.x + control.rect.width));
+        const nearestY = Math.max(control.rect.y, Math.min(cy, control.rect.y + control.rect.height));
+        assert(Math.hypot(nearestX - cx, nearestY - cy) >= rect.width / 2,
+          `${owner}: ${sharedName} overlaps the first-token action ${control.name}.`);
+      }
+      const firstControls = [];
+      for (const label of ['Name', 'edit total, tapped and summoning sickness']) {
+        const candidates = controls.filter(node => node.name.startsWith(`${owner}, Scute Swarm, ${label}`));
+        candidates.sort((a, b) => Math.abs(a.rect.y + a.rect.height / 2 - viewport.height / 2) -
+          Math.abs(b.rect.y + b.rect.height / 2 - viewport.height / 2));
+        assert(candidates.length, `${owner}: first-token ${label} is absent.`);
+        const hit = await hitTarget(candidates[0]);
+        assert(hit.sameAction, `${owner}: centered shared controls obstruct first-token ${label}.`);
+        firstControls.push({ name: candidates[0].name, rect: candidates[0].rect, sameAction: true });
+      }
+      rows.push({ owner, upper, controls, seamInset, firstControls });
     }
-    return { png: decodeScreenshotPng(await capture(file)), rows };
+    const png = decodeScreenshotPng(await capture(file));
+    for (const row of rows) row.seamPaint = twoPlayerSeamPaint(png, row, viewport, viewport.height / 2);
+    return { png, rows };
+  }
+  function twoPlayerSeamPaint(png, row, viewport, seam) {
+    // The card's green identity rail and detailed artwork must already paint
+    // inside the first 24px at the seam. An outer 30px lane spacer cannot pass
+    // this independently of the deliberately inset names/totals above.
+    const railX = row.upper ? viewport.width - 4 : 3;
+    const rail = [], art = [];
+    const laneWidth = (viewport.width - 1) * .6;
+    const laneX = row.upper ? viewport.width - laneWidth : 0;
+    for (const offset of [5, 11, 17, 23]) {
+      const y = Math.round(seam + (row.upper ? -offset : offset));
+      const index = (y * png.width + railX) * png.channels;
+      rail.push(Array.from(png.pixels.subarray(index, index + 3)));
+      for (let localX = 20; localX < laneWidth - 20; localX += 7) {
+        const x = Math.round(laneX + localX);
+        if (Math.abs(x - viewport.width / 2) < 85) continue;
+        const pixel = (y * png.width + x) * png.channels;
+        art.push(Array.from(png.pixels.subarray(pixel, pixel + 3)));
+      }
+    }
+    assert(rail.every(([r, g, b]) => g > r + 20 && g > b + 20),
+      `${row.owner}: the first-token identity rail no longer reaches the seam (${JSON.stringify(rail)}).`);
+    const artRange = [0, 1, 2].map(channel => Math.max(...art.map(pixel => pixel[channel])) - Math.min(...art.map(pixel => pixel[channel])));
+    assert(artRange.some(range => range > 30), `${row.owner}: the first-token seam band has blank fill instead of artwork.`);
+    return { rail, artSamples: art.length, artRange };
   }
   async function verifyTwoPlayerTokenRows(before, bytes, drawer, viewport) {
     const after = decodeScreenshotPng(bytes);
@@ -1282,6 +1393,7 @@ try {
         `${row.owner}: the open drawer clips or resizes its token-lane width.`);
       assert(Math.abs(region.x - (row.upper ? viewport.width - width : 0)) < 2,
         `${row.owner}: the open drawer moved its token lane sideways.`);
+      const seamPaintOpen = twoPlayerSeamPaint(after, row, viewport, row.upper ? drawer.y : drawer.y + drawer.height);
       const shift = row.upper ? drawer.y - viewport.height / 2 : drawer.y + drawer.height - viewport.height / 2;
       const controlTop = Math.min(...row.controls.map(node => node.rect.y));
       const controlBottom = Math.max(...row.controls.map(node => node.rect.y + node.rect.height));
@@ -1319,7 +1431,7 @@ try {
         `${row.owner}: first-token pixels changed or clipped horizontally when the drawer opened (${JSON.stringify(differences)}).`);
       assert(best.leftEdgeMean < 15 && best.rightEdgeMean < 15,
         `${row.owner}: a token edge clipped despite the wider row matching (${JSON.stringify(best)}).`);
-      results.push({ owner: row.owner, upper: row.upper, region, shift, seamInset: row.seamInset, differences, best });
+      results.push({ owner: row.owner, upper: row.upper, region, shift, seamInset: row.seamInset, firstControls: row.firstControls, seamPaint: row.seamPaint, seamPaintOpen, differences, best });
     }
     evidence.twoPlayerTokenRows ||= [];
     evidence.twoPlayerTokenRows.push({ viewport, drawer, rows: results });
@@ -1333,11 +1445,13 @@ try {
     await verifyLifeOverlayGeometry(`${count}-seat-drawer-before`, ['qa', 'Player 2', 'Player 3', 'Player 4'].slice(0, count), count === 4 ? ['qa'] : []);
     const before = await tableSnapshot();
     const closedMenu = await find('Game controls Collapsed', { startsWith: true, role: 'button' });
+    const sharedClosed = await sharedControlGeometry();
+    assertCenteredTwoPlayerControls(sharedClosed, viewport, `${count}-seat closed controls`, 0);
     await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved',
       x: closedMenu.rect.x + closedMenu.rect.width / 2, y: closedMenu.rect.y + closedMenu.rect.height / 2 });
     const tokenRows = count === 2 ? await twoPlayerTokenBaseline(viewport, `${prefix}-populated-token-rows-before`) : null;
     const menuPng = await captureDrawerTransition(`${prefix}-opening`, () =>
-      click('Game controls Collapsed', { startsWith: true, role: 'button', after: 0 }));
+      click('Game controls Collapsed', { startsWith: true, role: 'button', after: 0 }), { centeredTwoPlayer: count === 2 });
     const drawer = await identifierRect('game-drawer-workspace');
     const openMenu = await find('Game controls', { startsWith: true, role: 'button' });
     assert(drawer && drawer.width >= 220 && drawer.height >= 300, 'Drawer workflow has no usable viewport.');
@@ -1350,12 +1464,28 @@ try {
       assert(openMenu.rect.y - closedMenu.rect.y > 20, 'Two-player Menu did not travel down with its wall.');
       assert(Math.abs(openMenu.rect.y + openMenu.rect.height / 2 - (drawer.y + drawer.height)) < 1,
         'The whole two-player Menu is not centered on the lower drawer wall.');
-      assert(Math.abs(openMenu.rect.x + openMenu.rect.width / 2 - (viewport.width - 30)) < 1,
-        'Two-player Menu left its lower-right wall position.');
+      const sharedOpen = await sharedControlGeometry();
+      assertCenteredTwoPlayerControls(sharedOpen, viewport, 'open two-player drawer', drawer.height);
+      for (const [name, label] of [['dice', 'Roll dice'], ['menu', 'Game controls'], ['dayNight', 'Day/Night:']]) {
+        const control = await find(label, { startsWith: name !== 'dice', role: 'button' });
+        assert((await hitTarget(control)).sameAction, `Open two-player ${name} center is obstructed.`);
+      }
+      evidence.twoPlayerSharedControls ||= [];
+      evidence.twoPlayerSharedControls.push({ viewport, closed: sharedClosed, open: sharedOpen });
     } else {
       assert(openMenu.rect.x - closedMenu.rect.x > 20, 'Menu did not travel right with the drawer edge.');
       assert(Math.abs(openMenu.rect.x + openMenu.rect.width / 2 - (drawer.x + drawer.width)) < 1,
         'The whole Menu is not centered on the right drawer wall.');
+      const sharedOpen = await sharedControlGeometry();
+      for (const [name, expectedX] of [['dice', drawer.x - 54], ['menu', drawer.x + drawer.width], ['dayNight', drawer.x + drawer.width + 54]]) {
+        const rect = sharedOpen[name];
+        assert(Math.abs(rect.x + rect.width / 2 - expectedX) < 1 &&
+          Math.abs(rect.y + rect.height / 2 - viewport.height / 2) < 1 &&
+          Math.abs(rect.width - sharedClosed[name].width) < .1 && Math.abs(rect.height - sharedClosed[name].height) < .1,
+        `${count}-seat ${name} no longer uses its unchanged vertical drawer geometry.`);
+      }
+      evidence.verticalDrawerControls ||= [];
+      evidence.verticalDrawerControls.push({ players: count, viewport, closed: sharedClosed, open: sharedOpen });
     }
     assert((await hitTarget(openMenu)).sameAction, 'The whole open Menu center is not actionable.');
     evidence.drawerGeometry ||= [];
@@ -1377,7 +1507,7 @@ try {
     await click('Game controls', { startsWith: true, role: 'button' });
     await findInDrawer('Dice', { role: 'button' });
     await captureDrawerTransition(`${prefix}-closing`, () =>
-      click('Game controls', { startsWith: true, role: 'button', after: 0 }));
+      click('Game controls', { startsWith: true, role: 'button', after: 0 }), { centeredTwoPlayer: count === 2 });
     await drawerClosed();
     assert.deepEqual(await tableSnapshot(), before, 'Menu close changed life or token state.');
   }

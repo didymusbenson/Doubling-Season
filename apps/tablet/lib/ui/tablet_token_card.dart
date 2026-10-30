@@ -32,8 +32,12 @@ class TabletTokenCard extends StatefulWidget {
     required this.onExpand,
     required this.onOpenDetailed,
     required this.onInputLock,
+    this.topContentInset = 0,
   });
 
+  /// Extra internal room for shared controls over the first two-player card.
+  /// The artwork and color rail still start at the card's outer top edge.
+  final double topContentInset;
   final TokenState token;
   final PlayerState player;
   final BoardService board;
@@ -618,7 +622,12 @@ class _TabletTokenCardState extends State<TabletTokenCard>
                   child: InkWell(
                     onTap: _inputOpen ? null : _expand,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(13, 5, 5, 3),
+                      padding: EdgeInsets.fromLTRB(
+                        13,
+                        5 + widget.topContentInset,
+                        5,
+                        3,
+                      ),
                       child: IconTheme.merge(
                         data: IconThemeData(color: color),
                         child: DefaultTextStyle.merge(

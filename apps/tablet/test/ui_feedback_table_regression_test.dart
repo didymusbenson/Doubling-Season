@@ -270,11 +270,8 @@ void main() {
           );
           expect(
             stripBounds.center,
-            seats == 2
-                ? Offset(tableBounds.right - 30, tableBounds.center.dy + 26)
-                : tableBounds.center,
-            reason:
-                'Two opposing seats keep Menu in life, away from the full token rows.',
+            tableBounds.center,
+            reason: 'Shared controls stay at the table center.',
           );
           expect(stripBounds.size, const Size(52, 52));
           final shell = tester.widget<Material>(
@@ -299,9 +296,6 @@ void main() {
               for (var y = 0.0; y <= box.size.height; y += 2) {
                 final point = Offset(x, y);
                 if (!path.contains(point)) continue;
-                if (seats == 2) {
-                  continue; // Menu overlays life, not a token cutout.
-                }
                 expect(
                   (box.localToGlobal(point) - stripBounds.center).distance,
                   greaterThanOrEqualTo(stripBounds.width / 2),
@@ -413,9 +407,10 @@ void main() {
               findsNothing,
             );
             expect(
-              bounds(tester, lane).overlaps(stripBounds),
+              nameBounds.overlaps(stripBounds),
               isFalse,
-              reason: 'Token boards remain fully outside the Menu target.',
+              reason:
+                  'Token content clears Menu while its artwork reaches the seam.',
             );
             final summary = byControlLabel('$name, board summary');
             expect(summary.hitTestable(), findsOneWidget);
@@ -473,12 +468,7 @@ void main() {
           final strip = find.byWidgetPredicate(
             (w) => w.runtimeType.toString() == '_GameHub',
           );
-          expect(
-            bounds(tester, strip).center,
-            seats == 2
-                ? Offset(size.width - 30, size.height / 2 + 26)
-                : size.center(Offset.zero),
-          );
+          expect(bounds(tester, strip).center, size.center(Offset.zero));
           expect(tester.takeException(), isNull);
         },
       );
