@@ -39,6 +39,20 @@ The earlier [foldable concept](../../in_progress_features/ipad_edition/foldable_
 is consistent with preserving a full session while focusing one seat. Seat 1
 is the specified phone target here; switching focused seats is not yet decided.
 
+## Confirmed development identity and later cutover
+
+Keep the separate **Tripling Table / tablet identity and storage** throughout
+exploration, development and ordinary testing. Existing Tripling Season code and
+installations must remain undisturbed; the apps continue to coexist. Do not
+rebrand or repoint routine development builds to the original identifiers.
+
+A distinct, deliberate cutover phase will later test this as a Tripling Season
+release, using the original store identity and real upgrade/migration paths on
+backed-up test installations. Success under the separate tablet identity does
+not prove an in-place original-app update. The cutover is future work, not an
+instruction to switch identifiers or migrate an installation now. See the
+[migration cutover gates](migration.md#development-isolation-and-release-cutover).
+
 ## Boundaries and later decisions
 
 - No runtime, schema, store, signing, OTA or release-version changes in this work.
