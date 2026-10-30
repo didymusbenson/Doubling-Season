@@ -1,84 +1,71 @@
-# Migration-safe, one-time fresh board
+# First migrated game: preserve Player 1's board
 
 **Status: DEFERRED / SPECULATIVE / NOT IMPLEMENTED.** See [scope](README.md).
 
-## Confirmed intent
+## Latest direction supersedes the fresh-board proposal
 
-After safely importing persistent TS content, start the user with a fresh clear
-board/game. Do not attempt to preserve the old active match as the new active
-match. This is a migration boundary, not permission to erase data now or on
-ordinary future app updates.
+On 2026-10-30 the owner replaced the earlier clear-board requirement:
+**the first migrated game maintains the existing token board state and enabled
+utilities where Tripling Table has a counterpart.** The historical filename is
+retained so existing links work; it is no longer a reset specification.
 
-A clean board must not mean an empty collection. Existing decks become reusable
-TT configurations; custom tokens, artwork, supporter ownership and preferences
-survive through the [migration contract](migration.md).
+Do not clear token quantities, tap/sickness state, token counters or supported
+live utility values merely to start the unified app. Do not use preset save/load
+as a live-game migration: presets deliberately initialize fresh gameplay values.
 
-## Data boundary
+## Two independent conversion paths
 
-| Category | Proposed first migrated launch |
+1. **Saved configurations:** convert every stored deck into a reusable TT preset,
+   preserving its configuration, identities and artwork. Normal future preset
+   loads retain their deliberate fresh-token/default-utility semantics.
+2. **Active board:** translate the actual last saved token instances and enabled
+   supported utilities into Player 1 of the destination session, preserving live
+   values and relationships. Do not construct it by reloading a saved deck.
+
+The destination remains an N-player game with Player 1 shown in phone view.
+Initial opponent count/identities and life defaults not represented in the old
+board still require explicit defaults; never manufacture existing match data.
+
+## Mapping and safety boundaries
+
+| Category | Required migration treatment |
 |---|---|
-| Saved decks/presets and reusable utility configurations | Preserve and validate. Do not zero or rewrite the templates as if they were live instances. |
-| Custom-token definitions, local images, credits and art preferences | Preserve, copy/remap and validate. |
-| Supported settings, favorites, ownership/cosmetics | Preserve or explicitly map. |
-| Old active token instances, quantities, tap/sickness state and token counters | Do not activate on the new board; retain in recovery snapshot. |
-| Old active life, commander damage, player counters, Monarch/Blessing/Initiative, Day/Night | Initialize from the chosen fresh-game policy; no old active claims/damage carried across. |
-| Mana, storm and other temporary utility values | Reset as live game state, while preserving reusable configuration separately. |
-| Old history, undo receipts and pending commands | Never replay into the fresh game. Keep recovery history separate from normal new-game undo. |
-| Player identities/appearance | Preserve durable choices where they exist and can be mapped. Do not invent opponents or transfer one identity to every seat. |
-
-Exact initial life, initial player count within the existing 2–4-player scope,
-and utility defaults remain open.
-Whether the initial board is completely empty or offers to load a migrated preset
-also remains open. The owner requested a fresh clear board, so no automatic
-recreation of the prior live tokens should be assumed.
+| Active token instances | Preserve definition/custom identity, quantity, tapped/summoning-sick counts, counters, ordering and selected art/style/credits. Validate invariants without silently zeroing values. |
+| Enabled utilities with a Table counterpart | Preserve configuration and supported live state with an explicit semantic mapping. Verify counter increments, actions, toggle art/state and ownership; matching a display name is not sufficient. |
+| Utility entries without a counterpart | Preserve source/recovery data; visible unavailable-item policy is proposed, not a license to silently delete/substitute. |
+| Existing life/status values represented by legacy utilities | Explicitly map to canonical Table life/counter/status fields if equivalent; avoid duplicate live trackers. Unsupported/ambiguous mapping remains a release blocker or explicit resolution choice. |
+| Saved decks/custom tokens/artwork/preferences/supporters | Preserve through the separate persistent-content migration. |
+| Old history/pending operations | Do not replay commands into the new board. Whether history can be translated is separate from preserving the final acknowledged state. Keep recovery material. |
 
 ## Proposed transaction and retry behavior
 
-The fresh-game transition is coupled to persistent migration success:
+1. Snapshot a consistent legacy installation and its required local artwork.
+2. Convert persistent content and independently stage Player 1's live board.
+3. Validate quantities, references, enabled utility semantics, saved configurations
+   and image hashes. Reopen the destination before declaring it usable.
+4. Commit the full destination and versioned migration marker atomically, or use
+   a journal with equivalent recoverability across storage boundaries.
+5. On retry, resume or recognize that completed migration. Never duplicate tokens,
+   replace newly played state with the old board, or clear a later game.
 
-1. Snapshot the legacy installation and migrate persistent content to staging.
-2. Verify and reopen all required destination content before preparing a reset.
-3. Create a new session identity and fresh board using explicit defaults. Do not
-   mutate the legacy match in place or emit normal gameplay/rule triggers.
-4. Commit destination content, fresh session and a versioned completion marker
-   atomically, or use a recovery journal that gives equivalent all-or-nothing
-   behavior. The marker identifies the source snapshot and migration version.
-5. Only then show the new board as the active game.
-
-On interruption before commit, resume staging or revert to the intact source.
-On interruption after commit but before UI acknowledgement, recognize the durable
-completion and load the committed game. Never clear it again just because the
-onboarding screen did not finish. A future schema migration must not reuse this
-one-time reset indiscriminately.
-
-Normal launch, folding, unfolding, rotation, resizing, choosing phone view,
-loading a preset and changing focused presentation do **not** invoke this reset.
-A user-requested later New Game is a separate, deliberate gameplay operation.
-Do not call the existing `resetGame()` blindly from viewport detection.
-
-## Recovery and UX
-
-Keep a private legacy snapshot with references to its art until an explicit
-retention policy is approved. Recovery must not merge old counters or history
-into a new match already in progress. A deliberate restore workflow would need
-its own scope and conflict rules.
-
-Explain the transition briefly in-context: saved configurations/content retained,
-active game starts fresh. Avoid routine snackbars or a wall of migration prose.
-Unresolved conversion problems must remain actionable; never report successful
-migration while silently dropping a user's deck or images.
+Keep the legacy snapshot under a deliberately selected retention policy. Failure
+must leave source content recoverable. Normal restart, fold/unfold, resize and
+presentation changes never rerun migration or call a game-reset command.
 
 ## Acceptance criteria
 
-- All migrated decks and images remain available after the clear board is shown.
-- New session has no old token instances, temporary values, claims or undo replay.
-- Crash at every transaction boundary cannot leave a cleared source and incomplete
-  destination, nor trigger a second reset after the user starts playing.
-- Repeated launches and view/posture changes preserve newly entered game state.
-- Disk-full, failed image copy, unknown schema and invalid destination leave
-  recoverable original content untouched.
-- A valid retained recovery snapshot is distinguished from a normal game archive;
-  neither is claimed present unless actually written and checked.
+- Live tokens keep counts, statuses, counters, identity, art and order after an
+  original-app update without uninstalling.
+- Enabled supported utilities retain the agreed equivalent state; unsupported
+  entries are accounted for, not silently lost.
+- Saved decks separately survive and can be loaded on a selected seat without
+  conflating a reusable template with the migrated live match.
+- Interrupted conversion/commit/first launch is repeatable without duplicates,
+  repeated resets or stale state overwriting subsequent gameplay.
+- Missing artwork, invalid source, low storage and ambiguous utility mappings
+  preserve recovery material and produce actionable outcomes.
+- Switching phone/full-table view preserves Player 1's migrated board and all
+  hidden players; no gameplay action is inferred from posture.
 
-No deletion/cleanup implementation, retention duration or automatic source purge
-is approved by this document.
+No live migration, cleanup, automatic source deletion or production cutover is
+implemented or authorized by this document.
