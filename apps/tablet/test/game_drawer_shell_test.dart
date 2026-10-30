@@ -293,7 +293,34 @@ void main() {
     }
   }
 
+  void expectMenuSemantics(
+    WidgetTester tester, {
+    required bool twoPlayer,
+    required bool expanded,
+  }) {
+    final semantics = tester.widget<Semantics>(
+      find.descendant(
+        of: find.byKey(const ValueKey('central-game-controls')),
+        matching: find.byWidgetPredicate(
+          (w) => w is Semantics && w.properties.label == 'Game controls',
+        ),
+      ),
+    );
+    expect(
+      semantics.properties.identifier,
+      twoPlayer ? 'two-player-game-menu' : 'game-menu',
+    );
+    expect(
+      semantics.properties.value,
+      '${expanded ? 'Expanded' : 'Collapsed'}, Game saved',
+    );
+    expect(semantics.properties.expanded, expanded);
+    expect(semantics.properties.button, isTrue);
+    expect(semantics.properties.onTap, isNotNull);
+  }
+
   void expectRightWallControls(WidgetTester tester) {
+    expectMenuSemantics(tester, twoPlayer: false, expanded: true);
     final table = tester.getRect(find.byKey(const ValueKey('table-surface')));
     final hub = tester.getRect(
       find.byKey(const ValueKey('central-game-controls')),
@@ -500,6 +527,7 @@ void main() {
         );
         final hub = find.byKey(const ValueKey('central-game-controls'));
         final closedHub = tester.getRect(hub);
+        expectMenuSemantics(tester, twoPlayer: true, expanded: false);
         expect(
           tester.getCenter(find.byKey(const ValueKey('shared-dice'))),
           table.center - const Offset(54, 0),
@@ -575,6 +603,7 @@ void main() {
         await tester.tap(hub);
         await tester.pump();
         Future<void> verifyFrame(String name) async {
+          expectMenuSemantics(tester, twoPlayer: true, expanded: true);
           final maskFinder = find.byKey(const ValueKey('drawer-board-mask'));
           final mask = tester.widget<ClipPath>(maskFinder);
           final maskBox = tester.renderObject<RenderBox>(maskFinder);

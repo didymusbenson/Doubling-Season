@@ -492,6 +492,7 @@ class _TableScreenState extends State<TableScreen>
                               child: _GameHub(
                                 key: const ValueKey('central-game-controls'),
                                 controller: controller,
+                                twoPlayer: two,
                                 expanded: drawerMounted,
                                 onPressed: () => drawerMounted
                                     ? _closeDrawer()
@@ -873,12 +874,14 @@ class _DayNightControl extends StatelessWidget {
 class _GameHub extends StatelessWidget {
   final TableController controller;
   final bool expanded;
+  final bool twoPlayer;
   final VoidCallback onPressed;
   const _GameHub({
     super.key,
     required this.controller,
     required this.expanded,
     required this.onPressed,
+    this.twoPlayer = false,
   });
   @override
   Widget build(BuildContext context) => Material(
@@ -892,7 +895,9 @@ class _GameHub extends StatelessWidget {
     elevation: 4,
     clipBehavior: Clip.antiAlias,
     child: Semantics(
-      identifier: 'game-menu',
+      // The web host contains only the two-seat label's invisible DOM text.
+      // Its accessible label/value and native 52px action remain unchanged.
+      identifier: twoPlayer ? 'two-player-game-menu' : 'game-menu',
       label: 'Game controls',
       value:
           '${expanded ? 'Expanded' : 'Collapsed'}, ${controller.busy ? 'Saving game' : 'Game saved'}',

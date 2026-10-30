@@ -46,6 +46,13 @@ outside its scrolling content and is disabled when a warning moves life away
 from the seam. Neighboring life taps remain available; no arbitrary corner notch
 or extra rectangular dead area is introduced.
 
+A rendered portrait browser check also found Menu's invisible web accessibility
+text extending outside its 52-pixel control and intercepting the first token's
+totals tap. The two-player Menu receives scoped DOM text containment while
+retaining its full accessible name, state and action. Three/four-player Menu
+semantics and behavior retain their existing defaults. Actual pointer taps
+must open the token editor, rather than only passing a bounds comparison.
+
 ## Validation and delivery
 
 Check actual control centers and first-token name/totals/action bounds in both

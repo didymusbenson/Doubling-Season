@@ -459,9 +459,9 @@ async function verifyCutoutSurface(bytes, stage, { horizontal = false } = {}) {
   evidence.cutoutPixels ||= [];
   evidence.cutoutPixels.push({ stage, viewport: { ...evidence.viewport }, notchPoint, surfacePoint, notch, surface });
 }
-async function sharedControlGeometry() {
+async function sharedControlGeometry({ twoPlayer = false } = {}) {
   const controls = {};
-  for (const [name, identifier] of Object.entries({ dice: 'shared-dice', menu: 'game-menu', dayNight: 'shared-day-night' })) {
+  for (const [name, identifier] of Object.entries({ dice: 'shared-dice', menu: twoPlayer ? 'two-player-game-menu' : 'game-menu', dayNight: 'shared-day-night' })) {
     const rect = await identifierRect(identifier);
     assert(rect, `Missing shared ${name} control.`);
     controls[name] = rect;
@@ -498,7 +498,7 @@ async function captureDrawerTransition(name, action, { centeredTwoPlayer = false
     const sample = at => {
       if (!state.active) return;
       const controls = {};
-      for (const [name, id] of Object.entries({ dice: 'shared-dice', menu: 'game-menu', dayNight: 'shared-day-night' })) {
+      for (const [name, id] of Object.entries({ dice: 'shared-dice', menu: 'two-player-game-menu', dayNight: 'shared-day-night' })) {
         const element = document.querySelector('[flt-semantics-identifier="' + id + '"]');
         if (element) {
           const r = element.getBoundingClientRect();
@@ -1314,7 +1314,7 @@ try {
   }
   async function twoPlayerTokenBaseline(viewport, file) {
     const rows = [];
-    const shared = await sharedControlGeometry();
+    const shared = await sharedControlGeometry({ twoPlayer: true });
     assertCenteredTwoPlayerControls(shared, viewport, 'populated two-player closed table', 0);
     for (const owner of ['qa', 'Player 2']) {
       const controls = [];
@@ -1343,8 +1343,26 @@ try {
           Math.abs(b.rect.y + b.rect.height / 2 - viewport.height / 2));
         assert(candidates.length, `${owner}: first-token ${label} is absent.`);
         const hit = await hitTarget(candidates[0]);
-        assert(hit.sameAction, `${owner}: centered shared controls obstruct first-token ${label}.`);
-        firstControls.push({ name: candidates[0].name, rect: candidates[0].rect, sameAction: true });
+        const hitFile = `${file}-${owner.replaceAll(' ', '-')}-${label === 'Name' ? 'name' : 'totals'}-hit.json`;
+        await writeFile(join(output, hitFile), JSON.stringify({ selected: candidates[0], hit }, null, 2));
+        assert(hit.sameAction, `${owner}: centered shared controls obstruct first-token ${label}; inspect ${hitFile}.`);
+        if (label !== 'Name') {
+          // Invisible web semantic text must not steal a real center tap from
+          // these totals. The expected editor is a separate player workflow;
+          // opening it and closing it must leave the table state unchanged.
+          const tableBefore = await tableSnapshot();
+          await click(candidates[0].name, { role: 'button', backend: candidates[0].backend });
+          await find('Increase Total', { startsWith: true, role: 'button' });
+          await find('Increase Tapped', { startsWith: true, role: 'button' });
+          await find('Increase Summoning sick', { startsWith: true, role: 'button', includeDisabled: true });
+          assert.equal(await identifierRect('game-drawer'), null, 'Token totals center opened the game drawer.');
+          await capture(`${file}-${owner.replaceAll(' ', '-')}-totals-editor`);
+          await click('Close workspace', { role: 'button' });
+          await find('Game controls Collapsed', { startsWith: true, role: 'button' });
+          assert.deepEqual(await tableSnapshot(), tableBefore, 'Reading token totals changed the test table.');
+        }
+        firstControls.push({ name: candidates[0].name, rect: candidates[0].rect, sameAction: true,
+          hitFile, statusEditorOpened: label !== 'Name' });
       }
       rows.push({ owner, upper, controls, seamInset, firstControls });
     }
@@ -1445,7 +1463,7 @@ try {
     await verifyLifeOverlayGeometry(`${count}-seat-drawer-before`, ['qa', 'Player 2', 'Player 3', 'Player 4'].slice(0, count), count === 4 ? ['qa'] : []);
     const before = await tableSnapshot();
     const closedMenu = await find('Game controls Collapsed', { startsWith: true, role: 'button' });
-    const sharedClosed = await sharedControlGeometry();
+    const sharedClosed = await sharedControlGeometry({ twoPlayer: count === 2 });
     assertCenteredTwoPlayerControls(sharedClosed, viewport, `${count}-seat closed controls`, 0);
     await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved',
       x: closedMenu.rect.x + closedMenu.rect.width / 2, y: closedMenu.rect.y + closedMenu.rect.height / 2 });
@@ -1472,7 +1490,7 @@ try {
       assert(openMenu.rect.y - closedMenu.rect.y > 20, 'Two-player Menu did not travel down with its wall.');
       assert(Math.abs(openMenu.rect.y + openMenu.rect.height / 2 - (drawer.y + drawer.height)) < 1,
         'The whole two-player Menu is not centered on the lower drawer wall.');
-      const sharedOpen = await sharedControlGeometry();
+      const sharedOpen = await sharedControlGeometry({ twoPlayer: true });
       assertCenteredTwoPlayerControls(sharedOpen, viewport, 'open two-player drawer', drawer.height);
       for (const [name, label] of [['dice', 'Roll dice'], ['menu', 'Game controls'], ['dayNight', 'Day/Night:']]) {
         const control = await find(label, { startsWith: name !== 'dice', role: 'button' });
