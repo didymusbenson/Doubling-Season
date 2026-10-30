@@ -81,6 +81,9 @@ class TabletArtworkSelection extends StatefulWidget {
   final int quarterTurns;
   final ValueChanged<bool>? onPreviewChanged;
   final Future<void> Function(String)? validate;
+  final TextEditingController? draftUrlController;
+  final Map<String, dynamic>? initialCandidate;
+  final ValueChanged<Map<String, dynamic>?>? onCandidateChanged;
   const TabletArtworkSelection({
     super.key,
     required this.board,
@@ -90,6 +93,9 @@ class TabletArtworkSelection extends StatefulWidget {
     this.quarterTurns = 0,
     this.onPreviewChanged,
     this.validate,
+    this.draftUrlController,
+    this.initialCandidate,
+    this.onCandidateChanged,
   });
   @override
   State<TabletArtworkSelection> createState() => _TabletArtworkSelectionState();
@@ -101,17 +107,24 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
   void initState() {
     super.initState();
     scope = widget.board.scope(widget.player.id);
+    url = widget.draftUrlController ?? TextEditingController();
+    candidate = widget.initialCandidate;
   }
 
-  final url = TextEditingController();
+  late final TextEditingController url;
   Map<String, dynamic>? candidate;
   bool busy = false;
   String? error;
   int downloaded = 0;
   @override
   void dispose() {
-    url.dispose();
+    if (widget.draftUrlController == null) url.dispose();
     super.dispose();
+  }
+
+  void _setCandidate(Map<String, dynamic>? value) {
+    setState(() => candidate = value);
+    widget.onCandidateChanged?.call(value);
   }
 
   Future<void> run(Future<void> Function() action) async {
@@ -170,7 +183,7 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
             knownSet != null)
           'set': knownSet,
       };
-      setState(() => candidate = enriched);
+      _setCandidate(enriched);
       widget.onPreviewChanged?.call(true);
       _revealCandidate();
     }
@@ -297,7 +310,7 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
                         onPressed: busy
                             ? null
                             : () {
-                                setState(() => candidate = null);
+                                _setCandidate(null);
                                 widget.onPreviewChanged?.call(false);
                               },
                         child: const Text('Discard preview'),
@@ -318,7 +331,7 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
                                   captured: scope,
                                 );
                                 if (mounted) {
-                                  setState(() => candidate = null);
+                                  _setCandidate(null);
                                   widget.onPreviewChanged?.call(false);
                                 }
                               }),
@@ -365,7 +378,7 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
                           captured: scope,
                         );
                         if (mounted) {
-                          setState(() => candidate = null);
+                          _setCandidate(null);
                           widget.onPreviewChanged?.call(false);
                         }
                       }),

@@ -241,19 +241,156 @@ void main() {
       expect(tester.takeException(), isNull);
       final directory = Platform.environment['PHONE_CAPTURE_DIR'];
       if (directory != null) {
-        final image =
-            await (boundary.currentContext!.findRenderObject()
-                    as RenderRepaintBoundary)
-                .toImage();
-        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        // Rasterization and PNG encoding use engine callbacks. Keep the whole
+        // capture outside the widget test's fake-async zone, not just disk I/O.
         await tester.runAsync(() async {
-          await Directory(directory).create(recursive: true);
-          await File(
-            '$directory/phone-${size.width.toInt()}x${size.height.toInt()}.png',
-          ).writeAsBytes(bytes!.buffer.asUint8List());
+          final image =
+              await (boundary.currentContext!.findRenderObject()
+                      as RenderRepaintBoundary)
+                  .toImage()
+                  .timeout(const Duration(seconds: 15));
+          try {
+            final bytes = await image
+                .toByteData(format: ui.ImageByteFormat.png)
+                .timeout(const Duration(seconds: 15));
+            if (bytes == null) {
+              throw StateError('PNG encoding returned no bytes');
+            }
+            await Directory(directory).create(recursive: true);
+            await File(
+              '$directory/phone-${size.width.toInt()}x${size.height.toInt()}.png',
+            ).writeAsBytes(bytes.buffer.asUint8List());
+            await File('$directory/README.txt').writeAsString(
+              'LAYOUT-ONLY widget-test captures. Flutter test fonts may render '
+              'text as Ahem blocks; these are not production-font visual '
+              'acceptance evidence. Use release browser/native screenshots '
+              'for typography and final visual review.\n',
+            );
+          } finally {
+            image.dispose();
+          }
         });
-        image.dispose();
+        expect(tester.takeException(), isNull);
       }
     });
   }
+  testWidgets('opening More cancels an already-held token quantity', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final state = TabletState.initial();
+    state.session.players.first.tokens.add(sampleToken(id: 'held'));
+    final f = TableFixture(state);
+    await f.initialize();
+    addTearDown(f.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TableScreen(
+          controller: f.controller,
+          enablePhonePresentation: true,
+          compactPlayerOne: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final hold = await tester.startGesture(
+      tester.getCenter(find.byKey(const ValueKey('held-quantity-increase'))),
+      pointer: 7,
+    );
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.tap(
+      find.byKey(const ValueKey('phone-action-more')),
+      pointer: 99,
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    final afterOpen = f.token('held').amount;
+    await tester.pump(const Duration(seconds: 2));
+    expect(f.token('held').amount, afterOpen);
+    await hold.up();
+    await tester.pumpAndSettle();
+    expect(f.token('held').amount, afterOpen);
+    final life = f.player.life;
+    // Tap the covered header location: the More barrier owns this hit.
+    await tester.tapAt(
+      tester.getCenter(find.byKey(ValueKey('${f.playerId}-life-increase'))),
+    );
+    await tester.pumpAndSettle();
+    expect(f.player.life, life, reason: 'Header tap dismisses More, not life');
+    expect(find.byKey(const ValueKey('phone-more-menu')), findsNothing);
+  });
+
+  testWidgets('phone preserves recovery warning and details access', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final f = TableFixture();
+    await f.initialize();
+    addTearDown(f.dispose);
+    f.controller.recoveryMessage = 'Recovered your previous game';
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TableScreen(
+          controller: f.controller,
+          enablePhonePresentation: true,
+          compactPlayerOne: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Recovered your previous game'), findsOneWidget);
+    expect(find.text('Details').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('folding cancels a token reorder without changing order', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final state = TabletState.initial();
+    state.session.players.first.tokens.addAll([
+      sampleToken(id: 'drag-one', name: 'First'),
+      sampleToken(id: 'drag-two', name: 'Second'),
+    ]);
+    final f = TableFixture(state);
+    await f.initialize();
+    addTearDown(f.dispose);
+    bool compact = true;
+    late StateSetter change;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            change = setState;
+            return TableScreen(
+              controller: f.controller,
+              enablePhonePresentation: true,
+              compactPlayerOne: compact,
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final item = find.byKey(const ValueKey('phone-token-drag-one'));
+    final drag = await tester.startGesture(
+      tester.getTopLeft(item) + const Offset(150, 30),
+      pointer: 8,
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    await drag.moveBy(const Offset(0, 120));
+    await tester.pump();
+    change(() => compact = false);
+    tester.view.physicalSize = const Size(1133, 744);
+    await tester.pumpAndSettle();
+    await drag.up();
+    await tester.pumpAndSettle();
+    expect(f.player.tokens.map((t) => t.id).toList(), ['drag-one', 'drag-two']);
+    expect(tester.takeException(), isNull);
+  });
 }

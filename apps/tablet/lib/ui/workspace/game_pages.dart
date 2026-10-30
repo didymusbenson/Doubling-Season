@@ -245,19 +245,22 @@ extension _GamePages on _TableWorkspaceState {
             'Player name',
             initial: profile.name,
             live: true,
-            onCommit: (value) async {
+            onCommitWithOriginal: (value, original) async {
               final name = value.trim();
               if (name.isEmpty) {
                 throw const FormatException('Enter a player name.');
               }
-              return c.updateState(
-                'Rename seat',
-                (state) =>
-                    state.profiles
-                            .firstWhere((s) => s.id == player.seatId)
-                            .name =
-                        name,
-              );
+              return c.updateState('Rename seat', (state) {
+                final target = state.profiles.firstWhere(
+                  (s) => s.id == player.seatId,
+                );
+                if (target.name != original.trim() && target.name != name) {
+                  throw StateError(
+                    'This name changed in another view. Edit your retained draft to confirm it before saving.',
+                  );
+                }
+                target.name = name;
+              });
             },
           ),
           Wrap(
@@ -327,6 +330,12 @@ extension _GamePages on _TableWorkspaceState {
                     seatName: profile.name,
                     quarterTurns: widget.quarterTurns,
                     current: profile.artworkUrl,
+                    queryController: _field('life-art.query'),
+                    initialCandidate: _field('life-art.candidate').text.isEmpty
+                        ? null
+                        : _field('life-art.candidate').text,
+                    onCandidateChanged: (value) =>
+                        _field('life-art.candidate').text = value ?? '',
                   );
                   if (!mounted || !_validScope) return null;
                   if (art != null) {

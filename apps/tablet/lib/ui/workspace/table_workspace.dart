@@ -126,10 +126,21 @@ final Set<_TableWorkspaceState> _presentationWorkspaces = {};
 
 /// Preserve transient drafts and let already accepted direct commands settle.
 /// Neither ordinary tap-away nor resetGame belongs in a posture transition.
-Future<void> dismissTableTransientForPresentationChange() async {
+Future<void> dismissTableTransientForPresentationChange(
+  BuildContext context,
+) async {
   await dismissPlayerKeyboardForPresentationChange();
   for (final workspace in _presentationWorkspaces.toList()) {
     await workspace._suspendForPresentation();
+  }
+  await WidgetsBinding.instance.endOfFrame;
+  if (context.mounted) {
+    // Child art/crop dialogs are transient too. Workspace routes are removed by
+    // identity, so dismissing a child cannot strand or double-pop its parent.
+    Navigator.of(
+      context,
+      rootNavigator: true,
+    ).popUntil((route) => route.isFirst);
   }
 }
 
@@ -210,6 +221,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   String? _itemId;
   final _fields = <String, TextEditingController>{};
   final _inlineEdits = <String, _InlineEdit>{};
+  final _restoredInlineOriginals = <String, String>{};
   bool _allowPop = false;
   bool _closing = false;
   bool _closeSaveFailed = false;
@@ -300,14 +312,28 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
 
   bool _restoringDraft = false;
   Future<void>? _presentationSuspension;
+  ModalRoute<dynamic>? _ownedRoute;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _ownedRoute = ModalRoute.of(context);
+  }
 
   void _restoreDraft() {
     _restoringDraft = true;
     try {
       final recovered = _failedDrafts[_draftKey];
       if (recovered != null) {
+        _restoredInlineOriginals.addAll(recovered.inlineOriginals);
         for (final entry in recovered.fields.entries) {
           _field(entry.key, entry.value).text = entry.value;
+          final edit = _inlineEdits[entry.key];
+          final original = _restoredInlineOriginals[entry.key];
+          if (edit != null && original != null) {
+            edit.savedValue = original;
+            _restoredInlineOriginals.remove(entry.key);
+          }
         }
         _page = recovered.page;
         _itemId = recovered.itemId;
@@ -353,7 +379,16 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   void _retainDrafts({bool presentationChange = false}) {
     _failedDrafts[_draftKey] = _WorkspaceDraft(
       fields: {
-        for (final entry in _fields.entries) entry.key: entry.value.text,
+        for (final entry in _fields.entries)
+          if (!_inlineEdits.containsKey(entry.key) ||
+              entry.value.text != _inlineEdits[entry.key]!.savedValue)
+            entry.key: entry.value.text,
+      },
+      inlineOriginals: {
+        ..._restoredInlineOriginals,
+        for (final entry in _inlineEdits.entries)
+          if (entry.value.controller.text != entry.value.savedValue)
+            entry.key: entry.value.savedValue,
       },
       page: _page,
       itemId: _itemId,
@@ -383,6 +418,17 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     edit.timer?.cancel();
     if (edit.saving != null) return edit.saving!;
     if (edit.controller.text == edit.savedValue) return true;
+    if (edit.liveValue != edit.savedValue &&
+        edit.liveValue != edit.controller.text) {
+      _retainDrafts();
+      if (mounted) {
+        setState(
+          () => _error =
+              'This field changed in another view. Your draft is kept. Edit the retained field to confirm it before saving.',
+        );
+      }
+      return false;
+    }
     Future<bool> persist() async {
       if (!_validScope) {
         _retainDrafts();
@@ -478,7 +524,12 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     for (final edit in _inlineEdits.values) {
       if (edit.saving != null) await edit.saving;
     }
-    if (mounted) _finishClose();
+    if (mounted) {
+      // A completed live save may have cleared the earlier snapshot. Retain the
+      // surviving non-inline draft fields after the accepted writes settle.
+      _retainDrafts(presentationChange: true);
+      _finishClose();
+    }
   }
 
   void _closeKeepingSessionDraft() {
@@ -500,7 +551,14 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       if (_embedded) {
         widget.onDrawerClose!();
       } else {
-        Navigator.of(context).pop();
+        final route = _ownedRoute;
+        if (route != null && route.isActive) {
+          if (_presentationSuspension != null) {
+            Navigator.of(context).removeRoute(route);
+          } else {
+            Navigator.of(context).pop();
+          }
+        }
       }
     });
   }
@@ -559,7 +617,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       if (result == false) {
         throw StateError(c.error ?? 'The change could not be saved.');
       }
-      _failedDrafts.remove(_draftKey);
+      // A child picker can return after posture suspension captured its draft.
+      // Its cancellation is not a successful save of the retained workspace.
+      if (_presentationSuspension == null) _failedDrafts.remove(_draftKey);
       if (mounted) {
         setState(() {
           after?.call();
@@ -747,12 +807,33 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     String? helper,
     Widget? prefixIcon,
     Future<dynamic> Function(String value)? onCommit,
+    Future<dynamic> Function(String value, String original)?
+    onCommitWithOriginal,
     bool live = false,
   }) {
     final controller = _field(id, initial);
+    if (onCommitWithOriginal != null) {
+      onCommit = (value) =>
+          onCommitWithOriginal(value, _inlineEdits[id]!.savedValue);
+    }
     if (onCommit != null && !_inlineEdits.containsKey(id)) {
-      final edit = _InlineEdit(controller, initial, onCommit);
+      final edit = _InlineEdit(
+        controller,
+        _restoredInlineOriginals.remove(id) ?? initial,
+        onCommit,
+      )..liveValue = initial;
       _inlineEdits[id] = edit;
+      var observedText = controller.text;
+      controller.addListener(() {
+        final changed = controller.text != observedText;
+        observedText = controller.text;
+        if (!changed || _restoringDraft || _closing) return;
+        // Editing a retained conflict is explicit review; selection/focus alone
+        // must not authorize replacing a newer board value.
+        if (edit.liveValue != edit.savedValue) {
+          edit.savedValue = edit.liveValue;
+        }
+      });
       if (live) {
         controller.addListener(() {
           edit.timer?.cancel();
@@ -769,6 +850,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       }
     }
     final existing = _inlineEdits[id];
+    if (existing != null) existing.liveValue = initial;
     if (existing != null &&
         existing.saving == null &&
         existing.controller.text == existing.savedValue &&
@@ -1392,6 +1474,7 @@ class _Confirmation {
 class _WorkspaceDraft {
   const _WorkspaceDraft({
     required this.fields,
+    required this.inlineOriginals,
     required this.page,
     required this.itemId,
     required this.definition,
@@ -1415,6 +1498,7 @@ class _WorkspaceDraft {
   final String? selectedCounter, editingNumber, editingPlayerCounter;
   final bool presentationChange;
   final Map<String, String> fields;
+  final Map<String, String> inlineOriginals;
   final WorkspacePage page;
   final String? itemId;
   final TokenDefinition? definition;
@@ -1426,9 +1510,11 @@ class _WorkspaceDraft {
 }
 
 class _InlineEdit {
-  _InlineEdit(this.controller, this.savedValue, this.save);
+  _InlineEdit(this.controller, this.savedValue, this.save)
+    : liveValue = savedValue;
   final TextEditingController controller;
   String savedValue;
+  String liveValue;
   Future<dynamic> Function(String value) save;
   Future<bool>? saving;
   Timer? timer;

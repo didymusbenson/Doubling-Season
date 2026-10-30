@@ -534,6 +534,14 @@ extension _TokenPages on _TableWorkspaceState {
           player: player,
           token: token,
           quarterTurns: widget.quarterTurns,
+          draftUrlController: _field('artwork.url'),
+          initialCandidate: _field('artwork.candidate').text.isEmpty
+              ? null
+              : Map<String, dynamic>.from(
+                  jsonDecode(_field('artwork.candidate').text) as Map,
+                ),
+          onCandidateChanged: (value) => _field('artwork.candidate').text =
+              value == null ? '' : jsonEncode(value),
         ),
       ]),
       _ => _tokenDetails(token),
@@ -544,7 +552,7 @@ extension _TokenPages on _TableWorkspaceState {
     required String id,
     required String label,
     required int value,
-    required Future<void> Function(int) set,
+    required Future<void> Function(int, int) set,
     required Future<void> Function(int) change,
     int minimum = 0,
     int maximum = 999999,
@@ -573,8 +581,10 @@ extension _TokenPages on _TableWorkspaceState {
                 'Set $label',
                 initial: '$value',
                 numeric: true,
-                onCommit: (text) =>
-                    set(_wholeNumber(text, min: minimum, max: maximum)),
+                onCommitWithOriginal: (text, original) => set(
+                  _wholeNumber(text, min: minimum, max: maximum),
+                  int.parse(original.trim()),
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -601,8 +611,13 @@ extension _TokenPages on _TableWorkspaceState {
         id: '${t.id}.status.amount',
         label: 'Total',
         value: t.amount,
-        set: (v) =>
-            _board.editToken(player.id, t.id, amount: v, captured: scope),
+        set: (v, original) => _board.editToken(
+          player.id,
+          t.id,
+          amount: v,
+          captured: scope,
+          expectedFields: {'amount': '$original'},
+        ),
         change: (d) => _board.editToken(
           player.id,
           t.id,
@@ -616,8 +631,13 @@ extension _TokenPages on _TableWorkspaceState {
           label: 'Tapped',
           value: t.tapped,
           maximum: t.amount,
-          set: (v) =>
-              _board.editToken(player.id, t.id, tapped: v, captured: scope),
+          set: (v, original) => _board.editToken(
+            player.id,
+            t.id,
+            tapped: v,
+            captured: scope,
+            expectedFields: {'tapped': '$original'},
+          ),
           change: (d) => _board.tapTokens(player.id, t.id, d),
         ),
       if (t.hasPowerToughness)
@@ -626,11 +646,12 @@ extension _TokenPages on _TableWorkspaceState {
           label: 'Summoning sick',
           value: t.summoningSick,
           maximum: t.amount,
-          set: (v) => _board.editToken(
+          set: (v, original) => _board.editToken(
             player.id,
             t.id,
             summoningSick: v,
             captured: scope,
+            expectedFields: {'summoningSick': '$original'},
           ),
           change: (d) => _board.editToken(
             player.id,
@@ -714,12 +735,13 @@ extension _TokenPages on _TableWorkspaceState {
           id: '$key.set.${entry.key}',
           label: entry.key,
           value: entry.value,
-          set: (value) => _board.setCounter(
+          set: (value, original) => _board.setCounter(
             player.id,
             t.id,
             entry.key,
             value,
             captured: scope,
+            expectedValue: original,
           ),
           change: (delta) => _board.counter(player.id, t.id, entry.key, delta),
         ),
@@ -900,32 +922,48 @@ extension _TokenPages on _TableWorkspaceState {
           '$key.name',
           'Name',
           initial: t.name,
-          onCommit: (v) =>
-              _board.editToken(player.id, t.id, name: v, captured: scope),
+          onCommitWithOriginal: (v, original) => _board.editToken(
+            player.id,
+            t.id,
+            name: v,
+            captured: scope,
+            expectedFields: {'name': original},
+          ),
         ),
         _input(
           '$key.pt',
           'Base power / toughness',
           initial: t.pt,
-          onCommit: (v) =>
-              _board.editToken(player.id, t.id, pt: v, captured: scope),
+          onCommitWithOriginal: (v, original) => _board.editToken(
+            player.id,
+            t.id,
+            pt: v,
+            captured: scope,
+            expectedFields: {'pt': original},
+          ),
         ),
         _input(
           '$key.type',
           'Type',
           initial: t.type,
-          onCommit: (v) =>
-              _board.editToken(player.id, t.id, type: v, captured: scope),
+          onCommitWithOriginal: (v, original) => _board.editToken(
+            player.id,
+            t.id,
+            type: v,
+            captured: scope,
+            expectedFields: {'type': original},
+          ),
         ),
         _input(
           '$key.colors',
           'Color identity',
           initial: t.colors,
-          onCommit: (v) => _board.editToken(
+          onCommitWithOriginal: (v, original) => _board.editToken(
             player.id,
             t.id,
             colors: v.toUpperCase(),
             captured: scope,
+            expectedFields: {'colors': original.toUpperCase()},
           ),
         ),
       ]),
@@ -934,8 +972,13 @@ extension _TokenPages on _TableWorkspaceState {
         'Abilities',
         initial: t.abilities,
         maxLines: 3,
-        onCommit: (v) =>
-            _board.editToken(player.id, t.id, abilities: v, captured: scope),
+        onCommitWithOriginal: (v, original) => _board.editToken(
+          player.id,
+          t.id,
+          abilities: v,
+          captured: scope,
+          expectedFields: {'abilities': original},
+        ),
       ),
       const SizedBox(height: 20),
       _button(

@@ -59,6 +59,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
   // Failed drafts remain attached to this stable token ID when the keyboard is
   // dismissed. Reopening the field retries that exact raw value.
   final Map<String, String> _drafts = {};
+  final Map<String, String> _draftOriginals = {};
   final Map<String, TextEditingController> _controllers = {};
   final Map<String, FocusNode> _fieldFocus = {};
   BoardScope? _draftScope;
@@ -103,10 +104,36 @@ class _TabletTokenCardState extends State<TabletTokenCard>
     }
   }
 
+  String _liveField(String field) {
+    final live =
+        widget.board.controller
+            .player(widget.player.id)
+            .tokens
+            .where((item) => item.id == token.id)
+            .firstOrNull ??
+        token;
+    return switch (field) {
+      'name' => live.name,
+      'type' => live.type,
+      'pt' => live.pt,
+      'abilities' => live.abilities,
+      _ => '',
+    };
+  }
+
   Future<bool> _flushDrafts() async {
     if (_drafts.isEmpty) return true;
     final pending = Map<String, String>.from(_drafts);
     try {
+      for (final field in pending.keys) {
+        final live = _liveField(field);
+        if (live != (_draftOriginals[field] ?? live) &&
+            live != pending[field]) {
+          throw StateError(
+            'This token changed in another view. Review the retained field or discard the old draft before continuing.',
+          );
+        }
+      }
       await widget.board.editToken(
         widget.player.id,
         token.id,
@@ -114,12 +141,19 @@ class _TabletTokenCardState extends State<TabletTokenCard>
         type: pending['type'],
         pt: pending['pt'],
         abilities: pending['abilities'],
+        expectedFields: {
+          for (final field in pending.keys)
+            field: _draftOriginals[field] ?? _liveField(field),
+        },
         captured: _draftScope,
       );
       if (!mounted) return false;
       setState(() {
         for (final field in pending.keys) {
-          if (_drafts[field] == pending[field]) _drafts.remove(field);
+          if (_drafts[field] == pending[field]) {
+            _drafts.remove(field);
+            _draftOriginals.remove(field);
+          }
         }
         if (_drafts.isEmpty) _draftScope = null;
         _error = null;
@@ -178,6 +212,9 @@ class _TabletTokenCardState extends State<TabletTokenCard>
       _inputOpen = true;
       _editing = field;
       _drafts.putIfAbsent(field, () => saved);
+      // Opening a retained field is an explicit review of that draft against
+      // the current board; unrelated actions cannot silently overwrite it.
+      _draftOriginals[field] = saved;
       _draftScope = scope;
     });
     updateKeepAlive();
@@ -210,6 +247,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
       setState(() {
         if (savedSuccessfully) {
           _drafts.remove(field);
+          _draftOriginals.remove(field);
           if (_drafts.isEmpty) _draftScope = null;
           _error = null;
         } else {
@@ -953,6 +991,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
                                                 : () {
                                                     setState(() {
                                                       _drafts.clear();
+                                                      _draftOriginals.clear();
                                                       _draftScope = null;
                                                       _error = null;
                                                     });

@@ -506,9 +506,39 @@ class BoardService {
     int? amount,
     int? tapped,
     int? summoningSick,
+    Map<String, String>? expectedFields,
     BoardScope? captured,
   }) => _commit(playerId, 'Edit token', (s, p) {
     final t = _token(p, tokenId);
+    // Check inside the serialized mutation, after earlier accepted writes.
+    final current = {
+      'name': t.name,
+      'pt': t.pt,
+      'abilities': t.abilities,
+      'colors': t.colors,
+      'type': t.type,
+      'amount': '${t.amount}',
+      'tapped': '${t.tapped}',
+      'summoningSick': '${t.summoningSick}',
+    };
+    final requested = {
+      'name': name,
+      'pt': pt,
+      'abilities': abilities,
+      'colors': colors,
+      'type': type,
+      'amount': amount?.toString(),
+      'tapped': tapped?.toString(),
+      'summoningSick': summoningSick?.toString(),
+    };
+    for (final entry in (expectedFields ?? <String, String>{}).entries) {
+      if (current[entry.key] != entry.value &&
+          current[entry.key] != requested[entry.key]) {
+        throw StateError(
+          'This token changed in another view. Review the retained field or discard the old draft before continuing.',
+        );
+      }
+    }
     // Inline editing preserves the original raw text, including empty fields.
     if (name != null) t.name = name;
     if (pt != null) t.pt = pt;
@@ -590,10 +620,21 @@ class BoardService {
     String name,
     int value, {
     BoardScope? captured,
+    int? expectedValue,
   }) => _commit(playerId, 'Set $name counters to $value', (s, p) {
     _quantity(value);
     if (name.trim().isEmpty) throw const FormatException('Name the counter');
     final t = _token(p, tokenId);
+    final current = switch (name) {
+      '+1/+1' => t.plusOneCounters,
+      '-1/-1' => t.minusOneCounters,
+      _ => t.counters[name] ?? 0,
+    };
+    if (expectedValue != null && current != expectedValue && current != value) {
+      throw StateError(
+        'This counter changed in another view. Edit your retained draft to confirm it before saving.',
+      );
+    }
     switch (name) {
       case '+1/+1':
         t.plusOneCounters = value;

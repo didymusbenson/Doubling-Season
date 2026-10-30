@@ -12,6 +12,7 @@ class _PhonePlayerView extends StatefulWidget {
     required this.active,
     required this.inputLocked,
     required this.onInputLock,
+    required this.onCancelGestures,
     required this.onOpen,
   });
   final TableController controller;
@@ -21,6 +22,7 @@ class _PhonePlayerView extends StatefulWidget {
   final int interactionEpoch;
   final bool active, inputLocked;
   final ValueChanged<bool> onInputLock;
+  final VoidCallback onCancelGestures;
   final void Function(WorkspacePage, [String?]) onOpen;
   @override
   State<_PhonePlayerView> createState() => _PhonePlayerViewState();
@@ -205,6 +207,7 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
     final epoch = Object.hash(
       widget.interactionEpoch,
       widget.active,
+      moreOpen,
       p.generation,
       widget.controller.session.generation,
     );
@@ -213,6 +216,7 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
       key: const ValueKey('phone-player-one'),
       children: [
         GestureDetector(
+          excludeFromSemantics: true,
           behavior: HitTestBehavior.opaque,
           onTap: moreOpen ? () => setState(() => moreOpen = false) : null,
           child: IgnorePointer(
@@ -240,6 +244,31 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
             ),
           ),
         ),
+        if (widget.controller.recoveryMessage != null ||
+            (widget.controller.error != null &&
+                error == null &&
+                feedback.error == null))
+          Material(
+            color: Theme.of(context).colorScheme.errorContainer,
+            child: Row(
+              children: [
+                const SizedBox(width: 8),
+                const Icon(Icons.info_outline, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.controller.error ??
+                        widget.controller.recoveryMessage!,
+                    maxLines: 3,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => widget.onOpen(WorkspacePage.settings),
+                  child: const Text('Details'),
+                ),
+              ],
+            ),
+          ),
         if (error != null || feedback.error != null)
           Material(
             color: Theme.of(context).colorScheme.errorContainer,
@@ -300,8 +329,9 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
                               onExpand: () => expand(u.id),
                               onRemove: () => perform(() async {
                                 await widget.board.removeUtility(p.id, u.id);
-                                if (mounted && expanded == u.id)
+                                if (mounted && expanded == u.id) {
                                   setState(() => expanded = null);
+                                }
                               }),
                               onTempt: () => perform(
                                 () => RingService(
@@ -381,6 +411,7 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
               if (moreOpen) ...[
                 Positioned.fill(
                   child: GestureDetector(
+                    excludeFromSemantics: true,
                     behavior: HitTestBehavior.opaque,
                     onTap: () => setState(() => moreOpen = false),
                     child: const ColoredBox(color: Color(0x22000000)),
@@ -403,11 +434,10 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      action(
-                        Icons.more_horiz,
-                        'More',
-                        () => setState(() => moreOpen = !moreOpen),
-                      ),
+                      action(Icons.more_horiz, 'More', () {
+                        widget.onCancelGestures();
+                        setState(() => moreOpen = !moreOpen);
+                      }),
                       const SizedBox(width: 8),
                       action(Icons.vertical_align_top, 'Utilities', () {
                         setState(() => moreOpen = false);
