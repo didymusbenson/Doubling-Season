@@ -15,6 +15,7 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../domain/table_controller.dart';
 import '../../domain/table_state.dart';
+import '../../domain/input_validation.dart';
 import '../../features/board_service.dart';
 import '../../features/preset_service.dart';
 import '../../features/ring_service.dart';
@@ -205,8 +206,6 @@ class _TableWorkspace extends StatefulWidget {
 
 class _TableWorkspaceState extends State<_TableWorkspace> {
   late WorkspacePage _page;
-  String? _editingPlayerCounter;
-  final _counterCorrectionKey = GlobalKey();
   Future<void> _directQueue = Future.value();
   int _directPending = 0;
   // Failure survives later successful writes and close-in-progress rebuilds.
@@ -220,6 +219,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   String? _playerId;
   String? _itemId;
   final _fields = <String, TextEditingController>{};
+  final _numericInitials = <String, String>{};
   final _inlineEdits = <String, _InlineEdit>{};
   final _restoredInlineOriginals = <String, String>{};
   bool _allowPop = false;
@@ -355,7 +355,6 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         _emptySlot = recovered.emptySlot;
         _selectedCounter = recovered.selectedCounter;
         _editingNumber = recovered.editingNumber;
-        _editingPlayerCounter = recovered.editingPlayerCounter;
         _status = recovered.presentationChange
             ? 'Recovered your unsaved edit.'
             : 'Recovered your draft from an unsuccessful save.';
@@ -407,7 +406,6 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       emptySlot: _emptySlot,
       selectedCounter: _selectedCounter,
       editingNumber: _editingNumber,
-      editingPlayerCounter: _editingPlayerCounter,
       presentationChange: presentationChange,
     );
   }
@@ -443,9 +441,15 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
           }
           edit.savedValue = value;
           if (mounted) setState(() => _error = null);
+        } on NumericInputException {
+          // An invalid numeric correction is a cancelled edit, not a failed
+          // save. Restore its clean value without writing history or storage.
+          edit.controller.text = edit.savedValue;
+          if (mounted) setState(() => _error = null);
+          continue;
         } catch (error) {
           _retainDrafts();
-          if (mounted) setState(() => _error = '$error');
+          if (mounted) setState(() => _error = inputErrorMessage(error));
           return false;
         }
       }
@@ -628,7 +632,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       }
     } catch (error) {
       _retainDrafts();
-      if (mounted) setState(() => _error = '$error');
+      if (mounted) setState(() => _error = inputErrorMessage(error));
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -655,7 +659,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         }
       } catch (error) {
         _directFailure =
-            'Some changes were not saved. Check the displayed totals before retrying. $error';
+            'Some changes were not saved. Check the displayed totals before retrying. ${inputErrorMessage(error)}';
         _directFailureNeedsAcknowledgement = true;
         _directFailureEpoch++;
         if (mounted) setState(() => _error = _directFailure);
@@ -673,30 +677,24 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     int delta,
   ) => _runDirect(() => c.adjustCommanderDamage(player.id, source.id, delta));
 
-  Future<void> _editPlayerCounter(String playerId, String key) async {
-    if (_working || _closing || _navigating || !_validScope) return;
-    setState(() => _navigating = true);
-    try {
-      await _directQueue;
-      if (!mounted || !_validScope || _closing) return;
-      setState(() {
-        _editingPlayerCounter = key;
-        _field('counter.$key').text =
-            '${c.player(playerId).counters[key] ?? 0}';
-      });
-      await WidgetsBinding.instance.endOfFrame;
-      if (!mounted || !_validScope || _closing) return;
-      final editContext = _counterCorrectionKey.currentContext;
-      if (editContext != null && editContext.mounted) {
-        await Scrollable.ensureVisible(editContext, alignment: 1);
-      }
-    } finally {
-      if (mounted) setState(() => _navigating = false);
-    }
-  }
-
   int _integer(String field, {int min = -1000000000, int max = 1000000000}) {
-    return _wholeNumber(_field(field).text, min: min, max: max);
+    final controller = _field(field);
+    final parsed = tryWholeNumber(controller.text, min: min, max: max);
+    if (parsed != null) return parsed;
+    final clean = tryWholeNumber(
+      _numericInitials[field] ?? '',
+      // Restoring an existing value is not a new manual edit. The stored state
+      // supports a wider range, including legacy utility values. Narrowing it
+      // here could turn an invalid edit into a destructive zero on the next Set.
+      min: -999999999999,
+      max: 999999999999,
+    );
+    // Creation fields retain their valid default; edits restore the displayed
+    // source value. Do not silently apply a fallback to the requested command.
+    controller.text = '${clean ?? (min <= 0 && max >= 0 ? 0 : min)}';
+    throw NumericInputException(
+      'Enter a whole number from $min to $max. The previous value was restored.',
+    );
   }
 
   int _wholeNumber(
@@ -704,15 +702,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     int min = -1000000000,
     int max = 1000000000,
   }) {
-    final text = valueText.trim();
-    if (!RegExp(r'^-?[0-9]+$').hasMatch(text)) {
-      throw const FormatException(
-        'Enter a whole number, with a minus sign only for negative values.',
-      );
-    }
-    final value = int.tryParse(text);
-    if (value == null || value < min || value > max) {
-      throw FormatException('Enter a number between $min and $max.');
+    final value = tryWholeNumber(valueText, min: min, max: max);
+    if (value == null) {
+      throw NumericInputException('Enter a whole number from $min to $max.');
     }
     return value;
   }
@@ -812,6 +804,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     bool live = false,
   }) {
     final controller = _field(id, initial);
+    if (numeric) _numericInitials[id] = initial;
     if (onCommitWithOriginal != null) {
       onCommit = (value) =>
           onCommitWithOriginal(value, _inlineEdits[id]!.savedValue);
@@ -1492,10 +1485,9 @@ class _WorkspaceDraft {
     required this.emptySlot,
     this.selectedCounter,
     this.editingNumber,
-    this.editingPlayerCounter,
     this.presentationChange = false,
   });
-  final String? selectedCounter, editingNumber, editingPlayerCounter;
+  final String? selectedCounter, editingNumber;
   final bool presentationChange;
   final Map<String, String> fields;
   final Map<String, String> inlineOriginals;

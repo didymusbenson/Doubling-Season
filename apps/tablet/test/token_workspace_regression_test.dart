@@ -156,6 +156,79 @@ void main() {
     await closeWorkspace(tester);
   });
 
+  for (final initial in [1000000, 999999999999]) {
+    for (final counter in [false, true]) {
+      testWidgets(
+        'Correct persisted ${counter ? 'counter' : 'total'} $initial above manual-entry bounds',
+        (tester) async {
+          fixture = TableFixture(
+            stateWithTokens([
+              sampleToken(amount: initial, counters: {'charge': initial}),
+            ]),
+          );
+          await fixture.initialize();
+          final otherSeats = fixture.controller.session.players
+              .skip(1)
+              .map((player) => player.toJson())
+              .toList();
+          await openWorkspace(
+            tester,
+            counter ? WorkspacePage.tokenCounters : WorkspacePage.tokenStatus,
+          );
+          final label = counter ? 'charge' : 'Total';
+          final edit = byControlLabel('Edit $label');
+          await tester.ensureVisible(edit);
+          await tester.tap(edit);
+          await tester.pumpAndSettle();
+          final field = tester.widget<PlayerField>(
+            find.byWidgetPredicate(
+              (widget) => widget is PlayerField && widget.label == 'Set $label',
+            ),
+          );
+          field.controller.text = '7';
+          await tester.tap(find.text('Set'));
+          await tester.pumpAndSettle();
+          final token = fixture.token('source');
+          expect(counter ? token.counters['charge'] : token.amount, 7);
+          expect(counter ? token.amount : token.counters['charge'], initial);
+          expect(fixture.controller.session.history, hasLength(1));
+          expect(
+            fixture.controller.session.players
+                .skip(1)
+                .map((player) => player.toJson())
+                .toList(),
+            otherSeats,
+          );
+          final reopened = await fixture.repository.open();
+          final restored = reopened.state.session
+              .player(fixture.playerId)
+              .tokens
+              .single;
+          expect(counter ? restored.counters['charge'] : restored.amount, 7);
+          expect(tester.takeException(), isNull);
+          await closeWorkspace(tester);
+        },
+      );
+    }
+  }
+
+  testWidgets(
+    'Total stepper adjusts a large saved total by one without truncation',
+    (tester) async {
+      fixture = TableFixture(stateWithTokens([sampleToken(amount: 1000001)]));
+      await fixture.initialize();
+      await openWorkspace(tester, WorkspacePage.tokenStatus);
+      await tester.tap(byControlLabel('Decrease Total'));
+      await tester.pumpAndSettle();
+      expect(fixture.token('source').amount, 1000000);
+      await tester.tap(byControlLabel('Increase Total'));
+      await tester.pumpAndSettle();
+      expect(fixture.token('source').amount, 1000001);
+      expect(tester.takeException(), isNull);
+      await closeWorkspace(tester);
+    },
+  );
+
   testWidgets('Counter catalog exposes integrated split and add to one', (
     tester,
   ) async {

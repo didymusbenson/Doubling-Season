@@ -225,8 +225,9 @@ void main() {
       );
       expect(byControlLabel('Correct life separately'), findsNothing);
       expect(find.text('Correct life'), findsNothing);
+      expect(byControlLabel('Set energy total'), findsNothing);
       expect(
-        byControlLabel('Set energy total'),
+        byControlLabel('Increase energy'),
         page == WorkspacePage.player ? findsNothing : findsOneWidget,
       );
       expect(tester.takeException(), isNull);
@@ -375,7 +376,7 @@ void main() {
   );
 
   testWidgets(
-    'empty combined popup enables a counter without exposing manual life editing',
+    'empty combined popup uses steppers without manual counter or life editing',
     (tester) async {
       final f = TableFixture();
       await f.initialize();
@@ -385,63 +386,49 @@ void main() {
       expect(find.byKey(const ValueKey('commander-workspace')), findsOneWidget);
       expect(field('Set life total to'), findsNothing);
       expect(find.text('Correct life'), findsNothing);
-      expect(byControlLabel('Set energy total'), findsOneWidget);
+      expect(byControlLabel('Set energy total'), findsNothing);
       await enableCounter(tester, 'energy');
       expect(f.player.counters['energy'], 0);
-      await reveal(tester, byControlLabel('Set energy total'));
-      await tester.tap(byControlLabel('Set energy total'));
+      await reveal(tester, byControlLabel('Increase energy'));
+      await tester.tap(byControlLabel('Increase energy'));
       await tester.pumpAndSettle();
-      tester.widget<TextField>(field('Set total')).controller!.text = '27';
-      await reveal(tester, find.widgetWithText(OutlinedButton, 'Set'));
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Set'));
-      await tester.pumpAndSettle();
-      expect(f.player.counters['energy'], 27);
+      expect(f.player.counters['energy'], 1);
       expect(f.player.life, 40);
       expect(
         find.byKey(const ValueKey('player-counter-energy')),
         findsOneWidget,
       );
       expect(find.widgetWithText(ChoiceChip, 'Counters'), findsNothing);
-      expect(field('Set life total to'), findsNothing);
-      expect(find.text('Correct life'), findsNothing);
+      expect(find.byType(TextField), findsNothing);
       expect(tester.takeException(), isNull);
       await close(tester);
     },
   );
 
   testWidgets(
-    'counter corrections reveal independently, cancel without saving, set and undo exactly',
+    'counter steppers preserve other state and History undo restores each value',
     (tester) async {
       final f = TableFixture();
       await f.initialize();
       addTearDown(f.dispose);
       await open(tester, f, page: WorkspacePage.counters);
-      expect(find.byType(TextField), findsNothing);
       final originalLife = f.player.life;
+      final originalDamage = Map<String, int>.of(f.player.commanderDamage);
       for (final counter in ['energy', 'poison', 'experience', 'radiation']) {
         await enableCounter(tester, counter);
-        await reveal(tester, byControlLabel('Set $counter total'));
-        await tester.tap(byControlLabel('Set $counter total'));
-        await tester.pumpAndSettle();
-        expect(field('Set total'), findsOneWidget);
-        tester.widget<TextField>(field('Set total')).controller!.text = '7';
-        await reveal(tester, byControlLabel('Cancel counter correction'));
-        await tester.tap(byControlLabel('Cancel counter correction'));
-        await tester.pumpAndSettle();
-        expect(f.player.counters[counter] ?? 0, 0);
+        expect(byControlLabel('Set $counter total'), findsNothing);
         expect(find.byType(TextField), findsNothing);
-        await reveal(tester, byControlLabel('Set $counter total'));
-        await tester.tap(byControlLabel('Set $counter total'));
+        final before = Map<String, int>.of(f.player.counters);
+        final increase = byControlLabel('Increase $counter');
+        await reveal(tester, increase);
+        await tester.tap(increase);
         await tester.pumpAndSettle();
-        tester.widget<TextField>(field('Set total')).controller!.text = '7';
-        await reveal(tester, find.widgetWithText(OutlinedButton, 'Set'));
-        await tester.tap(find.widgetWithText(OutlinedButton, 'Set'));
-        await tester.pumpAndSettle();
-        expect(f.player.counters[counter], 7);
+        expect(f.player.counters, {...before, counter: 1});
         expect(f.player.life, originalLife);
+        expect(f.player.commanderDamage, originalDamage);
         expect(find.byType(TextField), findsNothing);
         await undoInHistory(tester, f);
-        expect(f.player.counters[counter] ?? 0, 0);
+        expect(f.player.counters, before);
         await open(tester, f, page: WorkspacePage.counters);
       }
       expect(tester.takeException(), isNull);

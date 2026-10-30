@@ -76,26 +76,13 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
       await action();
       if (mounted) setState(() => error = null);
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) setState(() => error = inputErrorMessage(e));
     }
   }
 
   void expand(String id) => setState(() {
     expanded = expanded == null ? id : null;
   });
-
-  Future<void> utilities() async {
-    final visible = player.utilities.where(widget.board.isUtilityVisible);
-    if (visible.isEmpty) {
-      widget.onOpen(WorkspacePage.utilities);
-    } else if (scroll.hasClients) {
-      await scroll.animateTo(
-        0,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-      );
-    }
-  }
 
   Widget action(
     IconData icon,
@@ -325,8 +312,6 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
                               utility: u,
                               player: p,
                               board: widget.board,
-                              expanded: expanded == u.id,
-                              onExpand: () => expand(u.id),
                               onRemove: () => perform(() async {
                                 await widget.board.removeUtility(p.id, u.id);
                                 if (mounted && expanded == u.id) {
@@ -439,9 +424,9 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
                         setState(() => moreOpen = !moreOpen);
                       }),
                       const SizedBox(width: 8),
-                      action(Icons.vertical_align_top, 'Utilities', () {
+                      action(Icons.widgets_outlined, 'Utilities', () {
                         setState(() => moreOpen = false);
-                        utilities();
+                        widget.onOpen(WorkspacePage.utilities);
                       }),
                       const SizedBox(width: 8),
                       action(Icons.add, 'Add token', () {

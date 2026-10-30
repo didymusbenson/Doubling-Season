@@ -36,7 +36,6 @@ extension _FocusedCommanderPage on _TableWorkspaceState {
         8 +
         counterRows * _playerCounterHeight +
         max(0, counterRows - 1) * 8 +
-        (_editingPlayerCounter == null ? 0 : 88) +
         ((p?.warnings.isNotEmpty ?? false) ? 32 : 0);
   }
 

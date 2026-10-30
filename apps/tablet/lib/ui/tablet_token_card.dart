@@ -9,6 +9,7 @@ import 'package:doubling_season/widgets/mana/mana_icons.dart';
 import 'package:doubling_season/widgets/mana/mana_text.dart';
 
 import '../domain/table_state.dart';
+import '../domain/input_validation.dart';
 import '../features/board_service.dart';
 import 'table_artwork.dart';
 import 'half_stepper.dart';
@@ -97,9 +98,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
       if (mounted && _error != null) setState(() => _error = null);
     } catch (error) {
       if (mounted) {
-        setState(
-          () => _error = error.toString().replaceFirst('Bad state: ', ''),
-        );
+        setState(() => _error = inputErrorMessage(error));
       }
     }
   }
@@ -164,7 +163,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
       if (mounted) {
         setState(
           () => _error =
-              '${error.toString().replaceFirst('Bad state: ', '')} '
+              '${inputErrorMessage(error)} '
               'Draft kept; retry the field before continuing.',
         );
       }
@@ -294,8 +293,8 @@ class _TabletTokenCardState extends State<TabletTokenCard>
     if (parts.length != 2) return token.pt;
     String stat(String base, int independent) {
       final change = token.netPlusOneCounters + independent;
-      final number = int.tryParse(base.trim());
-      if (number != null) return '${number + change}';
+      final number = BigInt.tryParse(base.trim());
+      if (number != null) return '${number + BigInt.from(change)}';
       return '$base${change == 0
           ? ''
           : change > 0

@@ -2,6 +2,7 @@ import 'package:doubling_season/models/token_definition.dart';
 import 'package:flutter/material.dart';
 
 import '../services/tablet_catalog.dart';
+import '../domain/input_validation.dart';
 import 'artwork_selection.dart';
 import 'table_artwork.dart';
 import 'table_modal_frame.dart';
@@ -103,7 +104,13 @@ class _LifeArtworkPickerState extends State<LifeArtworkPicker> {
       await action();
     } catch (e) {
       if (mounted) {
-        setState(() => error = '$e');
+        setState(
+          () => error = inputErrorMessage(
+            e,
+            fallback:
+                'Artwork could not be updated. Your selection is unchanged.',
+          ),
+        );
         _revealTop();
       }
     } finally {

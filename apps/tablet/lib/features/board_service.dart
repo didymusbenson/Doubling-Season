@@ -495,6 +495,42 @@ class BoardService {
     _token(p, tokenId);
     p.tokens.removeWhere((t) => t.id == tokenId);
   }, captured: captured);
+  // Matches the aggregate's persisted numeric range. Creation and manual
+  // entry keep their smaller limits; stepping a saved total must not truncate it.
+  static const maxStoredTokenTotal = 999999999999;
+
+  Future<void> adjustTokenTotal(
+    String playerId,
+    String tokenId,
+    int delta, {
+    BoardScope? captured,
+  }) => _commit(
+    playerId,
+    'Adjust token total',
+    (s, p) {
+      final t = _token(p, tokenId);
+      final next = t.amount + delta;
+      if (next < 0 || next > maxStoredTokenTotal) return;
+      if (delta > 0 &&
+          p.summoningSicknessEnabled &&
+          _creature(t) &&
+          !t.hasHaste &&
+          !_emblem(t)) {
+        t.summoningSick += delta;
+      }
+      t.amount = next;
+      t.tapped = min(t.tapped, next);
+      t.summoningSick = min(t.summoningSick, next);
+    },
+    captured: captured,
+    groupKey: 'token-total:$tokenId:${delta.sign}',
+    delta: delta,
+    effectiveDelta: (before, after) =>
+        _token(_player(after, playerId), tokenId).amount -
+        _token(_player(before, playerId), tokenId).amount,
+    describeDelta: (actual) => 'Token total ${actual >= 0 ? '+' : ''}$actual',
+  );
+
   Future<void> editToken(
     String playerId,
     String tokenId, {

@@ -293,6 +293,7 @@ extension _LibraryPages on _TableWorkspaceState {
                   value: _integer(
                     '$key.value',
                     min: utility.kind == 'life_total' ? -1000000000 : 0,
+                    max: utility.kind == 'life_total' ? 1000000000 : 999999,
                   ),
                 ),
               ),

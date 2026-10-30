@@ -17,6 +17,51 @@ void main() {
   tearDown(() => f.dispose());
 
   test(
+    'total corrections use live values above creation limits and stop at persistence bounds',
+    () async {
+      await open(
+        stateWithTokens([
+          sampleToken(amount: 1000001, counters: {'charge': 4}),
+        ]),
+      );
+      final otherSeat = f.controller.session.players[1].toJson();
+      await Future.wait([
+        f.board.adjustTokenTotal(f.playerId, 'source', -1),
+        f.board.adjustTokenTotal(f.playerId, 'source', -1),
+      ]);
+      expect(f.token('source').amount, 999999);
+      await f.board.adjustTokenTotal(f.playerId, 'source', 1);
+      expect(f.token('source').amount, 1000000);
+      expect(f.token('source').counters, {'charge': 4});
+      expect(f.controller.session.players[1].toJson(), otherSeat);
+      final reopened = await f.repository.open();
+      expect(
+        reopened.state.session.player(f.playerId).tokens.single.amount,
+        1000000,
+      );
+
+      // These are valid stored states, including the largest persisted total.
+      f.dispose();
+      await open(stateWithTokens([sampleToken(amount: 999999999999)]));
+      final atUpperBound = f.repository.encoded;
+      await f.board.adjustTokenTotal(f.playerId, 'source', 1);
+      expect(f.repository.encoded, atUpperBound);
+      expect(f.controller.session.history, isEmpty);
+      await f.board.adjustTokenTotal(f.playerId, 'source', -1);
+      expect(f.token('source').amount, 999999999998);
+      await f.board.adjustTokenTotal(f.playerId, 'source', 1);
+      expect(f.token('source').amount, 999999999999);
+
+      f.dispose();
+      await open(stateWithTokens([sampleToken(amount: 0, tapped: 0, sick: 0)]));
+      final atLowerBound = f.repository.encoded;
+      await f.board.adjustTokenTotal(f.playerId, 'source', -1);
+      expect(f.repository.encoded, atLowerBound);
+      expect(f.controller.session.history, isEmpty);
+    },
+  );
+
+  test(
     'quick add grows selected counter-bearing stack without changing counters',
     () async {
       final source = sampleToken(

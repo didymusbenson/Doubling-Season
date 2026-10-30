@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import '../domain/table_state.dart';
 import '../features/board_service.dart';
 import '../services/tablet_catalog.dart';
+import '../domain/input_validation.dart';
 import '../services/tablet_media_store.dart';
 import 'table_artwork.dart';
 import 'table_modal_frame.dart';
@@ -136,7 +137,14 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
     try {
       await action();
     } catch (e) {
-      if (mounted) setState(() => error = e.toString());
+      if (mounted)
+        setState(
+          () => error = inputErrorMessage(
+            e,
+            fallback:
+                'Artwork could not be updated. Your selection is unchanged.',
+          ),
+        );
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -603,7 +611,14 @@ class _ArtworkCropState extends State<_ArtworkCrop> {
       );
       if (mounted) Navigator.pop(context, bytes);
     } catch (e) {
-      if (mounted) setState(() => error = e.toString());
+      if (mounted)
+        setState(
+          () => error = inputErrorMessage(
+            e,
+            fallback:
+                'Artwork could not be updated. Your selection is unchanged.',
+          ),
+        );
     } finally {
       if (mounted) setState(() => busy = false);
     }

@@ -84,10 +84,14 @@ extension _TokenPages on _TableWorkspaceState {
                 ValueListenableBuilder<TextEditingValue>(
                   valueListenable: quantity,
                   builder: (context, value, _) {
-                    final count = int.tryParse(value.text);
-                    if (count == null || count < 1) {
+                    final count = tryWholeNumber(
+                      value.text,
+                      min: 1,
+                      max: 999999,
+                    );
+                    if (count == null) {
                       return const Text(
-                        'Enter a positive quantity to preview creation.',
+                        'Enter a quantity from 1 to 999999 to preview creation.',
                       );
                     }
                     try {
@@ -97,7 +101,13 @@ extension _TokenPages on _TableWorkspaceState {
                         detail: TokenCreationResult.breakdownString(result),
                       );
                     } catch (e) {
-                      return Text('$e');
+                      return Text(
+                        inputErrorMessage(
+                          e,
+                          fallback:
+                              'This quantity cannot be created with the current modifiers.',
+                        ),
+                      );
                     }
                   },
                 ),
@@ -219,7 +229,11 @@ extension _TokenPages on _TableWorkspaceState {
                 selected: _category == null,
                 onSelected: (_) => _update(() => _category = null),
               ),
-              for (final category in Category.values)
+              for (final category in Category.values.where(
+                (category) =>
+                    category != Category.dungeon &&
+                    category != Category.counter,
+              ))
                 Padding(
                   padding: const EdgeInsets.only(left: 6),
                   child: ChoiceChip(
@@ -246,20 +260,31 @@ extension _TokenPages on _TableWorkspaceState {
               }.entries)
                 Padding(
                   padding: const EdgeInsets.only(right: 4),
-                  child: FilterChip(
-                    avatar: ManaText('{${color.key}}'),
-                    label: Text(color.value),
+                  child: Semantics(
+                    key: ValueKey('token-color-filter-${color.key}'),
+                    label: '${color.value} tokens',
+                    button: true,
                     selected: _tokenColors.contains(color.key),
-                    onSelected: (selected) => _update(() {
-                      if (color.key == 'C') {
-                        _tokenColors.clear();
-                      } else {
-                        _tokenColors.remove('C');
-                      }
-                      selected
-                          ? _tokenColors.add(color.key)
-                          : _tokenColors.remove(color.key);
-                    }),
+                    child: FilterChip(
+                      showCheckmark: false,
+                      label: ExcludeSemantics(
+                        child: ManaText(
+                          '{${color.key}}',
+                          style: const TextStyle(fontSize: 24),
+                        ),
+                      ),
+                      selected: _tokenColors.contains(color.key),
+                      onSelected: (selected) => _update(() {
+                        if (color.key == 'C') {
+                          _tokenColors.clear();
+                        } else {
+                          _tokenColors.remove('C');
+                        }
+                        selected
+                            ? _tokenColors.add(color.key)
+                            : _tokenColors.remove(color.key);
+                      }),
+                    ),
                   ),
                 ),
               MergeSemantics(
@@ -356,133 +381,131 @@ extension _TokenPages on _TableWorkspaceState {
     );
   }
 
-  Widget _customTokenPage() => _list([
-    _section('Custom token'),
-    _gameGrid([
-      _input('custom.name', 'Name'),
-      Row(
-        children: [
-          Expanded(
-            child: _input(
-              'custom.power',
-              'Power',
-              prefixIcon: const Icon(ManaIcons.power),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _input(
-              'custom.toughness',
-              'Toughness',
-              prefixIcon: const Icon(ManaIcons.toughness),
-            ),
-          ),
-        ],
-      ),
-    ]),
-    _input('custom.type', 'Type', initial: 'Creature'),
-    Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: CustomTokenColorPicker(
-        controller: _field('custom.colors'),
-        enabled: !_working,
-      ),
-    ),
-    _input('custom.abilities', 'Abilities', maxLines: 3),
-    Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        if (_field('custom.artwork').text.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: _art(_field('custom.artwork').text, width: 88, height: 88),
-          ),
-        ],
-        Expanded(
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
+  Widget _customTokenPage() => CustomTokenFormValidation(
+    name: _field('custom.name'),
+    power: _field('custom.power'),
+    toughness: _field('custom.toughness'),
+    colors: _field('custom.colors'),
+    builder: (validation) => _list([
+      _section('Custom token'),
+      _gameGrid([
+        validation.field('name', _input('custom.name', 'Name')),
+        validation.field(
+          'stats',
+          Row(
             children: [
-              _button(
-                'Choose artwork',
-                () => _run(() async {
-                  final image = await _pickArtwork();
-                  if (image != null) _field('custom.artwork').text = image;
-                }),
-                icon: Icons.add_photo_alternate_outlined,
-              ),
-              if (_field('custom.artwork').text.isNotEmpty)
-                _button(
-                  'Remove artwork',
-                  () => _update(() => _field('custom.artwork').clear()),
-                  icon: Icons.hide_image_outlined,
+              Expanded(
+                child: _input(
+                  'custom.power',
+                  'Power',
+                  prefixIcon: const Icon(ManaIcons.power),
                 ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _input(
+                  'custom.toughness',
+                  'Toughness',
+                  prefixIcon: const Icon(ManaIcons.toughness),
+                ),
+              ),
             ],
           ),
         ),
-      ],
-    ),
-    const SizedBox(height: 12),
-    Wrap(
-      spacing: 10,
-      children: [
-        _button(
-          'Cancel',
-          () => _update(() {
-            _createCustom = false;
-            _clearCustomTokenDraft();
-          }),
-          icon: Icons.close,
+      ]),
+      _input('custom.type', 'Type', initial: 'Creature'),
+      validation.field(
+        'colors',
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: CustomTokenColorPicker(
+            controller: _field('custom.colors'),
+            enabled: !_working,
+          ),
         ),
-        _button(
-          'Save custom token',
-          () => _run(() async {
-            final name = _field('custom.name').text.trim();
-            final colors = _field(
-              'custom.colors',
-            ).text.trim().toUpperCase().replaceAll(' ', '');
-            if (name.isEmpty) {
-              throw const FormatException('A token needs a name.');
-            }
-            if (!RegExp(r'^[WUBRG]*$').hasMatch(colors)) {
-              throw const FormatException(
-                'Use W, U, B, R and G for color identity.',
+      ),
+      _input('custom.abilities', 'Abilities', maxLines: 3),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (_field('custom.artwork').text.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: _art(_field('custom.artwork').text, width: 88, height: 88),
+            ),
+          ],
+          Expanded(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _button(
+                  'Choose artwork',
+                  () => _run(() async {
+                    final image = await _pickArtwork();
+                    if (image != null) _field('custom.artwork').text = image;
+                  }),
+                  icon: Icons.add_photo_alternate_outlined,
+                ),
+                if (_field('custom.artwork').text.isNotEmpty)
+                  _button(
+                    'Remove artwork',
+                    () => _update(() => _field('custom.artwork').clear()),
+                    icon: Icons.hide_image_outlined,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      Wrap(
+        spacing: 10,
+        children: [
+          _button(
+            'Cancel',
+            () => _update(() {
+              _createCustom = false;
+              _clearCustomTokenDraft();
+            }),
+            icon: Icons.close,
+          ),
+          _button('Save custom token', () {
+            if (!validation.validate()) return;
+            _run(() async {
+              final name = _field('custom.name').text.trim();
+              final colors = _field(
+                'custom.colors',
+              ).text.trim().toUpperCase().replaceAll(' ', '');
+              final power = _field('custom.power').text.trim();
+              final toughness = _field('custom.toughness').text.trim();
+              final definition = TokenDefinition(
+                name: name,
+                pt: power.isEmpty ? '' : '$power/$toughness',
+                type: _field('custom.type').text.trim(),
+                colors: colors,
+                abilities: _field('custom.abilities').text.trim(),
+                popularity: 0,
+                artwork: _field('custom.artwork').text.isEmpty
+                    ? const []
+                    : [
+                        ArtworkVariant(
+                          set: 'Custom',
+                          url: _field('custom.artwork').text,
+                          artist: 'user uploaded',
+                        ),
+                      ],
               );
-            }
-            final power = _field('custom.power').text.trim();
-            final toughness = _field('custom.toughness').text.trim();
-            if (power.isEmpty != toughness.isEmpty) {
-              throw const FormatException(
-                'Enter both power and toughness, or leave both empty.',
-              );
-            }
-            final definition = TokenDefinition(
-              name: name,
-              pt: power.isEmpty ? '' : '$power/$toughness',
-              type: _field('custom.type').text.trim(),
-              colors: colors,
-              abilities: _field('custom.abilities').text.trim(),
-              popularity: 0,
-              artwork: _field('custom.artwork').text.isEmpty
-                  ? const []
-                  : [
-                      ArtworkVariant(
-                        set: 'Custom',
-                        url: _field('custom.artwork').text,
-                        artist: 'user uploaded',
-                      ),
-                    ],
-            );
-            await catalog.saveCustom(definition);
-            _clearCustomTokenDraft();
-            _selectToken(definition);
-            _createCustom = false;
-          }),
-          primary: true,
-        ),
-      ],
-    ),
-  ]);
+              await catalog.saveCustom(definition);
+              _clearCustomTokenDraft();
+              _selectToken(definition);
+              _createCustom = false;
+            });
+          }, primary: true),
+        ],
+      ),
+    ], controller: validation.scrollController),
+  );
 
   void _clearCustomTokenDraft() {
     for (final key
@@ -502,7 +525,7 @@ extension _TokenPages on _TableWorkspaceState {
       ValueListenableBuilder<TextEditingValue>(
         valueListenable: quantity,
         builder: (context, value, _) {
-          final amount = int.tryParse(value.text) ?? 1;
+          final amount = tryWholeNumber(value.text, min: 1, max: 999999) ?? 1;
           void setAmount(int next) =>
               quantity.text = '${next.clamp(1, 999999)}';
           return Wrap(
@@ -582,6 +605,7 @@ extension _TokenPages on _TableWorkspaceState {
     required Future<void> Function(int) change,
     int minimum = 0,
     int maximum = 999999,
+    int? stepMaximum,
   }) => Column(
     children: [
       _stepper(
@@ -590,7 +614,7 @@ extension _TokenPages on _TableWorkspaceState {
         () => _runDirect(() => change(-1)),
         () => _runDirect(() => change(1)),
         minimum: minimum,
-        maximum: maximum,
+        maximum: stepMaximum ?? maximum,
         edit: () => _update(() {
           _editingNumber = id;
           _field(id, '$value').text = '$value';
@@ -609,7 +633,9 @@ extension _TokenPages on _TableWorkspaceState {
                 numeric: true,
                 onCommitWithOriginal: (text, original) => set(
                   _wholeNumber(text, min: minimum, max: maximum),
-                  int.parse(original.trim()),
+                  // The conflict baseline is a stored typed integer, not the
+                  // new draft. Generated totals can exceed manual-entry bounds.
+                  int.parse(original),
                 ),
               ),
             ),
@@ -637,6 +663,7 @@ extension _TokenPages on _TableWorkspaceState {
         id: '${t.id}.status.amount',
         label: 'Total',
         value: t.amount,
+        stepMaximum: BoardService.maxStoredTokenTotal,
         set: (v, original) => _board.editToken(
           player.id,
           t.id,
@@ -644,12 +671,8 @@ extension _TokenPages on _TableWorkspaceState {
           captured: scope,
           expectedFields: {'amount': '$original'},
         ),
-        change: (d) => _board.editToken(
-          player.id,
-          t.id,
-          amount: (t.amount + d).clamp(0, 999999),
-          captured: scope,
-        ),
+        change: (d) =>
+            _board.adjustTokenTotal(player.id, t.id, d, captured: scope),
       ),
       if (!t.isEmblem)
         _numberRow(
@@ -837,7 +860,8 @@ extension _TokenPages on _TableWorkspaceState {
         ValueListenableBuilder<TextEditingValue>(
           valueListenable: quantity,
           builder: (context, value, _) {
-            final count = int.tryParse(value.text) ?? 0;
+            final count =
+                tryWholeNumber(value.text, min: 1, max: t.amount - 1) ?? 0;
             if (count < 1 || count >= t.amount) {
               return Text('Choose from 1 to ${t.amount - 1}.');
             }
@@ -853,9 +877,9 @@ extension _TokenPages on _TableWorkspaceState {
                   () => quantity.text = '${max(1, count - 1)}',
                   () => quantity.text = '${min(t.amount - 1, count + 1)}',
                   holdMinusStep: (amount) => quantity.text =
-                      '${max(1, (int.tryParse(quantity.text) ?? 1) - amount)}',
+                      '${max(1, (tryWholeNumber(quantity.text, min: 1, max: t.amount - 1) ?? 1) - amount)}',
                   holdPlusStep: (amount) => quantity.text =
-                      '${min(t.amount - 1, (int.tryParse(quantity.text) ?? 1) + amount)}',
+                      '${min(t.amount - 1, (tryWholeNumber(quantity.text, min: 1, max: t.amount - 1) ?? 1) + amount)}',
                   minimum: 1,
                   maximum: t.amount - 1,
                 ),

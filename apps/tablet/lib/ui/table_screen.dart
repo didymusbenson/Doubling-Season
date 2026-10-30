@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/semantics.dart';
 import '../domain/table_state.dart';
+import '../domain/input_validation.dart';
 import '../state/table_controller.dart';
 import '../services/tablet_catalog.dart';
 import '../features/board_service.dart';
@@ -1230,7 +1231,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
       if (mounted && error != null) setState(() => error = null);
     } catch (e) {
       if (mounted) {
-        setState(() => error = e.toString().replaceFirst('Bad state: ', ''));
+        setState(() => error = inputErrorMessage(e));
       }
     }
   }
@@ -1398,8 +1399,6 @@ class _PlayerSpaceState extends State<_PlayerSpace>
               utility: u,
               player: p,
               board: widget.board,
-              expanded: expandedId == u.id,
-              onExpand: () => expand(u.id),
               onRemove: () => perform(() async {
                 await widget.board.removeUtility(p.id, u.id);
                 if (mounted && expandedId == u.id) {
@@ -2354,8 +2353,8 @@ class _UtilityRow extends StatelessWidget {
   final UtilityState utility;
   final PlayerState player;
   final BoardService board;
-  final bool expanded;
-  final VoidCallback onExpand, onRemove, onOpen, onToggle, onTempt;
+  final VoidCallback onOpen, onToggle, onTempt;
+  final Future<void> Function() onRemove;
   final Future<void> Function(int) onChange;
   final Future<void> Function(String, int) onMana;
   const _UtilityRow({
@@ -2365,8 +2364,6 @@ class _UtilityRow extends StatelessWidget {
     required this.utility,
     required this.player,
     required this.board,
-    required this.expanded,
-    required this.onExpand,
     required this.onRemove,
     required this.onTempt,
     required this.onOpen,
@@ -2377,9 +2374,6 @@ class _UtilityRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mana = utility.kind == 'mana_pool' || utility.kind == 'mana';
-    final inlineAction =
-        utility.kind == 'the_ring' ||
-        UtilityInlineActions.labels.containsKey(utility.kind);
     final step = (utility.configuration['tapIncrement'] as num?)?.toInt() ?? 1;
     final actionOnly = utility.configuration['actionOnly'] == true;
     final toggle =
@@ -2396,29 +2390,12 @@ class _UtilityRow extends StatelessWidget {
     final color = utility.artworkUrl == null
         ? Theme.of(context).colorScheme.onSurface
         : Colors.white;
-    Widget icon(IconData data, String label, VoidCallback action) =>
-        MergeSemantics(
-          child: Semantics(
-            label: label,
-            child: IconButton(
-              onPressed: action,
-              icon: Icon(data, size: 19, color: color),
-              style: IconButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(40, 44),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
-          ),
-        );
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compactStorm =
-            utility.kind == 'storm_count' && constraints.maxWidth < 230;
-        final narrowStorm = compactStorm && constraints.maxWidth < 180;
+        final narrowStorm =
+            utility.kind == 'storm_count' && constraints.maxWidth < 180;
         final narrowValue = constraints.maxWidth < 210;
-        final narrowToggle =
-            toggle && expanded && !inlineAction && constraints.maxWidth < 260;
+        final narrowToggle = toggle && constraints.maxWidth < 260;
         final toggleControl = Switch(
           value: board.utilityActive(player.id, utility.id),
           onChanged: (_) => onToggle(),
@@ -2457,7 +2434,7 @@ class _UtilityRow extends StatelessWidget {
             ),
           ),
         );
-        return Container(
+        final card = Container(
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
@@ -2467,7 +2444,6 @@ class _UtilityRow extends StatelessWidget {
           ),
           child: _ArtworkSurface(
             url: utility.artworkUrl,
-            expanded: expanded,
             child: Stack(
               children: [
                 Padding(
@@ -2486,46 +2462,48 @@ class _UtilityRow extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Semantics(
-                                label:
-                                    '${utility.name}, ${expanded ? 'collapse' : 'expand'}',
+                                label: '${utility.name}, details and actions',
+                                hint: 'Tap to edit utility',
                                 button: true,
                                 excludeSemantics: true,
                                 child: InkWell(
-                                  onTap: onExpand,
-                                  child: Padding(
+                                  key: ValueKey(
+                                    'utility-details-${utility.id}',
+                                  ),
+                                  onTap: onOpen,
+                                  child: Container(
+                                    constraints: const BoxConstraints(
+                                      minHeight: 44,
+                                    ),
                                     padding: const EdgeInsets.symmetric(
                                       vertical: 10,
                                     ),
-                                    child: compactStorm && !narrowStorm
-                                        ? Icon(
-                                            Icons.bolt_outlined,
-                                            size: 22,
-                                            color: color,
-                                          )
-                                        : Text(
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
                                             utility.name,
                                             style: const TextStyle(
                                               fontWeight: FontWeight.w700,
                                               fontSize: 13,
                                             ),
-                                            maxLines: expanded ? null : 2,
-                                            overflow: expanded
-                                                ? null
-                                                : TextOverflow.ellipsis,
                                           ),
+                                        ),
+                                        Icon(
+                                          Icons.chevron_right,
+                                          size: 18,
+                                          color: color,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                            if (mana)
-                              icon(
-                                Icons.edit_outlined,
-                                'Manage ${utility.name}',
-                                onOpen,
-                              )
-                            else if (toggle && !narrowToggle)
+                            if (toggle && !narrowToggle)
                               toggleControl
-                            else if (!toggle &&
+                            else if (!mana &&
+                                !toggle &&
                                 !actionOnly &&
                                 !narrowStorm &&
                                 !narrowValue)
@@ -2533,24 +2511,6 @@ class _UtilityRow extends StatelessWidget {
                                 padding: const EdgeInsets.only(left: 6),
                                 child: SizedBox(width: 90, child: valueStepper),
                               ),
-                            if (expanded && !inlineAction) ...[
-                              if (!mana)
-                                icon(
-                                  Icons.edit_outlined,
-                                  '${utility.name}, details and actions',
-                                  onOpen,
-                                ),
-                            ],
-                            SizedBox(
-                              key: ValueKey('remove-utility-${utility.id}'),
-                              width: 44,
-                              height: 44,
-                              child: icon(
-                                Icons.close,
-                                'Remove ${utility.name}',
-                                onRemove,
-                              ),
-                            ),
                           ],
                         ),
                         if (narrowToggle)
@@ -2652,59 +2612,25 @@ class _UtilityRow extends StatelessWidget {
                               );
                             },
                           ),
-                        if (expanded) ...[
-                          if (compactStorm && !narrowStorm)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Text(
-                                utility.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                ),
+                        if (utility.description.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Text(
+                              utility.description,
+                              key: ValueKey(
+                                'utility-description-${utility.id}',
                               ),
+                              style: const TextStyle(fontSize: 12),
                             ),
-                          if (utility.description.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 6),
-                              child: Text(
-                                utility.description,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ),
-                        ],
+                          ),
                         if (utility.kind == 'the_ring')
-                          RingInline(
-                            utility: utility,
-                            onTempt: onTempt,
-                            trailing: expanded
-                                ? Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      icon(
-                                        Icons.edit_outlined,
-                                        '${utility.name}, details and actions',
-                                        onOpen,
-                                      ),
-                                    ],
-                                  )
-                                : null,
-                          )
+                          RingInline(utility: utility, onTempt: onTempt)
                         else
                           UtilityInlineActions(
                             key: ValueKey('inline-actions-${utility.id}'),
                             board: board,
                             playerId: player.id,
                             utility: utility,
-                            management: expanded && inlineAction
-                                ? [
-                                    icon(
-                                      Icons.edit_outlined,
-                                      '${utility.name}, details and actions',
-                                      onOpen,
-                                    ),
-                                  ]
-                                : const [],
                           ),
                       ],
                     ),
@@ -2712,6 +2638,36 @@ class _UtilityRow extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        );
+        return Semantics(
+          label: utility.name,
+          onDismiss: () => onRemove(),
+          hint:
+              'Swipe left to remove utility. Undo is available in game history.',
+          child: Dismissible(
+            key: ValueKey('swipe-utility-${utility.id}'),
+            direction: DismissDirection.endToStart,
+            confirmDismiss: (_) async {
+              await onRemove();
+              // The durable command removes the row. Failed saves leave it
+              // intact, matching token swipe behavior and preserving History.
+              return false;
+            },
+            background: Container(
+              color: Theme.of(context).colorScheme.errorContainer,
+              alignment: AlignmentDirectional.centerEnd,
+              padding: const EdgeInsets.all(12),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.delete_outline),
+                  SizedBox(width: 6),
+                  Text('Remove'),
+                ],
+              ),
+            ),
+            child: card,
           ),
         );
       },
@@ -2750,25 +2706,18 @@ class _ArtworkSurface extends StatelessWidget {
   final String? url;
   final Color? tint;
   final Widget child;
-  final bool expanded;
   final BoxFit artworkFit;
   const _ArtworkSurface({
     super.key,
     this.url,
     this.tint,
     required this.child,
-    this.expanded = false,
     this.artworkFit = BoxFit.fitWidth,
   });
   @override
   Widget build(BuildContext context) => ColoredBox(
     color: tint ?? Theme.of(context).colorScheme.surfaceContainerLow,
-    child: TableArtworkSurface(
-      url: url,
-      expanded: expanded,
-      artworkFit: artworkFit,
-      child: child,
-    ),
+    child: TableArtworkSurface(url: url, artworkFit: artworkFit, child: child),
   );
 }
 

@@ -431,7 +431,6 @@ extension _GamePages on _TableWorkspaceState {
 
   List<Widget> _counterContent(PlayerState player) {
     final counters = _editablePlayerCounters(player);
-    final editing = _editingPlayerCounter;
     final disabled = _working || _closing || _navigating || !_validScope;
     return [
       Semantics(
@@ -446,174 +445,109 @@ extension _GamePages on _TableWorkspaceState {
         label: 'Player counters',
         container: true,
         explicitChildNodes: true,
-        child: _counterGrid(
-          [
-            for (final counter in counters.entries)
-              Semantics(
-                key: ValueKey('player-counter-${counter.key}'),
-                identifier: 'player-counter-${counter.key}',
-                container: true,
-                explicitChildNodes: true,
-                child: Material(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(14),
-                  clipBehavior: Clip.antiAlias,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: HalfStepper(
-                          height: _playerCounterHeight,
-                          label: _counterActionLabel(counter.key),
-                          value: '${counter.value}',
-                          displayPadding: 22,
-                          iconPadding: 5,
-                          iconSize: 17,
-                          displayOverlay: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 22,
-                                ),
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(switch (counter.key) {
-                                        'energy' => Icons.bolt,
-                                        'poison' => Icons.science_outlined,
-                                        'experience' => Icons.auto_awesome,
-                                        'radiation' => Icons.blur_circular,
-                                        _ => Icons.hexagon_outlined,
-                                      }, size: 18),
-                                      const SizedBox(width: 3),
-                                      Text(
-                                        '${counter.value}',
-                                        key: ValueKey(
-                                          'player-counter-value-${counter.key}',
-                                        ),
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.titleLarge,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 5,
-                                ),
-                                child: Text(
-                                  _counterLabel(counter.key),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.labelSmall,
-                                ),
-                              ),
-                            ],
-                          ),
-                          decreaseLabel:
-                              'Decrease ${_counterActionLabel(counter.key)}',
-                          increaseLabel:
-                              'Increase ${_counterActionLabel(counter.key)}',
-                          onDecrease:
-                              disabled ||
-                                  (_directPending == 0 && counter.value == 0)
-                              ? null
-                              : () => _runDirect(
-                                  () => c.adjustPlayerCounter(
-                                    player.id,
-                                    counter.key,
-                                    -1,
-                                  ),
-                                ),
-                          onIncrease: disabled
-                              ? null
-                              : () => _runDirect(
-                                  () => c.adjustPlayerCounter(
-                                    player.id,
-                                    counter.key,
-                                    1,
-                                  ),
-                                ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 44,
-                        height: _playerCounterHeight,
-                        child: MergeSemantics(
-                          child: Semantics(
-                            label:
-                                'Set ${_counterActionLabel(counter.key)} total',
-                            child: IconButton(
-                              icon: const Icon(Icons.edit_outlined, size: 17),
-                              onPressed: disabled
-                                  ? null
-                                  : () => _editPlayerCounter(
-                                      player.id,
-                                      counter.key,
-                                    ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-          correctionIndex: editing == null
-              ? null
-              : counters.keys.toList().indexOf(editing),
-          correction: editing == null
-              ? null
-              : Row(
-                  key: _counterCorrectionKey,
+        child: _counterGrid([
+          for (final counter in counters.entries)
+            Semantics(
+              key: ValueKey('player-counter-${counter.key}'),
+              identifier: 'player-counter-${counter.key}',
+              container: true,
+              explicitChildNodes: true,
+              child: Material(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(14),
+                clipBehavior: Clip.antiAlias,
+                child: Row(
                   children: [
                     Expanded(
-                      child: _input(
-                        'counter.$editing',
-                        'Set total',
-                        initial: '${counters[editing]}',
-                        numeric: true,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _button(
-                      'Set',
-                      () => _run(
-                        () => c.setPlayerCounter(
-                          player.id,
-                          editing,
-                          _integer('counter.$editing', min: 0),
+                      child: HalfStepper(
+                        height: _playerCounterHeight,
+                        label: _counterActionLabel(counter.key),
+                        value: '${counter.value}',
+                        displayPadding: 22,
+                        iconPadding: 5,
+                        iconSize: 17,
+                        displayOverlay: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 22,
+                              ),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(switch (counter.key) {
+                                      'energy' => Icons.bolt,
+                                      'poison' => Icons.science_outlined,
+                                      'experience' => Icons.auto_awesome,
+                                      'radiation' => Icons.blur_circular,
+                                      _ => Icons.hexagon_outlined,
+                                    }, size: 18),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '${counter.value}',
+                                      key: ValueKey(
+                                        'player-counter-value-${counter.key}',
+                                      ),
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleLarge,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                              ),
+                              child: Text(
+                                _counterLabel(counter.key),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.labelSmall,
+                              ),
+                            ),
+                          ],
                         ),
-                        after: () => _editingPlayerCounter = null,
-                      ),
-                    ),
-                    MergeSemantics(
-                      child: Semantics(
-                        label: 'Cancel counter correction',
-                        child: IconButton(
-                          onPressed: () =>
-                              _update(() => _editingPlayerCounter = null),
-                          icon: const Icon(Icons.close, size: 19),
-                        ),
+                        decreaseLabel:
+                            'Decrease ${_counterActionLabel(counter.key)}',
+                        increaseLabel:
+                            'Increase ${_counterActionLabel(counter.key)}',
+                        onDecrease:
+                            disabled ||
+                                (_directPending == 0 && counter.value == 0)
+                            ? null
+                            : () => _runDirect(
+                                () => c.adjustPlayerCounter(
+                                  player.id,
+                                  counter.key,
+                                  -1,
+                                ),
+                              ),
+                        onIncrease: disabled
+                            ? null
+                            : () => _runDirect(
+                                () => c.adjustPlayerCounter(
+                                  player.id,
+                                  counter.key,
+                                  1,
+                                ),
+                              ),
                       ),
                     ),
                   ],
                 ),
-        ),
+              ),
+            ),
+        ]),
       ),
     ];
   }
 
-  Widget _counterGrid(
-    List<Widget> children, {
-    int? correctionIndex,
-    Widget? correction,
-  }) => LayoutBuilder(
+  Widget _counterGrid(List<Widget> children) => LayoutBuilder(
     builder: (context, bounds) {
       final columns = _counterColumns(bounds.maxWidth);
       final width = (bounds.maxWidth - (columns - 1) * 8) / columns;
@@ -634,13 +568,6 @@ extension _GamePages on _TableWorkspaceState {
                 ],
               ],
             ),
-            if (correction != null &&
-                correctionIndex != null &&
-                correctionIndex >= start &&
-                correctionIndex < start + columns) ...[
-              const SizedBox(height: 8),
-              correction,
-            ],
           ],
         ],
       );
