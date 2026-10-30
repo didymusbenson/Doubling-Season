@@ -388,7 +388,7 @@ void main() {
               case 'token-custom':
                 await tester.tap(find.text('Custom token'));
               case 'reset-three-player':
-                await tester.tap(find.widgetWithText(ChoiceChip, '3 players'));
+                await tester.tap(byControlLabel('3 players'));
               case 'existing-custom-effects':
                 await reveal(tester, find.text('Saved custom effect'));
                 expect(find.text('Create a custom rule'), findsNothing);

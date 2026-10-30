@@ -219,7 +219,7 @@ void main() {
       expect(f.player.counters['energy'], 1);
       await close(tester);
       await open(tester, 'history');
-      final undo = find.textContaining('Undo latest:');
+      final undo = byActionNamePrefix('Undo latest:');
       await tester.tap(undo);
       await tester.pumpAndSettle();
       expect(f.player.counters['energy'], 0);
@@ -251,8 +251,8 @@ void main() {
       expect(summary.hitTestable(), findsOneWidget);
       final a = tester.getRect(ledger), b = tester.getRect(summary);
       expect((b.left - a.right).abs(), lessThanOrEqualTo(5));
-      expect(b.height, 44);
-      expect(b.width, 44);
+      expect(b.height, closeTo(44, .001));
+      expect(b.width, closeTo(44, .001));
       await f.controller.setPlayerCounter(f.playerId, 'energy', 0);
       await tester.pumpAndSettle();
       expect(summary, findsNothing);

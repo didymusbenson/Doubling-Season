@@ -285,7 +285,7 @@ void main() {
             await tester.pumpAndSettle();
             await tester.tap(find.text('History'));
             await tester.pumpAndSettle();
-            await tester.tap(find.textContaining('Undo latest:'));
+            await tester.tap(byActionNamePrefix('Undo latest:'));
             await tester.pumpAndSettle();
             expect(f.controller.player(recipient.id).life, 40);
             expect(

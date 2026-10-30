@@ -132,6 +132,7 @@ class CommanderLedger extends StatelessWidget {
             ? constraints.maxWidth
             : 68.0;
         return Semantics(
+          identifier: '${recipient.id}-commander-ledger',
           button: true,
           label: '$name, commander damage by source',
           value: sources

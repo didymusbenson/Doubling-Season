@@ -34,26 +34,69 @@ extension _GamePages on _TableWorkspaceState {
   }
 
   Widget _tableHubPage() => _list([
-    for (final (label, page, icon) in [
-      ('Dice', WorkspacePage.dice, Icons.casino_outlined),
-      ('History', WorkspacePage.history, Icons.history),
-      ('New game', WorkspacePage.reset, Icons.restart_alt),
-      ('Archives', WorkspacePage.archives, Icons.archive_outlined),
-      ('Board wipes', WorkspacePage.boardWipes, Icons.delete_sweep_outlined),
-      ('Settings', WorkspacePage.settings, Icons.settings_outlined),
-    ])
-      Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: SizedBox(
-            width: 280,
-            height: 48,
-            child: _button(label, () => _go(page), icon: icon),
-          ),
-        ),
-      ),
-  ]);
+    LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 256 ? 2 : 1;
+        const gap = 10.0;
+        final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
+        return Wrap(
+          key: const ValueKey('drawer-menu-grid'),
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final (label, page, icon) in [
+              ('Dice', WorkspacePage.dice, Icons.casino_outlined),
+              ('History', WorkspacePage.history, Icons.history),
+              ('New game', WorkspacePage.reset, Icons.restart_alt),
+              ('Archives', WorkspacePage.archives, Icons.archive_outlined),
+              (
+                'Board wipes',
+                WorkspacePage.boardWipes,
+                Icons.delete_sweep_outlined,
+              ),
+              ('Settings', WorkspacePage.settings, Icons.settings_outlined),
+            ])
+              SizedBox(
+                width: width,
+                child: OutlinedButton(
+                  key: ValueKey('drawer-menu-${page.name}'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: Size(width, columns == 1 ? 56 : 92),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: () => _go(page),
+                  child: columns == 1
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(icon, size: 22),
+                            const SizedBox(width: 10),
+                            Flexible(
+                              child: Text(label, textAlign: TextAlign.center),
+                            ),
+                          ],
+                        )
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(icon, size: 26),
+                            const SizedBox(height: 8),
+                            Text(label, textAlign: TextAlign.center),
+                          ],
+                        ),
+                ),
+              ),
+          ],
+        );
+      },
+    ),
+  ], centered: true);
 
   double get _playerStatusHeight =>
       max(72.0, MediaQuery.textScalerOf(context).scale(72));
@@ -557,230 +600,427 @@ extension _GamePages on _TableWorkspaceState {
     return '${source.name}${siblings.length > 1 ? ' #${siblings.indexWhere((s) => s.id == source.id) + 1}' : ''}';
   }
 
-  Widget _historyPage() => _list([
-    if (c.canUndo)
-      _button(
-        'Undo latest: ${c.session.history.lastWhere((entry) => !entry.undone).summary}',
-        () => _run(() => c.undo()),
-        icon: Icons.undo,
-        primary: true,
-      ),
-    if (c.session.history.isEmpty)
-      const Padding(
-        padding: EdgeInsets.all(20),
-        child: Text('This game has no actions yet.'),
-      ),
-    for (final entry in c.session.history.reversed)
-      Card(
-        child: ListTile(
-          leading: Icon(
-            entry.playerId == null
-                ? Icons.table_restaurant
-                : Icons.person_outline,
+  Widget _historyPage() {
+    final entries = c.session.history.reversed.toList();
+    if (entries.isEmpty) {
+      return _list([
+        const Icon(Icons.history, size: 40),
+        const SizedBox(height: 12),
+        const Text(
+          'This game has no actions yet.',
+          textAlign: TextAlign.center,
+        ),
+      ], centered: true);
+    }
+    final canUndo = c.canUndo;
+    final undoLabel = canUndo
+        ? 'Undo latest: ${c.session.history.lastWhere((entry) => !entry.undone).summary}'
+        : '';
+    Widget row(BuildContext context, int index) {
+      if (canUndo && index == 0) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: _button(
+            undoLabel,
+            () => _run(() => c.undo()),
+            icon: Icons.undo,
+            primary: true,
+            compactLabel: 'Undo latest',
           ),
-          title: Text(
-            '${entry.undone ? 'Undone · ' : ''}${entry.summary}',
-            style: entry.undone
-                ? TextStyle(color: Theme.of(context).colorScheme.outline)
-                : null,
+        );
+      }
+      final entry = entries[index - (canUndo ? 1 : 0)];
+      final scheme = Theme.of(context).colorScheme;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: scheme.outlineVariant.withValues(alpha: .6),
+              ),
+            ),
           ),
-          subtitle: Text(
-            [
-              '${entry.playerLabel ?? 'Table'} · ${_date(entry.updatedAt)}',
-              if (entry.affectedPlayerIds.isNotEmpty)
-                'Affected: ${entry.affectedPlayerIds.map(_nameForPlayer).join(', ')}',
-              if (entry.tokenSummary.isNotEmpty &&
-                  entry.tokenSummary != entry.summary)
-                entry.tokenSummary,
-              if (entry.undoNote != null) entry.undoNote!,
-            ].join('\n'),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${entry.undone ? 'Undone · ' : ''}${entry.summary}',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: entry.undone ? scheme.outline : null,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${entry.playerLabel ?? 'Table'} · ${_date(entry.updatedAt)}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                if (entry.affectedPlayerIds.isNotEmpty)
+                  Text(
+                    'Affected: ${entry.affectedPlayerIds.map(_nameForPlayer).join(', ')}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                if (entry.tokenSummary.isNotEmpty &&
+                    entry.tokenSummary != entry.summary)
+                  Text(
+                    entry.tokenSummary,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                if (entry.undoNote != null)
+                  Text(
+                    entry.undoNote!,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+              ],
+            ),
           ),
         ),
-      ),
-  ]);
+      );
+    }
+
+    final count = entries.length + (canUndo ? 1 : 0);
+    return _embedded
+        ? _drawerList(itemCount: count, itemBuilder: row)
+        : _list([
+            for (var index = 0; index < count; index++) row(context, index),
+          ]);
+  }
 
   String _date(DateTime date) {
     final d = date.toLocal();
     return '${d.month}/${d.day}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
   }
 
-  Widget _archivesPage() => _list([
-    if (c.state.archives.isEmpty) const Text('No archived games yet.'),
-    for (final archive in c.state.archives.reversed)
-      Card(
-        child: ListTile(
-          title: Text(archive.label),
-          subtitle: Text(
-            '${_date(archive.savedAt)} · ${archive.session.players.length} players · ${archive.session.history.length} history entries',
-          ),
-          trailing: const Icon(Icons.restore),
-          onTap: () => _confirm(
-            'Restore ${archive.label}?',
-            'Save the current game first, then restore this archive’s board, life, damage, rules and full timeline. Saved setups and permanent player customization will not be overwritten.',
-            () => c.restoreArchive(archive.id),
-            button: 'Save current & restore',
-            closeOnSuccess: true,
+  Widget _archivesPage() {
+    final archives = c.state.archives.reversed.toList();
+    if (archives.isEmpty) {
+      return _list([
+        const Icon(Icons.archive_outlined, size: 40),
+        const SizedBox(height: 12),
+        const Text('No archived games yet.', textAlign: TextAlign.center),
+      ], centered: true);
+    }
+    Widget row(BuildContext context, int index) {
+      final archive = archives[index];
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Card(
+          margin: EdgeInsets.zero,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => _confirm(
+              'Restore ${archive.label}?',
+              'Archive the current game, then restore this saved board, life, damage, rules and timeline. Saved setups and player appearances stay unchanged.',
+              () => c.restoreArchive(archive.id),
+              button: 'Save current & restore',
+              compactButton: 'Restore',
+              closeOnSuccess: true,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          archive.label,
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.restore, size: 20),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _date(archive.savedAt),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  Text(
+                    '${archive.session.players.length} players · ${archive.session.history.length} history entries',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-      ),
-  ]);
+      );
+    }
+
+    return _embedded
+        ? _drawerList(itemCount: archives.length, itemBuilder: row)
+        : _list([for (var i = 0; i < archives.length; i++) row(context, i)]);
+  }
 
   Widget _boardWipesPage() => _list([
-    _gamePanel('Everyone', [
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (final (action, label) in [
-            ('wipe_creatures', 'Wipe all creatures'),
-            ('wipe_all', 'Wipe all tokens'),
-          ])
-            _button(
-              label,
-              () => _confirm(
-                '$label for everyone?',
-                'Remove ${action == 'wipe_all' ? 'every token, including emblems' : 'creature tokens'} from all active players. Utilities and non-token state remain. One Undo restores the whole wipe.',
-                () => _board.wipeEveryone(action),
-                button: label,
-              ),
-              icon: Icons.delete_outline,
+    _wipeScope(),
+    for (final player in c.session.players) ...[
+      const SizedBox(height: 12),
+      _wipeScope(player: player),
+    ],
+  ], centered: true);
+
+  Widget _wipeScope({PlayerState? player}) {
+    final profile = player == null ? null : c.profile(player.seatId);
+    final name = player == null ? 'Everyone' : _nameForPlayer(player.id);
+    final scheme = Theme.of(context).colorScheme;
+    final color = profile == null ? scheme.primary : Color(profile.color);
+    Widget action(String action, String visible, String full) {
+      void press() => _confirm(
+        player == null
+            ? '$full for everyone?'
+            : 'Wipe $name’s ${action == 'wipe_all' ? 'tokens' : 'creatures'}?',
+        player == null
+            ? 'Remove ${action == 'wipe_all' ? 'all tokens, including emblems' : 'creature tokens'} from everyone. Utilities and other state remain. Restore the whole wipe from History.'
+            : 'Remove ${action == 'wipe_all' ? 'all tokens' : 'creature tokens'} from $name only. Utilities and other state remain. Restore from History.',
+        () => player == null
+            ? _board.wipeEveryone(action)
+            : _board.bulk(player.id, action, gameOrigin: true),
+        button: full,
+        compactButton: 'Wipe',
+      );
+      return Expanded(
+        child: Semantics(
+          label:
+              '$name, ${action == 'wipe_creatures' ? 'Wipe creatures' : 'Wipe all tokens'}',
+          button: true,
+          enabled: !_working,
+          onTap: _working ? null : press,
+          excludeSemantics: true,
+          child: OutlinedButton(
+            onPressed: _working ? null : press,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(44, 44),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
             ),
-        ],
-      ),
-    ]),
-    for (final player in c.session.players)
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
+            child: Text(visible, textAlign: TextAlign.center),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      key: ValueKey('wipe-scope-${player?.id ?? 'everyone'}'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: player == null ? .18 : .08),
+            border: Border(left: BorderSide(color: color, width: 3)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+            child: Row(
+              children: [
+                if (profile?.artworkUrl != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(5),
+                    child: _art(profile!.artworkUrl, width: 28, height: 28),
+                  )
+                else
+                  Icon(
+                    player == null
+                        ? Icons.groups_outlined
+                        : Icons.person_outline,
+                    color: color,
+                    size: 24,
+                  ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    name,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
           children: [
-            Text(_nameForPlayer(player.id)),
-            _button(
-              'Wipe creatures',
-              () => _confirm(
-                'Wipe ${_nameForPlayer(player.id)}’s creatures?',
-                'Remove creature tokens from this player only. Undo is available in game history.',
-                () =>
-                    _board.bulk(player.id, 'wipe_creatures', gameOrigin: true),
-                button: 'Wipe creatures',
-              ),
-              icon: Icons.delete_outline,
+            action(
+              'wipe_creatures',
+              'Creatures',
+              player == null ? 'Wipe all creatures' : 'Wipe creatures',
             ),
-            _button(
-              'Wipe all tokens',
-              () => _confirm(
-                'Wipe ${_nameForPlayer(player.id)}’s tokens?',
-                'Remove every token from this player only. Utilities and all non-token state remain. Undo is available in game history.',
-                () => _board.bulk(player.id, 'wipe_all', gameOrigin: true),
-                button: 'Wipe all tokens',
-              ),
-              icon: Icons.delete_outline,
-            ),
+            const SizedBox(width: 8),
+            action('wipe_all', 'All tokens', 'Wipe all tokens'),
           ],
         ),
+      ],
+    );
+  }
+
+  Widget _setupChoice(
+    String label,
+    String visible,
+    bool selected,
+    VoidCallback action,
+  ) => Semantics(
+    label: label,
+    button: true,
+    selected: selected,
+    enabled: !_working,
+    onTap: _working ? null : action,
+    excludeSemantics: true,
+    child: OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(44, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+        backgroundColor: selected
+            ? Theme.of(context).colorScheme.secondaryContainer
+            : null,
+        foregroundColor: selected
+            ? Theme.of(context).colorScheme.onSecondaryContainer
+            : null,
+        side: BorderSide(
+          color: selected
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.outline,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
-  ]);
+      onPressed: _working ? null : action,
+      child: Text(visible, textAlign: TextAlign.center),
+    ),
+  );
+
+  Widget _emptySeatChoices() {
+    const names = ['Bottom left', 'Top left', 'Top right', 'Bottom right'];
+    return Column(
+      key: const ValueKey('reset-empty-seat'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final slots in [
+          [1, 2],
+          [0, 3],
+        ]) ...[
+          if (slots.first == 0) const SizedBox(height: 8),
+          Row(
+            children: [
+              for (final slot in slots) ...[
+                if (slot == slots.last) const SizedBox(width: 8),
+                Expanded(
+                  child: _setupChoice(
+                    names[slot],
+                    names[slot],
+                    _emptySlot == slot,
+                    () => _update(() => _emptySlot = slot),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ],
+    );
+  }
 
   Widget _resetPage() => _list([
-    Wrap(
+    Text('Players', style: Theme.of(context).textTheme.titleSmall),
+    const SizedBox(height: 8),
+    Row(
       key: const ValueKey('reset-configuration'),
-      spacing: 10,
-      runSpacing: 8,
       children: [
-        for (final count in [2, 3, 4])
-          ChoiceChip(
-            label: Text('$count players'),
-            selected: _resetCount == count,
-            onSelected: (_) => _update(() => _resetCount = count),
+        for (final count in [2, 3, 4]) ...[
+          if (count != 2) const SizedBox(width: 8),
+          Expanded(
+            child: _setupChoice(
+              '$count players',
+              '$count',
+              _resetCount == count,
+              () => _update(() => _resetCount = count),
+            ),
           ),
+        ],
       ],
     ),
-    const SizedBox(height: 12),
-    Align(
-      alignment: Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
-        child: _input(
-          'reset.life',
-          'Starting life',
-          initial: '${c.session.startingLife}',
-          numeric: true,
-        ),
-      ),
+    const SizedBox(height: 20),
+    _input(
+      'reset.life',
+      'Starting life',
+      initial: '${c.session.startingLife}',
+      numeric: true,
     ),
     const SizedBox(height: 8),
-    Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    Row(
       children: [
-        for (final life in [20, 40])
-          _button('$life life', () => _field('reset.life').text = '$life'),
+        for (final life in [20, 40]) ...[
+          if (life == 40) const SizedBox(width: 8),
+          Expanded(
+            child: _button(
+              '$life life',
+              () => _field('reset.life').text = '$life',
+              compactLabel: '$life',
+              icon: Icons.favorite_outline,
+            ),
+          ),
+        ],
       ],
-    ),
-    const SizedBox(height: 12),
-    const Text(
-      'The current game is archived first. Player appearances and saved setups are preserved.',
     ),
     if (_resetCount == 3) ...[
-      _section('Empty control slot'),
-      Wrap(
-        spacing: 8,
-        children: [
-          for (var slot = 0; slot < 4; slot++)
-            ChoiceChip(
-              label: Text(
-                ['Bottom left', 'Top left', 'Top right', 'Bottom right'][slot],
-              ),
-              selected: _emptySlot == slot,
-              onSelected: (_) => _update(() => _emptySlot = slot),
-            ),
-        ],
-      ),
+      const SizedBox(height: 20),
+      Text('Empty seat', style: Theme.of(context).textTheme.titleSmall),
+      const SizedBox(height: 8),
+      _emptySeatChoices(),
     ],
-    const SizedBox(height: 18),
-    Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        _button(
-          'Reset with current configuration',
-          () => _confirm(
-            'Reset with board?',
-            'Start a $_resetCount-player game. Keep remaining players’ token entries at zero and enabled utility selections; clear token counters, utility runtime values, damage and player counters. Restore starting life. Disable all modifier sources/custom rules. Removed seats lose their live boards. Save the current game to archives first.',
-            () => c.resetGame(
-              keepBoard: true,
-              playerCount: _resetCount,
-              startingLife: _integer('reset.life', min: 1, max: 1000000),
-              emptySlot: _emptySlot,
-            ),
-            button: 'Archive & reset with board',
-            closeOnSuccess: true,
-          ),
-          icon: Icons.restart_alt,
-        ),
-        _button(
-          'Complete reset',
-          () => _confirm(
-            'Clear boards & restart?',
-            'Start a $_resetCount-player game with empty token lanes, fresh default Storm and Mana utilities, starting life, cleared damage/counters/statuses, and disabled modifier sources/custom rules. Permanent seat appearances and saved setups remain. Archive the current game first.',
-            () => c.resetGame(
-              keepBoard: false,
-              playerCount: _resetCount,
-              startingLife: _integer('reset.life', min: 1, max: 1000000),
-              emptySlot: _emptySlot,
-            ),
-            button: 'Archive & complete reset',
-            closeOnSuccess: true,
-          ),
-          icon: Icons.delete_sweep_outlined,
-        ),
-      ],
+    const SizedBox(height: 20),
+    const Text(
+      'The current game is archived first. Player appearances and saved setups are preserved.',
+      textAlign: TextAlign.center,
     ),
-  ]);
+    const SizedBox(height: 16),
+    _balancedActions([
+      _button(
+        'Reset with current configuration',
+        () => _confirm(
+          'Reset with board?',
+          'Archive the current game, then start with $_resetCount players. Keep remaining players’ token entries at zero and utility selections. Clear counters, damage and utility values; restore starting life and disable modifiers and custom rules. Removed seats lose their live boards. Appearances and saved setups remain.',
+          () => c.resetGame(
+            keepBoard: true,
+            playerCount: _resetCount,
+            startingLife: _integer('reset.life', min: 1, max: 1000000),
+            emptySlot: _emptySlot,
+          ),
+          button: 'Archive & reset with board',
+          compactButton: 'Start game',
+          closeOnSuccess: true,
+        ),
+        icon: Icons.restart_alt,
+        compactLabel: 'Keep board',
+      ),
+      _button(
+        'Complete reset',
+        () => _confirm(
+          'Clear boards & restart?',
+          'Archive the current game, then start with $_resetCount players. Clear token lanes, damage, counters and statuses; restore starting life and default Storm and Mana utilities. Disable modifiers and custom rules. Player appearances and saved setups remain.',
+          () => c.resetGame(
+            keepBoard: false,
+            playerCount: _resetCount,
+            startingLife: _integer('reset.life', min: 1, max: 1000000),
+            emptySlot: _emptySlot,
+          ),
+          button: 'Archive & complete reset',
+          compactButton: 'Start game',
+          closeOnSuccess: true,
+        ),
+        icon: Icons.delete_sweep_outlined,
+        compactLabel: 'Clear board',
+      ),
+    ]),
+  ], centered: true);
 
   Widget _settingsPage() => _list([
+    Text('Appearance', style: Theme.of(context).textTheme.titleMedium),
+    const SizedBox(height: 8),
     Semantics(
       label: 'Appearance theme',
       child: Wrap(
@@ -809,7 +1049,7 @@ extension _GamePages on _TableWorkspaceState {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _section('Shared game state'),
+              _section('Day / Night'),
               Wrap(
                 spacing: 8,
                 children: [
@@ -817,7 +1057,7 @@ extension _GamePages on _TableWorkspaceState {
                     ChoiceChip(
                       label: Text(
                         state == 'neither'
-                            ? 'Neither day nor night'
+                            ? 'Neither'
                             : state[0].toUpperCase() + state.substring(1),
                       ),
                       selected: c.session.dayNight == state,
@@ -858,6 +1098,7 @@ extension _GamePages on _TableWorkspaceState {
                   );
                 }),
                 icon: Icons.download,
+                compactLabel: 'Check updates',
               ),
               _button(
                 'Use bundled catalog',
@@ -866,6 +1107,7 @@ extension _GamePages on _TableWorkspaceState {
                   'Remove the downloaded catalog update. Custom definitions and artwork choices remain.',
                   () => catalog.revertToBundled(),
                 ),
+                compactLabel: 'Use bundled',
               ),
             ],
           ),
@@ -909,6 +1151,7 @@ extension _GamePages on _TableWorkspaceState {
                   button: 'Reset appearances',
                 ),
                 icon: Icons.person_off_outlined,
+                compactLabel: 'Reset appearance',
               ),
             ],
           ),
@@ -930,6 +1173,7 @@ extension _GamePages on _TableWorkspaceState {
                 'Support this app',
                 () => _go(WorkspacePage.support),
                 icon: Icons.favorite_outline,
+                compactLabel: 'Support',
               ),
             ],
           ),
