@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'package:doubling_season/models/token_definition.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -248,7 +249,7 @@ void main() {
         expect(RingService.bearer(utility()), isEmpty);
         expect(f.player.tokens, isEmpty);
         expect(tester.takeException(), isNull);
-        await tester.tap(find.byTooltip('Close workspace'));
+        await tester.tap(byControlLabel('Close workspace'));
         await tester.pumpAndSettle();
         await tester.pumpWidget(const SizedBox.shrink());
       },

@@ -73,19 +73,27 @@ extension _FocusedCommanderPage on _TableWorkspaceState {
                   SizedBox(
                     width: 44,
                     height: 44,
-                    child: IconButton(
-                      tooltip: 'Back',
-                      onPressed: disabled ? null : _back,
-                      icon: const Icon(Icons.arrow_back),
+                    child: MergeSemantics(
+                      child: Semantics(
+                        label: 'Back',
+                        child: IconButton(
+                          onPressed: disabled ? null : _back,
+                          icon: const Icon(Icons.arrow_back),
+                        ),
+                      ),
                     ),
                   ),
                 SizedBox(
                   width: 44,
                   height: 44,
-                  child: IconButton(
-                    tooltip: 'Close workspace',
-                    onPressed: disabled ? null : _requestClose,
-                    icon: const Icon(Icons.close),
+                  child: MergeSemantics(
+                    child: Semantics(
+                      label: 'Close workspace',
+                      child: IconButton(
+                        onPressed: disabled ? null : _requestClose,
+                        icon: const Icon(Icons.close),
+                      ),
+                    ),
                   ),
                 ),
               ],

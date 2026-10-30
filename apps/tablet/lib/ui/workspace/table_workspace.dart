@@ -62,6 +62,62 @@ enum WorkspacePage {
   dice,
   diceResults,
   settings,
+  support,
+}
+
+/// Shared game workflows live inside the table channel. Player-local editors
+/// retain their existing modal route and independent keyboard orientation.
+bool isGameDrawerPage(WorkspacePage page) => switch (page) {
+  WorkspacePage.tableHub ||
+  WorkspacePage.history ||
+  WorkspacePage.archives ||
+  WorkspacePage.boardWipes ||
+  WorkspacePage.reset ||
+  WorkspacePage.dice ||
+  WorkspacePage.diceResults ||
+  WorkspacePage.settings ||
+  WorkspacePage.support => true,
+  _ => false,
+};
+
+/// Coordinates edge buttons with the mounted workspace's durable-save guards.
+/// The shell keeps the workspace mounted until its closing animation completes.
+class GameDrawerController {
+  _TableWorkspaceState? _workspace;
+
+  Future<bool> close() async => await _workspace?._requestClose() ?? false;
+
+  Future<void> open(WorkspacePage page) async {
+    assert(isGameDrawerPage(page));
+    if (!isGameDrawerPage(page)) return;
+    await _workspace?._go(page);
+  }
+}
+
+class GameDrawerWorkspace extends StatelessWidget {
+  const GameDrawerWorkspace({
+    super.key,
+    required this.controller,
+    required this.catalog,
+    required this.drawerController,
+    required this.onClose,
+    this.initialPage = WorkspacePage.tableHub,
+  });
+  final TableController controller;
+  final TabletCatalog catalog;
+  final GameDrawerController drawerController;
+  final VoidCallback onClose;
+  final WorkspacePage initialPage;
+
+  @override
+  Widget build(BuildContext context) => _TableWorkspace(
+    controller: controller,
+    catalog: catalog,
+    initialPage: initialPage,
+    quarterTurns: 0,
+    drawerController: drawerController,
+    onDrawerClose: onClose,
+  );
 }
 
 bool _workspaceOpen = false;
@@ -109,7 +165,11 @@ class _TableWorkspace extends StatefulWidget {
     required this.quarterTurns,
     this.seatId,
     this.itemId,
+    this.drawerController,
+    this.onDrawerClose,
   });
+  final GameDrawerController? drawerController;
+  final VoidCallback? onDrawerClose;
   final TableController controller;
   final TabletCatalog catalog;
   final String? seatId;
@@ -179,6 +239,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   final Map<int, int> _diceCounts = {4: 0, 6: 1, 8: 0, 10: 0, 12: 0, 20: 0};
   DiceRoll? _diceRoll;
 
+  bool get _embedded => widget.drawerController != null;
   TableController get c => widget.controller;
   TabletCatalog get catalog => widget.catalog;
   PlayerState? get p {
@@ -199,9 +260,13 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   @override
   void initState() {
     super.initState();
+    widget.drawerController?._workspace = this;
     _sessionId = c.session.id;
     _sessionGeneration = c.session.generation;
     _page = widget.initialPage;
+    if (_embedded && _page != WorkspacePage.tableHub) {
+      _navigation.add((WorkspacePage.tableHub, null, 0, 0));
+    }
     _itemId = widget.itemId;
     for (final player in c.session.players) {
       if (player.seatId == widget.seatId || player.id == widget.seatId) {
@@ -332,20 +397,20 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     return saved;
   }
 
-  Future<void> _requestClose() async {
-    if (_closing || _working || _navigating) return;
+  Future<bool> _requestClose() async {
+    if (_closing || _working || _navigating) return false;
     setState(() => _closing = true);
     await WidgetsBinding.instance.endOfFrame;
     await _directQueue;
     final saved = await _flushInline();
-    if (!mounted) return;
+    if (!mounted) return false;
     if (!saved) {
       setState(() {
         _closing = false;
         _closeSaveFailed = true;
         _error ??= 'Your changes could not be saved.';
       });
-      return;
+      return false;
     }
     _closeSaveFailed = false;
     if (_directFailureNeedsAcknowledgement) {
@@ -354,9 +419,10 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         _directFailureNeedsAcknowledgement = false;
         _error = _directFailure;
       });
-      return; // Show the failed action once; explicit Close can then dismiss.
+      return false; // Show failure once; an explicit second Close can dismiss.
     }
     _finishClose();
+    return true;
   }
 
   Future<void> _retryCloseSave() async {
@@ -385,7 +451,12 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       _allowPop = true;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) Navigator.of(context).pop();
+      if (!mounted) return;
+      if (_embedded) {
+        widget.onDrawerClose!();
+      } else {
+        Navigator.of(context).pop();
+      }
     });
   }
 
@@ -395,6 +466,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       setState(() => _confirmation = null);
       return;
     }
+    if (_navigation.isEmpty) return;
     setState(() => _navigating = true);
     try {
       await _directQueue;
@@ -534,6 +606,8 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   }
 
   Future<void> _go(WorkspacePage page, {String? itemId}) async {
+    if (_embedded && !isGameDrawerPage(page)) return;
+    if (_page == page && _confirmation == null && _itemId == itemId) return;
     if (_working || _closing || _navigating) return;
     setState(() => _navigating = true);
     try {
@@ -674,21 +748,29 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         SizedBox(
           width: 44,
           height: 44,
-          child: IconButton(
-            tooltip: 'Back',
-            padding: EdgeInsets.zero,
-            onPressed: _back,
-            icon: const Icon(Icons.arrow_back),
+          child: MergeSemantics(
+            child: Semantics(
+              label: 'Back',
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                onPressed: _back,
+                icon: const Icon(Icons.arrow_back),
+              ),
+            ),
           ),
         ),
       SizedBox(
         width: 44,
         height: 44,
-        child: IconButton(
-          tooltip: 'Close workspace',
-          padding: EdgeInsets.zero,
-          onPressed: _working || _navigating ? null : _requestClose,
-          icon: const Icon(Icons.close),
+        child: MergeSemantics(
+          child: Semantics(
+            label: 'Close workspace',
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              onPressed: _working || _navigating ? null : _requestClose,
+              icon: const Icon(Icons.close),
+            ),
+          ),
         ),
       ),
     ],
@@ -696,7 +778,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
 
   // Only the actual corner occupied by dismissal controls is reserved. There is
   // no app bar, divider, full-width heading band or full-height side rail.
-  Widget _contentTop(Widget child) => _ownsCommanderControls
+  Widget _contentTop(Widget child) => _ownsCommanderControls || _embedded
       ? child
       : Padding(
           padding: EdgeInsets.only(right: _controlWidth),
@@ -712,7 +794,12 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     ScrollController? controller,
   }) => ListView(
     controller: controller,
-    padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
+    padding: EdgeInsets.fromLTRB(
+      _embedded ? 12 : 20,
+      6,
+      _embedded ? 12 : 20,
+      20,
+    ),
     children: [
       for (var index = 0; index < children.length; index++)
         if (index == 0 && controls)
@@ -816,6 +903,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
 
   @override
   void dispose() {
+    if (widget.drawerController?._workspace == this) {
+      widget.drawerController?._workspace = null;
+    }
     c.removeListener(_refresh);
     catalog.removeListener(_refresh);
     for (final edit in _inlineEdits.values) {
@@ -851,6 +941,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     WorkspacePage.dice => 'Dice',
     WorkspacePage.diceResults => 'Dice results',
     WorkspacePage.settings => 'Table settings',
+    WorkspacePage.support => 'Support',
   };
 
   Widget _content() {
@@ -915,6 +1006,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       WorkspacePage.dice => _dicePage(),
       WorkspacePage.diceResults => _diceResultsPage(),
       WorkspacePage.settings => _settingsPage(),
+      WorkspacePage.support => const TableSupportContent(),
     };
   }
 
@@ -930,6 +1022,127 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       ),
       widget.quarterTurns,
     );
+    final surface = PlayerKeyboardHost(
+      enabled: !_closing && !_working && !_navigating,
+      canEdit: () => !_closing && !_working && !_navigating,
+      onClose: _requestClose,
+      key: ValueKey(
+        '$_page:$_itemId:${_selectedDefinition?.id}:$_createCustom:${_confirmation?.title}:$_closeSaveFailed',
+      ),
+      child: Column(
+        children: [
+          if (_embedded)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Semantics(
+                      header: true,
+                      child: Text(
+                        _title,
+                        key: const ValueKey('game-drawer-title'),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                  ),
+                  _dismissControls(),
+                ],
+              ),
+            ),
+          SizedBox(
+            height: 2,
+            child: _working
+                ? const LinearProgressIndicator(minHeight: 2)
+                : null,
+          ),
+          if (visibleError != null || _status != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
+              color: visibleError == null
+                  ? Theme.of(context).colorScheme.secondaryContainer
+                  : Theme.of(context).colorScheme.errorContainer,
+              child: Text(
+                visibleError != null
+                    ? (_closeSaveFailed
+                          ? '$visibleError\nYour draft is retained only for this app session; it is not saved to storage.'
+                          : visibleError == _directFailure
+                          ? '$visibleError\nClose again to dismiss.'
+                          : visibleError)
+                    : _status!,
+              ),
+            ),
+          if (_closeSaveFailed)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Wrap(
+                spacing: 8,
+                children: [
+                  FilledButton(
+                    onPressed: _working ? null : _retryCloseSave,
+                    child: const Text('Retry'),
+                  ),
+                  OutlinedButton(
+                    onPressed: _working ? null : _closeKeepingSessionDraft,
+                    child: const Text('Close and keep draft'),
+                  ),
+                ],
+              ),
+            ),
+          Expanded(
+            child: focusedCommander || _embedded
+                ? Semantics(
+                    container: true,
+                    explicitChildNodes: true,
+                    label: _title,
+                    child: _content(),
+                  )
+                : Stack(
+                    children: [
+                      Positioned.fill(
+                        child: ClipPath(
+                          clipper: _WorkspaceControlCutout(_controlWidth + 8),
+                          child: Semantics(
+                            container: true,
+                            explicitChildNodes: true,
+                            namesRoute: true,
+                            label: _title,
+                            child: _content(),
+                          ),
+                        ),
+                      ),
+                      Positioned(top: 6, right: 8, child: _dismissControls()),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+    if (_embedded) {
+      return PopScope<void>(
+        canPop: _allowPop,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) {
+            if (_navigation.isNotEmpty || _confirmation != null) {
+              _back();
+            } else {
+              _requestClose();
+            }
+          }
+        },
+        child: Material(
+          key: const ValueKey('game-drawer-workspace'),
+          color: Theme.of(context).colorScheme.surface,
+          child: Semantics(
+            identifier: 'game-drawer-workspace',
+            container: true,
+            explicitChildNodes: true,
+            child: AbsorbPointer(absorbing: _closing, child: surface),
+          ),
+        ),
+      );
+    }
     final content = TableModalFrame(
       quarterTurns: widget.quarterTurns,
       preferredWidth: focusedCommander ? 620 : 720,
@@ -940,82 +1153,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       surfaceKey: focusedCommander
           ? const ValueKey('commander-workspace')
           : const ValueKey('context-workspace'),
-      child: PlayerKeyboardHost(
-        enabled: !_closing && !_working && !_navigating,
-        canEdit: () => !_closing && !_working && !_navigating,
-        onClose: _requestClose,
-        key: ValueKey(
-          '$_page:$_itemId:${_selectedDefinition?.id}:$_createCustom:${_confirmation?.title}:$_closeSaveFailed',
-        ),
-        child: Column(
-          children: [
-            SizedBox(
-              height: 2,
-              child: _working
-                  ? const LinearProgressIndicator(minHeight: 2)
-                  : null,
-            ),
-            if (visibleError != null || _status != null)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 9,
-                ),
-                color: visibleError == null
-                    ? Theme.of(context).colorScheme.secondaryContainer
-                    : Theme.of(context).colorScheme.errorContainer,
-                child: Text(
-                  visibleError != null
-                      ? (_closeSaveFailed
-                            ? '$visibleError\nYour draft is retained only for this app session; it is not saved to storage.'
-                            : visibleError == _directFailure
-                            ? '$visibleError\nClose again to dismiss.'
-                            : visibleError)
-                      : _status!,
-                ),
-              ),
-            if (_closeSaveFailed)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Wrap(
-                  spacing: 8,
-                  children: [
-                    FilledButton(
-                      onPressed: _working ? null : _retryCloseSave,
-                      child: const Text('Retry'),
-                    ),
-                    OutlinedButton(
-                      onPressed: _working ? null : _closeKeepingSessionDraft,
-                      child: const Text('Close and keep draft'),
-                    ),
-                  ],
-                ),
-              ),
-            Expanded(
-              child: focusedCommander
-                  ? _content()
-                  : Stack(
-                      children: [
-                        Positioned.fill(
-                          child: ClipPath(
-                            clipper: _WorkspaceControlCutout(_controlWidth + 8),
-                            child: Semantics(
-                              container: true,
-                              explicitChildNodes: true,
-                              namesRoute: true,
-                              label: _title,
-                              child: _content(),
-                            ),
-                          ),
-                        ),
-                        Positioned(top: 6, right: 8, child: _dismissControls()),
-                      ],
-                    ),
-            ),
-          ],
-        ),
-      ),
+      child: surface,
     );
     return PopScope<void>(
       canPop: _allowPop,

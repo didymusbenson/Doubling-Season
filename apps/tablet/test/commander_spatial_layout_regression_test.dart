@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tripling_table/domain/table_state.dart';
@@ -191,7 +192,7 @@ void main() {
                     0,
                 0,
               );
-              await tester.tap(find.byTooltip('Close workspace'));
+              await tester.tap(byControlLabel('Close workspace'));
               await tester.pumpAndSettle();
               expect(player.life, 40);
               expect(tester.takeException(), isNull);

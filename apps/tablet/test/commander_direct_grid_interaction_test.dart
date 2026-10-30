@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -119,7 +120,7 @@ void main() {
   }
 
   Future<void> close(WidgetTester tester) async {
-    await tester.tap(find.byTooltip('Close workspace'));
+    await tester.tap(byControlLabel('Close workspace'));
     await tester.pump();
   }
 
@@ -206,7 +207,7 @@ void main() {
     await tester.ensureVisible(field);
     await tester.tap(field);
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Select all'));
+    await tester.tap(byControlLabel('Select all'));
     await tester.tap(find.text(value));
     await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
@@ -221,10 +222,10 @@ void main() {
       await open(tester);
       expect(find.byKey(ValueKey('commander-edit-$sourceId')), findsNothing);
       expect(find.text('Set damage total'), findsNothing);
-      expect(find.byTooltip('Undo latest action'), findsNothing);
+      expect(byControlLabel('Undo latest action'), findsNothing);
       await enableEnergy(tester);
-      await tester.ensureVisible(find.byTooltip('Set energy total'));
-      await tester.tap(find.byTooltip('Set energy total'));
+      await tester.ensureVisible(byControlLabel('Set energy total'));
+      await tester.tap(byControlLabel('Set energy total'));
       await tester.pumpAndSettle();
       await setEnergy(tester, '7');
       expect(controller.player(playerId).life, 40);
@@ -237,7 +238,7 @@ void main() {
       await tester.ensureVisible(plus);
       await tester.tap(plus);
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Set energy total'));
+      await tester.tap(byControlLabel('Set energy total'));
       await tester.pumpAndSettle();
       final field = find.widgetWithText(TextField, 'Set total');
       expect(tester.widget<TextField>(field).controller!.text, '8');
@@ -252,8 +253,8 @@ void main() {
       await enableEnergy(tester);
       repo.delay = true;
       await plus(tester);
-      await tester.ensureVisible(find.byTooltip('Set energy total'));
-      await tester.tap(find.byTooltip('Set energy total'));
+      await tester.ensureVisible(byControlLabel('Set energy total'));
+      await tester.tap(byControlLabel('Set energy total'));
       await tester.pump();
       expect(
         find.widgetWithText(TextField, 'Set total'),

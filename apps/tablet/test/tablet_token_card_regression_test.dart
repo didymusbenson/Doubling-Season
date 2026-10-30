@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:doubling_season/widgets/mana/mana_icons.dart';
@@ -106,7 +107,7 @@ void main() {
         '777777 summoning sick',
       ]) {
         final status = find.descendant(
-          of: find.byTooltip(
+          of: byControlLabel(
             'Player 1, A very long creature token name with many words, edit total, tapped and summoning sickness',
           ),
           matching: find.bySemanticsLabel(RegExp(RegExp.escape(label))),
@@ -129,13 +130,13 @@ void main() {
     await tester.tap(find.text('Saproling'));
     await tester.pumpAndSettle();
     expect(expansions, 1);
-    expect(find.byTooltip('Choose artwork'), findsOneWidget);
+    expect(byControlLabel('Choose artwork'), findsOneWidget);
     await tester.tapAt(
       tester.getTopRight(find.byType(TabletTokenCard)) + const Offset(-2, 2),
     );
     await tester.pumpAndSettle();
     expect(expansions, 2);
-    expect(find.byTooltip('Choose artwork'), findsNothing);
+    expect(byControlLabel('Choose artwork'), findsNothing);
     expect(fixture.controller.session.history, isEmpty);
     expect(tester.takeException(), isNull);
   });
@@ -204,13 +205,13 @@ void main() {
       await tester.longPress(add);
       await tester.pumpAndSettle();
       expect(fixture.token('source').amount, 8);
-      await tester.tap(find.byTooltip('Tap one; hold to tap all'));
+      await tester.tap(byControlLabel('Tap one; hold to tap all'));
       await tester.pumpAndSettle();
       expect(fixture.token('source').tapped, 2);
-      await tester.longPress(find.byTooltip('Untap one; hold to untap all'));
+      await tester.longPress(byControlLabel('Untap one; hold to untap all'));
       await tester.pumpAndSettle();
       expect(fixture.token('source').tapped, 0);
-      await tester.tap(find.byTooltip('Add +1/+1 counter; hold to add ten'));
+      await tester.tap(byControlLabel('Add +1/+1 counter; hold to add ten'));
       await tester.pumpAndSettle();
       await tester.tap(add);
       await tester.pumpAndSettle();
@@ -269,7 +270,7 @@ void main() {
               find.descendant(of: row, matching: increase),
               findsOneWidget,
             );
-            final untap = find.byTooltip('Untap one; hold to untap all');
+            final untap = byControlLabel('Untap one; hold to untap all');
             expect(tester.getCenter(decrease).dy, tester.getCenter(untap).dy);
             expect(tester.getCenter(increase).dy, tester.getCenter(untap).dy);
             for (final target in [decrease, increase]) {
@@ -290,12 +291,12 @@ void main() {
             expect(fixture.token('source').amount, 20);
             expect(expansions, 0);
             expect(opened, isNull);
-            await tester.tap(find.byTooltip('Tap one; hold to tap all'));
+            await tester.tap(byControlLabel('Tap one; hold to tap all'));
             await tester.pumpAndSettle();
             expect(fixture.token('source').tapped, 1);
             expect(fixture.token('source').amount, 20);
             await tester.tap(
-              find.byTooltip(
+              byControlLabel(
                 'Player 1, Saproling, edit total, tapped and summoning sickness',
               ),
             );

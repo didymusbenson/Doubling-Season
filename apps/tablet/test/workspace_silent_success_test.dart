@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tripling_table/ui/table_theme.dart';
@@ -82,7 +83,7 @@ void main() {
   }
 
   Future<void> close(WidgetTester tester) async {
-    await tester.tap(find.byTooltip('Close workspace'));
+    await tester.tap(byControlLabel('Close workspace'));
     await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox.shrink());
   }

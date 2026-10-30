@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -86,9 +87,9 @@ void main() {
   }
 
   Future<void> close(WidgetTester tester) async {
-    await tester.tap(find.byTooltip('Close workspace'));
+    await tester.tap(byControlLabel('Close workspace'));
     await tester.pumpAndSettle();
-    expect(find.byTooltip('Close workspace'), findsNothing);
+    expect(byControlLabel('Close workspace'), findsNothing);
   }
 
   Future<void> capture(WidgetTester tester, String name) async {
@@ -106,7 +107,7 @@ void main() {
     // Match Flutter's golden matcher: build the image future in the frame's
     // test zone, then await rasterization in runAsync. Starting toImage inside
     // runAsync can omit retained overlay layers (Close/debug banner).
-    final closeCenter = tester.getCenter(find.byTooltip('Close workspace'));
+    final closeCenter = tester.getCenter(byControlLabel('Close workspace'));
     final pendingImage = boundary.toImage(pixelRatio: 1);
     await tester.runAsync(() async {
       final image = await pendingImage;
@@ -154,7 +155,7 @@ void main() {
   );
   void assertClearControls(WidgetTester tester) {
     final surface = workspace();
-    final close = find.byTooltip('Close workspace');
+    final close = byControlLabel('Close workspace');
     final closeRect = tester.getRect(close);
     expect(close.hitTestable(), findsOneWidget);
     expect(closeRect.width, greaterThanOrEqualTo(44));
@@ -167,7 +168,7 @@ void main() {
     );
     for (final element in buttons.evaluate()) {
       final target = find.byWidget(element.widget);
-      if (element.findAncestorWidgetOfExactType<IconButton>()?.tooltip ==
+      if (element.findAncestorWidgetOfExactType<Semantics>()?.properties.label ==
           'Close workspace') {
         continue;
       }
@@ -197,7 +198,7 @@ void main() {
         expect(find.widgetWithText(ChoiceChip, 'Player'), findsNothing);
         expect(find.widgetWithText(ChoiceChip, 'Counters'), findsNothing);
         expect(find.widgetWithText(ChoiceChip, 'Settings'), findsNothing);
-        expect(find.byTooltip('Back'), findsNothing);
+        expect(byControlLabel('Back'), findsNothing);
         final shell = tester.getRect(workspace());
         expect(shell.left, greaterThanOrEqualTo(16));
         expect(shell.top, greaterThanOrEqualTo(16));
@@ -239,14 +240,14 @@ void main() {
             findsOneWidget,
           );
           expect(find.text('Player counters'), findsOneWidget);
-          expect(find.byTooltip('Set energy total'), findsNothing);
+          expect(byControlLabel('Set energy total'), findsNothing);
           await tester.tap(find.text('Add counter'));
           await tester.pumpAndSettle();
           await tester.ensureVisible(find.text('Enable energy'));
           await tester.tap(find.text('Enable energy'));
           await tester.pumpAndSettle();
           expect(f.player.counters['energy'], 0);
-          expect(find.byTooltip('Set energy total'), findsOneWidget);
+          expect(byControlLabel('Set energy total'), findsOneWidget);
           assertClearControls(tester);
         }
         if (entry.value == WorkspacePage.reset) {
@@ -286,12 +287,12 @@ void main() {
         await tester.ensureVisible(target);
         await tester.tap(target);
         await tester.pumpAndSettle();
-        expect(find.byTooltip('Back'), findsOneWidget);
+        expect(byControlLabel('Back'), findsOneWidget);
         expect(find.widgetWithText(ChoiceChip, 'Settings'), findsNothing);
         assertClearControls(tester);
-        await tester.tap(find.byTooltip('Back'));
+        await tester.tap(byControlLabel('Back'));
         await tester.pumpAndSettle();
-        expect(find.byTooltip('Back'), findsNothing);
+        expect(byControlLabel('Back'), findsNothing);
         expect(find.text('New game'), findsOneWidget);
         expect(find.text('Archives'), findsOneWidget);
       }

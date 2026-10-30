@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -104,7 +105,7 @@ void main() {
             .artworkUrl,
         art,
       );
-      await tester.tap(find.byTooltip('Close workspace'));
+      await tester.tap(byControlLabel('Close workspace'));
       await tester.pumpAndSettle();
       await tester.pumpWidget(const SizedBox.shrink());
       expect(tester.takeException(), isNull);

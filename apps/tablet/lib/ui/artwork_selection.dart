@@ -631,16 +631,24 @@ class _ArtworkCropState extends State<_ArtworkCrop> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    IconButton(
-                      tooltip: 'Rotate artwork counterclockwise',
-                      onPressed: busy ? null : () => rotate(-1),
-                      icon: const Icon(Icons.rotate_left),
+                    MergeSemantics(
+                      child: Semantics(
+                        label: 'Rotate artwork counterclockwise',
+                        child: IconButton(
+                          onPressed: busy ? null : () => rotate(-1),
+                          icon: const Icon(Icons.rotate_left),
+                        ),
+                      ),
                     ),
                     Text('${quarterTurns * 90}°'),
-                    IconButton(
-                      tooltip: 'Rotate artwork clockwise',
-                      onPressed: busy ? null : () => rotate(1),
-                      icon: const Icon(Icons.rotate_right),
+                    MergeSemantics(
+                      child: Semantics(
+                        label: 'Rotate artwork clockwise',
+                        child: IconButton(
+                          onPressed: busy ? null : () => rotate(1),
+                          icon: const Icon(Icons.rotate_right),
+                        ),
+                      ),
                     ),
                   ],
                 ),

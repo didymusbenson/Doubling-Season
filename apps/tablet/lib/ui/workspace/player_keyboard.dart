@@ -872,31 +872,57 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
             height: 48,
             child: Row(
               children: [
-                IconButton(
-                  tooltip: 'Select all',
-                  onPressed: _editable ? _selectAll : null,
-                  icon: const Icon(Icons.select_all),
+                Expanded(
+                  child: SingleChildScrollView(
+                    key: const ValueKey('player-keyboard-actions-scroll'),
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        MergeSemantics(
+                          child: Semantics(
+                            label: 'Select all',
+                            child: IconButton(
+                              onPressed: _editable ? _selectAll : null,
+                              icon: const Icon(Icons.select_all),
+                            ),
+                          ),
+                        ),
+                        MergeSemantics(
+                          child: Semantics(
+                            label: 'Text editing actions',
+                            child: IconButton(
+                              onPressed: _editable ? _toggleEditingMenu : null,
+                              icon: const Icon(Icons.more_horiz),
+                            ),
+                          ),
+                        ),
+                        MergeSemantics(
+                          child: Semantics(
+                            label: 'Paste',
+                            child: IconButton(
+                              onPressed: _editable ? _paste : null,
+                              icon: const Icon(Icons.content_paste, size: 20),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                IconButton(
-                  tooltip: 'Text editing actions',
-                  onPressed: _editable ? _toggleEditingMenu : null,
-                  icon: const Icon(Icons.more_horiz),
-                ),
-                IconButton(
-                  tooltip: 'Paste',
-                  onPressed: _editable ? _paste : null,
-                  icon: const Icon(Icons.content_paste, size: 20),
-                ),
-                const Spacer(),
                 TextButton(
                   onPressed: _editable ? finishField : null,
                   child: const Text('Done'),
                 ),
                 if (widget.onClose != null)
-                  IconButton(
-                    tooltip: 'Close',
-                    onPressed: _editable ? widget.onClose : null,
-                    icon: const Icon(Icons.close),
+                  MergeSemantics(
+                    child: Semantics(
+                      label: 'Close',
+                      child: IconButton(
+                        onPressed: _editable ? widget.onClose : null,
+                        icon: const Icon(Icons.close),
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -1009,22 +1035,37 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
                                       ),
                                 ),
                               ),
-                              IconButton(
-                                tooltip: 'Select all',
-                                onPressed: _editable ? _selectAll : null,
-                                icon: const Icon(Icons.select_all),
+                              MergeSemantics(
+                                child: Semantics(
+                                  label: 'Select all',
+                                  child: IconButton(
+                                    onPressed: _editable ? _selectAll : null,
+                                    icon: const Icon(Icons.select_all),
+                                  ),
+                                ),
                               ),
-                              IconButton(
-                                tooltip: 'Text editing actions',
-                                onPressed: _editable
-                                    ? _toggleEditingMenu
-                                    : null,
-                                icon: const Icon(Icons.more_horiz),
+                              MergeSemantics(
+                                child: Semantics(
+                                  label: 'Text editing actions',
+                                  child: IconButton(
+                                    onPressed: _editable
+                                        ? _toggleEditingMenu
+                                        : null,
+                                    icon: const Icon(Icons.more_horiz),
+                                  ),
+                                ),
                               ),
-                              IconButton(
-                                tooltip: 'Paste',
-                                onPressed: _editable ? _paste : null,
-                                icon: const Icon(Icons.content_paste, size: 20),
+                              MergeSemantics(
+                                child: Semantics(
+                                  label: 'Paste',
+                                  child: IconButton(
+                                    onPressed: _editable ? _paste : null,
+                                    icon: const Icon(
+                                      Icons.content_paste,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
                               ),
                               TextButton(
                                 onPressed: _editable ? finishField : null,

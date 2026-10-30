@@ -124,16 +124,20 @@ class _LifeArtworkPickerState extends State<LifeArtworkPicker> {
             child: Row(
               children: [
                 if (definition != null || candidate != null)
-                  IconButton(
-                    tooltip: 'Back to token art search',
-                    onPressed: busy
-                        ? null
-                        : () => setState(() {
-                            definition = null;
-                            candidate = null;
-                            variant = null;
-                          }),
-                    icon: const Icon(Icons.arrow_back),
+                  MergeSemantics(
+                    child: Semantics(
+                      label: 'Back to token art search',
+                      child: IconButton(
+                        onPressed: busy
+                            ? null
+                            : () => setState(() {
+                                definition = null;
+                                candidate = null;
+                                variant = null;
+                              }),
+                        icon: const Icon(Icons.arrow_back),
+                      ),
+                    ),
                   ),
                 Expanded(
                   child: Text(
@@ -141,10 +145,14 @@ class _LifeArtworkPickerState extends State<LifeArtworkPicker> {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-                IconButton(
-                  tooltip: 'Close artwork search',
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
+                MergeSemantics(
+                  child: Semantics(
+                    label: 'Close artwork search',
+                    child: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ),
                 ),
               ],
             ),

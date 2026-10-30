@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -175,7 +176,10 @@ void main() {
         (tester) async {
           final fixture = await showTable(tester, size, tableFor(seats));
           expect(tester.takeException(), isNull);
-          expect(find.byTooltip('Storm').hitTestable(), findsNWidgets(seats));
+          expect(
+            byControlLabel(RegExp(r'^Storm, (expand|collapse)$')).hitTestable(),
+            findsNWidgets(seats),
+          );
           expect(find.text('Mana pool').hitTestable(), findsNWidgets(seats));
           for (final player in fixture.controller.session.players) {
             final name = fixture.controller.profile(player.seatId).name;
@@ -336,7 +340,12 @@ void main() {
               utilityScroll(tester, player).jumpTo(0);
             }
             await tester.pumpAndSettle();
-            expect(find.byTooltip('Storm').hitTestable(), findsNWidgets(seats));
+            expect(
+              byControlLabel(
+                RegExp(r'^Storm, (expand|collapse)$'),
+              ).hitTestable(),
+              findsNWidgets(seats),
+            );
             expect(tester.takeException(), isNull);
             if (_captureDirectory != null &&
                 partners &&
@@ -413,7 +422,10 @@ void main() {
         const Offset(0, 100),
       );
       await tester.pumpAndSettle();
-      expect(find.byTooltip('Storm').hitTestable(), findsNWidgets(4));
+      expect(
+        byControlLabel(RegExp(r'^Storm, (expand|collapse)$')).hitTestable(),
+        findsNWidgets(4),
+      );
       expect(tester.takeException(), isNull);
     },
   );
@@ -494,7 +506,7 @@ void main() {
       await tester.tap(
         find.descendant(
           of: section,
-          matching: find.byTooltip('Decrease Storm'),
+          matching: byControlLabel('Decrease Storm'),
         ),
       );
       await tester.pumpAndSettle();
@@ -502,7 +514,7 @@ void main() {
       await tester.tap(
         find.descendant(
           of: section,
-          matching: find.byTooltip('Increase Storm'),
+          matching: byControlLabel('Increase Storm'),
         ),
       );
       await tester.pumpAndSettle();
@@ -523,7 +535,10 @@ void main() {
       }
     }
     await showTable(tester, const Size(744, 1133), state);
-    expect(find.byTooltip('Storm').hitTestable(), findsNWidgets(4));
+    expect(
+      byControlLabel(RegExp(r'^Storm, (expand|collapse)$')).hitTestable(),
+      findsNWidgets(4),
+    );
     expect(tester.takeException(), isNull);
   });
 }

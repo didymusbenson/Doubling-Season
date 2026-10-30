@@ -13,6 +13,7 @@ import { constants } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { inflateSync } from 'node:zlib';
 
 const app = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const build = resolve(process.argv[2] || join(app, 'build/web'));
@@ -28,6 +29,7 @@ const evidence = {
 let chrome, server, profile, cdp;
 let chromeLog = '';
 let expectedScuteArtwork, expectedScuteArtist;
+let transitionFrames = null;
 await mkdir(output, { recursive: true });
 function log(message, data = {}) {
   const entry = { at: new Date().toISOString(), message, ...data };
@@ -83,6 +85,7 @@ async function semantics() {
     name: node.name.value, value: node.value?.value,
     disabled: node.properties?.some(property => property.name === 'disabled' && property.value?.value === true),
     checked: node.properties?.find(property => property.name === 'checked')?.value?.value,
+    expanded: node.properties?.find(property => property.name === 'expanded')?.value?.value,
   }));
 }
 async function bounds(node) {
@@ -94,14 +97,64 @@ async function bounds(node) {
     const rect = { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
     if (rect.width <= 0 || rect.height <= 0 || rect.x + rect.width <= 0 || rect.y + rect.height <= 0 || rect.x >= evidence.viewport.width || rect.y >= evidence.viewport.height) return null;
     return rect;
-  } catch { return null; }
+  } catch {
+    // Chrome's StaticText backend is a text node, for which getBoxModel is
+    // unsupported. Read its painted parent only for text assertions; action
+    // targets keep the strict DOM box/hit-target route above.
+    if (node.role !== 'StaticText') return null;
+    const { object } = await cdp.send('DOM.resolveNode', { backendNodeId: node.backend });
+    try {
+      const { result } = await cdp.send('Runtime.callFunctionOn', {
+        objectId: object.objectId, returnByValue: true,
+        functionDeclaration: `function() {
+          const element = this.nodeType === Node.ELEMENT_NODE ? this : this.parentElement;
+          if (!element) return null;
+          const rect = element.getBoundingClientRect();
+          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+        }`,
+      });
+      const rect = result.value;
+      return rect && rect.width > 0 && rect.height > 0 && rect.x < evidence.viewport.width &&
+        rect.y < evidence.viewport.height && rect.x + rect.width > 0 && rect.y + rect.height > 0 ? rect : null;
+    } finally { await cdp.send('Runtime.releaseObject', { objectId: object.objectId }); }
+  }
 }
 function matches(node, name, startsWith, contains) { return contains ? node.name.includes(name) : startsWith ? node.name.startsWith(name) : node.name === name; }
-async function find(name, { startsWith = false, contains = false, role, timeout = 30000 } = {}) {
+async function insideIdentifier(node, identifier) {
+  if (!node.backend) return false;
+  const { object } = await cdp.send('DOM.resolveNode', { backendNodeId: node.backend });
+  try {
+    const { result } = await cdp.send('Runtime.callFunctionOn', {
+      objectId: object.objectId, returnByValue: true,
+      arguments: [{ value: identifier }],
+      functionDeclaration: `function(identifier) {
+        for (let element = this.nodeType === Node.ELEMENT_NODE ? this : this.parentElement;
+             element; element = element.parentElement) {
+          if (element.getAttribute('flt-semantics-identifier') === identifier) return true;
+        }
+        return false;
+      }`,
+    });
+    return result.value;
+  } finally { await cdp.send('Runtime.releaseObject', { objectId: object.objectId }); }
+}
+async function identifierRect(identifier) {
+  return cdp.evaluate(`(() => {
+    const element = document.querySelector('[flt-semantics-identifier="' + ${JSON.stringify(identifier)} + '"]');
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+  })()`);
+}
+async function find(name, { startsWith = false, contains = false, role, within, timeout = 30000 } = {}) {
   return until(`visible semantic control ${JSON.stringify(name)}`, async () => {
     const nodes = (await semantics()).filter(node => matches(node, name, startsWith, contains) && !node.disabled && (!role || node.role === role));
     const candidates = [];
-    for (const node of nodes) { const rect = await bounds(node); if (rect) candidates.push({ ...node, rect }); }
+    for (const node of nodes) {
+      if (within && !await insideIdentifier(node, within)) continue;
+      const rect = await bounds(node);
+      if (rect) candidates.push({ ...node, rect });
+    }
     // A full-table dismissal barrier can share the header button's name.
     // Prefer the smallest actionable visible target, never its giant ancestor.
     candidates.sort((a, b) => Number(b.role === 'button') - Number(a.role === 'button') ||
@@ -207,7 +260,7 @@ async function diagnoseHold(input) {
   evidence.holds.push(record);
   log('observed hold outcome', record);
   await capture(`04-${input}-hold-after-release`);
-  await click('Game controls');
+  await click('Game controls', { startsWith: true, role: 'button' });
   const hubChoices = ['Dice', 'History', 'New game', 'Archives', 'Board wipes', 'Settings'];
   for (const label of hubChoices) {
     await find(label, { role: 'button' });
@@ -222,6 +275,7 @@ async function diagnoseHold(input) {
   await click('Close workspace');
 }
 async function click(name, options = {}) {
+  const closesDrawer = name === 'Close workspace' && !!await identifierRect('game-drawer-workspace');
   let node = await find(name, options);
   let target = await hitTarget(node);
   if (!target.sameAction) {
@@ -241,7 +295,217 @@ async function click(name, options = {}) {
   await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 });
   await sleep(options.hold || 40);
   await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1 });
-  await sleep(120);
+  await sleep(options.after ?? 120);
+  if (closesDrawer) await drawerClosed();
+}
+async function findInDrawer(name, options = {}) {
+  return find(name, { ...options, within: 'game-drawer-workspace' });
+}
+async function clickInDrawer(name, options = {}) {
+  return click(name, { ...options, within: 'game-drawer-workspace' });
+}
+async function drawerClosed() {
+  await until('drawer finished closing', async () =>
+    !await identifierRect('game-drawer-workspace') &&
+    (await semantics()).some(node => node.name.startsWith('Game controls') &&
+      /Collapsed/.test(`${node.name} ${node.value ?? ''}`)));
+}
+async function drawerMenuState() {
+  const menu = (await semantics()).find(node => node.role === 'button' && node.name.startsWith('Game controls'));
+  if (!menu) return null;
+  if (menu.expanded === true) return 'expanded';
+  if (menu.expanded === false) return 'collapsed';
+  const label = `${menu.name} ${menu.value ?? ''}`;
+  return /\bExpanded\b/.test(label) ? 'expanded' : /\bCollapsed\b/.test(label) ? 'collapsed' : null;
+}
+async function ensureDrawerCollapsed() {
+  // Workspace semantics are intentionally absent during both opening and
+  // closing. Their absence alone therefore cannot tell us to toggle Menu.
+  const state = await until('Menu state settled enough to close safely', async () => {
+    const current = await drawerMenuState();
+    if (current === 'collapsed') return current;
+    if (current === 'expanded' && await identifierRect('game-drawer-workspace')) return current;
+    return null;
+  });
+  if (state === 'expanded') {
+    log('normalizing an expanded drawer before the next opening check');
+    await click('Game controls Expanded', { startsWith: true, role: 'button' });
+  }
+  // A real failure to close remains a failure; never keep toggling to recover.
+  await drawerClosed();
+}
+async function scrollDrawerTo(name, options = {}) {
+  for (let attempt = 0; attempt < 9; attempt++) {
+    const found = await findInDrawer(name, { ...options, timeout: 250 }).catch(() => null);
+    const rect = await identifierRect('game-drawer-workspace');
+    assert(rect && rect.width > 0, 'Cannot scroll a closed drawer.');
+    if (found) {
+      const y = found.rect.y + found.rect.height / 2;
+      if (y > rect.y + 40 && y < Math.min(rect.y + rect.height, evidence.viewport.height) - 10) return found;
+    }
+    await cdp.send('Input.dispatchMouseEvent', {
+      type: 'mouseWheel', x: rect.x + rect.width / 2,
+      y: rect.y + Math.min(rect.height - 60, rect.height * .7), deltaX: 0, deltaY: 280,
+    });
+    await sleep(180);
+  }
+  throw new Error(`Drawer control not reachable by scrolling: ${name}`);
+}
+function decodeScreenshotPng(bytes) {
+  assert(bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])), 'Screenshot is not PNG.');
+  let width, height, channels;
+  const compressed = [];
+  for (let offset = 8; offset + 12 <= bytes.length;) {
+    const length = bytes.readUInt32BE(offset);
+    assert(offset + length + 12 <= bytes.length, 'Truncated screenshot PNG.');
+    const type = bytes.toString('ascii', offset + 4, offset + 8);
+    const data = bytes.subarray(offset + 8, offset + 8 + length);
+    if (type === 'IHDR') {
+      width = data.readUInt32BE(0); height = data.readUInt32BE(4);
+      assert(data[8] === 8 && [2, 6].includes(data[9]) && data[10] === 0 && data[11] === 0 && data[12] === 0,
+        'Expected non-interlaced 8-bit RGB/RGBA Chrome screenshot.');
+      channels = data[9] === 6 ? 4 : 3;
+    } else if (type === 'IDAT') compressed.push(data);
+    offset += length + 12;
+    if (type === 'IEND') break;
+  }
+  assert(width > 0 && height > 0 && width <= 10000 && height <= 10000 && channels, 'Invalid screenshot dimensions.');
+  const stride = width * channels;
+  const raw = inflateSync(Buffer.concat(compressed));
+  assert.equal(raw.length, (stride + 1) * height, 'Unexpected screenshot scanline size.');
+  const pixels = Buffer.alloc(stride * height);
+  const paeth = (a, b, c) => {
+    const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+    return pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+  };
+  for (let y = 0; y < height; y++) {
+    const filter = raw[y * (stride + 1)];
+    assert(filter <= 4, 'Unknown screenshot PNG filter.');
+    for (let x = 0; x < stride; x++) {
+      const left = x >= channels ? pixels[y * stride + x - channels] : 0;
+      const above = y > 0 ? pixels[(y - 1) * stride + x] : 0;
+      const corner = y > 0 && x >= channels ? pixels[(y - 1) * stride + x - channels] : 0;
+      const prediction = [0, left, above, Math.floor((left + above) / 2), paeth(left, above, corner)][filter];
+      pixels[y * stride + x] = (raw[y * (stride + 1) + x + 1] + prediction) & 255;
+    }
+  }
+  return { width, height, channels, pixels };
+}
+function paintedLabelPixels(png, rect) {
+  let interior = 0, text = 0;
+  for (let y = Math.max(0, Math.ceil(rect.y + 8)); y < Math.min(png.height, rect.y + rect.height - 8); y++) {
+    for (let x = Math.max(0, Math.ceil(rect.x + 8)); x < Math.min(png.width, rect.x + rect.width - 8); x++) {
+      const i = (y * png.width + x) * png.channels;
+      const [r, g, b] = png.pixels.subarray(i, i + 3);
+      const a = png.channels === 4 ? png.pixels[i + 3] : 255;
+      // The dark-theme menu has green labels/icons and neutral surfaces and
+      // borders. Exclude the outer stroke and transparent RGBA pixels. The
+      // right-of-center sample excludes the leading icon as well.
+      if (a > 150 && g > 100 && g - r > 12 && g - b > 5) {
+        interior++;
+        if (x > rect.x + rect.width / 2 + 2) text++;
+      }
+    }
+  }
+  return { interior, text };
+}
+async function verifyMenuPixels(bytes, players, viewport, file) {
+  const png = decodeScreenshotPng(bytes);
+  assert.equal(png.width, viewport.width, 'Screenshot scale changed relative to semantic bounds.');
+  const labels = [];
+  const tree = await semantics();
+  assert(!tree.some(node => node.role === 'button' && node.name === 'Reset / reload'),
+    'Empty-seat controls remained actionable beside the open drawer.');
+  for (const label of ['Dice', 'History', 'New game', 'Archives', 'Board wipes', 'Settings']) {
+    assert.equal(tree.filter(node => node.role === 'button' && node.name === label).length, 1,
+      `The open drawer exposes a duplicate ${label} action.`);
+    const target = await findInDrawer(label, { role: 'button' });
+    const pixels = paintedLabelPixels(png, target.rect);
+    assert(pixels.interior > 40 && pixels.text > 12,
+      `Rendered ${label} label/icon is missing at ${players} seats, ${viewport.width}×${viewport.height}: ${JSON.stringify(pixels)}`);
+    labels.push({ label, rect: target.rect, ...pixels });
+  }
+  evidence.drawerMenuPixels ||= [];
+  evidence.drawerMenuPixels.push({ players, viewport, file, labels });
+}
+async function captureDrawerTransition(name, action) {
+  const frames = [];
+  transitionFrames = frames;
+  await cdp.send('Page.startScreencast', { format: 'png', everyNthFrame: 1 });
+  try {
+    await action();
+    if (name.endsWith('-closing')) {
+      const deadline = Date.now() + 700;
+      let closingTree;
+      while (Date.now() < deadline) {
+        const tree = await semantics();
+        if (tree.some(node => node.name === 'Roll dice' && node.disabled)) {
+          closingTree = tree;
+          break;
+        }
+        await sleep(10);
+      }
+      assert(closingTree, 'Did not observe the closing drawer with its edge action disabled.');
+      assert(!closingTree.some(node => node.role === 'button' &&
+        ['Dice', 'History', 'New game', 'Archives', 'Board wipes', 'Settings', 'Close workspace'].includes(node.name)),
+      'Invisible drawer workflow controls remained in the live accessibility tree while closing.');
+      assert.equal(await identifierRect('game-drawer-workspace'), null,
+        'Closing drawer retained its actionable semantic content.');
+      const file = `${name}-live-semantics.json`;
+      await writeFile(join(output, file), JSON.stringify(closingTree, null, 2));
+      evidence.drawerClosingSemantics ||= [];
+      evidence.drawerClosingSemantics.push({ name, file, controls: closingTree.map(({ name, role, disabled }) => ({ name, role, disabled })) });
+    }
+    await sleep(650);
+  } finally {
+    await cdp.send('Page.stopScreencast');
+    transitionFrames = null;
+  }
+  const records = [];
+  for (const [index, frame] of frames.entries()) {
+    const file = `${name}-${String(index).padStart(2, '0')}.png`;
+    await writeFile(join(output, file), Buffer.from(frame.data, 'base64'));
+    records.push({ file, metadata: frame.metadata });
+  }
+  assert(records.length >= 2, `No intermediate animation frames captured for ${name}.`);
+  evidence.drawerTransitions ||= [];
+  evidence.drawerTransitions.push({ name, frames: records });
+  return capture(`${name}-settled`);
+}
+async function assertNoTooltipSemantics(before, label) {
+  const after = await semantics();
+  assert(!after.some(node => node.role === 'tooltip'), `${label} exposed a tooltip role.`);
+  const beforeLabels = new Map();
+  for (const node of before) beforeLabels.set(node.name, (beforeLabels.get(node.name) ?? 0) + 1);
+  const afterLabels = new Map();
+  for (const node of after) afterLabels.set(node.name, (afterLabels.get(node.name) ?? 0) + 1);
+  for (const [name, count] of afterLabels) {
+    assert(count <= (beforeLabels.get(name) ?? 0), `${label} added hover/hold text: ${name}`);
+  }
+  assert.equal(await cdp.evaluate(`document.querySelectorAll(${JSON.stringify('[role="tooltip"], [title]:not([title=""])')}).length`), 0,
+    `${label} exposed a browser tooltip target.`);
+}
+async function inspectNoTooltip(name, options = {}) {
+  await ensureDrawerCollapsed();
+  const node = await find(name, options);
+  const before = await semantics();
+  const x = node.rect.x + node.rect.width / 2, y = node.rect.y + node.rect.height / 2;
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+  await sleep(1600);
+  await assertNoTooltipSemantics(before, `${name} hover`);
+  await capture('21-menu-hover-no-tooltip');
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 0, radiusX: 1, radiusY: 1, force: 1 }] });
+  await sleep(1200);
+  await assertNoTooltipSemantics(before, `${name} long press`);
+  await capture('21-menu-long-press-no-tooltip');
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false });
+  await sleep(650);
+  // Menu has no functional hold; a retained ordinary tap on release is fine.
+  // Use Menu state because the opening workspace can still be excluded from
+  // semantics after a delayed tap is recognized on a busy browser runner.
+  await ensureDrawerCollapsed();
 }
 async function typeSoftwareText(text) {
   let symbols = false;
@@ -260,9 +524,11 @@ async function selected(name) {
 }
 async function capture(name) {
   const shot = await cdp.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
-  await writeFile(join(output, `${name}.png`), Buffer.from(shot.data, 'base64'));
+  const bytes = Buffer.from(shot.data, 'base64');
+  await writeFile(join(output, `${name}.png`), bytes);
   await writeFile(join(output, `${name}.semantics.json`), JSON.stringify(await semantics(), null, 2));
   log('captured rendered UI and semantic evidence', { name });
+  return bytes;
 }
 async function enableSemantics() {
   await until('Flutter accessibility bootstrap', async () => cdp.evaluate(`(() => {
@@ -326,6 +592,10 @@ try {
   cdp = new CDP(socket);
   cdp.on('Runtime.consoleAPICalled', event => evidence.console.push({ type: event.type, text: event.args.map(arg => arg.value ?? arg.description).join(' ') }));
   cdp.on('Runtime.exceptionThrown', event => evidence.exceptions.push(event.exceptionDetails));
+  cdp.on('Page.screencastFrame', frame => {
+    if (transitionFrames && transitionFrames.length < 40) transitionFrames.push(frame);
+    void cdp.send('Page.screencastFrameAck', { sessionId: frame.sessionId }).catch(() => {});
+  });
   cdp.on('Network.loadingFailed', event => evidence.networkFailures.push(event));
   cdp.on('Network.responseReceived', event => { if (event.response.mimeType.startsWith('image/')) evidence.images.push({ requestId: event.requestId, url: event.response.url, status: event.response.status, mime: event.response.mimeType }); });
   cdp.on('Network.loadingFinished', event => { const image = evidence.images.find(image => image.requestId === event.requestId); if (image) { image.finished = true; image.encodedBytes = event.encodedDataLength; } });
@@ -336,6 +606,46 @@ try {
   await enableSemantics();
   await find('Player 1, player details', { timeout: 90000 });
   await capture('01-initial-four-seat-table');
+
+  const probeSeats = process.env.DRAWER_SMOKE_SEATS;
+  assert(!probeSeats || ['2', '3', '4'].includes(probeSeats), 'DRAWER_SMOKE_SEATS must be 2, 3, or 4.');
+  if (probeSeats) {
+    // Fast diagnosis uses the same real input/pixel/hit checks, in a fresh
+    // profile. CI leaves this unset and always runs the complete suite below.
+    evidence.scope = 'drawer-probe-only';
+    await click('Game controls', { startsWith: true, role: 'button' });
+    await clickInDrawer('New game', { role: 'button' });
+    await clickInDrawer(`${probeSeats} players`);
+    await scrollDrawerTo('Complete reset', { role: 'button' });
+    await clickInDrawer('Complete reset', { role: 'button' });
+    await scrollDrawerTo('Archive & complete reset', { role: 'button' });
+    await clickInDrawer('Archive & complete reset', { role: 'button' });
+    await drawerClosed();
+    for (const viewport of [{ width: 1133, height: 744 }, { width: 744, height: 1133 }]) {
+      evidence.viewport = { ...viewport, deviceScaleFactor: 1 };
+      await cdp.send('Emulation.setDeviceMetricsOverride', { ...evidence.viewport, mobile: false });
+      await sleep(250);
+      const name = `probe-${probeSeats}p-${viewport.width}x${viewport.height}`;
+      const png = await captureDrawerTransition(`${name}-opening`, () =>
+        click('Game controls', { startsWith: true, role: 'button', after: 0 }));
+      await verifyMenuPixels(png, Number(probeSeats), viewport, `${name}-opening-settled.png`);
+      await clickInDrawer('History', { role: 'button' });
+      await findInDrawer('Back', { role: 'button' });
+      await capture(`${name}-history`);
+      await clickInDrawer('Back', { role: 'button' });
+      await click('Close game drawer', { role: 'button' });
+      await drawerClosed();
+      await click('Game controls', { startsWith: true, role: 'button' });
+      await findInDrawer('History', { role: 'button' });
+      await captureDrawerTransition(`${name}-closing`, () =>
+        click('Game controls', { startsWith: true, role: 'button', after: 0 }));
+      await drawerClosed();
+    }
+    assert.equal(evidence.exceptions.length, 0, 'Unhandled browser runtime exceptions occurred.');
+    log(`PASS focused ${probeSeats}-seat drawer probe; complete release coverage not run in this mode`);
+    evidence.status = 'passed';
+  } else {
+  evidence.scope = 'full-release-smoke';
 
   // The web semantics label must not extend the Day/Night hit target into
   // another seat's life half. Exercise the actual centers with semantics on;
@@ -402,7 +712,7 @@ try {
   assert(!(await semantics()).some(node => /Correct .*damage|Set damage total|Correct life|Undo latest action/.test(node.name)),
     'Combined popup exposes a removed correction or standalone Undo route.');
   await click('Close workspace');
-  await click('Game controls');
+  await click('Game controls', { startsWith: true, role: 'button' });
   await click('History', { role: 'button' });
   await click('Undo latest:', { startsWith: true, role: 'button' });
   await click('Close workspace');
@@ -476,7 +786,7 @@ try {
   await find('D20 quantity: 1');
   for (const sides of [4, 4, 6, 20]) await click(`Decrease d${sides}`, { startsWith: true, role: 'button' });
   await find('D6 quantity: 0');
-  await click('Roll dice', { role: 'button' });
+  await clickInDrawer('Roll dice', { role: 'button' });
   await find('Select at least one die.', { contains: true });
   await verifyDiceResults({});
   await capture('05d-dice-empty-selection');
@@ -624,6 +934,138 @@ try {
   }
   log('PASS all four seat-facing art-backed owner/partner grids in portrait and landscape');
 
+  // These actions affect only this process's temporary Chrome profile. The
+  // archive created by New game restores the populated test table after every
+  // two-/three-seat check; no app-state injection or user device is involved.
+  evidence.viewport = { width: 1133, height: 744, deviceScaleFactor: 1 };
+  await cdp.send('Emulation.setDeviceMetricsOverride', { ...evidence.viewport, mobile: false });
+  await sleep(250);
+  await inspectNoTooltip('Game controls', { startsWith: true, role: 'button' });
+
+  async function tableSnapshot() {
+    return (await semantics()).filter(node =>
+      node.role === 'button' &&
+      /, (?:increase life by one|decrease life by one|Scute Swarm,)/.test(node.name))
+      .map(({ role, name, value }) => ({ role, name, value }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+  async function inspectDrawer(count, viewport) {
+    evidence.viewport = { ...viewport, deviceScaleFactor: 1 };
+    await cdp.send('Emulation.setDeviceMetricsOverride', { ...evidence.viewport, mobile: false });
+    await sleep(300);
+    await ensureDrawerCollapsed();
+    const prefix = `22-drawer-${count}p-${viewport.width}x${viewport.height}`;
+    const before = await tableSnapshot();
+    const closedMenu = await find('Game controls Collapsed', { startsWith: true, role: 'button' });
+    const menuPng = await captureDrawerTransition(`${prefix}-opening`, () =>
+      click('Game controls Collapsed', { startsWith: true, role: 'button', after: 0 }));
+    const drawer = await identifierRect('game-drawer-workspace');
+    const openMenu = await find('Game controls', { startsWith: true, role: 'button' });
+    assert(drawer && drawer.width >= 220 && drawer.height >= 300, 'Drawer workflow has no usable viewport.');
+    assert(Math.abs(openMenu.rect.width - closedMenu.rect.width) < .1 &&
+      Math.abs(openMenu.rect.height - closedMenu.rect.height) < .1,
+    'Menu button changed size or was sliced during drawer opening.');
+    assert(Math.abs(openMenu.rect.x - closedMenu.rect.x) > 20, 'Menu did not travel with the drawer edge.');
+    assert((await hitTarget(openMenu)).sameAction, 'The whole open Menu center is not actionable.');
+    evidence.drawerGeometry ||= [];
+    evidence.drawerGeometry.push({ players: count, viewport, drawer, menuClosed: closedMenu.rect, menuOpen: openMenu.rect });
+    await verifyMenuPixels(menuPng, count, viewport, `${prefix}-opening-settled.png`);
+    await clickInDrawer('History', { role: 'button' });
+    await findInDrawer('Back', { role: 'button' });
+    await capture(`${prefix}-history`);
+    await clickInDrawer('Back', { role: 'button' });
+    await findInDrawer('Archives', { role: 'button' });
+    await click('Close game drawer', { role: 'button' });
+    await drawerClosed();
+    assert.deepEqual(await tableSnapshot(), before, 'Token-space dismissal changed life or token state.');
+    await capture(`${prefix}-dismissed-by-token-area`);
+    // The edge Menu must work for another complete cycle without losing its
+    // shape, its hit target, or the table's already-open token editor state.
+    await click('Game controls', { startsWith: true, role: 'button' });
+    await findInDrawer('Dice', { role: 'button' });
+    await captureDrawerTransition(`${prefix}-closing`, () =>
+      click('Game controls', { startsWith: true, role: 'button', after: 0 }));
+    await drawerClosed();
+    assert.deepEqual(await tableSnapshot(), before, 'Menu close changed life or token state.');
+  }
+  for (const viewport of [{ width: 1133, height: 744 }, { width: 744, height: 1133 }]) {
+    await inspectDrawer(4, viewport);
+  }
+
+  evidence.viewport = { width: 1133, height: 744, deviceScaleFactor: 1 };
+  await cdp.send('Emulation.setDeviceMetricsOverride', { ...evidence.viewport, mobile: false });
+  await click('Game controls', { startsWith: true, role: 'button' });
+  for (const [page, content] of [
+    ['Archives', 'No archived games yet.'],
+    ['Settings', 'Appearance theme'],
+    ['New game', 'Starting life. Current value:'],
+  ]) {
+    await clickInDrawer(page, { role: 'button' });
+    await findInDrawer(content, { startsWith: true });
+    await capture(`23-drawer-${page.toLowerCase().replaceAll(' ', '-')}`);
+    if (page === 'Settings') {
+      await scrollDrawerTo('Support this app', { role: 'button' });
+      await clickInDrawer('Support this app', { role: 'button' });
+      await findInDrawer('Support Tripling Table', { contains: true });
+      await capture('23-drawer-support');
+      await clickInDrawer('Back', { role: 'button' });
+    }
+    await clickInDrawer('Back', { role: 'button' });
+    await findInDrawer('Board wipes', { role: 'button' });
+  }
+  await clickInDrawer('Board wipes', { role: 'button' });
+  await clickInDrawer('Wipe all creatures', { role: 'button' });
+  await findInDrawer('Wipe all creatures for everyone?', { contains: true });
+  await capture('23-drawer-wipe-confirmation');
+  await clickInDrawer('Wipe all creatures', { role: 'button' });
+  await findInDrawer('Back', { role: 'button' });
+  await clickInDrawer('Close workspace', { role: 'button' });
+  await drawerClosed();
+  assert(!(await semantics()).some(node => node.name.startsWith('qa, Scute Swarm, Name')), 'In-drawer wipe did not remove the creature.');
+  await click('Game controls', { startsWith: true, role: 'button' });
+  await clickInDrawer('History', { role: 'button' });
+  await clickInDrawer('Undo latest:', { startsWith: true, role: 'button' });
+  await capture('23-drawer-history-restores-wipe');
+  await clickInDrawer('Close workspace', { role: 'button' });
+  await drawerClosed();
+  await find('qa, Scute Swarm, Name', { startsWith: true, role: 'button' });
+  await expectLife('qa', 42);
+
+  async function resetPlayers(count) {
+    await click('Game controls', { startsWith: true, role: 'button' });
+    await clickInDrawer('New game', { role: 'button' });
+    await clickInDrawer(`${count} players`);
+    await scrollDrawerTo('Complete reset', { role: 'button' });
+    await clickInDrawer('Complete reset', { role: 'button' });
+    await scrollDrawerTo('Archive & complete reset', { role: 'button' });
+    await clickInDrawer('Archive & complete reset', { role: 'button' });
+    await drawerClosed();
+    await expectLife('qa', 40);
+    const names = (await semantics()).filter(node => node.role === 'button' && /, player details$/.test(node.name));
+    assert.equal(names.length, count, `New game did not create the requested ${count}-seat layout.`);
+  }
+  async function restoreFourSeatArchive() {
+    await click('Game controls', { startsWith: true, role: 'button' });
+    await clickInDrawer('Archives', { role: 'button' });
+    await clickInDrawer('4 players ·', { contains: true, role: 'button' });
+    await scrollDrawerTo('Save current & restore', { role: 'button' });
+    await capture('24-drawer-restore-archive-confirmation');
+    await clickInDrawer('Save current & restore', { role: 'button' });
+    await drawerClosed();
+    await expectLife('qa', 42);
+    await find('Player 4, player details');
+    await find('qa, Scute Swarm, Name', { startsWith: true, role: 'button' });
+  }
+  for (const count of [2, 3]) {
+    await resetPlayers(count);
+    for (const viewport of [{ width: 1133, height: 744 }, { width: 744, height: 1133 }]) {
+      await inspectDrawer(count, viewport);
+    }
+    await restoreFourSeatArchive();
+  }
+  await capture('24-restored-four-seat-table');
+  log('PASS real drawer transitions, whole moving Menu, consumed token-space dismissal, repeated navigation, in-drawer wipe/History undo/new game/archive restore and 2/3/4-seat portrait/landscape');
+
   // With semantics enabled, Flutter3.41.2 buffers tappable pointerdown200ms
   // before the framework's500ms recognizer; durable publication adds latency.
   // Keep the750ms observation, but assert actual recognized clear + no trailing
@@ -632,6 +1074,7 @@ try {
   assert(evidence.holds.every(hold => hold.clearObservedWhileHeld && hold.afterRelease === 'neither'), 'Observed mouse/touch hold did not clear and remain Neither; inspect hold snapshots, DOM event timeline and chronological history.');
   assert.equal(evidence.exceptions.length, 0, 'Unhandled browser runtime exceptions occurred; inspect evidence.json.');
   evidence.status = 'passed';
+  }
 } catch (error) {
   evidence.status = 'failed'; evidence.failure = error.stack || String(error);
   console.error(evidence.failure);

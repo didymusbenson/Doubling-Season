@@ -144,10 +144,14 @@ extension _TokenPages on _TableWorkspaceState {
                     label: 'Search tokens, abilities, type, or P/T',
                   ),
                 ),
-                IconButton(
-                  tooltip: 'Clear token search',
-                  onPressed: () => _update(query.clear),
-                  icon: const Icon(Icons.clear),
+                MergeSemantics(
+                  child: Semantics(
+                    label: 'Clear token search',
+                    child: IconButton(
+                      onPressed: () => _update(query.clear),
+                      icon: const Icon(Icons.clear),
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 4),
                 _button(
@@ -222,14 +226,18 @@ extension _TokenPages on _TableWorkspaceState {
                     }),
                   ),
                 ),
-              IconButton(
-                tooltip: 'Clear filters',
-                icon: const Icon(Icons.filter_alt_off_outlined),
-                onPressed: () => _update(() {
-                  _tokenColors.clear();
-                  _category = null;
-                  query.clear();
-                }),
+              MergeSemantics(
+                child: Semantics(
+                  label: 'Clear filters',
+                  child: IconButton(
+                    icon: const Icon(Icons.filter_alt_off_outlined),
+                    onPressed: () => _update(() {
+                      _tokenColors.clear();
+                      _category = null;
+                      query.clear();
+                    }),
+                  ),
+                ),
               ),
             ],
           ),
@@ -284,16 +292,21 @@ extension _TokenPages on _TableWorkspaceState {
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      trailing: IconButton(
-                        tooltip: catalog.isFavorite(token.id)
-                            ? 'Remove favorite'
-                            : 'Favorite token',
-                        icon: Icon(
-                          catalog.isFavorite(token.id)
-                              ? Icons.star
-                              : Icons.star_border,
+                      trailing: MergeSemantics(
+                        child: Semantics(
+                          label: catalog.isFavorite(token.id)
+                              ? 'Remove favorite'
+                              : 'Favorite token',
+                          child: IconButton(
+                            icon: Icon(
+                              catalog.isFavorite(token.id)
+                                  ? Icons.star
+                                  : Icons.star_border,
+                            ),
+                            onPressed: () =>
+                                _run(() => catalog.favorite(token.id)),
+                          ),
                         ),
-                        onPressed: () => _run(() => catalog.favorite(token.id)),
                       ),
                       onTap: () => _selectToken(token),
                     ),

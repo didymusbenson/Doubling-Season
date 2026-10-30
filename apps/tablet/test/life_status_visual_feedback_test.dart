@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -157,8 +158,8 @@ void main() {
       );
     }
     addTearDown(() async {
-      if (find.byTooltip('Close workspace').evaluate().isNotEmpty) {
-        await tester.tap(find.byTooltip('Close workspace'));
+      if (byControlLabel('Close workspace').evaluate().isNotEmpty) {
+        await tester.tap(byControlLabel('Close workspace'));
         await tester.pumpAndSettle();
       }
       await tester.pumpWidget(const SizedBox());
@@ -334,7 +335,7 @@ void main() {
                 expect(tester.getSize(target).width, greaterThanOrEqualTo(44));
                 expect(tester.getSize(target).height, greaterThanOrEqualTo(44));
                 final hitRegion = target == summary
-                    ? find.byTooltip('${profile.name}, player counters')
+                    ? byControlLabel('${profile.name}, player counters')
                     : target;
                 expect(hitRegion.hitTestable(), findsOneWidget);
               }
@@ -380,7 +381,7 @@ void main() {
               );
               final before = f.controller.session.toJson();
               await tester.tap(
-                find.byTooltip('${profile.name}, player counters'),
+                byControlLabel('${profile.name}, player counters'),
               );
               await tester.pumpAndSettle();
               expect(
@@ -391,14 +392,14 @@ void main() {
                 find.byKey(const ValueKey('focused-commander-grid')),
                 findsOneWidget,
               );
-              expect(find.byTooltip('Initiative · On'), findsOneWidget);
-              expect(find.byTooltip('City’s blessing · On'), findsOneWidget);
+              expect(byControlLabel('Initiative, On'), findsOneWidget);
+              expect(byControlLabel('City’s blessing, On'), findsOneWidget);
               expect(
                 f.controller.session.toJson(),
                 before,
                 reason: 'Summary navigation must not change life or state.',
               );
-              await tester.tap(find.byTooltip('Close workspace'));
+              await tester.tap(byControlLabel('Close workspace'));
               await tester.pumpAndSettle();
             }
             expect(tester.takeException(), isNull);
@@ -468,7 +469,7 @@ void main() {
             expect(activeState(), !active);
             expect(f.player.life, originalLife);
           }
-          await tester.tap(find.byTooltip('Close workspace'));
+          await tester.tap(byControlLabel('Close workspace'));
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
         } finally {
@@ -500,19 +501,19 @@ void main() {
       }
 
       await open(first);
-      await tester.tap(find.byTooltip('Initiative · Off'));
+      await tester.tap(byControlLabel('Initiative, Off'));
       await tester.pumpAndSettle();
       expect(f.board.hasInitiative(first.id), isTrue);
-      await tester.tap(find.byTooltip('Close workspace'));
+      await tester.tap(byControlLabel('Close workspace'));
       await tester.pumpAndSettle();
       await open(second);
-      await tester.tap(find.byTooltip('Initiative · Off'));
+      await tester.tap(byControlLabel('Initiative, Off'));
       await tester.pumpAndSettle();
       expect(f.board.hasInitiative(first.id), isFalse);
       expect(f.board.hasInitiative(second.id), isTrue);
       final history = f.controller.session.history.length;
       final held = await tester.startGesture(
-        tester.getCenter(find.byTooltip('Initiative · On')),
+        tester.getCenter(byControlLabel('Initiative, On')),
       );
       await tester.pump(const Duration(milliseconds: 650));
       expect(f.board.hasInitiative(second.id), isFalse);
@@ -520,9 +521,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(f.board.hasInitiative(second.id), isFalse);
       expect(f.controller.session.history.length, history + 1);
-      await tester.tap(find.byTooltip('Close workspace'));
+      await tester.tap(byControlLabel('Close workspace'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Game controls'));
+      await tester.tap(byControlLabel('Game controls'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('History'));
       await tester.pumpAndSettle();
@@ -538,7 +539,7 @@ void main() {
         hasLength(1),
       );
       expect(tester.takeException(), isNull);
-      await tester.tap(find.byTooltip('Close workspace'));
+      await tester.tap(byControlLabel('Close workspace'));
       await tester.pumpAndSettle();
     },
   );

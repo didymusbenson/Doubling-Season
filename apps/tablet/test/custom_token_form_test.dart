@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:convert';
 import 'dart:ui' as ui;
 
@@ -113,7 +114,7 @@ void main() {
   }
 
   Future<void> close(WidgetTester tester) async {
-    await tester.tap(find.byTooltip('Close workspace'));
+    await tester.tap(byControlLabel('Close workspace'));
     await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox.shrink());
   }

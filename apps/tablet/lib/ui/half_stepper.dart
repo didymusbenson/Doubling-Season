@@ -24,9 +24,13 @@ class HalfStepper extends StatelessWidget {
 
   /// A read-only full-surface display, used for the life name/total overlay.
   final Widget? displayOverlay;
+
+  /// Rectangles in the full stepped area's local coordinates that ink must
+  /// leave clear. This clips painting only; both halves keep rectangular hits.
+  final List<Rect> inkExclusions;
   final Key? decreaseKey, increaseKey, editKey;
   final String? decreaseLabel, increaseLabel;
-  final String? decreaseTooltip, increaseTooltip, editLabel, editTooltip;
+  final String? decreaseHint, increaseHint, editLabel, editHint;
 
   const HalfStepper({
     super.key,
@@ -51,15 +55,16 @@ class HalfStepper extends StatelessWidget {
     this.valueStyle,
     this.valueWidget,
     this.displayOverlay,
+    this.inkExclusions = const [],
     this.decreaseKey,
     this.increaseKey,
     this.decreaseLabel,
     this.increaseLabel,
-    this.decreaseTooltip,
-    this.increaseTooltip,
+    this.decreaseHint,
+    this.increaseHint,
     this.editKey,
     this.editLabel,
-    this.editTooltip,
+    this.editHint,
   });
 
   @override
@@ -83,10 +88,8 @@ class HalfStepper extends StatelessWidget {
                         child: _StepHalf(
                           key: decreaseKey,
                           label: decreaseLabel ?? '$label, decrease',
-                          tooltip:
-                              decreaseTooltip ??
-                              decreaseLabel ??
-                              '$label, decrease',
+                          hint: decreaseHint,
+                          inkExclusions: inkExclusions,
                           value: value,
                           onTap: onDecrease,
                           onHold: onDecrease == null ? null : onDecreaseHold,
@@ -107,10 +110,8 @@ class HalfStepper extends StatelessWidget {
                         child: _StepHalf(
                           key: increaseKey,
                           label: increaseLabel ?? '$label, increase',
-                          tooltip:
-                              increaseTooltip ??
-                              increaseLabel ??
-                              '$label, increase',
+                          hint: increaseHint,
+                          inkExclusions: inkExclusions,
                           value: value,
                           onTap: onIncrease,
                           onHold: onIncrease == null ? null : onIncreaseHold,
@@ -164,12 +165,12 @@ class HalfStepper extends StatelessWidget {
               height: height,
               child: Semantics(
                 key: editKey,
-                label: editLabel ?? editTooltip ?? 'Edit $label',
+                label: editLabel ?? 'Edit $label',
+                hint: editHint,
                 button: true,
                 onTap: onEdit,
                 excludeSemantics: true,
                 child: IconButton(
-                  tooltip: editTooltip ?? editLabel ?? 'Edit $label',
                   onPressed: onEdit,
                   icon: Icon(Icons.edit_outlined, size: 19, color: color),
                   padding: EdgeInsets.zero,
@@ -201,7 +202,6 @@ class NumericHoldRegion extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _StepHalf(
     label: label,
-    tooltip: label,
     value: '',
     onTap: onTap,
     onHold: null,
@@ -219,7 +219,9 @@ class NumericHoldRegion extends StatelessWidget {
 }
 
 class _StepHalf extends StatefulWidget {
-  final String label, tooltip, value;
+  final String label, value;
+  final String? hint;
+  final List<Rect> inkExclusions;
   final VoidCallback? onTap, onHold;
   final FutureOr<void> Function(int)? onHoldStep;
   final int holdStep;
@@ -232,7 +234,6 @@ class _StepHalf extends StatefulWidget {
   const _StepHalf({
     super.key,
     required this.label,
-    required this.tooltip,
     required this.value,
     required this.onTap,
     required this.onHold,
@@ -246,6 +247,8 @@ class _StepHalf extends StatefulWidget {
     required this.iconPadding,
     required this.iconY,
     this.customChild,
+    this.hint,
+    this.inkExclusions = const [],
   });
 
   @override
@@ -330,6 +333,7 @@ class _StepHalfState extends State<_StepHalf> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) => Semantics(
     label: widget.label,
+    hint: widget.hint,
     value: widget.value,
     button: true,
     enabled: widget.onTap != null,
@@ -340,44 +344,91 @@ class _StepHalfState extends State<_StepHalf> with WidgetsBindingObserver {
         ? () => widget.onHoldStep!(widget.holdStep)
         : widget.onHold,
     excludeSemantics: true,
-    child: Tooltip(
-      message: widget.tooltip,
-      child: Listener(
-        onPointerUp: (_) => _stop(),
-        onPointerCancel: (_) => _stop(),
-        child: InkWell(
-          // A disabled half still owns its gesture so a surrounding card cannot
-          // expand or run another action when the zero decrement is tapped.
-          onTap: widget.onTap ?? () {},
-          onLongPress: widget.onTap == null
-              ? () {}
-              : widget.onHold == null && widget.onHoldStep == null
-              ? null
-              : _hold,
-          canRequestFocus: widget.onTap != null,
-          enableFeedback: widget.onTap != null,
-          overlayColor: widget.onTap == null
-              ? const WidgetStatePropertyAll(Colors.transparent)
-              : null,
-          splashFactory: widget.onTap == null ? NoSplash.splashFactory : null,
-          excludeFromSemantics: true,
-          child:
-              widget.customChild ??
-              Align(
-                alignment: Alignment(widget.increase ? 1 : -1, widget.iconY),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: widget.iconPadding),
-                  child: Icon(
-                    widget.increase ? Icons.add : Icons.remove,
-                    size: widget.iconSize,
-                    color: widget.onTap == null
-                        ? widget.color.withValues(alpha: .38)
-                        : widget.color,
-                  ),
+    child: Listener(
+      onPointerUp: (_) => _stop(),
+      onPointerCancel: (_) => _stop(),
+      child: InkWell(
+        customBorder: widget.inkExclusions.isEmpty
+            ? null
+            : _StepperInkBorder(
+                exclusions: widget.inkExclusions,
+                increase: widget.increase,
+              ),
+        // A disabled half still owns its gesture so a surrounding card cannot
+        // expand or run another action when the zero decrement is tapped.
+        onTap: widget.onTap ?? () {},
+        onLongPress: widget.onTap == null
+            ? () {}
+            : widget.onHold == null && widget.onHoldStep == null
+            ? null
+            : _hold,
+        canRequestFocus: widget.onTap != null,
+        enableFeedback: widget.onTap != null,
+        overlayColor: widget.onTap == null
+            ? const WidgetStatePropertyAll(Colors.transparent)
+            : null,
+        splashFactory: widget.onTap == null ? NoSplash.splashFactory : null,
+        excludeFromSemantics: true,
+        child:
+            widget.customChild ??
+            Align(
+              alignment: Alignment(widget.increase ? 1 : -1, widget.iconY),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: widget.iconPadding),
+                child: Icon(
+                  widget.increase ? Icons.add : Icons.remove,
+                  size: widget.iconSize,
+                  color: widget.onTap == null
+                      ? widget.color.withValues(alpha: .38)
+                      : widget.color,
                 ),
               ),
-        ),
+            ),
       ),
     ),
+  );
+}
+
+/// InkWell uses this border for splash, hover and focus painting, independently
+/// of its rectangular GestureDetector. The right half shares the same surface
+/// geometry as the left, translated by exactly one half width.
+class _StepperInkBorder extends ShapeBorder {
+  final List<Rect> exclusions;
+  final bool increase;
+  const _StepperInkBorder({required this.exclusions, required this.increase});
+
+  @override
+  EdgeInsetsGeometry get dimensions => EdgeInsets.zero;
+
+  @override
+  Path getOuterPath(Rect rect, {TextDirection? textDirection}) {
+    final offset = Offset(rect.left - (increase ? rect.width : 0), rect.top);
+    final holes = Path();
+    for (final area in exclusions) {
+      holes.addRect(area.shift(offset));
+    }
+    return Path.combine(PathOperation.difference, Path()..addRect(rect), holes);
+  }
+
+  @override
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) =>
+      getOuterPath(rect, textDirection: textDirection);
+
+  @override
+  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {}
+
+  @override
+  ShapeBorder scale(double t) => _StepperInkBorder(
+    exclusions: exclusions
+        .map(
+          (area) => Rect.fromLTRB(
+            area.left * t,
+            area.top * t,
+            area.right * t,
+            area.bottom * t,
+          ),
+        )
+        .toList(),
+    increase: increase,
   );
 }

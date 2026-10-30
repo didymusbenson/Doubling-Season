@@ -3,14 +3,15 @@
 The separate tablet app developed from the Tripling Season iPad specifications.
 “Tripling Table” is a development name, not a selected store name.
 
-**Checkpoint status (2026-10-27): visual-first table feedback in review.**
-The current [visual table and immediate-life feedback work](../../docs/activeDevelopment/in_progress_features/ipad_edition/visual_table_feedback_2026-10-27.md)
-composes the existing dice draft with artwork-led commander tiles, on-chip status
-summaries, clearer Storm/Day-Night controls, stable modal steppers and immediate
-life tap feedback. Canonical saves/history remain durable. The separate
-Commander, Counters and Player routes and existing 75%-viewport shell are
-preserved. Parent final review and exact-commit CI are required before publication;
-native hands-on acceptance remains outstanding.
+**Current checkpoint (2026-10-30): game drawer, life ink and tooltip removal.**
+The [game drawer work](../../docs/activeDevelopment/in_progress_features/ipad_edition/game_drawer_ink_tooltips_2026-10-30.md)
+embeds shared game workflows in a center channel beneath the sliding life and
+utility rails. Player/token editors retain focused dialogs; commander damage and
+player counters share a content-sized popup. Life feedback avoids painting over
+the on-chip summaries while retaining full tap regions. Controls preserve explicit
+accessibility labels without hover/hold tooltip bubbles. Canonical saves and
+History remain durable. Native hands-on acceptance is recorded separately from
+automated and browser checks.
 
 Earlier [compact hub and inline-token correction](../../docs/activeDevelopment/in_progress_features/ipad_edition/compact_hub_life_tools_2026-10-22.md)
 records the preceding design history rather than the current branch status.

@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -113,8 +114,8 @@ void main() {
     await tester.pumpAndSettle();
     addTearDown(() async {
       fixture.repository.failSave = false;
-      if (find.byTooltip('Close workspace').evaluate().isNotEmpty) {
-        await tester.tap(find.byTooltip('Close workspace'));
+      if (byControlLabel('Close workspace').evaluate().isNotEmpty) {
+        await tester.tap(byControlLabel('Close workspace'));
         await tester.pumpAndSettle();
       }
       await tester.pumpWidget(const SizedBox.shrink());
@@ -123,7 +124,7 @@ void main() {
   }
 
   Future<void> close(WidgetTester tester) async {
-    await tester.tap(find.byTooltip('Close workspace'));
+    await tester.tap(byControlLabel('Close workspace'));
     await tester.pumpAndSettle();
   }
 
@@ -224,7 +225,7 @@ void main() {
         find.text('Player counters'),
         page != WorkspacePage.player ? findsOneWidget : findsNothing,
       );
-      expect(find.byTooltip('Correct life separately'), findsNothing);
+      expect(byControlLabel('Correct life separately'), findsNothing);
       expect(find.text('Correct life'), findsNothing);
       expect(find.byIcon(Icons.edit_outlined), findsNothing);
       expect(tester.takeException(), isNull);
@@ -248,12 +249,12 @@ void main() {
         name.text = 'Unwritten name';
         await tester.pump();
         await tester.tap(
-          find.byTooltip('Close').evaluate().isNotEmpty
-              ? find.byTooltip('Close')
-              : find.byTooltip('Close workspace'),
+          byControlLabel('Close').evaluate().isNotEmpty
+              ? byControlLabel('Close')
+              : byControlLabel('Close workspace'),
         );
         await tester.pumpAndSettle();
-        expect(find.byTooltip('Close workspace'), findsOneWidget);
+        expect(byControlLabel('Close workspace'), findsOneWidget);
         expect(find.text('Retry'), findsOneWidget);
         expect(
           find.textContaining('only for this app session'),
@@ -266,7 +267,7 @@ void main() {
         );
         await tester.tap(find.text('Close and keep draft'));
         await tester.pumpAndSettle();
-        expect(find.byTooltip('Close workspace'), findsNothing);
+        expect(byControlLabel('Close workspace'), findsNothing);
         expect(f.controller.profile(f.player.seatId).name, original);
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
@@ -274,7 +275,7 @@ void main() {
           tester.widget<TextField>(field('Player name')).controller!.text,
           'Unwritten name',
         );
-        await tester.tap(find.byTooltip('Close workspace'));
+        await tester.tap(byControlLabel('Close workspace'));
         await tester.pumpAndSettle();
         expect(find.text('Retry'), findsOneWidget);
         f.repository.failSave = false;
@@ -283,7 +284,7 @@ void main() {
         expect(f.controller.profile(f.player.seatId).name, 'Unwritten name');
         expect(find.text('Close and keep draft'), findsNothing);
         await close(tester);
-        expect(find.byTooltip('Close workspace'), findsNothing);
+        expect(byControlLabel('Close workspace'), findsNothing);
         expect(tester.takeException(), isNull);
       },
     );
@@ -316,8 +317,8 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Save this player’s setup'), findsOneWidget);
         expect(find.textContaining('Loading preserves life'), findsOneWidget);
-        expect(find.byTooltip('Back'), findsOneWidget);
-        await tester.tap(find.byTooltip('Back'));
+        expect(byControlLabel('Back'), findsOneWidget);
+        await tester.tap(byControlLabel('Back'));
         await tester.pumpAndSettle();
         expect(saved.hitTestable(), findsOneWidget); // exact originating scroll
         await close(tester);
@@ -327,8 +328,8 @@ void main() {
           'counters-${size.width.toInt()}x${size.height.toInt()}',
         );
         await enableCounter(tester, 'energy');
-        await reveal(tester, find.byTooltip('Increase energy'));
-        await tester.tap(find.byTooltip('Increase energy'));
+        await reveal(tester, byControlLabel('Increase energy'));
+        await tester.tap(byControlLabel('Increase energy'));
         await tester.pumpAndSettle();
         expect(f.player.counters['energy'], 1);
         expect(f.player.life, 40);
@@ -383,11 +384,11 @@ void main() {
       expect(find.byKey(const ValueKey('commander-workspace')), findsOneWidget);
       expect(field('Set life total to'), findsNothing);
       expect(find.text('Correct life'), findsNothing);
-      expect(find.byTooltip('Set energy total'), findsNothing);
+      expect(byControlLabel('Set energy total'), findsNothing);
       await enableCounter(tester, 'energy');
       expect(f.player.counters['energy'], 0);
-      await reveal(tester, find.byTooltip('Set energy total'));
-      await tester.tap(find.byTooltip('Set energy total'));
+      await reveal(tester, byControlLabel('Set energy total'));
+      await tester.tap(byControlLabel('Set energy total'));
       await tester.pumpAndSettle();
       tester.widget<TextField>(field('Set total')).controller!.text = '27';
       await reveal(tester, find.widgetWithText(OutlinedButton, 'Set'));
@@ -415,18 +416,18 @@ void main() {
       final originalLife = f.player.life;
       for (final counter in ['energy', 'poison', 'experience', 'radiation']) {
         await enableCounter(tester, counter);
-        await reveal(tester, find.byTooltip('Set $counter total'));
-        await tester.tap(find.byTooltip('Set $counter total'));
+        await reveal(tester, byControlLabel('Set $counter total'));
+        await tester.tap(byControlLabel('Set $counter total'));
         await tester.pumpAndSettle();
         expect(field('Set total'), findsOneWidget);
         tester.widget<TextField>(field('Set total')).controller!.text = '7';
-        await reveal(tester, find.byTooltip('Cancel counter correction'));
-        await tester.tap(find.byTooltip('Cancel counter correction'));
+        await reveal(tester, byControlLabel('Cancel counter correction'));
+        await tester.tap(byControlLabel('Cancel counter correction'));
         await tester.pumpAndSettle();
         expect(f.player.counters[counter] ?? 0, 0);
         expect(find.byType(TextField), findsNothing);
-        await reveal(tester, find.byTooltip('Set $counter total'));
-        await tester.tap(find.byTooltip('Set $counter total'));
+        await reveal(tester, byControlLabel('Set $counter total'));
+        await tester.tap(byControlLabel('Set $counter total'));
         await tester.pumpAndSettle();
         tester.widget<TextField>(field('Set total')).controller!.text = '7';
         await reveal(tester, find.widgetWithText(OutlinedButton, 'Set'));
@@ -453,20 +454,20 @@ void main() {
       final previous = f.controller.session.players[1].id;
       await f.controller.setMonarch(previous);
       await open(tester, f, page: WorkspacePage.counters);
-      await reveal(tester, find.byTooltip('Monarch · Off'));
-      await tester.tap(find.byTooltip('Monarch · Off'));
+      await reveal(tester, byControlLabel('Monarch, Off'));
+      await tester.tap(byControlLabel('Monarch, Off'));
       await tester.pumpAndSettle();
       expect(f.controller.session.monarchPlayerId, f.playerId);
-      expect(find.byTooltip('Monarch · On'), findsOneWidget);
+      expect(byControlLabel('Monarch, On'), findsOneWidget);
       await undoInHistory(tester, f);
       await open(tester, f, page: WorkspacePage.counters);
       expect(f.controller.session.monarchPlayerId, previous);
-      expect(find.byTooltip('Monarch · Off'), findsOneWidget);
-      await tester.tap(find.byTooltip('City’s blessing · Off'));
+      expect(byControlLabel('Monarch, Off'), findsOneWidget);
+      await tester.tap(byControlLabel('City’s blessing, Off'));
       await tester.pumpAndSettle();
       expect(f.player.citysBlessing, isTrue);
       expect(f.controller.session.players[1].citysBlessing, isFalse);
-      expect(find.byTooltip('City’s blessing · On'), findsOneWidget);
+      expect(byControlLabel('City’s blessing, On'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await close(tester);
     },
@@ -577,7 +578,7 @@ void main() {
       }
 
       for (final die in [4, 6, 8, 10, 12, 20]) {
-        final increase = find.byTooltip('Increase d$die');
+        final increase = byControlLabel('Increase d$die');
         await reach(increase);
         expect(tester.getSize(increase).height, greaterThanOrEqualTo(48));
         await tester.tap(increase);
@@ -634,7 +635,7 @@ void main() {
         await open(tester, f, page: WorkspacePage.dice, size: size);
         for (final die in [4, 6, 8, 10, 12, 20]) {
           expect(find.byKey(ValueKey('dice-count-d$die')), findsOneWidget);
-          final increase = find.byTooltip('Increase d$die');
+          final increase = byControlLabel('Increase d$die');
           expect(increase.hitTestable(), findsOneWidget);
           expect(tester.getSize(increase).width, greaterThanOrEqualTo(48));
           expect(tester.getSize(increase).height, greaterThanOrEqualTo(48));
@@ -662,9 +663,9 @@ void main() {
             greaterThan(tester.getTopLeft(count(4)).dy),
           );
         }
-        await tester.tap(find.byTooltip('Increase d4'));
-        await tester.tap(find.byTooltip('Increase d4'));
-        await tester.tap(find.byTooltip('Increase d20'));
+        await tester.tap(byControlLabel('Increase d4'));
+        await tester.tap(byControlLabel('Increase d4'));
+        await tester.tap(byControlLabel('Increase d20'));
         await tester.tap(roll);
         await tester.pumpAndSettle();
         final results = tester

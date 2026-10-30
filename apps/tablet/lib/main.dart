@@ -77,6 +77,12 @@ class _TriplingTableAppState extends State<TriplingTableApp>
     listenable: controller,
     builder: (context, _) => MaterialApp(
       title: 'Tripling Table',
+      // Tooltips are never part of table interaction, including overlay routes.
+      // Controls supply their own names, values and actions to accessibility.
+      builder: (context, child) => TooltipVisibility(
+        visible: false,
+        child: child ?? const SizedBox.shrink(),
+      ),
       debugShowCheckedModeBanner: false,
       theme: tableTheme(Brightness.light),
       darkTheme: tableTheme(Brightness.dark),

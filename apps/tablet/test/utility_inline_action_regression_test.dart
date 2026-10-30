@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -110,12 +111,17 @@ void main() {
         final seat = find.byKey(ValueKey(f.playerId));
         final utility = f.player.utilities.single;
         await tester.tap(
-          find.descendant(of: seat, matching: find.byTooltip(utility.name)),
+          find.descendant(
+            of: seat,
+            matching: byControlLabel(
+              RegExp('^${RegExp.escape(utility.name)}, (expand|collapse)\$'),
+            ),
+          ),
         );
         await tester.pumpAndSettle();
         final edit = find.descendant(
           of: seat,
-          matching: find.byTooltip(
+          matching: byControlLabel(
             kind == 'mana_pool'
                 ? 'Manage ${utility.name}'
                 : '${utility.name}, details and actions',
@@ -123,7 +129,7 @@ void main() {
         );
         final hide = find.descendant(
           of: seat,
-          matching: find.byTooltip('Remove ${utility.name}'),
+          matching: byControlLabel('Remove ${utility.name}'),
         );
         expect(edit.hitTestable(), findsOneWidget);
         expect(hide.hitTestable(), findsOneWidget);
@@ -133,7 +139,9 @@ void main() {
         );
         final header = find.descendant(
           of: seat,
-          matching: find.byTooltip(utility.name),
+          matching: byControlLabel(
+            RegExp('^${RegExp.escape(utility.name)}, (expand|collapse)\$'),
+          ),
         );
         expect(
           (tester.getCenter(header).dy - tester.getCenter(edit).dy).abs(),
@@ -170,7 +178,7 @@ void main() {
             tester.getSize(switchControl).height,
             greaterThanOrEqualTo(44),
           );
-          expect(find.byTooltip('Increase Custom toggle'), findsNothing);
+          expect(byControlLabel('Increase Custom toggle'), findsNothing);
           await tester.tap(switchControl);
           await tester.pumpAndSettle();
           expect(f.board.utilityActive(f.playerId, id), isTrue);
@@ -252,7 +260,7 @@ void main() {
       await tap(tester, 'utility-action-$id');
       expect(find.text('Create Myr only'), findsOneWidget);
       expect(
-        find.byTooltip('Create the Myr and skip transformation'),
+        byControlLabel('Create the Myr and skip transformation'),
         findsOneWidget,
       );
       await tap(tester, 'utility-skip-$id');
@@ -287,7 +295,7 @@ void main() {
     'Utility numeric hold repeats, accelerates and stops on release',
     (tester) async {
       final (f, _) = await showUtility(tester, 'krenko_tin_street');
-      final target = find.byTooltip('Increase Krenko, Tin Street Kingpin');
+      final target = byControlLabel('Increase Krenko, Tin Street Kingpin');
       await tester.ensureVisible(target);
       await tester.pumpAndSettle();
       final gesture = await tester.startGesture(tester.getCenter(target));
@@ -339,11 +347,11 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Manage Mana pool').first);
+      await tester.tap(byControlLabel('Manage Mana pool').first);
       await tester.pumpAndSettle();
       repository.failSave = true;
       repository.attempts = 0;
-      final target = find.byTooltip(label);
+      final target = byControlLabel(label);
 
       await tester.ensureVisible(target);
       await tester.pumpAndSettle();
@@ -358,8 +366,8 @@ void main() {
       expect(repository.attempts, 1);
       repository.failSave = false;
       for (var i = 0; i < 2; i++) {
-        if (find.byTooltip('Close workspace').evaluate().isNotEmpty) {
-          await tester.tap(find.byTooltip('Close workspace'));
+        if (byControlLabel('Close workspace').evaluate().isNotEmpty) {
+          await tester.tap(byControlLabel('Close workspace'));
           await tester.pumpAndSettle();
         }
       }

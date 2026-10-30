@@ -35,9 +35,6 @@ ThemeData tableTheme(Brightness brightness) {
       thickness: 1,
       space: 1,
     ),
-    tooltipTheme: const TooltipThemeData(
-      waitDuration: Duration(milliseconds: 600),
-    ),
     fontFamily: 'sans-serif',
   );
 }

@@ -432,31 +432,26 @@ class _TabletTokenCardState extends State<TabletTokenCard>
     button: true,
     enabled: onTap != null && !_inputOpen,
     label: '$_target, $label',
-    onTap: onTap,
-    onLongPress: onHold,
-    child: Tooltip(
-      message: label,
-      child: ExcludeSemantics(
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(5),
-            onTap: _inputOpen
-                ? null
-                : onTap ?? (consumeDisabled ? () {} : null),
-            onLongPress: _inputOpen ? null : onHold,
-            child: SizedBox(
-              width: 38,
-              height: 40,
-              child: Center(
-                child: _readable(
-                  Padding(
-                    padding: const EdgeInsets.all(3),
-                    child: Icon(
-                      icon,
-                      size: 21,
-                      color: onTap == null ? Colors.grey : null,
-                    ),
+    onTap: _inputOpen ? null : onTap,
+    onLongPress: _inputOpen || onTap == null ? null : onHold,
+    child: ExcludeSemantics(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(5),
+          onTap: _inputOpen ? null : onTap ?? (consumeDisabled ? () {} : null),
+          onLongPress: _inputOpen ? null : onHold,
+          child: SizedBox(
+            width: 38,
+            height: 40,
+            child: Center(
+              child: _readable(
+                Padding(
+                  padding: const EdgeInsets.all(3),
+                  child: Icon(
+                    icon,
+                    size: 21,
+                    color: onTap == null ? Colors.grey : null,
                   ),
                 ),
               ),
@@ -467,9 +462,13 @@ class _TabletTokenCardState extends State<TabletTokenCard>
     ),
   );
 
-  Widget _status(Color textColor) => Tooltip(
-    message: '$_target, edit total, tapped and summoning sickness',
+  Widget _status(Color textColor) => Semantics(
+    label: '$_target, edit total, tapped and summoning sickness',
+    button: true,
+    explicitChildNodes: true,
+    onTap: () => _open(WorkspacePage.tokenStatus),
     child: InkWell(
+      excludeFromSemantics: true,
       onTap: () => _open(WorkspacePage.tokenStatus),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -933,19 +932,26 @@ class _TabletTokenCardState extends State<TabletTokenCard>
                                       ),
                                     ),
                                     if (_drafts.isNotEmpty)
-                                      IconButton(
-                                        tooltip: 'Discard unsaved token edits',
-                                        onPressed: _inputOpen
-                                            ? null
-                                            : () {
-                                                setState(() {
-                                                  _drafts.clear();
-                                                  _draftScope = null;
-                                                  _error = null;
-                                                });
-                                                updateKeepAlive();
-                                              },
-                                        icon: const Icon(Icons.undo, size: 20),
+                                      MergeSemantics(
+                                        child: Semantics(
+                                          label: 'Discard unsaved token edits',
+                                          child: IconButton(
+                                            onPressed: _inputOpen
+                                                ? null
+                                                : () {
+                                                    setState(() {
+                                                      _drafts.clear();
+                                                      _draftScope = null;
+                                                      _error = null;
+                                                    });
+                                                    updateKeepAlive();
+                                                  },
+                                            icon: const Icon(
+                                              Icons.undo,
+                                              size: 20,
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                   ],
                                 ),

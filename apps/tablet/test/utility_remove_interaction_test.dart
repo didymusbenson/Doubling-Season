@@ -1,3 +1,4 @@
+import 'support/control_finders.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -74,7 +75,7 @@ void main() {
             expect(
               find.descendant(
                 of: target,
-                matching: find.byTooltip('Remove Storm'),
+                matching: byControlLabel('Remove Storm'),
               ),
               findsOneWidget,
             );
@@ -82,11 +83,11 @@ void main() {
             await tester.pumpAndSettle();
             expect(f.controller.player(id).utilities, isEmpty);
             expect(f.controller.player(id).life, 40);
-            expect(find.byTooltip('Close workspace'), findsNothing);
+            expect(byControlLabel('Close workspace'), findsNothing);
             expect(find.byType(SnackBar), findsNothing);
             expect(find.text('Remove Storm?'), findsNothing);
 
-            await tester.tap(find.byTooltip('Game controls'));
+            await tester.tap(byControlLabel('Game controls'));
             await tester.pumpAndSettle();
             await tester.tap(find.widgetWithText(OutlinedButton, 'History'));
             await tester.pumpAndSettle();
@@ -94,7 +95,7 @@ void main() {
             expect(undo.hitTestable(), findsOneWidget);
             await tester.tap(undo);
             await tester.pumpAndSettle();
-            await tester.tap(find.byTooltip('Close workspace'));
+            await tester.tap(byControlLabel('Close workspace'));
             await tester.pumpAndSettle();
             // Undo intentionally advances the generation to cancel stale input.
             expect(gameplay(), before);
@@ -118,7 +119,7 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
     expect(f.player.toJson(), before);
-    expect(find.byTooltip('Close workspace'), findsNothing);
+    expect(byControlLabel('Close workspace'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -134,6 +135,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(f.player.toJson(), before);
     expect(find.textContaining('Simulated storage failure'), findsWidgets);
-    expect(find.byTooltip('Close workspace'), findsNothing);
+    expect(byControlLabel('Close workspace'), findsNothing);
   });
 }

@@ -195,15 +195,19 @@ class TableArtwork extends StatelessWidget {
                 );
               }
               return Center(
-                child: IconButton(
-                  tooltip: 'Artwork unavailable. Retry loading image',
-                  icon: const Icon(Icons.broken_image_outlined),
-                  onPressed: () => setState(() {
-                    for (final url in {display, source}) {
-                      _webCache.evict(url);
-                      _webCache.evict(display, fallback: source);
-                    }
-                  }),
+                child: MergeSemantics(
+                  child: Semantics(
+                    label: 'Artwork unavailable. Retry loading image',
+                    child: IconButton(
+                      icon: const Icon(Icons.broken_image_outlined),
+                      onPressed: () => setState(() {
+                        for (final url in {display, source}) {
+                          _webCache.evict(url);
+                          _webCache.evict(display, fallback: source);
+                        }
+                      }),
+                    ),
+                  ),
                 ),
               );
             }
