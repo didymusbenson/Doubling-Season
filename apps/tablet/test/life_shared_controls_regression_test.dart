@@ -178,7 +178,15 @@ void main() {
             final f = await show(tester, size, seats, empty: empty);
             final hub = find.byKey(const ValueKey('central-game-controls'));
             final table = find.byKey(const ValueKey('table-surface'));
-            expect(tester.getRect(hub).center, tester.getRect(table).center);
+            final tableBounds = tester.getRect(table);
+            expect(
+              tester.getRect(hub).center,
+              seats == 2
+                  ? Offset(tableBounds.right - 30, tableBounds.center.dy + 26)
+                  : tableBounds.center,
+              reason:
+                  'Two seats keep Menu over life and outside the full token lanes.',
+            );
             final dice = find.byKey(const ValueKey('shared-dice'));
             final day = find.byKey(const ValueKey('shared-day-night'));
             for (final control in [dice, day]) {
@@ -194,7 +202,7 @@ void main() {
               final number = find.byKey(ValueKey('${p.id}-life-number'));
               final ledger = find.byKey(ValueKey('${p.id}-commander-ledger'));
               final name = find.byKey(ValueKey('${p.id}-player-name'));
-              for (final control in [dice, day]) {
+              for (final control in [dice, day, if (seats == 2) hub]) {
                 for (final content in [number, ledger, name]) {
                   expect(
                     tester.getRect(control).overlaps(tester.getRect(content)),
@@ -211,7 +219,7 @@ void main() {
                 ),
               );
               for (final icon in signs.evaluate()) {
-                for (final control in [dice, day]) {
+                for (final control in [dice, day, if (seats == 2) hub]) {
                   expect(
                     tester
                         .getRect(find.byWidget(icon.widget))
