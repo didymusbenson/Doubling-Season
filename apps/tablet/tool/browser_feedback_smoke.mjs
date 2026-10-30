@@ -146,10 +146,11 @@ async function identifierRect(identifier) {
     return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
   })()`);
 }
-async function find(name, { startsWith = false, contains = false, role, within, includeDisabled = false, timeout = 30000 } = {}) {
+async function find(name, { startsWith = false, contains = false, role, within, backend, includeDisabled = false, timeout = 30000 } = {}) {
   return until(`visible semantic control ${JSON.stringify(name)}`, async () => {
     const nodes = (await semantics()).filter(node => matches(node, name, startsWith, contains) &&
-      (includeDisabled || !node.disabled) && (!role || node.role === role));
+      (includeDisabled || !node.disabled) && (!role || node.role === role) &&
+      (backend === undefined || node.backend === backend));
     const candidates = [];
     for (const node of nodes) {
       if (within && !await insideIdentifier(node, within)) continue;
@@ -1148,6 +1149,11 @@ try {
   }
   await click('Increase energy', { startsWith: true, role: 'button' });
   await click('Increase energy', { startsWith: true, role: 'button' });
+  // Keep the two consecutive inputs. This editor displays committed state;
+  // fixed click pacing is not a durable-save barrier on a slower CI runner.
+  // A lost input still fails the bounded wait rather than accepting one.
+  await until('both consecutive energy taps commit to two', async () =>
+    stepperValue(await find('Increase energy', { startsWith: true, role: 'button' })) === 2);
   const activeCounters = await verifyInlineCounterChips('energy-two-other-supported-counters-zero');
   assert.deepEqual(activeCounters.map(({ type, value }) => [type, value]),
     [['energy', 2], ['poison', 0], ['experience', 0], ['radiation', 0]]);
@@ -1482,26 +1488,37 @@ try {
       await sleep(500);
       await click('qa, Scute Swarm, Name', { startsWith: true, role: 'button' });
       await find('qa, Scute Swarm, Choose artwork', { contains: true, role: 'button' });
+      const originalName = await find('qa, Scute Swarm, Name', { startsWith: true, role: 'button' });
+      const originalCopy = await find('qa, Scute Swarm, Copy one fresh token', { role: 'button' });
       // One wide expanded card can fit the closed two-seat lane. Create real
       // additional stacks so this probe has overflow instead of mistaking an
       // intentionally unscrollable short list for a product failure.
       for (let copy = 0; copy < 2; copy++) {
-        await click('qa, Scute Swarm, Copy one fresh token', { role: 'button' });
+        await click('qa, Scute Swarm, Copy one fresh token', { role: 'button', backend: originalCopy.backend });
       }
-      const rowBeforeScroll = await find('qa, Scute Swarm, Name', { startsWith: true, role: 'button' });
+      const rowBeforeScroll = await find('qa, Scute Swarm, Name', { startsWith: true, role: 'button', backend: originalName.backend });
       const wheel = { x: evidence.viewport.width * .3, y: evidence.viewport.height * .78 };
       await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', ...wheel, deltaX: 0, deltaY: 350 });
       await sleep(250);
-      const rowAfterScroll = await find('qa, Scute Swarm, Name', { startsWith: true, role: 'button', timeout: 250 }).catch(() => null);
+      const rowAfterScroll = await find('qa, Scute Swarm, Name', {
+        startsWith: true, role: 'button', backend: originalName.backend, timeout: 250,
+      }).catch(() => null);
       assert(!rowAfterScroll || Math.abs(rowAfterScroll.rect.y - rowBeforeScroll.rect.y) > 20,
         'The two-player expanded token lane did not scroll through its real content.');
       await capture('22-two-player-expanded-token-scrolled');
       await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', ...wheel, deltaX: 0, deltaY: -1600 });
       await until('two-player first token row returns to its seam', async () => {
-        const node = await find('qa, Scute Swarm, Name', { startsWith: true, role: 'button', timeout: 250 });
-        return Math.abs(node.rect.y - rowBeforeScroll.rect.y) < 2;
+        // Lazy lists can recreate an offscreen DOM node. Find the first row at
+        // its original seam coordinate, never a same-named later copy whose
+        // partially clipped bounds happen to sort before the original.
+        for (const node of (await semantics()).filter(node => node.role === 'button' && node.name.startsWith('qa, Scute Swarm, Name'))) {
+          const rect = await bounds(node);
+          if (rect && Math.abs(rect.x - rowBeforeScroll.rect.x) < 2 && Math.abs(rect.y - rowBeforeScroll.rect.y) < 2) return true;
+        }
+        return false;
       });
-      evidence.twoPlayerTokenScroll = { before: rowBeforeScroll.rect, after: rowAfterScroll?.rect ?? null, restored: true };
+      evidence.twoPlayerTokenScroll = { originalNameBackend: originalName.backend, originalCopyBackend: originalCopy.backend,
+        before: rowBeforeScroll.rect, after: rowAfterScroll?.rect ?? null, restored: true };
     }
     for (const viewport of [{ width: 1133, height: 744 }, { width: 744, height: 1133 }]) {
       await inspectDrawer(count, viewport);
