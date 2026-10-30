@@ -85,6 +85,7 @@ async function semantics() {
     name: node.name.value, value: node.value?.value,
     disabled: node.properties?.some(property => property.name === 'disabled' && property.value?.value === true),
     checked: node.properties?.find(property => property.name === 'checked')?.value?.value,
+    expanded: node.properties?.find(property => property.name === 'expanded')?.value?.value,
   }));
 }
 async function bounds(node) {
@@ -309,6 +310,30 @@ async function drawerClosed() {
     (await semantics()).some(node => node.name.startsWith('Game controls') &&
       /Collapsed/.test(`${node.name} ${node.value ?? ''}`)));
 }
+async function drawerMenuState() {
+  const menu = (await semantics()).find(node => node.role === 'button' && node.name.startsWith('Game controls'));
+  if (!menu) return null;
+  if (menu.expanded === true) return 'expanded';
+  if (menu.expanded === false) return 'collapsed';
+  const label = `${menu.name} ${menu.value ?? ''}`;
+  return /\bExpanded\b/.test(label) ? 'expanded' : /\bCollapsed\b/.test(label) ? 'collapsed' : null;
+}
+async function ensureDrawerCollapsed() {
+  // Workspace semantics are intentionally absent during both opening and
+  // closing. Their absence alone therefore cannot tell us to toggle Menu.
+  const state = await until('Menu state settled enough to close safely', async () => {
+    const current = await drawerMenuState();
+    if (current === 'collapsed') return current;
+    if (current === 'expanded' && await identifierRect('game-drawer-workspace')) return current;
+    return null;
+  });
+  if (state === 'expanded') {
+    log('normalizing an expanded drawer before the next opening check');
+    await click('Game controls Expanded', { startsWith: true, role: 'button' });
+  }
+  // A real failure to close remains a failure; never keep toggling to recover.
+  await drawerClosed();
+}
 async function scrollDrawerTo(name, options = {}) {
   for (let attempt = 0; attempt < 9; attempt++) {
     const found = await findInDrawer(name, { ...options, timeout: 250 }).catch(() => null);
@@ -461,6 +486,7 @@ async function assertNoTooltipSemantics(before, label) {
     `${label} exposed a browser tooltip target.`);
 }
 async function inspectNoTooltip(name, options = {}) {
+  await ensureDrawerCollapsed();
   const node = await find(name, options);
   const before = await semantics();
   const x = node.rect.x + node.rect.width / 2, y = node.rect.y + node.rect.height / 2;
@@ -477,11 +503,9 @@ async function inspectNoTooltip(name, options = {}) {
   await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false });
   await sleep(650);
   // Menu has no functional hold; a retained ordinary tap on release is fine.
-  // Leave the subsequent transition check at a known closed starting point.
-  if (await identifierRect('game-drawer-workspace')) {
-    await click('Game controls', { startsWith: true, role: 'button' });
-    await drawerClosed();
-  }
+  // Use Menu state because the opening workspace can still be excluded from
+  // semantics after a delayed tap is recognized on a busy browser runner.
+  await ensureDrawerCollapsed();
 }
 async function typeSoftwareText(text) {
   let symbols = false;
@@ -929,11 +953,12 @@ try {
     evidence.viewport = { ...viewport, deviceScaleFactor: 1 };
     await cdp.send('Emulation.setDeviceMetricsOverride', { ...evidence.viewport, mobile: false });
     await sleep(300);
+    await ensureDrawerCollapsed();
     const prefix = `22-drawer-${count}p-${viewport.width}x${viewport.height}`;
     const before = await tableSnapshot();
-    const closedMenu = await find('Game controls', { startsWith: true, role: 'button' });
+    const closedMenu = await find('Game controls Collapsed', { startsWith: true, role: 'button' });
     const menuPng = await captureDrawerTransition(`${prefix}-opening`, () =>
-      click('Game controls', { startsWith: true, role: 'button', after: 0 }));
+      click('Game controls Collapsed', { startsWith: true, role: 'button', after: 0 }));
     const drawer = await identifierRect('game-drawer-workspace');
     const openMenu = await find('Game controls', { startsWith: true, role: 'button' });
     assert(drawer && drawer.width >= 220 && drawer.height >= 300, 'Drawer workflow has no usable viewport.');
