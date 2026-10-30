@@ -122,6 +122,17 @@ class GameDrawerWorkspace extends StatelessWidget {
 }
 
 bool _workspaceOpen = false;
+final Set<_TableWorkspaceState> _presentationWorkspaces = {};
+
+/// Preserve transient drafts and let already accepted direct commands settle.
+/// Neither ordinary tap-away nor resetGame belongs in a posture transition.
+Future<void> dismissTableTransientForPresentationChange() async {
+  await dismissPlayerKeyboardForPresentationChange();
+  for (final workspace in _presentationWorkspaces.toList()) {
+    await workspace._suspendForPresentation();
+  }
+}
+
 final Map<String, _WorkspaceDraft> _failedDrafts = {};
 
 /// This route owns the sole editor and consumes all taps outside its surface.
@@ -261,6 +272,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   void initState() {
     super.initState();
     widget.drawerController?._workspace = this;
+    _presentationWorkspaces.add(this);
     _sessionId = c.session.id;
     _sessionGeneration = c.session.generation;
     _page = widget.initialPage;
@@ -280,33 +292,51 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     );
     _board = BoardService(c, catalog);
     _presets = PresetService(c, catalog);
-    final recovered = _failedDrafts[_draftKey];
-    if (recovered != null) {
-      for (final entry in recovered.fields.entries) {
-        _field(entry.key, entry.value);
-      }
-      _page = recovered.page;
-      _itemId = recovered.itemId;
-      _selectedDefinition = recovered.definition;
-      _createCustom = recovered.createCustom;
-      _createTapped = recovered.createTapped;
-      _applyPresetImage = recovered.applyPresetImage;
-      _customTrigger = recovered.trigger;
-      _customEffect = recovered.effect;
-      _customGlobal = recovered.global;
-      _editingRuleId = recovered.ruleId;
-      _editingRuleCount = recovered.ruleCount;
-      _editingRuleEnabled = recovered.ruleEnabled;
-      _customRuleOutcomes.addAll(
-        recovered.outcomes.map((value) => Map<String, dynamic>.from(value)),
-      );
-      _resetCount = recovered.playerCount;
-      _emptySlot = recovered.emptySlot;
-      _status = 'Recovered your draft from an unsuccessful save.';
-    }
+    _restoreDraft();
     c.addListener(_refresh);
     catalog.addListener(_refresh);
     if (!catalog.loaded) catalog.load();
+  }
+
+  bool _restoringDraft = false;
+  Future<void>? _presentationSuspension;
+
+  void _restoreDraft() {
+    _restoringDraft = true;
+    try {
+      final recovered = _failedDrafts[_draftKey];
+      if (recovered != null) {
+        for (final entry in recovered.fields.entries) {
+          _field(entry.key, entry.value).text = entry.value;
+        }
+        _page = recovered.page;
+        _itemId = recovered.itemId;
+        _selectedDefinition = recovered.definition;
+        _createCustom = recovered.createCustom;
+        _createTapped = recovered.createTapped;
+        _applyPresetImage = recovered.applyPresetImage;
+        _customTrigger = recovered.trigger;
+        _customEffect = recovered.effect;
+        _customGlobal = recovered.global;
+        _editingRuleId = recovered.ruleId;
+        _editingRuleCount = recovered.ruleCount;
+        _editingRuleEnabled = recovered.ruleEnabled;
+        _customRuleOutcomes.clear();
+        _customRuleOutcomes.addAll(
+          recovered.outcomes.map((value) => Map<String, dynamic>.from(value)),
+        );
+        _resetCount = recovered.playerCount;
+        _emptySlot = recovered.emptySlot;
+        _selectedCounter = recovered.selectedCounter;
+        _editingNumber = recovered.editingNumber;
+        _editingPlayerCounter = recovered.editingPlayerCounter;
+        _status = recovered.presentationChange
+            ? 'Recovered your unsaved edit.'
+            : 'Recovered your draft from an unsuccessful save.';
+      }
+    } finally {
+      _restoringDraft = false;
+    }
   }
 
   void _update(VoidCallback callback) {
@@ -320,7 +350,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   TextEditingController _field(String id, [String initial = '']) =>
       _fields.putIfAbsent(id, () => TextEditingController(text: initial));
 
-  void _retainDrafts() {
+  void _retainDrafts({bool presentationChange = false}) {
     _failedDrafts[_draftKey] = _WorkspaceDraft(
       fields: {
         for (final entry in _fields.entries) entry.key: entry.value.text,
@@ -340,6 +370,10 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       outcomes: _customRuleOutcomes.map((value) => cloneJson(value)).toList(),
       playerCount: _resetCount,
       emptySlot: _emptySlot,
+      selectedCounter: _selectedCounter,
+      editingNumber: _editingNumber,
+      editingPlayerCounter: _editingPlayerCounter,
+      presentationChange: presentationChange,
     );
   }
 
@@ -430,6 +464,23 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     });
   }
 
+  Future<void> _suspendForPresentation() =>
+      _presentationSuspension ??= _finishPresentationSuspension();
+
+  Future<void> _finishPresentationSuspension() async {
+    if (!mounted || _allowPop) return;
+    _retainDrafts(presentationChange: true);
+    for (final edit in _inlineEdits.values) {
+      edit.timer?.cancel();
+    }
+    setState(() => _closing = true);
+    await _directQueue;
+    for (final edit in _inlineEdits.values) {
+      if (edit.saving != null) await edit.saving;
+    }
+    if (mounted) _finishClose();
+  }
+
   void _closeKeepingSessionDraft() {
     if (_working || _closing || _navigating) return;
     _retainDrafts();
@@ -439,7 +490,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   // Completion can replace the session; do not revalidate the old target or
   // replay its inline fields after a successful reset/restore.
   void _finishClose() {
-    if (!mounted) return;
+    if (!mounted || _allowPop) return;
     setState(() {
       _closing = true;
       _allowPop = true;
@@ -469,6 +520,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         final destination = _navigation.removeLast();
         _page = destination.$1;
         _itemId = destination.$2;
+        _restoreDraft();
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           if (_playerScroll.hasClients) {
@@ -622,6 +674,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         _status = null;
         _selectedDefinition = null;
         _createCustom = false;
+        _restoreDraft();
       });
     } finally {
       if (mounted) setState(() => _navigating = false);
@@ -703,6 +756,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       if (live) {
         controller.addListener(() {
           edit.timer?.cancel();
+          if (_restoringDraft || _closing) return;
           if (controller.text.trim().isEmpty ||
               controller.text == edit.savedValue) {
             return;
@@ -1047,6 +1101,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
 
   @override
   void dispose() {
+    _presentationWorkspaces.remove(this);
     if (widget.drawerController?._workspace == this) {
       widget.drawerController?._workspace = null;
     }
@@ -1352,7 +1407,13 @@ class _WorkspaceDraft {
     required this.outcomes,
     required this.playerCount,
     required this.emptySlot,
+    this.selectedCounter,
+    this.editingNumber,
+    this.editingPlayerCounter,
+    this.presentationChange = false,
   });
+  final String? selectedCounter, editingNumber, editingPlayerCounter;
+  final bool presentationChange;
   final Map<String, String> fields;
   final WorkspacePage page;
   final String? itemId;

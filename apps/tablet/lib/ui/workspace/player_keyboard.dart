@@ -6,6 +6,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 bool _playerKeyboardEditorOpen = false;
+_PlayerKeyboardEditorState? _activePlayerKeyboard;
+Completer<void>? _playerKeyboardClosed;
+
+/// A posture change is not ordinary tap-away: never commit unfinished text.
+Future<void> dismissPlayerKeyboardForPresentationChange() async {
+  final closed = _playerKeyboardClosed;
+  _activePlayerKeyboard?._dismissForPresentation();
+  if (closed != null) await closed.future;
+}
 
 /// Edit the field on its board object while the single player-facing keyboard
 /// intercepts the whole table. A false result leaves the caller's mirrored draft
@@ -25,6 +34,7 @@ Future<bool> showPlayerKeyboardEditor(
 }) async {
   if (_playerKeyboardEditorOpen) return false;
   _playerKeyboardEditorOpen = true;
+  _playerKeyboardClosed = Completer<void>();
   try {
     return await showDialog<bool>(
           context: context,
@@ -45,6 +55,8 @@ Future<bool> showPlayerKeyboardEditor(
         false;
   } finally {
     _playerKeyboardEditorOpen = false;
+    _playerKeyboardClosed?.complete();
+    _playerKeyboardClosed = null;
   }
 }
 
@@ -75,12 +87,14 @@ class _PlayerKeyboardEditorState extends State<_PlayerKeyboardEditor> {
   late final TextEditingController _controller;
   final _keyboard = GlobalKey<_PlayerKeyboardHostState>();
   bool _saving = false;
+  bool _presentationDismissalRequested = false;
   bool _allowPop = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _activePlayerKeyboard = this;
     _controller =
         widget.controller ?? TextEditingController(text: widget.value);
     if (!_controller.selection.isValid) {
@@ -111,6 +125,11 @@ class _PlayerKeyboardEditorState extends State<_PlayerKeyboardEditor> {
     });
   }
 
+  void _dismissForPresentation() {
+    _presentationDismissalRequested = true;
+    if (!_saving) _close(false);
+  }
+
   Future<bool> _commit() async {
     if (_saving || _allowPop) return false;
     setState(() {
@@ -129,7 +148,10 @@ class _PlayerKeyboardEditorState extends State<_PlayerKeyboardEditor> {
       }
       return false;
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+        if (_presentationDismissalRequested) _close(false);
+      }
     }
   }
 
@@ -144,6 +166,7 @@ class _PlayerKeyboardEditorState extends State<_PlayerKeyboardEditor> {
 
   @override
   void dispose() {
+    if (_activePlayerKeyboard == this) _activePlayerKeyboard = null;
     _controller.removeListener(_changed);
     if (widget.controller == null) _controller.dispose();
     super.dispose();

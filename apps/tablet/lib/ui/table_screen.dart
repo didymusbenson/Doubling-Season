@@ -19,11 +19,20 @@ import 'ring_inline.dart';
 import 'commander_ledger.dart';
 import 'utility_inline_actions.dart';
 
+part 'phone_player_view.dart';
+
 /// The table is composed in seat-local coordinates, then oriented toward each
 /// player. Tokens remain on the physical outer edge in the four-slot layout.
 class TableScreen extends StatefulWidget {
   final TableController controller;
-  const TableScreen({super.key, required this.controller});
+  final bool enablePhonePresentation;
+  final bool compactPlayerOne;
+  const TableScreen({
+    super.key,
+    required this.controller,
+    this.enablePhonePresentation = false,
+    this.compactPlayerOne = false,
+  });
   @override
   State<TableScreen> createState() => _TableScreenState();
 }
@@ -33,6 +42,9 @@ class _TableScreenState extends State<TableScreen>
   late final TabletCatalog catalog = TabletCatalog(widget.controller);
   late final BoardService board = BoardService(widget.controller, catalog);
   bool modalOpen = false;
+  bool phoneVisited = false;
+  Size lastTabletSize = const Size(900, 700);
+  Size lastPhoneSize = const Size(390, 844);
   int interactionEpoch = 0;
   final drawerController = GameDrawerController();
   final drawerWorkspaceKey = GlobalKey(debugLabel: 'game-drawer-shell');
@@ -112,7 +124,7 @@ class _TableScreenState extends State<TableScreen>
     int turns = 0,
   }) async {
     if (modalOpen) return;
-    if (isGameDrawerPage(page)) {
+    if (isGameDrawerPage(page) && !widget.compactPlayerOne) {
       _openDrawer(page);
       return;
     }
@@ -145,372 +157,465 @@ class _TableScreenState extends State<TableScreen>
       body: SafeArea(
         child: ListenableBuilder(
           listenable: Listenable.merge([controller, drawerAnimation]),
-          builder: (context, _) => LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth < 650 || constraints.maxHeight < 480) {
-                if (drawerMounted) {
-                  return Center(
-                    child: SizedBox(
-                      width: math.min(480, constraints.maxWidth),
-                      child: GameDrawerWorkspace(
-                        key: drawerWorkspaceKey,
-                        controller: controller,
-                        catalog: catalog,
-                        drawerController: drawerController,
-                        initialPage: drawerPage,
-                        onClose: _drawerClosed,
-                      ),
-                    ),
-                  );
-                }
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(40),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.tablet_mac, size: 60),
-                        const SizedBox(height: 20),
-                        const Text(
-                          'Give your table a little more room',
-                          style: TextStyle(fontSize: 24),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Enlarge this window or rotate your tablet to see every player. Your game is saved.',
-                          textAlign: TextAlign.center,
-                        ),
-                        TextButton(
-                          onPressed: () => open(WorkspacePage.settings),
-                          child: const Text('Settings'),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }
-              final two = controller.session.players.length == 2;
-              final progress = drawerAnimation.value;
-              final drawerWidth = math.min(
-                480.0,
-                constraints.maxWidth * .4 - 12,
-              );
-              final gap = drawerWidth * progress;
-
-              Widget seat(PlayerState player) {
-                final turns = two
-                    ? (controller.session.players.indexOf(player) == 0 ? 0 : 2)
-                    : (player.slot == 1 || player.slot == 2 ? 2 : 0);
-                final tokenLeft = two || player.slot == 0 || player.slot == 2;
-                return _PlayerSpace(
-                  key: ValueKey(player.id),
-                  controller: controller,
-                  board: board,
-                  player: player,
-                  turns: turns,
-                  tokenLeft: tokenLeft,
-                  centerNotch: two ? 0 : 30,
-                  centerNotchAtStart: two || !tokenLeft,
-                  twoPlayerLayout: two,
-                  interactionEpoch: interactionEpoch,
-                  drawerShift: two ? 0 : gap / 2,
-                  drawerOpen: drawerMounted,
-                  onCloseDrawer: _closeDrawer,
-                  onInputLock: setInputLock,
-                  onOpen: (page, [itemId]) =>
-                      open(page, player: player, itemId: itemId, turns: turns),
-                );
-              }
-
-              Widget slot(int number) {
-                final players = controller.session.players.where(
-                  (p) => p.slot == number,
-                );
-                if (players.isNotEmpty) return seat(players.first);
-                return RotatedBox(
-                  quarterTurns: number == 1 || number == 2 ? 2 : 0,
-                  child: Transform.translate(
-                    offset: Offset(
-                      (number == 0 || number == 2 ? -1 : 1) * gap / 2,
-                      0,
-                    ),
-                    child: Material(
-                      color: Theme.of(context).colorScheme.surface,
-                      child: IgnorePointer(
-                        ignoring: drawerMounted,
-                        child: ExcludeSemantics(
-                          excluding: drawerMounted,
-                          child: Opacity(
-                            key: ValueKey('empty-table-controls-$number'),
-                            opacity: (1 - progress * 3).clamp(0.0, 1.0),
-                            child: _EmptyControlSpace(
-                              onOpen: (page) => open(
-                                page,
-                                turns: number == 1 || number == 2 ? 2 : 0,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }
-
-              return Column(
-                children: [
-                  if (controller.error != null ||
-                      controller.recoveryMessage != null)
-                    Material(
-                      color: Theme.of(context).colorScheme.errorContainer,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 6,
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.info_outline, size: 20),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                controller.error ?? controller.recoveryMessage!,
-                                maxLines: 3,
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () => open(WorkspacePage.settings),
-                              child: const Text('Details'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, table) {
-                        final dividerColor = Theme.of(
-                          context,
-                        ).colorScheme.outline;
-                        // Two opposing full-width seats open their shared
-                        // horizontal seam. A vertical channel would cut through
-                        // both 60% token lanes instead of their life rails.
-                        final horizontalExtent = math.min(
-                          440.0,
-                          // Even at minimum height, show one complete menu
-                          // action below the attached header and handle clearance.
-                          math.max(
-                            _TwoPlayerControlsGeometry.minimumOpening,
-                            table.maxHeight - 403,
-                          ),
-                        );
-                        final opening = two ? horizontalExtent * progress : gap;
-                        final leftWall = (table.maxWidth - gap) / 2;
-                        final rightWall = (table.maxWidth + gap) / 2;
-                        final twoPlayerControls = _TwoPlayerControlsGeometry(
-                          Size(table.maxWidth, table.maxHeight),
-                          opening,
-                        );
-                        Widget row(int left, int right) => Row(
-                          children: [
-                            Expanded(child: slot(left)),
-                            VerticalDivider(
-                              width: 3,
-                              thickness: 3,
-                              color: dividerColor,
-                            ),
-                            Expanded(child: slot(right)),
-                          ],
-                        );
-                        final workspace = GameDrawerWorkspace(
+          builder: (context, _) => _presentations(
+            context,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 650 || constraints.maxHeight < 480) {
+                  if (drawerMounted) {
+                    return Center(
+                      child: SizedBox(
+                        width: math.min(480, constraints.maxWidth),
+                        child: GameDrawerWorkspace(
                           key: drawerWorkspaceKey,
                           controller: controller,
                           catalog: catalog,
                           drawerController: drawerController,
                           initialPage: drawerPage,
                           onClose: _drawerClosed,
-                        );
-                        return Stack(
-                          key: const ValueKey('table-surface'),
-                          children: [
-                            if (drawerMounted)
-                              Positioned.fill(
-                                key: const ValueKey('table-drawer-surface'),
-                                child: IgnorePointer(
-                                  child: CustomPaint(
-                                    painter: _DrawerSurfacePainter(
-                                      opening,
-                                      Theme.of(context).colorScheme.surface,
-                                      horizontal: two,
-                                      notchScale: two
-                                          ? progress.clamp(0.0, 1.0)
-                                          : 1,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            if (drawerMounted)
-                              Positioned(
-                                key: const ValueKey('table-drawer-layer'),
-                                left: two
-                                    ? 0
-                                    : (table.maxWidth - drawerWidth) / 2,
-                                top: two
-                                    ? (table.maxHeight - horizontalExtent) / 2
-                                    : 0,
-                                bottom: two ? null : 0,
-                                width: two ? table.maxWidth : drawerWidth,
-                                height: two ? horizontalExtent : null,
-                                child: ClipRect(
-                                  clipper: _DrawerRevealClipper(
-                                    opening,
-                                    horizontal: two,
-                                  ),
-                                  child: IgnorePointer(
-                                    ignoring:
-                                        drawerAnimation.status ==
-                                        AnimationStatus.reverse,
-                                    child: ExcludeSemantics(
-                                      excluding:
-                                          drawerAnimation.status !=
-                                          AnimationStatus.completed,
-                                      child: Semantics(
-                                        identifier: 'game-drawer',
-                                        container: true,
-                                        explicitChildNodes: true,
-                                        label: 'Game drawer',
-                                        child: two
-                                            ? Padding(
-                                                key: const ValueKey(
-                                                  'two-player-drawer-content-clearance',
-                                                ),
-                                                padding:
-                                                    _TwoPlayerControlsGeometry
-                                                        .drawerContentInsets,
-                                                child: workspace,
-                                              )
-                                            : workspace,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            Positioned.fill(
-                              key: const ValueKey('table-board-layer'),
-                              child: ClipPath(
-                                key: const ValueKey('drawer-board-mask'),
-                                clipper: _DrawerBoardClipper(
-                                  gap: opening,
-                                  enabled: drawerMounted,
-                                  horizontal: two,
-                                  notchScale: two
-                                      ? progress.clamp(0.0, 1.0)
-                                      : 1,
-                                ),
-                                child: Column(
-                                  children: [
-                                    Expanded(
-                                      child: two
-                                          ? seat(controller.session.players[1])
-                                          : row(1, 2),
-                                    ),
-                                    Divider(
-                                      key: const ValueKey(
-                                        'player-horizontal-divider',
-                                      ),
-                                      height: two ? opening + 3 : 3,
-                                      thickness: 3,
-                                      color: dividerColor,
-                                    ),
-                                    Expanded(
-                                      child: two
-                                          ? seat(controller.session.players[0])
-                                          : row(0, 3),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            if (drawerMounted)
-                              Positioned.fill(
-                                key: const ValueKey('table-drawer-walls'),
-                                child: IgnorePointer(
-                                  child: CustomPaint(
-                                    painter: _DrawerWallPainter(
-                                      opening,
-                                      dividerColor,
-                                      horizontal: two,
-                                      notchScale: two
-                                          ? progress.clamp(0.0, 1.0)
-                                          : 1,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            // Two-seat controls stay center-stage and follow
-                            // the horizontal walls. First-card content clears
-                            // their overhang while artwork reaches the seam.
-                            Positioned(
-                              key: const ValueKey('table-dice-layer'),
-                              left: two
-                                  ? twoPlayerControls.dice.dx - 22
-                                  : leftWall - 54 - 22,
-                              top: two
-                                  ? twoPlayerControls.dice.dy - 22
-                                  : table.maxHeight / 2 - 22,
-                              child: _SharedTableControl(
-                                controlKey: const ValueKey('shared-dice'),
-                                label: 'Roll dice',
-                                enabled:
-                                    drawerAnimation.status !=
-                                    AnimationStatus.reverse,
-                                icon: Icons.casino_outlined,
-                                onTap: () => open(WorkspacePage.dice),
-                              ),
-                            ),
-                            Positioned(
-                              key: const ValueKey('table-day-night-layer'),
-                              left: two
-                                  ? twoPlayerControls.dayNight.dx - 22
-                                  : rightWall + 54 - 22,
-                              top: two
-                                  ? twoPlayerControls.dayNight.dy - 22
-                                  : table.maxHeight / 2 - 22,
-                              child: _DayNightControl(controller: controller),
-                            ),
-                            Positioned(
-                              key: const ValueKey('table-menu-layer'),
-                              // One whole Menu target follows the lower wall
-                              // in two seats, and the right wall in 3/4 seats.
-                              left: two
-                                  ? twoPlayerControls.menu.dx - 26
-                                  : rightWall - 26,
-                              top: two
-                                  ? twoPlayerControls.menu.dy - 26
-                                  : (table.maxHeight - 52) / 2,
-                              child: _GameHub(
-                                key: const ValueKey('central-game-controls'),
-                                controller: controller,
-                                twoPlayer: two,
-                                expanded: drawerMounted,
-                                onPressed: () => drawerMounted
-                                    ? _closeDrawer()
-                                    : open(WorkspacePage.tableHub),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
+                        ),
+                      ),
+                    );
+                  }
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(40),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.tablet_mac, size: 60),
+                          const SizedBox(height: 20),
+                          const Text(
+                            'Give your table a little more room',
+                            style: TextStyle(fontSize: 24),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Enlarge this window or rotate your tablet to see every player. Your game is saved.',
+                            textAlign: TextAlign.center,
+                          ),
+                          TextButton(
+                            onPressed: () => open(WorkspacePage.settings),
+                            child: const Text('Settings'),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              );
-            },
+                  );
+                }
+                final two = controller.session.players.length == 2;
+                final progress = drawerAnimation.value;
+                final drawerWidth = math.min(
+                  480.0,
+                  constraints.maxWidth * .4 - 12,
+                );
+                final gap = drawerWidth * progress;
+
+                Widget seat(PlayerState player) {
+                  final turns = two
+                      ? (controller.session.players.indexOf(player) == 0
+                            ? 0
+                            : 2)
+                      : (player.slot == 1 || player.slot == 2 ? 2 : 0);
+                  final tokenLeft = two || player.slot == 0 || player.slot == 2;
+                  return _PlayerSpace(
+                    key: ValueKey(player.id),
+                    controller: controller,
+                    board: board,
+                    player: player,
+                    turns: turns,
+                    tokenLeft: tokenLeft,
+                    centerNotch: two ? 0 : 30,
+                    centerNotchAtStart: two || !tokenLeft,
+                    twoPlayerLayout: two,
+                    interactionEpoch: interactionEpoch,
+                    drawerShift: two ? 0 : gap / 2,
+                    drawerOpen: drawerMounted,
+                    onCloseDrawer: _closeDrawer,
+                    onInputLock: setInputLock,
+                    onOpen: (page, [itemId]) => open(
+                      page,
+                      player: player,
+                      itemId: itemId,
+                      turns: turns,
+                    ),
+                  );
+                }
+
+                Widget slot(int number) {
+                  final players = controller.session.players.where(
+                    (p) => p.slot == number,
+                  );
+                  if (players.isNotEmpty) return seat(players.first);
+                  return RotatedBox(
+                    quarterTurns: number == 1 || number == 2 ? 2 : 0,
+                    child: Transform.translate(
+                      offset: Offset(
+                        (number == 0 || number == 2 ? -1 : 1) * gap / 2,
+                        0,
+                      ),
+                      child: Material(
+                        color: Theme.of(context).colorScheme.surface,
+                        child: IgnorePointer(
+                          ignoring: drawerMounted,
+                          child: ExcludeSemantics(
+                            excluding: drawerMounted,
+                            child: Opacity(
+                              key: ValueKey('empty-table-controls-$number'),
+                              opacity: (1 - progress * 3).clamp(0.0, 1.0),
+                              child: _EmptyControlSpace(
+                                onOpen: (page) => open(
+                                  page,
+                                  turns: number == 1 || number == 2 ? 2 : 0,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                return Column(
+                  children: [
+                    if (controller.error != null ||
+                        controller.recoveryMessage != null)
+                      Material(
+                        color: Theme.of(context).colorScheme.errorContainer,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 6,
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.info_outline, size: 20),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  controller.error ??
+                                      controller.recoveryMessage!,
+                                  maxLines: 3,
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => open(WorkspacePage.settings),
+                                child: const Text('Details'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, table) {
+                          final dividerColor = Theme.of(
+                            context,
+                          ).colorScheme.outline;
+                          // Two opposing full-width seats open their shared
+                          // horizontal seam. A vertical channel would cut through
+                          // both 60% token lanes instead of their life rails.
+                          final horizontalExtent = math.min(
+                            440.0,
+                            // Even at minimum height, show one complete menu
+                            // action below the attached header and handle clearance.
+                            math.max(
+                              _TwoPlayerControlsGeometry.minimumOpening,
+                              table.maxHeight - 403,
+                            ),
+                          );
+                          final opening = two
+                              ? horizontalExtent * progress
+                              : gap;
+                          final leftWall = (table.maxWidth - gap) / 2;
+                          final rightWall = (table.maxWidth + gap) / 2;
+                          final twoPlayerControls = _TwoPlayerControlsGeometry(
+                            Size(table.maxWidth, table.maxHeight),
+                            opening,
+                          );
+                          Widget row(int left, int right) => Row(
+                            children: [
+                              Expanded(child: slot(left)),
+                              VerticalDivider(
+                                width: 3,
+                                thickness: 3,
+                                color: dividerColor,
+                              ),
+                              Expanded(child: slot(right)),
+                            ],
+                          );
+                          final workspace = GameDrawerWorkspace(
+                            key: drawerWorkspaceKey,
+                            controller: controller,
+                            catalog: catalog,
+                            drawerController: drawerController,
+                            initialPage: drawerPage,
+                            onClose: _drawerClosed,
+                          );
+                          return Stack(
+                            key: const ValueKey('table-surface'),
+                            children: [
+                              if (drawerMounted)
+                                Positioned.fill(
+                                  key: const ValueKey('table-drawer-surface'),
+                                  child: IgnorePointer(
+                                    child: CustomPaint(
+                                      painter: _DrawerSurfacePainter(
+                                        opening,
+                                        Theme.of(context).colorScheme.surface,
+                                        horizontal: two,
+                                        notchScale: two
+                                            ? progress.clamp(0.0, 1.0)
+                                            : 1,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              if (drawerMounted)
+                                Positioned(
+                                  key: const ValueKey('table-drawer-layer'),
+                                  left: two
+                                      ? 0
+                                      : (table.maxWidth - drawerWidth) / 2,
+                                  top: two
+                                      ? (table.maxHeight - horizontalExtent) / 2
+                                      : 0,
+                                  bottom: two ? null : 0,
+                                  width: two ? table.maxWidth : drawerWidth,
+                                  height: two ? horizontalExtent : null,
+                                  child: ClipRect(
+                                    clipper: _DrawerRevealClipper(
+                                      opening,
+                                      horizontal: two,
+                                    ),
+                                    child: IgnorePointer(
+                                      ignoring:
+                                          drawerAnimation.status ==
+                                          AnimationStatus.reverse,
+                                      child: ExcludeSemantics(
+                                        excluding:
+                                            drawerAnimation.status !=
+                                            AnimationStatus.completed,
+                                        child: Semantics(
+                                          identifier: 'game-drawer',
+                                          container: true,
+                                          explicitChildNodes: true,
+                                          label: 'Game drawer',
+                                          child: two
+                                              ? Padding(
+                                                  key: const ValueKey(
+                                                    'two-player-drawer-content-clearance',
+                                                  ),
+                                                  padding:
+                                                      _TwoPlayerControlsGeometry
+                                                          .drawerContentInsets,
+                                                  child: workspace,
+                                                )
+                                              : workspace,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              Positioned.fill(
+                                key: const ValueKey('table-board-layer'),
+                                child: ClipPath(
+                                  key: const ValueKey('drawer-board-mask'),
+                                  clipper: _DrawerBoardClipper(
+                                    gap: opening,
+                                    enabled: drawerMounted,
+                                    horizontal: two,
+                                    notchScale: two
+                                        ? progress.clamp(0.0, 1.0)
+                                        : 1,
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Expanded(
+                                        child: two
+                                            ? seat(
+                                                controller.session.players[1],
+                                              )
+                                            : row(1, 2),
+                                      ),
+                                      Divider(
+                                        key: const ValueKey(
+                                          'player-horizontal-divider',
+                                        ),
+                                        height: two ? opening + 3 : 3,
+                                        thickness: 3,
+                                        color: dividerColor,
+                                      ),
+                                      Expanded(
+                                        child: two
+                                            ? seat(
+                                                controller.session.players[0],
+                                              )
+                                            : row(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              if (drawerMounted)
+                                Positioned.fill(
+                                  key: const ValueKey('table-drawer-walls'),
+                                  child: IgnorePointer(
+                                    child: CustomPaint(
+                                      painter: _DrawerWallPainter(
+                                        opening,
+                                        dividerColor,
+                                        horizontal: two,
+                                        notchScale: two
+                                            ? progress.clamp(0.0, 1.0)
+                                            : 1,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              // Two-seat controls stay center-stage and follow
+                              // the horizontal walls. First-card content clears
+                              // their overhang while artwork reaches the seam.
+                              Positioned(
+                                key: const ValueKey('table-dice-layer'),
+                                left: two
+                                    ? twoPlayerControls.dice.dx - 22
+                                    : leftWall - 54 - 22,
+                                top: two
+                                    ? twoPlayerControls.dice.dy - 22
+                                    : table.maxHeight / 2 - 22,
+                                child: _SharedTableControl(
+                                  controlKey: const ValueKey('shared-dice'),
+                                  label: 'Roll dice',
+                                  enabled:
+                                      drawerAnimation.status !=
+                                      AnimationStatus.reverse,
+                                  icon: Icons.casino_outlined,
+                                  onTap: () => open(WorkspacePage.dice),
+                                ),
+                              ),
+                              Positioned(
+                                key: const ValueKey('table-day-night-layer'),
+                                left: two
+                                    ? twoPlayerControls.dayNight.dx - 22
+                                    : rightWall + 54 - 22,
+                                top: two
+                                    ? twoPlayerControls.dayNight.dy - 22
+                                    : table.maxHeight / 2 - 22,
+                                child: _DayNightControl(controller: controller),
+                              ),
+                              Positioned(
+                                key: const ValueKey('table-menu-layer'),
+                                // One whole Menu target follows the lower wall
+                                // in two seats, and the right wall in 3/4 seats.
+                                left: two
+                                    ? twoPlayerControls.menu.dx - 26
+                                    : rightWall - 26,
+                                top: two
+                                    ? twoPlayerControls.menu.dy - 26
+                                    : (table.maxHeight - 52) / 2,
+                                child: _GameHub(
+                                  key: const ValueKey('central-game-controls'),
+                                  controller: controller,
+                                  twoPlayer: two,
+                                  expanded: drawerMounted,
+                                  onPressed: () => drawerMounted
+                                      ? _closeDrawer()
+                                      : open(WorkspacePage.tableHub),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _presentations(BuildContext context, Widget tablet) {
+    if (!widget.enablePhonePresentation) return tablet;
+    if (widget.compactPlayerOne) phoneVisited = true;
+    // Keep visited presentation trees alive: inline drafts and scroll anchors
+    // belong to their stable items, not to a disposable viewport mode.
+    return LayoutBuilder(
+      builder: (context, bounds) {
+        final size = bounds.biggest;
+        if (widget.compactPlayerOne) {
+          lastPhoneSize = size;
+        } else {
+          lastTabletSize = size;
+        }
+        Widget retain(Widget child, Size layout, bool active) => OverflowBox(
+          alignment: Alignment.topLeft,
+          minWidth: layout.width,
+          maxWidth: layout.width,
+          minHeight: layout.height,
+          maxHeight: layout.height,
+          child: SizedBox(
+            width: layout.width,
+            height: layout.height,
+            child: TickerMode(enabled: active, child: child),
+          ),
+        );
+        return IndexedStack(
+          index: widget.compactPlayerOne ? 1 : 0,
+          children: [
+            retain(tablet, lastTabletSize, !widget.compactPlayerOne),
+            if (phoneVisited)
+              retain(
+                _PhonePlayerView(
+                  controller: widget.controller,
+                  board: board,
+                  catalog: catalog,
+                  interactionEpoch: interactionEpoch,
+                  active: widget.compactPlayerOne,
+                  inputLocked: modalOpen,
+                  onInputLock: setInputLock,
+                  onOpen: (page, [itemId]) => open(
+                    page,
+                    player: isGameDrawerPage(page)
+                        ? null
+                        : widget.controller.session.players.first,
+                    itemId: itemId,
+                  ),
+                ),
+                lastPhoneSize,
+                widget.compactPlayerOne,
+              )
+            else
+              const SizedBox.shrink(),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant TableScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.compactPlayerOne != widget.compactPlayerOne) {
+      interactionEpoch++;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await dismissTableTransientForPresentationChange();
+        if (!mounted) return;
+        drawerAnimation.value = 0;
+        setState(() {
+          drawerMounted = false;
+          modalOpen = false;
+          interactionEpoch++;
+        });
+      });
+    }
   }
 }
 
@@ -1125,6 +1230,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                         enabled: expandedId == null,
                         child: TabletTokenCard(
                           token: t,
+                          interactionEpoch: widget.interactionEpoch,
                           topContentInset: widget.twoPlayerLayout && index == 0
                               ? _TwoPlayerControlsGeometry
                                     .firstTokenContentInset
@@ -1614,6 +1720,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
 class _LifePanel extends StatelessWidget {
   final Widget Function(Widget surface, Widget tools) compose;
   final bool twoPlayer;
+  final bool phone;
   final double hubNotchScale;
   final double height;
   final double centerNotch;
@@ -1628,6 +1735,7 @@ class _LifePanel extends StatelessWidget {
   const _LifePanel({
     required this.compose,
     required this.twoPlayer,
+    this.phone = false,
     this.hubNotchScale = 1,
     required this.height,
     required this.centerNotch,
@@ -1796,7 +1904,7 @@ class _LifePanel extends StatelessWidget {
                   interactionEpoch: epoch,
                   foregroundColor: artColor,
                   displayOverlay: Padding(
-                    padding: const EdgeInsets.only(top: 46, bottom: 52),
+                    padding: EdgeInsets.only(top: phone ? 24 : 46, bottom: 52),
                     child: _LifeDelta(
                       entry:
                           controller.session.history.isNotEmpty &&
@@ -1810,13 +1918,13 @@ class _LifePanel extends StatelessWidget {
                         life: lifeFeedback.life,
                         delta: lifeFeedback.displayDelta(delta),
                         color: artColor,
-                        fontSize: 80,
+                        fontSize: phone ? 54 : 80,
                       ),
                     ),
                   ),
                 ),
                 Positioned(
-                  top: 28,
+                  top: phone ? 6 : 28,
                   left: 26,
                   right: 26,
                   height: 18,
@@ -2181,6 +2289,7 @@ class _EmptyLane extends StatelessWidget {
 }
 
 class _UtilityRow extends StatelessWidget {
+  final bool phone;
   final bool compactSpacing;
   final int interactionEpoch;
   final UtilityState utility;
@@ -2191,6 +2300,8 @@ class _UtilityRow extends StatelessWidget {
   final Future<void> Function(int) onChange;
   final Future<void> Function(String, int) onMana;
   const _UtilityRow({
+    super.key,
+    this.phone = false,
     this.compactSpacing = false,
     required this.interactionEpoch,
     required this.utility,
@@ -2407,7 +2518,8 @@ class _UtilityRow extends StatelessWidget {
                             builder: (context, constraints) {
                               // Two columns keep both +/- targets usable in the narrow
                               // portrait lane; landscape fits all six colors in two rows.
-                              final columns = constraints.maxWidth >= 200
+                              final columns =
+                                  constraints.maxWidth >= (phone ? 296 : 200)
                                   ? 3
                                   : 2;
                               final width =

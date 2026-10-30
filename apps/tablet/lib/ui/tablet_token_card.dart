@@ -33,11 +33,13 @@ class TabletTokenCard extends StatefulWidget {
     required this.onOpenDetailed,
     required this.onInputLock,
     this.topContentInset = 0,
+    this.interactionEpoch = 0,
   });
 
   /// Extra internal room for shared controls over the first two-player card.
   /// The artwork and color rail still start at the card's outer top edge.
   final double topContentInset;
+  final int interactionEpoch;
   final TokenState token;
   final PlayerState player;
   final BoardService board;
@@ -402,6 +404,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
         session.generation,
         widget.player.generation,
         _inputOpen,
+        widget.interactionEpoch,
       ),
       onTap: enabled ? () => change(1) : null,
       onStep: enabled ? change : null,

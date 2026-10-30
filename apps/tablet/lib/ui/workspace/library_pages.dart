@@ -150,43 +150,51 @@ extension _LibraryPages on _TableWorkspaceState {
         standalone && hasAction && action == 'brudiclad_telchor_engineer';
     final controls = <Widget>[
       _contentTop(
-        Row(
-          children: [
-            _button('All utilities', () async {
-              if (await _flushInline()) _update(() => _itemId = null);
-            }, icon: Icons.arrow_back),
-            const Spacer(),
-            _button('Artwork', () async {
-              if (await _flushInline()) {
-                _update(() => _field('$key.panel').text = 'artwork');
-              }
-            }, icon: Icons.image_outlined),
-            if (standalone) const SizedBox(width: 8),
-            if (standalone)
-              MergeSemantics(
-                child: Semantics(
-                  label: utility.visible
-                      ? 'Remove this utility'
-                      : 'Restore to board',
-                  child: IconButton(
-                    onPressed: _working
-                        ? null
-                        : () => utility.visible
-                              ? _removeBoardUtility(utility)
-                              : _run(
-                                  () => _board.setUtility(
-                                    player.id,
-                                    utility.id,
-                                    visible: true,
+        LayoutBuilder(
+          builder: (context, bounds) {
+            final compact = bounds.maxWidth < 420;
+            final actions = <Widget>[
+              _button('All utilities', () async {
+                if (await _flushInline()) _update(() => _itemId = null);
+              }, icon: Icons.arrow_back),
+              if (!compact) const Spacer(),
+              _button('Artwork', () async {
+                if (await _flushInline()) {
+                  _update(() => _field('$key.panel').text = 'artwork');
+                }
+              }, icon: Icons.image_outlined),
+              if (standalone) const SizedBox(width: 8),
+              if (standalone)
+                MergeSemantics(
+                  child: Semantics(
+                    label: utility.visible
+                        ? 'Remove this utility'
+                        : 'Restore to board',
+                    child: IconButton(
+                      onPressed: _working
+                          ? null
+                          : () => utility.visible
+                                ? _removeBoardUtility(utility)
+                                : _run(
+                                    () => _board.setUtility(
+                                      player.id,
+                                      utility.id,
+                                      visible: true,
+                                    ),
                                   ),
-                                ),
-                    icon: Icon(
-                      utility.visible ? Icons.close : Icons.visibility_outlined,
+                      icon: Icon(
+                        utility.visible
+                            ? Icons.close
+                            : Icons.visibility_outlined,
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
+            ];
+            return compact
+                ? Wrap(spacing: 4, runSpacing: 4, children: actions)
+                : Row(children: actions);
+          },
         ),
       ),
       if (standalone && !utility.visible)

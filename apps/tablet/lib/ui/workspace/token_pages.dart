@@ -39,11 +39,11 @@ extension _TokenPages on _TableWorkspaceState {
           () => _update(() => _selectedDefinition = null),
           icon: Icons.arrow_back,
         ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 180,
+        LayoutBuilder(
+          builder: (context, bounds) {
+            final compact = bounds.maxWidth < 420;
+            final art = SizedBox(
+              width: compact ? double.infinity : 180,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -64,69 +64,79 @@ extension _TokenPages on _TableWorkspaceState {
                     ),
                 ],
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _input(
-                    'create.quantity',
-                    'Quantity before modifiers',
-                    initial: '1',
-                    numeric: true,
-                  ),
-                  _creationQuantityShortcuts(quantity),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Create tapped'),
-                    value: _createTapped,
-                    onChanged: (v) => _update(() => _createTapped = v),
-                  ),
-                  ValueListenableBuilder<TextEditingValue>(
-                    valueListenable: quantity,
-                    builder: (context, value, _) {
-                      final count = int.tryParse(value.text);
-                      if (count == null || count < 1) {
-                        return const Text(
-                          'Enter a positive quantity to preview creation.',
-                        );
-                      }
-                      try {
-                        final result = _board.preview(p!.id, selected, count);
-                        return _section(
-                          'Will create for $_seatName',
-                          detail: TokenCreationResult.breakdownString(result),
-                        );
-                      } catch (e) {
-                        return Text('$e');
-                      }
-                    },
-                  ),
-                  _button(
-                    'Create tokens',
-                    () => _run(
-                      () => _board.createToken(
-                        p!.id,
-                        selected,
-                        quantity: _integer(
-                          'create.quantity',
-                          min: 1,
-                          max: 999999,
-                        ),
-                        tapped: _createTapped,
-                        expectedRevision: revision,
-                        captured: scope,
+            );
+            final controls = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _input(
+                  'create.quantity',
+                  'Quantity before modifiers',
+                  initial: '1',
+                  numeric: true,
+                ),
+                _creationQuantityShortcuts(quantity),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Create tapped'),
+                  value: _createTapped,
+                  onChanged: (v) => _update(() => _createTapped = v),
+                ),
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: quantity,
+                  builder: (context, value, _) {
+                    final count = int.tryParse(value.text);
+                    if (count == null || count < 1) {
+                      return const Text(
+                        'Enter a positive quantity to preview creation.',
+                      );
+                    }
+                    try {
+                      final result = _board.preview(p!.id, selected, count);
+                      return _section(
+                        'Will create for $_seatName',
+                        detail: TokenCreationResult.breakdownString(result),
+                      );
+                    } catch (e) {
+                      return Text('$e');
+                    }
+                  },
+                ),
+                _button(
+                  'Create tokens',
+                  () => _run(
+                    () => _board.createToken(
+                      p!.id,
+                      selected,
+                      quantity: _integer(
+                        'create.quantity',
+                        min: 1,
+                        max: 999999,
                       ),
-                      closeOnSuccess: true,
+                      tapped: _createTapped,
+                      expectedRevision: revision,
+                      captured: scope,
                     ),
-                    icon: Icons.add,
-                    primary: true,
+                    closeOnSuccess: true,
                   ),
-                ],
-              ),
-            ),
-          ],
+                  icon: Icons.add,
+                  primary: true,
+                ),
+              ],
+            );
+            return compact
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [art, const SizedBox(height: 12), controls],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      art,
+                      const SizedBox(width: 12),
+                      Expanded(child: controls),
+                    ],
+                  );
+          },
         ),
       ]);
     }
