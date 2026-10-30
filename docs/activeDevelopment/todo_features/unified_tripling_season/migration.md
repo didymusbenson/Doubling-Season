@@ -6,8 +6,9 @@
 
 An existing user installs an ordinary update to Tripling Season. Their saved
 Deck configurations become TT presets/configurations; custom tokens, artwork,
-credits and other durable value remain available. Their old active game is
-replaced only through the [one-time fresh-board transition](fresh_board.md).
+credits and other durable value remain available. Their existing live token board
+and enabled utilities with Table counterparts are retained for Player 1 through
+the [board-continuity transition](fresh_board.md).
 This is an installation migration, not a requirement to export/import manually.
 
 ## Source inventory and release gate
@@ -63,8 +64,8 @@ identity strategy, validation and unsupported-field policy before coding.
   `tablet_support_*` keys are not interchangeable proof of ownership.
 - **Unsupported custom rules/features:** preserve recoverable source data and
   document unsupported status. Do not imply unfinished custom rules now work.
-- **Active board:** snapshot for recovery, then use the deliberate fresh-game
-  policy rather than accidentally importing or deleting it during deck mapping.
+- **Active board:** snapshot for recovery, then follow the explicit board-continuity
+  policy through a separate state-preserving conversion, not preset loading.
 
 The existing deck JSON export omits the deck's `customArtworkUrl` cover and image
 bytes. It also is not an export of all libraries/preferences/purchases. Exporting
@@ -82,8 +83,8 @@ not arbitrary legacy `file://` rendering.
    migration journal and stable ID mappings. Retrying must not duplicate decks.
 4. Validate deck counts, references, definitions, image hashes, ownership and
    supported fields. Account explicitly for missing/unsupported inputs.
-5. Reopen and validate the destination. Stage its fresh game and one-time reset
-   marker as described in [fresh-board safety](fresh_board.md).
+5. Reopen and validate the destination. Stage the preserved Player 1 board and one-time migration
+   marker as described in [board-continuity safety](fresh_board.md).
 6. Commit the new generation atomically, or use an equivalent recoverable commit
    protocol across stores. Mark success only after the durable commit is verified.
 7. Keep legacy recovery material according to an explicitly chosen retention
@@ -100,7 +101,7 @@ A failed conversion must not overwrite the good source or force an empty app.
 - Upgrade without uninstall, then load each migrated preset on Seat 1 and another
   seat; verify configuration scope, art and credits, not merely JSON parse success.
 - Interruption at every snapshot/convert/copy/commit/marker boundary; resume
-  without duplicates, lost assets, repeated board clearing or partial authority.
+  without duplicates, lost assets, repeated board replacement or partial authority.
 - Unknown/newer schema, corrupt source, missing image, full disk, offline catalog
   and purchase restoration unavailable. Preserve recoverable data in each case.
 - Launch again after a new game has progressed: migration must not rerun/reset it.
@@ -128,7 +129,7 @@ and installed application; separate identity is an intentional safety boundary.
 - Later, create a controlled cutover candidate under the original TS identity,
   with original signing/entitlement continuity and an explicitly selected test
   installation. Test upgrade from the actual shipped binary without uninstalling,
-  using verified recovery copies and the migration/fresh-board acceptance cases.
+  using verified recovery copies and the migration/board-continuity acceptance cases.
 - Record the identity, source build, source data version and destination build for
   every test. Distinguish a fresh install, tablet-identity fixture conversion and
   a genuine original-identity update; only the latter proves the cutover path.

@@ -1,133 +1,117 @@
-# Phone presentation: Seat 1 of an N-player game
+# Phone presentation: fixed Player 1 of an N-player game
 
-**Status: DEFERRED / SPECULATIVE / NOT IMPLEMENTED.** See [scope](README.md).
+**Status: design review; phone implementation awaits mockup approval.**
+The feature stays on a dedicated branch and keeps the Tripling Table identity.
+See [product scope](README.md) and [decision/progress record](implementation_summary.md).
 
-## Confirmed concept
+## Explicit owner decisions (2026-10-30)
 
-Phone/compact view displays **Seat 1 of the existing N-player session**. If the
-user starts or restarts a four-player game while on a phone, it remains a
-four-player game; only Seat 1 is shown. Seat-local settings act on Seat 1.
+- Phone view is always **Player 1 / Seat 1** of the existing N-player game.
+  No hot-swapping players. A four-player session remains four-player.
+- A compact life surface is fixed at the top, above the token workspace.
+  Full commander source/partner relationships and counters remain available.
+- Below life, **one scrolling body** contains utilities first, then tokens.
+  Do not retain independently scrolling tablet lanes or intermix the two groups.
+- Buttons/FABs stay fixed to screen locations, preferably near the bottom-right
+  thumb area. Their exact action arrangement awaits mockup approval.
+- Preserve the newer Tripling Table visual design, not the original phone skin.
+- Tablets do not gain compact view in this scope. Phones do not offer full tablet
+  layout. Folded phones use Player 1; unfolding reveals the full table.
+- Folding/unfolding dismisses menus and modals to closed/default UI states while
+  preserving Player 1's board and the underlying complete session.
+- Existing token board state and supported enabled utilities survive migration;
+  saved decks convert separately. See [board continuity](fresh_board.md).
 
-- A conservatively sized life tracker sits above Seat 1's token view.
-- Commander damage retains all applicable sources across the N-player table,
-  including independent partner sources. Counters and status controls remain.
-- Other seats and their state remain intact, not deleted or reset because hidden.
-- The token-add FAB needs reconsideration; a cleaner + menu or a few distinct
-  FABs should remain near the thumb, toward the bottom right.
-- Preserve **Tripling Table's new styles and aesthetic**. This is not a return to
-  the old phone visual language, nor a miniature rotated multiplayer table.
+A true one-player engine and player-count changes on posture are not required.
+No additional player-count expansion or network synchronization is implied.
 
-This supersedes the earlier exploratory assumption that a genuine one-player
-engine was necessary. That engine could be a separate future proposal, but is
-not required here. N means the supported session size; no six-player expansion,
-network multiplayer or automatic transfer of control is implied.
-
-## Presentation sketch
+## Layout and UX recommendation
 
 ```text
-Compact Seat 1 life surface
-  own life + compact commander/status/counter summary
-Token workspace
-  full-width Table-style tokens and inline expansion
-  optional utility presentation (explore below)
-                             thumb-reachable action cluster
+FIXED TOP: Player 1 life, compact commander/status/counter summary
+ONE SCROLLING BODY:
+  configured utilities (compact direct controls; expansion for management)
+  tokens (full-width art, existing inline editing and expansion)
+FIXED BOTTOM-RIGHT: selected action architecture
 ```
 
-This is a hierarchy sketch, not approved pixel dimensions. The life surface
-should serve the phone user's needs without taking tablet-sized vertical space.
-Names remain inside their stepper surfaces. Commander sources must be distinguishable
-by identity/art, not reduced to a single combined damage number.
+The life surface is fixed in position, not an inflexible pixel height. Keep life
+the strongest number and the name inside its tap surface. A compact source-art
+mini-grid can open the full commander editor; never collapse distinct opponents
+or partners into a single damage total. Active counters/statuses take only their
+required space; zeros remain editable in the combined editor but absent from the
+board summary. Life, commander and status hit targets must remain distinct.
 
-The board summary omits zero numeric counters and reserves no empty counter strip;
-the combined commander editor still exposes zero-valued counter stepper chips
-beneath status chips. Match current Table semantics unless deliberately revised.
+One scroll means no nested utility viewport. Empty sections take zero space and
+need no permanent heading. Utilities remain directly usable: simple trackers can
+be compact rows, mana a real grid. Do not hide configured utilities or zero mana
+colors simply to fit a screenshot. Check individual minus/plus target sizes,
+not just the surrounding chip. If three columns squeeze each half too much,
+reflow to two columns rather than shrinking touch areas.
 
-## Utility and action alternatives to explore
+The main risk is utilities consuming the initial viewport and becoming distant
+when the user scrolls deep into tokens. Prefer a fixed route back to the actual
+utilities section over a duplicate pinned mana panel. This preserves one set of
+controls and the requested stack. Exact jump/return behavior needs a prototype.
 
-### A. Token-first view with a compact utility dock
+## Action alternatives shown for approval
 
-Keep life above tokens. Show selected compact tools, such as mana, in a narrow
-expandable dock near the action cluster. Tokens retain most of the screen.
+| Option | Fixed controls | Benefits | Tradeoff |
+|---|---|---|---|
+| A — One Actions button | One button opens labeled Token, Utilities, Board and Game actions | Smallest resting footprint | Token creation and utility access need an extra tap |
+| B — Token + Board | Direct Add Token; secondary Board menu with Utilities, Summary, Start Turn and separate Game/History | Clear priority with restrained permanent controls; recommended baseline | Utility return requires the Board menu |
+| C — Direct utility access | Add Token, Utilities jump and More | Fastest return to mana on long boards | Largest overlay footprint; icon clarity and token overlap require care |
 
-- Benefit: familiar token-first scanning; frequently used mana can be close to thumb.
-- Risk: keyboard/safe-area collision and a dock that obscures the last token.
-- Prototype: empty dock, mana only, mana plus storm, long names and large text.
+B is the design recommendation, C the utility-heavy alternative, A the minimal
+comparison. None is approved solely because it appears in this document. The
+owner requested mockups **before** implementation and will approve a direction.
+Concept artwork/card wording is illustrative; implementation must reuse correct
+existing token behavior, art/style handling, credits and supported rule text.
 
-### B. A revealable utility shelf
+## Scope and interaction
 
-Keep the same life/token hierarchy. A distinct utility action reveals a shelf
-using the Table drawer visual language. Closing restores the token workspace.
+- Life, token/utility edits, player settings and preset loads target Player 1.
+- Commander damage retains all source identities and established coupled effects.
+- Monarch/Initiative ownership and Day/Night preserve shared-game semantics;
+  player counters and City's Blessing retain player scope.
+- New Game, global history/undo, archives and Everyone wipes remain whole-game or
+  explicitly targeted operations. Never silently retarget them to Player 1.
+- Keep undo in History and routine feedback in the affected surface, not toasts.
+- Overlay controls reserve no blank full-width lane header. Keep last-item actions
+  reachable using appropriate scroll clearance and actual overlay footprints.
+- Scrolling over a stepper must not increment accidentally. Preserve existing
+  deliberate reorder, collapse-first, hold and inline-edit behavior unless a
+  reviewed change is required.
 
-- Benefit: more tools without permanently sacrificing token height.
-- Risk: an extra action for frequently adjusted mana; must not become another
-  dense settings modal or hide the life tracker unnecessarily.
-- Prototype: immediate mana stepping, return-to-token continuity and keyboard use.
+## Assistant design judgments for implementation review
 
-### C. User-selected compact tools below life
+The owner allowed reasonable decisions after design approval; record deviations
+and their evidence in the implementation summary instead of inventing approvals.
 
-Life remains compact at the top; selected mana/utility chips form an expandable
-row below it. No tools means no reserved row. Detailed controls open locally.
+Recommended policies:
+- Close transient menus/modals on posture changes, cancel active holds/pointers
+  and dismiss keyboard input. Accepted commands still complete exactly once.
+- Retain unfinished drafts by session/player/item without silently committing or
+  discarding text. Do not automatically reopen the editor after unfolding.
+  Revisit drafts in context; reconcile changed/deleted targets explicitly.
+- Temporarily suppress nonessential floating actions while typing rather than
+  crowding the keyboard with a large action stack. Keep field/error/save controls
+  visible. This is a proposed UX choice, not current implemented behavior.
+- Preserve scroll anchors separately per presentation; a raw phone offset is not
+  a meaningful tablet-lane offset. Inline expansion is distinct from a modal and
+  needs an explicit transition decision in implementation review.
 
-- Benefit: simultaneous visibility of important values, clear grouping.
-- Risk: utilities can grow into a second header that crowds tokens; cap visual
-  footprint through a deliberate expansion pattern rather than shrinking targets.
-- Prototype: one tool, several tools, utility removal and retained configuration.
+Durable draft survival across app termination is not yet promised. Device/posture
+classification and safe window-size thresholds need real-device validation;
+width alone must not accidentally enable compact mode on an iPad window.
 
-These alternatives are proposals, not three modes users must learn. Mana pool
-could be the primary utility with optional steppers such as storm. Which tools
-are default, optional, persistent or per-game is still a product decision.
+## Acceptance before feature integration
 
-For FABs, compare one clearly organized + expansion against two or three distinct
-icon-led actions (for example tokens, utilities, game tools). Exact count and
-icons are unresolved. Avoid a pile of unlabeled ambiguous buttons, hover/hold
-help popups, and an action-menu system that steals the whole screen. Accessibility
-names remain required even when there are no visual tooltips.
+Test no utilities, mana only, several utilities, long boards, expanded final
+tokens, large text, both phone orientations and keyboard validation failures.
+Exercise folds during holds, pending saves, edits, menus and history operations.
+Verify all hidden seats and partner commander relationships, not only Player 1.
 
-## Scope and continuity
-
-| Action | Scope |
-|---|---|
-| Life, player counters/statuses, commander damage editor | Seat 1 as the target; preserve all source-player/partner relationships and coupled effects. |
-| Token/utility add, edit, remove and preset load | Seat 1; explicitly preserve established replace/append and history semantics. |
-| Player customization | Seat 1, not whichever hidden seat occupies a tablet coordinate. |
-| Shared Monarch/Initiative ownership and Day/Night | Preserve whole-game uniqueness and shared state; claiming from Seat 1 still affects other owners where required. City's Blessing and numeric counters retain their appropriate player scope. |
-| New Game, archives, global history/undo, Everyone wipe | Whole game or explicit chosen targets, never silently retargeted to Seat 1. |
-| Fold/unfold, resize, orientation or presentation override | View only: no reset, new session, opponent loss, replay or data migration. |
-
-A closed foldable may show Seat 1; opening it can reveal the same full table.
-Available app-window space and hinge/posture matter more than hardware labels.
-Exact breakpoints, transition animation, manual override, focus selection beyond
-Seat 1, and what happens to open editors/keyboards during resize remain open.
-Keep active drafts and pending command identity safe regardless of the chosen UX.
-
-## Visual and interaction invariants
-
-- Table artwork, full-art/fade behavior, mana/P-T symbols, artist credits and
-  token inline editing remain consistent across compact and full-table views.
-- Immediate input feedback, durable save/rollback, history-only undo and existing
-  hold behavior remain correct. Layout changes must not introduce tap latency.
-- Floating controls overlay rather than add a blank lane header. If first-token
-  clearance is needed, explore filled artwork space/internal layout rather than
-  pushing the card down with an empty margin. Totals/actions remain hittable.
-- Empty utility/counter areas take no space. Long content scrolls without losing
-  selection, token expansion or draft state.
-- No routine toast/snackbar confirmations or tooltips; readable contrast and
-  explicit accessible names/states must make actions understandable.
-- Native text entry and paste/selection remain usable; keyboard direction and
-  platform limitations require actual testing rather than assumed support.
-
-## Future acceptance and unresolved choices
-
-Test a four-player game entirely through Seat 1: adjust life, partner commander
-sources, counters and mana; load a preset; restart deliberately; reveal full
-table and verify all hidden identities/state are correct. Test compact/full
-transitions during holds, pending saves, inline edits and history operations.
-
-Prototype small phones, large text, landscape, tablets choosing compact view,
-folded/unfolded devices and narrow multi-window layouts. Verify no silent game
-reset or loss of source attribution. Compare utility alternatives with real play,
-not only empty screenshots.
-
-Open: exact life height, utility defaults/location, FAB count, other-seat focus,
-compact global-game menu design, native keyboard posture behavior and transition
-rules. These documents preserve intent without starting implementation.
+Capture design/UX reviews at realistic populated sizes. Keep 2–4-player tablet
+visual/behavioral regressions intact. No automatic route is enabled in the stable
+main tablet app merely to expose the experimental preview.

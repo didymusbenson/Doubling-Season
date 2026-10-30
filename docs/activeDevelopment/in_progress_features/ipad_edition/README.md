@@ -37,7 +37,7 @@ This is a planning dossier, not a shipped feature specification. **Confirmed** m
 ## Deferred unified-product exploration
 
 The owner is exploring an in-place evolution of original Tripling Season with
-safe deck migration, a one-time fresh board and a focused Seat 1 phone view.
+safe deck migration, preserved live board state and a focused Seat 1 phone view.
 See [the speculative documents](../../todo_features/unified_tripling_season/README.md).
 This is deferred and does not change the current separate-app implementation.
 
