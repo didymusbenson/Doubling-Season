@@ -7,6 +7,7 @@ class _PhonePlayerView extends StatefulWidget {
     required this.controller,
     required this.board,
     required this.catalog,
+    required this.lifeFeedback,
     required this.interactionEpoch,
     required this.active,
     required this.inputLocked,
@@ -16,6 +17,7 @@ class _PhonePlayerView extends StatefulWidget {
   final TableController controller;
   final BoardService board;
   final TabletCatalog catalog;
+  final LifeTapFeedback lifeFeedback;
   final int interactionEpoch;
   final bool active, inputLocked;
   final ValueChanged<bool> onInputLock;
@@ -40,8 +42,7 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
 
   void _bind() {
     sessionId = widget.controller.session.id;
-    feedback = LifeTapFeedback(widget.controller, playerId: player.id)
-      ..addListener(_refresh);
+    feedback = widget.lifeFeedback..addListener(_refresh);
   }
 
   void _refresh() {
@@ -51,9 +52,9 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
   @override
   void didUpdateWidget(covariant _PhonePlayerView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (sessionId != widget.controller.session.id) {
+    if (sessionId != widget.controller.session.id ||
+        oldWidget.lifeFeedback != widget.lifeFeedback) {
       feedback.removeListener(_refresh);
-      feedback.dispose();
       _bind();
       expanded = null;
       error = null;
@@ -64,7 +65,6 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
   @override
   void dispose() {
     feedback.removeListener(_refresh);
-    feedback.dispose();
     scroll.dispose();
     super.dispose();
   }
@@ -277,7 +277,9 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
                         itemCount: visible.length,
                         onReorder: (old, next) => perform(() async {
                           final ids = visible.map((u) => u.id).toList();
-                          if (next > old) next--;
+                          if (next > old) {
+                            next--;
+                          }
                           ids.insert(next, ids.removeAt(old));
                           await widget.board.reorderVisibleUtilities(p.id, ids);
                         }),

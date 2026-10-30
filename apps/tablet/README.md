@@ -166,3 +166,11 @@ headers, corner overlays, player dividers, game-control placement, fixed utility
 editors, status badges and directly adjustable commander trackers. See the
 [batch checklist and validation limits](../../docs/activeDevelopment/in_progress_features/ipad_edition/ui_feedback_batch_2026-10-22.md).
 The focused web q→a repair passed independent live retesting. The current correction branch is for review and preserves the root app.
+
+## Feature-branch phone web preview
+
+See [the temporary preview workflow](../../docs/activeDevelopment/todo_features/unified_tripling_season/preview_workflow.md).
+The main publisher assembles stable root/tablet outputs plus a validated phone
+preview at `/preview/phone/`. Only that preview passes the explicit storage
+namespace define; normal native and tablet builds keep existing storage keys.
+Phone implementation remains on its feature branch, with cutover cleanup required.

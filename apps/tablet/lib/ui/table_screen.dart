@@ -45,6 +45,14 @@ class _TableScreenState extends State<TableScreen>
   bool phoneVisited = false;
   Size lastTabletSize = const Size(900, 700);
   Size lastPhoneSize = const Size(390, 844);
+  final Map<String, LifeTapFeedback> _presentationLife = {};
+  int _presentationSerial = 0;
+
+  LifeTapFeedback _feedbackFor(PlayerState player) =>
+      _presentationLife.putIfAbsent(
+        '${widget.controller.session.id}:${player.id}',
+        () => LifeTapFeedback(widget.controller, playerId: player.id),
+      );
   int interactionEpoch = 0;
   final drawerController = GameDrawerController();
   final drawerWorkspaceKey = GlobalKey(debugLabel: 'game-drawer-shell');
@@ -105,6 +113,9 @@ class _TableScreenState extends State<TableScreen>
   @override
   void dispose() {
     drawerAnimation.dispose();
+    for (final feedback in _presentationLife.values) {
+      feedback.dispose();
+    }
     catalog.dispose();
     super.dispose();
   }
@@ -224,6 +235,9 @@ class _TableScreenState extends State<TableScreen>
                     controller: controller,
                     board: board,
                     player: player,
+                    sharedLifeFeedback: widget.enablePhonePresentation
+                        ? _feedbackFor(player)
+                        : null,
                     turns: turns,
                     tokenLeft: tokenLeft,
                     centerNotch: two ? 0 : 30,
@@ -544,6 +558,19 @@ class _TableScreenState extends State<TableScreen>
   Widget _presentations(BuildContext context, Widget tablet) {
     if (!widget.enablePhonePresentation) return tablet;
     if (widget.compactPlayerOne) phoneVisited = true;
+    final activeLifeKeys = widget.controller.session.players
+        .map((p) => '${widget.controller.session.id}:${p.id}')
+        .toSet();
+    if (_presentationLife.keys.any((key) => !activeLifeKeys.contains(key))) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        for (final key in _presentationLife.keys.toList()) {
+          if (!activeLifeKeys.contains(key)) {
+            _presentationLife.remove(key)?.dispose();
+          }
+        }
+      });
+    }
     // Keep visited presentation trees alive: inline drafts and scroll anchors
     // belong to their stable items, not to a disposable viewport mode.
     return LayoutBuilder(
@@ -576,6 +603,9 @@ class _TableScreenState extends State<TableScreen>
                   controller: widget.controller,
                   board: board,
                   catalog: catalog,
+                  lifeFeedback: _feedbackFor(
+                    widget.controller.session.players.first,
+                  ),
                   interactionEpoch: interactionEpoch,
                   active: widget.compactPlayerOne,
                   inputLocked: modalOpen,
@@ -604,10 +634,11 @@ class _TableScreenState extends State<TableScreen>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.compactPlayerOne != widget.compactPlayerOne) {
       interactionEpoch++;
+      final serial = ++_presentationSerial;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         await dismissTableTransientForPresentationChange();
-        if (!mounted) return;
+        if (!mounted || serial != _presentationSerial) return;
         drawerAnimation.value = 0;
         setState(() {
           drawerMounted = false;
@@ -1078,6 +1109,7 @@ class _EmptyControlSpace extends StatelessWidget {
 }
 
 class _PlayerSpace extends StatefulWidget {
+  final LifeTapFeedback? sharedLifeFeedback;
   final TableController controller;
   final BoardService board;
   final PlayerState player;
@@ -1093,6 +1125,7 @@ class _PlayerSpace extends StatefulWidget {
   final ValueChanged<bool> onInputLock;
   const _PlayerSpace({
     super.key,
+    this.sharedLifeFeedback,
     required this.controller,
     required this.board,
     required this.player,
@@ -1116,12 +1149,14 @@ class _PlayerSpaceState extends State<_PlayerSpace>
     with WidgetsBindingObserver {
   bool compactUtilityReorder = false;
   late LifeTapFeedback lifeFeedback;
+  bool _ownsLifeFeedback = false;
 
   void _listenToLife() {
-    lifeFeedback = LifeTapFeedback(
-      widget.controller,
-      playerId: widget.player.id,
-    )..addListener(_lifeChanged);
+    _ownsLifeFeedback = widget.sharedLifeFeedback == null;
+    lifeFeedback =
+        widget.sharedLifeFeedback ??
+        LifeTapFeedback(widget.controller, playerId: widget.player.id);
+    lifeFeedback.addListener(_lifeChanged);
   }
 
   void _lifeChanged() {
@@ -1139,9 +1174,10 @@ class _PlayerSpaceState extends State<_PlayerSpace>
   void didUpdateWidget(covariant _PlayerSpace oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller ||
-        oldWidget.player.id != widget.player.id) {
+        oldWidget.player.id != widget.player.id ||
+        oldWidget.sharedLifeFeedback != widget.sharedLifeFeedback) {
       lifeFeedback.removeListener(_lifeChanged);
-      lifeFeedback.dispose();
+      if (_ownsLifeFeedback) lifeFeedback.dispose();
       _listenToLife();
     }
     if (oldWidget.interactionEpoch != widget.interactionEpoch ||
@@ -1180,7 +1216,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     lifeFeedback.removeListener(_lifeChanged);
-    lifeFeedback.dispose();
+    if (_ownsLifeFeedback) lifeFeedback.dispose();
     tokenScroll.dispose();
     utilityScroll.dispose();
     super.dispose();
@@ -2300,7 +2336,6 @@ class _UtilityRow extends StatelessWidget {
   final Future<void> Function(int) onChange;
   final Future<void> Function(String, int) onMana;
   const _UtilityRow({
-    super.key,
     this.phone = false,
     this.compactSpacing = false,
     required this.interactionEpoch,

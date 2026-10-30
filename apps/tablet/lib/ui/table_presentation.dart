@@ -28,7 +28,10 @@ class TablePresentation extends StatelessWidget {
       display: display,
       window: MediaQuery.sizeOf(context),
       web: kIsWeb,
-      webPhonePreview: const bool.fromEnvironment('TABLE_PHONE_PREVIEW'),
+      webPhonePreview:
+          const bool.fromEnvironment('TABLE_PHONE_PREVIEW') ||
+          const String.fromEnvironment('TABLE_STORAGE_NAMESPACE') ==
+              'phone_preview_v1',
     );
     return TableScreen(
       controller: controller,
