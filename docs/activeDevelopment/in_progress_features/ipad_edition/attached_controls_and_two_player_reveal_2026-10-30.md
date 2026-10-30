@@ -48,6 +48,12 @@ and utility scroll offsets survive viewport/presentation changes. Warning-only
 clearance never introduces padding in normal token rows. Life-corner notches
 follow the actual control placement when a warning is present.
 
+The subsequent [two-player control correction](centered_two_player_controls_2026-10-30.md)
+supersedes this batch's life-corner control placement and its associated
+clearances. Dice, Menu and Day/Night return to the central seam, with internal
+first-token content clearance beneath artwork instead of an outer lane spacer.
+The horizontal reveal and three/four-player layouts remain unchanged.
+
 Required final evidence includes both themes, 2/3/4 players, portrait/landscape,
 rotated seats, intermediate/settled/reversed drawer frames, first-row and scroll
 geometry, large text, short and long routes, counter zero/nonzero transitions,

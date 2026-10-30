@@ -1,5 +1,6 @@
 import 'support/control_finders.dart';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -179,6 +180,160 @@ void main() {
     },
   );
 
+  for (final size in [const Size(650, 1024), const Size(744, 1133)]) {
+    testWidgets(
+      'two-seat flank circle at $size owns only its actual life intersection',
+      (tester) async {
+        final fixture = await showTable(tester);
+        tester.view.physicalSize = size;
+        await tester.pumpAndSettle();
+        final ids = fixture.controller.session.players
+            .map((p) => p.id)
+            .toList();
+        for (var index = 0; index < ids.length; index++) {
+          final id = ids[index];
+          final surface = tester.renderObject<RenderBox>(
+            find.byKey(ValueKey('$id-life-surface')),
+          );
+          final clipping = find.byKey(ValueKey('$id-life-clip'));
+          final rail = tester.renderObject<RenderBox>(clipping);
+          final control = tester.getRect(
+            find.byKey(
+              ValueKey(index == 0 ? 'shared-day-night' : 'shared-dice'),
+            ),
+          );
+          final center = rail.globalToLocal(control.center);
+          final radius = control.width / 2;
+          const y = 1.0;
+          final rightEdge =
+              center.dx +
+              math.sqrt(radius * radius - math.pow(y - center.dy, 2));
+          final inside = Offset(rightEdge - .25, y);
+          final outside = Offset(rightEdge + .5, y);
+          final path = tester
+              .widget<ClipPath>(clipping)
+              .clipper!
+              .getClip(rail.size);
+          expect(inside.dx, greaterThan(0));
+          expect(path.contains(inside), isFalse);
+          expect(path.contains(outside), isTrue);
+          expect(
+            path.contains(const Offset(26, 26)),
+            isTrue,
+            reason: 'No obsolete fixed life-corner hole',
+          );
+          final before = fixture.controller.player(id).life;
+          final day = fixture.controller.session.dayNight;
+          await tester.tapAt(rail.localToGlobal(inside));
+          await tester.pumpAndSettle();
+          expect(fixture.controller.player(id).life, before);
+          if (index == 0) {
+            expect(fixture.controller.session.dayNight, isNot(day));
+          } else {
+            expect(
+              find.byKey(const ValueKey('game-drawer-workspace')),
+              findsOneWidget,
+            );
+            await tester.tap(
+              find.byKey(const ValueKey('central-game-controls')),
+            );
+            await tester.pumpAndSettle();
+          }
+          await tester.tapAt(rail.localToGlobal(outside));
+          await tester.pumpAndSettle();
+          expect(
+            fixture.controller.player(id).life,
+            before - 1,
+            reason: 'The adjacent visible life pixel must remain tappable',
+          );
+          expect(
+            surface.globalToLocal(rail.localToGlobal(outside)).dy,
+            closeTo(1, .001),
+          );
+          expect(tester.takeException(), isNull);
+        }
+      },
+    );
+  }
+
+  testWidgets(
+    'two-seat circle clearance stays at viewport during short scroll and disappears below warnings',
+    (tester) async {
+      final fixture = await showTable(tester);
+      tester.view.padding = const FakeViewPadding();
+      tester.view.physicalSize = const Size(650, 480);
+      await tester.pumpAndSettle();
+      final id = fixture.playerId;
+      final clipping = find.byKey(ValueKey('$id-life-clip'));
+      final surface = find.byKey(ValueKey('$id-life-surface'));
+      final menu = find.byKey(const ValueKey('central-game-controls'));
+      await tester.tap(menu);
+      await tester.pumpAndSettle();
+      final rail = tester.renderObject<RenderBox>(clipping);
+      final beforeClip = tester.getRect(clipping);
+      final beforeSurface = tester.getTopLeft(surface);
+      final scroll = tester.state<ScrollableState>(
+        find
+            .descendant(
+              of: find.byKey(ValueKey('$id-short-life-rail-scroll')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      final offset = math.min(40.0, scroll.position.maxScrollExtent);
+      expect(offset, greaterThan(0));
+      scroll.position.jumpTo(offset);
+      await tester.pumpAndSettle();
+      expect(tester.getRect(clipping), beforeClip);
+      expect(
+        tester.getTopLeft(surface).dy,
+        closeTo(beforeSurface.dy - offset, .001),
+      );
+      final control = tester.getRect(
+        find.byKey(const ValueKey('shared-day-night')),
+      );
+      final center = rail.globalToLocal(control.center);
+      final path = tester
+          .widget<ClipPath>(clipping)
+          .clipper!
+          .getClip(rail.size);
+      for (var x = 1.0; x < rail.size.width; x += 7) {
+        for (var y = 1.0; y < rail.size.height; y += 7) {
+          final point = Offset(x, y);
+          expect(
+            path.contains(point),
+            (point - center).distance > control.width / 2,
+          );
+        }
+      }
+      await tester.tap(menu);
+      await tester.pumpAndSettle();
+      fixture.repository.failSave = true;
+      await tester.tap(find.byKey(ValueKey('$id-life-decrease')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(ValueKey('$id-acknowledge-life-error')),
+        findsOneWidget,
+      );
+      final warnedRail = tester.renderObject<RenderBox>(clipping);
+      final warnedPath = tester
+          .widget<ClipPath>(clipping)
+          .clipper!
+          .getClip(warnedRail.size);
+      expect(warnedPath.contains(const Offset(1, 1)), isTrue);
+      expect(warnedPath.contains(const Offset(26, 26)), isTrue);
+      expect(
+        (warnedRail.localToGlobal(const Offset(1, 1)) -
+                tester.getCenter(
+                  find.byKey(const ValueKey('shared-day-night')),
+                ))
+            .distance,
+        greaterThan(22),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final platform in [
     TargetPlatform.android,
     TargetPlatform.iOS,
@@ -217,7 +372,15 @@ void main() {
               expected += point.dx < box.size.width / 2 ? -1 : 1;
               await tester.tapAt(box.localToGlobal(point));
               await tester.pumpAndSettle();
-              expect(fixture.controller.player(player.id).life, expected);
+              expect(
+                fixture.controller.player(player.id).life,
+                expected,
+                reason:
+                    'size=$size player=${player.slot} '
+                    'local=$point global=${box.localToGlobal(point)} '
+                    'DayNight=${tester.getRect(find.byKey(const ValueKey("shared-day-night")))} '
+                    'Dice=${tester.getRect(find.byKey(const ValueKey("shared-dice")))}',
+              );
               expect(byControlLabel('Close workspace'), findsNothing);
             }
             final name = find.descendant(
@@ -374,7 +537,6 @@ void main() {
 
           final heldWhileOpening = await tester.startGesture(
             localPoint(tester, increase, const Offset(.98, .5)),
-            pointer: 99,
           );
           await tester.pump(const Duration(milliseconds: 550));
           expect(fixture.controller.player(player.id).life, 50);

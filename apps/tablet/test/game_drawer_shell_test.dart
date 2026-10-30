@@ -11,6 +11,7 @@ import 'package:hive/hive.dart';
 import 'package:tripling_table/domain/table_state.dart';
 import 'package:tripling_table/state/table_controller.dart';
 import 'package:tripling_table/ui/tablet_token_card.dart';
+import 'package:tripling_table/ui/table_artwork.dart';
 import 'package:tripling_table/ui/table_screen.dart';
 import 'package:tripling_table/ui/table_theme.dart';
 import 'package:tripling_table/ui/workspace/table_workspace.dart';
@@ -19,9 +20,22 @@ import 'support/table_fixture.dart';
 
 void main() {
   late Directory catalog;
+  late String fixtureArtwork;
   final captures = Platform.environment['TABLET_DRAWER_CAPTURE_DIR'];
   setUpAll(() async {
     catalog = await Directory.systemTemp.createTemp('drawer-shell-');
+    final recorder = ui.PictureRecorder();
+    Canvas(recorder).drawRect(
+      const Rect.fromLTWH(0, 0, 64, 64),
+      Paint()..color = const Color(0xff4d92ce),
+    );
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(64, 64);
+    final bytes = (await image.toByteData(format: ui.ImageByteFormat.png))!;
+    fixtureArtwork =
+        'data:image/png;base64,${base64Encode(bytes.buffer.asUint8List())}';
+    image.dispose();
+    picture.dispose();
     Hive.init(catalog.path);
     await Hive.openBox<String>('tripling_season_tablet_catalog_v1');
     if (captures != null) {
@@ -45,7 +59,12 @@ void main() {
     await catalog.delete(recursive: true);
   });
 
-  Future<TableFixture> show(WidgetTester tester, Size size, int seats) async {
+  Future<TableFixture> show(
+    WidgetTester tester,
+    Size size,
+    int seats, {
+    String? artStyle,
+  }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = size;
     addTearDown(tester.view.reset);
@@ -53,8 +72,17 @@ void main() {
     state.session.players = state.session.players.take(seats).toList();
     for (final player in state.session.players) {
       player.tokens = [
-        for (var i = 0; i < 8; i++) sampleToken(id: '${player.id}-token-$i'),
+        for (var i = 0; i < 8; i++)
+          sampleToken(
+            id: '${player.id}-token-$i',
+            artworkUrl: artStyle == null ? null : fixtureArtwork,
+          ),
       ];
+      if (artStyle != null) {
+        for (final token in player.tokens) {
+          token.extra['artworkDisplayStyle'] = artStyle;
+        }
+      }
     }
     final f = TableFixture(state);
     await f.initialize();
@@ -68,6 +96,12 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    if (artStyle != null) {
+      await tester.runAsync(() async {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pumpAndSettle();
+    }
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
@@ -112,7 +146,181 @@ void main() {
     return labels;
   }
 
+  void expectFirstTokenContentClear(
+    WidgetTester tester,
+    PlayerState player, {
+    required double inset,
+  }) {
+    final token = find.byWidgetPredicate(
+      (w) => w is TabletTokenCard && w.token.id == player.tokens.first.id,
+    );
+    expect(tester.widget<TabletTokenCard>(token).topContentInset, inset);
+    final tokenBox = tester.renderObject<RenderBox>(token);
+    final name = find
+        .descendant(of: token, matching: find.text('Saproling'))
+        .first;
+    final totals = find.descendant(
+      of: token,
+      matching: find.byWidgetPredicate(
+        (w) =>
+            w is Semantics &&
+            (w.properties.label?.endsWith(
+                  ', edit total, tapped and summoning sickness',
+                ) ??
+                false),
+      ),
+    );
+    final totalBox = tester.renderObject<RenderBox>(totals);
+    final localTotals = MatrixUtils.transformRect(
+      totalBox.getTransformTo(tokenBox),
+      Offset.zero & totalBox.size,
+    );
+    expect(localTotals.top, 5 + inset);
+    final nameBox = tester.renderObject<RenderBox>(name);
+    final localName = MatrixUtils.transformRect(
+      nameBox.getTransformTo(tokenBox),
+      Offset.zero & nameBox.size,
+    );
+    expect(localName.top, 8 + inset);
+    for (final content in [
+      name,
+      totals,
+      find.byKey(ValueKey('${player.tokens.first.id}-quantity-increase')),
+      find.byKey(ValueKey('${player.tokens.first.id}-quantity-decrease')),
+    ]) {
+      final rect = tester.getRect(content);
+      for (final control in [
+        'central-game-controls',
+        'shared-dice',
+        'shared-day-night',
+      ]) {
+        expect(
+          rect.overlaps(tester.getRect(find.byKey(ValueKey(control)))),
+          isFalse,
+          reason:
+              'First token content must clear actual shared-control targets',
+        );
+      }
+    }
+    final next = find.byWidgetPredicate(
+      (w) => w is TabletTokenCard && w.token.id == player.tokens[1].id,
+    );
+    if (next.evaluate().isNotEmpty) {
+      expect(tester.widget<TabletTokenCard>(next).topContentInset, 0);
+    }
+  }
+
+  for (final seats in [2, 3, 4]) {
+    for (final style in ['full', 'fadeout']) {
+      testWidgets(
+        '$seats seats preserve $style artwork behind first-card clearance',
+        (tester) async {
+          final f = await show(
+            tester,
+            const Size(744, 1133),
+            seats,
+            artStyle: style,
+          );
+          final boundary = tester.renderObject<RenderRepaintBoundary>(
+            find.byKey(const ValueKey('drawer-capture')),
+          );
+          for (final p in f.controller.session.players) {
+            final token = find.byWidgetPredicate(
+              (w) => w is TabletTokenCard && w.token.id == p.tokens.first.id,
+            );
+            final card = tester.widget<TabletTokenCard>(token);
+            expect(card.topContentInset, seats == 2 ? 30 : 0);
+            final artwork = find.descendant(
+              of: token,
+              matching: find.byType(TableArtworkSurface),
+            );
+            expect(tester.widget<TableArtworkSurface>(artwork).style, style);
+            expect(
+              tester.widget<TableArtworkSurface>(artwork).shadeArtwork,
+              isFalse,
+            );
+            final tokenBox = tester.renderObject<RenderBox>(token);
+            final artBox = tester.renderObject<RenderBox>(artwork);
+            final localArt = MatrixUtils.transformRect(
+              artBox.getTransformTo(tokenBox),
+              Offset.zero & artBox.size,
+            );
+            expect(localArt.top, 0);
+            expect(localArt.width, tokenBox.size.width);
+            expectFirstTokenContentClear(tester, p, inset: seats == 2 ? 30 : 0);
+            if (seats == 2) {
+              final point = boundary.globalToLocal(
+                tokenBox.localToGlobal(Offset(tokenBox.size.width * .97, 31)),
+              );
+              await tester.runAsync(() async {
+                final image = await boundary.toImage(pixelRatio: 1);
+                final pixels = (await image.toByteData(
+                  format: ui.ImageByteFormat.rawRgba,
+                ))!;
+                final offset =
+                    (point.dy.floor() * image.width + point.dx.floor()) * 4;
+                expect(
+                  [
+                    pixels.getUint8(offset),
+                    pixels.getUint8(offset + 1),
+                    pixels.getUint8(offset + 2),
+                  ],
+                  [77, 146, 206],
+                  reason:
+                      'Real artwork pixels must fill the added internal clearance',
+                );
+                image.dispose();
+              });
+            }
+            await tester.tap(
+              find
+                  .descendant(of: token, matching: find.text('Saproling'))
+                  .first,
+            );
+            await tester.pumpAndSettle();
+            expect(tester.widget<TabletTokenCard>(token).expanded, isTrue);
+            expect(tester.widget<TableArtworkSurface>(artwork).style, style);
+            expectFirstTokenContentClear(tester, p, inset: seats == 2 ? 30 : 0);
+          }
+          await tester.runAsync(() async {
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+          });
+          await tester.pumpAndSettle();
+          await capture(tester, '$seats-centered-$style-expanded');
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+
+  void expectMenuSemantics(
+    WidgetTester tester, {
+    required bool twoPlayer,
+    required bool expanded,
+  }) {
+    final semantics = tester.widget<Semantics>(
+      find.descendant(
+        of: find.byKey(const ValueKey('central-game-controls')),
+        matching: find.byWidgetPredicate(
+          (w) => w is Semantics && w.properties.label == 'Game controls',
+        ),
+      ),
+    );
+    expect(
+      semantics.properties.identifier,
+      twoPlayer ? 'two-player-game-menu' : 'game-menu',
+    );
+    expect(
+      semantics.properties.value,
+      '${expanded ? 'Expanded' : 'Collapsed'}, Game saved',
+    );
+    expect(semantics.properties.expanded, expanded);
+    expect(semantics.properties.button, isTrue);
+    expect(semantics.properties.onTap, isNotNull);
+  }
+
   void expectRightWallControls(WidgetTester tester) {
+    expectMenuSemantics(tester, twoPlayer: false, expanded: true);
     final table = tester.getRect(find.byKey(const ValueKey('table-surface')));
     final hub = tester.getRect(
       find.byKey(const ValueKey('central-game-controls')),
@@ -302,7 +510,13 @@ void main() {
     }
   }
 
-  for (final size in [const Size(744, 1133), const Size(1133, 744)]) {
+  for (final size in [
+    const Size(650, 1024),
+    const Size(844, 480),
+    const Size(1024, 600),
+    const Size(744, 1133),
+    const Size(1133, 744),
+  ]) {
     testWidgets(
       'two seats $size preserve full token widths across horizontal opening',
       (tester) async {
@@ -313,10 +527,16 @@ void main() {
         );
         final hub = find.byKey(const ValueKey('central-game-controls'));
         final closedHub = tester.getRect(hub);
+        expectMenuSemantics(tester, twoPlayer: true, expanded: false);
         expect(
-          closedHub.center,
-          Offset(table.right - 30, table.center.dy + 26),
+          tester.getCenter(find.byKey(const ValueKey('shared-dice'))),
+          table.center - const Offset(54, 0),
         );
+        expect(
+          tester.getCenter(find.byKey(const ValueKey('shared-day-night'))),
+          table.center + const Offset(54, 0),
+        );
+        expect(closedHub.center, table.center);
         final lanes = <String, Rect>{};
         final tokenWidths = <String, double>{};
         for (final p in f.controller.session.players) {
@@ -336,7 +556,36 @@ void main() {
             reason: 'No control-induced header padding',
           );
           expect(local.width, closeTo(laneBox.size.width, .001));
-          expect(tester.getRect(lane).overlaps(closedHub), isFalse);
+          expectFirstTokenContentClear(tester, p, inset: 30);
+          final life = find.byKey(ValueKey('${p.id}-life-surface'));
+          final clip = tester.widget<ClipPath>(
+            find.byKey(ValueKey('${p.id}-life-clip')),
+          );
+          final lifeSize = tester.getSize(life);
+          final lifePath = clip.clipper!.getClip(lifeSize);
+          expect(
+            lifePath.contains(const Offset(26, 26)),
+            isTrue,
+            reason: 'Former life-corner notch must disappear',
+          );
+          for (final control in [
+            'shared-dice',
+            'shared-day-night',
+            'central-game-controls',
+          ]) {
+            for (final suffix in [
+              'player-name',
+              'life-number',
+              'commander-ledger',
+            ]) {
+              expect(
+                tester
+                    .getRect(find.byKey(ValueKey('${p.id}-$suffix')))
+                    .overlaps(tester.getRect(find.byKey(ValueKey(control)))),
+                isFalse,
+              );
+            }
+          }
           expect(
             tester
                 .getRect(find.byKey(ValueKey('${p.id}-player-name')))
@@ -354,6 +603,7 @@ void main() {
         await tester.tap(hub);
         await tester.pump();
         Future<void> verifyFrame(String name) async {
+          expectMenuSemantics(tester, twoPlayer: true, expanded: true);
           final maskFinder = find.byKey(const ValueKey('drawer-board-mask'));
           final mask = tester.widget<ClipPath>(maskFinder);
           final maskBox = tester.renderObject<RenderBox>(maskFinder);
@@ -372,7 +622,15 @@ void main() {
           expect(channel.width, table.width);
           final menuRect = tester.getRect(hub);
           expect(menuRect.size, const Size(52, 52));
-          expect(menuRect.center.dx, table.right - 30);
+          expect(menuRect.center, Offset(table.center.dx, channel.bottom));
+          expect(
+            tester.getCenter(find.byKey(const ValueKey('shared-dice'))),
+            Offset(table.center.dx - 54, channel.top),
+          );
+          expect(
+            tester.getCenter(find.byKey(const ValueKey('shared-day-night'))),
+            Offset(table.center.dx + 54, channel.bottom),
+          );
           expect(hub.hitTestable(), findsOneWidget);
           for (final key in ['shared-dice', 'shared-day-night']) {
             final control = find.byKey(ValueKey(key));
@@ -389,16 +647,18 @@ void main() {
               tokenBox.getTransformTo(laneBox),
               Offset.zero & tokenBox.size,
             );
-            expect(laneRect.width, lanes[p.id]!.width);
+            expect(laneRect.width, closeTo(lanes[p.id]!.width, .001));
             expect(tester.getSize(token).width, tokenWidths[p.id]);
             expect(local.top, closeTo(0, .001));
             expect(local.left, closeTo(0, .001));
             expect(local.right, closeTo(laneBox.size.width, .001));
             expect(laneRect.overlaps(channel.deflate(.001)), isFalse);
-            expect(laneRect.overlaps(menuRect), isFalse);
+            expectFirstTokenContentClear(tester, p, inset: 30);
             // Test every visible token column against the actual board paint mask,
             // including both edge columns, rather than only the widget's bounds.
-            for (double y = 1; y < laneBox.size.height; y += 13) {
+            // Only the artwork-backed first 30px admits the centered circular
+            // cutout. Every content column below it remains fully visible.
+            for (double y = 31; y < laneBox.size.height; y += 13) {
               for (final x in [
                 1.0,
                 laneBox.size.width / 2,
@@ -429,10 +689,19 @@ void main() {
         await tester.pumpAndSettle();
         await verifyFrame('open');
         final drawer = tester.getRect(find.byType(GameDrawerWorkspace));
-        expect(tester.getRect(hub).center.dy, closeTo(drawer.bottom, .001));
+        expect(
+          tester.getRect(hub).center.dy,
+          closeTo(drawer.bottom + 30, .001),
+        );
         final first = f.player.tokens.first;
         final increase = find.byKey(ValueKey('${first.id}-quantity-increase'));
-        await tester.tapAt(tester.getCenter(increase));
+        final firstName = find
+            .descendant(
+              of: find.byKey(ValueKey(first.id)),
+              matching: find.text('Saproling'),
+            )
+            .first;
+        await tester.tapAt(tester.getCenter(firstName));
         await tester.pump();
         await tester.pump();
         await tester.pump();
@@ -441,6 +710,17 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.byType(GameDrawerWorkspace), findsNothing);
         expect(tester.getRect(hub), closedHub);
+        expect(
+          tester
+              .widget<TabletTokenCard>(
+                find.byWidgetPredicate(
+                  (w) => w is TabletTokenCard && w.token.id == first.id,
+                ),
+              )
+              .expanded,
+          isFalse,
+          reason: 'Dismissal must not expand the tapped name',
+        );
         expect(
           jsonEncode(f.controller.state.toJson()),
           original,
@@ -522,10 +802,18 @@ void main() {
             expect(lists[p.id]!.offset, 80);
             lists[p.id]!.jumpTo(lists[p.id]!.position.maxScrollExtent);
           }
-          await tester.pump();
+          await tester.pumpAndSettle();
+          // Lazy lists refine their extent after expanded rows leave view.
+          // Reach the final actual extent before checking the last action.
+          for (final p in f.controller.session.players) {
+            lists[p.id]!.jumpTo(lists[p.id]!.position.maxScrollExtent);
+          }
+          await tester.pumpAndSettle();
           for (final p in f.controller.session.players) {
             expect(
-              find.byKey(ValueKey(p.tokens.last.id)).hitTestable(),
+              find
+                  .byKey(ValueKey('${p.tokens.last.id}-quantity-increase'))
+                  .hitTestable(),
               findsOneWidget,
             );
             lists[p.id]!.jumpTo(80);
@@ -612,6 +900,92 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(GameDrawerWorkspace), findsNothing);
       semantics.dispose();
+    },
+  );
+
+  for (final size in [const Size(480, 800), const Size(600, 1024)]) {
+    testWidgets('two seats preserve narrow-window guard at $size', (
+      tester,
+    ) async {
+      final f = await show(tester, size, 2);
+      final before = jsonEncode(f.controller.state.toJson());
+      expect(find.byKey(const ValueKey('table-surface')), findsNothing);
+      expect(find.text('Give your table a little more room'), findsOneWidget);
+      await tester.tap(find.text('Settings'));
+      await tester.pumpAndSettle();
+      expect(find.byType(GameDrawerWorkspace), findsOneWidget);
+      expect(jsonEncode(f.controller.state.toJson()), before);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'short two-seat drawer keeps complete actions clear of the handles',
+    (tester) async {
+      final f = await show(tester, const Size(844, 480), 2);
+      for (var i = 0; i < 16; i++) {
+        await f.controller.updateState(
+          'History sample $i',
+          (state) => state.session.players.first.life--,
+          recordHistory: true,
+        );
+      }
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('central-game-controls')));
+      await tester.pumpAndSettle();
+      Finder body() => find.byWidgetPredicate(
+        (w) =>
+            w is Semantics &&
+            w.properties.identifier == 'game-drawer-body-viewport',
+      );
+      void expectInside(Finder target) {
+        final viewport = tester.getRect(body());
+        final rect = tester.getRect(target);
+        expect(rect.top, greaterThanOrEqualTo(viewport.top));
+        expect(rect.bottom, lessThanOrEqualTo(viewport.bottom));
+        for (final key in [
+          'central-game-controls',
+          'shared-dice',
+          'shared-day-night',
+        ]) {
+          expect(
+            rect.overlaps(tester.getRect(find.byKey(ValueKey(key)))),
+            isFalse,
+          );
+        }
+        expect(target.hitTestable(), findsOneWidget);
+      }
+
+      expectInside(find.byKey(const ValueKey('drawer-menu-dice')));
+      final scroll = tester.state<ScrollableState>(
+        find.descendant(of: body(), matching: find.byType(Scrollable)).first,
+      );
+      scroll.position.jumpTo(scroll.position.maxScrollExtent);
+      await tester.pumpAndSettle();
+      expectInside(find.byKey(const ValueKey('drawer-menu-boardWipes')));
+      await capture(tester, '2-short-menu-last-actions');
+      scroll.position.jumpTo(0);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('drawer-menu-history')));
+      await tester.pumpAndSettle();
+      final undo = find
+          .ancestor(
+            of: find.text('Undo latest'),
+            matching: find.byType(FilledButton),
+          )
+          .first;
+      expectInside(undo);
+      await tester.tap(undo);
+      await tester.pumpAndSettle();
+      expect(f.controller.session.history.last.undone, isTrue);
+      final historyScroll = tester.state<ScrollableState>(
+        find.descendant(of: body(), matching: find.byType(Scrollable)).first,
+      );
+      historyScroll.position.jumpTo(historyScroll.position.maxScrollExtent);
+      await tester.pumpAndSettle();
+      expectInside(find.text('History sample 0'));
+      await capture(tester, '2-short-history-last-row');
+      expect(tester.takeException(), isNull);
     },
   );
 

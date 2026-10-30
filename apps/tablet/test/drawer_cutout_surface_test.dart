@@ -99,9 +99,9 @@ void main() {
                   .shift(tester.getTopLeft(reveal));
               final samples = seats == 2
                   ? [
-                      Offset(table.left + 30, channel.top - 14),
-                      Offset(table.left + 25, channel.top - 10),
-                      Offset(table.left + 35, channel.top - 10),
+                      Offset(table.center.dx, channel.top - 14),
+                      Offset(table.center.dx - 5, channel.top - 10),
+                      Offset(table.center.dx + 5, channel.top - 10),
                       Offset(table.left + 8, channel.top + 6),
                     ]
                   : [

@@ -181,11 +181,8 @@ void main() {
             final tableBounds = tester.getRect(table);
             expect(
               tester.getRect(hub).center,
-              seats == 2
-                  ? Offset(tableBounds.right - 30, tableBounds.center.dy + 26)
-                  : tableBounds.center,
-              reason:
-                  'Two seats keep Menu over life and outside the full token lanes.',
+              tableBounds.center,
+              reason: 'Shared controls stay center-stage for every seat count.',
             );
             final dice = find.byKey(const ValueKey('shared-dice'));
             final day = find.byKey(const ValueKey('shared-day-night'));
