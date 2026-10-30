@@ -693,13 +693,19 @@ async function captureGameView(name, composition = {}) {
     await cdp.send('Emulation.setDeviceMetricsOverride', { ...evidence.viewport, mobile: false });
     await sleep(250);
     await findInDrawer('Close workspace', { role: 'button' });
-    const drawer = await identifierRect('game-drawer-workspace');
+    const workspace = await identifierRect('game-drawer-workspace');
+    const horizontal = !!await identifierRect('two-player-game-menu');
+    const drawer = horizontal ? await identifierRect('game-drawer') : workspace;
     assert(drawer && drawer.width >= 220 && drawer.height >= 300, `${name}: unusable drawer viewport.`);
+    if (horizontal) assert(workspace && Math.abs(workspace.x - drawer.x) < 1 &&
+      Math.abs(workspace.width - drawer.width) < 1 && Math.abs(workspace.y - drawer.y - 26) < 1 &&
+      Math.abs(drawer.y + drawer.height - workspace.y - workspace.height - 30) < 1,
+    `${name}: two-player workspace lost its 26px upper / 30px lower circle clearance.`);
     await verifyGameComposition(name, composition);
     const file = `${name}-${viewport.width}x${viewport.height}`;
     await capture(file);
     evidence.gameViews ||= [];
-    evidence.gameViews.push({ name, file: `${file}.png`, viewport, drawer });
+    evidence.gameViews.push({ name, file: `${file}.png`, viewport, drawer, workspace });
   }
   evidence.viewport = original;
   await cdp.send('Emulation.setDeviceMetricsOverride', { ...original, mobile: false });
