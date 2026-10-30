@@ -535,14 +535,7 @@ void main() {
             find.byKey(ValueKey('${player.id}-commander-ledger')),
           );
           await tester.pumpAndSettle();
-          final addCounter = find.text('Add counter');
-          await tester.ensureVisible(addCounter);
-          await tester.tap(addCounter);
-          await tester.pumpAndSettle();
-          final enablePoison = find.text('Enable poison');
-          await tester.ensureVisible(enablePoison);
-          await tester.tap(enablePoison);
-          await tester.pumpAndSettle();
+          expect(find.text('Add counter'), findsNothing);
           final poison = stepper('poison');
           await tester.ensureVisible(poison);
           await tester.pumpAndSettle();

@@ -29,10 +29,11 @@ workspace workflows, embedded with their existing save, error, draft and History
 behavior. Drawer navigation has a local Back stack; it does not launch the old
 game dialogs. Settings also embeds support content.
 
-In the existing two-seat arrangement each 60% token lane crosses the center.
-Opening the vertical channel therefore clips its stationary inner viewport edge;
-token coordinates, width, scroll and expansion state do not move or reflow.
-Closing restores the original viewport. The dismissal layer blocks token input
+The original two-seat vertical reveal clipped the inner edge of its wide token
+lanes. That behavior was rejected in subsequent feedback and is superseded by
+the [horizontal two-player reveal](attached_controls_and_two_player_reveal_2026-10-30.md),
+which retains full token widths inside deliberately resized seat viewports.
+The three/four-seat token lanes remain stationary. The dismissal layer blocks token input
 and accessibility actions while the drawer is open, consuming the closing tap.
 Its semantic bounds use the visible token rectangle so web accessibility targets
 cannot intercept drawer actions. The unused seat's old controls fade away while

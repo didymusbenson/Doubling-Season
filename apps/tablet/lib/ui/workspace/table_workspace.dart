@@ -184,8 +184,7 @@ class _TableWorkspace extends StatefulWidget {
 class _TableWorkspaceState extends State<_TableWorkspace> {
   late WorkspacePage _page;
   String? _editingPlayerCounter;
-  bool _counterPickerOpen = false;
-  final Set<String> _enabledPlayerCounters = {};
+  final _counterCorrectionKey = GlobalKey();
   Future<void> _directQueue = Future.value();
   int _directPending = 0;
   // Failure survives later successful writes and close-in-progress rebuilds.
@@ -274,12 +273,6 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         _playerId = player.id;
       }
     }
-    _enabledPlayerCounters.addAll(
-      p?.counters.entries
-              .where((entry) => entry.value != 0)
-              .map((entry) => entry.key) ??
-          <String>[],
-    );
     _resetCount = c.session.players.length;
     _emptySlot = List.generate(4, (index) => index).firstWhere(
       (slot) => !c.session.players.any((player) => player.slot == slot),
@@ -579,6 +572,12 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         _field('counter.$key').text =
             '${c.player(playerId).counters[key] ?? 0}';
       });
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || !_validScope || _closing) return;
+      final editContext = _counterCorrectionKey.currentContext;
+      if (editContext != null && editContext.mounted) {
+        await Scrollable.ensureVisible(editContext, alignment: 1);
+      }
     } finally {
       if (mounted) setState(() => _navigating = false);
     }
@@ -819,6 +818,10 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     if (_embedded) {
       return GameDrawerBody(
         centered: centered,
+        wideMaxContentWidth:
+            _page == WorkspacePage.tableHub && _confirmation == null
+            ? 640
+            : null,
         scrollKey: PageStorageKey(
           'drawer-${_page.name}-${_confirmation?.title ?? "page"}',
         ),
@@ -848,23 +851,27 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     required int itemCount,
     required IndexedWidgetBuilder itemBuilder,
   }) => LayoutBuilder(
-    builder: (context, constraints) => Semantics(
-      identifier: 'game-drawer-body-viewport',
-      container: true,
-      explicitChildNodes: true,
-      child: ListView.builder(
-        key: PageStorageKey('drawer-list-${_page.name}'),
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-        itemCount: itemCount,
-        itemBuilder: (context, index) => Align(
-          alignment: Alignment.topCenter,
-          child: SizedBox(
-            width: min(384.0, max(0.0, constraints.maxWidth - 64)),
-            child: Semantics(
-              identifier: 'game-drawer-list-row-$index',
-              container: true,
-              explicitChildNodes: true,
-              child: itemBuilder(context, index),
+    builder: (context, constraints) => GameDrawerLayout(
+      body: Semantics(
+        identifier: 'game-drawer-body-viewport',
+        container: true,
+        explicitChildNodes: true,
+        child: ListView.builder(
+          key: PageStorageKey('drawer-list-${_page.name}'),
+          // Flexible supplies a finite viewport; sliver children stay lazy.
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(32, 8, 32, 16),
+          itemCount: itemCount,
+          itemBuilder: (context, index) => Align(
+            alignment: Alignment.topCenter,
+            child: SizedBox(
+              width: min(384.0, max(0.0, constraints.maxWidth - 64)),
+              child: Semantics(
+                identifier: 'game-drawer-list-row-$index',
+                container: true,
+                explicitChildNodes: true,
+                child: itemBuilder(context, index),
+              ),
             ),
           ),
         ),
@@ -872,52 +879,57 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     ),
   );
 
-  Widget _drawerHeader() => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-    child: Row(
-      children: [
-        SizedBox(
-          width: 44,
-          height: 44,
-          child: _navigation.isEmpty && _confirmation == null
-              ? null
-              : MergeSemantics(
-                  child: Semantics(
-                    label: 'Back',
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: _back,
-                      icon: const Icon(Icons.arrow_back),
+  Widget _drawerHeader() => Semantics(
+    identifier: 'game-drawer-header',
+    container: true,
+    explicitChildNodes: true,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: _navigation.isEmpty && _confirmation == null
+                ? null
+                : MergeSemantics(
+                    child: Semantics(
+                      label: 'Back',
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: _back,
+                        icon: const Icon(Icons.arrow_back),
+                      ),
                     ),
                   ),
-                ),
-        ),
-        Expanded(
-          child: Semantics(
-            header: true,
-            child: Text(
-              _title,
-              key: const ValueKey('game-drawer-title'),
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
           ),
-        ),
-        SizedBox(
-          width: 44,
-          height: 44,
-          child: MergeSemantics(
+          Expanded(
             child: Semantics(
-              label: 'Close workspace',
-              child: IconButton(
-                padding: EdgeInsets.zero,
-                onPressed: _working || _navigating ? null : _requestClose,
-                icon: const Icon(Icons.close),
+              header: true,
+              child: Text(
+                _title,
+                key: const ValueKey('game-drawer-title'),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
           ),
-        ),
-      ],
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: MergeSemantics(
+              child: Semantics(
+                label: 'Close workspace',
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: _working || _navigating ? null : _requestClose,
+                  icon: const Icon(Icons.close),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 
@@ -1160,7 +1172,6 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       ),
       child: Column(
         children: [
-          if (_embedded) _drawerHeader(),
           SizedBox(
             height: 2,
             child: _working
@@ -1205,7 +1216,17 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
               ),
             ),
           Expanded(
-            child: focusedCommander || _embedded
+            child: _embedded
+                ? GameDrawerHeaderScope(
+                    header: _drawerHeader(),
+                    child: Semantics(
+                      container: true,
+                      explicitChildNodes: true,
+                      label: _title,
+                      child: _content(),
+                    ),
+                  )
+                : focusedCommander
                 ? Semantics(
                     container: true,
                     explicitChildNodes: true,

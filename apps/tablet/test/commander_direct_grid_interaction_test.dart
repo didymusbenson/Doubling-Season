@@ -194,12 +194,11 @@ void main() {
     await tester.pumpAndSettle();
   });
   Future<void> enableEnergy(WidgetTester tester) async {
-    await tester.ensureVisible(find.text('Add counter'));
-    await tester.tap(find.text('Add counter'));
+    final chip = find.byKey(const ValueKey('player-counter-energy'));
+    await tester.ensureVisible(chip);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Enable energy'));
-    await tester.tap(find.text('Enable energy'));
-    await tester.pumpAndSettle();
+    expect(chip, findsOneWidget);
+    expect(find.text('Add counter'), findsNothing);
   }
 
   Future<void> setEnergy(WidgetTester tester, String value) async {

@@ -212,9 +212,9 @@ class _TableScreenState extends State<TableScreen>
                   tokenLeft: tokenLeft,
                   centerNotch: two ? 0 : 30,
                   centerNotchAtStart: two || !tokenLeft,
-                  hubInTokenLane: two,
+                  twoPlayerLayout: two,
                   interactionEpoch: interactionEpoch,
-                  drawerShift: gap / 2,
+                  drawerShift: two ? 0 : gap / 2,
                   drawerOpen: drawerMounted,
                   onCloseDrawer: _closeDrawer,
                   onInputLock: setInputLock,
@@ -293,8 +293,18 @@ class _TableScreenState extends State<TableScreen>
                         final dividerColor = Theme.of(
                           context,
                         ).colorScheme.outline;
+                        // Two opposing full-width seats open their shared
+                        // horizontal seam. A vertical channel would cut through
+                        // both 60% token lanes instead of their life rails.
+                        final horizontalExtent = math.min(
+                          440.0,
+                          math.max(140.0, table.maxHeight - 403),
+                        );
+                        final opening = two ? horizontalExtent * progress : gap;
                         final leftWall = (table.maxWidth - gap) / 2;
                         final rightWall = (table.maxWidth + gap) / 2;
+                        final topWall = (table.maxHeight - opening) / 2;
+                        final bottomWall = (table.maxHeight + opening) / 2;
                         Widget row(int left, int right) => Row(
                           children: [
                             Expanded(child: slot(left)),
@@ -310,14 +320,38 @@ class _TableScreenState extends State<TableScreen>
                           key: const ValueKey('table-surface'),
                           children: [
                             if (drawerMounted)
+                              Positioned.fill(
+                                key: const ValueKey('table-drawer-surface'),
+                                child: IgnorePointer(
+                                  child: CustomPaint(
+                                    painter: _DrawerSurfacePainter(
+                                      opening,
+                                      Theme.of(context).colorScheme.surface,
+                                      horizontal: two,
+                                      notchScale: two
+                                          ? progress.clamp(0.0, 1.0)
+                                          : 1,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            if (drawerMounted)
                               Positioned(
                                 key: const ValueKey('table-drawer-layer'),
-                                left: (table.maxWidth - drawerWidth) / 2,
-                                top: 0,
-                                bottom: 0,
-                                width: drawerWidth,
+                                left: two
+                                    ? 0
+                                    : (table.maxWidth - drawerWidth) / 2,
+                                top: two
+                                    ? (table.maxHeight - horizontalExtent) / 2
+                                    : 0,
+                                bottom: two ? null : 0,
+                                width: two ? table.maxWidth : drawerWidth,
+                                height: two ? horizontalExtent : null,
                                 child: ClipRect(
-                                  clipper: _DrawerRevealClipper(gap),
+                                  clipper: _DrawerRevealClipper(
+                                    opening,
+                                    horizontal: two,
+                                  ),
                                   child: IgnorePointer(
                                     ignoring:
                                         drawerAnimation.status ==
@@ -349,8 +383,12 @@ class _TableScreenState extends State<TableScreen>
                               child: ClipPath(
                                 key: const ValueKey('drawer-board-mask'),
                                 clipper: _DrawerBoardClipper(
-                                  gap: gap,
+                                  gap: opening,
                                   enabled: drawerMounted,
+                                  horizontal: two,
+                                  notchScale: two
+                                      ? progress.clamp(0.0, 1.0)
+                                      : 1,
                                 ),
                                 child: Column(
                                   children: [
@@ -363,7 +401,7 @@ class _TableScreenState extends State<TableScreen>
                                       key: const ValueKey(
                                         'player-horizontal-divider',
                                       ),
-                                      height: 3,
+                                      height: two ? opening + 3 : 3,
                                       thickness: 3,
                                       color: dividerColor,
                                     ),
@@ -382,29 +420,26 @@ class _TableScreenState extends State<TableScreen>
                                 child: IgnorePointer(
                                   child: CustomPaint(
                                     painter: _DrawerWallPainter(
-                                      gap,
+                                      opening,
                                       dividerColor,
+                                      horizontal: two,
+                                      notchScale: two
+                                          ? progress.clamp(0.0, 1.0)
+                                          : 1,
                                     ),
                                   ),
                                 ),
                               ),
-                            // Two-seat token lanes meet at the true center.
-                            // Keep direct tools in opposite life corners there,
-                            // rather than expanding the token hub obstruction.
+                            // In two-seat mode all shared controls stay over
+                            // life, leaving the full first token row untouched.
                             Positioned(
                               key: const ValueKey('table-dice-layer'),
-                              left:
-                                  leftWall -
-                                  (two
-                                      ? (table.maxWidth * .1 + 26) *
-                                                (1 - progress) +
-                                            54 * progress
-                                      : 54) -
-                                  22,
-                              top:
-                                  table.maxHeight / 2 -
-                                  (two ? 26 * (1 - progress) : 0) -
-                                  22,
+                              left: two
+                                  ? (table.maxWidth - 1) * .4 - 26 - 22
+                                  : leftWall - 54 - 22,
+                              top: two
+                                  ? topWall - 26 - 22
+                                  : table.maxHeight / 2 - 22,
                               child: _SharedTableControl(
                                 controlKey: const ValueKey('shared-dice'),
                                 label: 'Roll dice',
@@ -417,26 +452,25 @@ class _TableScreenState extends State<TableScreen>
                             ),
                             Positioned(
                               key: const ValueKey('table-day-night-layer'),
-                              left:
-                                  rightWall +
-                                  (two
-                                      ? (table.maxWidth * .1 + 26) *
-                                                (1 - progress) +
-                                            54 * progress
-                                      : 54) -
-                                  22,
-                              top:
-                                  table.maxHeight / 2 +
-                                  (two ? 26 * (1 - progress) : 0) -
-                                  22,
+                              left: two
+                                  ? (table.maxWidth - 1) * .6 + 1 + 26 - 22
+                                  : rightWall + 54 - 22,
+                              top: two
+                                  ? bottomWall + 26 - 22
+                                  : table.maxHeight / 2 - 22,
                               child: _DayNightControl(controller: controller),
                             ),
                             Positioned(
                               key: const ValueKey('table-menu-layer'),
-                              // Menu rides the right wall as one whole target;
-                              // the left wall keeps the matching empty cutout.
-                              left: rightWall - 26,
-                              top: (table.maxHeight - 52) / 2,
+                              // Menu remains one whole target on the right:
+                              // the right vertical wall for 3/4 seats, or the
+                              // lower-right life edge for two opposing seats.
+                              left: two ? table.maxWidth - 56 : rightWall - 26,
+                              top: two
+                                  ? bottomWall +
+                                        26 * (1 - progress.clamp(0.0, 1.0)) -
+                                        26
+                                  : (table.maxHeight - 52) / 2,
                               child: _GameHub(
                                 key: const ValueKey('central-game-controls'),
                                 controller: controller,
@@ -462,22 +496,31 @@ class _TableScreenState extends State<TableScreen>
 }
 
 class _DrawerRevealClipper extends CustomClipper<Rect> {
-  final double width;
-  const _DrawerRevealClipper(this.width);
+  final double extent;
+  final bool horizontal;
+  const _DrawerRevealClipper(this.extent, {this.horizontal = false});
   @override
-  Rect getClip(Size size) =>
-      Rect.fromLTWH((size.width - width) / 2, 0, width, size.height);
+  Rect getClip(Size size) => horizontal
+      ? Rect.fromLTWH(0, (size.height - extent) / 2, size.width, extent)
+      : Rect.fromLTWH((size.width - extent) / 2, 0, extent, size.height);
   @override
   Rect getApproximateClipRect(Size size) => getClip(size);
   @override
   bool shouldReclip(_DrawerRevealClipper oldClipper) =>
-      width != oldClipper.width;
+      extent != oldClipper.extent || horizontal != oldClipper.horizontal;
 }
 
 class _DrawerWallPainter extends CustomPainter {
   final double gap;
   final Color color;
-  const _DrawerWallPainter(this.gap, this.color);
+  final bool horizontal;
+  final double notchScale;
+  const _DrawerWallPainter(
+    this.gap,
+    this.color, {
+    this.horizontal = false,
+    this.notchScale = 1,
+  });
   @override
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
@@ -486,20 +529,118 @@ class _DrawerWallPainter extends CustomPainter {
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
     for (final side in [-1, 1]) {
-      final x = center.dx + side * gap / 2;
-      final circle = Rect.fromCircle(center: Offset(x, center.dy), radius: 30);
-      final wall = Path()
-        ..moveTo(x, 0)
-        ..lineTo(x, center.dy - 30)
-        ..arcTo(circle, -math.pi / 2, side * math.pi, false)
-        ..lineTo(x, size.height);
-      canvas.drawPath(wall, paint);
+      if (horizontal) {
+        final y = center.dy + side * gap / 2;
+        final x = side < 0 ? 30.0 : size.width - 30;
+        final radius = 30 * notchScale;
+        final wall = Path()
+          ..moveTo(0, y)
+          ..lineTo(x - radius, y);
+        if (radius > 0) {
+          wall.arcTo(
+            Rect.fromCircle(center: Offset(x, y), radius: radius),
+            math.pi,
+            -side * math.pi,
+            false,
+          );
+        }
+        wall.lineTo(size.width, y);
+        canvas.drawPath(wall, paint);
+      } else {
+        final x = center.dx + side * gap / 2;
+        final circle = Rect.fromCircle(
+          center: Offset(x, center.dy),
+          radius: 30,
+        );
+        final wall = Path()
+          ..moveTo(x, 0)
+          ..lineTo(x, center.dy - 30)
+          ..arcTo(circle, -math.pi / 2, side * math.pi, false)
+          ..lineTo(x, size.height);
+        canvas.drawPath(wall, paint);
+      }
     }
   }
 
   @override
   bool shouldRepaint(_DrawerWallPainter old) =>
-      gap != old.gap || color != old.color;
+      gap != old.gap ||
+      color != old.color ||
+      horizontal != old.horizontal ||
+      notchScale != old.notchScale;
+}
+
+// Paint and board clipping share this opening. Horizontal two-seat cutouts
+// extend only into the life-side corners: never into either token viewport,
+// including while the gap is narrower than the handle during animation.
+Path _drawerOpeningPath(
+  Size size,
+  double gap, {
+  bool horizontal = false,
+  double notchScale = 1,
+}) {
+  final center = size.center(Offset.zero);
+  if (!horizontal) {
+    return Path()
+      ..addRect(Rect.fromLTWH(center.dx - gap / 2, 0, gap, size.height))
+      ..addOval(
+        Rect.fromCircle(center: center + Offset(gap / 2, 0), radius: 30),
+      )
+      ..addOval(
+        Rect.fromCircle(center: center - Offset(gap / 2, 0), radius: 30),
+      );
+  }
+  final path = Path()
+    ..addRect(Rect.fromLTWH(0, center.dy - gap / 2, size.width, gap));
+  final radius = 30 * notchScale;
+  if (radius > 0) {
+    for (final side in [-1, 1]) {
+      final x = side < 0 ? 30.0 : size.width - 30;
+      final y = center.dy + side * gap / 2;
+      path.addPath(
+        Path()
+          ..addArc(
+            Rect.fromCircle(center: Offset(x, y), radius: radius),
+            math.pi,
+            -side * math.pi,
+          )
+          ..close(),
+        Offset.zero,
+      );
+    }
+  }
+  return path;
+}
+
+class _DrawerSurfacePainter extends CustomPainter {
+  const _DrawerSurfacePainter(
+    this.gap,
+    this.color, {
+    this.horizontal = false,
+    this.notchScale = 1,
+  });
+  final double gap;
+  final Color color;
+  final bool horizontal;
+  final double notchScale;
+
+  @override
+  void paint(Canvas canvas, Size size) => canvas.drawPath(
+    _drawerOpeningPath(
+      size,
+      gap,
+      horizontal: horizontal,
+      notchScale: notchScale,
+    ),
+    Paint()..color = color,
+  );
+
+  @override
+  bool shouldRepaint(_DrawerSurfacePainter old) =>
+      gap != old.gap ||
+      color != old.color ||
+      horizontal != old.horizontal ||
+      notchScale != old.notchScale;
 }
 
 /// Fast settle with a small, bounded overshoot rather than elastic wobble.
@@ -512,35 +653,40 @@ class _DrawerSpringCurve extends Curve {
   }
 }
 
-/// The cutout belongs to the opposite wall, while Menu stays one whole widget.
-/// In two-seat mode the center passes through a stationary token viewport: only
-/// its visible clip changes; its layout, coordinates and scroll offset do not.
+/// Three/four seats reveal between their life rails. Two seats reveal the
+/// horizontal seam while their full-width viewports make room vertically.
 class _DrawerBoardClipper extends CustomClipper<Path> {
   final double gap;
-  final bool enabled;
-  const _DrawerBoardClipper({required this.gap, required this.enabled});
+  final bool enabled, horizontal;
+  final double notchScale;
+  const _DrawerBoardClipper({
+    required this.gap,
+    required this.enabled,
+    this.horizontal = false,
+    this.notchScale = 1,
+  });
   @override
   Path getClip(Size size) {
     final board = Path()..addRect(Offset.zero & size);
     if (!enabled) return board;
-    final center = size.center(Offset.zero);
     return Path.combine(
       PathOperation.difference,
       board,
-      Path()
-        ..addRect(Rect.fromLTWH(center.dx - gap / 2, 0, gap, size.height))
-        ..addOval(
-          Rect.fromCircle(center: center + Offset(gap / 2, 0), radius: 30),
-        )
-        ..addOval(
-          Rect.fromCircle(center: center - Offset(gap / 2, 0), radius: 30),
-        ),
+      _drawerOpeningPath(
+        size,
+        gap,
+        horizontal: horizontal,
+        notchScale: notchScale,
+      ),
     );
   }
 
   @override
   bool shouldReclip(_DrawerBoardClipper oldClipper) =>
-      gap != oldClipper.gap || enabled != oldClipper.enabled;
+      gap != oldClipper.gap ||
+      enabled != oldClipper.enabled ||
+      horizontal != oldClipper.horizontal ||
+      notchScale != oldClipper.notchScale;
 }
 
 class _SharedTableControl extends StatelessWidget {
@@ -754,7 +900,7 @@ class _PlayerSpace extends StatefulWidget {
   final bool tokenLeft;
   final double centerNotch;
   final bool centerNotchAtStart;
-  final bool hubInTokenLane;
+  final bool twoPlayerLayout;
   final double drawerShift;
   final bool drawerOpen;
   final VoidCallback onCloseDrawer;
@@ -769,7 +915,7 @@ class _PlayerSpace extends StatefulWidget {
     required this.tokenLeft,
     required this.centerNotch,
     required this.centerNotchAtStart,
-    required this.hubInTokenLane,
+    required this.twoPlayerLayout,
     required this.drawerShift,
     required this.drawerOpen,
     required this.onCloseDrawer,
@@ -881,10 +1027,9 @@ class _PlayerSpaceState extends State<_PlayerSpace>
               : DragBoundary(
                   child: ReorderableListView.builder(
                     scrollController: tokenScroll,
-                    padding: EdgeInsets.only(
-                      top: widget.hubInTokenLane ? 30 : 0,
-                      bottom: 88,
-                    ),
+                    // Corner controls overlay the lane. Only trailing scroll
+                    // clearance is needed to reach the last card beneath them.
+                    padding: const EdgeInsets.only(bottom: 88),
                     buildDefaultDragHandles: false,
                     itemCount: p.tokens.length,
                     onReorder: (old, next) => perform(
@@ -970,20 +1115,6 @@ class _PlayerSpaceState extends State<_PlayerSpace>
         ),
       ],
     );
-    if (widget.hubInTokenLane) {
-      final lane = tokenLane;
-      tokenLane = LayoutBuilder(
-        builder: (context, constraints) => ClipPath(
-          key: ValueKey('${p.id}-token-hub-clearance'),
-          clipper: _LifeHubNotch(
-            atStart: true,
-            inset: (constraints.maxWidth / .6 + 1) / 2,
-            radiusScale: (1 - widget.drawerShift / 40).clamp(0.0, 1.0),
-          ),
-          child: lane,
-        ),
-      );
-    }
     final visible = p.utilities.where(widget.board.isUtilityVisible).toList();
     Widget innerLane = LayoutBuilder(
       builder: (context, lane) {
@@ -1141,60 +1272,78 @@ class _PlayerSpaceState extends State<_PlayerSpace>
           ],
         );
         return _LifePanel(
-          compose: (surface, tools) => Column(
-            children: [
-              surface,
-              if (!shortFooter) tools,
-              Expanded(
-                key: ValueKey('${p.id}-utility-section'),
-                child: shortFooter
-                    ? compactUtilityReorder
-                          ? compactReorderList
-                          : CustomScrollView(
-                              key: ValueKey('${p.id}-life-footer-scroll'),
-                              controller: utilityScroll,
-                              slivers: [
-                                SliverToBoxAdapter(child: tools),
-                                if (visible.length > 1)
-                                  SliverToBoxAdapter(
-                                    child: SizedBox(
-                                      height: 44,
-                                      child: TextButton.icon(
-                                        key: ValueKey(
-                                          '${p.id}-start-utility-reorder',
-                                        ),
-                                        onPressed: expandedId == null
-                                            ? () => setUtilityReorder(true)
-                                            : null,
-                                        icon: const Icon(
-                                          Icons.reorder,
-                                          size: 18,
-                                        ),
-                                        label: const Text(
-                                          'Reorder utilities',
-                                          maxLines: 2,
+          compose: (surface, tools) {
+            final content = Column(
+              children: [
+                surface,
+                if (!shortFooter) tools,
+                Expanded(
+                  key: ValueKey('${p.id}-utility-section'),
+                  child: KeyedSubtree(
+                    // Both bounded footer presentations share one saved scroll
+                    // identity as the two-seat viewport changes height.
+                    key: PageStorageKey('${p.id}-utility-scroll-position'),
+                    child: shortFooter
+                        ? compactUtilityReorder
+                              ? compactReorderList
+                              : CustomScrollView(
+                                  key: ValueKey('${p.id}-life-footer-scroll'),
+                                  controller: utilityScroll,
+                                  slivers: [
+                                    SliverToBoxAdapter(child: tools),
+                                    if (visible.length > 1)
+                                      SliverToBoxAdapter(
+                                        child: SizedBox(
+                                          height: 44,
+                                          child: TextButton.icon(
+                                            key: ValueKey(
+                                              '${p.id}-start-utility-reorder',
+                                            ),
+                                            onPressed: expandedId == null
+                                                ? () => setUtilityReorder(true)
+                                                : null,
+                                            icon: const Icon(
+                                              Icons.reorder,
+                                              size: 18,
+                                            ),
+                                            label: const Text(
+                                              'Reorder utilities',
+                                              maxLines: 2,
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ),
-                                if (visible.isEmpty)
-                                  SliverToBoxAdapter(child: utilities)
-                                else
-                                  SliverList(
-                                    delegate: SliverChildBuilderDelegate(
-                                      utilityItem,
-                                      childCount: visible.length,
-                                    ),
-                                  ),
-                              ],
-                            )
-                    : utilities,
-              ),
-            ],
-          ),
+                                    if (visible.isEmpty)
+                                      SliverToBoxAdapter(child: utilities)
+                                    else
+                                      SliverList(
+                                        delegate: SliverChildBuilderDelegate(
+                                          utilityItem,
+                                          childCount: visible.length,
+                                        ),
+                                      ),
+                                  ],
+                                )
+                        : utilities,
+                  ),
+                ),
+              ],
+            );
+            // During a two-seat opening (especially with a save warning),
+            // retain the full life target and reachable footer rather than
+            // squeezing it below its minimum or overflowing the player row.
+            return lane.maxHeight < lifeHeight + 44
+                ? SingleChildScrollView(
+                    key: ValueKey('${p.id}-short-life-rail-scroll'),
+                    child: SizedBox(height: lifeHeight + 44, child: content),
+                  )
+                : content;
+          },
           height: lifeHeight,
-          twoPlayer: widget.hubInTokenLane,
-          hubNotchScale: (1 - widget.drawerShift / 40).clamp(0.0, 1.0),
+          twoPlayer: widget.twoPlayerLayout,
+          hubNotchScale: widget.twoPlayerLayout
+              ? (lifeFeedback.error != null || error != null ? 0 : 1)
+              : (1 - widget.drawerShift / 40).clamp(0.0, 1.0),
           centerNotch: widget.centerNotch,
           centerNotchAtStart: widget.centerNotchAtStart,
           player: p,
@@ -1219,35 +1368,45 @@ class _PlayerSpaceState extends State<_PlayerSpace>
       child: Column(
         children: [
           if (lifeFeedback.error != null || error != null)
-            Container(
-              color: Theme.of(context).colorScheme.errorContainer,
-              width: double.infinity,
-              padding: const EdgeInsets.all(6),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      lifeFeedback.error ?? error!,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                  if (lifeFeedback.error != null)
-                    Semantics(
-                      label: 'Acknowledge life save warning',
-                      button: true,
-                      onTap: lifeFeedback.clearError,
-                      excludeSemantics: true,
-                      child: SizedBox(
-                        width: 44,
-                        height: 44,
-                        child: IconButton(
-                          key: ValueKey('${p.id}-acknowledge-life-error'),
-                          onPressed: lifeFeedback.clearError,
-                          icon: const Icon(Icons.close),
-                        ),
+            LayoutBuilder(
+              builder: (context, warning) => Container(
+                color: Theme.of(context).colorScheme.errorContainer,
+                width: double.infinity,
+                // The two-seat shared controls occupy life-side corners.
+                // Keep actual warning text and its action entirely in the token
+                // side, without reserving any normal token-list header space.
+                padding: EdgeInsets.fromLTRB(
+                  6,
+                  6,
+                  widget.twoPlayerLayout ? warning.maxWidth * .4 + 6 : 6,
+                  6,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        lifeFeedback.error ?? error!,
+                        style: const TextStyle(fontSize: 12),
                       ),
                     ),
-                ],
+                    if (lifeFeedback.error != null)
+                      Semantics(
+                        label: 'Acknowledge life save warning',
+                        button: true,
+                        onTap: lifeFeedback.clearError,
+                        excludeSemantics: true,
+                        child: SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: IconButton(
+                            key: ValueKey('${p.id}-acknowledge-life-error'),
+                            onPressed: lifeFeedback.clearError,
+                            icon: const Icon(Icons.close),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           Expanded(
@@ -1255,8 +1414,8 @@ class _PlayerSpaceState extends State<_PlayerSpace>
               builder: (context, box) {
                 final tokenWidth = (box.maxWidth - 1) * .6;
                 final railWidth = (box.maxWidth - 1) * .4;
-                final railOffset = widget.hubInTokenLane
-                    ? math.max(0.0, widget.drawerShift - box.maxWidth * .1)
+                final railOffset = widget.twoPlayerLayout
+                    ? 0.0
                     : (widget.tokenLeft
                           ? -widget.drawerShift
                           : widget.drawerShift);
@@ -1312,20 +1471,11 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                                   left: 0,
                                   top: 0,
                                   bottom: 0,
-                                  // Native path clipping does not narrow the
-                                  // browser accessibility hit rectangle. Keep
-                                  // this action inside the visible token area
-                                  // while the token layout stays stationary.
-                                  width: widget.hubInTokenLane
-                                      ? math.min(
-                                          tokenWidth,
-                                          math.max(
-                                            0.0,
-                                            box.maxWidth / 2 -
-                                                widget.drawerShift,
-                                          ),
-                                        )
-                                      : tokenWidth,
+                                  // The token viewport is fully visible in
+                                  // every layout, including the horizontal
+                                  // two-seat opening. Dismissal owns only this
+                                  // viewport and consumes the closing tap.
+                                  width: tokenWidth,
                                   child: Semantics(
                                     identifier: '${p.id}-dismiss-drawer',
                                     label: 'Close game drawer',
@@ -1565,7 +1715,7 @@ class _LifePanel extends StatelessWidget {
                 Positioned(
                   top: 28,
                   left: twoPlayer ? 54 : 26,
-                  right: 26,
+                  right: twoPlayer ? 60 : 26,
                   height: 18,
                   child: IgnorePointer(
                     child: ExcludeSemantics(

@@ -162,7 +162,7 @@ void main() {
   }
 
   for (final size in [const Size(744, 1133), const Size(1133, 744)]) {
-    for (final seats in [2, 3, 4]) {
+    for (final seats in [3, 4]) {
       testWidgets(
         '$seats seats $size fixed tokens, moving rails and consumed dismissal',
         (tester) async {
@@ -300,6 +300,241 @@ void main() {
         },
       );
     }
+  }
+
+  for (final size in [const Size(744, 1133), const Size(1133, 744)]) {
+    testWidgets(
+      'two seats $size preserve full token widths across horizontal opening',
+      (tester) async {
+        final f = await show(tester, size, 2);
+        final original = jsonEncode(f.controller.state.toJson());
+        final table = tester.getRect(
+          find.byKey(const ValueKey('table-surface')),
+        );
+        final hub = find.byKey(const ValueKey('central-game-controls'));
+        final closedHub = tester.getRect(hub);
+        expect(
+          closedHub.center,
+          Offset(table.right - 30, table.center.dy + 26),
+        );
+        final lanes = <String, Rect>{};
+        final tokenWidths = <String, double>{};
+        for (final p in f.controller.session.players) {
+          final lane = find.byKey(ValueKey('${p.id}-token-lane'));
+          final token = find.byKey(ValueKey(p.tokens.first.id));
+          lanes[p.id] = tester.getRect(lane);
+          tokenWidths[p.id] = tester.getSize(token).width;
+          final laneBox = tester.renderObject<RenderBox>(lane);
+          final tokenBox = tester.renderObject<RenderBox>(token);
+          final local = MatrixUtils.transformRect(
+            tokenBox.getTransformTo(laneBox),
+            Offset.zero & tokenBox.size,
+          );
+          expect(
+            local.top,
+            closeTo(0, .001),
+            reason: 'No control-induced header padding',
+          );
+          expect(local.width, closeTo(laneBox.size.width, .001));
+          expect(tester.getRect(lane).overlaps(closedHub), isFalse);
+          expect(
+            tester
+                .getRect(find.byKey(ValueKey('${p.id}-player-name')))
+                .overlaps(closedHub),
+            isFalse,
+          );
+          expect(
+            tester
+                .getRect(find.byKey(ValueKey('${p.id}-commander-ledger')))
+                .overlaps(closedHub),
+            isFalse,
+          );
+        }
+        await capture(tester, '2-horizontal-${size.width.toInt()}-closed');
+        await tester.tap(hub);
+        await tester.pump();
+        Future<void> verifyFrame(String name) async {
+          final maskFinder = find.byKey(const ValueKey('drawer-board-mask'));
+          final mask = tester.widget<ClipPath>(maskFinder);
+          final maskBox = tester.renderObject<RenderBox>(maskFinder);
+          final path = mask.clipper!.getClip(maskBox.size);
+          final reveal = find
+              .descendant(
+                of: find.byKey(const ValueKey('table-drawer-layer')),
+                matching: find.byType(ClipRect),
+              )
+              .first;
+          final channel = tester
+              .widget<ClipRect>(reveal)
+              .clipper!
+              .getClip(tester.getSize(reveal))
+              .shift(tester.getTopLeft(reveal));
+          expect(channel.width, table.width);
+          final menuRect = tester.getRect(hub);
+          expect(menuRect.size, const Size(52, 52));
+          expect(menuRect.center.dx, table.right - 30);
+          expect(hub.hitTestable(), findsOneWidget);
+          for (final key in ['shared-dice', 'shared-day-night']) {
+            final control = find.byKey(ValueKey(key));
+            expect(tester.getSize(control), const Size(44, 44));
+            expect(tester.getRect(control).overlaps(menuRect), isFalse);
+          }
+          for (final p in f.controller.session.players) {
+            final lane = find.byKey(ValueKey('${p.id}-token-lane'));
+            final token = find.byKey(ValueKey(p.tokens.first.id));
+            final laneBox = tester.renderObject<RenderBox>(lane);
+            final tokenBox = tester.renderObject<RenderBox>(token);
+            final laneRect = tester.getRect(lane);
+            final local = MatrixUtils.transformRect(
+              tokenBox.getTransformTo(laneBox),
+              Offset.zero & tokenBox.size,
+            );
+            expect(laneRect.width, lanes[p.id]!.width);
+            expect(tester.getSize(token).width, tokenWidths[p.id]);
+            expect(local.top, closeTo(0, .001));
+            expect(local.left, closeTo(0, .001));
+            expect(local.right, closeTo(laneBox.size.width, .001));
+            expect(laneRect.overlaps(channel.deflate(.001)), isFalse);
+            expect(laneRect.overlaps(menuRect), isFalse);
+            // Test every visible token column against the actual board paint mask,
+            // including both edge columns, rather than only the widget's bounds.
+            for (double y = 1; y < laneBox.size.height; y += 13) {
+              for (final x in [
+                1.0,
+                laneBox.size.width / 2,
+                laneBox.size.width - 1,
+              ]) {
+                expect(
+                  path.contains(
+                    maskBox.globalToLocal(laneBox.localToGlobal(Offset(x, y))),
+                  ),
+                  isTrue,
+                );
+              }
+            }
+            expect(
+              tester.getRect(find.byKey(ValueKey('${p.id}-dismiss-drawer'))),
+              laneRect,
+            );
+          }
+          await capture(tester, '2-horizontal-${size.width.toInt()}-$name');
+          expect(tester.takeException(), isNull);
+        }
+
+        await tester.pump(const Duration(milliseconds: 60));
+        expect(tester.getRect(hub).center.dy, greaterThan(closedHub.center.dy));
+        await verifyFrame('mid');
+        await tester.pump(const Duration(milliseconds: 165));
+        await verifyFrame('bounce');
+        await tester.pumpAndSettle();
+        await verifyFrame('open');
+        final drawer = tester.getRect(find.byType(GameDrawerWorkspace));
+        expect(tester.getRect(hub).center.dy, closeTo(drawer.bottom, .001));
+        final first = f.player.tokens.first;
+        final increase = find.byKey(ValueKey('${first.id}-quantity-increase'));
+        await tester.tapAt(tester.getCenter(increase));
+        await tester.pump();
+        await tester.pump();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        await verifyFrame('closing');
+        await tester.pumpAndSettle();
+        expect(find.byType(GameDrawerWorkspace), findsNothing);
+        expect(tester.getRect(hub), closedHub);
+        expect(
+          jsonEncode(f.controller.state.toJson()),
+          original,
+          reason: 'Closing tap must not adjust the token',
+        );
+        for (final p in f.controller.session.players) {
+          expect(
+            tester.getRect(find.byKey(ValueKey('${p.id}-token-lane'))),
+            lanes[p.id],
+          );
+        }
+        await tester.tap(increase);
+        await tester.pumpAndSettle();
+        expect(f.player.tokens.first.amount, first.amount + 1);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'two seats $size expanded cards and scroll position survive opening',
+      (tester) async {
+        final f = await show(tester, size, 2);
+        final hub = find.byKey(const ValueKey('central-game-controls'));
+        for (final p in f.controller.session.players) {
+          final id = p.tokens.first.id;
+          final token = find.byWidgetPredicate(
+            (w) => w is TabletTokenCard && w.token.id == id,
+          );
+          await tester.tap(
+            find.descendant(of: token, matching: find.text('Saproling')).first,
+          );
+          await tester.pumpAndSettle();
+          expect(tester.widget<TabletTokenCard>(token).expanded, isTrue);
+        }
+        final lists = <String, ScrollController>{};
+        final widths = <String, double>{};
+        for (final p in f.controller.session.players) {
+          final list = find.descendant(
+            of: find.byKey(ValueKey('${p.id}-token-lane')),
+            matching: find.byType(ReorderableListView),
+          );
+          final scroll = tester
+              .widget<ReorderableListView>(list)
+              .scrollController!;
+          lists[p.id] = scroll;
+          widths[p.id] = tester
+              .getSize(find.byKey(ValueKey(p.tokens.first.id)))
+              .width;
+          scroll.jumpTo(80);
+        }
+        await tester.pump();
+        for (var cycle = 0; cycle < 2; cycle++) {
+          await tester.tap(hub);
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 75));
+          await capture(
+            tester,
+            '2-horizontal-expanded-${size.width.toInt()}-mid-$cycle',
+          );
+          await tester.pumpAndSettle();
+          for (final p in f.controller.session.players) {
+            final token = find.byWidgetPredicate(
+              (w) => w is TabletTokenCard && w.token.id == p.tokens.first.id,
+            );
+            expect(tester.widget<TabletTokenCard>(token).expanded, isTrue);
+            expect(
+              tester.getSize(find.byKey(ValueKey(p.tokens.first.id))).width,
+              widths[p.id],
+            );
+            expect(lists[p.id]!.offset, 80);
+          }
+          await capture(
+            tester,
+            '2-horizontal-expanded-${size.width.toInt()}-open-$cycle',
+          );
+          await tester.tap(hub);
+          await tester.pumpAndSettle();
+          for (final p in f.controller.session.players) {
+            expect(lists[p.id]!.offset, 80);
+            lists[p.id]!.jumpTo(lists[p.id]!.position.maxScrollExtent);
+          }
+          await tester.pump();
+          for (final p in f.controller.session.players) {
+            expect(
+              find.byKey(ValueKey(p.tokens.last.id)).hitTestable(),
+              findsOneWidget,
+            );
+            lists[p.id]!.jumpTo(80);
+          }
+          await tester.pump();
+        }
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
   testWidgets(
@@ -546,6 +781,108 @@ void main() {
       );
     }
   }
+  testWidgets(
+    'two-seat utility scroll offset survives short rail and drawer round trips',
+    (tester) async {
+      final f = await show(tester, const Size(1133, 744), 2);
+      await f.controller.updateState('Populate utility viewport', (state) {
+        for (final p in state.session.players) {
+          p.utilities.addAll([
+            for (var i = 0; i < 12; i++)
+              UtilityState(id: '${p.id}-extra-$i', name: 'Utility $i'),
+          ]);
+        }
+      });
+      await tester.pumpAndSettle();
+      final scrolls = <ScrollController>[];
+      for (final p in f.controller.session.players) {
+        final list = find.descendant(
+          of: find.byKey(ValueKey('${p.id}-utility-section')),
+          matching: find.byType(ReorderableListView),
+        );
+        final scroll = tester
+            .widget<ReorderableListView>(list)
+            .scrollController!;
+        scrolls.add(scroll);
+        scroll.jumpTo(96);
+      }
+      await tester.pumpAndSettle();
+      final hub = find.byKey(const ValueKey('central-game-controls'));
+      for (var cycle = 0; cycle < 2; cycle++) {
+        await tester.tap(hub);
+        await tester.pumpAndSettle();
+        for (final scroll in scrolls) {
+          expect(scroll.offset, 96);
+        }
+        await tester.tap(hub);
+        await tester.pumpAndSettle();
+        for (final scroll in scrolls) {
+          expect(scroll.offset, 96);
+        }
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final size in [const Size(744, 1133), const Size(1133, 744)]) {
+    testWidgets('two-seat warnings at $size remain tappable closed and open', (
+      tester,
+    ) async {
+      final f = await show(tester, size, 2);
+      f.repository.failSave = true;
+      final hub = find.byKey(const ValueKey('central-game-controls'));
+      for (final open in [false, true]) {
+        for (final player in f.controller.session.players) {
+          await tester.tap(find.byKey(ValueKey('${player.id}-life-decrease')));
+          await tester.pumpAndSettle();
+        }
+        if (open) {
+          await tester.tap(hub);
+          await tester.pumpAndSettle();
+        }
+        await capture(
+          tester,
+          '2-horizontal-warning-${size.width.toInt()}-${open ? "open" : "closed"}',
+        );
+        for (final player in f.controller.session.players) {
+          final warning = find.byKey(
+            ValueKey('${player.id}-acknowledge-life-error'),
+          );
+          expect(warning.hitTestable(), findsOneWidget);
+          final rect = tester.getRect(warning);
+          for (final control in [
+            'central-game-controls',
+            'shared-dice',
+            'shared-day-night',
+          ]) {
+            expect(
+              rect.overlaps(tester.getRect(find.byKey(ValueKey(control)))),
+              isFalse,
+            );
+          }
+          await tester.tapAt(rect.center);
+          await tester.pumpAndSettle();
+          expect(
+            warning,
+            findsNothing,
+            reason:
+                'Actual acknowledgement tap must clear warning, not open/close Menu',
+          );
+          expect(
+            find.byType(GameDrawerWorkspace),
+            open ? findsOneWidget : findsNothing,
+          );
+          expect(f.controller.player(player.id).life, 40);
+        }
+        if (open) {
+          await tester.tap(hub);
+          await tester.pumpAndSettle();
+        }
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('two-seat save-warning actions remain outside the open drawer', (
     tester,
   ) async {

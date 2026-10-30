@@ -264,23 +264,18 @@ void main() {
             (widget) => widget.runtimeType.toString() == '_GameHub',
           );
           final stripBounds = bounds(tester, strip);
-          expect(
-            stripBounds.center.dx,
-            closeTo(size.width / 2, .01),
-            reason:
-                'Game controls must be centered in global table coordinates.',
-          );
-          expect(
-            stripBounds.center.dy,
-            closeTo(bounds(tester, divider).center.dy, .01),
-            reason:
-                'Game controls must straddle the center seam, not sit in bottom seats.',
-          );
           final tableBounds = bounds(
             tester,
             find.byKey(const ValueKey('table-surface')),
           );
-          expect(stripBounds.center, tableBounds.center);
+          expect(
+            stripBounds.center,
+            seats == 2
+                ? Offset(tableBounds.right - 30, tableBounds.center.dy + 26)
+                : tableBounds.center,
+            reason:
+                'Two opposing seats keep Menu in life, away from the full token rows.',
+          );
           expect(stripBounds.size, const Size(52, 52));
           final shell = tester.widget<Material>(
             find.descendant(of: strip, matching: find.byType(Material)).first,
@@ -304,6 +299,9 @@ void main() {
               for (var y = 0.0; y <= box.size.height; y += 2) {
                 final point = Offset(x, y);
                 if (!path.contains(point)) continue;
+                if (seats == 2) {
+                  continue; // Menu overlays life, not a token cutout.
+                }
                 expect(
                   (box.localToGlobal(point) - stripBounds.center).distance,
                   greaterThanOrEqualTo(stripBounds.width / 2),
@@ -410,32 +408,15 @@ void main() {
             expect(localFab.left, closeTo(12, .01));
             expect(localFab.bottom, closeTo(laneSize.height - 12, .01));
             expect(laneSize.height, closeTo((tableHeight - 3) / 2, .01));
-            if (seats == 2) {
-              final clipFinder = find.byKey(
-                ValueKey('${player.id}-token-hub-clearance'),
-              );
-              final clip = tester.widget<ClipPath>(clipFinder);
-              final box = tester.renderObject<RenderBox>(clipFinder);
-              final path = clip.clipper!.getClip(box.size);
-              for (var x = stripBounds.left; x < stripBounds.right; x += 4) {
-                for (var y = stripBounds.top; y < stripBounds.bottom; y += 4) {
-                  final global = Offset(x, y);
-                  if ((global - stripBounds.center).distance >= 26) continue;
-                  expect(
-                    path.contains(box.globalToLocal(global)),
-                    isFalse,
-                    reason:
-                        'Two-player token content clears the stationary center hub.',
-                  );
-                }
-              }
-            } else {
-              expect(
-                bounds(tester, lane).overlaps(stripBounds),
-                isFalse,
-                reason: 'Token boards remain outside the center hub.',
-              );
-            }
+            expect(
+              find.byKey(ValueKey('${player.id}-token-hub-clearance')),
+              findsNothing,
+            );
+            expect(
+              bounds(tester, lane).overlaps(stripBounds),
+              isFalse,
+              reason: 'Token boards remain fully outside the Menu target.',
+            );
             final summary = byControlLabel('$name, board summary');
             expect(summary.hitTestable(), findsOneWidget);
             expect(
@@ -460,7 +441,7 @@ void main() {
             expect(localList.size, laneSize);
             expect(
               tester.widget<ReorderableListView>(tokenList).padding,
-              EdgeInsets.only(top: seats == 2 ? 30 : 0, bottom: 88),
+              const EdgeInsets.only(bottom: 88),
               reason: 'Compact corner controls must not reserve a header.',
             );
             expect(
@@ -484,7 +465,7 @@ void main() {
   for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
     for (final seats in [2, 3, 4]) {
       testWidgets(
-        '$seats seats at $size center game controls in the physical view when safe insets are zero',
+        '$seats seats at $size place game controls safely with zero insets',
         (tester) async {
           await showTable(tester, size, tableFor(seats));
           tester.view.padding = const FakeViewPadding();
@@ -492,10 +473,11 @@ void main() {
           final strip = find.byWidgetPredicate(
             (w) => w.runtimeType.toString() == '_GameHub',
           );
-          expect(bounds(tester, strip).center.dx, closeTo(size.width / 2, .01));
           expect(
-            bounds(tester, strip).center.dy,
-            closeTo(size.height / 2, .01),
+            bounds(tester, strip).center,
+            seats == 2
+                ? Offset(size.width - 30, size.height / 2 + 26)
+                : size.center(Offset.zero),
           );
           expect(tester.takeException(), isNull);
         },

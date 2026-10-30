@@ -88,7 +88,13 @@ void main() {
         );
         final content = tester.getRect(identified('game-drawer-body-content'));
         expect(content.center.dx, closeTo(viewport.center.dx, .001));
-        expect(content.center.dy, closeTo(viewport.center.dy, .001));
+        expect(
+          tester.getCenter(identified('game-drawer-attached-group')).dy,
+          closeTo(
+            tester.getCenter(identified('game-drawer-page-viewport')).dy,
+            .001,
+          ),
+        );
         expect(
           tester.getCenter(find.byKey(const ValueKey('game-drawer-title'))).dx,
           closeTo(viewport.center.dx, .001),
@@ -140,7 +146,11 @@ void main() {
       await tester.pumpAndSettle();
       final viewport = tester.getRect(identified('game-drawer-body-viewport'));
       final content = tester.getRect(identified('game-drawer-body-content'));
-      expect(content.center, viewport.center);
+      expect(content.center.dx, viewport.center.dx);
+      expect(
+        tester.getCenter(identified('game-drawer-attached-group')),
+        tester.getCenter(identified('game-drawer-page-viewport')),
+      );
       expectSafe(tester, find.byKey(const ValueKey('dice-reroll-button')));
       expect(tester.takeException(), isNull);
     });
@@ -284,7 +294,7 @@ void main() {
       await tester.pumpAndSettle();
       final viewport = tester.getRect(identified('game-drawer-body-viewport'));
       final row = tester.getRect(identified('game-drawer-list-row-0'));
-      expect(row.top, closeTo(viewport.top + 16, .001));
+      expect(row.top, closeTo(viewport.top + 8, .001));
       expect(identified('game-drawer-list-row-99'), findsNothing);
       expect(find.byType(ListView), findsOneWidget);
       expectSafe(
@@ -328,8 +338,8 @@ void main() {
       await drawer.open(page);
       await tester.pumpAndSettle();
       expect(
-        tester.getCenter(identified('game-drawer-body-content')),
-        tester.getCenter(identified('game-drawer-body-viewport')),
+        tester.getCenter(identified('game-drawer-attached-group')),
+        tester.getCenter(identified('game-drawer-page-viewport')),
       );
       final scroll = tester.state<ScrollableState>(find.byType(Scrollable));
       expect(scroll.position.maxScrollExtent, 0);

@@ -467,38 +467,122 @@ void main() {
             );
             if (scene.key == 'counters') {
               expect(find.byType(TextField), findsNothing);
-              final steppers = <Rect>[];
+              final grid = tester.renderObject<RenderBox>(
+                find.byWidgetPredicate(
+                  (widget) =>
+                      widget is Semantics &&
+                      widget.properties.identifier == 'player-counter-chips',
+                ),
+              );
+              final chips = <Rect>[];
               for (final name in [
                 'energy',
                 'poison',
                 'experience',
                 'radiation',
               ]) {
-                await reveal(tester, byControlLabel('Set $name total'));
-                expect(
-                  byControlLabel('Set $name total').hitTestable(),
-                  findsOneWidget,
+                final correction = byControlLabel('Set $name total');
+                await reveal(tester, correction);
+                expect(correction.hitTestable(), findsOneWidget);
+                final chipFinder = find.byKey(ValueKey('player-counter-$name'));
+                final chip = tester.renderObject<RenderBox>(chipFinder);
+                final chipRect = MatrixUtils.transformRect(
+                  chip.getTransformTo(grid),
+                  Offset.zero & chip.size,
                 );
-                steppers.add(
-                  tester.getRect(
-                    find.byWidgetPredicate(
-                      (w) => w is HalfStepper && w.label == name,
-                    ),
+                expect(chipRect.left, greaterThanOrEqualTo(-.01));
+                expect(
+                  chipRect.right,
+                  lessThanOrEqualTo(grid.size.width + .01),
+                );
+                expect(chipRect.height, greaterThanOrEqualTo(44));
+                if (grid.size.width >= 288) {
+                  expect(
+                    chipRect.width,
+                    lessThan(grid.size.width * .6),
+                    reason:
+                        'Inline counter chips share a row when space permits.',
+                  );
+                }
+                for (final earlier in chips) {
+                  expect(chipRect.overlaps(earlier), isFalse);
+                }
+                chips.add(chipRect);
+                final stepper = find.descendant(
+                  of: chipFinder,
+                  matching: find.byWidgetPredicate(
+                    (w) => w is HalfStepper && w.label == name,
                   ),
                 );
+                final stepperBox = tester.renderObject<RenderBox>(stepper);
+                final stepped = MatrixUtils.transformRect(
+                  stepperBox.getTransformTo(chip),
+                  Offset.zero & stepperBox.size,
+                );
+                final halves = <Rect>[];
+                for (final action in ['Decrease', 'Increase']) {
+                  final half = find.descendant(
+                    of: stepper,
+                    matching: find.byWidgetPredicate(
+                      (w) =>
+                          w is Semantics &&
+                          w.properties.label == '$action $name',
+                    ),
+                  );
+                  expect(half.hitTestable(), findsOneWidget);
+                  final box = tester.renderObject<RenderBox>(half);
+                  final rect = MatrixUtils.transformRect(
+                    box.getTransformTo(chip),
+                    Offset.zero & box.size,
+                  );
+                  expect(rect.width, greaterThanOrEqualTo(44));
+                  expect(rect.height, greaterThanOrEqualTo(44));
+                  expect(rect.top, closeTo(stepped.top, .01));
+                  expect(rect.bottom, closeTo(stepped.bottom, .01));
+                  halves.add(rect);
+                }
+                expect(halves[0].left, closeTo(stepped.left, .01));
+                expect(halves[0].right, closeTo(halves[1].left, .01));
+                expect(halves[1].right, closeTo(stepped.right, .01));
+                final editBox = tester.renderObject<RenderBox>(correction);
+                final editRect = MatrixUtils.transformRect(
+                  editBox.getTransformTo(chip),
+                  Offset.zero & editBox.size,
+                );
+                expect(
+                  editRect.left,
+                  greaterThanOrEqualTo(stepped.right - .01),
+                );
+                expect(editRect.width, greaterThanOrEqualTo(44));
+                expect(
+                  editRect.right,
+                  lessThanOrEqualTo(chip.size.width + .01),
+                );
+
+                // Tap both rendered local halves through their lower label
+                // region. The same coordinates work when the modal is rotated.
+                final before = Map<String, int>.of(f.player.counters);
+                final life = f.player.life;
+                await tester.tapAt(
+                  chip.localToGlobal(
+                    Offset(halves[1].center.dx, halves[1].bottom - 8),
+                  ),
+                );
+                await tester.pumpAndSettle();
+                expect(f.player.counters[name], before[name]! + 1);
+                await tester.tapAt(
+                  chip.localToGlobal(
+                    Offset(halves[0].center.dx, halves[0].bottom - 8),
+                  ),
+                );
+                await tester.pumpAndSettle();
+                expect(f.player.counters, before);
+                expect(f.player.life, life);
               }
-              for (final rect in steppers) {
-                expect(rect.width, closeTo(steppers.first.width, .01));
-                expect(rect.height, closeTo(steppers.first.height, .01));
+              for (final rect in chips) {
+                expect(rect.width, closeTo(chips.first.width, .01));
+                expect(rect.height, closeTo(chips.first.height, .01));
               }
-              expect(
-                steppers[0].center.dx,
-                closeTo(steppers[2].center.dx, .01),
-              );
-              expect(
-                steppers[1].center.dx,
-                closeTo(steppers[3].center.dx, .01),
-              );
             }
             if (scene.key == 'counter-correction') {
               expect(find.byType(TextField), findsOneWidget);

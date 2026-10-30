@@ -3,8 +3,14 @@
 The separate tablet app developed from the Tripling Season iPad specifications.
 “Tripling Table” is a development name, not a selected store name.
 
-**Current work (2026-10-30): drawer composition and commander alignment.**
-The [composition refinement](../../docs/activeDevelopment/in_progress_features/ipad_edition/drawer_composition_refinement_2026-10-30.md)
+**Current work (2026-10-30): attached controls and two-player reveal.**
+The [follow-up](../../docs/activeDevelopment/in_progress_features/ipad_edition/attached_controls_and_two_player_reveal_2026-10-30.md)
+attaches navigation to short drawer content, matches cutouts to the themed
+surface, exposes inline player-counter chips, and includes commander names in
+their full stepper hit areas. Two-player mode uses a horizontal reveal and full
+token widths; lane controls overlay without a reserved top band.
+
+The preceding [composition refinement](../../docs/activeDevelopment/in_progress_features/ipad_edition/drawer_composition_refinement_2026-10-30.md)
 moves the whole Menu handle to the right wall, gives game workflows deliberate
 content layouts, and centers the commander ledger when no counter summary is
 present. Active summaries use only their actual width; the shared placement and
