@@ -1,6 +1,6 @@
 # Phone presentation: fixed Player 1 of an N-player game
 
-**Status: design review; phone implementation awaits mockup approval.**
+**Status: option C approved; implementation isolated on the phone feature branch.**
 The feature stays on a dedicated branch and keeps the Tripling Table identity.
 See [product scope](README.md) and [decision/progress record](implementation_summary.md).
 
@@ -13,7 +13,7 @@ See [product scope](README.md) and [decision/progress record](implementation_sum
 - Below life, **one scrolling body** contains utilities first, then tokens.
   Do not retain independently scrolling tablet lanes or intermix the two groups.
 - Buttons/FABs stay fixed to screen locations, preferably near the bottom-right
-  thumb area. Their exact action arrangement awaits mockup approval.
+  thumb area: direct Add Token, Utilities jump and More (approved C).
 - Preserve the newer Tripling Table visual design, not the original phone skin.
 - Tablets do not gain compact view in this scope. Phones do not offer full tablet
   layout. Folded phones use Player 1; unfolding reveals the full table.
@@ -62,11 +62,10 @@ controls and the requested stack. Exact jump/return behavior needs a prototype.
 | B — Token + Board | Direct Add Token; secondary Board menu with Utilities, Summary, Start Turn and separate Game/History | Clear priority with restrained permanent controls; recommended baseline | Utility return requires the Board menu |
 | C — Direct utility access | Add Token, Utilities jump and More | Fastest return to mana on long boards | Largest overlay footprint; icon clarity and token overlap require care |
 
-B is the design recommendation, C the utility-heavy alternative, A the minimal
-comparison. None is approved solely because it appears in this document. The
-owner requested mockups **before** implementation and will approve a direction.
-Concept artwork/card wording is illustrative; implementation must reuse correct
-existing token behavior, art/style handling, credits and supported rule text.
+The owner selected **C: Add Token + Utilities jump + More**. This supersedes
+our initial recommendation of B. Generated concept imagery is expressly excluded
+from design context; use the real Table components and these written decisions.
+The alternatives above are historical rationale, not additional user modes.
 
 ## Scope and interaction
 

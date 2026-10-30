@@ -1,9 +1,9 @@
 # Unified Tripling Season — speculative future direction
 
-**Status: DESIGN REVIEW / IMPLEMENTATION AWAITS MOCKUP APPROVAL.** Updated 2026-10-30.
+**Status: OPTION C APPROVED / PHONE FEATURE-BRANCH IMPLEMENTATION.** Updated 2026-10-30.
 This records the agreed direction and open design choices, not a release promise
 or permission to migrate/reset anyone's installation now. Phone implementation
-starts only after mockup approval and remains isolated on its feature branch.
+is authorized after option C approval and remains isolated on its feature branch.
 
 ## Direction recorded from the owner
 
@@ -80,4 +80,4 @@ checkpoint there rather than treating the Mac as the default editing environment
 ## Review and decision records
 
 - [Saved-configuration audit](preset_audit.md): source/test evidence and migration gaps.
-- [Implementation summary and decision ledger](implementation_summary.md): distinguishes owner feedback from assistant choices; no phone code yet.
+- [Implementation summary and decision ledger](implementation_summary.md): distinguishes owner feedback from assistant choices; tracks approved option C and implementation progress.

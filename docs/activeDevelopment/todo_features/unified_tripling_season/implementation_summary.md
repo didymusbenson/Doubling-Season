@@ -1,8 +1,7 @@
 # Phone feature: decision and implementation summary
 
-**Status: design/mockup approval pending; no phone UI implemented.**
-This becomes the end-to-end implementation record after the owner approves a
-mockup. The custom Pages preview infrastructure is a separately authorized task,
+**Status: option C approved; feature-branch implementation starting.**
+This is the end-to-end implementation record for the approved phone direction. The custom Pages preview infrastructure is a separately authorized task,
 not permission to start the phone interface.
 
 ## Explicit owner feedback
@@ -25,8 +24,8 @@ not permission to start the phone interface.
 
 ## Assistant recommendations / judgment calls (not mockup approval)
 
-- B (direct Token + Board) is the baseline recommendation; C adds direct utility
-  return, A minimizes permanent controls. Await owner selection.
+- The initial recommendation was B; the owner selected C instead. Implement
+  direct Token, Utilities jump and More; do not reinterpret the generated image.
 - Return to the actual utility section rather than duplicate pinned mana controls.
 - Preserve unfinished drafts when dismissing UI on a fold; do not silently commit
   text or replay accepted commands. Exact durable-draft policy needs validation.
@@ -45,18 +44,13 @@ SHA, signed-build source equivalence, and actual installation/physical testing
 separately. Never describe unrun validation as passed. Keep WIP pushed and avoid
 merging the phone implementation into main before deliberate integration approval.
 
-## Mockup delivery checkpoint (2026-10-30)
+## Design approval (2026-10-30)
 
-Three generated comparison images were shown in chat, each with the same fixed
-life header, scrolling utilities/tokens hierarchy and an open action menu:
-A (one Actions button), B (Token + Board), C (direct Utilities access).
-The recommendation is B; owner approval is pending. Images are concept studies,
-not pixel-accurate app screenshots or proposed replacements for token rules/art.
+The owner approved option C **as behavior**: direct Add Token, Utilities jump,
+and More. The generated images must not be used or retained as design context.
+No generated image is committed here; its shapes, token layout, typography and
+artwork are not implementation requirements. Use the actual Table UI and written
+owner requirements as the design authority.
 
-Durable Space artifacts for later design review:
-- A-one-actions.png — `libfile_dee7ba4aef18819196e28b875df2ef10`
-- B-token-and-board.png — `libfile_58ae1c067b6c8191bffb8736460c4334`
-- C-direct-utilities.png — `libfile_58d9b5a744d08191a6c7cd5ea8fcd2b3`
-
-No phone implementation branch is started by this checkpoint. The owner will
-approve a mockup first; infrastructure branches are separate from that approval.
+Phone implementation is authorized on its feature branch, including design/UX
+passes and a summary of independent decisions. Stable tablet main stays separate.
