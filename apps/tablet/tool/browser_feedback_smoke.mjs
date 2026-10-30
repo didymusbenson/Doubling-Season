@@ -437,8 +437,8 @@ async function verifyMenuPixels(bytes, players, viewport, file) {
 }
 async function verifyCutoutSurface(bytes, stage, { horizontal = false } = {}) {
   const png = decodeScreenshotPng(bytes);
-  const drawer = await identifierRect('game-drawer-workspace');
-  assert(drawer, 'Cutout pixel check requires the open drawer.');
+  const drawer = await identifierRect(horizontal ? 'game-drawer' : 'game-drawer-workspace');
+  assert(drawer, 'Cutout pixel check requires the open drawer channel.');
   const menu = await find('Game controls Expanded', { startsWith: true, role: 'button' });
   const y = menu.rect.y + menu.rect.height / 2;
   const sample = (x, y) => {
@@ -1452,13 +1452,21 @@ try {
     const tokenRows = count === 2 ? await twoPlayerTokenBaseline(viewport, `${prefix}-populated-token-rows-before`) : null;
     const menuPng = await captureDrawerTransition(`${prefix}-opening`, () =>
       click('Game controls Collapsed', { startsWith: true, role: 'button', after: 0 }), { centeredTwoPlayer: count === 2 });
-    const drawer = await identifierRect('game-drawer-workspace');
+    const workspace = await identifierRect('game-drawer-workspace');
+    // Two-player content is inset to clear the circles projecting into the
+    // channel. Measure the independent outer reveal, not that smaller body.
+    const drawer = count === 2 ? await identifierRect('game-drawer') : workspace;
     const openMenu = await find('Game controls', { startsWith: true, role: 'button' });
     assert(drawer && drawer.width >= 220 && drawer.height >= 300, 'Drawer workflow has no usable viewport.');
     assert(Math.abs(openMenu.rect.width - closedMenu.rect.width) < .1 &&
       Math.abs(openMenu.rect.height - closedMenu.rect.height) < .1,
     'Menu button changed size or was sliced during drawer opening.');
     if (count === 2) {
+      assert(workspace && Math.abs(workspace.x - drawer.x) < 1 &&
+        Math.abs(workspace.width - drawer.width) < 1 &&
+        Math.abs(workspace.y - drawer.y - 26) < 1 &&
+        Math.abs(drawer.y + drawer.height - workspace.y - workspace.height - 30) < 1,
+      'Two-player workspace does not preserve its 26px upper / 30px lower circle clearance.');
       assert(drawer.width >= viewport.width - 2 && drawer.x <= 1,
         'The two-player drawer does not span the complete table width.');
       assert(openMenu.rect.y - closedMenu.rect.y > 20, 'Two-player Menu did not travel down with its wall.');
@@ -1489,7 +1497,7 @@ try {
     }
     assert((await hitTarget(openMenu)).sameAction, 'The whole open Menu center is not actionable.');
     evidence.drawerGeometry ||= [];
-    evidence.drawerGeometry.push({ players: count, viewport, drawer, menuClosed: closedMenu.rect, menuOpen: openMenu.rect });
+    evidence.drawerGeometry.push({ players: count, viewport, drawer, workspace, menuClosed: closedMenu.rect, menuOpen: openMenu.rect });
     await verifyMenuPixels(menuPng, count, viewport, `${prefix}-opening-settled.png`);
     await verifyCutoutSurface(menuPng, `${count}-seat-dark`, { horizontal: count === 2 });
     if (tokenRows) await verifyTwoPlayerTokenRows(tokenRows, menuPng, drawer, viewport);
