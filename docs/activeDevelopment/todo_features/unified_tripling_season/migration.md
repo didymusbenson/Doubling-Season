@@ -110,3 +110,31 @@ A failed conversion must not overwrite the good source or force an empty app.
 Open: exact shipped-version support matrix, unsupported utility/rule conversions,
 recovery retention, rollout/cohort strategy, minimum OS and consolidated catalog
 contract. Rollback is a designed data strategy, not an assumed app-store downgrade.
+
+## Development isolation and release cutover
+
+**Owner clarification, 2026-10-30:** retain the separate Tripling Table/tablet
+identity while building this direction. Preserve the existing original TS code
+and installed application; separate identity is an intentional safety boundary.
+
+- Ordinary prototypes and test builds retain tablet bundle/application IDs,
+  storage namespaces and build configuration. Never change them merely because
+  the planned destination is the original product.
+- Migration experiments use copied/exported fixtures and isolated destination
+  stores. A separate app cannot be assumed to read the original app's private
+  sandbox; use explicit test-fixture acquisition rather than bypassing isolation.
+- Keep original phone code and release behavior intact. Shared changes require
+  regression evidence; focused-view work must not silently replace its startup.
+- Later, create a controlled cutover candidate under the original TS identity,
+  with original signing/entitlement continuity and an explicitly selected test
+  installation. Test upgrade from the actual shipped binary without uninstalling,
+  using verified recovery copies and the migration/fresh-board acceptance cases.
+- Record the identity, source build, source data version and destination build for
+  every test. Distinguish a fresh install, tablet-identity fixture conversion and
+  a genuine original-identity update; only the latter proves the cutover path.
+- Release remains gated on migration, purchase restoration, recovery, device
+  support and tablet regression results. Store submission/public rollout and any
+  original-install replacement are separate future actions, not authorized now.
+
+The exact cutover branch/flavor arrangement, test cohort and rollback process
+remain open. Do not let a development flag accidentally target production data.
