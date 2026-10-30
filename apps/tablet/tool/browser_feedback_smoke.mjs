@@ -1482,6 +1482,12 @@ try {
       await sleep(500);
       await click('qa, Scute Swarm, Name', { startsWith: true, role: 'button' });
       await find('qa, Scute Swarm, Choose artwork', { contains: true, role: 'button' });
+      // One wide expanded card can fit the closed two-seat lane. Create real
+      // additional stacks so this probe has overflow instead of mistaking an
+      // intentionally unscrollable short list for a product failure.
+      for (let copy = 0; copy < 2; copy++) {
+        await click('qa, Scute Swarm, Copy one fresh token', { role: 'button' });
+      }
       const rowBeforeScroll = await find('qa, Scute Swarm, Name', { startsWith: true, role: 'button' });
       const wheel = { x: evidence.viewport.width * .3, y: evidence.viewport.height * .78 };
       await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', ...wheel, deltaX: 0, deltaY: 350 });
