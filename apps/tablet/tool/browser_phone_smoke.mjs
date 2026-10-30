@@ -324,7 +324,7 @@ try {
     await click('More');
     await click('Add token'); await sleep(500); await capture(`${size}-add-token`);
     await click('Close workspace'); await sleep(350);
-    await click('Player 1, player counters',{startsWith:true}); await sleep(350); await capture(`${size}-counters`);
+    await click('Player 1, commander damage by source',{startsWith:true}); await sleep(350); await capture(`${size}-counters`);
     await click('Close workspace'); await sleep(350);
     const before=await find('Player 1, increase life by one',{startsWith:true});
     await cdp.send('Input.dispatchMouseEvent',{type:'mouseWheel',x:90,y:Math.min(viewport.height-80,350),deltaX:0,deltaY:500});await sleep(250);

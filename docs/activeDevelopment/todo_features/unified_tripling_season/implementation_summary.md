@@ -102,3 +102,17 @@ the lint is corrected locally and will be revalidated in the next checkpoint.
 No phone preview publication, signed feature IPA, physical phone/foldable testing,
 or original Tripling Season migration is claimed complete. Preset conversion and
 live-board migration remain separate cutover work, governed by the migration docs.
+
+### Verified checkpoint 7820706
+
+- Full cloud tablet suite: **1,061 passed, 7 skipped**, no failures.
+- Analyzer clean; focused phone/draft suite: **17 passed**, including captures.
+- Release web build succeeds. Runner Chrome rendered real phone UI; inspected
+  board, More, and Add Token at 320×568. Board and action pod fit; the Add Token
+  header compressed search excessively and is being corrected before acceptance.
+- Browser smoke incorrectly sought the absent zero-counter summary instead of
+  the commander-damage entry point; selector corrected to the actual UI contract.
+- Local Chromium startup is unavailable in the cloud sandbox and the separate
+  browser cannot reach workspace localhost. Browser validation runs in GitHub CI,
+  retaining screenshots and accessibility evidence; this is not a Mac dependency.
+- The feature remains draft PR #66. No main integration or native release claimed.

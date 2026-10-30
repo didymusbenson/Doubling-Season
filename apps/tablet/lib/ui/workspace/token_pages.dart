@@ -145,32 +145,58 @@ extension _TokenPages on _TableWorkspaceState {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-          child: _contentTop(
-            Row(
-              children: [
-                Expanded(
-                  child: PlayerField(
-                    controller: query,
-                    label: 'Search tokens, abilities, type, or P/T',
+          child: LayoutBuilder(
+            builder: (context, bounds) {
+              final search = PlayerField(
+                controller: query,
+                label: 'Search tokens, abilities, type, or P/T',
+              );
+              final clear = MergeSemantics(
+                child: Semantics(
+                  label: 'Clear token search',
+                  child: IconButton(
+                    onPressed: () => _update(query.clear),
+                    icon: const Icon(Icons.clear),
                   ),
                 ),
-                MergeSemantics(
-                  child: Semantics(
-                    label: 'Clear token search',
-                    child: IconButton(
-                      onPressed: () => _update(query.clear),
-                      icon: const Icon(Icons.clear),
+              );
+              final custom = _button(
+                'Custom token',
+                () => _update(() => _createCustom = true),
+                icon: Icons.add,
+              );
+              if (bounds.maxWidth < 420) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _contentTop(search),
+                    const SizedBox(height: 4),
+                    ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: query,
+                      builder: (context, value, _) => Row(
+                        children: [
+                          if (value.text.isNotEmpty) ...[
+                            clear,
+                            const SizedBox(width: 4),
+                          ],
+                          Expanded(child: custom),
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
+                );
+              }
+              return _contentTop(
+                Row(
+                  children: [
+                    Expanded(child: search),
+                    clear,
+                    const SizedBox(width: 4),
+                    custom,
+                  ],
                 ),
-                const SizedBox(width: 4),
-                _button(
-                  'Custom token',
-                  () => _update(() => _createCustom = true),
-                  icon: Icons.add,
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ),
         SingleChildScrollView(
