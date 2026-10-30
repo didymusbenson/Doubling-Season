@@ -527,7 +527,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('History'));
       await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('Undo latest:'));
+      await tester.tap(byActionNamePrefix('Undo latest:'));
       await tester.pumpAndSettle();
       expect(f.board.hasInitiative(second.id), isTrue);
       final loaded = await f.repository.open();

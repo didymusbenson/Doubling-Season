@@ -138,7 +138,7 @@ void main() {
       expect(find.byIcon(Icons.undo), findsNothing);
       await close(tester);
       await open(tester, fixture, page: WorkspacePage.history);
-      final undo = find.textContaining('Undo latest:');
+      final undo = byActionNamePrefix('Undo latest:');
       expect(undo.hitTestable(), findsOneWidget);
       await tester.tap(undo);
       await tester.pumpAndSettle();

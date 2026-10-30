@@ -22,6 +22,7 @@ import '../../services/tablet_catalog.dart';
 import 'player_keyboard.dart';
 import '../table_artwork.dart';
 import '../table_modal_frame.dart';
+import '../game_drawer_body.dart';
 import '../table_mana_icons.dart';
 import '../half_stepper.dart';
 import '../die_outline.dart';
@@ -633,6 +634,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     String detail,
     Future<dynamic> Function() action, {
     String button = 'Confirm',
+    String? compactButton,
     bool closeOnSuccess = false,
   }) {
     if (!mounted || !_validScope || _closing || _navigating) return;
@@ -643,6 +645,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         action,
         button,
         closeOnSuccess,
+        compactButton,
       ),
     );
   }
@@ -652,17 +655,36 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     VoidCallback action, {
     IconData? icon,
     bool primary = false,
-  }) => primary
-      ? FilledButton.icon(
-          onPressed: _working ? null : action,
-          icon: Icon(icon ?? Icons.check, size: 18),
-          label: Text(label),
-        )
-      : OutlinedButton.icon(
-          onPressed: _working ? null : action,
-          icon: Icon(icon ?? Icons.chevron_right, size: 18),
-          label: Text(label),
-        );
+    String? compactLabel,
+  }) {
+    final compact = _embedded && compactLabel != null;
+    final text = Text(
+      compact ? compactLabel : label,
+      textAlign: _embedded ? TextAlign.center : null,
+    );
+    final child = primary
+        ? FilledButton.icon(
+            style: _embedded
+                ? FilledButton.styleFrom(minimumSize: const Size(44, 48))
+                : null,
+            onPressed: _working ? null : action,
+            icon: Icon(icon ?? Icons.check, size: 18),
+            label: compact ? ExcludeSemantics(child: text) : text,
+          )
+        : OutlinedButton.icon(
+            style: _embedded
+                ? OutlinedButton.styleFrom(minimumSize: const Size(44, 48))
+                : null,
+            onPressed: _working ? null : action,
+            icon: Icon(icon ?? Icons.chevron_right, size: 18),
+            label: compact ? ExcludeSemantics(child: text) : text,
+          );
+    return compact
+        ? MergeSemantics(
+            child: Semantics(label: label, child: child),
+          )
+        : child;
+  }
 
   Widget _input(
     String id,
@@ -792,23 +814,133 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     List<Widget> children, {
     bool controls = true,
     ScrollController? controller,
-  }) => ListView(
-    controller: controller,
-    padding: EdgeInsets.fromLTRB(
-      _embedded ? 12 : 20,
-      6,
-      _embedded ? 12 : 20,
-      20,
+    bool centered = false,
+  }) {
+    if (_embedded) {
+      return GameDrawerBody(
+        centered: centered,
+        scrollKey: PageStorageKey(
+          'drawer-${_page.name}-${_confirmation?.title ?? "page"}',
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        ),
+      );
+    }
+    return ListView(
+      controller: controller,
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
+      children: [
+        for (var index = 0; index < children.length; index++)
+          if (index == 0 && controls)
+            _contentTop(children[index])
+          else if (children[index] is ButtonStyleButton)
+            Align(alignment: Alignment.centerLeft, child: children[index])
+          else
+            children[index],
+      ],
+    );
+  }
+
+  Widget _drawerList({
+    required int itemCount,
+    required IndexedWidgetBuilder itemBuilder,
+  }) => LayoutBuilder(
+    builder: (context, constraints) => Semantics(
+      identifier: 'game-drawer-body-viewport',
+      container: true,
+      explicitChildNodes: true,
+      child: ListView.builder(
+        key: PageStorageKey('drawer-list-${_page.name}'),
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+        itemCount: itemCount,
+        itemBuilder: (context, index) => Align(
+          alignment: Alignment.topCenter,
+          child: SizedBox(
+            width: min(384.0, max(0.0, constraints.maxWidth - 64)),
+            child: Semantics(
+              identifier: 'game-drawer-list-row-$index',
+              container: true,
+              explicitChildNodes: true,
+              child: itemBuilder(context, index),
+            ),
+          ),
+        ),
+      ),
     ),
-    children: [
-      for (var index = 0; index < children.length; index++)
-        if (index == 0 && controls)
-          _contentTop(children[index])
-        else if (children[index] is ButtonStyleButton)
-          Align(alignment: Alignment.centerLeft, child: children[index])
-        else
-          children[index],
-    ],
+  );
+
+  Widget _drawerHeader() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 44,
+          height: 44,
+          child: _navigation.isEmpty && _confirmation == null
+              ? null
+              : MergeSemantics(
+                  child: Semantics(
+                    label: 'Back',
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: _back,
+                      icon: const Icon(Icons.arrow_back),
+                    ),
+                  ),
+                ),
+        ),
+        Expanded(
+          child: Semantics(
+            header: true,
+            child: Text(
+              _title,
+              key: const ValueKey('game-drawer-title'),
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+        ),
+        SizedBox(
+          width: 44,
+          height: 44,
+          child: MergeSemantics(
+            child: Semantics(
+              label: 'Close workspace',
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                onPressed: _working || _navigating ? null : _requestClose,
+                icon: const Icon(Icons.close),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _balancedActions(List<Widget> actions) => LayoutBuilder(
+    builder: (context, constraints) => constraints.maxWidth >= 280
+        ? Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var index = 0; index < actions.length; index++) ...[
+                if (index > 0) const SizedBox(width: 8),
+                Expanded(child: actions[index]),
+              ],
+            ],
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var index = 0; index < actions.length; index++) ...[
+                if (index > 0) const SizedBox(height: 8),
+                actions[index],
+              ],
+            ],
+          ),
   );
 
   Widget _art(String? url, {double width = 72, double height = 72}) => SizedBox(
@@ -959,27 +1091,24 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       return _list([
         _section(confirmation.title, detail: confirmation.detail),
         const SizedBox(height: 20),
-        Wrap(
-          spacing: 12,
-          runSpacing: 8,
-          children: [
-            _button(
-              'Cancel',
-              () => setState(() => _confirmation = null),
-              icon: Icons.close,
+        _balancedActions([
+          _button(
+            'Cancel',
+            () => setState(() => _confirmation = null),
+            icon: Icons.close,
+          ),
+          _button(
+            confirmation.button,
+            () => _run(
+              confirmation.action,
+              after: () => _confirmation = null,
+              closeOnSuccess: confirmation.closeOnSuccess,
             ),
-            _button(
-              confirmation.button,
-              () => _run(
-                confirmation.action,
-                after: () => _confirmation = null,
-                closeOnSuccess: confirmation.closeOnSuccess,
-              ),
-              primary: true,
-            ),
-          ],
-        ),
-      ]);
+            primary: true,
+            compactLabel: confirmation.compactButton,
+          ),
+        ]),
+      ], centered: true);
     }
     return switch (_page) {
       WorkspacePage.tokens => _tokensPage(),
@@ -1006,7 +1135,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       WorkspacePage.dice => _dicePage(),
       WorkspacePage.diceResults => _diceResultsPage(),
       WorkspacePage.settings => _settingsPage(),
-      WorkspacePage.support => const TableSupportContent(),
+      WorkspacePage.support => TableSupportContent(embedded: _embedded),
     };
   }
 
@@ -1031,25 +1160,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       ),
       child: Column(
         children: [
-          if (_embedded)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Semantics(
-                      header: true,
-                      child: Text(
-                        _title,
-                        key: const ValueKey('game-drawer-title'),
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                  ),
-                  _dismissControls(),
-                ],
-              ),
-            ),
+          if (_embedded) _drawerHeader(),
           SizedBox(
             height: 2,
             child: _working
@@ -1059,7 +1170,10 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
           if (visibleError != null || _status != null)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
+              padding: EdgeInsets.symmetric(
+                horizontal: _embedded ? 32 : 20,
+                vertical: 9,
+              ),
               color: visibleError == null
                   ? Theme.of(context).colorScheme.secondaryContainer
                   : Theme.of(context).colorScheme.errorContainer,
@@ -1075,7 +1189,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
             ),
           if (_closeSaveFailed)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: EdgeInsets.symmetric(horizontal: _embedded ? 32 : 20),
               child: Wrap(
                 spacing: 8,
                 children: [
@@ -1189,7 +1303,9 @@ class _Confirmation {
     this.action,
     this.button,
     this.closeOnSuccess,
+    this.compactButton,
   );
+  final String? compactButton;
   final String title;
   final String detail;
   final Future<dynamic> Function() action;

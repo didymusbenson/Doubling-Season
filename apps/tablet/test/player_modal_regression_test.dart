@@ -161,7 +161,7 @@ void main() {
   Future<void> undoInHistory(WidgetTester tester, TableFixture fixture) async {
     await close(tester);
     await open(tester, fixture, page: WorkspacePage.history);
-    final undo = find.textContaining('Undo latest:');
+    final undo = byActionNamePrefix('Undo latest:');
     await reveal(tester, undo);
     await tester.tap(undo);
     await tester.pumpAndSettle();
@@ -351,7 +351,7 @@ void main() {
       await open(tester, f, page: WorkspacePage.boardWipes);
       final shell = find.byKey(const ValueKey('context-workspace'));
       final rect = tester.getRect(shell);
-      await tester.tap(find.text('Wipe all tokens').first);
+      await tester.tap(byControlLabel('Everyone, Wipe all tokens'));
       await tester.pumpAndSettle();
       expect(find.text('Wipe all tokens for everyone?'), findsOneWidget);
       await capture(tester, 'everyone-wipe-confirmation');
@@ -364,7 +364,7 @@ void main() {
         isTrue,
       );
       expect(f.controller.session.history, hasLength(1));
-      expect(find.text('Wipe all tokens').first, findsOneWidget);
+      expect(byControlLabel('Everyone, Wipe all tokens'), findsOneWidget);
       expect(find.widgetWithText(ChoiceChip, 'Board wipes'), findsNothing);
       await undoInHistory(tester, f);
       expect(f.controller.session.players[0].tokens, hasLength(1));

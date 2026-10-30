@@ -117,7 +117,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(OutlinedButton, 'History'));
     await tester.pumpAndSettle();
-    final undo = find.textContaining('Undo latest:');
+    final undo = byActionNamePrefix('Undo latest:');
     expect(undo.hitTestable(), findsOneWidget);
     await tester.tap(undo);
     await tester.pumpAndSettle();

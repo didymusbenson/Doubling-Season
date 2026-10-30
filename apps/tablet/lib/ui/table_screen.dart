@@ -293,6 +293,8 @@ class _TableScreenState extends State<TableScreen>
                         final dividerColor = Theme.of(
                           context,
                         ).colorScheme.outline;
+                        final leftWall = (table.maxWidth - gap) / 2;
+                        final rightWall = (table.maxWidth + gap) / 2;
                         Widget row(int left, int right) => Row(
                           children: [
                             Expanded(child: slot(left)),
@@ -392,13 +394,12 @@ class _TableScreenState extends State<TableScreen>
                             Positioned(
                               key: const ValueKey('table-dice-layer'),
                               left:
-                                  table.maxWidth / 2 -
+                                  leftWall -
                                   (two
                                       ? (table.maxWidth * .1 + 26) *
                                                 (1 - progress) +
                                             54 * progress
                                       : 54) -
-                                  gap / 2 -
                                   22,
                               top:
                                   table.maxHeight / 2 -
@@ -417,13 +418,12 @@ class _TableScreenState extends State<TableScreen>
                             Positioned(
                               key: const ValueKey('table-day-night-layer'),
                               left:
-                                  table.maxWidth / 2 +
+                                  rightWall +
                                   (two
                                       ? (table.maxWidth * .1 + 26) *
                                                 (1 - progress) +
                                             54 * progress
-                                      : 54) +
-                                  gap / 2 -
+                                      : 54) -
                                   22,
                               top:
                                   table.maxHeight / 2 +
@@ -433,7 +433,9 @@ class _TableScreenState extends State<TableScreen>
                             ),
                             Positioned(
                               key: const ValueKey('table-menu-layer'),
-                              left: (table.maxWidth - gap - 52) / 2,
+                              // Menu rides the right wall as one whole target;
+                              // the left wall keeps the matching empty cutout.
+                              left: rightWall - 26,
                               top: (table.maxHeight - 52) / 2,
                               child: _GameHub(
                                 key: const ValueKey('central-game-controls'),
@@ -1470,26 +1472,34 @@ class _LifePanel extends StatelessWidget {
             : constraints.maxWidth < 180
             ? 64.0
             : 80.0;
+        final hasSummary = _LifeCounterSummary.hasContent(player, controller);
+        final summaryWidth = hasSummary
+            ? math.min(
+                _LifeCounterSummary.preferredWidth(player, controller),
+                math.max(
+                  0.0,
+                  constraints.maxWidth -
+                      overlayInset * 2 -
+                      ledgerWidth -
+                      overlayGap,
+                ),
+              )
+            : 0.0;
+        // Center the content that is actually present. An absent summary
+        // contributes neither width nor a gap, including zero-valued counters.
+        final groupWidth =
+            ledgerWidth + (hasSummary ? overlayGap + summaryWidth : 0.0);
         final ledgerRect = Rect.fromLTWH(
-          overlayInset,
+          (constraints.maxWidth - groupWidth) / 2,
           height - overlayBottom - overlayHeight,
           ledgerWidth,
           overlayHeight,
         );
-        final summaryRect = _LifeCounterSummary.hasContent(player, controller)
+        final summaryRect = hasSummary
             ? Rect.fromLTWH(
                 ledgerRect.right + overlayGap,
                 ledgerRect.top,
-                math.min(
-                  _LifeCounterSummary.preferredWidth(player, controller),
-                  math.max(
-                    0.0,
-                    constraints.maxWidth -
-                        overlayInset -
-                        ledgerRect.right -
-                        overlayGap,
-                  ),
-                ),
+                summaryWidth,
                 overlayHeight,
               )
             : null;
@@ -1732,6 +1742,7 @@ class _LifeCounterSummary extends StatelessWidget {
         ? Theme.of(context).colorScheme.onSurface
         : Colors.white;
     return Semantics(
+      identifier: '${player.id}-life-counter-summary',
       label: '${profile.name}, player counters',
       value: summary,
       hint: 'Open Commander damage and player counters',

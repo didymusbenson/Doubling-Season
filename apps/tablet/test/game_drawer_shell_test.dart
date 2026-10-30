@@ -112,6 +112,55 @@ void main() {
     return labels;
   }
 
+  void expectRightWallControls(WidgetTester tester) {
+    final table = tester.getRect(find.byKey(const ValueKey('table-surface')));
+    final hub = tester.getRect(
+      find.byKey(const ValueKey('central-game-controls')),
+    );
+    final dice = tester.getRect(find.byKey(const ValueKey('shared-dice')));
+    final dayNight = tester.getRect(
+      find.byKey(const ValueKey('shared-day-night')),
+    );
+    final reveal = find
+        .descendant(
+          of: find.byKey(const ValueKey('table-drawer-layer')),
+          matching: find.byType(ClipRect),
+        )
+        .first;
+    final revealWidget = tester.widget<ClipRect>(reveal);
+    final channel = revealWidget.clipper!
+        .getClip(tester.getSize(reveal))
+        .shift(tester.getTopLeft(reveal));
+    expect(hub.size, const Size(52, 52));
+    expect(hub.center.dx, closeTo(channel.right, .001));
+    expect(hub.center.dy, closeTo(table.center.dy, .001));
+    expect(dice.size, const Size(44, 44));
+    expect(dayNight.size, const Size(44, 44));
+    expect(dice.right, lessThan(channel.left));
+    expect(dayNight.left - hub.right, greaterThan(0));
+    expect(hub.overlaps(dice), isFalse);
+    expect(hub.overlaps(dayNight), isFalse);
+    expect(
+      find.byKey(const ValueKey('central-game-controls')).hitTestable(),
+      findsOneWidget,
+    );
+
+    // Both the visible clearance and its native hit-test path must mirror:
+    // right hosts Menu, left stays empty. Inspect the actual board mask, not
+    // just a widget position that could leave an incorrect wall underneath.
+    final maskFinder = find.byKey(const ValueKey('drawer-board-mask'));
+    final mask = tester.widget<ClipPath>(maskFinder);
+    final path = mask.clipper!.getClip(tester.getSize(maskFinder));
+    final origin = tester.getTopLeft(maskFinder);
+    final centerY = table.center.dy - origin.dy;
+    final left = channel.left - origin.dx;
+    final right = channel.right - origin.dx;
+    for (final edge in [(left, -1), (right, 1)]) {
+      expect(path.contains(Offset(edge.$1 + edge.$2 * 29, centerY)), isFalse);
+      expect(path.contains(Offset(edge.$1 + edge.$2 * 31, centerY)), isTrue);
+    }
+  }
+
   for (final size in [const Size(744, 1133), const Size(1133, 744)]) {
     for (final seats in [2, 3, 4]) {
       testWidgets(
@@ -121,6 +170,10 @@ void main() {
           final beforeState = jsonEncode(f.controller.state.toJson());
           final hub = find.byKey(const ValueKey('central-game-controls'));
           final initialHub = tester.getRect(hub);
+          expect(
+            initialHub.center,
+            tester.getRect(find.byKey(const ValueKey('table-surface'))).center,
+          );
           final laneBounds = {
             for (final p in f.controller.session.players)
               p.id: tester.getRect(find.byKey(ValueKey('${p.id}-token-lane'))),
@@ -145,7 +198,8 @@ void main() {
           await tester.pump(const Duration(milliseconds: 60));
           final midHub = tester.getRect(hub);
           expect(midHub.size, const Size(52, 52));
-          expect(midHub.center.dx, lessThan(initialHub.center.dx));
+          expect(midHub.center.dx, greaterThan(initialHub.center.dx));
+          expectRightWallControls(tester);
           expect(hub.hitTestable(), findsOneWidget);
           for (final p in f.controller.session.players) {
             expect(
@@ -158,9 +212,29 @@ void main() {
             );
           }
           await capture(tester, '$seats-${size.width.toInt()}-mid');
+          // The spring briefly exceeds its settled position. Adjacent controls
+          // must stay separate at the peak, including the two-seat offset lerp.
+          await tester.pump(const Duration(milliseconds: 165));
+          expectRightWallControls(tester);
+          expect(
+            tester.getRect(hub).center.dx,
+            greaterThan(
+              initialHub.center.dx +
+                  tester.getSize(find.byType(GameDrawerWorkspace)).width / 2,
+            ),
+          );
+          await capture(tester, '$seats-${size.width.toInt()}-bounce');
           await tester.pumpAndSettle();
           expect(find.byType(GameDrawerWorkspace), findsOneWidget);
           expect(find.byType(Dialog), findsNothing);
+          expectRightWallControls(tester);
+          expect(
+            tester
+                    .getRect(find.byKey(const ValueKey('shared-day-night')))
+                    .left -
+                tester.getRect(hub).right,
+            closeTo(6, .001),
+          );
           expect(tester.getRect(hub).size, const Size(52, 52));
           expect(hub.hitTestable(), findsOneWidget);
           for (final key in ['shared-dice', 'shared-day-night']) {
@@ -187,6 +261,35 @@ void main() {
             reason:
                 'Dismissal must not activate the quantity button under the finger.',
           );
+          // A new opening reversed mid-flight keeps the same right-hand edge
+          // at the reversal frame, then travels back without jumping sides.
+          await tester.tap(hub);
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 60));
+          final beforeReverse = tester.getRect(hub);
+          expectRightWallControls(tester);
+          await tester.tap(hub);
+          await tester.pump();
+          // Close first drains draft/save guards and posts the shell callback;
+          // give those frames a turn without advancing the animation clock.
+          await tester.pump();
+          await tester.pump();
+          expect(tester.getRect(hub), beforeReverse);
+          await tester.pump(const Duration(milliseconds: 50));
+          expectRightWallControls(tester);
+          expect(
+            tester.getRect(hub).center.dx,
+            lessThan(beforeReverse.center.dx),
+          );
+          expect(
+            tester.getRect(hub).center.dx,
+            greaterThan(initialHub.center.dx),
+          );
+          await capture(tester, '$seats-${size.width.toInt()}-reverse');
+          await tester.pumpAndSettle();
+          expect(tester.getRect(hub), initialHub);
+          expect(find.byType(GameDrawerWorkspace), findsNothing);
+          expect(jsonEncode(f.controller.state.toJson()), beforeState);
           await tester.tap(quantity);
           await tester.pumpAndSettle();
           expect(

@@ -11,3 +11,14 @@ Finder byControlLabel(Pattern label) => find.byWidgetPredicate((widget) {
   if (label is String) return name == label || name.endsWith(', $label');
   return label.allMatches(name).isNotEmpty;
 }, description: 'control with accessible name $label');
+
+/// Compact drawer actions retain their full accessible name; standalone
+/// workspace hosts still paint that name as the button's text.
+Finder byActionNamePrefix(String prefix) => find.byWidgetPredicate((widget) {
+  final name = widget is Semantics
+      ? widget.properties.label
+      : widget is Text
+      ? widget.data
+      : null;
+  return name?.startsWith(prefix) == true;
+}, description: 'action with name starting $prefix');

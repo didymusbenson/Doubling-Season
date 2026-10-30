@@ -3,7 +3,13 @@
 The separate tablet app developed from the Tripling Season iPad specifications.
 “Tripling Table” is a development name, not a selected store name.
 
-**Current checkpoint (2026-10-30): game drawer, life ink and tooltip removal.**
+**Current work (2026-10-30): drawer composition and commander alignment.**
+The [composition refinement](../../docs/activeDevelopment/in_progress_features/ipad_edition/drawer_composition_refinement_2026-10-30.md)
+moves the whole Menu handle to the right wall, gives game workflows deliberate
+content layouts, and centers the commander ledger when no counter summary is
+present. Active summaries use only their actual width; the shared placement and
+ink geometry remain aligned.
+
 The [game drawer work](../../docs/activeDevelopment/in_progress_features/ipad_edition/game_drawer_ink_tooltips_2026-10-30.md)
 embeds shared game workflows in a center channel beneath the sliding life and
 utility rails. Player/token editors retain focused dialogs; commander damage and

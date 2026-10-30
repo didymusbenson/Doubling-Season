@@ -91,7 +91,13 @@ void main() {
             await tester.pumpAndSettle();
             await tester.tap(find.widgetWithText(OutlinedButton, 'History'));
             await tester.pumpAndSettle();
-            final undo = find.textContaining('Undo latest: Remove utility');
+            final undo = find.byWidgetPredicate(
+              (widget) =>
+                  widget is Semantics &&
+                  (widget.properties.label ?? '').startsWith(
+                    'Undo latest: Remove utility',
+                  ),
+            );
             expect(undo.hitTestable(), findsOneWidget);
             await tester.tap(undo);
             await tester.pumpAndSettle();

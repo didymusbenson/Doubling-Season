@@ -168,7 +168,10 @@ void main() {
     );
     for (final element in buttons.evaluate()) {
       final target = find.byWidget(element.widget);
-      if (element.findAncestorWidgetOfExactType<Semantics>()?.properties.label ==
+      if (element
+              .findAncestorWidgetOfExactType<Semantics>()
+              ?.properties
+              .label ==
           'Close workspace') {
         continue;
       }
@@ -253,16 +256,34 @@ void main() {
         if (entry.value == WorkspacePage.reset) {
           expect(find.text('Friday Commander'), findsNothing);
           expect(find.text('Wipe all creatures'), findsNothing);
-          expect(find.text('2 players'), findsOneWidget);
+          expect(
+            find.byWidgetPredicate(
+              (widget) =>
+                  widget is Semantics && widget.properties.label == '2 players',
+            ),
+            findsOneWidget,
+          );
         }
         if (entry.value == WorkspacePage.archives) {
           expect(find.text('Friday Commander'), findsOneWidget);
-          expect(find.text('2 players'), findsNothing);
+          expect(
+            find.byWidgetPredicate(
+              (widget) =>
+                  widget is Semantics && widget.properties.label == '2 players',
+            ),
+            findsNothing,
+          );
         }
         if (entry.value == WorkspacePage.boardWipes) {
           expect(find.text('Everyone'), findsOneWidget);
           expect(find.text('Friday Commander'), findsNothing);
-          expect(find.text('2 players'), findsNothing);
+          expect(
+            find.byWidgetPredicate(
+              (widget) =>
+                  widget is Semantics && widget.properties.label == '2 players',
+            ),
+            findsNothing,
+          );
         }
         await capture(
           tester,

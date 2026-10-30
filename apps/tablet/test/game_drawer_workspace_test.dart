@@ -111,8 +111,8 @@ void main() {
           await tester.pumpAndSettle();
         }
         if (label == 'Settings') {
-          await tapText(tester, 'Support this app');
-          expect(find.text('Support Tripling Table'), findsOneWidget);
+          await tapText(tester, 'Support');
+          expect(find.text('Always free to play'), findsOneWidget);
           expect(find.byType(Dialog), findsNothing);
           expect(tester.takeException(), isNull, reason: 'embedded support');
           await tester.tap(_control('Back'));
@@ -201,9 +201,9 @@ void main() {
         onClose: () => closes++,
       );
       await tapText(tester, fixture.controller.state.archives.single.label);
-      expect(find.text('Save current & restore'), findsOneWidget);
+      expect(find.text('Restore'), findsOneWidget);
       expect(find.byType(Dialog), findsNothing);
-      await tapText(tester, 'Save current & restore');
+      await tapText(tester, 'Restore');
       expect(closes, 1);
       expect(fixture.controller.session.id, archivedSession);
       expect(fixture.controller.session.id, isNot(currentSession));
@@ -223,15 +223,20 @@ void main() {
     final drawer = GameDrawerController();
     await mount(tester, fixture.controller, fixture.catalog, drawer);
     await tapText(tester, 'Board wipes');
-    await tapText(tester, 'Wipe all creatures');
+    await tester.tap(_control('Everyone, Wipe creatures'));
+    await tester.pumpAndSettle();
     expect(find.text('Wipe all creatures for everyone?'), findsOneWidget);
-    await tapText(tester, 'Wipe all creatures');
+    await tapText(tester, 'Wipe');
     expect(fixture.player.tokens, isEmpty);
     expect(find.byType(Dialog), findsNothing);
     await tester.tap(_control('Back'));
     await tester.pumpAndSettle();
     await tapText(tester, 'History');
-    final undo = find.textContaining('Undo latest:');
+    final undo = find.byWidgetPredicate(
+      (widget) =>
+          widget is Semantics &&
+          (widget.properties.label ?? '').startsWith('Undo latest:'),
+    );
     await tester.ensureVisible(undo);
     await tester.tap(undo);
     await tester.pumpAndSettle();
@@ -265,9 +270,9 @@ void main() {
       expect(find.byKey(const ValueKey('dice-result-d6-0')), findsOneWidget);
       await drawer.open(WorkspacePage.reset);
       await tester.pumpAndSettle();
-      await tapText(tester, 'Complete reset');
+      await tapText(tester, 'Clear board');
       fixture.repository.failSave = true;
-      await tapText(tester, 'Archive & complete reset');
+      await tapText(tester, 'Start game');
       expect(closes, 0);
       expect(find.textContaining('Simulated storage failure'), findsWidgets);
       expect(find.text('Clear boards & restart?'), findsOneWidget);
@@ -295,9 +300,9 @@ void main() {
         page: WorkspacePage.reset,
         onClose: () => closes++,
       );
-      await tapText(tester, 'Complete reset');
+      await tapText(tester, 'Clear board');
       repository.hold = Completer<void>();
-      await tester.tap(find.text('Archive & complete reset'));
+      await tester.tap(find.text('Start game'));
       await tester.pump();
       expect(await drawer.close(), isFalse);
       expect(closes, 0);

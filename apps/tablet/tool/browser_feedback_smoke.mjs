@@ -392,22 +392,25 @@ function decodeScreenshotPng(bytes) {
   return { width, height, channels, pixels };
 }
 function paintedLabelPixels(png, rect) {
-  let interior = 0, text = 0;
+  let interior = 0, text = 0, icon = 0;
+  const stacked = rect.height >= 80;
   for (let y = Math.max(0, Math.ceil(rect.y + 8)); y < Math.min(png.height, rect.y + rect.height - 8); y++) {
     for (let x = Math.max(0, Math.ceil(rect.x + 8)); x < Math.min(png.width, rect.x + rect.width - 8); x++) {
       const i = (y * png.width + x) * png.channels;
       const [r, g, b] = png.pixels.subarray(i, i + 3);
       const a = png.channels === 4 ? png.pixels[i + 3] : 255;
       // The dark-theme menu has green labels/icons and neutral surfaces and
-      // borders. Exclude the outer stroke and transparent RGBA pixels. The
-      // right-of-center sample excludes the leading icon as well.
+      // borders. Exclude the outer stroke and transparent RGBA pixels. Tall
+      // tiles place the label below their icon; narrow-layout rows place it to
+      // the right. Require paint in both regions, not just the icon's pixels.
       if (a > 150 && g > 100 && g - r > 12 && g - b > 5) {
         interior++;
-        if (x > rect.x + rect.width / 2 + 2) text++;
+        if (stacked ? y > rect.y + rect.height / 2 + 2 : x > rect.x + rect.width / 2 + 2) text++;
+        if (stacked ? y < rect.y + rect.height / 2 - 2 : x < rect.x + rect.width / 2 - 2) icon++;
       }
     }
   }
-  return { interior, text };
+  return { interior, text, icon, layout: stacked ? 'stacked-tile' : 'inline-row' };
 }
 async function verifyMenuPixels(bytes, players, viewport, file) {
   const png = decodeScreenshotPng(bytes);
@@ -421,12 +424,13 @@ async function verifyMenuPixels(bytes, players, viewport, file) {
       `The open drawer exposes a duplicate ${label} action.`);
     const target = await findInDrawer(label, { role: 'button' });
     const pixels = paintedLabelPixels(png, target.rect);
-    assert(pixels.interior > 40 && pixels.text > 12,
+    assert(pixels.interior > 40 && pixels.text > 12 && pixels.icon > 12,
       `Rendered ${label} label/icon is missing at ${players} seats, ${viewport.width}×${viewport.height}: ${JSON.stringify(pixels)}`);
     labels.push({ label, rect: target.rect, ...pixels });
   }
   evidence.drawerMenuPixels ||= [];
   evidence.drawerMenuPixels.push({ players, viewport, file, labels });
+  await verifyGameComposition('menu', { centered: true });
 }
 async function captureDrawerTransition(name, action) {
   const frames = [];
@@ -529,6 +533,99 @@ async function capture(name) {
   await writeFile(join(output, `${name}.semantics.json`), JSON.stringify(await semantics(), null, 2));
   log('captured rendered UI and semantic evidence', { name });
   return bytes;
+}
+async function verifyGameComposition(name, { centered = true, list = false } = {}) {
+  const drawer = await identifierRect('game-drawer-workspace');
+  const body = await identifierRect('game-drawer-body-viewport');
+  if (list) {
+    assert(body, `${name}: missing list viewport.`);
+    const rows = await cdp.evaluate(`Array.from(document.querySelectorAll('[flt-semantics-identifier^="game-drawer-list-row-"]')).map(element => {
+      const rect = element.getBoundingClientRect();
+      return { id: element.getAttribute('flt-semantics-identifier'), x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    })`);
+    const visible = rows.filter(row => row.height > 0 && row.width > 0 && row.y < body.y + body.height && row.y + row.height > body.y);
+    assert(visible.length > 0, `${name}: populated list has no visible rows.`);
+    for (const row of visible) {
+      assert(Math.abs(row.x + row.width / 2 - (body.x + body.width / 2)) < 2,
+        `${name}: ${row.id} is not centered in the list viewport.`);
+      assert(row.x >= drawer.x + 31 && row.x + row.width <= drawer.x + drawer.width - 31,
+        `${name}: ${row.id} enters a wall/handle gutter.`);
+    }
+    const result = { name, viewport: { ...evidence.viewport }, drawer, body, list: true, rows: visible };
+    evidence.gameComposition ||= [];
+    evidence.gameComposition.push(result);
+    return result;
+  }
+  const content = await identifierRect('game-drawer-body-content');
+  assert(body && content && content.width > 0 && content.height > 0,
+    `${name}: missing rendered natural-size drawer content.`);
+  const horizontalOffset = content.x + content.width / 2 - (body.x + body.width / 2);
+  assert(Math.abs(horizontalOffset) < 2, `${name}: drawer content is not horizontally centered (${horizontalOffset}px).`);
+  assert(content.x >= drawer.x + 31 && content.x + content.width <= drawer.x + drawer.width - 31,
+    `${name}: content enters a wall cutout or Menu handle gutter.`);
+  const fits = content.height <= body.height - 31;
+  const verticalOffset = content.y + content.height / 2 - (body.y + body.height / 2);
+  if (centered && fits) assert(Math.abs(verticalOffset) < 2,
+    `${name}: short content is not balanced in its actual available viewport (${verticalOffset}px).`);
+  const result = { name, viewport: { ...evidence.viewport }, drawer, body, content, centered, fits, horizontalOffset, verticalOffset };
+  evidence.gameComposition ||= [];
+  evidence.gameComposition.push(result);
+  return result;
+}
+async function captureGameView(name, composition = {}) {
+  // Review the same real route in both tablet sizes. Resizing only the
+  // disposable browser viewport preserves the current workflow and draft.
+  const original = { ...evidence.viewport };
+  for (const viewport of [{ width: 1133, height: 744 }, { width: 744, height: 1133 }]) {
+    evidence.viewport = { ...viewport, deviceScaleFactor: 1 };
+    await cdp.send('Emulation.setDeviceMetricsOverride', { ...evidence.viewport, mobile: false });
+    await sleep(250);
+    await findInDrawer('Close workspace', { role: 'button' });
+    const drawer = await identifierRect('game-drawer-workspace');
+    assert(drawer && drawer.width >= 220 && drawer.height >= 300, `${name}: unusable drawer viewport.`);
+    await verifyGameComposition(name, composition);
+    const file = `${name}-${viewport.width}x${viewport.height}`;
+    await capture(file);
+    evidence.gameViews ||= [];
+    evidence.gameViews.push({ name, file: `${file}.png`, viewport, drawer });
+  }
+  evidence.viewport = original;
+  await cdp.send('Emulation.setDeviceMetricsOverride', { ...original, mobile: false });
+  await sleep(250);
+}
+async function verifyLifeOverlayGeometry(stage, names, counterOwners = []) {
+  const tree = await semantics();
+  const union = rects => {
+    const x = Math.min(...rects.map(rect => rect.x));
+    const y = Math.min(...rects.map(rect => rect.y));
+    return { x, y, width: Math.max(...rects.map(rect => rect.x + rect.width)) - x,
+      height: Math.max(...rects.map(rect => rect.y + rect.height)) - y };
+  };
+  const results = [];
+  for (const name of names) {
+    const minus = await find(`${name}, decrease life by one`, { startsWith: true, role: 'button' });
+    const plus = await find(`${name}, increase life by one`, { startsWith: true, role: 'button' });
+    const ledger = await find(`${name}, commander damage `, { startsWith: true, role: 'button' });
+    const counters = tree.filter(node => node.role === 'button' && node.name.startsWith(`${name}, player counters`));
+    assert.equal(counters.length, counterOwners.includes(name) ? 1 : 0,
+      `${name}: unexpected counter area in ${stage}.`);
+    const counterRect = counters.length ? await bounds(counters[0]) : null;
+    if (counters.length) assert(counterRect, `${name}: active counter summary is not visible.`);
+    const chip = union([minus.rect, plus.rect]);
+    const group = union([ledger.rect, ...(counterRect ? [counterRect] : [])]);
+    // The local horizontal axis follows the two halves, including the 90/270
+    // degree seats. No injected seat state or assumptions about DOM order.
+    const axis = Math.abs(plus.rect.x - minus.rect.x) > Math.abs(plus.rect.y - minus.rect.y) ? 'x' : 'y';
+    const size = axis === 'x' ? 'width' : 'height';
+    const offset = group[axis] + group[size] / 2 - (chip[axis] + chip[size] / 2);
+    assert(Math.abs(offset) <= 2, `${name}: ${stage} damage/counter group is not centered (${offset}px).`);
+    assert(group[axis] >= chip[axis] - 1 && group[axis] + group[size] <= chip[axis] + chip[size] + 1,
+      `${name}: ${stage} damage/counter group overflows the life chip.`);
+    assert((await hitTarget(ledger)).sameAction, `${name}: centered ledger center activates another control.`);
+    results.push({ name, axis, chip, ledger: ledger.rect, counters: counterRect, group, offset });
+  }
+  evidence.lifeOverlayGeometry ||= [];
+  evidence.lifeOverlayGeometry.push({ stage, viewport: { ...evidence.viewport }, players: results });
 }
 async function enableSemantics() {
   await until('Flutter accessibility bootstrap', async () => cdp.evaluate(`(() => {
@@ -646,6 +743,11 @@ try {
     evidence.status = 'passed';
   } else {
   evidence.scope = 'full-release-smoke';
+  await click('Game controls Collapsed', { startsWith: true, role: 'button' });
+  await clickInDrawer('History', { role: 'button' });
+  await findInDrawer('This game has no actions yet.');
+  await captureGameView('00-drawer-history-empty');
+  await clickInDrawer('Close workspace', { role: 'button' });
 
   // The web semantics label must not extend the Day/Night hit target into
   // another seat's life half. Exercise the actual centers with semantics on;
@@ -664,6 +766,7 @@ try {
       await find(`${name}, decrease life by one 40`, { role: 'button' });
       assert.equal(await dayNightState(), dayNightBefore, 'Life-plus center activated Day/Night.');
     }
+    await verifyLifeOverlayGeometry('no-counters', ['Player 1', 'Player 2', 'Player 3', 'Player 4']);
     await capture(`01-life-centers-${viewport.width}x${viewport.height}`);
   }
   log('PASS semantics-enabled life centers for all four seats in portrait and landscape without Day/Night activation');
@@ -743,7 +846,7 @@ try {
   await diagnoseHold('touch');
   await click('Roll dice', { startsWith: true, role: 'button' });
   await find('D6 quantity: 1');
-  await capture('05a-dice-selector-outlines');
+  await captureGameView('05a-dice-selector-outlines');
   await click('Roll 1 die', { role: 'button' });
   async function verifyDiceResults(expected) {
     const rows = new Map();
@@ -767,18 +870,29 @@ try {
   }
   await find('Roll again', { role: 'button' });
   await verifyDiceResults({ 6: 1 });
-  await capture('05-direct-dice-results');
+  await captureGameView('05-direct-dice-results');
   await click('Back', { role: 'button' });
   await find('D6 quantity: 1');
   await click('Increase d4', { startsWith: true, role: 'button' });
   await click('Increase d4', { startsWith: true, role: 'button' });
   await click('Increase d20', { startsWith: true, role: 'button' });
   await find('D4 quantity: 2');
-  await capture('05b-dice-mixed-selection');
+  await captureGameView('05b-dice-mixed-selection');
   await click('Roll 4 dice', { role: 'button' });
   await find('Roll again', { role: 'button' });
   await verifyDiceResults({ 4: 2, 6: 1, 20: 1 });
-  await capture('05c-dice-mixed-results');
+  await captureGameView('05c-dice-mixed-results');
+  await clickInDrawer('Back', { role: 'button' });
+  for (let index = 0; index < 19; index++) await clickInDrawer('Increase d6', { startsWith: true, role: 'button' });
+  await clickInDrawer('Roll 23 dice', { role: 'button' });
+  await captureGameView('05c-dice-dense-results');
+  await scrollDrawerTo('Roll again', { role: 'button' });
+  await verifyDiceResults({ 4: 2, 6: 20, 20: 1 });
+  await capture('05c-dice-dense-results-bottom');
+  await clickInDrawer('Back', { role: 'button' });
+  for (let index = 0; index < 19; index++) await clickInDrawer('Decrease d6', { startsWith: true, role: 'button' });
+  await clickInDrawer('Roll 4 dice', { role: 'button' });
+  await verifyDiceResults({ 4: 2, 6: 1, 20: 1 });
   await click('Roll again', { role: 'button' });
   await verifyDiceResults({ 4: 2, 6: 1, 20: 1 });
   await click('Back', { role: 'button' });
@@ -789,7 +903,7 @@ try {
   await clickInDrawer('Roll dice', { role: 'button' });
   await find('Select at least one die.', { contains: true });
   await verifyDiceResults({});
-  await capture('05d-dice-empty-selection');
+  await captureGameView('05d-dice-empty-selection');
   await click('Close workspace');
   log('PASS direct Day/Night and outlined Dice selection, individual results, sums, reroll, Back preservation and empty selection; hold outcomes recorded separately');
 
@@ -918,6 +1032,7 @@ try {
     evidence.viewport = viewport;
     await cdp.send('Emulation.setDeviceMetricsOverride', { ...viewport, mobile: false });
     await sleep(250);
+    await verifyLifeOverlayGeometry('partners-art-active-counter', ['qa', 'Player 2', 'Player 3', 'Player 4'], ['qa']);
     await capture(`19-board-${viewport.width}x${viewport.height}`);
     for (const [index, name] of ['qa', 'Player 2', 'Player 3', 'Player 4'].entries()) {
       await click(`${name}, commander damage `, { startsWith: true, role: 'button' });
@@ -955,6 +1070,7 @@ try {
     await sleep(300);
     await ensureDrawerCollapsed();
     const prefix = `22-drawer-${count}p-${viewport.width}x${viewport.height}`;
+    await verifyLifeOverlayGeometry(`${count}-seat-drawer-before`, ['qa', 'Player 2', 'Player 3', 'Player 4'].slice(0, count), count === 4 ? ['qa'] : []);
     const before = await tableSnapshot();
     const closedMenu = await find('Game controls Collapsed', { startsWith: true, role: 'button' });
     const menuPng = await captureDrawerTransition(`${prefix}-opening`, () =>
@@ -965,7 +1081,9 @@ try {
     assert(Math.abs(openMenu.rect.width - closedMenu.rect.width) < .1 &&
       Math.abs(openMenu.rect.height - closedMenu.rect.height) < .1,
     'Menu button changed size or was sliced during drawer opening.');
-    assert(Math.abs(openMenu.rect.x - closedMenu.rect.x) > 20, 'Menu did not travel with the drawer edge.');
+    assert(openMenu.rect.x - closedMenu.rect.x > 20, 'Menu did not travel right with the drawer edge.');
+    assert(Math.abs(openMenu.rect.x + openMenu.rect.width / 2 - (drawer.x + drawer.width)) < 1,
+      'The whole Menu is not centered on the right drawer wall.');
     assert((await hitTarget(openMenu)).sameAction, 'The whole open Menu center is not actionable.');
     evidence.drawerGeometry ||= [];
     evidence.drawerGeometry.push({ players: count, viewport, drawer, menuClosed: closedMenu.rect, menuOpen: openMenu.rect });
@@ -1002,21 +1120,42 @@ try {
   ]) {
     await clickInDrawer(page, { role: 'button' });
     await findInDrawer(content, { startsWith: true });
-    await capture(`23-drawer-${page.toLowerCase().replaceAll(' ', '-')}`);
+    await captureGameView(`23-drawer-${page.toLowerCase().replaceAll(' ', '-')}`, { centered: page !== 'Settings' });
+    if (page === 'New game') {
+      await clickInDrawer('Starting life. Current value:', { startsWith: true, role: 'button' });
+      await captureGameView('23-drawer-starting-life-keyboard');
+      await clickInDrawer('Done', { role: 'button' });
+      for (const action of ['Reset with current configuration', 'Complete reset']) {
+        await scrollDrawerTo(action, { role: 'button' });
+        await clickInDrawer(action, { role: 'button' });
+        await captureGameView(`23-drawer-${action === 'Complete reset' ? 'complete-reset' : 'keep-board'}-confirmation`);
+        await clickInDrawer('Cancel', { role: 'button' });
+      }
+    }
     if (page === 'Settings') {
+      for (const [action, file] of [['Use bundled catalog', 'catalog'], ['Reset saved seat appearance', 'appearance']]) {
+        await scrollDrawerTo(action, { role: 'button' });
+        await clickInDrawer(action, { role: 'button' });
+        await captureGameView(`23-drawer-${file}-confirmation`);
+        await clickInDrawer('Cancel', { role: 'button' });
+      }
       await scrollDrawerTo('Support this app', { role: 'button' });
       await clickInDrawer('Support this app', { role: 'button' });
-      await findInDrawer('Support Tripling Table', { contains: true });
-      await capture('23-drawer-support');
+      await findInDrawer('Always free to play');
+      await captureGameView('23-drawer-support');
       await clickInDrawer('Back', { role: 'button' });
     }
     await clickInDrawer('Back', { role: 'button' });
     await findInDrawer('Board wipes', { role: 'button' });
   }
   await clickInDrawer('Board wipes', { role: 'button' });
-  await clickInDrawer('Wipe all creatures', { role: 'button' });
+  await captureGameView('23-drawer-wipe-chooser');
+  await clickInDrawer('qa, Wipe creatures', { role: 'button' });
+  await captureGameView('23-drawer-player-wipe-confirmation');
+  await clickInDrawer('Cancel', { role: 'button' });
+  await clickInDrawer('Everyone, Wipe creatures', { role: 'button' });
   await findInDrawer('Wipe all creatures for everyone?', { contains: true });
-  await capture('23-drawer-wipe-confirmation');
+  await captureGameView('23-drawer-wipe-confirmation');
   await clickInDrawer('Wipe all creatures', { role: 'button' });
   await findInDrawer('Back', { role: 'button' });
   await clickInDrawer('Close workspace', { role: 'button' });
@@ -1025,7 +1164,7 @@ try {
   await click('Game controls', { startsWith: true, role: 'button' });
   await clickInDrawer('History', { role: 'button' });
   await clickInDrawer('Undo latest:', { startsWith: true, role: 'button' });
-  await capture('23-drawer-history-restores-wipe');
+  await captureGameView('23-drawer-history-restores-wipe', { list: true });
   await clickInDrawer('Close workspace', { role: 'button' });
   await drawerClosed();
   await find('qa, Scute Swarm, Name', { startsWith: true, role: 'button' });
@@ -1035,6 +1174,7 @@ try {
     await click('Game controls', { startsWith: true, role: 'button' });
     await clickInDrawer('New game', { role: 'button' });
     await clickInDrawer(`${count} players`);
+    await captureGameView(`24-drawer-new-game-${count}-players`);
     await scrollDrawerTo('Complete reset', { role: 'button' });
     await clickInDrawer('Complete reset', { role: 'button' });
     await scrollDrawerTo('Archive & complete reset', { role: 'button' });
@@ -1044,12 +1184,13 @@ try {
     const names = (await semantics()).filter(node => node.role === 'button' && /, player details$/.test(node.name));
     assert.equal(names.length, count, `New game did not create the requested ${count}-seat layout.`);
   }
-  async function restoreFourSeatArchive() {
+  async function restoreFourSeatArchive(fromCount) {
     await click('Game controls', { startsWith: true, role: 'button' });
     await clickInDrawer('Archives', { role: 'button' });
+    await captureGameView(`24-drawer-populated-archives-from-${fromCount}`, { list: true });
     await clickInDrawer('4 players ·', { contains: true, role: 'button' });
     await scrollDrawerTo('Save current & restore', { role: 'button' });
-    await capture('24-drawer-restore-archive-confirmation');
+    await captureGameView(`24-drawer-restore-archive-confirmation-from-${fromCount}`);
     await clickInDrawer('Save current & restore', { role: 'button' });
     await drawerClosed();
     await expectLife('qa', 42);
@@ -1061,7 +1202,7 @@ try {
     for (const viewport of [{ width: 1133, height: 744 }, { width: 744, height: 1133 }]) {
       await inspectDrawer(count, viewport);
     }
-    await restoreFourSeatArchive();
+    await restoreFourSeatArchive(count);
   }
   await capture('24-restored-four-seat-table');
   log('PASS real drawer transitions, whole moving Menu, consumed token-space dismissal, repeated navigation, in-drawer wipe/History undo/new game/archive restore and 2/3/4-seat portrait/landscape');
