@@ -34,6 +34,13 @@ This is a planning dossier, not a shipped feature specification. **Confirmed** m
 
 **Current correction:** [compact central component, inline token quantity and whole-surface life/tools](compact_hub_life_tools_2026-10-22.md). PR #40’s earlier centered-strip correction is deployed at `71c1aee`; the latest user feedback supersedes that geometry.
 
+## Deferred unified-product exploration
+
+The owner is exploring an in-place evolution of original Tripling Season with
+safe deck migration, a one-time fresh board and a focused Seat 1 phone view.
+See [the speculative documents](../../todo_features/unified_tripling_season/README.md).
+This is deferred and does not change the current separate-app implementation.
+
 ## Start here
 
 | Document | Purpose |

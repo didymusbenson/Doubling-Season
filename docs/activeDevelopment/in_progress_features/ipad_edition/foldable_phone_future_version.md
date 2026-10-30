@@ -9,3 +9,11 @@ MVP remains tablets, including iPad mini through full-size iPads and Android tab
 Before the future major version, design and validate focus selection, continuity between postures, hardware/hinge/window constraints, orientation, accessibility and custom player-facing input. Preserve stable seat/source identities, timeline and latest-global undo through presentation changes. Whether an open modal continues, adapts or dismisses during posture changes is future technical design; do not invent those rules now. Existing one-keyboard, target-label, whole-table modal barrier and source-applicability semantics are the baseline unless deliberately revised.
 
 This deferred direction is independent of [six-player expansion](six_player_expansion.md). It does not approve six players, one-player standalone games, multi-device synchronization or automatic transfer of control. Revisit this document only when the next major version is scoped.
+
+## 2026-10-30 focused-seat clarification
+
+The owner specified phone view as Seat 1 of an N-player session, with compact
+life above tokens, full commander-source relationships and Table styling.
+See [the deferred focused-seat proposal](../../todo_features/unified_tripling_season/focused_seat.md).
+This clarifies the presentation concept without starting foldable implementation
+or changing the supported player counts.
