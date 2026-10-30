@@ -150,12 +150,10 @@ void main() {
   }
 
   Future<void> enableCounter(WidgetTester tester, String counter) async {
-    await reveal(tester, find.text('Add counter'));
-    await tester.tap(find.text('Add counter'));
-    await tester.pumpAndSettle();
-    await reveal(tester, find.text('Enable $counter'));
-    await tester.tap(find.text('Enable $counter'));
-    await tester.pumpAndSettle();
+    final chip = find.byKey(ValueKey('player-counter-$counter'));
+    await reveal(tester, chip);
+    expect(chip, findsOneWidget);
+    expect(find.text('Add counter'), findsNothing);
   }
 
   Future<void> undoInHistory(WidgetTester tester, TableFixture fixture) async {
@@ -222,12 +220,15 @@ void main() {
         page != WorkspacePage.player ? findsOneWidget : findsNothing,
       );
       expect(
-        find.text('Player counters'),
+        find.byKey(const ValueKey('player-counter-energy')),
         page != WorkspacePage.player ? findsOneWidget : findsNothing,
       );
       expect(byControlLabel('Correct life separately'), findsNothing);
       expect(find.text('Correct life'), findsNothing);
-      expect(find.byIcon(Icons.edit_outlined), findsNothing);
+      expect(
+        byControlLabel('Set energy total'),
+        page == WorkspacePage.player ? findsNothing : findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
       await close(tester);
     }
@@ -384,7 +385,7 @@ void main() {
       expect(find.byKey(const ValueKey('commander-workspace')), findsOneWidget);
       expect(field('Set life total to'), findsNothing);
       expect(find.text('Correct life'), findsNothing);
-      expect(byControlLabel('Set energy total'), findsNothing);
+      expect(byControlLabel('Set energy total'), findsOneWidget);
       await enableCounter(tester, 'energy');
       expect(f.player.counters['energy'], 0);
       await reveal(tester, byControlLabel('Set energy total'));
@@ -396,7 +397,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(f.player.counters['energy'], 27);
       expect(f.player.life, 40);
-      expect(find.text('Player counters'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('player-counter-energy')),
+        findsOneWidget,
+      );
       expect(find.widgetWithText(ChoiceChip, 'Counters'), findsNothing);
       expect(field('Set life total to'), findsNothing);
       expect(find.text('Correct life'), findsNothing);

@@ -36,7 +36,11 @@ extension _GamePages on _TableWorkspaceState {
   Widget _tableHubPage() => _list([
     LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 256 ? 2 : 1;
+        final columns = constraints.maxWidth >= 480
+            ? 3
+            : constraints.maxWidth >= 256
+            ? 2
+            : 1;
         const gap = 10.0;
         final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
         return Wrap(
@@ -389,111 +393,124 @@ extension _GamePages on _TableWorkspaceState {
     return 'Previous player';
   }
 
-  Map<String, int> _visiblePlayerCounters(PlayerState player) =>
-      Map.fromEntries(
-        player.counters.entries.where(
-          (entry) =>
-              entry.value != 0 || _enabledPlayerCounters.contains(entry.key),
-        ),
-      );
+  // Project supported zero counters into the editor without changing persisted
+  // maps on open. Retain every legacy/custom key, including saved zero values.
+  Map<String, int> _editablePlayerCounters(PlayerState player) => {
+    'energy': 0,
+    'poison': 0,
+    'experience': 0,
+    'radiation': 0,
+    ...player.counters,
+  };
+
+  int _counterColumns(double width) {
+    final wideValues =
+        p != null &&
+        _editablePlayerCounters(p!).values.any((value) => '$value'.length > 6);
+    if (wideValues) return width >= 488 ? 2 : 1;
+    return width >= 584 ? 4 : (width >= 288 ? 2 : 1);
+  }
+
+  double get _playerCounterHeight =>
+      max(64.0, MediaQuery.textScalerOf(context).scale(58));
+
+  String _counterLabel(String key) =>
+      key.isEmpty ? 'Counter' : '${key[0].toUpperCase()}${key.substring(1)}';
+
+  String _counterActionLabel(String key) =>
+      key.isEmpty ? 'unnamed counter' : key;
 
   List<Widget> _counterContent(PlayerState player) {
-    final counters = _visiblePlayerCounters(player);
+    final counters = _editablePlayerCounters(player);
+    final editing = _editingPlayerCounter;
+    final disabled = _working || _closing || _navigating || !_validScope;
     return [
-      _playerStatusBadges(player),
-      const SizedBox(height: 4),
-      Row(
-        children: [
-          Expanded(
-            child: Text(
-              'Player counters',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-          ),
-          TextButton.icon(
-            onPressed: _working
-                ? null
-                : () => _update(() => _counterPickerOpen = !_counterPickerOpen),
-            icon: Icon(_counterPickerOpen ? Icons.close : Icons.add, size: 20),
-            label: Text(
-              _counterPickerOpen ? 'Close counter choices' : 'Add counter',
-            ),
-          ),
-        ],
+      Semantics(
+        identifier: 'player-status-chips',
+        container: true,
+        explicitChildNodes: true,
+        child: _playerStatusBadges(player),
       ),
-      if (_counterPickerOpen) ...[
-        Wrap(
-          spacing: 6,
-          children: [
-            for (final key in ['energy', 'poison', 'experience', 'radiation'])
-              if (!counters.containsKey(key))
-                _button(
-                  'Enable $key',
-                  () => _run(
-                    () => c.setPlayerCounter(player.id, key, 0),
-                    after: () {
-                      _enabledPlayerCounters.add(key);
-                      _counterPickerOpen = false;
-                    },
-                  ),
-                  icon: Icons.add,
-                ),
-          ],
-        ),
-        _gameFieldAction(
-          _input('counter.new', 'Counter name'),
-          _button('Enable counter', () {
-            final name = _field('counter.new').text.trim();
-            if (name.isEmpty) {
-              _update(() => _error = 'Enter a counter name.');
-              return;
-            }
-            _run(
-              () => c.setPlayerCounter(player.id, name, counters[name] ?? 0),
-              after: () {
-                _enabledPlayerCounters.add(name);
-                _counterPickerOpen = false;
-              },
-            );
-          }, icon: Icons.add),
-        ),
-      ],
-      _counterGrid([
-        for (final counter in counters.entries)
-          Card(
-            key: ValueKey('player-counter-${counter.key}'),
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
+      const SizedBox(height: 8),
+      Semantics(
+        identifier: 'player-counter-chips',
+        label: 'Player counters',
+        container: true,
+        explicitChildNodes: true,
+        child: _counterGrid(
+          [
+            for (final counter in counters.entries)
+              Semantics(
+                key: ValueKey('player-counter-${counter.key}'),
+                identifier: 'player-counter-${counter.key}',
+                container: true,
+                explicitChildNodes: true,
+                child: Material(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(14),
+                  clipBehavior: Clip.antiAlias,
+                  child: Row(
                     children: [
                       Expanded(
                         child: HalfStepper(
-                          height: 48,
-                          label: counter.key,
+                          height: _playerCounterHeight,
+                          label: _counterActionLabel(counter.key),
                           value: '${counter.value}',
-                          valueWidget: Column(
-                            mainAxisSize: MainAxisSize.min,
+                          displayPadding: 22,
+                          iconPadding: 5,
+                          iconSize: 17,
+                          displayOverlay: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
-                                '${counter.key[0].toUpperCase()}${counter.key.substring(1)}',
-                                style: Theme.of(context).textTheme.labelMedium,
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 22,
+                                ),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(switch (counter.key) {
+                                        'energy' => Icons.bolt,
+                                        'poison' => Icons.science_outlined,
+                                        'experience' => Icons.auto_awesome,
+                                        'radiation' => Icons.blur_circular,
+                                        _ => Icons.hexagon_outlined,
+                                      }, size: 18),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        '${counter.value}',
+                                        key: ValueKey(
+                                          'player-counter-value-${counter.key}',
+                                        ),
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.titleLarge,
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                              Text(
-                                '${counter.value}',
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.headlineSmall,
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                ),
+                                child: Text(
+                                  _counterLabel(counter.key),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.labelSmall,
+                                ),
                               ),
                             ],
                           ),
-                          decreaseLabel: 'Decrease ${counter.key}',
-                          increaseLabel: 'Increase ${counter.key}',
+                          decreaseLabel:
+                              'Decrease ${_counterActionLabel(counter.key)}',
+                          increaseLabel:
+                              'Increase ${_counterActionLabel(counter.key)}',
                           onDecrease:
-                              _working ||
+                              disabled ||
                                   (_directPending == 0 && counter.value == 0)
                               ? null
                               : () => _runDirect(
@@ -503,7 +520,7 @@ extension _GamePages on _TableWorkspaceState {
                                     -1,
                                   ),
                                 ),
-                          onIncrease: _working
+                          onIncrease: disabled
                               ? null
                               : () => _runDirect(
                                   () => c.adjustPlayerCounter(
@@ -516,13 +533,14 @@ extension _GamePages on _TableWorkspaceState {
                       ),
                       SizedBox(
                         width: 44,
-                        height: 48,
+                        height: _playerCounterHeight,
                         child: MergeSemantics(
                           child: Semantics(
-                            label: 'Set ${counter.key} total',
+                            label:
+                                'Set ${_counterActionLabel(counter.key)} total',
                             child: IconButton(
-                              icon: const Icon(Icons.edit_outlined, size: 19),
-                              onPressed: _working
+                              icon: const Icon(Icons.edit_outlined, size: 17),
+                              onPressed: disabled
                                   ? null
                                   : () => _editPlayerCounter(
                                       player.id,
@@ -534,60 +552,87 @@ extension _GamePages on _TableWorkspaceState {
                       ),
                     ],
                   ),
-                  if (counter.key == 'poison' && counter.value >= 10)
-                    const Text('Poison threshold reached.'),
-                  if (_editingPlayerCounter == counter.key)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _input(
-                            'counter.${counter.key}',
-                            'Set total',
-                            initial: '${counter.value}',
-                            numeric: true,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        _button(
-                          'Set',
-                          () => _run(
-                            () => c.setPlayerCounter(
-                              player.id,
-                              counter.key,
-                              _integer('counter.${counter.key}', min: 0),
-                            ),
-                            after: () => _editingPlayerCounter = null,
-                          ),
-                        ),
-                        MergeSemantics(
-                          child: Semantics(
-                            label: 'Cancel counter correction',
-                            child: IconButton(
-                              onPressed: () =>
-                                  _update(() => _editingPlayerCounter = null),
-                              icon: const Icon(Icons.close, size: 19),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                ],
+                ),
               ),
-            ),
-          ),
-      ]),
+          ],
+          correctionIndex: editing == null
+              ? null
+              : counters.keys.toList().indexOf(editing),
+          correction: editing == null
+              ? null
+              : Row(
+                  key: _counterCorrectionKey,
+                  children: [
+                    Expanded(
+                      child: _input(
+                        'counter.$editing',
+                        'Set total',
+                        initial: '${counters[editing]}',
+                        numeric: true,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _button(
+                      'Set',
+                      () => _run(
+                        () => c.setPlayerCounter(
+                          player.id,
+                          editing,
+                          _integer('counter.$editing', min: 0),
+                        ),
+                        after: () => _editingPlayerCounter = null,
+                      ),
+                    ),
+                    MergeSemantics(
+                      child: Semantics(
+                        label: 'Cancel counter correction',
+                        child: IconButton(
+                          onPressed: () =>
+                              _update(() => _editingPlayerCounter = null),
+                          icon: const Icon(Icons.close, size: 19),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
     ];
   }
 
-  Widget _counterGrid(List<Widget> children) => LayoutBuilder(
+  Widget _counterGrid(
+    List<Widget> children, {
+    int? correctionIndex,
+    Widget? correction,
+  }) => LayoutBuilder(
     builder: (context, bounds) {
-      final columns = bounds.maxWidth >= 380 ? 2 : 1;
+      final columns = _counterColumns(bounds.maxWidth);
       final width = (bounds.maxWidth - (columns - 1) * 8) / columns;
-      return Wrap(
-        spacing: 8,
-        runSpacing: 8,
+      return Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          for (final child in children) SizedBox(width: width, child: child),
+          for (var start = 0; start < children.length; start += columns) ...[
+            if (start > 0) const SizedBox(height: 8),
+            Row(
+              children: [
+                for (
+                  var index = start;
+                  index < min(start + columns, children.length);
+                  index++
+                ) ...[
+                  if (index > start) const SizedBox(width: 8),
+                  SizedBox(width: width, child: children[index]),
+                ],
+              ],
+            ),
+            if (correction != null &&
+                correctionIndex != null &&
+                correctionIndex >= start &&
+                correctionIndex < start + columns) ...[
+              const SizedBox(height: 8),
+              correction,
+            ],
+          ],
         ],
       );
     },

@@ -9,7 +9,12 @@ extension _DicePages on _TableWorkspaceState {
   }
 
   Widget _diceBody({required Widget child, required Key scrollKey}) => _embedded
-      ? GameDrawerBody(centered: true, scrollKey: scrollKey, child: child)
+      ? GameDrawerBody(
+          centered: true,
+          scrollKey: scrollKey,
+          wideMaxContentWidth: 760,
+          child: child,
+        )
       : SingleChildScrollView(
           key: scrollKey,
           padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),

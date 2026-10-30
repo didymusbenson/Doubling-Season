@@ -27,6 +27,11 @@ are not adopted.
 
 ## Implemented behavior and constraints
 
+The subsequent [attached-controls follow-up](attached_controls_and_two_player_reveal_2026-10-30.md)
+supersedes two-player token clipping with a horizontal reveal and attaches short
+page headers directly to their content. The vertical stationary-token behavior
+below continues to apply to three/four-player tables.
+
 - Menu travels intact to the right wall. Dice stays on the left edge and
   Day/Night on the right, with the opposite semicircle clearance preserved.
   Opening, bounce, reversal and closing must retain distinct targets. Token

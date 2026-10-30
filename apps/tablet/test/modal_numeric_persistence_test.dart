@@ -132,15 +132,6 @@ void main() {
     );
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-    if (target == _Target.counter && initial == 0) {
-      repository.delay = false;
-      await tester.tap(find.text('Add counter'));
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Enable energy'));
-      await tester.tap(find.text('Enable energy'));
-      await tester.pumpAndSettle();
-      repository.delay = true;
-    }
     addTearDown(() {
       catalog.dispose();
       controller.dispose();

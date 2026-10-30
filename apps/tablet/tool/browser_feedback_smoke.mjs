@@ -146,9 +146,10 @@ async function identifierRect(identifier) {
     return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
   })()`);
 }
-async function find(name, { startsWith = false, contains = false, role, within, timeout = 30000 } = {}) {
+async function find(name, { startsWith = false, contains = false, role, within, includeDisabled = false, timeout = 30000 } = {}) {
   return until(`visible semantic control ${JSON.stringify(name)}`, async () => {
-    const nodes = (await semantics()).filter(node => matches(node, name, startsWith, contains) && !node.disabled && (!role || node.role === role));
+    const nodes = (await semantics()).filter(node => matches(node, name, startsWith, contains) &&
+      (includeDisabled || !node.disabled) && (!role || node.role === role));
     const candidates = [];
     for (const node of nodes) {
       if (within && !await insideIdentifier(node, within)) continue;
@@ -277,6 +278,7 @@ async function diagnoseHold(input) {
 async function click(name, options = {}) {
   const closesDrawer = name === 'Close workspace' && !!await identifierRect('game-drawer-workspace');
   let node = await find(name, options);
+  assert(!node.disabled, `Cannot click a disabled control: ${name}`);
   let target = await hitTarget(node);
   if (!target.sameAction) {
     evidence.unmatchedTargets ||= [];
@@ -432,6 +434,30 @@ async function verifyMenuPixels(bytes, players, viewport, file) {
   evidence.drawerMenuPixels.push({ players, viewport, file, labels });
   await verifyGameComposition('menu', { centered: true });
 }
+async function verifyCutoutSurface(bytes, stage, { horizontal = false } = {}) {
+  const png = decodeScreenshotPng(bytes);
+  const drawer = await identifierRect('game-drawer-workspace');
+  assert(drawer, 'Cutout pixel check requires the open drawer.');
+  const menu = await find('Game controls Expanded', { startsWith: true, role: 'button' });
+  const y = menu.rect.y + menu.rect.height / 2;
+  const sample = (x, y) => {
+    const channels = [[], [], []];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const index = (Math.round(y + dy) * png.width + Math.round(x + dx)) * png.channels;
+      for (let channel = 0; channel < 3; channel++) channels[channel].push(png.pixels[index + channel]);
+    }
+    return channels.map(values => values.sort((a, b) => a - b)[4]);
+  };
+  // The opposite wall's exposed semicircle must use the same actual surface
+  // as its adjacent empty gutter. Both points avoid strokes, icons and text.
+  const notchPoint = horizontal ? { x: 30, y: drawer.y - 12 } : { x: drawer.x - 12, y };
+  const surfacePoint = horizontal ? { x: 90, y: drawer.y + 8 } : { x: drawer.x + 8, y: y - 60 };
+  const notch = sample(notchPoint.x, notchPoint.y), surface = sample(surfacePoint.x, surfacePoint.y);
+  assert(notch.every((value, index) => Math.abs(value - surface[index]) <= 3),
+    `${stage}: wall cutout does not match the current theme surface: ${notch} versus ${surface}.`);
+  evidence.cutoutPixels ||= [];
+  evidence.cutoutPixels.push({ stage, viewport: { ...evidence.viewport }, notchPoint, surfacePoint, notch, surface });
+}
 async function captureDrawerTransition(name, action) {
   const frames = [];
   transitionFrames = frames;
@@ -537,6 +563,25 @@ async function capture(name) {
 async function verifyGameComposition(name, { centered = true, list = false } = {}) {
   const drawer = await identifierRect('game-drawer-workspace');
   const body = await identifierRect('game-drawer-body-viewport');
+  const page = await identifierRect('game-drawer-page-viewport');
+  const group = await identifierRect('game-drawer-attached-group');
+  const header = await identifierRect('game-drawer-header');
+  assert(drawer && body && page && group && header,
+    `${name}: missing attached navigation geometry.`);
+  assert(Math.abs(header.y + header.height - body.y) < 2,
+    `${name}: navigation is detached from the body viewport.`);
+  assert(Math.abs(group.y + group.height / 2 - (page.y + page.height / 2)) < 2,
+    `${name}: header and body are not centered as one group.`);
+  const overflowing = group.height >= page.height - 2;
+  if (overflowing) assert(Math.abs(header.y - page.y) < 2,
+    `${name}: overflowing page navigation is not pinned to the available top.`);
+  for (const label of ['Close workspace', ...((await semantics()).some(node => node.name === 'Back' && node.role === 'button') ? ['Back'] : [])]) {
+    const control = await findInDrawer(label, { role: 'button' });
+    assert(control.rect.y >= header.y - 1 && control.rect.y + control.rect.height <= header.y + header.height + 1,
+      `${name}: ${label} is outside its attached header.`);
+    assert((await hitTarget(control)).sameAction, `${name}: ${label} is obstructed.`);
+  }
+  const navigation = { page, group, header, overflowing };
   if (list) {
     assert(body, `${name}: missing list viewport.`);
     const rows = await cdp.evaluate(`Array.from(document.querySelectorAll('[flt-semantics-identifier^="game-drawer-list-row-"]')).map(element => {
@@ -551,7 +596,7 @@ async function verifyGameComposition(name, { centered = true, list = false } = {
       assert(row.x >= drawer.x + 31 && row.x + row.width <= drawer.x + drawer.width - 31,
         `${name}: ${row.id} enters a wall/handle gutter.`);
     }
-    const result = { name, viewport: { ...evidence.viewport }, drawer, body, list: true, rows: visible };
+    const result = { name, viewport: { ...evidence.viewport }, drawer, body, navigation, list: true, rows: visible };
     evidence.gameComposition ||= [];
     evidence.gameComposition.push(result);
     return result;
@@ -563,11 +608,13 @@ async function verifyGameComposition(name, { centered = true, list = false } = {
   assert(Math.abs(horizontalOffset) < 2, `${name}: drawer content is not horizontally centered (${horizontalOffset}px).`);
   assert(content.x >= drawer.x + 31 && content.x + content.width <= drawer.x + drawer.width - 31,
     `${name}: content enters a wall cutout or Menu handle gutter.`);
-  const fits = content.height <= body.height - 31;
-  const verticalOffset = content.y + content.height / 2 - (body.y + body.height / 2);
-  if (centered && fits) assert(Math.abs(verticalOffset) < 2,
-    `${name}: short content is not balanced in its actual available viewport (${verticalOffset}px).`);
-  const result = { name, viewport: { ...evidence.viewport }, drawer, body, content, centered, fits, horizontalOffset, verticalOffset };
+  const fits = !overflowing;
+  const headerGap = content.y - (header.y + header.height);
+  // Long routes may retain an ordinary scroll position. Short routes fit in
+  // full and must keep their content immediately under the navigation row.
+  if (fits) assert(Math.abs(headerGap - 8) < 2,
+    `${name}: short content is detached from navigation (${headerGap}px).`);
+  const result = { name, viewport: { ...evidence.viewport }, drawer, body, content, navigation, centered, fits, horizontalOffset, headerGap };
   evidence.gameComposition ||= [];
   evidence.gameComposition.push(result);
   return result;
@@ -626,6 +673,107 @@ async function verifyLifeOverlayGeometry(stage, names, counterOwners = []) {
   }
   evidence.lifeOverlayGeometry ||= [];
   evidence.lifeOverlayGeometry.push({ stage, viewport: { ...evidence.viewport }, players: results });
+}
+function stepperValue(node) {
+  const value = Number(node.value ?? node.name.match(/ (-?\d+)$/)?.[1]);
+  assert(Number.isInteger(value), `Missing numeric stepper value: ${node.name}`);
+  return value;
+}
+async function verifyInlineCounterChips(stage) {
+  const tree = await semantics();
+  assert(!tree.some(node => /^(Add counter|Close counter choices|Enable (energy|poison|experience|radiation|counter))$/.test(node.name)),
+    'Player counters retained the separate enable/management flow.');
+  const group = await identifierRect('player-counter-chips');
+  const statuses = await identifierRect('player-status-chips');
+  assert(group && statuses, 'Inline counter/status geometry is missing.');
+  const chips = [];
+  for (const type of ['energy', 'poison', 'experience', 'radiation']) {
+    const increase = await find(`Increase ${type}`, { startsWith: true, role: 'button' });
+    const decrease = await find(`Decrease ${type}`, { startsWith: true, role: 'button', includeDisabled: true });
+    const rect = await identifierRect(`player-counter-${type}`);
+    assert(rect && increase.rect.width >= 43.9 && increase.rect.height >= 43.9 &&
+      decrease.rect.width >= 43.9 && decrease.rect.height >= 43.9,
+    `${type}: inline chip does not expose full-sized stepper halves.`);
+    const value = stepperValue(increase);
+    assert((await hitTarget(increase)).sameAction, `${type}: inline increase half is obstructed.`);
+    if (value === 0) assert(decrease.disabled, `${type}: zero decrement lacks its disabled state.`);
+    else assert((await hitTarget(decrease)).sameAction, `${type}: inline decrease half is obstructed.`);
+    chips.push({ type, rect, value });
+  }
+  const left = await find('Decrease energy', { startsWith: true, role: 'button', includeDisabled: true });
+  const right = await find('Increase energy', { startsWith: true, role: 'button' });
+  const dx = right.rect.x + right.rect.width / 2 - left.rect.x - left.rect.width / 2;
+  const dy = right.rect.y + right.rect.height / 2 - left.rect.y - left.rect.height / 2;
+  const length = Math.hypot(dx, dy), down = { x: -dy / length, y: dx / length };
+  const below = (group.x + group.width / 2 - statuses.x - statuses.width / 2) * down.x +
+    (group.y + group.height / 2 - statuses.y - statuses.height / 2) * down.y;
+  assert(below > 0, `${stage}: counter chips are not below the statuses in player-local orientation.`);
+  evidence.inlineCounters ||= [];
+  evidence.inlineCounters.push({ stage, viewport: { ...evidence.viewport }, group, statuses, below, chips });
+  return chips;
+}
+async function exerciseCommanderName(recipient, owner, source, { hold = false } = {}) {
+  const increaseLabel = `Increase ${source} damage from ${owner}; lose one life`;
+  const decreaseLabel = `Decrease ${source} damage from ${owner}; restore one life`;
+  const increase = await find(increaseLabel, { startsWith: true, role: 'button' });
+  const decrease = await find(decreaseLabel, { startsWith: true, role: 'button', includeDisabled: true });
+  const center = rect => ({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 });
+  const a = center(decrease.rect), b = center(increase.rect);
+  const length = Math.hypot(b.x - a.x, b.y - a.y);
+  const across = { x: (b.x - a.x) / length, y: (b.y - a.y) / length };
+  const down = { x: -across.y, y: across.x };
+  const height = Math.abs(down.x) > .5 ? increase.rect.width : increase.rect.height;
+  const middle = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  // The actual text RenderBox is checked by widget tests. In the release
+  // browser its pointer-transparent excluded overlay has no DOM node. Derive
+  // the centered name line from the rendered full-half geometry and the
+  // production 5px top inset + 12px/1.1 line height; +/-2px straddles the
+  // center within even the short "qa" label, rather than tapping its margin.
+  const nameCenter = { x: middle.x + down.x * (-height / 2 + 11),
+    y: middle.y + down.y * (-height / 2 + 11) };
+  const points = { increase: { x: nameCenter.x + across.x * 2, y: nameCenter.y + across.y * 2 },
+    decrease: { x: nameCenter.x - across.x * 2, y: nameCenter.y - across.y * 2 } };
+  const snapshot = async () => (await semantics()).filter(node => node.role === 'button' &&
+    /^Increase .+ damage from .+; lose one life /.test(node.name)).map(node => node.name).sort();
+  const beforeAll = await snapshot(), before = stepperValue(increase);
+  const lifeHeader = (await semantics()).find(node => node.name.startsWith(`${recipient} · `) && /\d+ life/.test(node.name))?.name;
+  assert(lifeHeader, 'Missing recipient life header before commander name input.');
+  async function press(label, point, holdMs = 40) {
+    const node = await find(label, { startsWith: true, role: 'button' });
+    const hit = await hitTarget({ ...node, rect: { x: point.x - .5, y: point.y - .5, width: 1, height: 1 } });
+    assert(hit.sameAction, `${recipient}/${owner}/${source}: rendered name strip belongs to another hit target.`);
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point });
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button: 'left', buttons: 1, clickCount: 1 });
+    await sleep(holdMs);
+    const held = holdMs > 500 ? stepperValue(await find(increaseLabel, { startsWith: true, role: 'button' })) : null;
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point, button: 'left', buttons: 0, clickCount: 1 });
+    await sleep(180);
+    return held;
+  }
+  const held = await press(increaseLabel, points.increase, hold ? 1200 : 40);
+  const changed = await until('commander name input changes damage', async () => {
+    const value = stepperValue(await find(increaseLabel, { startsWith: true, role: 'button' }));
+    return value > before ? value : false;
+  });
+  if (hold) {
+    assert(held > before, 'Commander name hold did not change damage while still pressed.');
+    // The AX snapshot is asynchronous while repetition is still active; one
+    // accepted tick can land between that read and dispatching mouseReleased.
+    // Check stability after release instead of comparing those racing reads.
+    await sleep(180);
+    assert.equal(stepperValue(await find(increaseLabel, { startsWith: true, role: 'button' })), changed,
+      'Commander name hold kept changing after release.');
+  }
+  else assert.equal(changed, before + 1, 'Commander name tap changed damage by more than one.');
+  for (let value = changed; value > before; value--) await press(decreaseLabel, points.decrease);
+  await until('commander name decrement restores the original value', async () =>
+    stepperValue(await find(increaseLabel, { startsWith: true, role: 'button' })) === before);
+  await find(lifeHeader);
+  assert.deepEqual(await snapshot(), beforeAll, 'Commander name input changed another source or failed to restore its source.');
+  evidence.commanderNameInputs ||= [];
+  evidence.commanderNameInputs.push({ recipient, owner, source, viewport: { ...evidence.viewport },
+    coordinateMethod: 'rendered-half-derived-name-line; exact Text bounds covered by widget tests',
+    increase: increase.rect, decrease: decrease.rect, points, before, changed, held, lifeHeader, restored: true });
 }
 async function enableSemantics() {
   await until('Flutter accessibility bootstrap', async () => cdp.evaluate(`(() => {
@@ -969,16 +1117,40 @@ try {
 
   // Exercise the relocated statuses and immediate-life route in the real
   // release build, without injecting state or relying on widget-only fixtures.
+  assert(!(await semantics()).some(node => node.name.startsWith('qa, player counters')),
+    'Zero player counters reserve a life-summary action.');
   await click('qa, commander damage ', { startsWith: true, role: 'button' });
-  await find('Add counter', { role: 'button' });
+  const zeroCounters = await verifyInlineCounterChips('all-supported-counters-at-zero');
+  assert(zeroCounters.every(counter => counter.value === 0), 'A fresh counter editor did not start at zero.');
+  assert((await find('Decrease energy', { startsWith: true, role: 'button', includeDisabled: true })).disabled,
+    'Zero-clamped energy decrement is not disabled.');
+  assert.equal(stepperValue(await find('Increase energy', { startsWith: true, role: 'button' })), 0,
+    'Zero-clamped energy decreased below zero.');
+  await capture('17a-all-zero-inline-counter-chips');
+  await click('Close workspace');
+  await find('qa, player details', { role: 'button' });
+  assert(!(await semantics()).some(node => node.name.startsWith('qa, player counters')),
+    'Opening the zero-counter editor created an empty summary.');
+  await click('qa, commander damage ', { startsWith: true, role: 'button' });
+  await click('Increase energy', { startsWith: true, role: 'button' });
+  await click('Close workspace');
+  await find('qa, player counters', { startsWith: true, role: 'button' });
+  await click('qa, player counters', { startsWith: true, role: 'button' });
+  await click('Decrease energy', { startsWith: true, role: 'button' });
+  await click('Close workspace');
+  await find('qa, player details', { role: 'button' });
+  assert(!(await semantics()).some(node => node.name.startsWith('qa, player counters')),
+    'A counter restored to zero retained a summary strip.');
+  await click('qa, commander damage ', { startsWith: true, role: 'button' });
   for (const status of ['Monarch', 'City’s blessing', 'Initiative']) {
     await click(`${status}, Off`, { contains: true, role: 'switch' });
     await find(`${status}, On`, { contains: true, role: 'switch' });
   }
-  await click('Add counter', { role: 'button' });
-  await click('Enable energy', { role: 'button' });
   await click('Increase energy', { startsWith: true, role: 'button' });
   await click('Increase energy', { startsWith: true, role: 'button' });
+  const activeCounters = await verifyInlineCounterChips('energy-two-other-supported-counters-zero');
+  assert.deepEqual(activeCounters.map(({ type, value }) => [type, value]),
+    [['energy', 2], ['poison', 0], ['experience', 0], ['radiation', 0]]);
   await capture('17-visual-counters-and-three-statuses');
   await click('Close workspace');
   await capture('18-statuses-on-life-chip');
@@ -1043,6 +1215,12 @@ try {
             `Commander target too small: ${name}/${owner}/${source}`);
         }
       }
+      await verifyInlineCounterChips(`seat-${index + 1}-${viewport.width}x${viewport.height}`);
+      for (const source of ['Commander #1', 'Partner #2']) {
+        await exerciseCommanderName(name, 'qa', source, {
+          hold: index === 0 && viewport.width === 1133 && source === 'Partner #2',
+        });
+      }
       await capture(`20-commander-seat${index + 1}-${viewport.width}x${viewport.height}`);
       await click('Close workspace');
     }
@@ -1064,6 +1242,82 @@ try {
       .map(({ role, name, value }) => ({ role, name, value }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
+  async function twoPlayerTokenBaseline(viewport, file) {
+    const rows = [];
+    for (const owner of ['qa', 'Player 2']) {
+      const controls = [];
+      for (const node of (await semantics()).filter(node => node.role === 'button' && node.name.startsWith(`${owner}, Scute Swarm,`))) {
+        const rect = await bounds(node);
+        if (rect) controls.push({ name: node.name, rect });
+      }
+      assert(controls.length >= 8, `${owner}: populated two-player token fixture is missing its real controls.`);
+      const name = controls.find(node => node.name.startsWith(`${owner}, Scute Swarm, Name`));
+      const upper = name.rect.y + name.rect.height / 2 < viewport.height / 2;
+      const nearest = upper ? Math.max(...controls.map(node => node.rect.y + node.rect.height)) : Math.min(...controls.map(node => node.rect.y));
+      const seamInset = Math.abs(nearest - viewport.height / 2);
+      assert(seamInset < 18, `${owner}: the first token row still reserves a blank seam strip (${seamInset}px).`);
+      rows.push({ owner, upper, controls, seamInset });
+    }
+    return { png: decodeScreenshotPng(await capture(file)), rows };
+  }
+  async function verifyTwoPlayerTokenRows(before, bytes, drawer, viewport) {
+    const after = decodeScreenshotPng(bytes);
+    const dismissals = [];
+    for (const node of (await semantics()).filter(node => node.role === 'button' && node.name === 'Close game drawer')) {
+      const rect = await bounds(node);
+      if (rect) dismissals.push(rect);
+    }
+    assert.equal(dismissals.length, 2, 'Two-player drawer must expose one full token dismissal region per seat.');
+    const results = [];
+    for (const row of before.rows) {
+      const region = dismissals.find(rect => row.upper ? rect.y < drawer.y : rect.y >= drawer.y + drawer.height - 1);
+      const width = (viewport.width - 1) * .6;
+      assert(region && Math.abs(region.width - width) < 2,
+        `${row.owner}: the open drawer clips or resizes its token-lane width.`);
+      assert(Math.abs(region.x - (row.upper ? viewport.width - width : 0)) < 2,
+        `${row.owner}: the open drawer moved its token lane sideways.`);
+      const shift = row.upper ? drawer.y - viewport.height / 2 : drawer.y + drawer.height - viewport.height / 2;
+      const controlTop = Math.min(...row.controls.map(node => node.rect.y));
+      const controlBottom = Math.max(...row.controls.map(node => node.rect.y + node.rect.height));
+      // Corner Add/Summary controls intentionally remain over the outer edge
+      // of the lane. Compare the first-row paint before that 48px overlay
+      // region; its location changes as the viewport becomes shallower.
+      const startY = Math.max(controlTop, region.y + (row.upper ? 48 : 0) - shift) + 2;
+      const endY = Math.min(controlBottom, region.y + region.height - (row.upper ? 0 : 48) - shift) - 2;
+      assert(endY - startY >= 50, `${row.owner}: opening leaves no useful visible first-token row.`);
+      // Compare the actual painted row across its complete width, translated
+      // only vertically. A +/-1 raster alignment tolerance handles fractional
+      // layout coordinates; cropping the horizontal token strip cannot pass.
+      const differences = [];
+      for (const delta of [-1, 0, 1]) {
+        let total = 0, samples = 0;
+        const edge = { left: { total: 0, samples: 0 }, right: { total: 0, samples: 0 } };
+        for (let y = Math.ceil(startY); y < endY; y += 3) for (let x = Math.ceil(region.x + 2); x < region.x + region.width - 2; x += 3) {
+          const targetY = Math.round(y + shift) + delta;
+          if (targetY < region.y + 1 || targetY >= region.y + region.height - 1) continue;
+          const a = (y * before.png.width + x) * before.png.channels;
+          const b = (targetY * after.width + x) * after.channels;
+          const band = x < region.x + 18 ? edge.left : x > region.x + region.width - 18 ? edge.right : null;
+          for (let channel = 0; channel < 3; channel++) {
+            const difference = Math.abs(before.png.pixels[a + channel] - after.pixels[b + channel]);
+            total += difference;
+            if (band) { band.total += difference; band.samples++; }
+          }
+          samples += 3;
+        }
+        differences.push({ delta, samples, mean: total / samples,
+          leftEdgeMean: edge.left.total / edge.left.samples, rightEdgeMean: edge.right.total / edge.right.samples });
+      }
+      const best = differences.reduce((a, b) => a.mean < b.mean ? a : b);
+      assert(best.samples > 1000 && best.mean < 15,
+        `${row.owner}: first-token pixels changed or clipped horizontally when the drawer opened (${JSON.stringify(differences)}).`);
+      assert(best.leftEdgeMean < 15 && best.rightEdgeMean < 15,
+        `${row.owner}: a token edge clipped despite the wider row matching (${JSON.stringify(best)}).`);
+      results.push({ owner: row.owner, upper: row.upper, region, shift, seamInset: row.seamInset, differences, best });
+    }
+    evidence.twoPlayerTokenRows ||= [];
+    evidence.twoPlayerTokenRows.push({ viewport, drawer, rows: results });
+  }
   async function inspectDrawer(count, viewport) {
     evidence.viewport = { ...viewport, deviceScaleFactor: 1 };
     await cdp.send('Emulation.setDeviceMetricsOverride', { ...evidence.viewport, mobile: false });
@@ -1073,6 +1327,9 @@ try {
     await verifyLifeOverlayGeometry(`${count}-seat-drawer-before`, ['qa', 'Player 2', 'Player 3', 'Player 4'].slice(0, count), count === 4 ? ['qa'] : []);
     const before = await tableSnapshot();
     const closedMenu = await find('Game controls Collapsed', { startsWith: true, role: 'button' });
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved',
+      x: closedMenu.rect.x + closedMenu.rect.width / 2, y: closedMenu.rect.y + closedMenu.rect.height / 2 });
+    const tokenRows = count === 2 ? await twoPlayerTokenBaseline(viewport, `${prefix}-populated-token-rows-before`) : null;
     const menuPng = await captureDrawerTransition(`${prefix}-opening`, () =>
       click('Game controls Collapsed', { startsWith: true, role: 'button', after: 0 }));
     const drawer = await identifierRect('game-drawer-workspace');
@@ -1081,13 +1338,25 @@ try {
     assert(Math.abs(openMenu.rect.width - closedMenu.rect.width) < .1 &&
       Math.abs(openMenu.rect.height - closedMenu.rect.height) < .1,
     'Menu button changed size or was sliced during drawer opening.');
-    assert(openMenu.rect.x - closedMenu.rect.x > 20, 'Menu did not travel right with the drawer edge.');
-    assert(Math.abs(openMenu.rect.x + openMenu.rect.width / 2 - (drawer.x + drawer.width)) < 1,
-      'The whole Menu is not centered on the right drawer wall.');
+    if (count === 2) {
+      assert(drawer.width >= viewport.width - 2 && drawer.x <= 1,
+        'The two-player drawer does not span the complete table width.');
+      assert(openMenu.rect.y - closedMenu.rect.y > 20, 'Two-player Menu did not travel down with its wall.');
+      assert(Math.abs(openMenu.rect.y + openMenu.rect.height / 2 - (drawer.y + drawer.height)) < 1,
+        'The whole two-player Menu is not centered on the lower drawer wall.');
+      assert(Math.abs(openMenu.rect.x + openMenu.rect.width / 2 - (viewport.width - 30)) < 1,
+        'Two-player Menu left its lower-right wall position.');
+    } else {
+      assert(openMenu.rect.x - closedMenu.rect.x > 20, 'Menu did not travel right with the drawer edge.');
+      assert(Math.abs(openMenu.rect.x + openMenu.rect.width / 2 - (drawer.x + drawer.width)) < 1,
+        'The whole Menu is not centered on the right drawer wall.');
+    }
     assert((await hitTarget(openMenu)).sameAction, 'The whole open Menu center is not actionable.');
     evidence.drawerGeometry ||= [];
     evidence.drawerGeometry.push({ players: count, viewport, drawer, menuClosed: closedMenu.rect, menuOpen: openMenu.rect });
     await verifyMenuPixels(menuPng, count, viewport, `${prefix}-opening-settled.png`);
+    await verifyCutoutSurface(menuPng, `${count}-seat-dark`, { horizontal: count === 2 });
+    if (tokenRows) await verifyTwoPlayerTokenRows(tokenRows, menuPng, drawer, viewport);
     await clickInDrawer('History', { role: 'button' });
     await findInDrawer('Back', { role: 'button' });
     await capture(`${prefix}-history`);
@@ -1199,6 +1468,35 @@ try {
   }
   for (const count of [2, 3]) {
     await resetPlayers(count);
+    if (count === 2) {
+      for (const name of ['qa', 'Player 2']) {
+        await click(`${name}, add token`);
+        await click('Search tokens, abilities, type, or P/T. Current value:', { contains: true, role: 'button' });
+        await click('Select all');
+        for (const letter of 'scute') await click(letter, { role: 'button' });
+        await click('Done');
+        await click('Scute Swarm', { startsWith: true });
+        await click('Create tokens');
+        await find(`${name}, Scute Swarm, Name`, { startsWith: true, role: 'button' });
+      }
+      await sleep(500);
+      await click('qa, Scute Swarm, Name', { startsWith: true, role: 'button' });
+      await find('qa, Scute Swarm, Choose artwork', { contains: true, role: 'button' });
+      const rowBeforeScroll = await find('qa, Scute Swarm, Name', { startsWith: true, role: 'button' });
+      const wheel = { x: evidence.viewport.width * .3, y: evidence.viewport.height * .78 };
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', ...wheel, deltaX: 0, deltaY: 350 });
+      await sleep(250);
+      const rowAfterScroll = await find('qa, Scute Swarm, Name', { startsWith: true, role: 'button', timeout: 250 }).catch(() => null);
+      assert(!rowAfterScroll || Math.abs(rowAfterScroll.rect.y - rowBeforeScroll.rect.y) > 20,
+        'The two-player expanded token lane did not scroll through its real content.');
+      await capture('22-two-player-expanded-token-scrolled');
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', ...wheel, deltaX: 0, deltaY: -1600 });
+      await until('two-player first token row returns to its seam', async () => {
+        const node = await find('qa, Scute Swarm, Name', { startsWith: true, role: 'button', timeout: 250 });
+        return Math.abs(node.rect.y - rowBeforeScroll.rect.y) < 2;
+      });
+      evidence.twoPlayerTokenScroll = { before: rowBeforeScroll.rect, after: rowAfterScroll?.rect ?? null, restored: true };
+    }
     for (const viewport of [{ width: 1133, height: 744 }, { width: 744, height: 1133 }]) {
       await inspectDrawer(count, viewport);
     }
@@ -1206,6 +1504,29 @@ try {
   }
   await capture('24-restored-four-seat-table');
   log('PASS real drawer transitions, whole moving Menu, consumed token-space dismissal, repeated navigation, in-drawer wipe/History undo/new game/archive restore and 2/3/4-seat portrait/landscape');
+
+  await click('Game controls Collapsed', { startsWith: true, role: 'button' });
+  for (const theme of ['Light', 'Dark']) {
+    await clickInDrawer('Settings', { role: 'button' });
+    const body = await identifierRect('game-drawer-body-viewport');
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel',
+      x: body.x + body.width / 2, y: body.y + body.height / 2, deltaX: 0, deltaY: -2400 });
+    await sleep(250);
+    await clickInDrawer(theme);
+    await selected(theme);
+    await clickInDrawer('Back', { role: 'button' });
+    for (const viewport of [{ width: 1133, height: 744 }, { width: 744, height: 1133 }]) {
+      evidence.viewport = { ...viewport, deviceScaleFactor: 1 };
+      await cdp.send('Emulation.setDeviceMetricsOverride', { ...evidence.viewport, mobile: false });
+      await sleep(350);
+      const name = `25-theme-${theme.toLowerCase()}-${viewport.width}x${viewport.height}`;
+      const bytes = await capture(name);
+      await verifyCutoutSurface(bytes, theme.toLowerCase());
+      await verifyMenuPixels(bytes, 4, viewport, `${name}.png`);
+    }
+  }
+  await clickInDrawer('Close workspace', { role: 'button' });
+  log('PASS dark/light cutout surface pixels and attached Menu navigation in portrait and landscape');
 
   // With semantics enabled, Flutter3.41.2 buffers tappable pointerdown200ms
   // before the framework's500ms recognizer; durable publication adds latency.

@@ -242,13 +242,11 @@ void main() {
             find.byKey(const ValueKey('focused-commander-grid')),
             findsOneWidget,
           );
-          expect(find.text('Player counters'), findsOneWidget);
-          expect(byControlLabel('Set energy total'), findsNothing);
-          await tester.tap(find.text('Add counter'));
-          await tester.pumpAndSettle();
-          await tester.ensureVisible(find.text('Enable energy'));
-          await tester.tap(find.text('Enable energy'));
-          await tester.pumpAndSettle();
+          expect(
+            find.byKey(const ValueKey('player-counter-energy')),
+            findsOneWidget,
+          );
+          expect(find.text('Add counter'), findsNothing);
           expect(f.player.counters['energy'], 0);
           expect(byControlLabel('Set energy total'), findsOneWidget);
           assertClearControls(tester);
