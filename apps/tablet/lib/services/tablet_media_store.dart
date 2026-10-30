@@ -1,3 +1,4 @@
+import '../storage/storage_namespace.dart';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -9,7 +10,7 @@ class TabletMediaStore {
   static Future<Box<dynamic>>? _opening;
   static final Map<String, Uint8List> _cache = {};
   static Future<Box<dynamic>> _box() =>
-      _opening ??= Hive.openBox<dynamic>('tripling_table_media_v1');
+      _opening ??= Hive.openBox<dynamic>(TableStorageKeys.media);
 
   static Future<String> save(Uint8List bytes) async {
     if (bytes.isEmpty || bytes.length > 12 * 1024 * 1024) {
