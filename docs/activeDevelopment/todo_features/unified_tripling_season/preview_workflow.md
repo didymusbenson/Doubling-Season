@@ -1,6 +1,6 @@
 # Temporary feature-branch web preview and cutover cleanup
 
-**Infrastructure: implementation in review. Phone UI: still deferred.**
+**Infrastructure: automatic publisher implementation in review. Phone UI: feature-branch work.**
 
 The owner approved a custom Pages workflow so the phone experiment can remain on
 a feature branch while the existing original and tablet code continue from main.
@@ -10,9 +10,29 @@ This does not merge the phone UI into main or change native app identities.
 
 - `/Doubling-Season/`: original app from main.
 - `/Doubling-Season/tablet/`: stable tablet app from main.
-- `/Doubling-Season/preview/phone/`: explicitly selected feature-branch commit.
+- `/Doubling-Season/preview/phone/`: validated `feature/phone-mode` SHA (or manual selection).
 
-Use **Deploy to GitHub Pages → Run workflow**, select the **main** workflow branch,
+The main-owned publisher listens for completed **Tablet app validation** runs
+on exactly `feature/phone-mode`. A completion publishes only when the API confirms
+successful completion, the expected validation workflow, same-repository source,
+the latest run/attempt, and branch HEAD still equal to the validated SHA. It
+checks again immediately before deployment. Failed, cancelled, unrelated, fork,
+and stale completions skip publishing; API errors fail closed. Validation runs
+on the feature PR (or by manual validation dispatch); a push without a qualifying
+validation completion is not itself a publishing trigger. This trigger takes
+effect only after this infrastructure reaches main.
+
+The publisher checks out that **exact SHA**, revalidates/analyzes/tests it, builds
+with isolated storage and verifies browser persistence. It never checks out a
+moving feature ref for automatic publication. Root and tablet always build main.
+The shared Pages concurrency group serializes complete-site publishers; the
+late freshness check prevents queued obsolete completions from rolling back the
+preview. There remains the normal small interval between that final API check
+and Pages deployment; a subsequently validated current head supersedes it.
+No source-write permission, new credential, feature artifact execution in the
+Pages deployment job, or feature merge is introduced.
+
+Manual publication remains available: use **Deploy to GitHub Pages → Run workflow**, select the **main** workflow branch,
 and set `phone_ref` to `feature/phone-mode` (or the exact desired commit SHA).
 The phone ref must include the preview namespace implementation. The workflow
 validates/builds that ref, then assembles it alongside stable main builds in one
@@ -21,11 +41,12 @@ preview's `preview.json` and the site's `deployment.json`.
 
 Do not run a feature-only Pages deployment over the whole site. Do not select the
 feature branch as the workflow branch; the main publisher owns deployment.
-Feature pushes are checkpoints, not automatic preview publication. Run the
-main workflow deliberately when a branch checkpoint is ready for visual review.
+Use the manual main workflow when a deliberate checkpoint needs publication
+outside the automatic validation path.
 
 Ordinary main pushes and manual runs with blank `phone_ref` retain the most
-recent successful phone-preview artifact. They do not rebuild unstable feature
+recent successful phone-preview artifact from a main-owned manual or automatic
+publisher. They do not rebuild unstable feature
 code, so a broken feature head does not block stable app development. Failed
 requested preview validation never replaces the current site.
 
@@ -33,6 +54,15 @@ Preview artifacts are retained for 90 days. Refresh deliberately before expiry.
 If a preview is already published but no successful unexpired artifact remains,
 publishing fails closed rather than silently erasing that route. This is an
 explicit maintenance dependency, not permanent hosting infrastructure.
+
+## Guard regression checks
+
+Run `node --test tool/pages/test_phone_preview_guard.cjs` and
+`python3 -m unittest discover -s tool/pages -p 'test_*.py'`. Mocked API cases cover
+accepted exact-SHA publication, failures/cancellation, forks, wrong branch and
+workflow, superseded runs/attempts, moved HEAD (including during build), API
+failure, and retained manual/automatic publisher provenance. Actual CI/Pages
+completion is separate evidence from these local guard tests.
 
 ## Storage and cache isolation
 
@@ -70,7 +100,8 @@ Before calling the unified release complete:
 2. Retire the `/preview/phone/` route or replace it with a deliberate redirect or
    retirement notice. Remove it through the complete site publisher, not a
    partial overwrite that loses original/tablet assets.
-3. Remove `phone_ref`, phone-preview build/retention selection logic, temporary
+3. Remove the `workflow_run` automatic trigger and its exact-branch/latest-run/
+   freshness guard, `phone_ref`, phone-preview build/retention selection logic, temporary
    artifact lookup and preview metadata fields when no longer needed. Handle
    the existing-preview fail-closed check as part of that planned removal.
 4. Remove temporary namespace wiring only after its data-retention implications

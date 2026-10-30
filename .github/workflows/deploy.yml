@@ -8,6 +8,10 @@ on:
       - '.github/workflows/deploy.yml'
       - '.github/workflows/tablet-build.yml'
       - 'tool/pages/**'
+  workflow_run:
+    workflows: ["Tablet app validation"]
+    types: [completed]
+    branches: [feature/phone-mode]
   workflow_dispatch:
     inputs:
       phone_ref:
@@ -25,8 +29,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  preview-source:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_run' || (github.event_name == 'workflow_dispatch' && inputs.phone_ref != ''))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      ref: ${{ steps.source.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - id: source
+        uses: actions/github-script@v7
+        env:
+          MANUAL_REF: ${{ inputs.phone_ref }}
+        with:
+          script: |
+            const {automaticSource} = require('./tool/pages/phone_preview_guard.cjs');
+            const ref = context.eventName === 'workflow_run'
+              ? await automaticSource({github, context, core}) : process.env.MANUAL_REF;
+            core.setOutput('ref', ref);
+
   phone-preview:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.phone_ref != ''
+    needs: preview-source
+    if: needs.preview-source.outputs.ref != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,7 +65,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.phone_ref }}
+          ref: ${{ needs.preview-source.outputs.ref }}
           path: phone-source
           persist-credentials: false
       - uses: subosito/flutter-action@v2
@@ -55,7 +84,7 @@ jobs:
         run: flutter build web --release --base-href "/Doubling-Season/preview/phone/" --pwa-strategy=none --dart-define=TABLE_STORAGE_NAMESPACE=phone_preview_v1
       - name: Record and validate the exact preview
         env:
-          REQUESTED_REF: ${{ inputs.phone_ref }}
+          REQUESTED_REF: ${{ needs.preview-source.outputs.ref }}
         run: |
           python3 - <<'PYTHON'
           import json, os, pathlib, subprocess
@@ -76,8 +105,8 @@ jobs:
           if-no-files-found: error
 
   build:
-    needs: phone-preview
-    if: ${{ always() && (needs.phone-preview.result == 'success' || needs.phone-preview.result == 'skipped') }}
+    needs: [preview-source, phone-preview]
+    if: ${{ always() && needs.preview-source.result != 'failure' && needs.preview-source.result != 'cancelled' && (github.event_name != 'workflow_run' || needs.phone-preview.result == 'success') && (needs.phone-preview.result == 'success' || needs.phone-preview.result == 'skipped') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -91,7 +120,9 @@ jobs:
           ref: ${{ github.event_name == 'pull_request' && github.sha || 'main' }}
           persist-credentials: false
       - name: Test preview artifact checks
-        run: python3 -m unittest discover -s tool/pages -p "test_*.py"
+        run: |
+          python3 -m unittest discover -s tool/pages -p "test_*.py"
+          node --test tool/pages/test_phone_preview_guard.cjs
       - name: Select successful preview artifact
         id: preview
         uses: actions/github-script@v7
@@ -112,7 +143,8 @@ jobs:
                 const marker = await live.json();
                 if (!Number.isSafeInteger(marker.publisherRunId) || !/^[a-f0-9]{40}$/.test(marker.commit)) throw new Error('Invalid published preview provenance');
                 const run = (await github.rest.actions.getWorkflowRun({owner, repo, run_id: marker.publisherRunId})).data;
-                if (run.conclusion !== 'success' || run.head_branch !== 'main' || run.event !== 'workflow_dispatch' || run.path !== '.github/workflows/deploy.yml') throw new Error('Published preview was not produced by a successful main publisher');
+                const {trustedPublisher} = require('./tool/pages/phone_preview_guard.cjs');
+                if (!trustedPublisher(run, `${owner}/${repo}`)) throw new Error('Published preview was not produced by a successful main publisher');
                 const result = await github.rest.actions.listWorkflowRunArtifacts({owner, repo, run_id: marker.publisherRunId});
                 selected = result.data.artifacts.find(a => a.name === 'phone-preview-web' && !a.expired);
                 if (!selected) throw new Error('Exact published preview artifact expired or unavailable. Refresh with phone_ref; refusing to erase or roll back preview.');
@@ -186,15 +218,34 @@ jobs:
 
   deploy:
     if: ${{ always() && needs.build.result == 'success' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
-    needs: build
+    needs: [build, preview-source]
     runs-on: ubuntu-latest
     permissions:
+      contents: read
+      actions: read
       pages: write
       id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'workflow_run'
+        with:
+          ref: main
+          persist-credentials: false
+      # Recheck after the potentially lengthy build, just before publishing.
+      - id: fresh
+        if: github.event_name == 'workflow_run'
+        uses: actions/github-script@v7
+        env:
+          BUILT_REF: ${{ needs.preview-source.outputs.ref }}
+        with:
+          script: |
+            const {automaticSource} = require('./tool/pages/phone_preview_guard.cjs');
+            const ref = await automaticSource({github, context, core});
+            core.setOutput('publish', Boolean(ref && ref === process.env.BUILT_REF));
       - name: Deploy complete site
+        if: github.event_name != 'workflow_run' || steps.fresh.outputs.publish == 'true'
         id: deployment
         uses: actions/deploy-pages@v4
