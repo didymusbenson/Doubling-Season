@@ -76,3 +76,40 @@ enterable. Tablet custom keyboard and player orientation remain intentional.
   keyboard-dismissal viewport inspected. Tablet orientation is also covered by
   focused tests; physical installation and final native checks follow.
 - Source checkpoint is pushed to the existing feature branch; PR remains draft.
+
+## Build 12 and local delivery
+
+Runtime source: `351fc405d461cf3ffd6c87f1352736d6e3274c07`.
+Release `0.1.0 (12)` was built and exported with the unchanged existing
+provisioning profile and certificate. IPA checks passed: ZIP integrity, native
+strict/deep signature verification, exact bundle `LooseTie.Tripling-Table`,
+`UIDeviceFamily [1,2]`, version/build, and embedded profile matching the verified
+build 11 profile that includes both approved devices.
+
+IPA SHA-256: `d6b6bdecdf3fc2d3bbd03add49ff49b1042aa81bec9212145b4b6b5550e801f6`.
+Size: 12,441,231 bytes. Signed IPA saved in the user's Library.
+
+Both physical devices were backed up (Documents and Preferences) and updated
+in place with `devicectl`; neither app was uninstalled or reset. Installed app
+queries confirm build 12 on iPhone 17 Pro Max and iPad Air 13-inch (M3). Each
+post-install aggregate matches its pre-install backup byte for byte, including
+all seats and History. Backups, device identifiers, and private receipts remain
+outside the repository at the task's `verification/` directory on Kista.
+
+Native simulator visual evidence confirms iOS text and signed-numeric
+keyboards, readable invalid-number restoration, portrait/landscape keyboard
+insets, multiline Return and Done transitions, and the intentionally rotated
+player-facing tablet keyboard. The independent browser review captured 33
+screenshots with zero runtime exceptions or console errors. Its build preceded
+minor final preservation/landscape fixes; those passed focused tests, the full
+suite, and final native simulator checks. Browser checks are not physical-device
+hands-on acceptance.
+
+Physical launch verification is still blocked by device locking. The iPhone
+launch returned explicit `Locked` denial. The iPad launch timed out after 30
+seconds; a subsequent process query found no Tripling Table process and its
+lock state still required a passcode. Both installations are confirmed; unlock
+each device and launch Tripling Table to finish physical acceptance. An unlock
+request was sent while verification continued. No pairing, trust, security,
+signing, Firebase, Play, App Store, preview publication, or main merge changes
+were made. PR #68 remains outside this work.
