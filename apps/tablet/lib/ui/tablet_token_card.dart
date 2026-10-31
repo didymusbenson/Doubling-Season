@@ -13,6 +13,7 @@ import '../domain/input_validation.dart';
 import '../features/board_service.dart';
 import 'table_artwork.dart';
 import 'half_stepper.dart';
+import 'player_input_mode.dart';
 import 'workspace/player_keyboard.dart';
 import 'workspace/table_workspace.dart';
 
@@ -224,7 +225,9 @@ class _TabletTokenCardState extends State<TabletTokenCard>
         title: '${widget.playerName} · $_name · $label',
         value: _value(field, saved),
         controller: controller,
-        numeric: numeric,
+        // Power/toughness accepts symbols such as */1+*. Native numeric IMEs
+        // do not consistently expose them; the tablet key bank already does.
+        numeric: numeric && !usesNativePlayerInput(context),
         multiline: multiline,
         quarterTurns: widget.quarterTurns,
         onChanged: (value) {

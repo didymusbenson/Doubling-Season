@@ -18,8 +18,8 @@ class NumericInputException implements Exception {
   final String message;
 }
 
-/// Show intentional validation/save guidance, never an exception type, stack,
-/// filesystem path, malformed source payload, or implementation diagnostic.
+/// Show authored validation/save messages without exception type or stack.
+/// Unknown platform/IO failures use neutral guidance rather than diagnostics.
 String inputErrorMessage(
   Object error, {
   String fallback = 'Your change could not be saved. Please try again.',

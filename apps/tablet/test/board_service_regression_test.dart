@@ -43,9 +43,9 @@ void main() {
       // These are valid stored states, including the largest persisted total.
       f.dispose();
       await open(stateWithTokens([sampleToken(amount: 999999999999)]));
-      final atUpperBound = f.repository.encoded;
+      final atUpperBound = f.token('source').toJson();
       await f.board.adjustTokenTotal(f.playerId, 'source', 1);
-      expect(f.repository.encoded, atUpperBound);
+      expect(f.token('source').toJson(), atUpperBound);
       expect(f.controller.session.history, isEmpty);
       await f.board.adjustTokenTotal(f.playerId, 'source', -1);
       expect(f.token('source').amount, 999999999998);
@@ -54,9 +54,9 @@ void main() {
 
       f.dispose();
       await open(stateWithTokens([sampleToken(amount: 0, tapped: 0, sick: 0)]));
-      final atLowerBound = f.repository.encoded;
+      final atLowerBound = f.token('source').toJson();
       await f.board.adjustTokenTotal(f.playerId, 'source', -1);
-      expect(f.repository.encoded, atLowerBound);
+      expect(f.token('source').toJson(), atLowerBound);
       expect(f.controller.session.history, isEmpty);
     },
   );

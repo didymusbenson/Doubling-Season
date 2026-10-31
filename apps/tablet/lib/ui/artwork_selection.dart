@@ -137,7 +137,7 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
     try {
       await action();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => error = inputErrorMessage(
             e,
@@ -145,6 +145,7 @@ class _TabletArtworkSelectionState extends State<TabletArtworkSelection> {
                 'Artwork could not be updated. Your selection is unchanged.',
           ),
         );
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -611,7 +612,7 @@ class _ArtworkCropState extends State<_ArtworkCrop> {
       );
       if (mounted) Navigator.pop(context, bytes);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => error = inputErrorMessage(
             e,
@@ -619,6 +620,7 @@ class _ArtworkCropState extends State<_ArtworkCrop> {
                 'Artwork could not be updated. Your selection is unchanged.',
           ),
         );
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }

@@ -981,7 +981,10 @@ extension _LibraryPages on _TableWorkspaceState {
             .rules
             .where((r) => r.definitionId == kind);
         final count = sources.isEmpty ? 0 : sources.first.count;
-        return _board.setModifier(playerId, kind, (count + delta).clamp(0, 20));
+        // A legacy source may exceed today's authoring limit. Submit only the
+        // requested delta; service validation may reject it, but must never
+        // turn one decrement into a jump down to the upper limit.
+        return _board.setModifier(playerId, kind, max(0, count + delta));
       });
 
   Future<void> _adjustCustomModifier(
@@ -993,7 +996,7 @@ extension _LibraryPages on _TableWorkspaceState {
     return _board.setSource(
       playerId,
       sourceId,
-      count: (source.count + delta).clamp(0, 20),
+      count: max(0, source.count + delta),
     );
   });
 

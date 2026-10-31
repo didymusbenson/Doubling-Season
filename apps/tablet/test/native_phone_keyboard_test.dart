@@ -3,7 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tripling_table/ui/table_modal_frame.dart';
+import 'package:tripling_table/ui/tablet_token_card.dart';
 import 'package:tripling_table/ui/workspace/player_keyboard.dart';
+
+import 'support/control_finders.dart';
+import 'support/table_fixture.dart';
 
 void main() {
   void phone(WidgetTester tester, {Size size = const Size(390, 844)}) {
@@ -268,6 +272,108 @@ void main() {
       expect(first.text, 'Unfinished');
       expect(second.text, 'Next draft');
       expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'inline phone power/toughness accepts symbols and Done saves once',
+    (tester) async {
+      phone(tester);
+      final fixture = TableFixture(stateWithTokens([sampleToken()]));
+      await fixture.initialize();
+      addTearDown(fixture.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ListView(
+              children: [
+                TabletTokenCard(
+                  token: fixture.token('source'),
+                  player: fixture.player,
+                  board: fixture.board,
+                  playerName: 'Player 1',
+                  quarterTurns: 0,
+                  expanded: true,
+                  onExpand: () {},
+                  onOpenDetailed: (_) {},
+                  onInputLock: (_) {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        byControlLabel('Player 1, Saproling, Base power and toughness'),
+      );
+      await tester.pumpAndSettle();
+      final input = find.byKey(const ValueKey('native-inline-editor'));
+      expect(tester.widget<TextField>(input).keyboardType, TextInputType.text);
+      await tester.enterText(input, '*/1+*');
+      await tester.tap(find.byKey(const ValueKey('native-keyboard-done')));
+      await tester.pumpAndSettle();
+      expect(fixture.token('source').pt, '*/1+*');
+      expect(fixture.controller.session.history.length, 1);
+      expect(input, findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'landscape multiline inline draft and save error fit above native IME',
+    (tester) async {
+      phone(tester, size: const Size(844, 390));
+      final controller = TextEditingController(text: 'First\nSecond\nThird');
+      addTearDown(controller.dispose);
+      var reject = true;
+      var commits = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                return TextButton(
+                  onPressed: () => showPlayerKeyboardEditor(
+                    context,
+                    title: 'Abilities',
+                    value: controller.text,
+                    controller: controller,
+                    multiline: true,
+                    onChanged: (_) {},
+                    onCommit: (_) async {
+                      commits++;
+                      if (reject) throw StateError('Storage unavailable');
+                    },
+                  ),
+                  child: const Text('Edit'),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+      tester.view.viewInsets = const FakeViewPadding(bottom: 216);
+      await tester.pumpAndSettle();
+      final done = find.byKey(const ValueKey('native-keyboard-done'));
+      expect(done.hitTestable(), findsOneWidget);
+      expect(tester.getRect(done).bottom, lessThanOrEqualTo(174));
+      await tester.tap(done);
+      await tester.pumpAndSettle();
+      expect(commits, 1);
+      expect(find.text('Retry').hitTestable(), findsOneWidget);
+      expect(find.text('Close').hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      reject = false;
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+      expect(commits, 2);
+      expect(find.byKey(const ValueKey('native-inline-editor')), findsNothing);
+      expect(controller.text, 'First\nSecond\nThird');
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );

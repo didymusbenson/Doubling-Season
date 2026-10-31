@@ -1031,57 +1031,71 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
     ),
   );
 
-  Widget _nativePane() => Column(
-    children: [
-      _formPane(),
-      if (_controller != null)
-        TextFieldTapRegion(
-          child: Material(
-            color: Theme.of(context).colorScheme.surfaceContainerHigh,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (widget.showValue)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                    child: TextField(
-                      key: const ValueKey('native-inline-editor'),
-                      controller: _controller,
-                      focusNode: _draftFocus,
-                      autofocus: true,
-                      readOnly: !_editable,
-                      keyboardType: _numeric
-                          ? const TextInputType.numberWithOptions(signed: true)
-                          : _multiline
-                          ? TextInputType.multiline
-                          : TextInputType.text,
-                      textInputAction: _multiline
-                          ? TextInputAction.newline
-                          : TextInputAction.done,
-                      maxLines: _multiline ? 3 : 1,
-                      decoration: InputDecoration(
-                        labelText: _label,
-                        border: const OutlineInputBorder(),
-                      ),
-                      onEditingComplete: () {},
-                      onSubmitted: (_) {
-                        if (!_multiline) finishField();
-                      },
-                    ),
-                  ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    key: const ValueKey('native-keyboard-done'),
-                    onPressed: _editable ? finishField : null,
-                    child: const Text('Done'),
-                  ),
-                ),
-              ],
+  Widget _nativePane() => LayoutBuilder(
+    builder: (context, constraints) {
+      final done = TextButton(
+        key: const ValueKey('native-keyboard-done'),
+        onPressed: _editable ? finishField : null,
+        child: const Text('Done'),
+      );
+      return Column(
+        children: [
+          _formPane(),
+          if (_controller != null)
+            TextFieldTapRegion(
+              child: Material(
+                color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                child: widget.showValue
+                    ? Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                key: const ValueKey('native-inline-editor'),
+                                controller: _controller,
+                                focusNode: _draftFocus,
+                                autofocus: true,
+                                readOnly: !_editable,
+                                keyboardType: _numeric
+                                    ? const TextInputType.numberWithOptions(
+                                        signed: true,
+                                      )
+                                    : _multiline
+                                    ? TextInputType.multiline
+                                    : TextInputType.text,
+                                textInputAction: _multiline
+                                    ? TextInputAction.newline
+                                    : TextInputAction.done,
+                                // Preserve multiline content while keeping the
+                                // field and Done visible above a landscape IME,
+                                // including when a failed save shows recovery.
+                                maxLines:
+                                    _multiline && constraints.maxHeight >= 180
+                                    ? 3
+                                    : 1,
+                                decoration: InputDecoration(
+                                  isDense: true,
+                                  labelText: _label,
+                                  border: const OutlineInputBorder(),
+                                ),
+                                onEditingComplete: () {},
+                                onSubmitted: (_) {
+                                  if (!_multiline) finishField();
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            done,
+                          ],
+                        ),
+                      )
+                    : Align(alignment: Alignment.centerRight, child: done),
+              ),
             ),
-          ),
-        ),
-    ],
+        ],
+      );
+    },
   );
 
   @override

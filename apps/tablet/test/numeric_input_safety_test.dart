@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tripling_table/domain/input_validation.dart';
+import 'package:tripling_table/domain/table_state.dart';
 import 'package:tripling_table/ui/workspace/player_keyboard.dart';
 import 'package:tripling_table/ui/workspace/table_workspace.dart';
 
@@ -99,6 +100,81 @@ void main() {
   }
 
   for (final size in [const Size(390, 844), const Size(1133, 744)]) {
+    for (final custom in [false, true]) {
+      for (final count in [21, 30]) {
+        testWidgets(
+          '${custom ? 'custom' : 'preset'} modifier $count decrements exactly or stays unchanged at $size',
+          (tester) async {
+            final state = stateWithTokens([sampleToken()]);
+            final player = state.session.players.first;
+            player.rules.add(
+              ModifierSource(
+                id: 'legacy-modifier',
+                ownerPlayerId: player.id,
+                definitionId: custom ? 'custom' : 'token_doubler',
+                name: custom ? 'Legacy custom' : 'Token doubler',
+                count: count,
+                enabled: true,
+                configuration: {
+                  'triggerType': 'any_token',
+                  'outcomes': [
+                    {'outcomeType': 'multiply', 'multiplier': 2},
+                  ],
+                  'legacyMetadata': 'preserve',
+                },
+              ),
+            );
+            final fixture = TableFixture(state);
+            await fixture.initialize();
+            addTearDown(fixture.dispose);
+            await open(tester, fixture, WorkspacePage.rules, size: size);
+            final stored = fixture.repository.encoded;
+            final source = fixture.player.rules.single.toJson();
+            final decrease = byControlLabel(
+              custom ? 'Decrease Copies' : 'Decrease Token doubler',
+            );
+            final scroll = find
+                .descendant(
+                  of: find.byKey(const ValueKey('context-workspace')),
+                  matching: find.byType(Scrollable),
+                )
+                .last;
+            await tester.scrollUntilVisible(decrease, 250, scrollable: scroll);
+            await Scrollable.ensureVisible(
+              tester.element(decrease),
+              alignment: .5,
+            );
+            await tester.pumpAndSettle();
+            expect(decrease.hitTestable(), findsOneWidget);
+            await tester.tap(decrease);
+            await tester.pumpAndSettle();
+            if (count == 21) {
+              expect(fixture.player.rules.single.count, 20);
+              expect(
+                fixture.player.rules.single.configuration,
+                source['configuration'],
+              );
+              expect(await fixture.controller.undo(), isTrue);
+              await tester.pumpAndSettle();
+              expect(fixture.player.rules.single.toJson(), source);
+            } else {
+              expect(fixture.repository.encoded, stored);
+              expect(fixture.player.rules.single.toJson(), source);
+              await tester.ensureVisible(decrease);
+              await tester.tap(decrease);
+              await tester.pumpAndSettle();
+              expect(fixture.repository.encoded, stored);
+              expect(find.textContaining('RangeError'), findsNothing);
+              // Direct-command failures request one acknowledgement on Close.
+              await tester.tap(byControlLabel('Close workspace'));
+              await tester.pumpAndSettle();
+            }
+            await close(tester);
+          },
+        );
+      }
+    }
+
     testWidgets(
       'invalid edits retain legacy utility totals on repeated submit at $size',
       (tester) async {
