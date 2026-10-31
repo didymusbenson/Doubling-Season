@@ -15,6 +15,7 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../domain/table_controller.dart';
 import '../../domain/table_state.dart';
+import '../../domain/input_validation.dart';
 import '../../features/board_service.dart';
 import '../../features/preset_service.dart';
 import '../../features/ring_service.dart';
@@ -122,6 +123,28 @@ class GameDrawerWorkspace extends StatelessWidget {
 }
 
 bool _workspaceOpen = false;
+final Set<_TableWorkspaceState> _presentationWorkspaces = {};
+
+/// Preserve transient drafts and let already accepted direct commands settle.
+/// Neither ordinary tap-away nor resetGame belongs in a posture transition.
+Future<void> dismissTableTransientForPresentationChange(
+  BuildContext context,
+) async {
+  await dismissPlayerKeyboardForPresentationChange();
+  for (final workspace in _presentationWorkspaces.toList()) {
+    await workspace._suspendForPresentation();
+  }
+  await WidgetsBinding.instance.endOfFrame;
+  if (context.mounted) {
+    // Child art/crop dialogs are transient too. Workspace routes are removed by
+    // identity, so dismissing a child cannot strand or double-pop its parent.
+    Navigator.of(
+      context,
+      rootNavigator: true,
+    ).popUntil((route) => route.isFirst);
+  }
+}
+
 final Map<String, _WorkspaceDraft> _failedDrafts = {};
 
 /// This route owns the sole editor and consumes all taps outside its surface.
@@ -183,8 +206,6 @@ class _TableWorkspace extends StatefulWidget {
 
 class _TableWorkspaceState extends State<_TableWorkspace> {
   late WorkspacePage _page;
-  String? _editingPlayerCounter;
-  final _counterCorrectionKey = GlobalKey();
   Future<void> _directQueue = Future.value();
   int _directPending = 0;
   // Failure survives later successful writes and close-in-progress rebuilds.
@@ -198,7 +219,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   String? _playerId;
   String? _itemId;
   final _fields = <String, TextEditingController>{};
+  final _numericInitials = <String, String>{};
   final _inlineEdits = <String, _InlineEdit>{};
+  final _restoredInlineOriginals = <String, String>{};
   bool _allowPop = false;
   bool _closing = false;
   bool _closeSaveFailed = false;
@@ -261,6 +284,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   void initState() {
     super.initState();
     widget.drawerController?._workspace = this;
+    _presentationWorkspaces.add(this);
     _sessionId = c.session.id;
     _sessionGeneration = c.session.generation;
     _page = widget.initialPage;
@@ -280,33 +304,64 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     );
     _board = BoardService(c, catalog);
     _presets = PresetService(c, catalog);
-    final recovered = _failedDrafts[_draftKey];
-    if (recovered != null) {
-      for (final entry in recovered.fields.entries) {
-        _field(entry.key, entry.value);
-      }
-      _page = recovered.page;
-      _itemId = recovered.itemId;
-      _selectedDefinition = recovered.definition;
-      _createCustom = recovered.createCustom;
-      _createTapped = recovered.createTapped;
-      _applyPresetImage = recovered.applyPresetImage;
-      _customTrigger = recovered.trigger;
-      _customEffect = recovered.effect;
-      _customGlobal = recovered.global;
-      _editingRuleId = recovered.ruleId;
-      _editingRuleCount = recovered.ruleCount;
-      _editingRuleEnabled = recovered.ruleEnabled;
-      _customRuleOutcomes.addAll(
-        recovered.outcomes.map((value) => Map<String, dynamic>.from(value)),
-      );
-      _resetCount = recovered.playerCount;
-      _emptySlot = recovered.emptySlot;
-      _status = 'Recovered your draft from an unsuccessful save.';
-    }
+    _restoreDraft();
     c.addListener(_refresh);
     catalog.addListener(_refresh);
     if (!catalog.loaded) catalog.load();
+  }
+
+  bool _restoringDraft = false;
+  Future<void>? _presentationSuspension;
+  ModalRoute<dynamic>? _ownedRoute;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _ownedRoute = ModalRoute.of(context);
+  }
+
+  void _restoreDraft() {
+    _restoringDraft = true;
+    try {
+      final recovered = _failedDrafts[_draftKey];
+      if (recovered != null) {
+        _restoredInlineOriginals.addAll(recovered.inlineOriginals);
+        for (final entry in recovered.fields.entries) {
+          _field(entry.key, entry.value).text = entry.value;
+          final edit = _inlineEdits[entry.key];
+          final original = _restoredInlineOriginals[entry.key];
+          if (edit != null && original != null) {
+            edit.savedValue = original;
+            _restoredInlineOriginals.remove(entry.key);
+          }
+        }
+        _page = recovered.page;
+        _itemId = recovered.itemId;
+        _selectedDefinition = recovered.definition;
+        _createCustom = recovered.createCustom;
+        _createTapped = recovered.createTapped;
+        _applyPresetImage = recovered.applyPresetImage;
+        _customTrigger = recovered.trigger;
+        _customEffect = recovered.effect;
+        _customGlobal = recovered.global;
+        _editingRuleId = recovered.ruleId;
+        _editingRuleCount = recovered.ruleCount;
+        _editingRuleEnabled = recovered.ruleEnabled;
+        _customRuleOutcomes.clear();
+        _customRuleOutcomes.addAll(
+          recovered.outcomes.map((value) => Map<String, dynamic>.from(value)),
+        );
+        _resetCount = recovered.playerCount;
+        _emptySlot = recovered.emptySlot;
+        _selectedCounter = recovered.selectedCounter;
+        _editingNumber = recovered.editingNumber;
+        _status = recovered.presentationChange
+            ? 'Recovered your unsaved edit.'
+            : 'Recovered your draft from an unsuccessful save.';
+      }
+    } finally {
+      _restoringDraft = false;
+    }
   }
 
   void _update(VoidCallback callback) {
@@ -320,10 +375,19 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   TextEditingController _field(String id, [String initial = '']) =>
       _fields.putIfAbsent(id, () => TextEditingController(text: initial));
 
-  void _retainDrafts() {
+  void _retainDrafts({bool presentationChange = false}) {
     _failedDrafts[_draftKey] = _WorkspaceDraft(
       fields: {
-        for (final entry in _fields.entries) entry.key: entry.value.text,
+        for (final entry in _fields.entries)
+          if (!_inlineEdits.containsKey(entry.key) ||
+              entry.value.text != _inlineEdits[entry.key]!.savedValue)
+            entry.key: entry.value.text,
+      },
+      inlineOriginals: {
+        ..._restoredInlineOriginals,
+        for (final entry in _inlineEdits.entries)
+          if (entry.value.controller.text != entry.value.savedValue)
+            entry.key: entry.value.savedValue,
       },
       page: _page,
       itemId: _itemId,
@@ -340,6 +404,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       outcomes: _customRuleOutcomes.map((value) => cloneJson(value)).toList(),
       playerCount: _resetCount,
       emptySlot: _emptySlot,
+      selectedCounter: _selectedCounter,
+      editingNumber: _editingNumber,
+      presentationChange: presentationChange,
     );
   }
 
@@ -349,6 +416,17 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     edit.timer?.cancel();
     if (edit.saving != null) return edit.saving!;
     if (edit.controller.text == edit.savedValue) return true;
+    if (edit.liveValue != edit.savedValue &&
+        edit.liveValue != edit.controller.text) {
+      _retainDrafts();
+      if (mounted) {
+        setState(
+          () => _error =
+              'This field changed in another view. Your draft is kept. Edit the retained field to confirm it before saving.',
+        );
+      }
+      return false;
+    }
     Future<bool> persist() async {
       if (!_validScope) {
         _retainDrafts();
@@ -363,9 +441,15 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
           }
           edit.savedValue = value;
           if (mounted) setState(() => _error = null);
+        } on NumericInputException {
+          // An invalid numeric correction is a cancelled edit, not a failed
+          // save. Restore its clean value without writing history or storage.
+          edit.controller.text = edit.savedValue;
+          if (mounted) setState(() => _error = null);
+          continue;
         } catch (error) {
           _retainDrafts();
-          if (mounted) setState(() => _error = '$error');
+          if (mounted) setState(() => _error = inputErrorMessage(error));
           return false;
         }
       }
@@ -430,6 +514,28 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     });
   }
 
+  Future<void> _suspendForPresentation() =>
+      _presentationSuspension ??= _finishPresentationSuspension();
+
+  Future<void> _finishPresentationSuspension() async {
+    if (!mounted || _allowPop) return;
+    _retainDrafts(presentationChange: true);
+    for (final edit in _inlineEdits.values) {
+      edit.timer?.cancel();
+    }
+    setState(() => _closing = true);
+    await _directQueue;
+    for (final edit in _inlineEdits.values) {
+      if (edit.saving != null) await edit.saving;
+    }
+    if (mounted) {
+      // A completed live save may have cleared the earlier snapshot. Retain the
+      // surviving non-inline draft fields after the accepted writes settle.
+      _retainDrafts(presentationChange: true);
+      _finishClose();
+    }
+  }
+
   void _closeKeepingSessionDraft() {
     if (_working || _closing || _navigating) return;
     _retainDrafts();
@@ -439,7 +545,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   // Completion can replace the session; do not revalidate the old target or
   // replay its inline fields after a successful reset/restore.
   void _finishClose() {
-    if (!mounted) return;
+    if (!mounted || _allowPop) return;
     setState(() {
       _closing = true;
       _allowPop = true;
@@ -449,7 +555,14 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       if (_embedded) {
         widget.onDrawerClose!();
       } else {
-        Navigator.of(context).pop();
+        final route = _ownedRoute;
+        if (route != null && route.isActive) {
+          if (_presentationSuspension != null) {
+            Navigator.of(context).removeRoute(route);
+          } else {
+            Navigator.of(context).pop();
+          }
+        }
       }
     });
   }
@@ -469,6 +582,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         final destination = _navigation.removeLast();
         _page = destination.$1;
         _itemId = destination.$2;
+        _restoreDraft();
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           if (_playerScroll.hasClients) {
@@ -507,7 +621,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       if (result == false) {
         throw StateError(c.error ?? 'The change could not be saved.');
       }
-      _failedDrafts.remove(_draftKey);
+      // A child picker can return after posture suspension captured its draft.
+      // Its cancellation is not a successful save of the retained workspace.
+      if (_presentationSuspension == null) _failedDrafts.remove(_draftKey);
       if (mounted) {
         setState(() {
           after?.call();
@@ -516,7 +632,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       }
     } catch (error) {
       _retainDrafts();
-      if (mounted) setState(() => _error = '$error');
+      if (mounted) setState(() => _error = inputErrorMessage(error));
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -543,7 +659,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         }
       } catch (error) {
         _directFailure =
-            'Some changes were not saved. Check the displayed totals before retrying. $error';
+            'Some changes were not saved. Check the displayed totals before retrying. ${inputErrorMessage(error)}';
         _directFailureNeedsAcknowledgement = true;
         _directFailureEpoch++;
         if (mounted) setState(() => _error = _directFailure);
@@ -561,30 +677,24 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     int delta,
   ) => _runDirect(() => c.adjustCommanderDamage(player.id, source.id, delta));
 
-  Future<void> _editPlayerCounter(String playerId, String key) async {
-    if (_working || _closing || _navigating || !_validScope) return;
-    setState(() => _navigating = true);
-    try {
-      await _directQueue;
-      if (!mounted || !_validScope || _closing) return;
-      setState(() {
-        _editingPlayerCounter = key;
-        _field('counter.$key').text =
-            '${c.player(playerId).counters[key] ?? 0}';
-      });
-      await WidgetsBinding.instance.endOfFrame;
-      if (!mounted || !_validScope || _closing) return;
-      final editContext = _counterCorrectionKey.currentContext;
-      if (editContext != null && editContext.mounted) {
-        await Scrollable.ensureVisible(editContext, alignment: 1);
-      }
-    } finally {
-      if (mounted) setState(() => _navigating = false);
-    }
-  }
-
   int _integer(String field, {int min = -1000000000, int max = 1000000000}) {
-    return _wholeNumber(_field(field).text, min: min, max: max);
+    final controller = _field(field);
+    final parsed = tryWholeNumber(controller.text, min: min, max: max);
+    if (parsed != null) return parsed;
+    final clean = tryWholeNumber(
+      _numericInitials[field] ?? '',
+      // Restoring an existing value is not a new manual edit. The stored state
+      // supports a wider range, including legacy utility values. Narrowing it
+      // here could turn an invalid edit into a destructive zero on the next Set.
+      min: -999999999999,
+      max: 999999999999,
+    );
+    // Creation fields retain their valid default; edits restore the displayed
+    // source value. Do not silently apply a fallback to the requested command.
+    controller.text = '${clean ?? (min <= 0 && max >= 0 ? 0 : min)}';
+    throw NumericInputException(
+      'Enter a whole number from $min to $max. The previous value was restored.',
+    );
   }
 
   int _wholeNumber(
@@ -592,15 +702,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     int min = -1000000000,
     int max = 1000000000,
   }) {
-    final text = valueText.trim();
-    if (!RegExp(r'^-?[0-9]+$').hasMatch(text)) {
-      throw const FormatException(
-        'Enter a whole number, with a minus sign only for negative values.',
-      );
-    }
-    final value = int.tryParse(text);
-    if (value == null || value < min || value > max) {
-      throw FormatException('Enter a number between $min and $max.');
+    final value = tryWholeNumber(valueText, min: min, max: max);
+    if (value == null) {
+      throw NumericInputException('Enter a whole number from $min to $max.');
     }
     return value;
   }
@@ -622,6 +726,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         _status = null;
         _selectedDefinition = null;
         _createCustom = false;
+        _restoreDraft();
       });
     } finally {
       if (mounted) setState(() => _navigating = false);
@@ -694,15 +799,38 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     String? helper,
     Widget? prefixIcon,
     Future<dynamic> Function(String value)? onCommit,
+    Future<dynamic> Function(String value, String original)?
+    onCommitWithOriginal,
     bool live = false,
   }) {
     final controller = _field(id, initial);
+    if (numeric) _numericInitials[id] = initial;
+    if (onCommitWithOriginal != null) {
+      onCommit = (value) =>
+          onCommitWithOriginal(value, _inlineEdits[id]!.savedValue);
+    }
     if (onCommit != null && !_inlineEdits.containsKey(id)) {
-      final edit = _InlineEdit(controller, initial, onCommit);
+      final edit = _InlineEdit(
+        controller,
+        _restoredInlineOriginals.remove(id) ?? initial,
+        onCommit,
+      )..liveValue = initial;
       _inlineEdits[id] = edit;
+      var observedText = controller.text;
+      controller.addListener(() {
+        final changed = controller.text != observedText;
+        observedText = controller.text;
+        if (!changed || _restoringDraft || _closing) return;
+        // Editing a retained conflict is explicit review; selection/focus alone
+        // must not authorize replacing a newer board value.
+        if (edit.liveValue != edit.savedValue) {
+          edit.savedValue = edit.liveValue;
+        }
+      });
       if (live) {
         controller.addListener(() {
           edit.timer?.cancel();
+          if (_restoringDraft || _closing) return;
           if (controller.text.trim().isEmpty ||
               controller.text == edit.savedValue) {
             return;
@@ -715,6 +843,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       }
     }
     final existing = _inlineEdits[id];
+    if (existing != null) existing.liveValue = initial;
     if (existing != null &&
         existing.saving == null &&
         existing.controller.text == existing.savedValue &&
@@ -1047,6 +1176,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
 
   @override
   void dispose() {
+    _presentationWorkspaces.remove(this);
     if (widget.drawerController?._workspace == this) {
       widget.drawerController?._workspace = null;
     }
@@ -1337,6 +1467,7 @@ class _Confirmation {
 class _WorkspaceDraft {
   const _WorkspaceDraft({
     required this.fields,
+    required this.inlineOriginals,
     required this.page,
     required this.itemId,
     required this.definition,
@@ -1352,8 +1483,14 @@ class _WorkspaceDraft {
     required this.outcomes,
     required this.playerCount,
     required this.emptySlot,
+    this.selectedCounter,
+    this.editingNumber,
+    this.presentationChange = false,
   });
+  final String? selectedCounter, editingNumber;
+  final bool presentationChange;
   final Map<String, String> fields;
+  final Map<String, String> inlineOriginals;
   final WorkspacePage page;
   final String? itemId;
   final TokenDefinition? definition;
@@ -1365,9 +1502,11 @@ class _WorkspaceDraft {
 }
 
 class _InlineEdit {
-  _InlineEdit(this.controller, this.savedValue, this.save);
+  _InlineEdit(this.controller, this.savedValue, this.save)
+    : liveValue = savedValue;
   final TextEditingController controller;
   String savedValue;
+  String liveValue;
   Future<dynamic> Function(String value) save;
   Future<bool>? saving;
   Timer? timer;

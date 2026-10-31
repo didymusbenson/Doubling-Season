@@ -9,9 +9,11 @@ import 'package:doubling_season/widgets/mana/mana_icons.dart';
 import 'package:doubling_season/widgets/mana/mana_text.dart';
 
 import '../domain/table_state.dart';
+import '../domain/input_validation.dart';
 import '../features/board_service.dart';
 import 'table_artwork.dart';
 import 'half_stepper.dart';
+import 'player_input_mode.dart';
 import 'workspace/player_keyboard.dart';
 import 'workspace/table_workspace.dart';
 
@@ -33,11 +35,13 @@ class TabletTokenCard extends StatefulWidget {
     required this.onOpenDetailed,
     required this.onInputLock,
     this.topContentInset = 0,
+    this.interactionEpoch = 0,
   });
 
   /// Extra internal room for shared controls over the first two-player card.
   /// The artwork and color rail still start at the card's outer top edge.
   final double topContentInset;
+  final int interactionEpoch;
   final TokenState token;
   final PlayerState player;
   final BoardService board;
@@ -57,6 +61,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
   // Failed drafts remain attached to this stable token ID when the keyboard is
   // dismissed. Reopening the field retries that exact raw value.
   final Map<String, String> _drafts = {};
+  final Map<String, String> _draftOriginals = {};
   final Map<String, TextEditingController> _controllers = {};
   final Map<String, FocusNode> _fieldFocus = {};
   BoardScope? _draftScope;
@@ -94,17 +99,41 @@ class _TabletTokenCardState extends State<TabletTokenCard>
       if (mounted && _error != null) setState(() => _error = null);
     } catch (error) {
       if (mounted) {
-        setState(
-          () => _error = error.toString().replaceFirst('Bad state: ', ''),
-        );
+        setState(() => _error = inputErrorMessage(error));
       }
     }
+  }
+
+  String _liveField(String field) {
+    final live =
+        widget.board.controller
+            .player(widget.player.id)
+            .tokens
+            .where((item) => item.id == token.id)
+            .firstOrNull ??
+        token;
+    return switch (field) {
+      'name' => live.name,
+      'type' => live.type,
+      'pt' => live.pt,
+      'abilities' => live.abilities,
+      _ => '',
+    };
   }
 
   Future<bool> _flushDrafts() async {
     if (_drafts.isEmpty) return true;
     final pending = Map<String, String>.from(_drafts);
     try {
+      for (final field in pending.keys) {
+        final live = _liveField(field);
+        if (live != (_draftOriginals[field] ?? live) &&
+            live != pending[field]) {
+          throw StateError(
+            'This token changed in another view. Review the retained field or discard the old draft before continuing.',
+          );
+        }
+      }
       await widget.board.editToken(
         widget.player.id,
         token.id,
@@ -112,12 +141,19 @@ class _TabletTokenCardState extends State<TabletTokenCard>
         type: pending['type'],
         pt: pending['pt'],
         abilities: pending['abilities'],
+        expectedFields: {
+          for (final field in pending.keys)
+            field: _draftOriginals[field] ?? _liveField(field),
+        },
         captured: _draftScope,
       );
       if (!mounted) return false;
       setState(() {
         for (final field in pending.keys) {
-          if (_drafts[field] == pending[field]) _drafts.remove(field);
+          if (_drafts[field] == pending[field]) {
+            _drafts.remove(field);
+            _draftOriginals.remove(field);
+          }
         }
         if (_drafts.isEmpty) _draftScope = null;
         _error = null;
@@ -128,7 +164,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
       if (mounted) {
         setState(
           () => _error =
-              '${error.toString().replaceFirst('Bad state: ', '')} '
+              '${inputErrorMessage(error)} '
               'Draft kept; retry the field before continuing.',
         );
       }
@@ -176,6 +212,9 @@ class _TabletTokenCardState extends State<TabletTokenCard>
       _inputOpen = true;
       _editing = field;
       _drafts.putIfAbsent(field, () => saved);
+      // Opening a retained field is an explicit review of that draft against
+      // the current board; unrelated actions cannot silently overwrite it.
+      _draftOriginals[field] = saved;
       _draftScope = scope;
     });
     updateKeepAlive();
@@ -186,7 +225,9 @@ class _TabletTokenCardState extends State<TabletTokenCard>
         title: '${widget.playerName} · $_name · $label',
         value: _value(field, saved),
         controller: controller,
-        numeric: numeric,
+        // Power/toughness accepts symbols such as */1+*. Native numeric IMEs
+        // do not consistently expose them; the tablet key bank already does.
+        numeric: numeric && !usesNativePlayerInput(context),
         multiline: multiline,
         quarterTurns: widget.quarterTurns,
         onChanged: (value) {
@@ -208,6 +249,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
       setState(() {
         if (savedSuccessfully) {
           _drafts.remove(field);
+          _draftOriginals.remove(field);
           if (_drafts.isEmpty) _draftScope = null;
           _error = null;
         } else {
@@ -254,8 +296,8 @@ class _TabletTokenCardState extends State<TabletTokenCard>
     if (parts.length != 2) return token.pt;
     String stat(String base, int independent) {
       final change = token.netPlusOneCounters + independent;
-      final number = int.tryParse(base.trim());
-      if (number != null) return '${number + change}';
+      final number = BigInt.tryParse(base.trim());
+      if (number != null) return '${number + BigInt.from(change)}';
       return '$base${change == 0
           ? ''
           : change > 0
@@ -402,6 +444,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
         session.generation,
         widget.player.generation,
         _inputOpen,
+        widget.interactionEpoch,
       ),
       onTap: enabled ? () => change(1) : null,
       onStep: enabled ? change : null,
@@ -950,6 +993,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
                                                 : () {
                                                     setState(() {
                                                       _drafts.clear();
+                                                      _draftOriginals.clear();
                                                       _draftScope = null;
                                                       _error = null;
                                                     });

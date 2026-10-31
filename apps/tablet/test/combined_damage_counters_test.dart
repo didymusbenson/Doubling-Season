@@ -406,7 +406,8 @@ void main() {
       await tester.tap(unnamed);
       await tester.pumpAndSettle();
       expect(f.player.counters[''], 1);
-      expect(byControlLabel('Set unnamed counter total'), findsOneWidget);
+      expect(byControlLabel('Set unnamed counter total'), findsNothing);
+      expect(find.byType(TextField), findsNothing);
       await close(tester);
       await open(tester, 'commanderDamage');
       expect(
@@ -420,7 +421,7 @@ void main() {
   );
 
   testWidgets(
-    'correction remains beside its chip and reveals in long legacy list',
+    'steppers stay reachable in long legacy lists without manual editors',
     (tester) async {
       final f = await mount(
         tester,
@@ -428,27 +429,29 @@ void main() {
         counters: {'energy': 0, for (var i = 0; i < 32; i++) 'Legacy $i': i},
       );
       await open(tester, 'commanderDamage');
-      final pencil = byControlLabel('Set energy total');
-      await tester.ensureVisible(pencil);
-      await tester.pumpAndSettle();
-      await tester.tap(pencil);
-      await tester.pumpAndSettle();
-      final input = find.widgetWithText(TextField, 'Set total');
-      expect(input.hitTestable(), findsOneWidget);
-      expect(
-        byControlLabel('Cancel counter correction').hitTestable(),
-        findsOneWidget,
-      );
-      final energy = tester.getRect(
-        find.byKey(const ValueKey('player-counter-energy')),
-      );
-      expect(tester.getRect(input).top - energy.bottom, lessThan(16));
-      expect(tester.widget<TextField>(input).controller!.text, '0');
-      await capture(tester, 'legacy-counter-correction-at-selected-row');
-      await tester.tap(byControlLabel('Cancel counter correction'));
-      await tester.pumpAndSettle();
+      final savedLife = f.player.life;
+      final savedDamage = Map<String, int>.of(f.player.commanderDamage);
+      for (final name in ['energy', 'Legacy 31']) {
+        expect(byControlLabel('Set $name total'), findsNothing);
+        final increase = byControlLabel('Increase $name');
+        await tester.ensureVisible(increase);
+        await tester.pumpAndSettle();
+        expect(increase.hitTestable(), findsOneWidget);
+        final before = f.player.counters[name]!;
+        await tester.tap(increase);
+        await tester.pumpAndSettle();
+        expect(f.player.counters[name], before + 1);
+        final decrease = byControlLabel('Decrease $name');
+        await tester.tap(decrease);
+        await tester.pumpAndSettle();
+        expect(f.player.counters[name], before);
+      }
+      expect(find.byType(TextField), findsNothing);
+      await capture(tester, 'legacy-counter-steppers-without-editor');
       expect(f.player.counters['energy'], 0);
       expect(f.player.counters['Legacy 31'], 31);
+      expect(f.player.life, savedLife);
+      expect(f.player.commanderDamage, savedDamage);
       expect(tester.takeException(), isNull);
       await close(tester);
     },

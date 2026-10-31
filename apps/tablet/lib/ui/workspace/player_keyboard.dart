@@ -5,7 +5,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
+import '../player_input_mode.dart';
+import '../../domain/input_validation.dart';
+
 bool _playerKeyboardEditorOpen = false;
+_PlayerKeyboardEditorState? _activePlayerKeyboard;
+Completer<void>? _playerKeyboardClosed;
+
+/// A posture change is not ordinary tap-away: never commit unfinished text.
+Future<void> dismissPlayerKeyboardForPresentationChange() async {
+  final closed = _playerKeyboardClosed;
+  _activePlayerKeyboard?._dismissForPresentation();
+  if (closed != null) await closed.future;
+}
 
 /// Edit the field on its board object while the single player-facing keyboard
 /// intercepts the whole table. A false result leaves the caller's mirrored draft
@@ -25,6 +37,7 @@ Future<bool> showPlayerKeyboardEditor(
 }) async {
   if (_playerKeyboardEditorOpen) return false;
   _playerKeyboardEditorOpen = true;
+  _playerKeyboardClosed = Completer<void>();
   try {
     return await showDialog<bool>(
           context: context,
@@ -45,6 +58,8 @@ Future<bool> showPlayerKeyboardEditor(
         false;
   } finally {
     _playerKeyboardEditorOpen = false;
+    _playerKeyboardClosed?.complete();
+    _playerKeyboardClosed = null;
   }
 }
 
@@ -75,12 +90,14 @@ class _PlayerKeyboardEditorState extends State<_PlayerKeyboardEditor> {
   late final TextEditingController _controller;
   final _keyboard = GlobalKey<_PlayerKeyboardHostState>();
   bool _saving = false;
+  bool _presentationDismissalRequested = false;
   bool _allowPop = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _activePlayerKeyboard = this;
     _controller =
         widget.controller ?? TextEditingController(text: widget.value);
     if (!_controller.selection.isValid) {
@@ -111,6 +128,11 @@ class _PlayerKeyboardEditorState extends State<_PlayerKeyboardEditor> {
     });
   }
 
+  void _dismissForPresentation() {
+    _presentationDismissalRequested = true;
+    if (!_saving) _close(false);
+  }
+
   Future<bool> _commit() async {
     if (_saving || _allowPop) return false;
     setState(() {
@@ -123,13 +145,14 @@ class _PlayerKeyboardEditorState extends State<_PlayerKeyboardEditor> {
       return true;
     } catch (error) {
       if (mounted) {
-        setState(
-          () => _error = error.toString().replaceFirst('Bad state: ', ''),
-        );
+        setState(() => _error = inputErrorMessage(error));
       }
       return false;
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+        if (_presentationDismissalRequested) _close(false);
+      }
     }
   }
 
@@ -144,6 +167,7 @@ class _PlayerKeyboardEditorState extends State<_PlayerKeyboardEditor> {
 
   @override
   void dispose() {
+    if (_activePlayerKeyboard == this) _activePlayerKeyboard = null;
     _controller.removeListener(_changed);
     if (widget.controller == null) _controller.dispose();
     super.dispose();
@@ -155,57 +179,64 @@ class _PlayerKeyboardEditorState extends State<_PlayerKeyboardEditor> {
     onPopInvokedWithResult: (didPop, result) {
       if (!didPop) _tapAway();
     },
-    child: RotatedBox(
-      quarterTurns: widget.quarterTurns,
-      child: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: PlayerKeyboardHost(
-                key: _keyboard,
-                enabled: !_saving && !_allowPop,
-                canEdit: () => !_saving && !_allowPop,
-                showValue: true,
-                child: Semantics(
-                  label: 'Finish editing ${widget.title}',
-                  button: true,
-                  onTap: _tapAway,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
+    child: Padding(
+      padding: EdgeInsets.only(
+        bottom: usesNativePlayerInput(context)
+            ? MediaQuery.viewInsetsOf(context).bottom
+            : 0,
+      ),
+      child: RotatedBox(
+        quarterTurns: widget.quarterTurns,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: PlayerKeyboardHost(
+                  key: _keyboard,
+                  enabled: !_saving && !_allowPop,
+                  canEdit: () => !_saving && !_allowPop,
+                  showValue: true,
+                  child: Semantics(
+                    label: 'Finish editing ${widget.title}',
+                    button: true,
                     onTap: _tapAway,
-                    child: const SizedBox.expand(),
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _tapAway,
+                      child: const SizedBox.expand(),
+                    ),
                   ),
                 ),
               ),
-            ),
-            if (_saving) const LinearProgressIndicator(minHeight: 2),
-            if (_error != null)
-              Material(
-                color: Theme.of(context).colorScheme.errorContainer,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '$_error\nYour draft is kept on the token. Retry or close and resume it later.',
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
+              if (_saving) const LinearProgressIndicator(minHeight: 2),
+              if (_error != null)
+                Material(
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '$_error\nYour draft is kept on the token. Retry or close and resume it later.',
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                      TextButton(
-                        onPressed: () => _commit(),
-                        child: const Text('Retry'),
-                      ),
-                      TextButton(
-                        onPressed: () => _close(false),
-                        child: const Text('Close'),
-                      ),
-                    ],
+                        TextButton(
+                          onPressed: () => _commit(),
+                          child: const Text('Retry'),
+                        ),
+                        TextButton(
+                          onPressed: () => _close(false),
+                          child: const Text('Close'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     ),
@@ -250,6 +281,9 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
   String? _clipboardError;
   Timer? _deleteTimer;
   bool _deleteHeld = false;
+  bool _nativeInput = false;
+  bool _finishing = false;
+  FocusNode? _activeNativeFocus;
   bool get _editable => widget.enabled && (widget.canEdit?.call() ?? true);
 
   @override
@@ -259,7 +293,14 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
     WidgetsBinding.instance.addObserver(this);
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _nativeInput = usesNativePlayerInput(context);
+  }
+
   bool _hardwareHandler(KeyEvent event) =>
+      !_nativeInput &&
       _editable &&
       _controller != null &&
       _onKey(_hardwareFocus, event) == KeyEventResult.handled;
@@ -269,10 +310,12 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
     String label,
     bool numeric,
     bool multiline,
-    Future<bool> Function()? onExit,
-  ) async {
+    Future<bool> Function()? onExit, [
+    FocusNode? nativeFocus,
+  ]) async {
     if (!_editable) return false;
     if (_controller != controller && await _onExit?.call() == false) {
+      if (_nativeInput) _activeNativeFocus?.requestFocus();
       return false;
     }
     if (!mounted) return false;
@@ -292,7 +335,9 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
       _label = label;
       _numeric = numeric;
       _multiline = multiline;
+      _activeNativeFocus = nativeFocus;
     });
+    if (_nativeInput) return true;
     _hardwareFocus.requestFocus();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted &&
@@ -307,15 +352,23 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
 
   Future<void> finishField([TextEditingController? expected]) async {
     if (expected != null && expected != _controller) return;
-    _stopDelete();
-    final captured = _controller;
-    if (await _onExit?.call() == false) return;
-    if (!mounted || captured != _controller) return;
-    _controller?.removeListener(_revealDraft);
-    setState(() {
-      _controller = null;
-      _onExit = null;
-    });
+    if (_finishing) return;
+    _finishing = true;
+    try {
+      _stopDelete();
+      final captured = _controller;
+      if (await _onExit?.call() == false) return;
+      if (!mounted || captured != _controller) return;
+      if (_nativeInput) FocusManager.instance.primaryFocus?.unfocus();
+      _controller?.removeListener(_revealDraft);
+      setState(() {
+        _controller = null;
+        _onExit = null;
+        _activeNativeFocus = null;
+      });
+    } finally {
+      _finishing = false;
+    }
   }
 
   void _revealDraft() {
@@ -978,153 +1031,240 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
     ),
   );
 
+  Widget _nativePane() => LayoutBuilder(
+    builder: (context, constraints) {
+      final done = TextButton(
+        key: const ValueKey('native-keyboard-done'),
+        onPressed: _editable ? finishField : null,
+        child: const Text('Done'),
+      );
+      return Column(
+        children: [
+          _formPane(),
+          if (_controller != null)
+            TextFieldTapRegion(
+              child: Material(
+                color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                child: widget.showValue
+                    ? Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                key: const ValueKey('native-inline-editor'),
+                                controller: _controller,
+                                focusNode: _draftFocus,
+                                autofocus: true,
+                                readOnly: !_editable,
+                                keyboardType: _numeric
+                                    ? const TextInputType.numberWithOptions(
+                                        signed: true,
+                                      )
+                                    : _multiline
+                                    ? TextInputType.multiline
+                                    : TextInputType.text,
+                                textInputAction: _multiline
+                                    ? TextInputAction.newline
+                                    : TextInputAction.done,
+                                // Preserve multiline content while keeping the
+                                // field and Done visible above a landscape IME,
+                                // including when a failed save shows recovery.
+                                maxLines:
+                                    _multiline && constraints.maxHeight >= 180
+                                    ? 3
+                                    : 1,
+                                decoration: InputDecoration(
+                                  isDense: true,
+                                  labelText: _label,
+                                  border: const OutlineInputBorder(),
+                                ),
+                                onEditingComplete: () {},
+                                onSubmitted: (_) {
+                                  if (!_multiline) finishField();
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            done,
+                          ],
+                        ),
+                      )
+                    : Align(alignment: Alignment.centerRight, child: done),
+              ),
+            ),
+        ],
+      );
+    },
+  );
+
   @override
   Widget build(BuildContext context) => _InputScope(
+    nativeInput: _nativeInput,
     activate: activateField,
     finish: finishField,
     canEdit: () => _editable,
     showEditingMenu: _showEditingMenu,
-    child: Focus(
-      focusNode: _hardwareFocus,
-      onKeyEvent: (_, event) => _controller != null && _isEditingKey(event)
-          ? KeyEventResult.handled
-          : KeyEventResult.ignored,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          if (_controller == null) return Column(children: [_formPane()]);
-          final short = constraints.maxHeight < 400;
-          if (short) {
-            // Keep the exact form and its scroll/selection state mounted while
-            // dedicating the unchanged shell to typing. Done restores the form.
-            return Column(children: [_formPane(focused: true)]);
-          }
-          // Reserve useful space for the form. The key bank scrolls inside its
-          // own clearly bounded region; neither keys nor the outer shell shrink.
-          final keyboardHeight = math.min(
-            constraints.maxHeight - 96,
-            widget.showValue ? 340.0 : 244.0,
-          );
-          return Column(
-            children: [
-              _formPane(),
-              SizedBox(
-                height: keyboardHeight,
-                child: TextFieldTapRegion(
-                  child: Material(
-                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          height: 48,
-                          child: Row(
+    child: _nativeInput
+        ? _nativePane()
+        : Focus(
+            focusNode: _hardwareFocus,
+            onKeyEvent: (_, event) =>
+                _controller != null && _isEditingKey(event)
+                ? KeyEventResult.handled
+                : KeyEventResult.ignored,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (_controller == null) return Column(children: [_formPane()]);
+                final short = constraints.maxHeight < 400;
+                if (short) {
+                  // Keep the exact form and its scroll/selection state mounted while
+                  // dedicating the unchanged shell to typing. Done restores the form.
+                  return Column(children: [_formPane(focused: true)]);
+                }
+                // Reserve useful space for the form. The key bank scrolls inside its
+                // own clearly bounded region; neither keys nor the outer shell shrink.
+                final keyboardHeight = math.min(
+                  constraints.maxHeight - 96,
+                  widget.showValue ? 340.0 : 244.0,
+                );
+                return Column(
+                  children: [
+                    _formPane(),
+                    SizedBox(
+                      height: keyboardHeight,
+                      child: TextFieldTapRegion(
+                        child: Material(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHigh,
+                          child: Column(
                             children: [
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 8),
-                                  child:
-                                      ValueListenableBuilder<TextEditingValue>(
-                                        valueListenable: _controller!,
-                                        builder: (context, value, _) => Text(
-                                          _label,
-                                          key: const ValueKey(
-                                            'player-keyboard-context',
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                ),
-                              ),
-                              MergeSemantics(
-                                child: Semantics(
-                                  label: 'Select all',
-                                  child: IconButton(
-                                    onPressed: _editable ? _selectAll : null,
-                                    icon: const Icon(Icons.select_all),
-                                  ),
-                                ),
-                              ),
-                              MergeSemantics(
-                                child: Semantics(
-                                  label: 'Text editing actions',
-                                  child: IconButton(
-                                    onPressed: _editable
-                                        ? _toggleEditingMenu
-                                        : null,
-                                    icon: const Icon(Icons.more_horiz),
-                                  ),
-                                ),
-                              ),
-                              MergeSemantics(
-                                child: Semantics(
-                                  label: 'Paste',
-                                  child: IconButton(
-                                    onPressed: _editable ? _paste : null,
-                                    icon: const Icon(
-                                      Icons.content_paste,
-                                      size: 20,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: _editable ? finishField : null,
-                                child: const Text('Done'),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Expanded(
-                          child: Scrollbar(
-                            controller: _keysScroll,
-                            thumbVisibility: true,
-                            child: SingleChildScrollView(
-                              key: const ValueKey('player-keyboard-scroll'),
-                              controller: _keysScroll,
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(2, 0, 2, 4),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
+                              SizedBox(
+                                height: 48,
+                                child: Row(
                                   children: [
-                                    if (widget.showValue) _draft(),
-                                    if (_clipboardError != null)
-                                      Padding(
-                                        padding: const EdgeInsets.all(4),
-                                        child: Text(
-                                          _clipboardError!,
-                                          style: TextStyle(
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.error,
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(left: 8),
+                                        child:
+                                            ValueListenableBuilder<
+                                              TextEditingValue
+                                            >(
+                                              valueListenable: _controller!,
+                                              builder: (context, value, _) =>
+                                                  Text(
+                                                    _label,
+                                                    key: const ValueKey(
+                                                      'player-keyboard-context',
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                            ),
+                                      ),
+                                    ),
+                                    MergeSemantics(
+                                      child: Semantics(
+                                        label: 'Select all',
+                                        child: IconButton(
+                                          onPressed: _editable
+                                              ? _selectAll
+                                              : null,
+                                          icon: const Icon(Icons.select_all),
+                                        ),
+                                      ),
+                                    ),
+                                    MergeSemantics(
+                                      child: Semantics(
+                                        label: 'Text editing actions',
+                                        child: IconButton(
+                                          onPressed: _editable
+                                              ? _toggleEditingMenu
+                                              : null,
+                                          icon: const Icon(Icons.more_horiz),
+                                        ),
+                                      ),
+                                    ),
+                                    MergeSemantics(
+                                      child: Semantics(
+                                        label: 'Paste',
+                                        child: IconButton(
+                                          onPressed: _editable ? _paste : null,
+                                          icon: const Icon(
+                                            Icons.content_paste,
+                                            size: 20,
                                           ),
                                         ),
                                       ),
-                                    if (_editingMenu) _menu(),
-                                    LayoutBuilder(
-                                      builder: (context, constraints) =>
-                                          _keyBank(constraints.maxWidth),
+                                    ),
+                                    TextButton(
+                                      onPressed: _editable ? finishField : null,
+                                      child: const Text('Done'),
                                     ),
                                   ],
                                 ),
                               ),
-                            ),
+                              Expanded(
+                                child: Scrollbar(
+                                  controller: _keysScroll,
+                                  thumbVisibility: true,
+                                  child: SingleChildScrollView(
+                                    key: const ValueKey(
+                                      'player-keyboard-scroll',
+                                    ),
+                                    controller: _keysScroll,
+                                    child: Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        2,
+                                        0,
+                                        2,
+                                        4,
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (widget.showValue) _draft(),
+                                          if (_clipboardError != null)
+                                            Padding(
+                                              padding: const EdgeInsets.all(4),
+                                              child: Text(
+                                                _clipboardError!,
+                                                style: TextStyle(
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.error,
+                                                ),
+                                              ),
+                                            ),
+                                          if (_editingMenu) _menu(),
+                                          LayoutBuilder(
+                                            builder: (context, constraints) =>
+                                                _keyBank(constraints.maxWidth),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    ),
+                  ],
+                );
+              },
+            ),
+          ),
   );
 }
 
 class _InputScope extends InheritedWidget {
   const _InputScope({
+    required this.nativeInput,
     required this.activate,
     required this.finish,
     required this.canEdit,
@@ -1136,20 +1276,22 @@ class _InputScope extends InheritedWidget {
     String,
     bool,
     bool,
-    Future<bool> Function()?,
-  )
+    Future<bool> Function()?, [
+    FocusNode?,
+  ])
   activate;
   final Future<void> Function([TextEditingController?]) finish;
   final bool Function() canEdit;
   final VoidCallback showEditingMenu;
+  final bool nativeInput;
   bool get enabled => canEdit();
   @override
   bool updateShouldNotify(_InputScope oldWidget) =>
-      oldWidget.canEdit != canEdit;
+      oldWidget.canEdit != canEdit || oldWidget.nativeInput != nativeInput;
 }
 
-/// Read-only to the system IME, editable through the player-facing keyboard.
-class PlayerField extends StatelessWidget {
+/// Native editing on phones, with the player-facing keyboard on tablets.
+class PlayerField extends StatefulWidget {
   const PlayerField({
     super.key,
     required this.controller,
@@ -1171,7 +1313,28 @@ class PlayerField extends StatelessWidget {
   final Future<bool> Function()? onExit;
 
   @override
+  State<PlayerField> createState() => _PlayerFieldState();
+}
+
+class _PlayerFieldState extends State<PlayerField> {
+  final _nativeFocus = FocusNode(debugLabel: 'Native player field');
+
+  @override
+  void dispose() {
+    _nativeFocus.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final controller = widget.controller;
+    final label = widget.label;
+    final numeric = widget.numeric;
+    final maxLines = widget.maxLines;
+    final helperText = widget.helperText;
+    final errorText = widget.errorText;
+    final prefixIcon = widget.prefixIcon;
+    final onExit = widget.onExit;
     final input = context.dependOnInheritedWidgetOfExactType<_InputScope>();
     Future<void> activate() async {
       if (await input?.activate(
@@ -1180,6 +1343,7 @@ class PlayerField extends StatelessWidget {
             numeric,
             maxLines > 1,
             onExit,
+            _nativeFocus,
           ) !=
           true) {
         return;
@@ -1193,6 +1357,37 @@ class PlayerField extends StatelessWidget {
           );
         }
       });
+    }
+
+    if (input?.nativeInput ?? usesNativePlayerInput(context)) {
+      return TextField(
+        key: PageStorageKey<TextEditingController>(controller),
+        enabled: input?.enabled ?? true,
+        controller: controller,
+        focusNode: _nativeFocus,
+        keyboardType: numeric
+            ? const TextInputType.numberWithOptions(signed: true)
+            : maxLines > 1
+            ? TextInputType.multiline
+            : TextInputType.text,
+        textInputAction: maxLines > 1
+            ? TextInputAction.newline
+            : TextInputAction.done,
+        maxLines: maxLines,
+        onTap: activate,
+        onEditingComplete: () {},
+        onSubmitted: (_) {
+          if (maxLines == 1) input?.finish(controller);
+        },
+        onTapOutside: (_) => input?.finish(controller),
+        decoration: InputDecoration(
+          labelText: label,
+          helperText: helperText,
+          errorText: errorText,
+          prefixIcon: prefixIcon,
+          border: const OutlineInputBorder(),
+        ),
+      );
     }
 
     return ValueListenableBuilder<TextEditingValue>(

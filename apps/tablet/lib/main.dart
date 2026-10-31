@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'state/table_controller.dart';
 import 'services/table_support_service.dart';
-import 'ui/table_screen.dart';
+import 'ui/table_presentation.dart';
 import 'ui/table_theme.dart';
 
 void main() {
@@ -94,7 +94,7 @@ class _TriplingTableAppState extends State<TriplingTableApp>
               _ => ThemeMode.dark,
             },
       home: ready
-          ? TableScreen(controller: controller)
+          ? TablePresentation(controller: controller)
           : Scaffold(
               body: Center(
                 child: ConstrainedBox(

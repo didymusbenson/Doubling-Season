@@ -121,7 +121,6 @@ void main() {
     'commander-grid': WorkspacePage.commanderDamage,
     'commander-setup': WorkspacePage.player,
     'counters': WorkspacePage.counters,
-    'counter-correction': WorkspacePage.counters,
     'mana': WorkspacePage.utilities,
     'storm': WorkspacePage.utilities,
     'utility-selection': WorkspacePage.utilities,
@@ -164,7 +163,6 @@ void main() {
               'token-status',
               'commander-grid',
               'counters',
-              'counter-correction',
               'reset-new-game',
               'reset-three-player',
               'token-art',
@@ -392,9 +390,6 @@ void main() {
               case 'existing-custom-effects':
                 await reveal(tester, find.text('Saved custom effect'));
                 expect(find.text('Create a custom rule'), findsNothing);
-              case 'counter-correction':
-                await reveal(tester, byControlLabel('Set radiation total'));
-                await tester.tap(byControlLabel('Set radiation total'));
               case 'token-art-preview':
                 await reveal(tester, find.text('TEST').last);
                 await tester.tap(find.text('TEST').last);
@@ -481,10 +476,9 @@ void main() {
                 'experience',
                 'radiation',
               ]) {
-                final correction = byControlLabel('Set $name total');
-                await reveal(tester, correction);
-                expect(correction.hitTestable(), findsOneWidget);
+                expect(byControlLabel('Set $name total'), findsNothing);
                 final chipFinder = find.byKey(ValueKey('player-counter-$name'));
+                await reveal(tester, chipFinder);
                 final chip = tester.renderObject<RenderBox>(chipFinder);
                 final chipRect = MatrixUtils.transformRect(
                   chip.getTransformTo(grid),
@@ -544,20 +538,8 @@ void main() {
                 expect(halves[0].left, closeTo(stepped.left, .01));
                 expect(halves[0].right, closeTo(halves[1].left, .01));
                 expect(halves[1].right, closeTo(stepped.right, .01));
-                final editBox = tester.renderObject<RenderBox>(correction);
-                final editRect = MatrixUtils.transformRect(
-                  editBox.getTransformTo(chip),
-                  Offset.zero & editBox.size,
-                );
-                expect(
-                  editRect.left,
-                  greaterThanOrEqualTo(stepped.right - .01),
-                );
-                expect(editRect.width, greaterThanOrEqualTo(44));
-                expect(
-                  editRect.right,
-                  lessThanOrEqualTo(chip.size.width + .01),
-                );
+                expect(stepped.left, closeTo(0, .01));
+                expect(stepped.right, closeTo(chip.size.width, .01));
 
                 // Tap both rendered local halves through their lower label
                 // region. The same coordinates work when the modal is rotated.
@@ -583,15 +565,6 @@ void main() {
                 expect(rect.width, closeTo(chips.first.width, .01));
                 expect(rect.height, closeTo(chips.first.height, .01));
               }
-            }
-            if (scene.key == 'counter-correction') {
-              expect(find.byType(TextField), findsOneWidget);
-              await reveal(tester, find.text('Set'));
-              expect(find.text('Set').hitTestable(), findsOneWidget);
-              expect(
-                byControlLabel('Cancel counter correction').hitTestable(),
-                findsOneWidget,
-              );
             }
             if (scene.key == 'rules') {
               expect(find.textContaining('Owned by'), findsNothing);

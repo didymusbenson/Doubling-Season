@@ -595,15 +595,16 @@ void main() {
               of: seat,
               matching: byControlLabel('Storm, details and actions'),
             ),
-            findsNothing,
-            reason: 'Stepping must not expand the utility.',
+            findsOneWidget,
+            reason: 'Utility details remain directly accessible from the name.',
           );
           expect(
             find
                 .descendant(of: seat, matching: byControlLabel('Remove Storm'))
                 .hitTestable(),
-            findsOneWidget,
-            reason: 'Remove remains directly available while collapsed.',
+            findsNothing,
+            reason:
+                'Utility removal uses swipe rather than a persistent button.',
           );
           expect(await fixture.controller.undo(), isTrue);
           await tester.pumpAndSettle();

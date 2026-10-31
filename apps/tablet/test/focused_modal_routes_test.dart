@@ -248,7 +248,9 @@ void main() {
           );
           expect(find.text('Add counter'), findsNothing);
           expect(f.player.counters['energy'], 0);
-          expect(byControlLabel('Set energy total'), findsOneWidget);
+          expect(byControlLabel('Set energy total'), findsNothing);
+          expect(find.byType(TextField), findsNothing);
+          expect(byControlLabel('Increase energy'), findsOneWidget);
           assertClearControls(tester);
         }
         if (entry.value == WorkspacePage.reset) {

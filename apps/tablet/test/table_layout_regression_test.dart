@@ -177,7 +177,7 @@ void main() {
           final fixture = await showTable(tester, size, tableFor(seats));
           expect(tester.takeException(), isNull);
           expect(
-            byControlLabel(RegExp(r'^Storm, (expand|collapse)$')).hitTestable(),
+            byControlLabel('Storm, details and actions').hitTestable(),
             findsNWidgets(seats),
           );
           expect(find.text('Mana pool').hitTestable(), findsNWidgets(seats));
@@ -341,9 +341,7 @@ void main() {
             }
             await tester.pumpAndSettle();
             expect(
-              byControlLabel(
-                RegExp(r'^Storm, (expand|collapse)$'),
-              ).hitTestable(),
+              byControlLabel('Storm, details and actions').hitTestable(),
               findsNWidgets(seats),
             );
             expect(tester.takeException(), isNull);
@@ -423,7 +421,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(
-        byControlLabel(RegExp(r'^Storm, (expand|collapse)$')).hitTestable(),
+        byControlLabel('Storm, details and actions').hitTestable(),
         findsNWidgets(4),
       );
       expect(tester.takeException(), isNull);
@@ -536,7 +534,7 @@ void main() {
     }
     await showTable(tester, const Size(744, 1133), state);
     expect(
-      byControlLabel(RegExp(r'^Storm, (expand|collapse)$')).hitTestable(),
+      byControlLabel('Storm, details and actions').hitTestable(),
       findsNWidgets(4),
     );
     expect(tester.takeException(), isNull);

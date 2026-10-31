@@ -2,6 +2,7 @@ import 'package:doubling_season/models/token_definition.dart';
 import 'package:flutter/material.dart';
 
 import '../services/tablet_catalog.dart';
+import '../domain/input_validation.dart';
 import 'artwork_selection.dart';
 import 'table_artwork.dart';
 import 'table_modal_frame.dart';
@@ -16,6 +17,9 @@ Future<String?> showLifeArtworkPicker(
   required String seatName,
   required int quarterTurns,
   String? current,
+  TextEditingController? queryController,
+  String? initialCandidate,
+  ValueChanged<String?>? onCandidateChanged,
 }) => showDialog<String>(
   context: context,
   barrierDismissible: true,
@@ -25,6 +29,9 @@ Future<String?> showLifeArtworkPicker(
     seatName: seatName,
     quarterTurns: quarterTurns,
     current: current,
+    queryController: queryController,
+    initialCandidate: initialCandidate,
+    onCandidateChanged: onCandidateChanged,
   ),
 );
 
@@ -37,11 +44,17 @@ class LifeArtworkPicker extends StatefulWidget {
     this.current,
     this.validate,
     this.importArtwork,
+    this.queryController,
+    this.initialCandidate,
+    this.onCandidateChanged,
   });
   final TabletCatalog catalog;
   final String seatName;
   final int quarterTurns;
   final String? current;
+  final TextEditingController? queryController;
+  final String? initialCandidate;
+  final ValueChanged<String?>? onCandidateChanged;
   // Injectable I/O boundaries keep interaction tests independent of the network
   // and native file picker. Production uses the existing validated media paths.
   final Future<void> Function(String)? validate;
@@ -51,7 +64,7 @@ class LifeArtworkPicker extends StatefulWidget {
 }
 
 class _LifeArtworkPickerState extends State<LifeArtworkPicker> {
-  final query = TextEditingController();
+  late final TextEditingController query;
   final _scroll = ScrollController();
   TokenDefinition? definition;
   ArtworkVariant? variant;
@@ -60,8 +73,23 @@ class _LifeArtworkPickerState extends State<LifeArtworkPicker> {
   bool busy = false;
 
   @override
+  void initState() {
+    super.initState();
+    query = widget.queryController ?? TextEditingController();
+    candidate = widget.initialCandidate == widget.current
+        ? null
+        : widget.initialCandidate;
+    if (candidate != null) {
+      variant = widget.catalog.tokens
+          .expand((t) => t.artwork)
+          .where((art) => art.url == candidate)
+          .firstOrNull;
+    }
+  }
+
+  @override
   void dispose() {
-    query.dispose();
+    if (widget.queryController == null) query.dispose();
     _scroll.dispose();
     super.dispose();
   }
@@ -76,7 +104,13 @@ class _LifeArtworkPickerState extends State<LifeArtworkPicker> {
       await action();
     } catch (e) {
       if (mounted) {
-        setState(() => error = '$e');
+        setState(
+          () => error = inputErrorMessage(
+            e,
+            fallback:
+                'Artwork could not be updated. Your selection is unchanged.',
+          ),
+        );
         _revealTop();
       }
     } finally {
@@ -103,6 +137,7 @@ class _LifeArtworkPickerState extends State<LifeArtworkPicker> {
     if (!mounted) return;
     setState(() {
       candidate = art.url;
+      widget.onCandidateChanged?.call(candidate);
       variant = art;
     });
     _revealTop();
@@ -133,6 +168,7 @@ class _LifeArtworkPickerState extends State<LifeArtworkPicker> {
                             : () => setState(() {
                                 definition = null;
                                 candidate = null;
+                                widget.onCandidateChanged?.call(null);
                                 variant = null;
                               }),
                         icon: const Icon(Icons.arrow_back),
@@ -246,6 +282,7 @@ class _LifeArtworkPickerState extends State<LifeArtworkPicker> {
                                 : () => setState(() {
                                     definition = token;
                                     candidate = null;
+                                    widget.onCandidateChanged?.call(null);
                                     variant = null;
                                   }),
                           ),
@@ -302,6 +339,7 @@ class _LifeArtworkPickerState extends State<LifeArtworkPicker> {
                               if (!mounted || imported == null) return;
                               setState(() {
                                 candidate = imported;
+                                widget.onCandidateChanged?.call(candidate);
                                 variant = null;
                               });
                               _revealTop();
