@@ -60,6 +60,10 @@ priority:
   Discovery only; this does not change the 1.11 acceptance or implementation
   priorities above.
 
+## Unscheduled Tripling Table Ideas
+
+- **Draw your own token art** — [bare-bones doodle editor proposal](todo_features/draw_token_art.md), recorded 2026-11-02 for future reference only. Very few fixed colors and straightforward controls; no implementation scheduled and no change to the queues above.
+
 ## Explicitly Descoped
 
 - **Dungeon support** belongs to a different app and must not return to this
