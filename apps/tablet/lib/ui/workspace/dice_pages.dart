@@ -1,5 +1,16 @@
 part of 'table_workspace.dart';
 
+bool _prefersReducedDiceMotion(BuildContext context) =>
+    MediaQuery.disableAnimationsOf(context) ||
+    // Flutter 3.41 exposes iOS Reduce Motion only through the engine feature;
+    // it is separate from Android disableAnimations and VoiceOver navigation.
+    WidgetsBinding
+        .instance
+        .platformDispatcher
+        .accessibilityFeatures
+        .reduceMotion ||
+    platformPrefersReducedDiceMotion();
+
 extension _DicePages on _TableWorkspaceState {
   Future<void> _rollSelectedDice({bool again = false}) async {
     if (_diceRolling || _working || _closing || _navigating || !_validScope) {
@@ -19,9 +30,7 @@ extension _DicePages on _TableWorkspaceState {
       _diceRoll = roll;
       _diceRollSerial++;
       _diceRolling =
-          roll.groups.isNotEmpty &&
-          !MediaQuery.disableAnimationsOf(context) &&
-          !platformPrefersReducedDiceMotion();
+          roll.groups.isNotEmpty && !_prefersReducedDiceMotion(context);
     });
   }
 
@@ -389,9 +398,7 @@ class _DiceRollAnimationState extends State<_DiceRollAnimation>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!widget.animate ||
-        MediaQuery.disableAnimationsOf(context) ||
-        platformPrefersReducedDiceMotion()) {
+    if (!widget.animate || _prefersReducedDiceMotion(context)) {
       _settle();
     } else if (!_started) {
       _started = true;
@@ -408,6 +415,11 @@ class _DiceRollAnimationState extends State<_DiceRollAnimation>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) _settle();
+  }
+
+  @override
+  void didChangeAccessibilityFeatures() {
+    if (_prefersReducedDiceMotion(context)) _settle();
   }
 
   @override

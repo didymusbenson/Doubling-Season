@@ -64,8 +64,9 @@ The Flutter 3.41.2 web engine only maps high contrast into its accessibility
 features; actual CSS reduced-motion checks (including before startup) initially
 still animated. A small dice-only conditional JS interop adapter now reads
 `prefers-reduced-motion` at roll admission and listens during the result surface.
-Its listener is removed on disposal. Native uses `MediaQuery.disableAnimations`
-as before. Browser checks confirm immediate results when enabled at startup and
+Its listener is removed on disposal. Dice also reads the native engine
+`AccessibilityFeatures.reduceMotion` flag alongside `MediaQuery.disableAnimations`.
+Browser checks confirm immediate results when enabled at startup and
 settling/unlocking within 100 ms when enabled mid-roll. No new dependency or
 application-wide accessibility override was added.
 
@@ -79,7 +80,7 @@ application-wide accessibility override was added.
 - The existing commander direct-grid and modal numeric-persistence suites pass
   (26 tests), including durable coupled life/damage and queue draining before
   close. Scoped analyzer run passed.
-- Final integrated analyzer passed; the final full suite passed **1,119 tests**
+- Final integrated analyzer passed; the final full suite passed **1,120 tests**
   with **seven existing opt-in skips**. Five
   new dice tests cover timing, stable result/unchanged state, repeated callbacks,
   reduced motion including mid-roll changes, Back/Close, lifecycle and zero dice.
@@ -104,8 +105,10 @@ application-wide accessibility override was added.
   Close. Native screenshots confirm selector/result clearance and correct totals.
   The isolated iPhone's actual Reduce Motion switch was confirmed on for its
   final mixed-roll pass and then restored to its original off setting. Widget
-  tests separately assert the exact no-delay behavior of the native MediaQuery
-  preference. Temporary Maestro flows were discarded after validation.
+  tests separately assert both Android/MediaQuery and iOS engine motion flags.
+  Frame review exposed the distinct iOS flag issue described below; the corrected
+  native recording verifies the absence of rolling. Temporary Maestro flows
+  were discarded after validation.
 - No physical device has been queried or changed.
 
 
@@ -119,7 +122,8 @@ Evidence is retained outside the repository in the Kista task workspace:
   build/automation attempts remain clearly marked or documented separately.
 - `task-4/qa/dice-commander-browser-2026-11-03/`: `review-result.json`,
   `stability-pixel-results.json`, `dice-frame-analysis.json`, 29 screenshots and
-  12 frame sequences. Final web `main.dart.js` SHA-256:
+  12 frame sequences. Reviewed browser artifact `main.dart.js` SHA-256
+  (before the subsequent native-only flag correction):
   `8981e5c7de9de38353df07fef153de1a6fd6c43ca28e794c53b70af6a23963ca`.
 
 Independent implementation and UX reviews found no remaining blocker. Remote CI
@@ -142,3 +146,29 @@ mixed/dense dice, rerolls, token/artwork operations, drawer transitions, archive
 restoration and dark/light 2/3/4-seat portrait/landscape checks. The follow-up
 commit contains only this browser-test wait and these notes; the 1,119-test
 runtime and native/browser acceptance results above remain unchanged.
+
+
+## Native Reduce Motion mapping
+
+Actual frame inspection caught a gap missed by the initial functional pass:
+iOS still animated with its system switch enabled. The platform exposes
+`AccessibilityFeatures.reduceMotion` independently of `disableAnimations`, and
+Flutter 3.41.2 MediaQuery only forwards the latter. This is confirmed by the
+local SDK and [Flutter's API documentation](https://api.flutter.dev/flutter/widgets/MediaQueryData/disableAnimations.html).
+
+The dice-only preference check now combines the engine's iOS flag, the existing
+Android/MediaQuery flag and browser CSS preference. The existing animation
+observer handles accessibility-feature changes and settles the same immutable
+result. No native Swift, project, dependency or signing changes were needed.
+The new regression sets `reduceMotion=true` while `disableAnimations=false` and
+`accessibleNavigation=false`, covering initial skip, mid-roll change, subsequent
+unlock and unchanged game state. Final analyzer and all 1,120 tests passed, with
+seven existing opt-in skips; independent review found no blocker.
+
+The corrected iPhone simulator recording has **59 frames sampled every 50 ms**
+across a roll and reroll: immediate final totals, **zero rolling frames**. The
+normal-motion control recording shows Rolling from 14.45 s to 15.20 s (750 ms).
+The actual iOS switch was visually confirmed on for the test and restored off
+afterwards. Evidence: `native-ios-motion-fixed.mp4`,
+`native-ios-motion-fixed-ocr.json`, `native-motion-off-ocr.json`, and the associated
+switch screenshots under the verification directory above.

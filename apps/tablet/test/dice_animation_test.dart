@@ -188,6 +188,64 @@ void main() {
   );
 
   testWidgets(
+    'iOS reduceMotion engine flag skips and interrupts dice motion independently',
+    (tester) async {
+      final platform = tester.binding.platformDispatcher;
+      addTearDown(platform.clearAccessibilityFeaturesTestValue);
+      platform.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(
+        reduceMotion: true,
+      );
+      await open(tester);
+      final before = fixture.controller.state.toJson();
+      expect(
+        MediaQuery.of(tester.element(key('dice-selector'))).disableAnimations,
+        isFalse,
+      );
+      expect(platform.accessibilityFeatures.accessibleNavigation, isFalse);
+      await start(tester);
+      expect(
+        tester.widget<Text>(key('dice-summary')).data,
+        startsWith('Total:'),
+      );
+      expect(
+        tester.widget<FilledButton>(key('dice-reroll-button')).onPressed,
+        isNotNull,
+      );
+      platform.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures();
+      await tester.pump();
+      await tester.tap(key('dice-reroll-button'));
+      await tester.pump();
+      expect(tester.widget<Text>(key('dice-summary')).data, 'Rolling…');
+      final expected = int.parse(
+        tester
+            .widget<DieOutline>(key('dice-result-d6-0'))
+            .semanticsLabel!
+            .split(': ')
+            .last,
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      platform.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(
+        reduceMotion: true,
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(tester.widget<Text>(key('dice-summary')).data, 'Total: $expected');
+      expect(
+        tester.widget<FilledButton>(key('dice-reroll-button')).onPressed,
+        isNotNull,
+      );
+      platform.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures();
+      await tester.pump();
+      expect(tester.widget<Text>(key('dice-summary')).data, 'Total: $expected');
+      expect(fixture.controller.state.toJson(), before);
+      expect(tester.takeException(), isNull);
+      await close(tester);
+    },
+  );
+
+  testWidgets(
     'back and close interrupt motion without locking subsequent rolls',
     (tester) async {
       await open(tester);
