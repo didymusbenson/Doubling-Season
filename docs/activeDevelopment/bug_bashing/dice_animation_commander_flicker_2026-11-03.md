@@ -124,3 +124,21 @@ Evidence is retained outside the repository in the Kista task workspace:
 
 Independent implementation and UX reviews found no remaining blocker. Remote CI
 is separate from these local results; no physical-device acceptance is claimed.
+
+
+## Existing browser smoke compatibility
+
+The first remote run for `697a981` exposed one stale assumption in the existing
+release-browser smoke: two calls collected result semantics 120 ms after a roll,
+while the new animation deliberately hides those semantics for 750 ms. The
+failure was `Wrong D4 count: 0 !== 2` at the mixed-roll check. The shared verifier
+now waits for the visible final total before collecting its result snapshot;
+all exact face-count, range and sum assertions remain intact. No app runtime
+change was needed.
+
+The complete corrected release-browser flow passed locally in about three
+minutes, producing 159 screenshots and zero runtime exceptions. This includes
+mixed/dense dice, rerolls, token/artwork operations, drawer transitions, archive
+restoration and dark/light 2/3/4-seat portrait/landscape checks. The follow-up
+commit contains only this browser-test wait and these notes; the 1,119-test
+runtime and native/browser acceptance results above remain unchanged.
