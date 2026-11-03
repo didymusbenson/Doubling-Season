@@ -1250,6 +1250,15 @@ class _PlayerSpaceState extends State<_PlayerSpace>
     expandedId = expandedId == null ? id : null;
   });
 
+  // Flutter lifts reorder proxies into the screen overlay and computes drag
+  // positions in screen coordinates. Keep the viewport upright there, and put
+  // the seat rotation inside each item so it travels with the lifted proxy.
+  Widget _reorderViewport(Widget child) =>
+      RotatedBox(quarterTurns: -widget.turns, child: child);
+
+  Widget _reorderItem(Widget child) =>
+      RotatedBox(quarterTurns: widget.turns, child: child);
+
   @override
   Widget build(BuildContext context) {
     final p = widget.player;
@@ -1269,43 +1278,52 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                   action: 'Add a token',
                   onTap: () => widget.onOpen(WorkspacePage.tokens),
                 )
-              : DragBoundary(
-                  child: ReorderableListView.builder(
-                    scrollController: tokenScroll,
-                    // Corner controls overlay the lane. Only trailing scroll
-                    // clearance is needed to reach the last card beneath them.
-                    padding: const EdgeInsets.only(bottom: 88),
-                    buildDefaultDragHandles: false,
-                    itemCount: p.tokens.length,
-                    onReorder: (old, next) => perform(
-                      () => widget.board.reorder(p.id, 'tokens', old, next),
+              : _reorderViewport(
+                  DragBoundary(
+                    child: ReorderableListView.builder(
+                      scrollController: tokenScroll,
+                      reverse: widget.turns == 2,
+                      // Corner controls overlay the lane. Only trailing scroll
+                      // clearance is needed to reach the last card beneath them.
+                      padding: widget.turns == 2
+                          ? const EdgeInsets.only(top: 88)
+                          : const EdgeInsets.only(bottom: 88),
+                      buildDefaultDragHandles: false,
+                      itemCount: p.tokens.length,
+                      onReorder: (old, next) => perform(
+                        () => widget.board.reorder(p.id, 'tokens', old, next),
+                      ),
+                      proxyDecorator: (child, index, animation) =>
+                          Material(elevation: 5, child: child),
+                      itemBuilder: (context, index) {
+                        final t = p.tokens[index];
+                        return ReorderableDelayedDragStartListener(
+                          key: ValueKey(t.id),
+                          index: index,
+                          enabled: expandedId == null,
+                          child: _reorderItem(
+                            TabletTokenCard(
+                              token: t,
+                              interactionEpoch: widget.interactionEpoch,
+                              topContentInset:
+                                  widget.twoPlayerLayout && index == 0
+                                  ? _TwoPlayerControlsGeometry
+                                        .firstTokenContentInset
+                                  : 0,
+                              player: p,
+                              board: widget.board,
+                              playerName: profile.name,
+                              quarterTurns: widget.turns,
+                              expanded: expandedId == t.id,
+                              onExpand: () => expand(t.id),
+                              onOpenDetailed: (page) =>
+                                  widget.onOpen(page, t.id),
+                              onInputLock: widget.onInputLock,
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    proxyDecorator: (child, index, animation) =>
-                        Material(elevation: 5, child: child),
-                    itemBuilder: (context, index) {
-                      final t = p.tokens[index];
-                      return ReorderableDelayedDragStartListener(
-                        key: ValueKey(t.id),
-                        index: index,
-                        enabled: expandedId == null,
-                        child: TabletTokenCard(
-                          token: t,
-                          interactionEpoch: widget.interactionEpoch,
-                          topContentInset: widget.twoPlayerLayout && index == 0
-                              ? _TwoPlayerControlsGeometry
-                                    .firstTokenContentInset
-                              : 0,
-                          player: p,
-                          board: widget.board,
-                          playerName: profile.name,
-                          quarterTurns: widget.turns,
-                          expanded: expandedId == t.id,
-                          onExpand: () => expand(t.id),
-                          onOpenDetailed: (page) => widget.onOpen(page, t.id),
-                          onInputLock: widget.onInputLock,
-                        ),
-                      );
-                    },
                   ),
                 ),
         ),
@@ -1385,38 +1403,39 @@ class _PlayerSpaceState extends State<_PlayerSpace>
         });
         Widget utilityItem(BuildContext context, int index) {
           final u = visible[index];
+          final row = _UtilityRow(
+            compactSpacing: compactUtilities,
+            interactionEpoch: Object.hash(
+              widget.interactionEpoch,
+              widget.controller.session.generation,
+              p.generation,
+            ),
+            utility: u,
+            player: p,
+            board: widget.board,
+            onRemove: () => perform(() async {
+              await widget.board.removeUtility(p.id, u.id);
+              if (mounted && expandedId == u.id) {
+                setState(() => expandedId = null);
+              }
+            }),
+            onTempt: () =>
+                perform(() => RingService(widget.controller).tempt(p.id, u.id)),
+            onOpen: () => widget.onOpen(WorkspacePage.utilities, u.id),
+            onChange: (delta) =>
+                perform(() => widget.board.adjustUtility(p.id, u.id, delta)),
+            onToggle: () =>
+                perform(() => widget.board.toggleUtility(p.id, u.id)),
+            onMana: (mana, delta) =>
+                perform(() => widget.controller.adjustMana(p.id, mana, delta)),
+          );
           return ReorderableDelayedDragStartListener(
             key: ValueKey(u.id),
             index: index,
             enabled: !shortFooter && expandedId == null,
-            child: _UtilityRow(
-              compactSpacing: compactUtilities,
-              interactionEpoch: Object.hash(
-                widget.interactionEpoch,
-                widget.controller.session.generation,
-                p.generation,
-              ),
-              utility: u,
-              player: p,
-              board: widget.board,
-              onRemove: () => perform(() async {
-                await widget.board.removeUtility(p.id, u.id);
-                if (mounted && expandedId == u.id) {
-                  setState(() => expandedId = null);
-                }
-              }),
-              onTempt: () => perform(
-                () => RingService(widget.controller).tempt(p.id, u.id),
-              ),
-              onOpen: () => widget.onOpen(WorkspacePage.utilities, u.id),
-              onChange: (delta) =>
-                  perform(() => widget.board.adjustUtility(p.id, u.id, delta)),
-              onToggle: () =>
-                  perform(() => widget.board.toggleUtility(p.id, u.id)),
-              onMana: (mana, delta) => perform(
-                () => widget.controller.adjustMana(p.id, mana, delta),
-              ),
-            ),
+            // The short footer's ordinary SliverList stays seat-local; its
+            // separate compact reorder viewport supplies its own item rotation.
+            child: shortFooter ? row : _reorderItem(row),
           );
         }
 
@@ -1438,15 +1457,18 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                         onTap: () => widget.onOpen(WorkspacePage.utilities),
                       ),
               )
-            : DragBoundary(
-                child: ReorderableListView.builder(
-                  scrollController: utilityScroll,
-                  buildDefaultDragHandles: false,
-                  itemCount: visible.length,
-                  onReorder: reorderUtilities,
-                  proxyDecorator: (child, index, animation) =>
-                      Material(elevation: 5, child: child),
-                  itemBuilder: utilityItem,
+            : _reorderViewport(
+                DragBoundary(
+                  child: ReorderableListView.builder(
+                    scrollController: utilityScroll,
+                    reverse: widget.turns == 2,
+                    buildDefaultDragHandles: false,
+                    itemCount: visible.length,
+                    onReorder: reorderUtilities,
+                    proxyDecorator: (child, index, animation) =>
+                        Material(elevation: 5, child: child),
+                    itemBuilder: utilityItem,
+                  ),
                 ),
               );
         // Native reorder measures the entire utility (mana can be taller than
@@ -1467,52 +1489,57 @@ class _PlayerSpaceState extends State<_PlayerSpace>
               ),
             ),
             Expanded(
-              child: DragBoundary(
-                key: ValueKey('${p.id}-utility-reorder-boundary'),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: CustomScrollView(
-                    key: ValueKey('${p.id}-compact-utility-reorder'),
-                    controller: utilityScroll,
-                    slivers: [
-                      SliverReorderableList(
-                        itemCount: visible.length,
-                        onReorder: reorderUtilities,
-                        proxyDecorator: (child, index, animation) => Material(
-                          key: ValueKey('${p.id}-utility-reorder-proxy'),
-                          elevation: 5,
-                          child: child,
-                        ),
-                        itemBuilder: (context, index) {
-                          final u = visible[index];
-                          return ReorderableDelayedDragStartListener(
-                            key: ValueKey('compact-reorder-${u.id}'),
-                            index: index,
-                            enabled: expandedId == null,
-                            child: Semantics(
-                              label: 'Reorder ${u.name}',
-                              excludeSemantics: true,
-                              hint: 'Hold and drag to reorder',
-                              child: SizedBox(
-                                height: 44,
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.drag_handle, size: 18),
-                                    Expanded(
-                                      child: Text(
-                                        u.name,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+              child: _reorderViewport(
+                DragBoundary(
+                  key: ValueKey('${p.id}-utility-reorder-boundary'),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: CustomScrollView(
+                      key: ValueKey('${p.id}-compact-utility-reorder'),
+                      controller: utilityScroll,
+                      reverse: widget.turns == 2,
+                      slivers: [
+                        SliverReorderableList(
+                          itemCount: visible.length,
+                          onReorder: reorderUtilities,
+                          proxyDecorator: (child, index, animation) => Material(
+                            key: ValueKey('${p.id}-utility-reorder-proxy'),
+                            elevation: 5,
+                            child: child,
+                          ),
+                          itemBuilder: (context, index) {
+                            final u = visible[index];
+                            return ReorderableDelayedDragStartListener(
+                              key: ValueKey('compact-reorder-${u.id}'),
+                              index: index,
+                              enabled: expandedId == null,
+                              child: _reorderItem(
+                                Semantics(
+                                  label: 'Reorder ${u.name}',
+                                  excludeSemantics: true,
+                                  hint: 'Hold and drag to reorder',
+                                  child: SizedBox(
+                                    height: 44,
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.drag_handle, size: 18),
+                                        Expanded(
+                                          child: Text(
+                                            u.name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
                                 ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

@@ -457,7 +457,7 @@ void main() {
           bounds.width,
           closeTo(tester.getSize(valueSurface).width - 2, .01),
         );
-        expect(bounds.height, 44);
+        expect(bounds.height, closeTo(44, .001));
         final value = find.descendant(
           of: stepper,
           matching: find.text('$count'),

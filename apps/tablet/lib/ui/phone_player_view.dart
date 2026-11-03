@@ -291,6 +291,8 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
                     slivers: [
                       SliverReorderableList(
                         itemCount: visible.length,
+                        proxyDecorator: (child, index, animation) =>
+                            Material(elevation: 5, child: child),
                         onReorder: (old, next) => perform(() async {
                           final ids = visible.map((u) => u.id).toList();
                           if (next > old) {
