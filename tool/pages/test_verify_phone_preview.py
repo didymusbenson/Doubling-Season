@@ -20,6 +20,7 @@ class PreviewValidation(unittest.TestCase):
         for name in ('main.dart.js', 'flutter_bootstrap.js', 'manifest.json',
                      'assets/packages/doubling_season/assets/token_database.json'):
             self.write(name, preview.NAMESPACE)
+        self.write('flutter_bootstrap.js', '_flutter.loader.load();\n')
 
     def write(self, name, content):
         p = self.root / name
@@ -48,8 +49,30 @@ class PreviewValidation(unittest.TestCase):
                 with self.assertRaises(AssertionError):
                     preview.verify(self.root)
                 self.write(name, '')
-        self.write('flutter_bootstrap.js', 'bootstrap')
+        self.write('flutter_bootstrap.js', '_flutter.loader.load();')
         preview.verify(self.root)
+
+    def test_accepts_bundled_loader_without_worker_configuration(self):
+        # Actual Flutter 3.41.2 loader signature; this is not a registration.
+        self.write('flutter_bootstrap.js',
+                   'class Loader { async load({serviceWorkerSettings:e,config:r}={}) {} }\n'
+                   '_flutter.loader.load();\n')
+        self.assertEqual(preview.verify(self.root), self.metadata)
+
+    def test_rejects_configured_duplicate_or_legacy_entrypoints(self):
+        for bootstrap in (
+            '_flutter.loader.load({serviceWorkerSettings: {serviceWorkerVersion: "1"}});',
+            '_flutter.loader.load({serviceWorkerSettings: null});',
+            '_flutter.loader.load(settings);',
+            '_flutter.loader.load(); _flutter.loader.load();',
+            '_flutter.loader.loadEntrypoint({serviceWorker: {}}); _flutter.loader.load();',
+            '_flutter.loader.load(); unexpected();',
+            'no entrypoint',
+        ):
+            with self.subTest(bootstrap=bootstrap):
+                self.write('flutter_bootstrap.js', bootstrap)
+                with self.assertRaises(AssertionError):
+                    preview.verify(self.root)
 
     def test_rejects_wrong_route_or_empty_payload(self):
         self.write('index.html', '<base href="/Doubling-Season/tablet/">')
