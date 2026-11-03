@@ -148,6 +148,8 @@ void main() {
   }
 
   for (final size in [
+    const Size(390, 844),
+    const Size(440, 956),
     const Size(600, 1024),
     const Size(1133, 744),
     const Size(650, 480),
@@ -168,6 +170,13 @@ void main() {
           final outline = tester.widget<DieOutline>(key('dice-count-d$die'));
           expect(outline.sides, die);
           expect(outline.value, die == 6 ? 1 : 0);
+          expect(
+            tester
+                .getRect(key('dice-count-d$die'))
+                .overlaps(tester.getRect(byControlLabel('Close workspace'))),
+            isFalse,
+            reason: 'Selector dice must clear the close control at $size.',
+          );
           for (final direction in ['Increase', 'Decrease']) {
             final action = byControlLabel('$direction d$die');
             expect(action, findsOneWidget);
@@ -240,6 +249,9 @@ void main() {
         }
         await scrollToStart(tester, key('dice-result-d4-0'));
         expectCornerClear(tester, key('dice-result-d4-0'));
+        for (final die in sides) {
+          expectCornerClear(tester, key('dice-group-d$die'));
+        }
         await capture(tester, '$tag-results');
         await tap(tester, byControlLabel('Back'));
         expect(key('dice-selector'), findsOneWidget);

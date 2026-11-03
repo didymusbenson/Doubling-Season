@@ -28,6 +28,7 @@ import '../table_mana_icons.dart';
 import '../half_stepper.dart';
 import '../die_outline.dart';
 import 'dice_roll.dart';
+import 'dice_motion_preference.dart';
 import '../commander_ledger.dart';
 import '../monarch_crown.dart';
 import '../custom_token_fields.dart';
@@ -208,6 +209,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   late WorkspacePage _page;
   Future<void> _directQueue = Future.value();
   int _directPending = 0;
+  // A zero counter permits reversal only while its own writes are queued.
+  // Commander or other-counter saves must not flash unrelated minus controls.
+  final _pendingPlayerCounters = <(String, String), int>{};
   // Failure survives later successful writes and close-in-progress rebuilds.
   String? _directFailure;
   int _directFailureEpoch = 0;
@@ -261,6 +265,8 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   bool _customGlobal = false;
   final Map<int, int> _diceCounts = {4: 0, 6: 1, 8: 0, 10: 0, 12: 0, 20: 0};
   DiceRoll? _diceRoll;
+  bool _diceRolling = false;
+  int _diceRollSerial = 0;
 
   bool get _embedded => widget.drawerController != null;
   TableController get c => widget.controller;
@@ -639,13 +645,25 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   }
 
   /// Direct numeric commands never disable/reflow the active control per save.
-  Future<void> _runDirect(Future<dynamic> Function() action) {
+  Future<void> _runDirect(
+    Future<dynamic> Function() action, {
+    (String, String)? pendingCounter,
+  }) {
     if (_working || _closing || _navigating || !_validScope) {
       return Future.value();
     }
     // Keep the display committed, but permit a queued reversal at a displayed
     // boundary (for example + then - while zero is still being saved).
-    setState(() => _directPending++);
+    setState(() {
+      _directPending++;
+      if (pendingCounter != null) {
+        _pendingPlayerCounters.update(
+          pendingCounter,
+          (count) => count + 1,
+          ifAbsent: () => 1,
+        );
+      }
+    });
     final operation = _directQueue.then((_) async {
       try {
         if (!mounted || !_validScope) return;
@@ -664,7 +682,19 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         _directFailureEpoch++;
         if (mounted) setState(() => _error = _directFailure);
       } finally {
-        if (mounted) setState(() => _directPending--);
+        if (mounted) {
+          setState(() {
+            _directPending--;
+            if (pendingCounter != null) {
+              final remaining = _pendingPlayerCounters[pendingCounter]! - 1;
+              if (remaining == 0) {
+                _pendingPlayerCounters.remove(pendingCounter);
+              } else {
+                _pendingPlayerCounters[pendingCounter] = remaining;
+              }
+            }
+          });
+        }
       }
     });
     _directQueue = operation;
@@ -676,6 +706,12 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     CommanderSource source,
     int delta,
   ) => _runDirect(() => c.adjustCommanderDamage(player.id, source.id, delta));
+
+  Future<void> _stepPlayerCounter(String playerId, String key, int delta) =>
+      _runDirect(
+        () => c.adjustPlayerCounter(playerId, key, delta),
+        pendingCounter: (playerId, key),
+      );
 
   int _integer(String field, {int min = -1000000000, int max = 1000000000}) {
     final controller = _field(field);

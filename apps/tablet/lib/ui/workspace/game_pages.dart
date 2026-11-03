@@ -518,24 +518,21 @@ extension _GamePages on _TableWorkspaceState {
                             'Increase ${_counterActionLabel(counter.key)}',
                         onDecrease:
                             disabled ||
-                                (_directPending == 0 && counter.value == 0)
+                                (!_pendingPlayerCounters.containsKey((
+                                      player.id,
+                                      counter.key,
+                                    )) &&
+                                    counter.value == 0)
                             ? null
-                            : () => _runDirect(
-                                () => c.adjustPlayerCounter(
-                                  player.id,
-                                  counter.key,
-                                  -1,
-                                ),
+                            : () => _stepPlayerCounter(
+                                player.id,
+                                counter.key,
+                                -1,
                               ),
                         onIncrease: disabled
                             ? null
-                            : () => _runDirect(
-                                () => c.adjustPlayerCounter(
-                                  player.id,
-                                  counter.key,
-                                  1,
-                                ),
-                              ),
+                            : () =>
+                                  _stepPlayerCounter(player.id, counter.key, 1),
                       ),
                     ),
                   ],
