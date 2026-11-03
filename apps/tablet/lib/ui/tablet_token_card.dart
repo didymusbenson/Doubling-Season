@@ -315,11 +315,12 @@ class _TabletTokenCardState extends State<TabletTokenCard>
       (token.counters['+0/+1'] ?? 0) != 0;
 
   // Readability belongs to the content, not a scrim across the token artwork.
-  Widget _readable(Widget child) => token.artworkUrl == null
+  Widget _readable(Widget child, {Color? backgroundColor}) =>
+      token.artworkUrl == null && backgroundColor == null
       ? child
       : DecoratedBox(
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: .60),
+            color: backgroundColor ?? Colors.black.withValues(alpha: .60),
             borderRadius: BorderRadius.circular(4),
           ),
           child: child,
@@ -416,6 +417,15 @@ class _TabletTokenCardState extends State<TabletTokenCard>
                 padding: const EdgeInsets.symmetric(horizontal: 5),
                 child: content,
               ),
+              // Modified P/T fills the entire padded backplate. Its value can
+              // pop independently without revealing a larger dark base behind it.
+              // A transparent no-art base keeps that animation's state mounted
+              // when the first modifier is added or the last one is removed.
+              backgroundColor: field == 'pt' && !editing && _modifiedPt
+                  ? Colors.orange.shade800
+                  : field == 'pt' && token.artworkUrl == null
+                  ? Colors.transparent
+                  : null,
             ),
           ),
         ),
@@ -1085,7 +1095,7 @@ class _PowerToughnessState extends State<_PowerToughness>
       constraints: const BoxConstraints(maxWidth: 88),
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
       decoration: BoxDecoration(
-        color: widget.modified ? Colors.orange.shade800 : Colors.black12,
+        color: widget.modified ? Colors.transparent : Colors.black12,
         borderRadius: BorderRadius.circular(4),
       ),
       child: widget.value.isEmpty
