@@ -57,10 +57,22 @@ void main() {
     return f;
   }
 
+  Future<void> swipe(WidgetTester tester, Finder target) async {
+    final box = tester.renderObject<RenderBox>(target);
+    final origin = box.localToGlobal(
+      Offset(box.size.width * .85, box.size.height / 2),
+    );
+    final end = box.localToGlobal(
+      Offset(box.size.width * .05, box.size.height / 2),
+    );
+    await tester.dragFrom(origin, end - origin);
+    await tester.pumpAndSettle();
+  }
+
   for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
     for (final seats in [2, 3, 4]) {
       testWidgets(
-        'Direct Remove and History restore every seat at $size/$seats',
+        'Swipe Remove and History restore every seat at $size/$seats',
         (tester) async {
           final f = await show(tester, size, seats);
           List<Map<String, dynamic>> gameplay() => f.controller.session.players
@@ -69,18 +81,13 @@ void main() {
           final before = gameplay();
           final ids = f.controller.session.players.map((p) => p.id).toList();
           for (final id in ids) {
-            final target = find.byKey(ValueKey('remove-utility-storm-$id'));
+            final target = find.byKey(ValueKey('swipe-utility-storm-$id'));
             expect(target.hitTestable(), findsOneWidget);
-            expect(tester.getSize(target), const Size(44, 44));
             expect(
-              find.descendant(
-                of: target,
-                matching: byControlLabel('Remove Storm'),
-              ),
-              findsOneWidget,
+              find.byKey(ValueKey('remove-utility-storm-$id')),
+              findsNothing,
             );
-            await tester.tap(target);
-            await tester.pumpAndSettle();
+            await swipe(tester, target);
             expect(f.controller.player(id).utilities, isEmpty);
             expect(f.controller.player(id).life, 40);
             expect(byControlLabel('Close workspace'), findsNothing);
@@ -112,14 +119,13 @@ void main() {
     }
   }
 
-  testWidgets('A drag beginning on Remove does not remove or change values', (
+  testWidgets('A vertical drag scrolls without removing or changing values', (
     tester,
   ) async {
     final f = await show(tester, const Size(1133, 744), 2);
     final before = f.player.toJson();
-    final target = find.byKey(ValueKey('remove-utility-storm-${f.playerId}'));
+    final target = find.byKey(ValueKey('swipe-utility-storm-${f.playerId}'));
     final gesture = await tester.startGesture(tester.getCenter(target));
-    await tester.pump(const Duration(milliseconds: 650));
     await gesture.moveBy(const Offset(0, -40));
     await tester.pump(const Duration(milliseconds: 100));
     await gesture.up();
@@ -135,10 +141,10 @@ void main() {
     final f = await show(tester, const Size(1133, 744), 2);
     final before = f.player.toJson();
     f.repository.failSave = true;
-    await tester.tap(
-      find.byKey(ValueKey('remove-utility-storm-${f.playerId}')),
+    await swipe(
+      tester,
+      find.byKey(ValueKey('swipe-utility-storm-${f.playerId}')),
     );
-    await tester.pumpAndSettle();
     expect(f.player.toJson(), before);
     expect(find.textContaining('Simulated storage failure'), findsWidgets);
     expect(byControlLabel('Close workspace'), findsNothing);

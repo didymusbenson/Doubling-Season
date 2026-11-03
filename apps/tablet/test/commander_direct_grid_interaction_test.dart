@@ -201,82 +201,60 @@ void main() {
     expect(find.text('Add counter'), findsNothing);
   }
 
-  Future<void> setEnergy(WidgetTester tester, String value) async {
-    final field = find.widgetWithText(TextField, 'Set total');
-    await tester.ensureVisible(field);
-    await tester.tap(field);
-    await tester.pumpAndSettle();
-    await tester.tap(byControlLabel('Select all'));
-    await tester.tap(find.text(value));
-    await tester.tap(find.text('Done'));
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Set'));
-    await tester.tap(find.text('Set'));
-    await tester.pumpAndSettle();
-  }
-
   testWidgets(
-    'counter correction starts from latest total without changing life or damage',
+    'counter steppers change only their total without manual entry controls',
     (tester) async {
       await open(tester);
       expect(find.byKey(ValueKey('commander-edit-$sourceId')), findsNothing);
       expect(find.text('Set damage total'), findsNothing);
       expect(byControlLabel('Undo latest action'), findsNothing);
       await enableEnergy(tester);
-      await tester.ensureVisible(byControlLabel('Set energy total'));
-      await tester.tap(byControlLabel('Set energy total'));
-      await tester.pumpAndSettle();
-      await setEnergy(tester, '7');
+      expect(byControlLabel('Set energy total'), findsNothing);
+      expect(find.byType(TextField), findsNothing);
+      final increase = byControlLabel('Increase energy');
+      await tester.ensureVisible(increase);
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(increase);
+        await tester.pumpAndSettle();
+      }
       expect(controller.player(playerId).life, 40);
       expect(controller.player(playerId).commanderDamage[sourceId] ?? 0, 0);
-      expect(controller.player(playerId).counters['energy'], 7);
-      final plus = find.byWidgetPredicate(
-        (widget) =>
-            widget is Semantics && widget.properties.label == 'Increase energy',
-      );
-      await tester.ensureVisible(plus);
-      await tester.tap(plus);
+      expect(controller.player(playerId).counters['energy'], 3);
+      await tester.tap(byControlLabel('Decrease energy'));
       await tester.pumpAndSettle();
-      await tester.tap(byControlLabel('Set energy total'));
-      await tester.pumpAndSettle();
-      final field = find.widgetWithText(TextField, 'Set total');
-      expect(tester.widget<TextField>(field).controller!.text, '8');
+      expect(controller.player(playerId).counters['energy'], 2);
+      expect(find.byType(TextField), findsNothing);
       await close(tester);
       await tester.pumpAndSettle();
     },
   );
   testWidgets(
-    'queued commander failure survives entering and saving counter correction',
+    'queued commander failure survives a later successful counter step',
     (tester) async {
       await open(tester);
       await enableEnergy(tester);
       repo.delay = true;
       await plus(tester);
-      await tester.ensureVisible(byControlLabel('Set energy total'));
-      await tester.tap(byControlLabel('Set energy total'));
+      final increase = byControlLabel('Increase energy');
+      await tester.ensureVisible(increase);
+      await tester.tap(increase);
       await tester.pump();
-      expect(
-        find.widgetWithText(TextField, 'Set total'),
-        findsNothing,
-        reason: 'Counter editing must wait for the accepted commander write.',
-      );
+      expect(repo.waits, hasLength(1));
+      expect(controller.player(playerId).counters['energy'], 0);
+      expect(find.byType(TextField), findsNothing);
+      repo.delay = false;
       repo.waits[0].completeError(StateError('Queued save failed'));
       await tester.pumpAndSettle();
-      expect(
-        find.textContaining('Some changes were not saved.'),
-        findsOneWidget,
-      );
-      repo.delay = false;
-      await setEnergy(tester, '4');
       expect(controller.player(playerId).commanderDamage[sourceId] ?? 0, 0);
       expect(controller.player(playerId).life, 40);
-      expect(controller.player(playerId).counters['energy'], 4);
+      expect(controller.player(playerId).counters['energy'], 1);
       expect(
         find.textContaining('Some changes were not saved.'),
         findsOneWidget,
       );
       await close(tester);
       await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('commander-workspace')), findsOneWidget);
       await close(tester);
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('commander-workspace')), findsNothing);

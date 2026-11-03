@@ -110,59 +110,23 @@ void main() {
         await tester.pumpAndSettle();
         final seat = find.byKey(ValueKey(f.playerId));
         final utility = f.player.utilities.single;
-        await tester.tap(
-          find.descendant(
-            of: seat,
-            matching: byControlLabel(
-              RegExp('^${RegExp.escape(utility.name)}, (expand|collapse)\$'),
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-        final edit = find.descendant(
-          of: seat,
-          matching: byControlLabel(
-            kind == 'mana_pool'
-                ? 'Manage ${utility.name}'
-                : '${utility.name}, details and actions',
-          ),
-        );
-        final hide = find.descendant(
-          of: seat,
-          matching: byControlLabel('Remove ${utility.name}'),
-        );
-        expect(edit.hitTestable(), findsOneWidget);
-        expect(hide.hitTestable(), findsOneWidget);
-        expect(
-          (tester.getCenter(edit).dy - tester.getCenter(hide).dy).abs(),
-          lessThan(1),
-        );
         final header = find.descendant(
           of: seat,
-          matching: byControlLabel(
-            RegExp('^${RegExp.escape(utility.name)}, (expand|collapse)\$'),
-          ),
+          matching: byControlLabel('${utility.name}, details and actions'),
         );
+        expect(header.hitTestable(), findsOneWidget);
+        expect(find.byKey(ValueKey('remove-utility-$id')), findsNothing);
         expect(
-          (tester.getCenter(header).dy - tester.getCenter(edit).dy).abs(),
-          lessThan(12),
+          find.descendant(
+            of: header,
+            matching: find.byIcon(Icons.chevron_right),
+          ),
+          findsOneWidget,
         );
         final inline = tester.widget<UtilityInlineActions>(
           find.byKey(ValueKey('inline-actions-$id')),
         );
-        expect(
-          inline.management,
-          isEmpty,
-          reason: 'No trailing management-only row.',
-        );
-        expect(
-          tester
-              .widget<Icon>(
-                find.descendant(of: edit, matching: find.byType(Icon)),
-              )
-              .icon,
-          Icons.edit_outlined,
-        );
+        expect(inline.management, isEmpty);
         if (kind == 'custom_toggle') {
           final switchControl = find.descendant(
             of: seat,
@@ -186,6 +150,11 @@ void main() {
           await tester.pumpAndSettle();
           expect(f.board.utilityActive(f.playerId, id), isFalse);
         }
+        await tester.tap(header);
+        await tester.pumpAndSettle();
+        expect(find.byKey(ValueKey('utility-detail-$kind')), findsOneWidget);
+        await tester.tap(byControlLabel('Close workspace'));
+        await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
       });
     }
@@ -224,12 +193,10 @@ void main() {
     });
   }
 
-  testWidgets('Crusade quick action preserves count and works expanded', (
+  testWidgets('Crusade quick action preserves count on the board', (
     tester,
   ) async {
     final (f, id) = await showUtility(tester, 'cathars_crusade');
-    await tester.tap(find.text("Cathar's Crusade").first);
-    await tester.pumpAndSettle();
     await tap(tester, 'utility-quick-$id');
     expect(f.token('source').plusOneCounters, 1);
     expect(f.player.utilities.single.value, 3);
@@ -347,7 +314,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(byControlLabel('Manage Mana pool').first);
+      await tester.tap(byControlLabel('Mana pool, details and actions').first);
       await tester.pumpAndSettle();
       repository.failSave = true;
       repository.attempts = 0;

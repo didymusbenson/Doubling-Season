@@ -80,10 +80,15 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Future<void> open(WidgetTester tester, {int turns = 0}) async {
+  Future<void> open(
+    WidgetTester tester, {
+    int turns = 0,
+    Size size = const Size(1133, 744),
+    bool custom = true,
+  }) async {
     await fixture.initialize();
     fixture.catalog.loaded = true;
-    tester.view.physicalSize = const Size(1133, 744);
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -108,7 +113,7 @@ void main() {
     );
     await tester.tap(find.text('Open test form'));
     await tester.pumpAndSettle();
-    if (find.byType(CustomTokenColorPicker).evaluate().isEmpty) {
+    if (custom && find.byType(CustomTokenColorPicker).evaluate().isEmpty) {
       await tap(tester, find.text('Custom token'));
     }
   }
@@ -196,7 +201,8 @@ void main() {
   ) async {
     await open(tester);
     await tap(tester, find.text('Save custom token'));
-    expect(find.textContaining('A token needs a name.'), findsOneWidget);
+    expect(find.text('A token needs a name.'), findsOneWidget);
+    expect(find.textContaining('FormatException'), findsNothing);
     await reveal(tester, find.byType(CustomTokenColorPicker));
     field(tester, 'Name').controller.text = 'Variable creature';
     field(tester, 'Power').controller.text = '-1';
@@ -217,6 +223,127 @@ void main() {
     expect(fixture.catalog.customTokens.single.colors, 'R');
     await close(tester);
   });
+
+  for (final size in [const Size(390, 844), const Size(1133, 744)]) {
+    testWidgets('invalid custom form shakes and stays editable at $size', (
+      tester,
+    ) async {
+      await open(tester, size: size);
+      final save = find.text('Save custom token');
+      await reveal(tester, save);
+      await tester.tap(save);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 40));
+      final feedback = find.byKey(
+        const ValueKey('custom-token-validation-name-1'),
+      );
+      final transform = tester.widget<Transform>(
+        find.descendant(of: feedback, matching: find.byType(Transform)).first,
+      );
+      expect(transform.transform.getTranslation().x, isNot(0));
+      expect(find.text('A token needs a name.'), findsOneWidget);
+      expect(find.textContaining('FormatException'), findsNothing);
+      expect(fixture.catalog.customTokens, isEmpty);
+      expect(fixture.controller.session.history, isEmpty);
+      await tester.pumpAndSettle();
+      field(tester, 'Name').controller.text = 'Retry succeeds';
+      await tester.pumpAndSettle();
+      expect(find.text('A token needs a name.'), findsNothing);
+      await tap(tester, save);
+      expect(fixture.catalog.customTokens.single.name, 'Retry succeeds');
+      expect(tester.takeException(), isNull);
+      await close(tester);
+    });
+
+    testWidgets('custom color rows are centered at $size', (tester) async {
+      await open(tester, size: size);
+      await reveal(tester, find.byType(CustomTokenColorPicker));
+      final picker = tester.getRect(find.byType(CustomTokenColorPicker));
+      final rows = <double, List<Rect>>{};
+      for (final code in ['W', 'U', 'B', 'R', 'G', 'C']) {
+        final rect = tester.getRect(color(code));
+        rows.putIfAbsent(rect.top, () => []).add(rect);
+      }
+      for (final row in rows.values) {
+        expect(
+          (row.first.left + row.last.right) / 2,
+          closeTo(picker.center.dx, .01),
+        );
+      }
+      expect(tester.takeException(), isNull);
+      await close(tester);
+    });
+  }
+
+  testWidgets('four-player opposite-seat custom colors stay centered', (
+    tester,
+  ) async {
+    await open(tester, turns: 2);
+    await reveal(tester, find.byType(CustomTokenColorPicker));
+    final picker = tester.getRect(find.byType(CustomTokenColorPicker));
+    final first = tester.getRect(color('W'));
+    final last = tester.getRect(color('C'));
+    expect(
+      (first.center.dx + last.center.dx) / 2,
+      closeTo(picker.center.dx, .01),
+    );
+    await tap(tester, find.text('Save custom token'));
+    expect(find.text('A token needs a name.'), findsOneWidget);
+    expect(find.textContaining('FormatException'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await close(tester);
+  });
+
+  testWidgets(
+    'search filters use accessible symbols and exclude unsupported type chips',
+    (tester) async {
+      await fixture.initialize();
+      for (final name in ['Test Dungeon', 'Quest Counter']) {
+        await fixture.catalog.saveCustom(
+          TokenDefinition(
+            name: name,
+            pt: '',
+            type: name == 'Test Dungeon' ? 'Dungeon' : '',
+            colors: '',
+            abilities: '',
+            popularity: 0,
+          ),
+        );
+      }
+      final before = fixture.repository.encoded;
+      await open(tester, custom: false, size: const Size(390, 844));
+      final semantics = tester.ensureSemantics();
+      for (final entry in {
+        'W': 'White',
+        'U': 'Blue',
+        'B': 'Black',
+        'R': 'Red',
+        'G': 'Green',
+        'C': 'Colorless',
+      }.entries) {
+        expect(find.text(entry.value), findsNothing);
+        final filter = find.byKey(ValueKey('token-color-filter-${entry.key}'));
+        expect(tester.getSize(filter).height, greaterThanOrEqualTo(44));
+        expect(
+          tester.getSemantics(filter).label,
+          contains('${entry.value} tokens'),
+        );
+      }
+      expect(find.widgetWithText(ChoiceChip, 'Dungeon'), findsNothing);
+      expect(find.widgetWithText(ChoiceChip, 'Counter'), findsNothing);
+      expect(
+        fixture.catalog.search('Test Dungeon').single.name,
+        'Test Dungeon',
+      );
+      expect(
+        fixture.catalog.search('Quest Counter').single.name,
+        'Quest Counter',
+      );
+      expect(fixture.repository.encoded, before);
+      semantics.dispose();
+      await close(tester);
+    },
+  );
 
   testWidgets('failed save recovers split fields and colors before one retry', (
     tester,
@@ -263,7 +390,11 @@ void main() {
     await tap(tester, color('G'));
     final before = fixture.repository.encoded;
     await tap(tester, find.text('Choose artwork'));
-    expect(find.textContaining('Pick failed'), findsOneWidget);
+    expect(
+      find.text('Your change could not be saved. Please try again.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('PlatformException'), findsNothing);
     picker.fail = false;
     await tap(tester, find.text('Choose artwork'));
     expect(picker.calls, 2);

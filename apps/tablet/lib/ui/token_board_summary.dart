@@ -15,20 +15,22 @@ class TokenBoardSummary extends StatelessWidget {
     final artifacts = tokens
         .where((t) => t.type.toLowerCase().contains('artifact'))
         .toList();
-    int sum(Iterable<TokenState> list, int Function(TokenState) count) =>
-        list.fold(0, (a, b) => a + count(b));
-    var power = 0, readyPower = 0;
+    BigInt sum(Iterable<TokenState> list, int Function(TokenState) count) =>
+        list.fold(BigInt.zero, (a, b) => a + BigInt.from(count(b)));
+    var power = BigInt.zero, readyPower = BigInt.zero;
     final variable = <String, int>{};
     for (final token in creatures) {
-      final parsed = int.tryParse(token.pt.split('/').first.trim());
+      final parsed = BigInt.tryParse(token.pt.split('/').first.trim());
       if (parsed == null) {
         final key = '${token.name} (${token.pt})';
         variable[key] = (variable[key] ?? 0) + token.amount;
       } else {
         final modified =
-            parsed + token.netPlusOneCounters + (token.counters['+1/+0'] ?? 0);
-        power += modified * token.amount;
-        readyPower += modified * token.untapped;
+            parsed +
+            BigInt.from(token.netPlusOneCounters) +
+            BigInt.from(token.counters['+1/+0'] ?? 0);
+        power += modified * BigInt.from(token.amount);
+        readyPower += modified * BigInt.from(token.untapped);
       }
     }
     final rows = {
