@@ -27,6 +27,9 @@ class TabletMediaStore {
     return reference;
   }
 
+  /// Immutable bytes already read or saved, available to fresh drag proxies.
+  static Uint8List? peek(String reference) => _cache[reference];
+
   static Future<Uint8List?> read(String reference) async {
     if (_cache.containsKey(reference)) return _cache[reference];
     if (!reference.startsWith('tablet-art:')) return null;

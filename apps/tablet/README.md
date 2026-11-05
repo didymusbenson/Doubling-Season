@@ -174,3 +174,14 @@ The main publisher assembles stable root/tablet outputs plus a validated phone
 preview at `/preview/phone/`. Only that preview passes the explicit storage
 namespace define; normal native and tablet builds keep existing storage keys.
 Phone implementation remains on its feature branch, with cutover cleanup required.
+
+## Device bars and quiet play
+
+The native loaded table requests immersive system bars while foregrounded and
+restores them when leaving the foreground. Edge gestures and OS-controlled UI
+remain available. The web preview does not hide browser/device chrome. See
+[platform behavior and validation limits](../../docs/activeDevelopment/in_progress_features/ipad_edition/device_system_bars_2026-11-05.md).
+
+Immersive mode does not suppress system notification banners. Enable Focus/Do
+Not Disturb on the device for quiet play; iPad Focus can use an app-based schedule.
+The app does not change those settings or request notification-policy access.

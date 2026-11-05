@@ -7,10 +7,36 @@ import '../services/tablet_media_store.dart';
 import '../services/remote_artwork_byte_cache.dart';
 
 class TableArtwork extends StatelessWidget {
-  static final Map<String, Future<Uint8List?>> _downloads = {};
-  static final Map<String, DateTime> _retryAfter = {};
-
   static final _webCache = RemoteArtworkByteCache(loadBytes: _fetchWebBytes);
+  static final _nativeCache = RemoteArtworkByteCache(
+    loadBytes: _fetchNativeBytes,
+    // A cropped request keeps its policy entry and underlying source entry.
+    capacity: 128,
+  );
+  static final Map<String, Uint8List> _inlineBytes = {};
+
+  static RemoteArtworkByteCache get _remoteCache =>
+      kIsWeb ? _webCache : _nativeCache;
+
+  static Uint8List _inline(String source) {
+    final existing = _inlineBytes[source];
+    if (existing != null) return existing;
+    final bytes = Uri.parse(source).data!.contentAsBytes();
+    if (_inlineBytes.length >= 48) _inlineBytes.remove(_inlineBytes.keys.first);
+    _inlineBytes[source] = bytes;
+    return bytes;
+  }
+
+  static Future<Uint8List> _fetchNativeBytes(String source) async {
+    final file =
+        await ArtworkManager.getCachedArtworkFile(source) ??
+        await ArtworkManager.downloadArtwork(source);
+    final bytes = await file?.readAsBytes();
+    if (bytes == null) {
+      throw const FormatException('Artwork could not be downloaded.');
+    }
+    return bytes;
+  }
 
   static Future<Uint8List> _fetchWebBytes(String source) async {
     final response = await http
@@ -38,7 +64,7 @@ class TableArtwork extends StatelessWidget {
     if (source.startsWith('tablet-art:')) {
       bytes = await TabletMediaStore.read(source);
     } else if (source.startsWith('data:image/')) {
-      bytes = Uri.parse(source).data?.contentAsBytes();
+      bytes = _inline(source);
     } else {
       final uri = Uri.tryParse(source);
       if (uri == null ||
@@ -46,15 +72,10 @@ class TableArtwork extends StatelessWidget {
           uri.host.isEmpty) {
         throw const FormatException('Choose a complete image URL.');
       }
-      if (!kIsWeb) {
-        if (_retryAfter.containsKey(source)) {
-          _downloads.remove(source);
-          _retryAfter.remove(source);
-        }
-        bytes = await _cached(source);
-      } else {
-        bytes = await _webCache.load(source, retry: _webCache.failed(source));
-      }
+      bytes = await _remoteCache.load(
+        source,
+        retry: _remoteCache.failed(source),
+      );
     }
     if (bytes == null || bytes.isEmpty || bytes.length > 12 * 1024 * 1024) {
       throw const FormatException(
@@ -72,7 +93,7 @@ class TableArtwork extends StatelessWidget {
     } catch (_) {
       // Only a re-downloadable, corrupt cache is discarded; saved selection and
       // immutable user media survive every failed load.
-      _downloads.remove(source);
+      _remoteCache.evict(source);
       if (!kIsWeb &&
           (source.startsWith('https://') || source.startsWith('http://'))) {
         await ArtworkManager.deleteCachedArtwork(source);
@@ -80,34 +101,6 @@ class TableArtwork extends StatelessWidget {
       rethrow;
     }
     return bytes;
-  }
-
-  static Future<Uint8List?> _cached(String source) {
-    final retry = _retryAfter[source];
-    if (retry != null && DateTime.now().isAfter(retry)) {
-      _downloads.remove(source);
-      _retryAfter.remove(source);
-    }
-    if (!_downloads.containsKey(source) && _downloads.length >= 64) {
-      final oldest = _downloads.keys.first;
-      _downloads.remove(oldest);
-      _retryAfter.remove(oldest);
-    }
-    return _downloads.putIfAbsent(source, () async {
-      Uint8List? bytes;
-      try {
-        final file =
-            await ArtworkManager.getCachedArtworkFile(source) ??
-            await ArtworkManager.downloadArtwork(source);
-        bytes = await file?.readAsBytes();
-      } catch (_) {
-        // A later render can retry a temporary network failure.
-      }
-      if (bytes == null) {
-        _retryAfter[source] = DateTime.now().add(const Duration(seconds: 30));
-      }
-      return bytes;
-    });
   }
 
   final String? url;
@@ -126,29 +119,21 @@ class TableArtwork extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget fallback() => placeholder ?? const SizedBox.expand();
-    Widget frame(
-      BuildContext context,
-      Widget child,
-      int? frame,
-      bool synchronous,
-    ) => synchronous
-        ? child
-        : AnimatedOpacity(
-            opacity: frame == null ? 0 : 1,
-            duration: const Duration(milliseconds: 160),
-            child: child,
-          );
     Widget memory(Uint8List bytes) => Image.memory(
       bytes,
+      key: ObjectKey(bytes),
       fit: fit,
       gaplessPlayback: true,
-      frameBuilder: frame,
+      // Stable bytes reuse Flutter's decoded image across a drag proxy and
+      // the dropped row. Reordering must not restart an artwork fade.
       errorBuilder: (_, _, _) => fallback(),
     );
     final source = url;
     if (source == null || source.isEmpty) return fallback();
     if (source.startsWith('tablet-art:')) {
       return FutureBuilder<Uint8List?>(
+        key: ValueKey('media-art:$source'),
+        initialData: TabletMediaStore.peek(source),
         future: TabletMediaStore.read(source),
         builder: (context, snapshot) =>
             snapshot.data == null ? fallback() : memory(snapshot.data!),
@@ -156,35 +141,16 @@ class TableArtwork extends StatelessWidget {
     }
     try {
       if (source.startsWith('data:image/')) {
-        return memory(Uri.parse(source).data!.contentAsBytes());
+        return memory(_inline(source));
       }
       if (source.startsWith('http://') || source.startsWith('https://')) {
         final display = crop
             ? (ArtworkManager.deriveScryfallArtCropUrl(source) ?? source)
             : source;
-        if (!kIsWeb) {
-          return FutureBuilder<Uint8List?>(
-            future: _cached(display),
-            builder: (context, snapshot) {
-              if (snapshot.data != null) return memory(snapshot.data!);
-              if (snapshot.connectionState == ConnectionState.done &&
-                  display != source) {
-                return FutureBuilder<Uint8List?>(
-                  future: _cached(source),
-                  builder: (context, fallbackSnapshot) =>
-                      fallbackSnapshot.data == null
-                      ? fallback()
-                      : memory(fallbackSnapshot.data!),
-                );
-              }
-              return fallback();
-            },
-          );
-        }
         return StatefulBuilder(
           builder: (context, setState) {
             Widget status(bool failed) {
-              if (!showLoadStatus) return fallback();
+              if (!showLoadStatus || !kIsWeb) return fallback();
               if (!failed) {
                 return const Center(
                   child: SizedBox(
@@ -202,9 +168,9 @@ class TableArtwork extends StatelessWidget {
                       icon: const Icon(Icons.broken_image_outlined),
                       onPressed: () => setState(() {
                         for (final url in {display, source}) {
-                          _webCache.evict(url);
-                          _webCache.evict(display, fallback: source);
+                          _remoteCache.evict(url);
                         }
+                        _remoteCache.evict(display, fallback: source);
                       }),
                     ),
                   ),
@@ -221,8 +187,12 @@ class TableArtwork extends StatelessWidget {
               errorBuilder: (_, _, _) => status(true),
             );
             return FutureBuilder<Uint8List>(
-              key: ValueKey('web-art:$display'),
-              future: _webCache.load(
+              key: ValueKey('remote-art:$display|$source'),
+              initialData: _remoteCache.peek(
+                display,
+                fallback: display == source ? null : source,
+              ),
+              future: _remoteCache.load(
                 display,
                 fallback: display == source ? null : source,
               ),

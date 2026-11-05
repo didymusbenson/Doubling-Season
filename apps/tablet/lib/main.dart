@@ -4,6 +4,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'state/table_controller.dart';
 import 'services/table_support_service.dart';
 import 'ui/table_presentation.dart';
+import 'ui/game_system_ui.dart';
 import 'ui/table_theme.dart';
 
 void main() {
@@ -94,7 +95,7 @@ class _TriplingTableAppState extends State<TriplingTableApp>
               _ => ThemeMode.dark,
             },
       home: ready
-          ? TablePresentation(controller: controller)
+          ? GameSystemUi(child: TablePresentation(controller: controller))
           : Scaffold(
               body: Center(
                 child: ConstrainedBox(

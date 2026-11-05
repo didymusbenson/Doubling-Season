@@ -5,6 +5,58 @@ import 'package:tripling_table/services/remote_artwork_byte_cache.dart';
 
 void main() {
   test(
+    'resolved bytes are available synchronously to a new renderer',
+    () async {
+      final bytes = Uint8List.fromList([7, 8]);
+      final cache = RemoteArtworkByteCache(loadBytes: (_) async => bytes);
+      expect(cache.peek('source'), isNull);
+      await cache.load('source');
+      expect(identical(cache.peek('source'), bytes), isTrue);
+      expect(identical(cache.peek('source', fallback: 'other'), bytes), isTrue);
+      cache.evict('source');
+      expect(cache.peek('source'), isNull);
+    },
+  );
+
+  test('fallback resolution is synchronous on subsequent mounts', () async {
+    final bytes = Uint8List.fromList([3, 4]);
+    final cache = RemoteArtworkByteCache(
+      loadBytes: (source) async {
+        if (source == 'crop') throw StateError('missing crop');
+        return bytes;
+      },
+    );
+    await cache.load('crop', fallback: 'canonical');
+    expect(identical(cache.peek('crop', fallback: 'canonical'), bytes), isTrue);
+    expect(cache.peek('crop', fallback: 'different'), isNull);
+    cache.evict('crop', fallback: 'canonical');
+    expect(cache.peek('crop', fallback: 'canonical'), isNull);
+  });
+
+  test(
+    'eviction discards resolved bytes and late successful completions',
+    () async {
+      final pending = Completer<Uint8List>();
+      final cache = RemoteArtworkByteCache(
+        capacity: 1,
+        loadBytes: (source) => source == 'old'
+            ? pending.future
+            : Future.value(Uint8List.fromList([1])),
+      );
+      final old = cache.load('old');
+      await cache.load('new');
+      pending.complete(Uint8List.fromList([2]));
+      await old;
+      expect(cache.peek('old'), isNull);
+      expect(cache.peek('new'), isNotNull);
+      await cache.load('replacement');
+      expect(cache.peek('new'), isNull);
+      expect(cache.peek('replacement'), isNotNull);
+      expect(cache.cachedCount, 1);
+    },
+  );
+
+  test(
     'validated derivative and fallback display share one request and byte reference',
     () async {
       var calls = 0;
