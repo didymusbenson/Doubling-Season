@@ -285,7 +285,7 @@ void main() {
                 ValueKey('${player.id}-commander-ledger'),
               );
               expect(ledger.hitTestable(), findsOneWidget);
-              expect(tester.getSize(ledger).width, inInclusiveRange(60, 80));
+              expect(tester.getSize(ledger).width, inInclusiveRange(60 - .001, 80 + .001));
               expect(tester.getSize(ledger).height, 44);
               for (final source in fixture.controller.session.commanders) {
                 final cell = find.byKey(

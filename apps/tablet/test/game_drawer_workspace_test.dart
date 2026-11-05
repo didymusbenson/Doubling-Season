@@ -127,7 +127,7 @@ void main() {
   }
 
   for (final height in [480.0, 380.0]) {
-    testWidgets('starting life keyboard fits a 248 by $height channel', (
+    testWidgets('starting life dial fits a 248 by $height channel', (
       tester,
     ) async {
       final fixture = TableFixture();
@@ -142,19 +142,13 @@ void main() {
         height: height,
         page: WorkspacePage.reset,
       );
-      final field = find.byWidgetPredicate(
-        (widget) => widget is PlayerField && widget.label == 'Starting life',
-      );
-      await tester.tap(field);
+      expect(find.byType(PlayerField), findsNothing);
+      await tapText(tester, 'Custom');
+      final dial = find.byKey(const ValueKey('starting-life-dial'));
+      await tester.ensureVisible(dial);
       await tester.pumpAndSettle();
-      expect(find.text('Done'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-      await tester.tap(_control('Select all'));
-      await tester.tap(find.text('2').last);
-      await tester.tap(find.text('0').last);
-      await tester.tap(find.text('Done'));
-      await tester.pumpAndSettle();
-      expect(tester.widget<PlayerField>(field).controller.text, '20');
+      expect(dial.hitTestable(), findsOneWidget);
+      expect(find.text('Done'), findsNothing);
       expect(tester.takeException(), isNull);
     });
   }
@@ -225,7 +219,7 @@ void main() {
     await tapText(tester, 'Board wipes');
     await tester.tap(_control('Everyone, Wipe creatures'));
     await tester.pumpAndSettle();
-    expect(find.text('Wipe all creatures for everyone?'), findsOneWidget);
+    expect(find.text('Wipe creatures for everyone?'), findsOneWidget);
     await tapText(tester, 'Wipe');
     expect(fixture.player.tokens, isEmpty);
     expect(find.byType(Dialog), findsNothing);
@@ -270,12 +264,15 @@ void main() {
       expect(find.byKey(const ValueKey('dice-result-d6-0')), findsOneWidget);
       await drawer.open(WorkspacePage.reset);
       await tester.pumpAndSettle();
-      await tapText(tester, 'Clear board');
+      await tapText(tester, 'Reset everything');
       fixture.repository.failSave = true;
       await tapText(tester, 'Start game');
       expect(closes, 0);
       expect(find.textContaining('Simulated storage failure'), findsWidgets);
-      expect(find.text('Clear boards & restart?'), findsOneWidget);
+      expect(
+        find.text('Reset everything and start a new game?'),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     },
   );
@@ -300,7 +297,7 @@ void main() {
         page: WorkspacePage.reset,
         onClose: () => closes++,
       );
-      await tapText(tester, 'Clear board');
+      await tapText(tester, 'Reset everything');
       repository.hold = Completer<void>();
       await tester.tap(find.text('Start game'));
       await tester.pump();

@@ -311,7 +311,8 @@ void main() {
       expect(find.text('Latest action undone.'), findsNothing);
       await close(tester);
       await open(tester, 'reset');
-      expect(find.widgetWithText(TextField, 'Starting life'), findsOneWidget);
+      expect(find.widgetWithText(ChoiceChip, 'Custom'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Starting life'), findsNothing);
       await close(tester);
       semantics.dispose();
     },

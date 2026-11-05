@@ -54,19 +54,14 @@ extension _DicePages on _TableWorkspaceState {
     child: LayoutBuilder(
       builder: (context, constraints) {
         final gap = _embedded ? 8.0 : 12.0;
-        // The standalone host retains its existing corner-control clearance.
-        // Drawer halves remain at least44px, including the184px body.
-        final columns = !_embedded
-            ? (constraints.maxWidth + 40 >= 800
-                  ? 6
-                  : constraints.maxWidth + 40 >= 400
-                  ? 3
-                  : 2)
-            : constraints.maxWidth >= 6 * 88 + 5 * gap
+        // Separate 48px buttons with an 8px gap. Reduce columns rather than
+        // shrinking targets when the embedded drawer has little horizontal room.
+        const minimumTileWidth = 104.0;
+        final columns = constraints.maxWidth >= 6 * minimumTileWidth + 5 * gap
             ? 6
-            : constraints.maxWidth >= 3 * 88 + 2 * gap
+            : constraints.maxWidth >= 3 * minimumTileWidth + 2 * gap
             ? 3
-            : constraints.maxWidth >= 2 * 88 + gap
+            : constraints.maxWidth >= 2 * minimumTileWidth + gap
             ? 2
             : 1;
         final tileWidth = min(
@@ -98,12 +93,13 @@ extension _DicePages on _TableWorkspaceState {
                             semanticsLabel:
                                 'D${entry.key} quantity: ${entry.value}',
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 8),
                           SizedBox(
                             height: 48,
                             child: Row(
                               children: [
                                 _diceStep(entry.key, entry.value, false),
+                                const SizedBox(width: 8),
                                 _diceStep(entry.key, entry.value, true),
                               ],
                             ),
@@ -146,26 +142,38 @@ extension _DicePages on _TableWorkspaceState {
         (increase ? count < 20 : count > 0);
     final scheme = Theme.of(context).colorScheme;
     return Expanded(
-      child: NumericHoldRegion(
-        label: '${increase ? 'Increase' : 'Decrease'} d$sides',
-        onTap: enabled
-            ? () => _changeDiceCount(sides, increase ? 1 : -1)
-            : null,
-        onStep: enabled
-            ? (amount) => _changeDiceCount(sides, increase ? amount : -amount)
-            : null,
-        step: 5,
-        interactionEpoch: Object.hash(
-          _sessionId,
-          _sessionGeneration,
-          _closing,
-          _navigating,
-          _page,
+      child: Material(
+        key: ValueKey('dice-${increase ? 'increase' : 'decrease'}-d$sides'),
+        color: enabled ? scheme.primary : scheme.surfaceContainerHighest,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(
+            color: enabled ? scheme.primary : scheme.outlineVariant,
+          ),
         ),
-        child: Center(
-          child: Icon(
-            increase ? Icons.add : Icons.remove,
-            color: enabled ? scheme.onSurface : scheme.onSurfaceVariant,
+        clipBehavior: Clip.antiAlias,
+        child: NumericHoldRegion(
+          label: '${increase ? 'Increase' : 'Decrease'} d$sides',
+          onTap: enabled
+              ? () => _changeDiceCount(sides, increase ? 1 : -1)
+              : null,
+          onStep: enabled
+              ? (amount) => _changeDiceCount(sides, increase ? amount : -amount)
+              : null,
+          step: 5,
+          interactionEpoch: Object.hash(
+            _sessionId,
+            _sessionGeneration,
+            _closing,
+            _navigating,
+            _page,
+          ),
+          child: Center(
+            child: Icon(
+              increase ? Icons.add : Icons.remove,
+              size: 28,
+              color: enabled ? scheme.onPrimary : scheme.onSurfaceVariant,
+            ),
           ),
         ),
       ),

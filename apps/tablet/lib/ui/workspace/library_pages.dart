@@ -24,6 +24,10 @@ extension _LibraryPages on _TableWorkspaceState {
     final legacy = player.utilities
         .where((utility) => !_board.isStandaloneUtilityKind(utility.kind))
         .toList();
+    final enabledKinds = player.utilities
+        .where((utility) => utility.visible)
+        .map((utility) => utility.kind)
+        .toSet();
     final query = _field('utilities.search');
     return Column(
       children: [
@@ -103,9 +107,12 @@ extension _LibraryPages on _TableWorkspaceState {
               builder: (context, value, _) => Column(
                 children: [
                   for (final definition in _board.utilityDefinitions.where(
-                    (d) => d.matches(searchQuery: value.text),
+                    (d) =>
+                        !enabledKinds.contains(d.id) &&
+                        d.matches(searchQuery: value.text),
                   ))
                     ListTile(
+                      key: ValueKey('add-utility-${definition.id}'),
                       title: Text(definition.name),
                       subtitle: Text(definition.description),
                       trailing: const Icon(Icons.add),

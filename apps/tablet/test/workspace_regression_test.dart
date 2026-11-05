@@ -55,7 +55,7 @@ void main() {
     await workspace(tester, f, WorkspacePage.reset);
     final resetButton = find.widgetWithText(
       OutlinedButton,
-      'Reset with current configuration',
+      'Keep seats',
     );
     final frame = tester.getRect(
       find.byKey(const ValueKey('context-workspace')),
@@ -63,9 +63,9 @@ void main() {
     final buttonBounds = tester.getRect(resetButton);
     expect(buttonBounds.bottom, lessThanOrEqualTo(frame.bottom - 12));
     expect(resetButton.hitTestable(), findsOneWidget);
-    await tester.tap(find.text('Reset with current configuration'));
+    await tester.tap(find.text('Keep seats'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Archive & reset with board'));
+    await tester.tap(find.text('Archive & keep seats'));
     await tester.pumpAndSettle();
     expect(f.controller.session.id, isNot(original));
     expect(find.text('Start a new game'), findsNothing);
@@ -85,7 +85,7 @@ void main() {
       await workspace(tester, f, WorkspacePage.reset);
       final resetButton = find.widgetWithText(
         OutlinedButton,
-        'Reset with current configuration',
+        'Keep seats',
       );
       final frame = tester.getRect(
         find.byKey(const ValueKey('context-workspace')),
@@ -93,13 +93,13 @@ void main() {
       final buttonBounds = tester.getRect(resetButton);
       expect(buttonBounds.bottom, lessThanOrEqualTo(frame.bottom - 12));
       expect(resetButton.hitTestable(), findsOneWidget);
-      await tester.tap(find.text('Reset with current configuration'));
+      await tester.tap(find.text('Keep seats'));
       await tester.pumpAndSettle();
       f.repository.failSave = true;
-      await tester.tap(find.text('Archive & reset with board'));
+      await tester.tap(find.text('Archive & keep seats'));
       await tester.pumpAndSettle();
       expect(f.controller.session.id, original);
-      expect(find.text('Archive & reset with board'), findsOneWidget);
+      expect(find.text('Archive & keep seats'), findsOneWidget);
       expect(find.textContaining('Simulated storage failure'), findsOneWidget);
       expect(find.text('Open workspace').hitTestable(), findsNothing);
       expect(tester.takeException(), isNull);

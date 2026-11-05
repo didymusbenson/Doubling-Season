@@ -86,7 +86,7 @@ class _TableSupportContentState extends State<TableSupportContent> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Support is optional and adds a cosmetic heart badge. Every game feature is included for everyone.',
+            'If you’d like to support development, you can buy a heart badge. All game features are free.',
             textAlign: TextAlign.center,
           ),
           if (service.loading)

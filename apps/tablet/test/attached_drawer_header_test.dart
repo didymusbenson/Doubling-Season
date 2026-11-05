@@ -351,7 +351,7 @@ void main() {
           tester,
           overflowing: scroll.position.maxScrollExtent > .001,
         );
-        expect(tester.takeException(), isNull);
+        expect(tester.takeException(), isNull, reason: page.name);
       }
       await drawer.open(WorkspacePage.boardWipes);
       await tester.pumpAndSettle();
@@ -411,7 +411,10 @@ void main() {
           for (final sides in [4, 6, 8, 10, 12, 20])
             tester.getRect(find.byKey(ValueKey('dice-selection-d$sides'))),
         ];
-        expect(diceRects.map((rect) => rect.top).toSet(), hasLength(1));
+        expect(
+          diceRects.map((rect) => rect.top).toSet(),
+          hasLength(dimensions.width < 704 ? 2 : 1),
+        );
         for (final half in find.byType(NumericHoldRegion).evaluate()) {
           final bounds = tester.getSize(
             find.byElementPredicate((element) => element == half),

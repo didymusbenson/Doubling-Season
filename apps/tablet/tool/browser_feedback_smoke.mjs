@@ -932,10 +932,10 @@ try {
     await click('Game controls', { startsWith: true, role: 'button' });
     await clickInDrawer('New game', { role: 'button' });
     await clickInDrawer(`${probeSeats} players`);
-    await scrollDrawerTo('Complete reset', { role: 'button' });
-    await clickInDrawer('Complete reset', { role: 'button' });
-    await scrollDrawerTo('Archive & complete reset', { role: 'button' });
-    await clickInDrawer('Archive & complete reset', { role: 'button' });
+    await scrollDrawerTo('Reset everything', { role: 'button' });
+    await clickInDrawer('Reset everything', { role: 'button' });
+    await scrollDrawerTo('Archive & reset everything', { role: 'button' });
+    await clickInDrawer('Archive & reset everything', { role: 'button' });
     await drawerClosed();
     for (const viewport of [{ width: 1133, height: 744 }, { width: 744, height: 1133 }]) {
       evidence.viewport = { ...viewport, deviceScaleFactor: 1 };
@@ -1555,19 +1555,19 @@ try {
   for (const [page, content] of [
     ['Archives', 'No archived games yet.'],
     ['Settings', 'Appearance theme'],
-    ['New game', 'Starting life. Current value:'],
+    ['New game', 'Starting life'],
   ]) {
     await clickInDrawer(page, { role: 'button' });
     await findInDrawer(content, { startsWith: true });
     await captureGameView(`23-drawer-${page.toLowerCase().replaceAll(' ', '-')}`, { centered: page !== 'Settings' });
     if (page === 'New game') {
-      await clickInDrawer('Starting life. Current value:', { startsWith: true, role: 'button' });
-      await captureGameView('23-drawer-starting-life-keyboard');
-      await clickInDrawer('Done', { role: 'button' });
-      for (const action of ['Reset with current configuration', 'Complete reset']) {
+      await clickInDrawer('Custom');
+      await captureGameView('23-drawer-starting-life-dial');
+      await clickInDrawer('30');
+      for (const action of ['Keep seats', 'Reset everything']) {
         await scrollDrawerTo(action, { role: 'button' });
         await clickInDrawer(action, { role: 'button' });
-        await captureGameView(`23-drawer-${action === 'Complete reset' ? 'complete-reset' : 'keep-board'}-confirmation`);
+        await captureGameView(`23-drawer-${action === 'Reset everything' ? 'complete-reset' : 'keep-board'}-confirmation`);
         await clickInDrawer('Cancel', { role: 'button' });
       }
     }
@@ -1589,13 +1589,11 @@ try {
   }
   await clickInDrawer('Board wipes', { role: 'button' });
   await captureGameView('23-drawer-wipe-chooser');
-  await clickInDrawer('qa, Wipe creatures', { role: 'button' });
-  await captureGameView('23-drawer-player-wipe-confirmation');
-  await clickInDrawer('Cancel', { role: 'button' });
+  assert(!(await semantics()).some(node => node.name === 'qa, Wipe creatures'), 'Player-specific wipes must not appear.');
   await clickInDrawer('Everyone, Wipe creatures', { role: 'button' });
-  await findInDrawer('Wipe all creatures for everyone?', { contains: true });
+  await findInDrawer('Wipe creatures for everyone?', { contains: true });
   await captureGameView('23-drawer-wipe-confirmation');
-  await clickInDrawer('Wipe all creatures', { role: 'button' });
+  await clickInDrawer('Wipe creatures', { role: 'button' });
   await findInDrawer('Back', { role: 'button' });
   await clickInDrawer('Close workspace', { role: 'button' });
   await drawerClosed();
@@ -1614,10 +1612,10 @@ try {
     await clickInDrawer('New game', { role: 'button' });
     await clickInDrawer(`${count} players`);
     await captureGameView(`24-drawer-new-game-${count}-players`);
-    await scrollDrawerTo('Complete reset', { role: 'button' });
-    await clickInDrawer('Complete reset', { role: 'button' });
-    await scrollDrawerTo('Archive & complete reset', { role: 'button' });
-    await clickInDrawer('Archive & complete reset', { role: 'button' });
+    await scrollDrawerTo('Reset everything', { role: 'button' });
+    await clickInDrawer('Reset everything', { role: 'button' });
+    await scrollDrawerTo('Archive & reset everything', { role: 'button' });
+    await clickInDrawer('Archive & reset everything', { role: 'button' });
     await drawerClosed();
     await expectLife('qa', 40);
     const names = (await semantics()).filter(node => node.role === 'button' && /, player details$/.test(node.name));

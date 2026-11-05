@@ -10,6 +10,7 @@ import 'package:doubling_season/widgets/mana/mana_icons.dart';
 import 'package:doubling_season/providers/rules_provider.dart'
     show TokenCreationResult;
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart' show CupertinoPicker;
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 

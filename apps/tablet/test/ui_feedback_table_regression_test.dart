@@ -255,13 +255,13 @@ void main() {
           final divider = find.byKey(
             const ValueKey('player-horizontal-divider'),
           );
-          expect(bounds(tester, divider).height, 3);
+          expect(bounds(tester, divider).height, 5);
           final hardVerticalDividers = find.byWidgetPredicate(
-            (widget) => widget is VerticalDivider && widget.thickness == 3,
+            (widget) => widget is VerticalDivider && widget.thickness == 5,
           );
           expect(hardVerticalDividers, findsNWidgets(seats == 2 ? 0 : 2));
           for (final element in hardVerticalDividers.evaluate()) {
-            expect(bounds(tester, find.byWidget(element.widget)).width, 3);
+            expect(bounds(tester, find.byWidget(element.widget)).width, 5);
           }
           final strip = find.byWidgetPredicate(
             (widget) => widget.runtimeType.toString() == '_GameHub',
@@ -404,7 +404,7 @@ void main() {
             expect(fab.hitTestable(), findsOneWidget);
             expect(localFab.left, closeTo(12, .01));
             expect(localFab.bottom, closeTo(laneSize.height - 12, .01));
-            expect(laneSize.height, closeTo((tableHeight - 3) / 2, .01));
+            expect(laneSize.height, closeTo((tableHeight - 5) / 2, .01));
             expect(
               find.byKey(ValueKey('${player.id}-token-hub-clearance')),
               findsNothing,

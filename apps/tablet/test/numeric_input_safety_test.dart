@@ -320,24 +320,20 @@ void main() {
     });
   }
 
-  testWidgets('invalid starting life aborts reset and restores the original', (
+  testWidgets('starting life uses bounded choices instead of free text', (
     tester,
   ) async {
     final fixture = TableFixture(stateWithTokens([sampleToken()]));
     await fixture.initialize();
     addTearDown(fixture.dispose);
     await open(tester, fixture, WorkspacePage.reset);
-    final value = tester.widget<PlayerField>(field('Starting life')).controller;
     final stored = fixture.repository.encoded;
-    value.text = '0';
-    await tester.tap(find.text('Reset with current configuration'));
+    expect(field('Starting life'), findsNothing);
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Custom'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Archive & reset with board'));
-    await tester.pumpAndSettle();
-    expect(value.text, '40');
+    expect(find.byKey(const ValueKey('starting-life-dial')), findsOneWidget);
     expect(fixture.repository.encoded, stored);
     expect(find.textContaining('Exception'), findsNothing);
-    expect(find.textContaining('previous value was restored'), findsOneWidget);
     await close(tester);
   });
 }

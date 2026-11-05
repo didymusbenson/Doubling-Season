@@ -125,7 +125,7 @@ void main() {
       },
     );
 
-    testWidgets('dice halves stay44px and short results balance at $width', (
+    testWidgets('dice buttons stay48px and short results balance at $width', (
       tester,
     ) async {
       final fixture = TableFixture();
@@ -138,10 +138,12 @@ void main() {
         final rect = tester.getRect(
           find.byElementPredicate((candidate) => candidate == element),
         );
-        expect(rect.width, greaterThanOrEqualTo(44 - .001));
-        expect(rect.height, greaterThanOrEqualTo(44));
+        expect(rect.width, greaterThanOrEqualTo(48 - .001));
+        expect(rect.height, greaterThanOrEqualTo(48));
       }
       expectSafe(tester, halves);
+      await tester.ensureVisible(find.text('Roll 1 die'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Roll 1 die'));
       await tester.pumpAndSettle();
       final viewport = tester.getRect(identified('game-drawer-body-viewport'));
@@ -227,7 +229,7 @@ void main() {
         tester.getSemantics(named('Top right')).flagsCollection.isSelected,
         Tristate.isTrue,
       );
-      final reset = named('Complete reset');
+      final reset = named('Reset everything');
       await tester.ensureVisible(reset);
       expect(
         tester
@@ -238,7 +240,7 @@ void main() {
       );
       await tester.tap(reset);
       await tester.pumpAndSettle();
-      final start = named('Archive & complete reset');
+      final start = named('Archive & reset everything');
       await tester.ensureVisible(start);
       await tester.tap(start);
       await tester.pumpAndSettle();

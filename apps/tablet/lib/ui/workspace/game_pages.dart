@@ -738,102 +738,68 @@ extension _GamePages on _TableWorkspaceState {
   }
 
   Widget _boardWipesPage() => _list([
-    _wipeScope(),
-    for (final player in c.session.players) ...[
-      const SizedBox(height: 12),
-      _wipeScope(player: player),
-    ],
-  ], centered: true);
-
-  Widget _wipeScope({PlayerState? player}) {
-    final profile = player == null ? null : c.profile(player.seatId);
-    final name = player == null ? 'Everyone' : _nameForPlayer(player.id);
-    final scheme = Theme.of(context).colorScheme;
-    final color = profile == null ? scheme.primary : Color(profile.color);
-    Widget action(String action, String visible, String full) {
-      void press() => _confirm(
-        player == null
-            ? '$full for everyone?'
-            : 'Wipe $name’s ${action == 'wipe_all' ? 'tokens' : 'creatures'}?',
-        player == null
-            ? 'Remove ${action == 'wipe_all' ? 'all tokens, including emblems' : 'creature tokens'} from everyone. Utilities and other state remain. Restore the whole wipe from History.'
-            : 'Remove ${action == 'wipe_all' ? 'all tokens' : 'creature tokens'} from $name only. Utilities and other state remain. Restore from History.',
-        () => player == null
-            ? _board.wipeEveryone(action)
-            : _board.bulk(player.id, action, gameOrigin: true),
-        button: full,
-        compactButton: 'Wipe',
-      );
-      return Expanded(
-        child: Semantics(
-          label:
-              '$name, ${action == 'wipe_creatures' ? 'Wipe creatures' : 'Wipe all tokens'}',
-          button: true,
-          enabled: !_working,
-          onTap: _working ? null : press,
-          excludeSemantics: true,
-          child: OutlinedButton(
-            onPressed: _working ? null : press,
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(44, 44),
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-            ),
-            child: Text(visible, textAlign: TextAlign.center),
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      key: ValueKey('wipe-scope-${player?.id ?? 'everyone'}'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    Row(
       children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: player == null ? .18 : .08),
-            border: Border(left: BorderSide(color: color, width: 3)),
+        const Icon(Icons.groups_outlined),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'Everyone',
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-            child: Row(
-              children: [
-                if (profile?.artworkUrl != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(5),
-                    child: _art(profile!.artworkUrl, width: 28, height: 28),
-                  )
-                else
-                  Icon(
-                    player == null
-                        ? Icons.groups_outlined
-                        : Icons.person_outline,
-                    color: color,
-                    size: 24,
-                  ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    name,
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            action(
-              'wipe_creatures',
-              'Creatures',
-              player == null ? 'Wipe all creatures' : 'Wipe creatures',
-            ),
-            const SizedBox(width: 8),
-            action('wipe_all', 'All tokens', 'Wipe all tokens'),
-          ],
         ),
       ],
+    ),
+    const SizedBox(height: 8),
+    const Text(
+      'Remove matching tokens from every player. Utilities, life and player counters stay. Undo the whole wipe in History.',
+    ),
+    const SizedBox(height: 16),
+    LayoutBuilder(
+      builder: (context, bounds) {
+        const gap = 10.0;
+        final columns = bounds.maxWidth >= 280 ? 2 : 1;
+        final width = (bounds.maxWidth - gap * (columns - 1)) / columns;
+        return Wrap(
+          key: const ValueKey('wipe-scope-everyone'),
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final entry in BoardService.wipeOptions.entries)
+              SizedBox(width: width, child: _wipeOptionButton(entry)),
+          ],
+        );
+      },
+    ),
+    const SizedBox(height: 12),
+    Text(
+      'Type-based wipes keep emblems. All tokens also removes emblems. Check protection and other card effects before applying a wipe.',
+      style: Theme.of(context).textTheme.bodySmall,
+    ),
+  ], centered: true);
+
+  Widget _wipeOptionButton(MapEntry<String, String> entry) {
+    void press() => _confirm(
+      'Wipe ${entry.value.toLowerCase()} for everyone?',
+      '${BoardService.wipeDescriptions[entry.key]} Utilities, life and player counters remain. Restore the whole wipe from History.',
+      () => _board.wipeEveryone(entry.key),
+      button: 'Wipe ${entry.value.toLowerCase()}',
+      compactButton: 'Wipe',
+    );
+    return Semantics(
+      label: 'Everyone, Wipe ${entry.value.toLowerCase()}',
+      button: true,
+      enabled: !_working,
+      onTap: _working ? null : press,
+      excludeSemantics: true,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(48, 56),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        ),
+        onPressed: _working ? null : press,
+        child: Text(entry.value, textAlign: TextAlign.center),
+      ),
     );
   }
 
@@ -902,6 +868,58 @@ extension _GamePages on _TableWorkspaceState {
     );
   }
 
+  Widget _startingLifeChoices() {
+    final lifeField = _field('reset.life', '${c.session.startingLife}');
+    final current = int.tryParse(lifeField.text) ?? c.session.startingLife;
+    final mode = _field(
+      'reset.lifeMode',
+      [20, 30, 40].contains(current) ? 'preset' : 'custom',
+    );
+    final custom = mode.text == 'custom';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Starting life', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 8),
+        Wrap(
+          key: const ValueKey('starting-life-choices'),
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final life in [20, 30, 40])
+              ChoiceChip(
+                label: Text('$life'),
+                selected: !custom && current == life,
+                onSelected: _working
+                    ? null
+                    : (_) => _update(() {
+                        lifeField.text = '$life';
+                        mode.text = 'preset';
+                      }),
+              ),
+            ChoiceChip(
+              label: const Text('Custom'),
+              selected: custom,
+              onSelected: _working
+                  ? null
+                  : (_) => _update(() {
+                      mode.text = 'custom';
+                    }),
+            ),
+          ],
+        ),
+        if (custom) ...[
+          const SizedBox(height: 12),
+          _StartingLifeDial(
+            value: current,
+            enabled: !_working,
+            onChanged: (value) => _update(() => lifeField.text = '$value'),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _resetPage() => _list([
     Text('Players', style: Theme.of(context).textTheme.titleSmall),
     const SizedBox(height: 8),
@@ -922,28 +940,7 @@ extension _GamePages on _TableWorkspaceState {
       ],
     ),
     const SizedBox(height: 20),
-    _input(
-      'reset.life',
-      'Starting life',
-      initial: '${c.session.startingLife}',
-      numeric: true,
-    ),
-    const SizedBox(height: 8),
-    Row(
-      children: [
-        for (final life in [20, 40]) ...[
-          if (life == 40) const SizedBox(width: 8),
-          Expanded(
-            child: _button(
-              '$life life',
-              () => _field('reset.life').text = '$life',
-              compactLabel: '$life',
-              icon: Icons.favorite_outline,
-            ),
-          ),
-        ],
-      ],
-    ),
+    _startingLifeChoices(),
     if (_resetCount == 3) ...[
       const SizedBox(height: 20),
       Text('Empty seat', style: Theme.of(context).textTheme.titleSmall),
@@ -958,9 +955,9 @@ extension _GamePages on _TableWorkspaceState {
     const SizedBox(height: 16),
     _balancedActions([
       _button(
-        'Reset with current configuration',
+        'Keep seats',
         () => _confirm(
-          'Reset with board?',
+          'Keep seats and start a new game?',
           'Archive the current game, then start with $_resetCount players. Keep remaining players’ token entries at zero and utility selections. Clear counters, damage and utility values; restore starting life and disable modifiers and custom rules. Removed seats lose their live boards. Appearances and saved setups remain.',
           () => c.resetGame(
             keepBoard: true,
@@ -968,17 +965,17 @@ extension _GamePages on _TableWorkspaceState {
             startingLife: _integer('reset.life', min: 1, max: 1000000),
             emptySlot: _emptySlot,
           ),
-          button: 'Archive & reset with board',
+          button: 'Archive & keep seats',
           compactButton: 'Start game',
           closeOnSuccess: true,
         ),
         icon: Icons.restart_alt,
-        compactLabel: 'Keep board',
+        compactLabel: 'Keep seats',
       ),
       _button(
-        'Complete reset',
+        'Reset everything',
         () => _confirm(
-          'Clear boards & restart?',
+          'Reset everything and start a new game?',
           'Archive the current game, then start with $_resetCount players. Clear token lanes, damage, counters and statuses; restore starting life and default Storm and Mana utilities. Disable modifiers and custom rules. Player appearances and saved setups remain.',
           () => c.resetGame(
             keepBoard: false,
@@ -986,12 +983,12 @@ extension _GamePages on _TableWorkspaceState {
             startingLife: _integer('reset.life', min: 1, max: 1000000),
             emptySlot: _emptySlot,
           ),
-          button: 'Archive & complete reset',
+          button: 'Archive & reset everything',
           compactButton: 'Start game',
           closeOnSuccess: true,
         ),
         icon: Icons.delete_sweep_outlined,
-        compactLabel: 'Clear board',
+        compactLabel: 'Reset everything',
       ),
     ]),
   ], centered: true);
@@ -1027,33 +1024,6 @@ extension _GamePages on _TableWorkspaceState {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _section('Day / Night'),
-              Wrap(
-                spacing: 8,
-                children: [
-                  for (final state in ['neither', 'day', 'night'])
-                    ChoiceChip(
-                      label: Text(
-                        state == 'neither'
-                            ? 'Neither'
-                            : state[0].toUpperCase() + state.substring(1),
-                      ),
-                      selected: c.session.dayNight == state,
-                      onSelected: (_) => _run(() => c.setDayNight(state)),
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-      Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
               _section(
                 'Token catalog',
                 detail:
@@ -1078,6 +1048,7 @@ extension _GamePages on _TableWorkspaceState {
                 icon: Icons.download,
                 compactLabel: 'Check updates',
               ),
+              const SizedBox(height: 10),
               _button(
                 'Use bundled catalog',
                 () => _confirm(
@@ -1143,10 +1114,11 @@ extension _GamePages on _TableWorkspaceState {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _section(
-                'Tripling Season · Tablet edition',
+                'Tripling Table',
                 detail:
-                    'Free to play, with no ads. Optional supporter cosmetics never gate game features.',
+                    'A shared tabletop for Magic tokens, life and utilities. Free to play, with no ads.',
               ),
+              const SizedBox(height: 8),
               _button(
                 'Support this app',
                 () => _go(WorkspacePage.support),
@@ -1207,5 +1179,113 @@ class _PartnerToggleState extends State<_PartnerToggle> {
             setState(() => _guidance = null);
             await widget.onChange(value, _showGuidance);
           },
+  );
+}
+
+/// A bounded wheel keeps custom game setup numeric without a keyboard or an
+/// always-visible text field. Its value lives in the workspace draft.
+class _StartingLifeDial extends StatefulWidget {
+  const _StartingLifeDial({
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+  });
+  final int value;
+  final bool enabled;
+  final ValueChanged<int> onChanged;
+
+  @override
+  State<_StartingLifeDial> createState() => _StartingLifeDialState();
+}
+
+class _StartingLifeDialState extends State<_StartingLifeDial> {
+  late final FixedExtentScrollController _scroll = FixedExtentScrollController(
+    initialItem: widget.value - 1,
+  );
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _step(int delta) {
+    final next = (widget.value + delta).clamp(1, 1000000);
+    _scroll.jumpToItem(next - 1);
+    widget.onChanged(next);
+  }
+
+  @override
+  Widget build(BuildContext context) => Card(
+    margin: EdgeInsets.zero,
+    child: Padding(
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        children: [
+          Text(
+            'Custom starting life',
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+          Row(
+            children: [
+              Semantics(
+                label: 'Decrease starting life',
+                button: true,
+                child: IconButton.filledTonal(
+                  onPressed: widget.enabled && widget.value > 1
+                      ? () => _step(-1)
+                      : null,
+                  constraints: const BoxConstraints(
+                    minWidth: 48,
+                    minHeight: 48,
+                  ),
+                  icon: const Icon(Icons.remove),
+                ),
+              ),
+              Expanded(
+                child: SizedBox(
+                  height: 132,
+                  child: IgnorePointer(
+                    ignoring: !widget.enabled,
+                    child: CupertinoPicker.builder(
+                      key: const ValueKey('starting-life-dial'),
+                      scrollController: _scroll,
+                      itemExtent: 44,
+                      childCount: 1000000,
+                      onSelectedItemChanged: (index) {
+                        if (widget.enabled) widget.onChanged(index + 1);
+                      },
+                      itemBuilder: (context, index) => Center(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '${index + 1}',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Semantics(
+                label: 'Increase starting life',
+                button: true,
+                child: IconButton.filledTonal(
+                  onPressed: widget.enabled && widget.value < 1000000
+                      ? () => _step(1)
+                      : null,
+                  constraints: const BoxConstraints(
+                    minWidth: 48,
+                    minHeight: 48,
+                  ),
+                  icon: const Icon(Icons.add),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
   );
 }

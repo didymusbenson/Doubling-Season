@@ -181,8 +181,8 @@ void main() {
             final action = byControlLabel('$direction d$die');
             expect(action, findsOneWidget);
             final bounds = tester.getSize(action);
-            expect(bounds.width, greaterThanOrEqualTo(44));
-            expect(bounds.height, greaterThanOrEqualTo(44));
+            expect(bounds.width, greaterThanOrEqualTo(48));
+            expect(bounds.height, greaterThanOrEqualTo(48));
           }
         }
         final roll = key('dice-roll-button');

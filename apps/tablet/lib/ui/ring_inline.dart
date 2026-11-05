@@ -18,8 +18,24 @@ class RingInline extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
+      if (RingService.stage(utility) == 0)
+        Text(
+          'Next temptation: ${RingService.reminders.first}',
+          key: ValueKey('ring-next-ability-${utility.id}'),
+          style: const TextStyle(fontSize: 12),
+        )
+      else
+        for (var i = 0; i < RingService.stage(utility); i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              '${i + 1}. ${RingService.reminders[i]}',
+              key: ValueKey('ring-active-ability-${utility.id}-$i'),
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
       Text(
-        'Stage ${RingService.stage(utility)}/4 · ${utility.value} ${utility.value == 1 ? 'temptation' : 'temptations'}',
+        '${utility.value} ${utility.value == 1 ? 'temptation' : 'temptations'}',
         style: const TextStyle(fontSize: 12),
       ),
       if (RingService.bearer(utility).isNotEmpty)

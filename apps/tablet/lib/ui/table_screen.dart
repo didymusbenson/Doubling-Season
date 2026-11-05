@@ -23,6 +23,8 @@ import 'utility_inline_actions.dart';
 
 part 'phone_player_view.dart';
 
+const _playerDividerWidth = 5.0;
+
 /// The table is composed in seat-local coordinates, then oriented toward each
 /// player. Tokens remain on the physical outer edge in the four-slot layout.
 class TableScreen extends StatefulWidget {
@@ -342,7 +344,7 @@ class _TableScreenState extends State<TableScreen>
                           builder: (context, table) {
                             final dividerColor = Theme.of(
                               context,
-                            ).colorScheme.outline;
+                            ).colorScheme.onSurfaceVariant;
                             // Two opposing full-width seats open their shared
                             // horizontal seam. A vertical channel would cut through
                             // both 60% token lanes instead of their life rails.
@@ -369,8 +371,8 @@ class _TableScreenState extends State<TableScreen>
                               children: [
                                 Expanded(child: slot(left)),
                                 VerticalDivider(
-                                  width: 3,
-                                  thickness: 3,
+                                  width: _playerDividerWidth,
+                                  thickness: _playerDividerWidth,
                                   color: dividerColor,
                                 ),
                                 Expanded(child: slot(right)),
@@ -475,8 +477,10 @@ class _TableScreenState extends State<TableScreen>
                                           key: const ValueKey(
                                             'player-horizontal-divider',
                                           ),
-                                          height: two ? opening + 3 : 3,
-                                          thickness: 3,
+                                          height: two
+                                              ? opening + _playerDividerWidth
+                                              : _playerDividerWidth,
+                                          thickness: _playerDividerWidth,
                                           color: dividerColor,
                                         ),
                                         Expanded(
@@ -1712,7 +1716,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                       Size(box.maxWidth, 0),
                       0,
                     ).dayNight -
-                    Offset(tokenWidth + 1, 1.5);
+                    Offset(tokenWidth + 1, _playerDividerWidth / 2);
                 return Stack(
                   clipBehavior: Clip.hardEdge,
                   children: [
@@ -1953,7 +1957,7 @@ class _LifePanel extends StatelessWidget {
           key: twoPlayer ? null : ValueKey('${player.id}-life-clip'),
           clipper: _LifeHubNotch(
             atStart: centerNotchAtStart,
-            inset: -1.5,
+            inset: -_playerDividerWidth / 2,
             enabled: centerNotch > 0,
             sharedControls: true,
             twoPlayer: twoPlayer,
@@ -2309,7 +2313,10 @@ class _LifeHubNotch extends CustomClipper<Path> {
               Rect.fromCircle(
                 center: twoPlayer
                     ? const Offset(26, 26)
-                    : Offset(atStart ? inset : size.width - inset, -1.5),
+                    : Offset(
+                        atStart ? inset : size.width - inset,
+                        -_playerDividerWidth / 2,
+                      ),
                 radius: (twoPlayer ? 26 : 30) * radiusScale,
               ),
             )
@@ -2317,7 +2324,7 @@ class _LifeHubNotch extends CustomClipper<Path> {
               Rect.fromCircle(
                 center: Offset(
                   atStart ? inset + 54 : size.width - inset - 54,
-                  -1.5,
+                  -_playerDividerWidth / 2,
                 ),
                 radius: sharedControls && !twoPlayer ? 26 * radiusScale : 0,
               ),
@@ -2639,7 +2646,8 @@ class _UtilityRow extends StatelessWidget {
                               );
                             },
                           ),
-                        if (utility.description.isNotEmpty)
+                        if (utility.description.isNotEmpty &&
+                            utility.kind != 'the_ring')
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 6),
                             child: Text(

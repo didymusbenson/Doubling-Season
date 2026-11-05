@@ -984,10 +984,68 @@ class BoardService {
         }
       });
 
+  static const wipeOptions = <String, String>{
+    'wipe_creatures': 'Creatures',
+    'wipe_artifacts': 'Artifacts',
+    'wipe_enchantments': 'Enchantments',
+    'wipe_artifacts_enchantments': 'Artifacts & enchantments',
+    'wipe_nonland': 'Nonland permanents',
+    'wipe_all': 'All tokens',
+  };
+
+  static const wipeDescriptions = <String, String>{
+    'wipe_creatures':
+        'Remove creature tokens from every player, including artifact and enchantment creatures.',
+    'wipe_artifacts':
+        'Remove artifact tokens from every player, including artifact creatures and artifact lands.',
+    'wipe_enchantments':
+        'Remove enchantment tokens from every player, including enchantment creatures.',
+    'wipe_artifacts_enchantments':
+        'Remove artifact and enchantment tokens from every player.',
+    'wipe_nonland':
+        'Remove all nonland permanent tokens from every player. Lands and emblems remain.',
+    'wipe_all':
+        'Remove all tokens, including lands and emblems, from every player.',
+  };
+
+  bool _matchesWipe(TokenState token, String action) {
+    if (action == 'wipe_all') return true;
+    // Only the type line determines card types; rules text and subtypes do not.
+    final types = token.type.split(RegExp(r'—|–| - ')).first;
+    bool hasType(String type) =>
+        RegExp(r'\b' + type + r'\b', caseSensitive: false).hasMatch(types);
+    // Old/custom records may have no type line. Keep their P/T fallback,
+    // but never infer types from rules text or an explicit noncreature type.
+    if (hasType('Emblem') ||
+        (types.trim().isEmpty && token.name.toLowerCase().contains('emblem'))) {
+      return false;
+    }
+    final creature =
+        hasType('Creature') || (types.trim().isEmpty && _creature(token));
+    return switch (action) {
+      'wipe_creatures' => creature,
+      'wipe_artifacts' => hasType('Artifact'),
+      'wipe_enchantments' => hasType('Enchantment'),
+      'wipe_artifacts_enchantments' =>
+        hasType('Artifact') || hasType('Enchantment'),
+      'wipe_nonland' =>
+        !hasType('Land') &&
+            (creature ||
+                [
+                  'Artifact',
+                  'Creature',
+                  'Enchantment',
+                  'Planeswalker',
+                  'Battle',
+                ].any(hasType)),
+      _ => false,
+    };
+  }
+
   /// Wipe the active table as one durable command and one chronological Undo.
   /// The persistent seat roster and archived games are not active boards.
   Future<void> wipeEveryone(String action) async {
-    if (action != 'wipe_all' && action != 'wipe_creatures') {
+    if (!wipeOptions.containsKey(action)) {
       throw ArgumentError.value(action, 'action', 'Choose a board wipe');
     }
     final before = controller.session;
@@ -995,9 +1053,7 @@ class BoardService {
       for (final player in before.players) player.id: player.generation,
     };
     final ok = await controller.commit(
-      action == 'wipe_all'
-          ? 'Everyone: wipe all tokens'
-          : 'Everyone: wipe creature tokens',
+      'Everyone: wipe ${wipeOptions[action]!.toLowerCase()}',
       expectedSessionId: before.id,
       expectedGeneration: before.generation,
       mutate: (session) {
@@ -1012,12 +1068,7 @@ class BoardService {
         }
         for (final player in session.players) {
           final oldCount = player.tokens.length;
-          if (action == 'wipe_all') {
-            player.tokens.clear();
-          } else {
-            // Keep the existing single-seat P/T-based creature definition.
-            player.tokens.removeWhere(_creature);
-          }
+          player.tokens.removeWhere((token) => _matchesWipe(token, action));
           if (player.tokens.length != oldCount) player.generation++;
         }
       },

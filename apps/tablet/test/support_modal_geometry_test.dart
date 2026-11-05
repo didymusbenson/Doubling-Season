@@ -59,7 +59,7 @@ void main() {
       final close = byControlLabel('Close support');
       expect(tester.getSize(close).shortestSide, greaterThanOrEqualTo(44));
       expect(close.hitTestable(), findsOneWidget);
-      expect(find.textContaining('Support is optional'), findsOneWidget);
+      expect(find.textContaining('support development'), findsOneWidget);
       expect(
         find.textContaining('Support purchases aren’t available'),
         findsOneWidget,

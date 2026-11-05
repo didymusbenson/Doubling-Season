@@ -9,11 +9,13 @@ class RingService {
   static const maxTemptations = 1000000000;
   static const artworkUrl =
       'https://cards.scryfall.io/large/front/7/2/7215460e-8c06-47d0-94e5-d1832d0218af.jpg';
+  // The Ring emblem text, also present in assets/token_database.json.
+  // Abilities accumulate; temptation counts above four retain all four.
   static const reminders = [
-    'Legendary; cannot be blocked by creatures with greater power.',
-    'When your bearer attacks, draw a card, then discard a card.',
-    'Each creature blocking your bearer is sacrificed at end of combat.',
-    'Bearer combat damage to a player: each opponent loses 3 life.',
+    "Your Ring-bearer is legendary and can't be blocked by creatures with greater power.",
+    'Whenever your Ring-bearer attacks, draw a card, then discard a card.',
+    "Whenever your Ring-bearer becomes blocked by a creature, that creature's controller sacrifices it at end of combat.",
+    'Whenever your Ring-bearer deals combat damage to a player, each opponent loses 3 life.',
   ];
 
   final TableController controller;

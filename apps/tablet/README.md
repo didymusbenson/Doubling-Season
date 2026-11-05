@@ -3,7 +3,13 @@
 The separate tablet app developed from the Tripling Season iPad specifications.
 “Tripling Table” is a development name, not a selected store name.
 
-**Current work (2026-10-30): centered two-player shared controls.**
+**Current work (2026-11-05): screenshot feedback.**
+The [feedback batch](../../docs/activeDevelopment/in_progress_features/ipad_edition/screenshot_feedback_2026-11-05.md)
+strengthens player dividers, simplifies Settings and New game, improves dice
+buttons, expands global wipes, filters enabled utilities and shows Ring ability
+text. Five/six-player support remains deferred; native acceptance is separate.
+
+**Previous work (2026-10-30): centered two-player shared controls.**
 The [two-player correction](../../docs/activeDevelopment/in_progress_features/ipad_edition/centered_two_player_controls_2026-10-30.md)
 restores Dice, Menu and Day/Night to the central player seam while retaining the
 horizontal reveal. The first token's content gains internal clearance beneath

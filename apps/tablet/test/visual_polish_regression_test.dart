@@ -575,17 +575,13 @@ void main() {
               expect(find.text('Create a custom rule'), findsNothing);
             }
             if (scene.key == 'reset-new-game') {
-              final field = find.byWidgetPredicate(
-                (w) =>
-                    w is TextField &&
-                    w.decoration?.labelText == 'Starting life',
-              );
-              expect(
-                tester.getSize(field).width,
-                lessThanOrEqualTo(frameSize.width - 32),
-              );
-              expect(find.text('20 life').hitTestable(), findsOneWidget);
-              expect(find.text('40 life').hitTestable(), findsOneWidget);
+              expect(find.byType(TextField), findsNothing);
+              for (final life in ['20', '30', '40', 'Custom']) {
+                expect(
+                  find.widgetWithText(ChoiceChip, life).hitTestable(),
+                  findsOneWidget,
+                );
+              }
             }
             if ({'reset-new-game', 'reset-three-player'}.contains(scene.key)) {
               final frame = tester.renderObject<RenderBox>(
@@ -597,10 +593,7 @@ void main() {
                   math.min(640, localViewport.height - 32),
                 );
               }
-              for (final label in [
-                'Reset with current configuration',
-                'Complete reset',
-              ]) {
+              for (final label in ['Keep seats', 'Reset everything']) {
                 final button = find.widgetWithText(OutlinedButton, label);
                 await reveal(tester, button);
                 final box = tester.renderObject<RenderBox>(button);
