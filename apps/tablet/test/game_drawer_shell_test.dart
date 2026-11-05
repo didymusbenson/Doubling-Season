@@ -369,7 +369,9 @@ void main() {
     }
   }
 
-  for (final size in [const Size(744, 1133), const Size(1133, 744)]) {
+  // This regression covers the split-rail drawer, which requires wide seats.
+  // Narrow local-view drawers are covered by adaptive_seat_views_test.dart.
+  for (final size in [const Size(1100, 1300), const Size(1133, 744)]) {
     for (final seats in [3, 4]) {
       testWidgets(
         '$seats seats $size fixed tokens, moving rails and consumed dismissal',

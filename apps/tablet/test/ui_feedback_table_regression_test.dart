@@ -325,6 +325,11 @@ void main() {
                 reason: 'Every part of the colored surface belongs to a half.',
               );
             }
+            final adaptive = find
+                .byKey(ValueKey('${player.id}-local-view-tabs'))
+                .evaluate()
+                .isNotEmpty;
+            await showAdaptiveUtilities(tester, playerId: player.id);
             final tools = find.byKey(ValueKey('${player.id}-life-tools'));
             expect(bounds(tester, tools).overlaps(stripBounds), isFalse);
             expect(
@@ -385,6 +390,10 @@ void main() {
               ),
               findsNothing,
             );
+            if (adaptive) {
+              await tester.tap(find.byKey(ValueKey('${player.id}-tokens-tab')));
+              await tester.pumpAndSettle();
+            }
             final lane = find.byKey(ValueKey('${player.id}-token-lane'));
             final fab = find.byKey(ValueKey('${player.id}-add-token'));
             final laneSize = tester.getSize(lane);
@@ -404,7 +413,14 @@ void main() {
             expect(fab.hitTestable(), findsOneWidget);
             expect(localFab.left, closeTo(12, .01));
             expect(localFab.bottom, closeTo(laneSize.height - 12, .01));
-            expect(laneSize.height, closeTo((tableHeight - 5) / 2, .01));
+            expect(
+              laneSize.height,
+              closeTo(
+                (tableHeight - 5) / 2 -
+                    (adaptive ? tester.getSize(life).height + 44 : 0),
+                .01,
+              ),
+            );
             expect(
               find.byKey(ValueKey('${player.id}-token-hub-clearance')),
               findsNothing,
@@ -900,6 +916,7 @@ void main() {
         expect(fixture.controller.player(player.id).life, 40);
         await tester.tap(byControlLabel('Close workspace'));
         await tester.pumpAndSettle();
+        await showAdaptiveUtilities(tester, playerId: player.id);
         await tester.tap(find.byKey(ValueKey('${player.id}-player-details')));
         await tester.pumpAndSettle();
         await tester.tap(find.widgetWithText(SwitchListTile, 'Has partner'));

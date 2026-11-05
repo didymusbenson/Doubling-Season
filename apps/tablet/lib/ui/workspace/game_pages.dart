@@ -923,21 +923,30 @@ extension _GamePages on _TableWorkspaceState {
   Widget _resetPage() => _list([
     Text('Players', style: Theme.of(context).textTheme.titleSmall),
     const SizedBox(height: 8),
-    Row(
-      key: const ValueKey('reset-configuration'),
-      children: [
-        for (final count in [2, 3, 4]) ...[
-          if (count != 2) const SizedBox(width: 8),
-          Expanded(
-            child: _setupChoice(
-              '$count players',
-              '$count',
-              _resetCount == count,
-              () => _update(() => _resetCount = count),
-            ),
-          ),
-        ],
-      ],
+    LayoutBuilder(
+      builder: (context, bounds) {
+        // Keep every choice touchable in a narrow game drawer. Wide drawers
+        // retain a single row; compact ones wrap rather than shrinking targets.
+        final columns = bounds.maxWidth >= 5 * 44 + 4 * 8 ? 5 : 3;
+        final width = (bounds.maxWidth - (columns - 1) * 8) / columns;
+        return Wrap(
+          key: const ValueKey('reset-configuration'),
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final count in [2, 3, 4, 5, 6])
+              SizedBox(
+                width: width,
+                child: _setupChoice(
+                  '$count players',
+                  '$count',
+                  _resetCount == count,
+                  () => _update(() => _resetCount = count),
+                ),
+              ),
+          ],
+        );
+      },
     ),
     const SizedBox(height: 20),
     _startingLifeChoices(),
@@ -1080,12 +1089,7 @@ extension _GamePages on _TableWorkspaceState {
                   'Reset all saved player appearances?',
                   'Replace all saved names and colors with defaults and remove life artwork, including hidden seats. This cannot be undone through game history.',
                   () => c.updateState('Reset seat appearances', (state) {
-                    const colors = [
-                      0xffd7bd78,
-                      0xff83b7ce,
-                      0xffb498ca,
-                      0xff92bc91,
-                    ];
+                    const colors = TabletState.seatColors;
                     for (
                       var index = 0;
                       index < state.profiles.length;

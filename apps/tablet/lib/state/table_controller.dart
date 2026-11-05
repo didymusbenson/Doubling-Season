@@ -754,8 +754,8 @@ class TableController extends ChangeNotifier {
   }) => _enqueue(() async {
     final count = playerCount ?? session.players.length;
     final life = startingLife ?? session.startingLife;
-    if (count < 2 || count > 4) {
-      throw StateError('Choose two, three or four players.');
+    if (count < 2 || count > TabletState.maximumPlayers) {
+      throw StateError('Choose two to six players.');
     }
     if (life < 1) throw StateError('Starting life must be positive.');
     if (emptySlot != null && (emptySlot < 0 || emptySlot > 3)) {
@@ -767,6 +767,18 @@ class TableController extends ChangeNotifier {
       keepBoard ? 'Before reset with board' : 'Before complete reset',
     );
     // Roster identity does not depend on visual slots; hidden seats survive.
+    // Older saves have four profiles. Extend only the detached reset draft so
+    // a failed write cannot partially create seats or change the live roster.
+    while (draft.profiles.length < count) {
+      final index = draft.profiles.length;
+      draft.profiles.add(
+        SeatProfile(
+          id: newEntityId(),
+          name: 'Player ${index + 1}',
+          color: TabletState.seatColors[index],
+        ),
+      );
+    }
     final selectedProfiles = draft.profiles.take(count).toList();
     final savedDefinitions = jsonMap(
       draft.library['seatRuleDefinitions'] ?? {},
@@ -784,10 +796,12 @@ class TableController extends ChangeNotifier {
     draft.library['seatRuleDefinitions'] = savedDefinitions;
     final slots = count == 2
         ? [0, 2]
-        : [
+        : count == 3
+        ? [
             for (var slot = 0; slot < 4; slot++)
-              if (count == 4 || slot != (emptySlot ?? 1)) slot,
-          ];
+              if (slot != (emptySlot ?? 1)) slot,
+          ]
+        : List.generate(count, (index) => index);
     final players = <PlayerState>[];
     final oldToNew = <String, String>{};
     for (var index = 0; index < count; index++) {

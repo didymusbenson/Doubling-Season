@@ -153,6 +153,7 @@ void main() {
             ),
           );
           await tester.pumpAndSettle();
+          await showAdaptiveUtilities(tester);
           addTearDown(() async {
             await tester.pumpWidget(const SizedBox());
             await tester.pumpAndSettle();
@@ -211,7 +212,14 @@ void main() {
             expect(nameRect.bottom, lessThanOrEqualTo(gridRect.top + .01));
             expect(gridRect.bottom, lessThan(surfaceBox.size.height));
             expect(gridRect.height, 44);
-            expect(surfaceBox.size.height, inInclusiveRange(160, 180));
+            final adaptive = find
+                .byKey(ValueKey('${player.id}-local-view-tabs'))
+                .evaluate()
+                .isNotEmpty;
+            expect(
+              surfaceBox.size.height,
+              adaptive ? 136 : inInclusiveRange(160, 180),
+            );
             expect(
               numberRect.height,
               greaterThanOrEqualTo(

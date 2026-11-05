@@ -89,6 +89,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    if (!phone) await showAdaptiveUtilities(tester);
     return f;
   }
 

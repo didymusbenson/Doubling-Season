@@ -165,6 +165,7 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       fixture.dispose();
     });
+    await showAdaptiveUtilities(tester);
     return fixture;
   }
 
@@ -262,9 +263,13 @@ void main() {
                 local(tester, total, surface).height,
                 greaterThanOrEqualTo(40),
               );
+              final adaptive = find
+                  .byKey(ValueKey('${player.id}-local-view-tabs'))
+                  .evaluate()
+                  .isNotEmpty;
               expect(
                 tester.getSize(surface).height,
-                inInclusiveRange(160, 180),
+                adaptive ? 136 : inInclusiveRange(160, 180),
               );
               expect(tester.getSize(tools).height, 48);
               expect(

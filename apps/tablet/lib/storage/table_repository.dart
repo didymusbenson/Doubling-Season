@@ -259,8 +259,9 @@ void validateTabletState(TabletState state) {
   void session(GameSession game) {
     require(game.id.isNotEmpty, 'Game identity is missing.');
     require(
-      game.players.length >= 2 && game.players.length <= 4,
-      'A game must have two to four players.',
+      game.players.length >= 2 &&
+          game.players.length <= TabletState.maximumPlayers,
+      'A game must have two to six players.',
     );
     require(
       game.generation > 0 && game.revision >= 0,
@@ -284,7 +285,11 @@ void validateTabletState(TabletState state) {
       'More than one player occupies a slot.',
     );
     require(
-      game.players.every((value) => value.slot >= 0 && value.slot < 4),
+      game.players.every(
+        (value) =>
+            value.slot >= 0 &&
+            value.slot < (game.players.length <= 4 ? 4 : game.players.length),
+      ),
       'Invalid player slot.',
     );
     require(

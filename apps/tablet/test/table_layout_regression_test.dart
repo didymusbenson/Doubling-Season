@@ -94,9 +94,17 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await showAdaptiveUtilities(tester);
     for (final player in fixture.controller.session.players) {
       final seat = find.byKey(ValueKey(player.id));
-      final token = find.byKey(ValueKey('${player.id}-token-lane'));
+      final adaptive = find
+          .byKey(ValueKey('${player.id}-local-view-tabs'))
+          .evaluate()
+          .isNotEmpty;
+      final token = find.byKey(
+        ValueKey('${player.id}-token-lane'),
+        skipOffstage: false,
+      );
       final life = find.descendant(
         of: seat,
         matching: find.byWidgetPredicate(
@@ -113,12 +121,23 @@ void main() {
         reason: 'Tools stay below the full-width colored life surface.',
       );
       expect(tester.getRect(surface).overlaps(tester.getRect(tools)), isFalse);
-      expect(tokenWidth / (tokenWidth + innerWidth), closeTo(.6, .0001));
-      expect(innerWidth / (tokenWidth + innerWidth), closeTo(.4, .0001));
-      expect(
-        tokenWidth + innerWidth + 1,
-        closeTo(tester.getSize(seat).width, .01),
-      );
+      if (adaptive) {
+        expect(tokenWidth, closeTo(tester.getSize(seat).width, .01));
+        expect(innerWidth, closeTo(tokenWidth, .01));
+        expect(
+          tester
+              .getSize(find.byKey(ValueKey('${player.id}-local-view-tabs')))
+              .height,
+          44,
+        );
+      } else {
+        expect(tokenWidth / (tokenWidth + innerWidth), closeTo(.6, .0001));
+        expect(innerWidth / (tokenWidth + innerWidth), closeTo(.4, .0001));
+        expect(
+          tokenWidth + innerWidth + 1,
+          closeTo(tester.getSize(seat).width, .01),
+        );
+      }
     }
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox());
@@ -254,13 +273,17 @@ void main() {
                   (w) => w.runtimeType.toString() == '_LifePanel',
                 ),
               );
+              final adaptive = find
+                  .byKey(ValueKey('${player.id}-local-view-tabs'))
+                  .evaluate()
+                  .isNotEmpty;
               final lifeText = find.descendant(
                 of: life,
                 matching: find.text('40'),
               );
               expect(
                 tester.widget<Text>(lifeText).style!.fontSize,
-                greaterThanOrEqualTo(64),
+                greaterThanOrEqualTo(adaptive ? 48 : 64),
                 reason: 'Commander capacity must preserve life legibility.',
               );
               final utilities = tester.widget<ReorderableListView>(
@@ -285,7 +308,10 @@ void main() {
                 ValueKey('${player.id}-commander-ledger'),
               );
               expect(ledger.hitTestable(), findsOneWidget);
-              expect(tester.getSize(ledger).width, inInclusiveRange(60 - .001, 80 + .001));
+              expect(
+                tester.getSize(ledger).width,
+                inInclusiveRange(60 - .001, 80 + .001),
+              );
               expect(tester.getSize(ledger).height, 44);
               for (final source in fixture.controller.session.commanders) {
                 final cell = find.byKey(
@@ -429,7 +455,7 @@ void main() {
   );
 
   for (final count in [7, 123, 999999]) {
-    testWidgets('portrait Storm displays $count in a full-width direct stepper', (
+    testWidgets('portrait Storm displays $count in a readable direct stepper', (
       tester,
     ) async {
       final state = tableFor(4);
@@ -452,7 +478,10 @@ void main() {
           (utility) => utility.kind == 'storm_count',
         );
         final valueSurface = find.byKey(ValueKey('${storm.id}-value-surface'));
-        expect(tester.getSize(valueSurface).width, greaterThan(130));
+        expect(
+          tester.getSize(valueSurface).width,
+          count >= 1000 ? greaterThan(130) : greaterThanOrEqualTo(90),
+        );
         expect(
           bounds.width,
           closeTo(tester.getSize(valueSurface).width - 2, .01),

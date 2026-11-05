@@ -12,6 +12,7 @@ import '../features/board_service.dart';
 import '../features/ring_service.dart';
 import 'workspace/table_workspace.dart';
 import 'table_artwork.dart';
+import 'seat_layout_policy.dart';
 import 'tablet_token_card.dart';
 import 'half_stepper.dart';
 import 'life_tap_feedback.dart';
@@ -231,7 +232,25 @@ class _TableScreenState extends State<TableScreen>
                       ),
                     );
                   }
-                  final two = controller.session.players.length == 2;
+                  final session = controller.session;
+                  final two = session.players.length == 2;
+                  final seatRows = session.seatRows;
+                  final mostSeats = seatRows
+                      .map((row) => row.length)
+                      .reduce(math.max);
+                  // Decide from the settled seat geometry, not the changing
+                  // drawer opening. Resizing is allowed; drawer animation must
+                  // never flip a player's view underneath a gesture.
+                  final horizontalDrawer =
+                      two ||
+                      session.players.length >= 5 ||
+                      SeatLayoutPolicy.useLocalViews(
+                        width:
+                            (constraints.maxWidth -
+                                (mostSeats - 1) * _playerDividerWidth) /
+                            mostSeats,
+                        textScaler: MediaQuery.textScalerOf(context),
+                      );
                   final progress = drawerAnimation.value;
                   final drawerWidth = math.min(
                     480.0,
@@ -240,14 +259,35 @@ class _TableScreenState extends State<TableScreen>
                   final gap = drawerWidth * progress;
 
                   Widget seat(PlayerState player) {
-                    final turns = two
-                        ? (controller.session.players.indexOf(player) == 0
-                              ? 0
-                              : 2)
-                        : (player.slot == 1 || player.slot == 2 ? 2 : 0);
+                    final turns = session.quarterTurnsFor(player);
                     final tokenLeft =
-                        two || player.slot == 0 || player.slot == 2;
+                        two ||
+                        player.slot == 0 ||
+                        player.slot == 2 ||
+                        player.slot == 4;
+                    final rowPlayers = seatRows.firstWhere(
+                      (row) => row.contains(player),
+                    );
+                    final rowIndex = rowPlayers.indexOf(player);
+                    final seatWidth =
+                        (constraints.maxWidth -
+                            (rowPlayers.length - 1) * _playerDividerWidth) /
+                        rowPlayers.length;
+                    final seatLeft =
+                        rowIndex * (seatWidth + _playerDividerWidth);
+                    final sharedXs = horizontalDrawer && !two
+                        ? [
+                            for (final delta in [-54.0, 0.0, 54.0])
+                              turns == 0
+                                  ? constraints.maxWidth / 2 + delta - seatLeft
+                                  : seatWidth -
+                                        (constraints.maxWidth / 2 +
+                                            delta -
+                                            seatLeft),
+                          ]
+                        : <double>[];
                     return _PlayerSpace(
+                      seamControlXs: sharedXs,
                       key: ValueKey(player.id),
                       controller: controller,
                       board: board,
@@ -257,11 +297,11 @@ class _TableScreenState extends State<TableScreen>
                           : null,
                       turns: turns,
                       tokenLeft: tokenLeft,
-                      centerNotch: two ? 0 : 30,
+                      centerNotch: horizontalDrawer ? 0 : 30,
                       centerNotchAtStart: two || !tokenLeft,
                       twoPlayerLayout: two,
                       interactionEpoch: interactionEpoch,
-                      drawerShift: two ? 0 : gap / 2,
+                      drawerShift: horizontalDrawer ? 0 : gap / 2,
                       drawerOpen: drawerMounted,
                       onCloseDrawer: _closeDrawer,
                       onInputLock: setInputLock,
@@ -357,7 +397,7 @@ class _TableScreenState extends State<TableScreen>
                                 table.maxHeight - 403,
                               ),
                             );
-                            final opening = two
+                            final opening = horizontalDrawer
                                 ? horizontalExtent * progress
                                 : gap;
                             final leftWall = (table.maxWidth - gap) / 2;
@@ -367,15 +407,28 @@ class _TableScreenState extends State<TableScreen>
                                   Size(table.maxWidth, table.maxHeight),
                                   opening,
                                 );
-                            Widget row(int left, int right) => Row(
+                            Widget row(
+                              List<PlayerState?> players,
+                              int rowIndex,
+                            ) => Row(
                               children: [
-                                Expanded(child: slot(left)),
-                                VerticalDivider(
-                                  width: _playerDividerWidth,
-                                  thickness: _playerDividerWidth,
-                                  color: dividerColor,
-                                ),
-                                Expanded(child: slot(right)),
+                                for (var i = 0; i < players.length; i++) ...[
+                                  if (i > 0)
+                                    VerticalDivider(
+                                      width: _playerDividerWidth,
+                                      thickness: _playerDividerWidth,
+                                      color: dividerColor,
+                                    ),
+                                  Expanded(
+                                    child: players[i] == null
+                                        ? slot(
+                                            rowIndex == 0
+                                                ? [1, 2][i]
+                                                : [0, 3][i],
+                                          )
+                                        : seat(players[i]!),
+                                  ),
+                                ],
                               ],
                             );
                             final workspace = GameDrawerWorkspace(
@@ -397,8 +450,8 @@ class _TableScreenState extends State<TableScreen>
                                         painter: _DrawerSurfacePainter(
                                           opening,
                                           Theme.of(context).colorScheme.surface,
-                                          horizontal: two,
-                                          notchScale: two
+                                          horizontal: horizontalDrawer,
+                                          notchScale: horizontalDrawer
                                               ? progress.clamp(0.0, 1.0)
                                               : 1,
                                         ),
@@ -408,20 +461,24 @@ class _TableScreenState extends State<TableScreen>
                                 if (drawerMounted)
                                   Positioned(
                                     key: const ValueKey('table-drawer-layer'),
-                                    left: two
+                                    left: horizontalDrawer
                                         ? 0
                                         : (table.maxWidth - drawerWidth) / 2,
-                                    top: two
+                                    top: horizontalDrawer
                                         ? (table.maxHeight - horizontalExtent) /
                                               2
                                         : 0,
-                                    bottom: two ? null : 0,
-                                    width: two ? table.maxWidth : drawerWidth,
-                                    height: two ? horizontalExtent : null,
+                                    bottom: horizontalDrawer ? null : 0,
+                                    width: horizontalDrawer
+                                        ? table.maxWidth
+                                        : drawerWidth,
+                                    height: horizontalDrawer
+                                        ? horizontalExtent
+                                        : null,
                                     child: ClipRect(
                                       clipper: _DrawerRevealClipper(
                                         opening,
-                                        horizontal: two,
+                                        horizontal: horizontalDrawer,
                                       ),
                                       child: IgnorePointer(
                                         ignoring:
@@ -436,7 +493,7 @@ class _TableScreenState extends State<TableScreen>
                                             container: true,
                                             explicitChildNodes: true,
                                             label: 'Game drawer',
-                                            child: two
+                                            child: horizontalDrawer
                                                 ? Padding(
                                                     key: const ValueKey(
                                                       'two-player-drawer-content-clearance',
@@ -459,19 +516,23 @@ class _TableScreenState extends State<TableScreen>
                                     clipper: _DrawerBoardClipper(
                                       gap: opening,
                                       enabled: drawerMounted,
-                                      horizontal: two,
-                                      notchScale: two
+                                      horizontal: horizontalDrawer,
+                                      notchScale: horizontalDrawer
                                           ? progress.clamp(0.0, 1.0)
                                           : 1,
                                     ),
                                     child: Column(
                                       children: [
                                         Expanded(
-                                          child: two
-                                              ? seat(
-                                                  controller.session.players[1],
-                                                )
-                                              : row(1, 2),
+                                          child: Transform.translate(
+                                            offset: Offset(
+                                              0,
+                                              horizontalDrawer && !two
+                                                  ? -opening / 2
+                                                  : 0,
+                                            ),
+                                            child: row(seatRows[0], 0),
+                                          ),
                                         ),
                                         Divider(
                                           key: const ValueKey(
@@ -484,11 +545,15 @@ class _TableScreenState extends State<TableScreen>
                                           color: dividerColor,
                                         ),
                                         Expanded(
-                                          child: two
-                                              ? seat(
-                                                  controller.session.players[0],
-                                                )
-                                              : row(0, 3),
+                                          child: Transform.translate(
+                                            offset: Offset(
+                                              0,
+                                              horizontalDrawer && !two
+                                                  ? opening / 2
+                                                  : 0,
+                                            ),
+                                            child: row(seatRows[1], 1),
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -502,8 +567,8 @@ class _TableScreenState extends State<TableScreen>
                                         painter: _DrawerWallPainter(
                                           opening,
                                           dividerColor,
-                                          horizontal: two,
-                                          notchScale: two
+                                          horizontal: horizontalDrawer,
+                                          notchScale: horizontalDrawer
                                               ? progress.clamp(0.0, 1.0)
                                               : 1,
                                         ),
@@ -515,10 +580,10 @@ class _TableScreenState extends State<TableScreen>
                                 // their overhang while artwork reaches the seam.
                                 Positioned(
                                   key: const ValueKey('table-dice-layer'),
-                                  left: two
+                                  left: horizontalDrawer
                                       ? twoPlayerControls.dice.dx - 22
                                       : leftWall - 54 - 22,
-                                  top: two
+                                  top: horizontalDrawer
                                       ? twoPlayerControls.dice.dy - 22
                                       : table.maxHeight / 2 - 22,
                                   child: _SharedTableControl(
@@ -533,10 +598,10 @@ class _TableScreenState extends State<TableScreen>
                                 ),
                                 Positioned(
                                   key: const ValueKey('table-day-night-layer'),
-                                  left: two
+                                  left: horizontalDrawer
                                       ? twoPlayerControls.dayNight.dx - 22
                                       : rightWall + 54 - 22,
-                                  top: two
+                                  top: horizontalDrawer
                                       ? twoPlayerControls.dayNight.dy - 22
                                       : table.maxHeight / 2 - 22,
                                   child: _DayNightControl(
@@ -547,10 +612,10 @@ class _TableScreenState extends State<TableScreen>
                                   key: const ValueKey('table-menu-layer'),
                                   // One whole Menu target follows the lower wall
                                   // in two seats, and the right wall in 3/4 seats.
-                                  left: two
+                                  left: horizontalDrawer
                                       ? twoPlayerControls.menu.dx - 26
                                       : rightWall - 26,
-                                  top: two
+                                  top: horizontalDrawer
                                       ? twoPlayerControls.menu.dy - 26
                                       : (table.maxHeight - 52) / 2,
                                   child: _GameHub(
@@ -1144,6 +1209,7 @@ class _PlayerSpace extends StatefulWidget {
   final int turns, interactionEpoch;
   final bool tokenLeft;
   final double centerNotch;
+  final List<double> seamControlXs;
   final bool centerNotchAtStart;
   final bool twoPlayerLayout;
   final double drawerShift;
@@ -1160,6 +1226,7 @@ class _PlayerSpace extends StatefulWidget {
     required this.turns,
     required this.tokenLeft,
     required this.centerNotch,
+    required this.seamControlXs,
     required this.centerNotchAtStart,
     required this.twoPlayerLayout,
     required this.drawerShift,
@@ -1176,6 +1243,74 @@ class _PlayerSpace extends StatefulWidget {
 class _PlayerSpaceState extends State<_PlayerSpace>
     with WidgetsBindingObserver {
   bool compactUtilityReorder = false;
+  bool showUtilities = false;
+  int localViewEpoch = 0;
+  Size? _seatSize;
+  bool? _localViews;
+  bool _layoutTransitionPending = false;
+  final Set<int> _seatPointers = {};
+  final Set<SliverReorderableListState> _seatReorders = {};
+
+  void _rememberReorder(BuildContext context) {
+    _seatReorders.removeWhere((state) => !state.mounted);
+    final state = SliverReorderableList.maybeOf(context);
+    if (state != null) _seatReorders.add(state);
+  }
+
+  void _cancelSeatPointers() {
+    // Pointer cancellation is queued. Reset the list synchronously before a
+    // retained lane is reparented, otherwise Flutter can rebuild a dragging
+    // item after its old drag geometry has already been unregistered.
+    _seatReorders.removeWhere((state) => !state.mounted);
+    for (final state in _seatReorders) {
+      state.cancelReorder();
+    }
+    _cancelPointersOnly();
+  }
+
+  void _cancelPointersOnly() {
+    for (final pointer in _seatPointers.toList()) {
+      GestureBinding.instance.cancelPointer(pointer);
+    }
+    _seatPointers.clear();
+  }
+
+  void _settleLayoutTransition() {
+    if (_layoutTransitionPending) return;
+    _layoutTransitionPending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _cancelSeatPointers();
+      setState(() {
+        compactUtilityReorder = false;
+        localViewEpoch++;
+      });
+      // Let Flutter put the dragged item back from the root overlay before
+      // moving the globally retained lane to its new responsive parent.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() {
+          _layoutTransitionPending = false;
+          _seatSize = null;
+        });
+      });
+    });
+  }
+
+  final _tokenLaneKey = GlobalKey(debugLabel: 'retained-token-lane');
+  final _utilityLaneKey = GlobalKey(debugLabel: 'retained-utility-lane');
+
+  void selectLocalView(bool utilities) {
+    if (showUtilities == utilities) return;
+    _cancelSeatPointers();
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      showUtilities = utilities;
+      compactUtilityReorder = false;
+      localViewEpoch++;
+    });
+  }
+
   late LifeTapFeedback lifeFeedback;
   bool _ownsLifeFeedback = false;
 
@@ -1209,15 +1344,21 @@ class _PlayerSpaceState extends State<_PlayerSpace>
       _listenToLife();
     }
     if (oldWidget.interactionEpoch != widget.interactionEpoch ||
-        oldWidget.player.generation != widget.player.generation) {
+        oldWidget.player.generation != widget.player.generation ||
+        oldWidget.turns != widget.turns) {
+      _cancelPointersOnly();
       compactUtilityReorder = false;
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed && compactUtilityReorder) {
-      setState(() => compactUtilityReorder = false);
+    if (state != AppLifecycleState.resumed) {
+      _cancelSeatPointers();
+      setState(() {
+        compactUtilityReorder = false;
+        localViewEpoch++;
+      });
     }
   }
 
@@ -1264,128 +1405,182 @@ class _PlayerSpaceState extends State<_PlayerSpace>
       RotatedBox(quarterTurns: widget.turns, child: child);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Listener(
+    onPointerDown: (event) => _seatPointers.add(event.pointer),
+    onPointerUp: (event) => _seatPointers.remove(event.pointer),
+    onPointerCancel: (event) => _seatPointers.remove(event.pointer),
+    child: RotatedBox(
+      quarterTurns: widget.turns,
+      child: LayoutBuilder(
+        builder: (context, seat) {
+          final localViews = SeatLayoutPolicy.useLocalViews(
+            width: seat.maxWidth,
+            textScaler: MediaQuery.textScalerOf(context),
+          );
+          final changed =
+              _seatSize != null &&
+              (_seatSize != seat.biggest || _localViews != localViews);
+          if (changed && _seatPointers.isNotEmpty) {
+            _settleLayoutTransition();
+          }
+          if (_layoutTransitionPending) {
+            return _buildSeat(context, _localViews ?? localViews);
+          }
+          if (changed) {
+            localViewEpoch++;
+            compactUtilityReorder = false;
+          }
+          _seatSize = seat.biggest;
+          _localViews = localViews;
+          return _buildSeat(context, localViews);
+        },
+      ),
+    ),
+  );
+
+  Widget _buildSeat(BuildContext context, bool localViews) {
     final p = widget.player;
     final profile = widget.controller.profile(p.seatId);
+    final seatWidth = _seatSize!.width;
+    final splitTokenWidth = (seatWidth - 1) * .6;
+    final splitTokenLeft = widget.tokenLeft ? 0.0 : (seatWidth - 1) * .4 + 1;
+    final tokenNeedsClearance =
+        widget.twoPlayerLayout ||
+        (!localViews &&
+            widget.seamControlXs.any(
+              (x) =>
+                  x + 30 > splitTokenLeft &&
+                  x - 30 < splitTokenLeft + splitTokenWidth,
+            ));
     final enabled = widget.board
         .effectiveSources(p.id)
         .where((s) => s.enabled && s.count > 0)
         .length;
-    Widget tokenLane = Stack(
-      key: ValueKey('${p.id}-token-lane'),
-      children: [
-        Positioned.fill(
-          child: p.tokens.isEmpty
-              ? _EmptyLane(
-                  icon: Icons.style_outlined,
-                  text: 'Your token board',
-                  action: 'Add a token',
-                  onTap: () => widget.onOpen(WorkspacePage.tokens),
-                )
-              : _reorderViewport(
-                  DragBoundary(
-                    child: ReorderableListView.builder(
-                      scrollController: tokenScroll,
-                      reverse: widget.turns == 2,
-                      // Corner controls overlay the lane. Only trailing scroll
-                      // clearance is needed to reach the last card beneath them.
-                      padding: widget.turns == 2
-                          ? const EdgeInsets.only(top: 88)
-                          : const EdgeInsets.only(bottom: 88),
-                      buildDefaultDragHandles: false,
-                      itemCount: p.tokens.length,
-                      onReorder: (old, next) => perform(
-                        () => widget.board.reorder(p.id, 'tokens', old, next),
-                      ),
-                      proxyDecorator: (child, index, animation) =>
-                          Material(elevation: 5, child: child),
-                      itemBuilder: (context, index) {
-                        final t = p.tokens[index];
-                        return ReorderableDelayedDragStartListener(
-                          key: ValueKey(t.id),
-                          index: index,
-                          enabled: expandedId == null,
-                          child: _reorderItem(
-                            TabletTokenCard(
-                              token: t,
-                              interactionEpoch: widget.interactionEpoch,
-                              topContentInset:
-                                  widget.twoPlayerLayout && index == 0
-                                  ? _TwoPlayerControlsGeometry
-                                        .firstTokenContentInset
-                                  : 0,
-                              player: p,
-                              board: widget.board,
-                              playerName: profile.name,
-                              quarterTurns: widget.turns,
-                              expanded: expandedId == t.id,
-                              onExpand: () => expand(t.id),
-                              onOpenDetailed: (page) =>
-                                  widget.onOpen(page, t.id),
-                              onInputLock: widget.onInputLock,
+    Widget tokenLane = KeyedSubtree(
+      key: _tokenLaneKey,
+      child: Stack(
+        key: ValueKey('${p.id}-token-lane'),
+        children: [
+          Positioned.fill(
+            child: p.tokens.isEmpty
+                ? _EmptyLane(
+                    icon: Icons.style_outlined,
+                    text: 'Your token board',
+                    action: 'Add a token',
+                    onTap: () => widget.onOpen(WorkspacePage.tokens),
+                  )
+                : _reorderViewport(
+                    DragBoundary(
+                      child: ReorderableListView.builder(
+                        scrollController: tokenScroll,
+                        reverse: widget.turns == 2,
+                        // Corner controls overlay the lane. Only trailing scroll
+                        // clearance is needed to reach the last card beneath them.
+                        padding: widget.turns == 2
+                            ? const EdgeInsets.only(top: 88)
+                            : const EdgeInsets.only(bottom: 88),
+                        buildDefaultDragHandles: false,
+                        itemCount: p.tokens.length,
+                        onReorder: (old, next) => perform(
+                          () => widget.board.reorder(p.id, 'tokens', old, next),
+                        ),
+                        proxyDecorator: (child, index, animation) =>
+                            Material(elevation: 5, child: child),
+                        itemBuilder: (context, index) {
+                          _rememberReorder(context);
+                          final t = p.tokens[index];
+                          return ReorderableDelayedDragStartListener(
+                            key: ValueKey(t.id),
+                            index: index,
+                            enabled: expandedId == null,
+                            child: _reorderItem(
+                              TabletTokenCard(
+                                token: t,
+                                interactionEpoch: Object.hash(
+                                  widget.interactionEpoch,
+                                  localViewEpoch,
+                                ),
+                                topContentInset:
+                                    tokenNeedsClearance && index == 0
+                                    ? _TwoPlayerControlsGeometry
+                                          .firstTokenContentInset
+                                    : 0,
+                                player: p,
+                                board: widget.board,
+                                playerName: profile.name,
+                                quarterTurns: widget.turns,
+                                expanded: expandedId == t.id,
+                                onExpand: () => expand(t.id),
+                                onOpenDetailed: (page) =>
+                                    widget.onOpen(page, t.id),
+                                onInputLock: widget.onInputLock,
+                              ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   ),
+          ),
+          Positioned(
+            left: 124,
+            bottom: 12,
+            child: Material(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              elevation: 3,
+              shape: const CircleBorder(),
+              child: SizedBox(
+                width: 40,
+                height: 44,
+                child: IconButton(
+                  key: ValueKey('${p.id}-start-turn'),
+
+                  onPressed: () => perform(() => widget.board.startTurn(p.id)),
+                  icon: Icon(
+                    ManaIcons.untap,
+                    size: 20,
+                    semanticLabel: '${profile.name}, Start turn',
+                  ),
+                  padding: EdgeInsets.zero,
                 ),
-        ),
-        Positioned(
-          left: 124,
-          bottom: 12,
-          child: Material(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            elevation: 3,
-            shape: const CircleBorder(),
-            child: SizedBox(
-              width: 40,
-              height: 44,
+              ),
+            ),
+          ),
+          Positioned(
+            left: 68,
+            bottom: 12,
+            child: Material(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              elevation: 3,
+              shape: const CircleBorder(),
               child: IconButton(
-                key: ValueKey('${p.id}-start-turn'),
+                key: ValueKey('${p.id}-board-summary'),
 
-                onPressed: () => perform(() => widget.board.startTurn(p.id)),
+                onPressed: () => widget.onOpen(WorkspacePage.tokenSummary),
                 icon: Icon(
-                  ManaIcons.untap,
+                  Icons.style_outlined,
                   size: 20,
-                  semanticLabel: '${profile.name}, Start turn',
+                  semanticLabel: '${profile.name}, board summary',
                 ),
-                padding: EdgeInsets.zero,
               ),
             ),
           ),
-        ),
-        Positioned(
-          left: 68,
-          bottom: 12,
-          child: Material(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            elevation: 3,
-            shape: const CircleBorder(),
-            child: IconButton(
-              key: ValueKey('${p.id}-board-summary'),
+          Positioned(
+            left: 12,
+            bottom: 12,
+            child: FloatingActionButton.small(
+              key: ValueKey('${p.id}-add-token'),
+              heroTag: '${p.id}-add-token',
 
-              onPressed: () => widget.onOpen(WorkspacePage.tokenSummary),
-              icon: Icon(
-                Icons.style_outlined,
-                size: 20,
-                semanticLabel: '${profile.name}, board summary',
+              onPressed: () => widget.onOpen(WorkspacePage.tokens),
+              child: Icon(
+                Icons.add,
+                semanticLabel: '${profile.name}, add token',
               ),
             ),
           ),
-        ),
-        Positioned(
-          left: 12,
-          bottom: 12,
-          child: FloatingActionButton.small(
-            key: ValueKey('${p.id}-add-token'),
-            heroTag: '${p.id}-add-token',
-
-            onPressed: () => widget.onOpen(WorkspacePage.tokens),
-            child: Icon(Icons.add, semanticLabel: '${profile.name}, add token'),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
     final visible = p.utilities.where(widget.board.isUtilityVisible).toList();
     Widget innerLane = LayoutBuilder(
@@ -1393,12 +1588,16 @@ class _PlayerSpaceState extends State<_PlayerSpace>
         // Short player-local seats keep utility padding compact so the taller
         // life chip and tools never require shrinking the utility touch targets.
         final compactUtilities = lane.maxHeight < 420;
-        final lifeHeight = (lane.maxHeight * .30 + 32).clamp(160.0, 180.0);
+        final lifeHeight = localViews
+            ? 136.0
+            : (lane.maxHeight * .30 + 32).clamp(160.0, 180.0);
         final toolHeight = lane.maxWidth < 132 ? 96.0 : 48.0;
         // Keep the life surface fixed even at the existing 480px boundary.
         // Tools and utilities share the remaining viewport instead of shrinking
         // touch targets, adding a menu, or overflowing the seat.
-        final shortFooter = lane.maxHeight < lifeHeight + toolHeight + 44;
+        final shortFooter =
+            lane.maxHeight <
+            lifeHeight + (localViews ? 44 : 0) + toolHeight + 44;
         void reorderUtilities(int old, int next) => perform(() async {
           final ids = visible.map((u) => u.id).toList();
           if (next > old) next--;
@@ -1406,11 +1605,14 @@ class _PlayerSpaceState extends State<_PlayerSpace>
           await widget.board.reorderVisibleUtilities(p.id, ids);
         });
         Widget utilityItem(BuildContext context, int index) {
+          _rememberReorder(context);
           final u = visible[index];
           final row = _UtilityRow(
             compactSpacing: compactUtilities,
             interactionEpoch: Object.hash(
               widget.interactionEpoch,
+              localViewEpoch,
+              localViews,
               widget.controller.session.generation,
               p.generation,
             ),
@@ -1512,6 +1714,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                             child: child,
                           ),
                           itemBuilder: (context, index) {
+                            _rememberReorder(context);
                             final u = visible[index];
                             return ReorderableDelayedDragStartListener(
                               key: ValueKey('compact-reorder-${u.id}'),
@@ -1550,8 +1753,111 @@ class _PlayerSpaceState extends State<_PlayerSpace>
             ),
           ],
         );
+        Widget utilityBody(Widget tools) => shortFooter
+            ? compactUtilityReorder
+                  ? compactReorderList
+                  : CustomScrollView(
+                      key: ValueKey('${p.id}-life-footer-scroll'),
+                      controller: utilityScroll,
+                      slivers: [
+                        SliverToBoxAdapter(child: tools),
+                        if (visible.length > 1)
+                          SliverToBoxAdapter(
+                            child: SizedBox(
+                              height: 44,
+                              child: TextButton.icon(
+                                key: ValueKey('${p.id}-start-utility-reorder'),
+                                onPressed: expandedId == null
+                                    ? () => setUtilityReorder(true)
+                                    : null,
+                                icon: const Icon(Icons.reorder, size: 18),
+                                label: const Text(
+                                  'Reorder utilities',
+                                  maxLines: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (visible.isEmpty)
+                          SliverToBoxAdapter(child: utilities)
+                        else
+                          SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              utilityItem,
+                              childCount: visible.length,
+                            ),
+                          ),
+                      ],
+                    )
+            : utilities;
         return _LifePanel(
+          compact: localViews,
+          seamControlXs: [
+            for (final x in widget.seamControlXs)
+              x -
+                  (localViews || !widget.tokenLeft
+                      ? 0
+                      : (lane.maxWidth / .4) * .6 + 1),
+          ],
           compose: (surface, tools) {
+            if (localViews) {
+              final utilityContent = KeyedSubtree(
+                key: _utilityLaneKey,
+                child: KeyedSubtree(
+                  key: PageStorageKey('${p.id}-utility-scroll-position'),
+                  child: Column(
+                    children: [
+                      if (!shortFooter) tools,
+                      Expanded(
+                        key: ValueKey('${p.id}-utility-section'),
+                        child: utilityBody(tools),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+              Widget retained(Widget child, bool active) => IgnorePointer(
+                ignoring: !active,
+                child: ExcludeSemantics(
+                  excluding: !active,
+                  child: TickerMode(enabled: active, child: child),
+                ),
+              );
+              final localContent = Column(
+                key: ValueKey('${p.id}-local-views'),
+                children: [
+                  surface,
+                  _LocalViewTabs(
+                    playerId: p.id,
+                    playerName: profile.name,
+                    utilities: showUtilities,
+                    onChanged: selectLocalView,
+                  ),
+                  Expanded(
+                    child: IndexedStack(
+                      index: showUtilities ? 1 : 0,
+                      children: [
+                        retained(tokenLane, !showUtilities),
+                        retained(utilityContent, showUtilities),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+              // Save warnings can consume most of a minimum-size seat. Keep
+              // the error visible and make the complete life/body reachable,
+              // rather than overflowing or shrinking direct touch targets.
+              final minimumHeight = lifeHeight + 44 + 56;
+              return lane.maxHeight < minimumHeight
+                  ? SingleChildScrollView(
+                      key: ValueKey('${p.id}-short-local-view-scroll'),
+                      child: SizedBox(
+                        height: minimumHeight,
+                        child: localContent,
+                      ),
+                    )
+                  : localContent;
+            }
             final content = Column(
               children: [
                 surface,
@@ -1561,49 +1867,11 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                   child: KeyedSubtree(
                     // Both bounded footer presentations share one saved scroll
                     // identity as the two-seat viewport changes height.
-                    key: PageStorageKey('${p.id}-utility-scroll-position'),
-                    child: shortFooter
-                        ? compactUtilityReorder
-                              ? compactReorderList
-                              : CustomScrollView(
-                                  key: ValueKey('${p.id}-life-footer-scroll'),
-                                  controller: utilityScroll,
-                                  slivers: [
-                                    SliverToBoxAdapter(child: tools),
-                                    if (visible.length > 1)
-                                      SliverToBoxAdapter(
-                                        child: SizedBox(
-                                          height: 44,
-                                          child: TextButton.icon(
-                                            key: ValueKey(
-                                              '${p.id}-start-utility-reorder',
-                                            ),
-                                            onPressed: expandedId == null
-                                                ? () => setUtilityReorder(true)
-                                                : null,
-                                            icon: const Icon(
-                                              Icons.reorder,
-                                              size: 18,
-                                            ),
-                                            label: const Text(
-                                              'Reorder utilities',
-                                              maxLines: 2,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    if (visible.isEmpty)
-                                      SliverToBoxAdapter(child: utilities)
-                                    else
-                                      SliverList(
-                                        delegate: SliverChildBuilderDelegate(
-                                          utilityItem,
-                                          childCount: visible.length,
-                                        ),
-                                      ),
-                                  ],
-                                )
-                        : utilities,
+                    key: _utilityLaneKey,
+                    child: KeyedSubtree(
+                      key: PageStorageKey('${p.id}-utility-scroll-position'),
+                      child: utilityBody(tools),
+                    ),
                   ),
                 ),
               ],
@@ -1630,6 +1898,8 @@ class _PlayerSpaceState extends State<_PlayerSpace>
           controller: widget.controller,
           epoch: Object.hash(
             widget.interactionEpoch,
+            localViewEpoch,
+            localViews,
             p.generation,
             widget.controller.session.generation,
           ),
@@ -1642,177 +1912,304 @@ class _PlayerSpaceState extends State<_PlayerSpace>
         );
       },
     );
-    return RotatedBox(
-      quarterTurns: widget.turns,
-      child: Column(
-        children: [
-          if (lifeFeedback.error != null || error != null)
-            LayoutBuilder(
-              builder: (context, warning) => Container(
-                color: Theme.of(context).colorScheme.errorContainer,
-                width: double.infinity,
-                // Only a visible warning needs this internal clearance below
-                // the centered two-seat controls. Ordinary cards have no margin.
-                padding: EdgeInsets.fromLTRB(
-                  6,
-                  widget.twoPlayerLayout ? 32 : 6,
-                  6,
-                  6,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        lifeFeedback.error ?? error!,
-                        style: const TextStyle(fontSize: 12),
+    return Column(
+      children: [
+        if (lifeFeedback.error != null || error != null)
+          LayoutBuilder(
+            builder: (context, warning) => Container(
+              color: Theme.of(context).colorScheme.errorContainer,
+              width: double.infinity,
+              // Only a visible warning needs this internal clearance below
+              // the centered two-seat controls. Ordinary cards have no margin.
+              padding: EdgeInsets.fromLTRB(
+                6,
+                widget.twoPlayerLayout ? 32 : 6,
+                6,
+                6,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      lifeFeedback.error ?? error!,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  if (lifeFeedback.error != null)
+                    Semantics(
+                      label: 'Acknowledge life save warning',
+                      button: true,
+                      onTap: lifeFeedback.clearError,
+                      excludeSemantics: true,
+                      child: SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: IconButton(
+                          key: ValueKey('${p.id}-acknowledge-life-error'),
+                          onPressed: lifeFeedback.clearError,
+                          icon: const Icon(Icons.close),
+                        ),
                       ),
                     ),
-                    if (lifeFeedback.error != null)
+                ],
+              ),
+            ),
+          ),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, box) {
+              if (localViews) {
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    IgnorePointer(
+                      ignoring: widget.drawerOpen,
+                      child: ExcludeSemantics(
+                        excluding: widget.drawerOpen,
+                        child: Material(
+                          color: Theme.of(context).colorScheme.surface,
+                          child: innerLane,
+                        ),
+                      ),
+                    ),
+                    if (widget.drawerOpen)
                       Semantics(
-                        label: 'Acknowledge life save warning',
+                        label: 'Close game drawer',
                         button: true,
-                        onTap: lifeFeedback.clearError,
                         excludeSemantics: true,
-                        child: SizedBox(
-                          width: 44,
-                          height: 44,
-                          child: IconButton(
-                            key: ValueKey('${p.id}-acknowledge-life-error'),
-                            onPressed: lifeFeedback.clearError,
-                            icon: const Icon(Icons.close),
-                          ),
+                        onTap: widget.onCloseDrawer,
+                        child: GestureDetector(
+                          key: ValueKey('${p.id}-dismiss-drawer'),
+                          behavior: HitTestBehavior.opaque,
+                          onTap: widget.onCloseDrawer,
+                          child: const ColoredBox(color: Colors.transparent),
                         ),
                       ),
                   ],
-                ),
-              ),
-            ),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, box) {
-                final tokenWidth = (box.maxWidth - 1) * .6;
-                final railWidth = (box.maxWidth - 1) * .4;
-                final railOffset = widget.twoPlayerLayout
-                    ? 0.0
-                    : (widget.tokenLeft
-                          ? -widget.drawerShift
-                          : widget.drawerShift);
-                final rail = IgnorePointer(
-                  ignoring: widget.drawerOpen,
-                  child: ExcludeSemantics(
-                    excluding: widget.drawerOpen,
-                    child: Material(
-                      key: ValueKey('${p.id}-sliding-rail'),
-                      color: Theme.of(context).colorScheme.surface,
-                      child: innerLane,
-                    ),
-                  ),
                 );
-                // Rotation maps each seat's outward flank to the same local
-                // position. Use the actual player width and lane divider;
-                // warnings already move the rail below the shared circles.
-                final flankCenter =
-                    _TwoPlayerControlsGeometry(
-                      Size(box.maxWidth, 0),
-                      0,
-                    ).dayNight -
-                    Offset(tokenWidth + 1, _playerDividerWidth / 2);
-                return Stack(
-                  clipBehavior: Clip.hardEdge,
-                  children: [
-                    Positioned(
-                      left: widget.tokenLeft
-                          ? tokenWidth + 1 + railOffset
-                          : railOffset,
-                      top: 0,
-                      bottom: 0,
-                      width: railWidth,
-                      child: widget.twoPlayerLayout
-                          ? ClipPath(
-                              key: ValueKey('${p.id}-life-clip'),
-                              clipper: _TwoPlayerLifeControlClipper(
-                                center: flankCenter,
-                                enabled:
-                                    lifeFeedback.error == null && error == null,
+              }
+              final tokenWidth = (box.maxWidth - 1) * .6;
+              final railWidth = (box.maxWidth - 1) * .4;
+              final railOffset = widget.twoPlayerLayout
+                  ? 0.0
+                  : (widget.tokenLeft
+                        ? -widget.drawerShift
+                        : widget.drawerShift);
+              final rail = IgnorePointer(
+                ignoring: widget.drawerOpen,
+                child: ExcludeSemantics(
+                  excluding: widget.drawerOpen,
+                  child: Material(
+                    key: ValueKey('${p.id}-sliding-rail'),
+                    color: Theme.of(context).colorScheme.surface,
+                    child: innerLane,
+                  ),
+                ),
+              );
+              // Rotation maps each seat's outward flank to the same local
+              // position. Use the actual player width and lane divider;
+              // warnings already move the rail below the shared circles.
+              final flankCenter =
+                  _TwoPlayerControlsGeometry(
+                    Size(box.maxWidth, 0),
+                    0,
+                  ).dayNight -
+                  Offset(tokenWidth + 1, _playerDividerWidth / 2);
+              return Stack(
+                clipBehavior: Clip.hardEdge,
+                children: [
+                  Positioned(
+                    left: widget.tokenLeft
+                        ? tokenWidth + 1 + railOffset
+                        : railOffset,
+                    top: 0,
+                    bottom: 0,
+                    width: railWidth,
+                    child: widget.twoPlayerLayout
+                        ? ClipPath(
+                            key: ValueKey('${p.id}-life-clip'),
+                            clipper: _TwoPlayerLifeControlClipper(
+                              center: flankCenter,
+                              enabled:
+                                  lifeFeedback.error == null && error == null,
+                            ),
+                            child: rail,
+                          )
+                        : rail,
+                  ),
+                  Positioned(
+                    left: widget.tokenLeft ? tokenWidth : railWidth,
+                    top: 0,
+                    bottom: 0,
+                    width: 1,
+                    child: ColoredBox(color: Theme.of(context).dividerColor),
+                  ),
+                  Positioned(
+                    left: widget.tokenLeft ? 0 : railWidth + 1,
+                    top: 0,
+                    bottom: 0,
+                    width: tokenWidth,
+                    child: Material(
+                      color: Theme.of(context).colorScheme.surface,
+                      child: ClipRect(
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ExcludeSemantics(
+                              excluding: widget.drawerOpen,
+                              child: IgnorePointer(
+                                ignoring: widget.drawerOpen,
+                                child: tokenLane,
                               ),
-                              child: rail,
-                            )
-                          : rail,
-                    ),
-                    Positioned(
-                      left: widget.tokenLeft ? tokenWidth : railWidth,
-                      top: 0,
-                      bottom: 0,
-                      width: 1,
-                      child: ColoredBox(color: Theme.of(context).dividerColor),
-                    ),
-                    Positioned(
-                      left: widget.tokenLeft ? 0 : railWidth + 1,
-                      top: 0,
-                      bottom: 0,
-                      width: tokenWidth,
-                      child: Material(
-                        color: Theme.of(context).colorScheme.surface,
-                        child: ClipRect(
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              ExcludeSemantics(
-                                excluding: widget.drawerOpen,
-                                child: IgnorePointer(
-                                  ignoring: widget.drawerOpen,
-                                  child: tokenLane,
-                                ),
-                              ),
-                              if (widget.drawerOpen)
-                                Positioned(
-                                  left: 0,
-                                  top: 0,
-                                  bottom: 0,
-                                  // The token viewport is fully visible in
-                                  // every layout, including the horizontal
-                                  // two-seat opening. Dismissal owns only this
-                                  // viewport and consumes the closing tap.
-                                  width: tokenWidth,
-                                  child: Semantics(
-                                    identifier: '${p.id}-dismiss-drawer',
-                                    label: 'Close game drawer',
-                                    button: true,
-                                    excludeSemantics: true,
+                            ),
+                            if (widget.drawerOpen)
+                              Positioned(
+                                left: 0,
+                                top: 0,
+                                bottom: 0,
+                                // The token viewport is fully visible in
+                                // every layout, including the horizontal
+                                // two-seat opening. Dismissal owns only this
+                                // viewport and consumes the closing tap.
+                                width: tokenWidth,
+                                child: Semantics(
+                                  identifier: '${p.id}-dismiss-drawer',
+                                  label: 'Close game drawer',
+                                  button: true,
+                                  excludeSemantics: true,
+                                  onTap: widget.onCloseDrawer,
+                                  child: GestureDetector(
+                                    key: ValueKey('${p.id}-dismiss-drawer'),
+                                    behavior: HitTestBehavior.opaque,
                                     onTap: widget.onCloseDrawer,
-                                    child: GestureDetector(
-                                      key: ValueKey('${p.id}-dismiss-drawer'),
-                                      behavior: HitTestBehavior.opaque,
-                                      onTap: widget.onCloseDrawer,
-                                      child: const ColoredBox(
-                                        color: Colors.transparent,
-                                      ),
+                                    child: const ColoredBox(
+                                      color: Colors.transparent,
                                     ),
                                   ),
                                 ),
-                            ],
-                          ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                );
-              },
-            ),
+                  ),
+                ],
+              );
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
+}
+
+/// Each seat owns this selection. Switching never writes game history, and the
+/// hidden lane stays mounted with its draft, expansion and scroll position.
+class _LocalViewTabs extends StatelessWidget {
+  const _LocalViewTabs({
+    required this.playerId,
+    required this.playerName,
+    required this.utilities,
+    required this.onChanged,
+  });
+  final String playerId, playerName;
+  final bool utilities;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    key: ValueKey('$playerId-local-view-tabs'),
+    height: 44,
+    child: Row(
+      children: [
+        for (final isUtilities in [false, true])
+          Expanded(
+            child: Semantics(
+              label:
+                  '$playerName, ${isUtilities ? 'Utilities' : 'Tokens'} view',
+              button: true,
+              selected: utilities == isUtilities,
+              onTap: () => onChanged(isUtilities),
+              excludeSemantics: true,
+              child: Material(
+                color: utilities == isUtilities
+                    ? Theme.of(context).colorScheme.secondaryContainer
+                    : Theme.of(context).colorScheme.surfaceContainer,
+                child: InkWell(
+                  key: ValueKey(
+                    '$playerId-${isUtilities ? 'utilities' : 'tokens'}-tab',
+                  ),
+                  onTap: () => onChanged(isUtilities),
+                  child: Container(
+                    height: 44,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          width: 3,
+                          color: utilities == isUtilities
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.transparent,
+                        ),
+                      ),
+                    ),
+                    child: Text(
+                      isUtilities ? 'Utilities' : 'Tokens',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
+/// Control clearance is computed in the actual row's local coordinates, so
+/// the two-seat edge of a five-player game and the middle sixth seat agree with
+/// the global hub. It clips paint and life hit-testing, not just decoration.
+class _SeatSharedControlClipper extends CustomClipper<Path> {
+  const _SeatSharedControlClipper(this.centers);
+  final List<double> centers;
+  @override
+  Path getClip(Size size) {
+    final cutouts = Path();
+    for (final x in centers) {
+      cutouts.addOval(
+        Rect.fromCircle(
+          center: Offset(x, -_playerDividerWidth / 2),
+          radius: 30,
+        ),
+      );
+    }
+    return Path.combine(
+      PathOperation.difference,
+      Path()..addRect(Offset.zero & size),
+      cutouts,
+    );
+  }
+
+  @override
+  bool shouldReclip(_SeatSharedControlClipper old) =>
+      centers.length != old.centers.length ||
+      List.generate(
+        centers.length,
+        (i) => centers[i] != old.centers[i],
+      ).any((changed) => changed);
 }
 
 class _LifePanel extends StatelessWidget {
   final Widget Function(Widget surface, Widget tools) compose;
   final bool twoPlayer;
   final bool phone;
+  final bool compact;
   final double hubNotchScale;
   final double height;
   final double centerNotch;
+  final List<double> seamControlXs;
   final bool centerNotchAtStart;
   final PlayerState player;
   final SeatProfile profile;
@@ -1825,6 +2222,8 @@ class _LifePanel extends StatelessWidget {
     required this.compose,
     required this.twoPlayer,
     this.phone = false,
+    this.compact = false,
+    this.seamControlXs = const [],
     this.hubNotchScale = 1,
     required this.height,
     required this.centerNotch,
@@ -1917,7 +2316,11 @@ class _LifePanel extends StatelessWidget {
         const overlayBottom = 6.0;
         const overlayGap = 4.0;
         final overlayInset = constraints.maxWidth < 132 ? 0.0 : 6.0;
-        final ledgerWidth = constraints.maxWidth < 132
+        final ledgerWidth =
+            controller.session.players.length >= 5 &&
+                constraints.maxWidth >= 156
+            ? 120.0
+            : constraints.maxWidth < 132
             ? 44.0
             : constraints.maxWidth < 180
             ? 64.0
@@ -1955,14 +2358,16 @@ class _LifePanel extends StatelessWidget {
             : null;
         final surface = ClipPath(
           key: twoPlayer ? null : ValueKey('${player.id}-life-clip'),
-          clipper: _LifeHubNotch(
-            atStart: centerNotchAtStart,
-            inset: -_playerDividerWidth / 2,
-            enabled: centerNotch > 0,
-            sharedControls: true,
-            twoPlayer: twoPlayer,
-            radiusScale: hubNotchScale,
-          ),
+          clipper: seamControlXs.isNotEmpty
+              ? _SeatSharedControlClipper(seamControlXs)
+              : _LifeHubNotch(
+                  atStart: centerNotchAtStart,
+                  inset: -_playerDividerWidth / 2,
+                  enabled: centerNotch > 0,
+                  sharedControls: true,
+                  twoPlayer: twoPlayer,
+                  radiusScale: hubNotchScale,
+                ),
           child: _ArtworkSurface(
             key: ValueKey('${player.id}-life-surface'),
             url: profile.artworkUrl,
@@ -1980,7 +2385,7 @@ class _LifePanel extends StatelessWidget {
                   inkExclusions: [ledgerRect, ?summaryRect],
                   iconSize: 22,
                   // The signs stay beside the number, not the subdued name.
-                  iconY: -10 / height,
+                  iconY: (compact ? -16 : -10) / height,
                   decreaseKey: ValueKey('${player.id}-life-decrease'),
                   increaseKey: ValueKey('${player.id}-life-increase'),
                   decreaseLabel: '${profile.name}, decrease life by one',
@@ -1993,7 +2398,14 @@ class _LifePanel extends StatelessWidget {
                   interactionEpoch: epoch,
                   foregroundColor: artColor,
                   displayOverlay: Padding(
-                    padding: EdgeInsets.only(top: phone ? 24 : 46, bottom: 52),
+                    padding: EdgeInsets.only(
+                      top: compact
+                          ? 44
+                          : phone
+                          ? 24
+                          : 46,
+                      bottom: 52,
+                    ),
                     child: _LifeDelta(
                       entry:
                           controller.session.history.isNotEmpty &&
@@ -2007,7 +2419,11 @@ class _LifePanel extends StatelessWidget {
                         life: lifeFeedback.life,
                         delta: lifeFeedback.displayDelta(delta),
                         color: artColor,
-                        fontSize: phone ? 54 : 80,
+                        fontSize: compact
+                            ? 52
+                            : phone
+                            ? 54
+                            : 80,
                       ),
                     ),
                   ),
@@ -2016,7 +2432,7 @@ class _LifePanel extends StatelessWidget {
                   top: phone ? 6 : 28,
                   left: 26,
                   right: 26,
-                  height: 18,
+                  height: compact ? 16 : 18,
                   child: IgnorePointer(
                     child: ExcludeSemantics(
                       child: Row(
@@ -2426,8 +2842,11 @@ class _UtilityRow extends StatelessWidget {
         : Colors.white;
     return LayoutBuilder(
       builder: (context, constraints) {
+        final largeValue =
+            '${board.utilityValue(player.id, utility.id)}'.length > 4;
         final narrowStorm =
-            utility.kind == 'storm_count' && constraints.maxWidth < 180;
+            (utility.kind == 'storm_count' && constraints.maxWidth < 180) ||
+            largeValue;
         final narrowValue = constraints.maxWidth < 210;
         final narrowToggle = toggle && constraints.maxWidth < 260;
         final toggleControl = Switch(

@@ -25,57 +25,34 @@ class CommanderSeatLayout extends StatelessWidget {
   });
 
   static int turnsForPlayer(List<PlayerState> players, PlayerState player) =>
-      players.length == 2
-      ? (players.indexWhere((p) => p.id == player.id) == 0 ? 0 : 2)
-      : (player.slot == 1 || player.slot == 2 ? 2 : 0);
+      GameSession.quarterTurnsForPlayer(players, player);
 
   static List<List<PlayerState?>> rowsFor(
     List<PlayerState> players,
     int quarterTurns,
   ) {
     final turns = quarterTurns % 4;
-    if (players.length == 2) {
-      final bottom = players.first;
-      final top = players.last;
-      return switch (turns) {
-        1 => [
-          [top, bottom],
-        ],
-        2 => [
-          [bottom],
-          [top],
-        ],
-        3 => [
-          [bottom, top],
-        ],
-        _ => [
-          [top],
-          [bottom],
-        ],
-      };
+    final rows = GameSession.seatRowsFor(players);
+    if (turns == 0) return rows;
+    if (turns == 2) {
+      return [for (final row in rows.reversed) row.reversed.toList()];
     }
-    PlayerState? at(int slot) =>
-        players.where((p) => p.slot == slot).firstOrNull;
-    final slots = switch (turns) {
-      1 => [
-        [2, 3],
-        [1, 0],
-      ],
-      2 => [
-        [3, 0],
-        [2, 1],
-      ],
-      3 => [
-        [0, 1],
-        [3, 2],
-      ],
-      _ => [
-        [1, 2],
-        [0, 3],
-      ],
-    };
+    // The five-seat table has two full-width seats opposite three. Quarter-turn
+    // modal views preserve the empty middle position on the two-seat edge;
+    // native player views (0/180 degrees) keep the actual 2+3 row widths.
+    final rectangular = <List<PlayerState?>>[
+      for (final row in rows)
+        if (players.length == 5 && row.length == 2)
+          [row.first, null, row.last]
+        else
+          row,
+    ];
     return [
-      for (final row in slots) [for (final slot in row) at(slot)],
+      for (var col = 0; col < rectangular.first.length; col++)
+        if (turns == 1)
+          [for (final row in rectangular) row[row.length - 1 - col]]
+        else
+          [for (final row in rectangular.reversed) row[col]],
     ];
   }
 

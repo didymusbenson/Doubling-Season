@@ -22,3 +22,22 @@ Finder byActionNamePrefix(String prefix) => find.byWidgetPredicate((widget) {
       : null;
   return name?.startsWith(prefix) == true;
 }, description: 'action with name starting $prefix');
+
+/// Reveal every adaptive seat's Utilities view before utility-only assertions.
+/// Wide seats have no tab and remain unchanged.
+Future<void> showAdaptiveUtilities(
+  WidgetTester tester, {
+  String? playerId,
+}) async {
+  final tabs = find.byWidgetPredicate((widget) {
+    final key = widget.key;
+    return key is ValueKey<String> &&
+        (playerId == null
+            ? key.value.endsWith('-utilities-tab')
+            : key.value == '$playerId-utilities-tab');
+  });
+  for (final element in tabs.evaluate().toList()) {
+    await tester.tap(find.byWidget(element.widget));
+    await tester.pumpAndSettle();
+  }
+}

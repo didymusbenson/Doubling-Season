@@ -20,6 +20,15 @@ List<T> _objects<T>(dynamic value, T Function(Map<String, dynamic>) parse) =>
 /// Independent product state. No phone Hive boxes or persisted adapters are used.
 class TabletState {
   static const currentSchemaVersion = 1;
+  static const maximumPlayers = 6;
+  static const seatColors = [
+    0xffd7bd78,
+    0xff83b7ce,
+    0xffb498ca,
+    0xff92bc91,
+    0xffd99a83,
+    0xff87beb8,
+  ];
   int schemaVersion;
   List<SeatProfile> profiles;
   GameSession session;
@@ -42,13 +51,12 @@ class TabletState {
        library = library ?? {};
 
   factory TabletState.initial() {
-    const colors = [0xffd7bd78, 0xff83b7ce, 0xffb498ca, 0xff92bc91];
     final profiles = List.generate(
       4,
       (index) => SeatProfile(
         id: newEntityId(),
         name: 'Player ${index + 1}',
-        color: colors[index],
+        color: seatColors[index],
       ),
     );
     return TabletState(
@@ -146,6 +154,43 @@ class GameSession {
        commanders = commanders ?? [],
        history = history ?? [],
        completedCommandIds = completedCommandIds ?? [];
+
+  /// Physical rows from the top of the display to the bottom. Legacy corner
+  /// slots retain their meaning; additional seats occupy the long-edge middles.
+  /// Three-player layouts preserve their empty corner, while five players use
+  /// two full-width top seats and three bottom seats (no empty sixth region).
+  List<List<PlayerState?>> get seatRows => seatRowsFor(players);
+
+  static List<List<PlayerState?>> seatRowsFor(List<PlayerState> players) {
+    PlayerState? at(int slot) {
+      for (final player in players) {
+        if (player.slot == slot) return player;
+      }
+      return null;
+    }
+
+    if (players.length == 2) {
+      return [
+        [players[1]],
+        [players[0]],
+      ];
+    }
+    return [
+      [at(1), if (players.length == 6) at(5), at(2)],
+      [at(0), if (players.length >= 5) at(4), at(3)],
+    ];
+  }
+
+  /// Board content and focused controls must face the same physical player.
+  int quarterTurnsFor(PlayerState player) =>
+      quarterTurnsForPlayer(players, player);
+
+  static int quarterTurnsForPlayer(
+    List<PlayerState> players,
+    PlayerState player,
+  ) => players.length == 2
+      ? (players.first.id == player.id ? 0 : 2)
+      : ({1, 2, 5}.contains(player.slot) ? 2 : 0);
 
   /// Unconfigured owners remain visible without writing setup or history.
   List<CommanderSource> get commanderTrackingSources => [

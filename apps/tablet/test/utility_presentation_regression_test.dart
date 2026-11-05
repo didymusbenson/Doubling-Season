@@ -88,6 +88,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await showAdaptiveUtilities(tester);
     return fixture;
   }
 

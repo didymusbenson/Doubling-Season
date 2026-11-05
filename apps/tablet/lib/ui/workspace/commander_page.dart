@@ -21,15 +21,20 @@ extension _FocusedCommanderPage on _TableWorkspaceState {
       c.session.players,
       widget.quarterTurns,
     );
-    final ownerWidth =
-        (width - 24 - (rows.first.length - 1) * 8) / rows.first.length;
     final counterColumns = _counterColumns(width - 24);
     final counterRows =
         ((p == null ? 0 : _editablePlayerCounters(p!).length) / counterColumns)
             .ceil();
     // Progress strip (2), outer padding (12), header (44), and counter gap (4).
     return 62 +
-        rows.length * _commanderRowHeight(ownerWidth) +
+        rows.fold<double>(
+          0,
+          (height, row) =>
+              height +
+              _commanderRowHeight(
+                (width - 24 - (row.length - 1) * 8) / row.length,
+              ),
+        ) +
         (rows.length - 1) * 6 +
         12 +
         _playerStatusHeight +
@@ -103,11 +108,9 @@ extension _FocusedCommanderPage on _TableWorkspaceState {
               padding: const EdgeInsets.symmetric(horizontal: 6),
               child: LayoutBuilder(
                 builder: (context, bounds) {
-                  final ownerWidth =
-                      (bounds.maxWidth - (rows.first.length - 1) * 8) /
-                      rows.first.length;
-                  final stackPartners =
-                      ownerWidth < _largestCommanderGroup() * 88;
+                  double ownerWidth(int row) =>
+                      (bounds.maxWidth - (rows[row].length - 1) * 8) /
+                      rows[row].length;
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -117,7 +120,7 @@ extension _FocusedCommanderPage on _TableWorkspaceState {
                           for (var r = 0; r < rows.length; r++) ...[
                             if (r > 0) const SizedBox(height: 6),
                             SizedBox(
-                              height: _commanderRowHeight(ownerWidth),
+                              height: _commanderRowHeight(ownerWidth(r)),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
@@ -135,7 +138,8 @@ extension _FocusedCommanderPage on _TableWorkspaceState {
                                               rows[r][col]!,
                                               sources,
                                               disabled,
-                                              stackPartners,
+                                              ownerWidth(r) <
+                                                  _largestCommanderGroup() * 88,
                                             ),
                                     ),
                                   ],

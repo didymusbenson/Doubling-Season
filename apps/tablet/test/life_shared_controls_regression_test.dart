@@ -228,9 +228,16 @@ void main() {
               final center = localRect(tester, number, surface).center.dx;
               // The name is an overlay above the number, not a separate footer.
               // The life total remains centered in its stable number region.
+              final adaptive = find
+                  .byKey(ValueKey('${p.id}-local-view-tabs'))
+                  .evaluate()
+                  .isNotEmpty;
               expect(
                 localRect(tester, number, surface).center.dy,
-                closeTo(tester.getSize(surface).height / 2 - 3, .01),
+                closeTo(
+                  tester.getSize(surface).height / 2 - (adaptive ? 4 : 3),
+                  .01,
+                ),
               );
               await f.controller.adjustLife(p.id, -1);
               await tester.pump();

@@ -9,6 +9,7 @@ import 'package:tripling_table/ui/table_screen.dart';
 import 'package:tripling_table/ui/table_theme.dart';
 
 import 'support/table_fixture.dart';
+import 'support/control_finders.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -50,6 +51,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await showAdaptiveUtilities(tester, playerId: fixture.playerId);
       final life = fixture.player.life;
       final history = fixture.controller.session.history.length;
       final tempt = find.byKey(ValueKey('ring-tempt-$utilityId'));

@@ -108,6 +108,7 @@ void main() {
         final (f, id) = await showUtility(tester, kind, seats: 4);
         tester.view.physicalSize = size;
         await tester.pumpAndSettle();
+        await showAdaptiveUtilities(tester, playerId: f.playerId);
         final seat = find.byKey(ValueKey(f.playerId));
         final utility = f.player.utilities.single;
         final header = find.descendant(

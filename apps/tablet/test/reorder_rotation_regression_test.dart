@@ -14,6 +14,7 @@ import 'package:tripling_table/ui/table_theme.dart';
 import 'package:tripling_table/ui/tablet_token_card.dart';
 
 import 'support/table_fixture.dart';
+import 'support/control_finders.dart';
 
 const _captureKey = ValueKey('reorder-rotation-capture');
 
@@ -289,8 +290,9 @@ void main() {
           : f.controller.player(playerId).utilities.map((u) => u.id).toList();
       Future<void> enterCompact() async {
         if (!scenario.compact) return;
+        await showAdaptiveUtilities(tester, playerId: playerId);
         final footer = find.byKey(ValueKey('$playerId-life-footer-scroll'));
-        tester.widget<CustomScrollView>(footer).controller!.jumpTo(96);
+        tester.widget<CustomScrollView>(footer).controller!.jumpTo(48);
         await tester.pumpAndSettle();
         final enter = find.byKey(ValueKey('$playerId-start-utility-reorder'));
         await tester.ensureVisible(enter);
