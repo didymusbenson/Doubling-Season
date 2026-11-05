@@ -50,10 +50,11 @@ are an initial implementation choice and remain open to native tablet tuning.
 
 ## Validation record
 
-- Full tablet regression suite: final clean aggregate pending. Earlier late
-  failures were stale narrow-layout test expectations; both affected files
-  passed all 51 tests after selecting the intended local view and using the
-  revised toolbar geometry. Production source was unchanged for that correction.
+- Full tablet regression suite: **1,258 passed, 7 opt-in tests skipped, zero
+  failures** in the final clean run (`flutter test --no-pub --concurrency=6`).
+  Skips are the existing network-image, preview-namespace and optional timing
+  diagnostics. Earlier stale narrow-layout expectations were corrected without
+  changing production source or weakening touch/legibility assertions.
 - `flutter analyze --no-pub`: passed with no issues.
 - `git diff --check`: passed.
 - Final release web build with `/Doubling-Season/tablet/` base href and
