@@ -170,8 +170,9 @@ void main() {
   }
 
   void closeOffset(Offset actual, Offset expected, String reason) {
-    expect(actual.dx, closeTo(expected.dx, .5), reason: reason);
-    expect(actual.dy, closeTo(expected.dy, .5), reason: reason);
+    // Half-pixel boundary clamping plus floating-point roundoff is permitted.
+    expect(actual.dx, closeTo(expected.dx, .500001), reason: reason);
+    expect(actual.dy, closeTo(expected.dy, .500001), reason: reason);
   }
 
   for (final checkOrientation in [true, false]) {

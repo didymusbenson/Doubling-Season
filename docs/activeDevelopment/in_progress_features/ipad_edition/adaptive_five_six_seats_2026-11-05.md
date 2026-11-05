@@ -50,8 +50,30 @@ are an initial implementation choice and remain open to native tablet tuning.
 
 ## Validation record
 
-Implementation validation is in progress. Results will be recorded here after
-final-source analysis, regression tests, release-web build and browser checks.
+- Full tablet regression suite: final clean aggregate pending. Earlier late
+  failures were stale narrow-layout test expectations; both affected files
+  passed all 51 tests after selecting the intended local view and using the
+  revised toolbar geometry. Production source was unchanged for that correction.
+- `flutter analyze --no-pub`: passed with no issues.
+- `git diff --check`: passed.
+- Final release web build with `/Doubling-Season/tablet/` base href and
+  `--pwa-strategy=none`: passed; Wasm dry run also succeeded.
+- Rendered Flutter checks cover four/five/six seats at 1133×744, 744×1133,
+  650×480 and 1700×1100. Captures were visually inspected. They verify the mixed
+  five-player arrangement, six-player local views, player-facing text, full-size
+  controls and shared drawer placement. Wide middle-seat token clearance was
+  additionally checked at 1920×1080.
+- New focused regressions cover independent local selection, no history from
+  switching, retained scroll/token editor identity, all twelve partner sources,
+  coupled damage/undo, reopen/archive/reset, failed-save recovery, active holds,
+  and reorder cancellation during tab, text-size and extreme window changes.
+- The repeatable `tool/browser_adaptive_seats_smoke.mjs` uses real UI actions,
+  a fresh profile and either local or Pages base paths. Its syntax and seven
+  base-path parser cases passed. Live browser execution was blocked before page
+  load because this workspace prevents Chromium's required Unix sockets.
+  No live-browser pass or screenshots are claimed.
+- No pull request was opened, so the pull-request-only native CI workflow did
+  not run. Android/iPad builds are not established by the web build.
 
 Native iPad/Android hands-on acceptance and threshold tuning are separate.
 No device install, Firebase App Distribution, store release or Pages publication

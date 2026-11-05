@@ -116,6 +116,7 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       f.dispose();
     });
+    if (size.height == 480) await showAdaptiveUtilities(tester);
     return f;
   }
 
@@ -604,7 +605,7 @@ void main() {
             find.byKey(ValueKey('${p.id}-life-footer-scroll')),
           )
           .controller!
-          .jumpTo(96);
+          .jumpTo(48);
       await tester.pumpAndSettle();
       await tester.ensureVisible(enter);
       await tester.pumpAndSettle();
@@ -684,14 +685,14 @@ void main() {
       expect(footer, findsNothing);
       final normal = find.byKey(ValueKey('${p.id}-life-footer-scroll'));
       final normalScroll = tester.widget<CustomScrollView>(normal).controller!;
-      normalScroll.jumpTo(140);
+      normalScroll.jumpTo(92);
       await tester.pumpAndSettle();
       final firstName = f.controller.player(p.id).utilities.first.name;
       await tester.ensureVisible(find.text(firstName));
       await tester.pumpAndSettle();
       await tester.tap(find.text(firstName));
       await tester.pumpAndSettle();
-      normalScroll.jumpTo(96);
+      normalScroll.jumpTo(48);
       await tester.pumpAndSettle();
       expect(enter.hitTestable(), findsNothing);
       expect(
@@ -713,7 +714,7 @@ void main() {
       final p = f.controller.session.players.first;
       Future<void> enter() async {
         final normal = find.byKey(ValueKey('${p.id}-life-footer-scroll'));
-        tester.widget<CustomScrollView>(normal).controller!.jumpTo(96);
+        tester.widget<CustomScrollView>(normal).controller!.jumpTo(48);
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(ValueKey('${p.id}-start-utility-reorder')));
         await tester.pumpAndSettle();
