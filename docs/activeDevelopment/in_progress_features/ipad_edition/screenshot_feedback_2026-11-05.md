@@ -65,9 +65,18 @@ callers, but player-specific wipe buttons are removed from the game UI.
 - Rendered widget-test screenshots of Settings, preset/custom New game, global
   wipes and Dice were inspected. These are Flutter-renderer evidence, not
   browser/native screenshots.
-- Final aggregate analyzer/tests/release web build are being checked before the
-  final validation checkpoint. The browser smoke selectors were updated for the
-  new labels, dial and global-only menu; live browser execution is not claimed.
+- Final aggregate `flutter test`: **1,204 passed, 7 intentional skips**.
+- Final `flutter analyze`: no issues. Final release web build passed with
+  `/Doubling-Season/tablet/` as its base path and locally bundled web resources.
+- Independent focused code review found no substantive issues. Browser smoke
+  selectors were updated for the new labels, dial and global-only menu, but live
+  browser execution is not claimed. The preceding checkpoint documented a Chrome
+  profile-socket restriction in this environment; no browser/security settings
+  were changed or bypassed.
+- Feature-branch source checkpoint `7cf258d` is on
+  `fix/tablet-feedback-20261105`; the GitHub tree was verified byte-identical to
+  the local tested tree. Validation notes are recorded by the next docs-only
+  checkpoint. No PR/remote CI run was started as part of this branch-only save.
 
 Native iPad/Android installation and acceptance are still required. In particular,
 check the wheel's touch feel, the divider over real artwork, rotated/narrow
