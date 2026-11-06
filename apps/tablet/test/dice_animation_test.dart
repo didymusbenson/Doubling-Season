@@ -81,7 +81,7 @@ void main() {
   }
 
   testWidgets(
-    'roll animates for 750ms, ignores repeats, and reveals one stable result',
+    'roll animates for 375ms, ignores repeats, and reveals one stable result',
     (tester) async {
       final semantics = tester.ensureSemantics();
 
@@ -110,12 +110,12 @@ void main() {
       final firstFrame = tester
           .widget<DieOutline>(key('dice-result-d6-0'))
           .value;
-      await tester.pump(const Duration(milliseconds: 220));
+      await tester.pump(const Duration(milliseconds: 110));
       expect(
         tester.widget<DieOutline>(key('dice-result-d6-0')).value,
         isNot(firstFrame),
       );
-      await tester.pump(const Duration(milliseconds: 529));
+      await tester.pump(const Duration(milliseconds: 264));
       expect(tester.widget<Text>(key('dice-summary')).data, 'Rolling…');
       await tester.pump(const Duration(milliseconds: 1));
       await tester.pump();
