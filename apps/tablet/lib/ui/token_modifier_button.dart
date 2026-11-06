@@ -28,12 +28,12 @@ class TokenModifierButton extends StatelessWidget {
     )) {
       return 'Rules';
     }
-    final results = ScopedRulesCalculator(active).evaluateRules(
-      'Generic', '1/1', '', 'Token Creature', '', 1,
-    );
+    final results = ScopedRulesCalculator(
+      active,
+    ).evaluateRules('Generic', '1/1', '', 'Token Creature', '', 1);
     return results.length == 1 &&
-        !results.first.wasCapped &&
-        results.first.quantity > 1
+            !results.first.wasCapped &&
+            results.first.quantity > 1
         ? '×${results.first.quantity}'
         : 'Rules';
   }
@@ -45,7 +45,8 @@ class TokenModifierButton extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return Semantics(
       label: '$playerName, token modifiers',
-      value: '${active.length} active modifier sources'
+      value:
+          '${active.length} active modifier sources'
           '${label.startsWith('×') ? ', creature token preview $label' : ''}',
       button: true,
       onTap: onPressed,
@@ -65,19 +66,24 @@ class TokenModifierButton extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.calculate, size: 22,
-                        color: colors.onPrimaryContainer),
+                      Icon(
+                        Icons.calculate,
+                        size: 22,
+                        color: colors.onPrimaryContainer,
+                      ),
                       if (extended) ...[
                         const SizedBox(width: 5),
                         Flexible(
                           child: FittedBox(
                             fit: BoxFit.scaleDown,
-                            child: Text(label,
+                            child: Text(
+                              label,
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: colors.onPrimaryContainer,
-                              )),
+                              ),
+                            ),
                           ),
                         ),
                       ],

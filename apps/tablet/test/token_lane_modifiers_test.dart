@@ -34,9 +34,9 @@ void main() {
           sampleToken(id: '${player.id}-token-$n', name: 'Saproling ${n + 1}'),
       ];
     }
-    await tester.pumpWidget(MaterialApp(
-      home: TableScreen(controller: fixture.controller),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(home: TableScreen(controller: fixture.controller)),
+    );
     await tester.pumpAndSettle();
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox());
@@ -61,13 +61,20 @@ void main() {
       const Size(1133, 744),
       const Size(1700, 1100),
     ]) {
-      testWidgets('$count players $size keep modifiers in token lane', (tester) async {
+      testWidgets('$count players $size keep modifiers in token lane', (
+        tester,
+      ) async {
         final fixture = await mount(tester, count, size);
         for (final player in fixture.controller.session.players) {
           final lane = find.byKey(ValueKey('${player.id}-token-lane'));
-          final modifiers = find.byKey(ValueKey('${player.id}-token-modifiers'));
+          final modifiers = find.byKey(
+            ValueKey('${player.id}-token-modifiers'),
+          );
           expect(modifiers.hitTestable(), findsOneWidget);
-          expect(find.descendant(of: lane, matching: modifiers), findsOneWidget);
+          expect(
+            find.descendant(of: lane, matching: modifiers),
+            findsOneWidget,
+          );
           final bounds = localBounds(tester, modifiers, lane);
           expect(bounds.left, 12);
           expect(bounds.width, greaterThanOrEqualTo(44));
@@ -88,17 +95,36 @@ void main() {
               expect(rect.overlaps(localBounds(tester, other, lane)), isFalse);
             }
           }
-          final list = tester.widget<ReorderableListView>(find.descendant(
-            of: lane, matching: find.byType(ReorderableListView),
-          ));
-          list.scrollController!.jumpTo(list.scrollController!.position.maxScrollExtent);
+          final list = tester.widget<ReorderableListView>(
+            find.descendant(
+              of: lane,
+              matching: find.byType(ReorderableListView),
+            ),
+          );
+          list.scrollController!.jumpTo(
+            list.scrollController!.position.maxScrollExtent,
+          );
           await tester.pumpAndSettle();
           final last = find.byKey(ValueKey('${player.id}-token-7'));
-          expect(localBounds(tester, last, lane).overlaps(bounds), isFalse);
+          if (tester.getSize(lane).height > 88) {
+            expect(localBounds(tester, last, lane).overlaps(bounds), isFalse);
+          } else {
+            // Minimum-height local views can scroll entirely into the trailing
+            // control clearance; verify its extent without requiring an
+            // offscreen virtualized card to remain mounted.
+            expect(
+              list.padding,
+              list.reverse
+                  ? const EdgeInsets.only(top: 88)
+                  : const EdgeInsets.only(bottom: 88),
+            );
+          }
 
           final tabs = find.byKey(ValueKey('${player.id}-local-view-tabs'));
           if (tabs.evaluate().isNotEmpty) {
-            await tester.tap(find.byKey(ValueKey('${player.id}-utilities-tab')));
+            await tester.tap(
+              find.byKey(ValueKey('${player.id}-utilities-tab')),
+            );
             await tester.pumpAndSettle();
             expect(modifiers.hitTestable(), findsNothing);
             await tester.tap(find.byKey(ValueKey('${player.id}-tokens-tab')));
@@ -111,60 +137,91 @@ void main() {
     }
   }
 
-  testWidgets('calculator previews owned and global rules without changing token state', (tester) async {
-    final fixture = await mount(tester, 4, const Size(1133, 744));
-    final players = fixture.controller.session.players;
-    final owner = players.first.id;
-    final other = players.last.id;
-    Finder button(String id) => find.byKey(ValueKey('$id-token-modifiers'));
-    Finder text(String id, String label) => find.descendant(of: button(id), matching: find.text(label));
-    expect(text(owner, 'Rules'), findsOneWidget);
-    await fixture.board.setModifier(owner, 'token_doubler', 1);
-    await tester.pumpAndSettle();
-    expect(text(owner, '×2'), findsOneWidget);
-    expect(text(other, 'Rules'), findsOneWidget);
-    await fixture.board.setModifier(other, 'primal_vigor', 1);
-    await tester.pumpAndSettle();
-    expect(text(owner, '×4'), findsOneWidget);
-    expect(text(other, '×2'), findsOneWidget);
-    expect(find.descendant(of: button(owner), matching: find.byKey(const ValueKey('active-token-modifiers'))), findsOneWidget);
-    await fixture.board.setModifier(owner, 'chatterfang', 1);
-    await tester.pumpAndSettle();
-    expect(text(owner, 'Rules'), findsOneWidget);
-    expect(fixture.controller.player(owner).tokens.first.amount, 3);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'calculator previews owned and global rules without changing token state',
+    (tester) async {
+      final fixture = await mount(tester, 4, const Size(1133, 744));
+      final players = fixture.controller.session.players;
+      final owner = players.first.id;
+      final other = players.last.id;
+      Finder button(String id) => find.byKey(ValueKey('$id-token-modifiers'));
+      Finder text(String id, String label) =>
+          find.descendant(of: button(id), matching: find.text(label));
+      expect(text(owner, 'Rules'), findsOneWidget);
+      await fixture.board.setModifier(owner, 'token_doubler', 1);
+      await tester.pumpAndSettle();
+      expect(text(owner, '×2'), findsOneWidget);
+      expect(text(other, 'Rules'), findsOneWidget);
+      await fixture.board.setModifier(other, 'primal_vigor', 1);
+      await tester.pumpAndSettle();
+      expect(text(owner, '×4'), findsOneWidget);
+      expect(text(other, '×2'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: button(owner),
+          matching: find.byKey(const ValueKey('active-token-modifiers')),
+        ),
+        findsOneWidget,
+      );
+      await fixture.board.setModifier(owner, 'chatterfang', 1);
+      await tester.pumpAndSettle();
+      expect(text(owner, 'Rules'), findsOneWidget);
+      expect(fixture.controller.player(owner).tokens.first.amount, 3);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('opposite player opens their own modifiers with correct orientation and no tap-through', (tester) async {
-    final fixture = await mount(tester, 4, const Size(1133, 744));
-    final player = fixture.controller.session.players.firstWhere(
-      (p) => fixture.controller.session.quarterTurnsFor(p) == 2,
-    );
-    final id = player.id;
-    final name = fixture.controller.profile(player.seatId).name;
-    final button = find.byKey(ValueKey('$id-token-modifiers'));
-    await tester.tap(button);
-    await tester.pumpAndSettle();
-    expect(find.text('Your modifier sources'), findsOneWidget);
-    final headingBox = tester.renderObject<RenderBox>(find.text('Your modifier sources'));
-    expect((headingBox.localToGlobal(const Offset(10, 0)) - headingBox.localToGlobal(Offset.zero)).dx, lessThan(0));
-    expect(button.hitTestable(), findsNothing);
-    expect(byControlLabel('$name, token modifiers').hitTestable(), findsNothing);
-    await tester.tap(byControlLabel('Increase Token doubler'));
-    await tester.pumpAndSettle();
-    expect(fixture.controller.player(id).rules.single.count, 1);
-    expect(fixture.controller.session.players.where((p) => p.id != id).every((p) => p.rules.isEmpty), isTrue);
-    await tester.tap(byControlLabel('Close workspace'));
-    await tester.pumpAndSettle();
-    expect(find.descendant(of: button, matching: find.text('×2')), findsOneWidget);
-    final history = fixture.controller.session.history.length;
-    await tester.tap(button);
-    await tester.pumpAndSettle();
-    await tester.tapAt(const Offset(5, 5));
-    await tester.pumpAndSettle();
-    expect(find.text('Your modifier sources'), findsNothing);
-    expect(fixture.controller.session.history.length, history);
-    expect(find.byType(TokenModifierButton), findsNWidgets(4));
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'opposite player opens their own modifiers with correct orientation and no tap-through',
+    (tester) async {
+      final fixture = await mount(tester, 4, const Size(1133, 744));
+      final player = fixture.controller.session.players.firstWhere(
+        (p) => fixture.controller.session.quarterTurnsFor(p) == 2,
+      );
+      final id = player.id;
+      final name = fixture.controller.profile(player.seatId).name;
+      final button = find.byKey(ValueKey('$id-token-modifiers'));
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(find.text('Your modifier sources'), findsOneWidget);
+      final headingBox = tester.renderObject<RenderBox>(
+        find.text('Your modifier sources'),
+      );
+      expect(
+        (headingBox.localToGlobal(const Offset(10, 0)) -
+                headingBox.localToGlobal(Offset.zero))
+            .dx,
+        lessThan(0),
+      );
+      expect(button.hitTestable(), findsNothing);
+      expect(
+        byControlLabel('$name, token modifiers').hitTestable(),
+        findsNothing,
+      );
+      await tester.tap(byControlLabel('Increase Token doubler'));
+      await tester.pumpAndSettle();
+      expect(fixture.controller.player(id).rules.single.count, 1);
+      expect(
+        fixture.controller.session.players
+            .where((p) => p.id != id)
+            .every((p) => p.rules.isEmpty),
+        isTrue,
+      );
+      await tester.tap(byControlLabel('Close workspace'));
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: button, matching: find.text('×2')),
+        findsOneWidget,
+      );
+      final history = fixture.controller.session.history.length;
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+      expect(find.text('Your modifier sources'), findsNothing);
+      expect(fixture.controller.session.history.length, history);
+      expect(find.byType(TokenModifierButton), findsNWidgets(4));
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

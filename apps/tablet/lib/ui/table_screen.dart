@@ -2319,28 +2319,23 @@ class _LifePanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = Color(profile.color);
     final artColor = profile.artworkUrl != null ? Colors.white : null;
-    Widget shortcut(
-      IconData icon,
-      String label,
-      WorkspacePage page,
-    ) => Semantics(
-      label: '${profile.name}, $label',
-      button: true,
-      onTap: () => onOpen(page),
-      excludeSemantics: true,
-      child: InkWell(
-        onTap: () => onOpen(page),
-        child: SizedBox(
-          height: 44,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 19, color: artColor),
-            ],
+    Widget shortcut(IconData icon, String label, WorkspacePage page) =>
+        Semantics(
+          label: '${profile.name}, $label',
+          button: true,
+          onTap: () => onOpen(page),
+          excludeSemantics: true,
+          child: InkWell(
+            onTap: () => onOpen(page),
+            child: SizedBox(
+              height: 44,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [Icon(icon, size: 19, color: artColor)],
+              ),
+            ),
           ),
-        ),
-      ),
-    );
+        );
     final shortcuts = [
       KeyedSubtree(
         key: ValueKey('${player.id}-manage-utilities'),
