@@ -106,7 +106,10 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
       color: primary
           ? Theme.of(context).colorScheme.primaryContainer
           : Theme.of(context).colorScheme.surfaceContainerHighest,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: Theme.of(context).colorScheme.outline),
+      ),
       elevation: 4,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -117,7 +120,13 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
           ),
           width: 56,
           height: 56,
-          child: Icon(icon, size: 25),
+          child: Icon(
+            icon,
+            size: 25,
+            color: primary
+                ? Theme.of(context).colorScheme.onPrimaryContainer
+                : Theme.of(context).colorScheme.onSurface,
+          ),
         ),
       ),
     ),

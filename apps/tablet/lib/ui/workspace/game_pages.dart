@@ -130,7 +130,10 @@ extension _GamePages on _TableWorkspaceState {
           hint: clear == null ? null : 'Hold to clear $label',
           child: Material(
             color: color,
-            borderRadius: BorderRadius.circular(12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: Theme.of(context).colorScheme.outline),
+            ),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: () => _runDirect(action),
@@ -153,7 +156,11 @@ extension _GamePages on _TableWorkspaceState {
                     Text(
                       label,
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.labelSmall,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: active
+                            ? Theme.of(context).colorScheme.onPrimaryContainer
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -627,7 +634,7 @@ extension _GamePages on _TableWorkspaceState {
                 Text(
                   '${entry.undone ? 'Undone · ' : ''}${entry.summary}',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: entry.undone ? scheme.outline : null,
+                    color: entry.undone ? scheme.onSurfaceVariant : null,
                   ),
                 ),
                 const SizedBox(height: 4),

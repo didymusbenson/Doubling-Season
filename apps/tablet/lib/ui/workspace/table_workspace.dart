@@ -1362,6 +1362,11 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
                           ? '$visibleError\nClose again to dismiss.'
                           : visibleError)
                     : _status!,
+                style: TextStyle(
+                  color: visibleError == null
+                      ? Theme.of(context).colorScheme.onSecondaryContainer
+                      : Theme.of(context).colorScheme.onErrorContainer,
+                ),
               ),
             ),
           if (_closeSaveFailed)

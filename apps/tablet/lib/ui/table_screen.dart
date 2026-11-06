@@ -1086,11 +1086,12 @@ class _SharedTableControl extends StatelessWidget {
           child: Icon(
             icon,
             size: 23,
-            color: active && enabled
-                ? foregroundColor
-                : Theme.of(
-                    context,
-                  ).colorScheme.onSurfaceVariant.withValues(alpha: .5),
+            color: !enabled
+                ? Theme.of(context).disabledColor
+                : foregroundColor ??
+                      (active
+                          ? Theme.of(context).colorScheme.onSurface
+                          : Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ),
       ),
@@ -1175,7 +1176,9 @@ class _GameHub extends StatelessWidget {
         onPressed: onPressed,
         icon: const Icon(Icons.tune),
         style: IconButton.styleFrom(
-          shape: const CircleBorder(),
+          shape: CircleBorder(
+            side: BorderSide(color: Theme.of(context).colorScheme.outline),
+          ),
           minimumSize: const Size(52, 52),
           maximumSize: const Size(52, 52),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1574,7 +1577,9 @@ class _PlayerSpaceState extends State<_PlayerSpace>
             child: Material(
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
               elevation: 3,
-              shape: const CircleBorder(),
+              shape: CircleBorder(
+                side: BorderSide(color: Theme.of(context).colorScheme.outline),
+              ),
               child: SizedBox(
                 width: 40,
                 height: 44,
@@ -1598,7 +1603,9 @@ class _PlayerSpaceState extends State<_PlayerSpace>
             child: Material(
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
               elevation: 3,
-              shape: const CircleBorder(),
+              shape: CircleBorder(
+                side: BorderSide(color: Theme.of(context).colorScheme.outline),
+              ),
               child: IconButton(
                 key: ValueKey('${p.id}-board-summary'),
 
@@ -2200,6 +2207,11 @@ class _LocalViewTabs extends StatelessWidget {
                     ),
                     child: Text(
                       isUtilities ? 'Utilities' : 'Tokens',
+                      style: TextStyle(
+                        color: utilities == isUtilities
+                            ? Theme.of(context).colorScheme.onSecondaryContainer
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -2814,14 +2826,18 @@ class _EmptyLane extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 30, color: Theme.of(context).colorScheme.outline),
+            Icon(
+              icon,
+              size: 30,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: 10),
             Text(
               text,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
-                color: Theme.of(context).colorScheme.outline,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 6),

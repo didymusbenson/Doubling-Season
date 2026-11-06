@@ -45,3 +45,35 @@ Local evidence: `/tmp/minor-visual-captures/`, `/tmp/minor-visual-analyze.log`,
 `/tmp/minor-visual-full.log`, and `/tmp/minor-visual-build.log` on the validating
 Mac. These are widget-rendered captures, not browser or native-device acceptance.
 No device install, Firebase upload, merge or Pages publication was performed.
+
+## Broader shared contrast follow-up
+
+The user clarified that low contrast affects shared secondary UI across the app,
+not only the wheel. Keep varied seat colors and artwork unchanged. Strengthen
+shared secondary-container and outline roles, add boundaries to enabled tonal
+buttons and custom surface actions, and use semantic paired foregrounds. Keep
+real disabled states muted; inactive-but-tappable Day/Night remains legible.
+Decorative panels/dividers do not need the same contrast as essential controls.
+
+The palette still derives from the existing Material seed. Explicit secondary
+container/on-container and outline overrides target the weak roles without
+changing every Material role, seat identity color, or artwork presentation.
+Small empty-lane and undone-history text now uses onSurfaceVariant rather than
+outline. Local tabs, status labels, keyboard Shift and status/error banners use
+the matching container foreground. Chip state colors preserve readable selected
+labels and disabled treatment.
+
+Measured WCAG ratios (light / dark):
+- Empty-lane secondary text on surface: 4.07 / 5.40 -> 8.43 / 10.06.
+- Neutral enabled Day/Night icon on highest surface: 2.33 / 3.02 -> 7.21 / 7.26.
+- Essential outline on highest surface: 3.48 / 3.89 -> 4.69 / 5.73.
+- Tonal fill against surface: 1.17 / 1.82 -> 1.51 / 2.42. Visible control borders
+  provide >=3:1 separation instead of making decorative backgrounds loud.
+- Tonal labels against their fill: 8.72 / 6.61.
+
+The new theme regression currently passes 14 tests covering both themes,
+rendered New game/Settings/table tools, four/six-player boards, local tab text,
+real utility actions, disabled controls and all six seat-name contrasts (>=4.5).
+Font-loaded widget captures are at `/tmp/theme-captures/` on the validating Mac.
+Full final suite/build validation is pending at this checkpoint. No native-device
+acceptance, installation or publication is claimed.

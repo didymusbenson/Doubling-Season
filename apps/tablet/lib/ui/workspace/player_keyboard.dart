@@ -691,6 +691,9 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
             backgroundColor: selected
                 ? Theme.of(context).colorScheme.primaryContainer
                 : null,
+            foregroundColor: selected
+                ? Theme.of(context).colorScheme.onPrimaryContainer
+                : null,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),

@@ -2,10 +2,26 @@ import 'package:flutter/material.dart';
 
 ThemeData tableTheme(Brightness brightness) {
   final dark = brightness == Brightness.dark;
-  final scheme = ColorScheme.fromSeed(
-    seedColor: const Color(0xFF91B79B),
-    brightness: brightness,
-    surface: dark ? const Color(0xFF171D1B) : const Color(0xFFF5F4EB),
+  final scheme =
+      ColorScheme.fromSeed(
+        seedColor: const Color(0xFF91B79B),
+        brightness: brightness,
+        surface: dark ? const Color(0xFF171D1B) : const Color(0xFFF5F4EB),
+      ).copyWith(
+        // Tonal actions must remain distinct from the quiet drawer surfaces.
+        // Keep identity/artwork colors independent from these shared UI roles.
+        secondaryContainer: dark
+            ? const Color(0xFF425F4C)
+            : const Color(0xFFB7CEBD),
+        onSecondaryContainer: dark
+            ? const Color(0xFFF0FAF1)
+            : const Color(0xFF152E1F),
+        outline: dark ? const Color(0xFFA4B5A8) : const Color(0xFF58665C),
+      );
+  final controlSide = WidgetStateProperty.resolveWith<BorderSide?>(
+    (states) => states.contains(WidgetState.disabled)
+        ? null
+        : BorderSide(color: scheme.outline),
   );
   return ThemeData(
     useMaterial3: true,
@@ -21,6 +37,34 @@ ThemeData tableTheme(Brightness brightness) {
       style: FilledButton.styleFrom(
         minimumSize: const Size(44, 44),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ).copyWith(side: controlSide),
+    ),
+    chipTheme: ChipThemeData(
+      side: WidgetStateBorderSide.resolveWith(
+        (states) => BorderSide(
+          color: states.contains(WidgetState.disabled)
+              ? scheme.onSurface.withValues(alpha: .12)
+              : scheme.outline,
+        ),
+      ),
+      selectedColor: scheme.secondaryContainer,
+      labelStyle: TextStyle(
+        fontFamily: 'sans-serif',
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        color: WidgetStateColor.resolveWith(
+          (states) => states.contains(WidgetState.disabled)
+              ? scheme.onSurface.withValues(alpha: .38)
+              : states.contains(WidgetState.selected)
+              ? scheme.onSecondaryContainer
+              : scheme.onSurface,
+        ),
+      ),
+    ),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: scheme.outline),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
