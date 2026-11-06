@@ -215,6 +215,10 @@ void main() {
       );
       await tester.tap(find.text('Counters'));
       await tester.pumpAndSettle();
+      addTearDown(() async {
+        tester.state<NavigatorState>(find.byType(Navigator)).pop();
+        await tester.pumpAndSettle();
+      });
       final chip = find.byKey(const ValueKey('player-counter-energy'));
       final material = tester.widget<Material>(
         find.descendant(of: chip, matching: find.byType(Material)).first,
