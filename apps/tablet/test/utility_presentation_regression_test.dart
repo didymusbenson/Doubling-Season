@@ -9,6 +9,7 @@ import 'package:hive/hive.dart';
 import 'package:tripling_table/ui/table_screen.dart';
 import 'package:tripling_table/ui/table_theme.dart';
 import 'package:tripling_table/ui/half_stepper.dart';
+import 'package:tripling_table/ui/workspace/player_keyboard.dart';
 import 'support/table_fixture.dart';
 import 'support/legacy_utility_fixture.dart';
 
@@ -92,6 +93,30 @@ void main() {
     return fixture;
   }
 
+  Future<void> search(WidgetTester tester, String query) async {
+    tester
+            .widget<PlayerField>(
+              find.byKey(const ValueKey('utility-picker-search')),
+            )
+            .controller
+            .text =
+        query;
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> revealLegacy(WidgetTester tester) async {
+    await search(tester, '');
+    final scroll = find
+        .descendant(
+          of: find.byKey(const ValueKey('context-workspace')),
+          matching: find.byType(Scrollable),
+        )
+        .last;
+    final position = tester.state<ScrollableState>(scroll).position;
+    position.jumpTo(position.maxScrollExtent);
+    await tester.pumpAndSettle();
+  }
+
   // Deliberately reusable on the old source as a before/after renderer fixture.
   // Behavioral filtering and payload preservation are asserted separately.
   for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
@@ -134,6 +159,7 @@ void main() {
           await tester.tap(find.byKey(ValueKey('$playerId-manage-utilities')));
           await tester.pumpAndSettle();
           for (final u in player.utilities) {
+            await search(tester, u.name);
             expect(
               find.byKey(ValueKey('utility-menu-${u.id}')),
               f.board.isStandaloneUtilityKind(u.kind)
@@ -141,6 +167,7 @@ void main() {
                   : findsNothing,
             );
           }
+          await search(tester, '');
           final legacy = player.utilities.firstWhere(
             (u) => u.kind == 'life_total',
           );
@@ -155,7 +182,10 @@ void main() {
               'menu-top-${size.width.toInt()}x${size.height.toInt()}',
             );
           }
+          await revealLegacy(tester);
           await tester.tap(find.text('Legacy settings'));
+          await tester.pumpAndSettle();
+          await tester.ensureVisible(find.byKey(ValueKey('legacy-settings-${legacy.id}')));
           await tester.pumpAndSettle();
           await tester.tap(
             find.byKey(ValueKey('legacy-settings-${legacy.id}')),
@@ -217,6 +247,7 @@ void main() {
       expect(find.text('Choose utilities').hitTestable(), findsNWidgets(4));
       await tester.tap(find.text('Choose utilities').first);
       await tester.pumpAndSettle();
+      await revealLegacy(tester);
       expect(find.text('Legacy settings'), findsOneWidget);
       await f.controller.modifyLibrary((s) {
         for (final p in s.session.players) {
@@ -225,6 +256,7 @@ void main() {
       });
       await tester.pumpAndSettle();
       expect(find.text('Legacy settings'), findsNothing);
+      await search(tester, 'Storm');
       expect(find.byType(SwitchListTile), findsWidgets);
       expect(find.text('Life Total'), findsNothing);
       expect(tester.takeException(), isNull);

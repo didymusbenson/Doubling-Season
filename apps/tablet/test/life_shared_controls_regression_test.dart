@@ -684,7 +684,7 @@ void main() {
       expect(footer, findsNothing);
       final normal = find.byKey(ValueKey('${p.id}-life-footer-scroll'));
       final normalScroll = tester.widget<CustomScrollView>(normal).controller!;
-      normalScroll.jumpTo(92);
+      normalScroll.jumpTo(44);
       await tester.pumpAndSettle();
       final firstName = f.controller.player(p.id).utilities.first.name;
       await tester.ensureVisible(find.text(firstName));
