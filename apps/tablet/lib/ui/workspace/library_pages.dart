@@ -50,16 +50,21 @@ extension _LibraryPages on _TableWorkspaceState {
         .where((utility) => _board.isStandaloneUtilityKind(utility.kind))
         .toList();
     final existingKinds = standalone.map((utility) => utility.kind).toSet();
-    final choices = <_UtilityChoice>[
-      for (final utility in standalone)
-        _UtilityChoice(utility: utility, definition: definitions[utility.kind]),
-      for (final definition in definitions.values)
-        if (!existingKinds.contains(definition.id))
-          _UtilityChoice(definition: definition),
-    ]..sort((a, b) {
-      final name = a.sortName.compareTo(b.sortName);
-      return name != 0 ? name : a.id.compareTo(b.id);
-    });
+    final choices =
+        <_UtilityChoice>[
+          for (final utility in standalone)
+            _UtilityChoice(
+              utility: utility,
+              definition: definitions[utility.kind],
+            ),
+          for (final definition in definitions.values)
+            if (!existingKinds.contains(definition.id))
+              _UtilityChoice(definition: definition),
+        ]..sort((a, b) {
+          final name = a.sortName.compareTo(b.sortName);
+          return name != 0 ? name : a.id.compareTo(b.id);
+        });
+    final scope = _board.scope(player.id);
     final query = _field('utilities.search');
     return Column(
       children: [
@@ -89,74 +94,16 @@ extension _LibraryPages on _TableWorkspaceState {
           child: ValueListenableBuilder<TextEditingValue>(
             valueListenable: query,
             builder: (context, value, _) {
-              final matching = choices.where((choice) => choice.matches(value.text));
+              final matching = choices.where(
+                (choice) => choice.matches(value.text),
+              );
               return _list([
                 const Padding(
                   padding: EdgeInsets.only(bottom: 8),
                   child: Text('Switch off to hide. Your values stay saved.'),
                 ),
                 for (final choice in matching)
-                  Row(
-                    key: choice.utility == null
-                        ? ValueKey('utility-choice-${choice.id}')
-                        : ValueKey('utility-menu-${choice.utility!.id}'),
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: SwitchListTile(
-                          key: ValueKey('utility-toggle-${choice.id}'),
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(choice.name),
-                          subtitle: Text(
-                            '${choice.visible ? 'Shown on board' : 'Hidden from board'}'
-                            '${choice.description.isEmpty ? '' : '\n${choice.description}'}',
-                          ),
-                          value: choice.visible,
-                          onChanged: _working
-                              ? null
-                              : (visible) => _run(() {
-                                  final utility = choice.utility;
-                                  return utility == null
-                                      ? _board.addUtility(
-                                          player.id,
-                                          choice.id,
-                                          captured: _board.scope(player.id),
-                                        )
-                                      : _board.setUtility(
-                                          player.id,
-                                          utility.id,
-                                          visible: visible,
-                                          captured: _board.scope(player.id),
-                                        );
-                                }),
-                        ),
-                      ),
-                      // A separate action must not sit inside SwitchListTile's
-                      // merged semantics or change what tapping the row does.
-                      SizedBox(
-                        width: 48,
-                        child: choice.utility == null
-                            ? null
-                            : Semantics(
-                                label: 'Edit ${choice.name}',
-                                button: true,
-                                child: IconButton(
-                                  key: ValueKey('utility-edit-${choice.utility!.id}'),
-                                  constraints: const BoxConstraints(
-                                    minWidth: 48,
-                                    minHeight: 48,
-                                  ),
-                                  onPressed: _working
-                                      ? null
-                                      : () => _update(
-                                          () => _itemId = choice.utility!.id,
-                                        ),
-                                  icon: const Icon(Icons.edit_outlined),
-                                ),
-                              ),
-                      ),
-                    ],
-                  ),
+                  _utilityChoiceRow(player, choice, scope),
                 if (matching.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 24),
@@ -190,6 +137,71 @@ extension _LibraryPages on _TableWorkspaceState {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _utilityChoiceRow(
+    PlayerState player,
+    _UtilityChoice choice,
+    BoardScope scope,
+  ) {
+    final tile = SwitchListTile(
+      key: ValueKey('utility-toggle-${choice.id}'),
+      contentPadding: EdgeInsets.zero,
+      title: Text(choice.name),
+      subtitle: Text(
+        '${choice.visible ? 'Shown on board' : 'Hidden from board'}'
+        '${choice.description.isEmpty ? '' : '\n${choice.description}'}',
+      ),
+      value: choice.visible,
+      onChanged: _working
+          ? null
+          : (visible) => _run(() {
+              final utility = choice.utility;
+              return utility == null
+                  ? _board.addUtility(player.id, choice.id, captured: scope)
+                  : _board.setUtility(
+                      player.id,
+                      utility.id,
+                      visible: visible,
+                      captured: scope,
+                    );
+            }),
+    );
+    // Keep editing separate from the switch's merged accessibility action.
+    final edit = choice.utility == null
+        ? null
+        : Semantics(
+            label: 'Edit ${choice.name}',
+            button: true,
+            child: IconButton(
+              key: ValueKey('utility-edit-${choice.utility!.id}'),
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              onPressed: _working
+                  ? null
+                  : () => _update(() => _itemId = choice.utility!.id),
+              icon: const Icon(Icons.edit_outlined),
+            ),
+          );
+    return LayoutBuilder(
+      key: choice.utility == null
+          ? ValueKey('utility-choice-${choice.id}')
+          : ValueKey('utility-menu-${choice.utility!.id}'),
+      builder: (context, bounds) => bounds.maxWidth < 380
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                tile,
+                if (edit != null)
+                  Align(alignment: Alignment.centerRight, child: edit),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(child: tile),
+                SizedBox(width: 48, child: edit),
+              ],
+            ),
     );
   }
 
@@ -1673,7 +1685,7 @@ class _UtilityChoice {
   String get description => utility?.description.isNotEmpty == true
       ? utility!.description
       : definition?.description ?? '';
-  String get sortName => (definition?.name ?? name).toLowerCase();
+  String get sortName => name.toLowerCase();
   bool get visible => utility?.visible ?? false;
   bool matches(String query) {
     final search = query.trim().toLowerCase();

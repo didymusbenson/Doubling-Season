@@ -1845,13 +1845,18 @@ class _PlayerSpaceState extends State<_PlayerSpace>
             Positioned(
               left: 12,
               bottom: 12,
-              child: FloatingActionButton.small(
-                key: ValueKey('${p.id}-utility-tools'),
-                heroTag: '${p.id}-utility-tools',
-                onPressed: () => widget.onOpen(WorkspacePage.utilityTools),
-                child: Icon(
-                  Icons.tune,
-                  semanticLabel: '${profile.name}, utilities and customization',
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: FloatingActionButton.small(
+                  key: ValueKey('${p.id}-utility-tools'),
+                  heroTag: '${p.id}-utility-tools',
+                  onPressed: () => widget.onOpen(WorkspacePage.utilityTools),
+                  child: Icon(
+                    Icons.tune,
+                    semanticLabel:
+                        '${profile.name}, utilities and customization',
+                  ),
                 ),
               ),
             ),
@@ -2354,7 +2359,6 @@ class _LifePanel extends StatelessWidget {
         WorkspacePage.rules,
         count: enabledRules,
       ),
-
     ];
     return LayoutBuilder(
       builder: (context, constraints) {
