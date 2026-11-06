@@ -268,7 +268,7 @@ class _TableScreenState extends State<TableScreen>
                   );
                   final gap = drawerWidth * progress;
 
-                  Widget seat(PlayerState player) {
+                  Widget seat(PlayerState player, {double opening = 0}) {
                     final turns = session.quarterTurnsFor(player);
                     final tokenLeft =
                         two ||
@@ -285,19 +285,27 @@ class _TableScreenState extends State<TableScreen>
                         rowPlayers.length;
                     final seatLeft =
                         rowIndex * (seatWidth + _playerDividerWidth);
-                    final sharedXs = horizontalDrawer && !two
+                    // A cutout follows its real control across the opening.
+                    // The opposite row must fill back in as that control leaves.
+                    final sharedCenters = horizontalDrawer && !two
                         ? [
                             for (final delta in [-54.0, 0.0, 54.0])
-                              turns == 0
-                                  ? constraints.maxWidth / 2 + delta - seatLeft
-                                  : seatWidth -
-                                        (constraints.maxWidth / 2 +
-                                            delta -
-                                            seatLeft),
+                              Offset(
+                                turns == 0
+                                    ? constraints.maxWidth / 2 + delta - seatLeft
+                                    : seatWidth -
+                                          (constraints.maxWidth / 2 +
+                                              delta -
+                                              seatLeft),
+                                -_playerDividerWidth / 2 -
+                                    ((delta == -54) == (turns == 0)
+                                        ? opening
+                                        : 0),
+                              ),
                           ]
-                        : <double>[];
+                        : <Offset>[];
                     return _PlayerSpace(
-                      seamControlXs: sharedXs,
+                      seamControlCenters: sharedCenters,
                       key: ValueKey(player.id),
                       controller: controller,
                       board: board,
@@ -437,7 +445,7 @@ class _TableScreenState extends State<TableScreen>
                                                 ? [1, 2][i]
                                                 : [0, 3][i],
                                           )
-                                        : seat(players[i]!),
+                                        : seat(players[i]!, opening: opening),
                                   ),
                                 ],
                               ],
@@ -1237,7 +1245,7 @@ class _PlayerSpace extends StatefulWidget {
   final int turns, interactionEpoch;
   final bool tokenLeft;
   final double centerNotch;
-  final List<double> seamControlXs;
+  final List<Offset> seamControlCenters;
   final bool centerNotchAtStart;
   final bool twoPlayerLayout;
   final double drawerShift;
@@ -1255,7 +1263,7 @@ class _PlayerSpace extends StatefulWidget {
     required this.turns,
     required this.tokenLeft,
     required this.centerNotch,
-    required this.seamControlXs,
+    required this.seamControlCenters,
     required this.centerNotchAtStart,
     required this.twoPlayerLayout,
     required this.drawerShift,
@@ -1483,10 +1491,10 @@ class _PlayerSpaceState extends State<_PlayerSpace>
     final tokenNeedsClearance =
         widget.twoPlayerLayout ||
         (!localViews &&
-            widget.seamControlXs.any(
-              (x) =>
-                  x + 30 > splitTokenLeft &&
-                  x - 30 < splitTokenLeft + splitTokenWidth,
+            widget.seamControlCenters.any(
+              (center) =>
+                  center.dx + 30 > splitTokenLeft &&
+                  center.dx - 30 < splitTokenLeft + splitTokenWidth,
             ));
     final enabled = widget.board
         .effectiveSources(p.id)
@@ -1824,12 +1832,15 @@ class _PlayerSpaceState extends State<_PlayerSpace>
             : utilities;
         return _LifePanel(
           compact: localViews,
-          seamControlXs: [
-            for (final x in widget.seamControlXs)
-              x -
-                  (localViews || !widget.tokenLeft
-                      ? 0
-                      : (lane.maxWidth / .4) * .6 + 1),
+          seamControlCenters: [
+            for (final center in widget.seamControlCenters)
+              center -
+                  Offset(
+                    localViews || !widget.tokenLeft
+                        ? 0
+                        : (lane.maxWidth / .4) * .6 + 1,
+                    0,
+                  ),
           ],
           compose: (surface, tools) {
             if (localViews) {
@@ -2205,14 +2216,14 @@ class _LocalViewTabs extends StatelessWidget {
 /// the global hub. It clips paint and life hit-testing, not just decoration.
 class _SeatSharedControlClipper extends CustomClipper<Path> {
   const _SeatSharedControlClipper(this.centers);
-  final List<double> centers;
+  final List<Offset> centers;
   @override
   Path getClip(Size size) {
     final cutouts = Path();
-    for (final x in centers) {
+    for (final center in centers) {
       cutouts.addOval(
         Rect.fromCircle(
-          center: Offset(x, -_playerDividerWidth / 2),
+          center: center,
           radius: 30,
         ),
       );
@@ -2241,7 +2252,7 @@ class _LifePanel extends StatelessWidget {
   final double hubNotchScale;
   final double height;
   final double centerNotch;
-  final List<double> seamControlXs;
+  final List<Offset> seamControlCenters;
   final bool centerNotchAtStart;
   final PlayerState player;
   final SeatProfile profile;
@@ -2255,7 +2266,7 @@ class _LifePanel extends StatelessWidget {
     required this.twoPlayer,
     this.phone = false,
     this.compact = false,
-    this.seamControlXs = const [],
+    this.seamControlCenters = const [],
     this.hubNotchScale = 1,
     required this.height,
     required this.centerNotch,
@@ -2390,8 +2401,8 @@ class _LifePanel extends StatelessWidget {
             : null;
         final surface = ClipPath(
           key: twoPlayer ? null : ValueKey('${player.id}-life-clip'),
-          clipper: seamControlXs.isNotEmpty
-              ? _SeatSharedControlClipper(seamControlXs)
+          clipper: seamControlCenters.isNotEmpty
+              ? _SeatSharedControlClipper(seamControlCenters)
               : _LifeHubNotch(
                   atStart: centerNotchAtStart,
                   inset: -_playerDividerWidth / 2,

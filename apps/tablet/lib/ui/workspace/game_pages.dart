@@ -1220,76 +1220,113 @@ class _StartingLifeDialState extends State<_StartingLifeDial> {
   }
 
   @override
-  Widget build(BuildContext context) => Card(
-    margin: EdgeInsets.zero,
-    child: Padding(
-      padding: const EdgeInsets.all(8),
-      child: Column(
-        children: [
-          Text(
-            'Custom starting life',
-            style: Theme.of(context).textTheme.labelLarge,
-          ),
-          Row(
-            children: [
-              Semantics(
-                label: 'Decrease starting life',
-                button: true,
-                child: IconButton.filledTonal(
-                  onPressed: widget.enabled && widget.value > 1
-                      ? () => _step(-1)
-                      : null,
-                  constraints: const BoxConstraints(
-                    minWidth: 48,
-                    minHeight: 48,
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final canDecrease = widget.enabled && widget.value > 1;
+    final canIncrease = widget.enabled && widget.value < 1000000;
+    return Card(
+      key: const ValueKey('starting-life-card'),
+      margin: EdgeInsets.zero,
+      color: colors.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: colors.outline),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          children: [
+            Text('Custom starting life', style: theme.textTheme.labelLarge),
+            Row(
+              children: [
+                Semantics(
+                  label: 'Decrease starting life',
+                  button: true,
+                  child: IconButton.filledTonal(
+                    onPressed: canDecrease ? () => _step(-1) : null,
+                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                    icon: const Icon(Icons.remove),
                   ),
-                  icon: const Icon(Icons.remove),
                 ),
-              ),
-              Expanded(
-                child: SizedBox(
-                  height: 132,
-                  child: IgnorePointer(
-                    ignoring: !widget.enabled,
-                    child: CupertinoPicker.builder(
-                      key: const ValueKey('starting-life-dial'),
-                      scrollController: _scroll,
-                      itemExtent: 44,
-                      childCount: 1000000,
-                      onSelectedItemChanged: (index) {
-                        if (widget.enabled) widget.onChanged(index + 1);
-                      },
-                      itemBuilder: (context, index) => Center(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            '${index + 1}',
-                            style: Theme.of(context).textTheme.titleLarge,
+                Expanded(
+                  child: SizedBox(
+                    height: 132,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        IgnorePointer(
+                          child: Container(
+                            key: const ValueKey('starting-life-selection'),
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: colors.primaryContainer,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: colors.primary),
+                            ),
                           ),
                         ),
-                      ),
+                        // Keep neighboring values readable instead of the
+                        // Cupertino wheel's heavily faded default labels.
+                        Semantics(
+                          label: 'Custom starting life',
+                          value: '${widget.value}',
+                          increasedValue: canIncrease ? '${widget.value + 1}' : null,
+                          decreasedValue: canDecrease ? '${widget.value - 1}' : null,
+                          onIncrease: canIncrease ? () => _step(1) : null,
+                          onDecrease: canDecrease ? () => _step(-1) : null,
+                          excludeSemantics: true,
+                          child: ListWheelScrollView.useDelegate(
+                            key: const ValueKey('starting-life-dial'),
+                            controller: _scroll,
+                            physics: widget.enabled
+                                ? const FixedExtentScrollPhysics()
+                                : const NeverScrollableScrollPhysics(),
+                            itemExtent: 44,
+                            diameterRatio: 1.5,
+                            overAndUnderCenterOpacity: .85,
+                            onSelectedItemChanged: (index) {
+                              if (widget.enabled) widget.onChanged(index + 1);
+                            },
+                            childDelegate: ListWheelChildBuilderDelegate(
+                              childCount: 1000000,
+                              builder: (context, index) => Center(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    '${index + 1}',
+                                    style: theme.textTheme.titleLarge!.copyWith(
+                                      color: index + 1 == widget.value
+                                          ? colors.onPrimaryContainer
+                                          : colors.onSurface,
+                                      fontWeight: index + 1 == widget.value
+                                          ? FontWeight.w700
+                                          : FontWeight.w400,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-              Semantics(
-                label: 'Increase starting life',
-                button: true,
-                child: IconButton.filledTonal(
-                  onPressed: widget.enabled && widget.value < 1000000
-                      ? () => _step(1)
-                      : null,
-                  constraints: const BoxConstraints(
-                    minWidth: 48,
-                    minHeight: 48,
+                Semantics(
+                  label: 'Increase starting life',
+                  button: true,
+                  child: IconButton.filledTonal(
+                    onPressed: canIncrease ? () => _step(1) : null,
+                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                    icon: const Icon(Icons.add),
                   ),
-                  icon: const Icon(Icons.add),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

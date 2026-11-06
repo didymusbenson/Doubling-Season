@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:flutter/cupertino.dart' show CupertinoPicker;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -148,12 +147,12 @@ void main() {
         expect(find.byKey(const ValueKey('starting-life-dial')), findsNothing);
         if (startingLife == 57) {
           await tap(tester, find.widgetWithText(ChoiceChip, 'Custom'));
-          final picker = tester.widget<CupertinoPicker>(
-            find.byType(CupertinoPicker),
+          final picker = tester.widget<ListWheelScrollView>(
+            find.byType(ListWheelScrollView),
           );
-          picker.scrollController!.jumpToItem(56);
+          (picker.controller! as FixedExtentScrollController).jumpToItem(56);
           await tester.pumpAndSettle();
-          expect(picker.scrollController!.selectedItem, 56);
+          expect((picker.controller! as FixedExtentScrollController).selectedItem, 56);
           await capture(tester, 'new-game-custom');
         } else {
           await tap(tester, find.widgetWithText(ChoiceChip, '$startingLife'));
@@ -188,8 +187,8 @@ void main() {
     addTearDown(fixture.dispose);
     final drawer = await mount(tester, fixture, WorkspacePage.reset);
     await tap(tester, find.widgetWithText(ChoiceChip, 'Custom'));
-    var picker = tester.widget<CupertinoPicker>(find.byType(CupertinoPicker));
-    picker.scrollController!.jumpToItem(0);
+    var picker = tester.widget<ListWheelScrollView>(find.byType(ListWheelScrollView));
+    (picker.controller! as FixedExtentScrollController).jumpToItem(0);
     await tester.pumpAndSettle();
     IconButton step(String name) => tester.widget<IconButton>(
       find.descendant(
@@ -198,19 +197,19 @@ void main() {
       ),
     );
     expect(step('Decrease starting life').onPressed, isNull);
-    picker.scrollController!.jumpToItem(999999);
+    (picker.controller! as FixedExtentScrollController).jumpToItem(999999);
     await tester.pumpAndSettle();
     expect(step('Increase starting life').onPressed, isNull);
-    picker.scrollController!.jumpToItem(24);
+    (picker.controller! as FixedExtentScrollController).jumpToItem(24);
     await tester.pumpAndSettle();
     await drawer.open(WorkspacePage.settings);
     await tester.pumpAndSettle();
     await drawer.open(WorkspacePage.reset);
     await tester.pumpAndSettle();
-    picker = tester.widget<CupertinoPicker>(find.byType(CupertinoPicker));
-    expect(picker.scrollController!.selectedItem, 24);
+    picker = tester.widget<ListWheelScrollView>(find.byType(ListWheelScrollView));
+    expect((picker.controller! as FixedExtentScrollController).selectedItem, 24);
     await tap(tester, byControlLabel('Increase starting life'));
-    expect(picker.scrollController!.selectedItem, 25);
+    expect((picker.controller! as FixedExtentScrollController).selectedItem, 25);
     expect(fixture.controller.session.startingLife, 40);
     expect(fixture.controller.session.history, isEmpty);
     expect(tester.takeException(), isNull);
