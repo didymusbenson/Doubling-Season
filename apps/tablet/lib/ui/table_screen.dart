@@ -1176,9 +1176,7 @@ class _GameHub extends StatelessWidget {
         onPressed: onPressed,
         icon: const Icon(Icons.tune),
         style: IconButton.styleFrom(
-          shape: CircleBorder(
-            side: BorderSide(color: Theme.of(context).colorScheme.outline),
-          ),
+          shape: const CircleBorder(),
           minimumSize: const Size(52, 52),
           maximumSize: const Size(52, 52),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,

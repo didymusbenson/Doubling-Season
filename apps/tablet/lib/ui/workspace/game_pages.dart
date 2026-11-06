@@ -461,7 +461,12 @@ extension _GamePages on _TableWorkspaceState {
               explicitChildNodes: true,
               child: Material(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                ),
                 clipBehavior: Clip.antiAlias,
                 child: Row(
                   children: [
@@ -1251,6 +1256,13 @@ class _StartingLifeDialState extends State<_StartingLifeDial> {
                   label: 'Decrease starting life',
                   button: true,
                   child: IconButton.filledTonal(
+                    style: ButtonStyle(
+                      side: WidgetStateProperty.resolveWith(
+                        (states) => states.contains(WidgetState.disabled)
+                            ? null
+                            : BorderSide(color: colors.outline),
+                      ),
+                    ),
                     onPressed: canDecrease ? () => _step(-1) : null,
                     constraints: const BoxConstraints(
                       minWidth: 48,
@@ -1331,6 +1343,13 @@ class _StartingLifeDialState extends State<_StartingLifeDial> {
                   label: 'Increase starting life',
                   button: true,
                   child: IconButton.filledTonal(
+                    style: ButtonStyle(
+                      side: WidgetStateProperty.resolveWith(
+                        (states) => states.contains(WidgetState.disabled)
+                            ? null
+                            : BorderSide(color: colors.outline),
+                      ),
+                    ),
                     onPressed: canIncrease ? () => _step(1) : null,
                     constraints: const BoxConstraints(
                       minWidth: 48,

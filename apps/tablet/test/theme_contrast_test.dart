@@ -178,6 +178,56 @@ void main() {
       await capture(tester, 'theme-${brightness.name}-utility-actions');
       expect(tester.takeException(), isNull);
     });
+    testWidgets('$brightness actual player counter chip boundary', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1133, 744);
+      addTearDown(tester.view.reset);
+      final f = TableFixture();
+      await f.initialize();
+      f.catalog.loaded = true;
+      f.player.counters = {'energy': 2};
+      addTearDown(f.dispose);
+      final theme = tableTheme(brightness);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: RepaintBoundary(
+            key: const ValueKey('theme-capture'),
+            child: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () => showTableWorkspace(
+                    context,
+                    f.controller,
+                    catalog: f.catalog,
+                    seatId: f.playerId,
+                    quarterTurns: 0,
+                    initialPage: WorkspacePage.counters,
+                  ),
+                  child: const Text('Counters'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Counters'));
+      await tester.pumpAndSettle();
+      final chip = find.byKey(const ValueKey('player-counter-energy'));
+      final material = tester.widget<Material>(
+        find.descendant(of: chip, matching: find.byType(Material)).first,
+      );
+      expect(material.color, theme.colorScheme.surfaceContainerHighest);
+      final side = (material.shape! as OutlinedBorder).side;
+      expect(contrast(side.color, material.color!), greaterThanOrEqualTo(3));
+      expect(
+        contrast(side.color, theme.colorScheme.surface),
+        greaterThanOrEqualTo(3),
+      );
+      expect(tester.takeException(), isNull);
+    });
     for (final page in [
       WorkspacePage.reset,
       WorkspacePage.settings,
@@ -218,6 +268,21 @@ void main() {
         if (page == WorkspacePage.reset) {
           await tester.tap(find.widgetWithText(ChoiceChip, 'Custom'));
           await tester.pumpAndSettle();
+          final card = find.byKey(const ValueKey('starting-life-card'));
+          for (final button in tester.widgetList<IconButton>(
+            find.descendant(of: card, matching: find.byType(IconButton)),
+          )) {
+            expect(button.onPressed, isNotNull);
+            final side = button.style!.side!;
+            expect(
+              contrast(
+                side.resolve({})!.color,
+                tableTheme(brightness).colorScheme.surfaceContainerHigh,
+              ),
+              greaterThanOrEqualTo(3),
+            );
+            expect(side.resolve({WidgetState.disabled}), isNull);
+          }
           final selected = tester.renderObject<RenderParagraph>(
             find.text('Custom'),
           );
