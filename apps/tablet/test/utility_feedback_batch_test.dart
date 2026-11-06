@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:tripling_table/domain/table_state.dart';
 import 'package:tripling_table/ui/table_screen.dart';
+import 'package:tripling_table/ui/workspace/player_keyboard.dart';
 
 import 'support/control_finders.dart';
 import 'support/table_fixture.dart';
@@ -170,6 +171,14 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('phone-action-utilities')));
       await tester.pumpAndSettle();
       expect(find.byType(SwitchListTile), findsWidgets);
+      tester
+              .widget<PlayerField>(
+                find.byKey(const ValueKey('utility-picker-search')),
+              )
+              .controller
+              .text =
+          'Retained hidden';
+      await tester.pumpAndSettle();
       final hiddenMenu = find.byKey(ValueKey('utility-menu-${hidden.id}'));
       await tester.ensureVisible(hiddenMenu);
       await tester.tap(find.byKey(ValueKey('utility-edit-${hidden.id}')));

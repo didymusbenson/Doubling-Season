@@ -23,3 +23,15 @@ progress/history/persistence remain intact, including further temptations after
 all four abilities have unlocked. Manual correction remains in its details.
 
 Validation is in progress. Native acceptance and installation are not implied.
+
+## Focused verification
+
+On Flutter 3.41.2 / Dart 3.11.0, analysis is clean and the 30 focused picker,
+Ring, utility-detail and silent-success regressions pass. They cover exact
+hidden/restored payloads, reload, independent seats and duplicate instances,
+failed saves, renamed/catalog search, stage progression beyond four, and
+320x700 at 1.5x text plus 744x1133 / 1133x744 layouts. Rendered checks at those
+three sizes confirmed search/heading separation. Narrow edit actions move below
+the switch row to retain readable labels. The utility FAB has a 48px target.
+Combined board/FAB and modifier regression validation is owned by the companion
+integration branch; this focused result is not a full-suite or native acceptance.
