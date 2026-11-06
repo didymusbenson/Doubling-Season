@@ -228,7 +228,7 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
             ignoring: moreOpen,
             child: _LifePanel(
               phone: true,
-              compose: (surface, tools) => surface,
+              compose: (surface) => surface,
               twoPlayer: false,
               hubNotchScale: 0,
               height: MediaQuery.textScalerOf(context).scale(14) > 21

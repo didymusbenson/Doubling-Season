@@ -528,6 +528,7 @@ void main() {
           expect(fixture.controller.player(player.id).life, 40);
 
           final beforeDetails = fixture.controller.session.toJson();
+          await openPlayerTools(tester, playerId: player.id);
           await tester.tap(find.byKey(ValueKey('${player.id}-player-details')));
           await tester.pumpAndSettle();
           expect(byControlLabel('Close workspace'), findsOneWidget);
@@ -540,6 +541,7 @@ void main() {
           );
           await tester.pump(const Duration(milliseconds: 550));
           expect(fixture.controller.player(player.id).life, 50);
+          await openPlayerTools(tester, playerId: player.id);
           await tester.tap(find.byKey(ValueKey('${player.id}-player-details')));
           await tester.pumpAndSettle();
           expect(byControlLabel('Close workspace'), findsOneWidget);

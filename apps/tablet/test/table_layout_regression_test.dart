@@ -114,7 +114,7 @@ void main() {
       final tokenWidth = tester.getSize(token).width;
       final innerWidth = tester.getSize(life).width;
       final surface = find.byKey(ValueKey('${player.id}-life-surface'));
-      final tools = find.byKey(ValueKey('${player.id}-life-tools'));
+      final tools = find.byKey(ValueKey('${player.id}-utility-tools'));
       expect(
         tester.getSize(surface).width,
         closeTo(innerWidth, .01),

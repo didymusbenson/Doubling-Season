@@ -225,7 +225,7 @@ void main() {
               final summary = find.byKey(
                 ValueKey('${player.id}-life-counter-summary'),
               );
-              final tools = find.byKey(ValueKey('${player.id}-life-tools'));
+              final tools = find.byKey(ValueKey('${player.id}-utility-tools'));
               expect(
                 tester
                     .widget<TableArtworkSurface>(
@@ -334,8 +334,7 @@ void main() {
               for (final target in [
                 summary,
                 ledger,
-                find.byKey(ValueKey('${player.id}-player-details')),
-                find.byKey(ValueKey('${player.id}-manage-utilities')),
+                find.byKey(ValueKey('${player.id}-utility-tools')),
               ]) {
                 expect(tester.getSize(target).width, greaterThanOrEqualTo(44));
                 expect(tester.getSize(target).height, greaterThanOrEqualTo(44));

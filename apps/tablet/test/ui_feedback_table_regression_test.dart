@@ -330,7 +330,11 @@ void main() {
                 .evaluate()
                 .isNotEmpty;
             await showAdaptiveUtilities(tester, playerId: player.id);
-            final tools = find.byKey(ValueKey('${player.id}-life-tools'));
+            final tools = find.byKey(ValueKey('${player.id}-utility-tools'));
+            expect(
+              find.byKey(ValueKey('${player.id}-life-tools')),
+              findsNothing,
+            );
             expect(bounds(tester, tools).overlaps(stripBounds), isFalse);
             expect(
               bounds(tester, tools).overlaps(bounds(tester, life)),
@@ -349,42 +353,20 @@ void main() {
               reason: 'Zero counters and inactive statuses reserve no strip.',
             );
             expect(tester.getSize(tools).height, 48);
-            final editPosition = bounds(
-              tester,
-              find.byKey(ValueKey('${player.id}-player-details')),
-              within: tools,
-            ).center;
-            for (final label in ['$name, Manage utilities']) {
-              final button = byControlLabel(label);
-              expect(button.hitTestable(), findsOneWidget);
-              final point = bounds(tester, button, within: tools).center;
-              expect(
-                point.dy < editPosition.dy ||
-                    (point.dy == editPosition.dy && point.dx < editPosition.dx),
-                isTrue,
-                reason: 'Edit is last in player-local tool order.',
-              );
-            }
-            expect(byControlLabel('$name, saved presets'), findsNothing);
-            final manage = find.byKey(
-              ValueKey('${player.id}-manage-utilities'),
-            );
-            expect(manage.hitTestable(), findsOneWidget);
-            final managePosition = bounds(tester, manage, within: tools).center;
-            expect(managePosition.dy, editPosition.dy);
-            expect(
-              editPosition.dx - managePosition.dx,
-              greaterThanOrEqualTo(44),
-            );
-            expect(
-              find.descendant(of: tools, matching: manage),
-              findsOneWidget,
-            );
+            expect(tools.hitTestable(), findsOneWidget);
             expect(
               find.descendant(
                 of: find.byKey(ValueKey('${player.id}-utility-section')),
-                matching: manage,
+                matching: tools,
               ),
+              findsOneWidget,
+            );
+            expect(
+              find.byKey(ValueKey('${player.id}-player-details')),
+              findsNothing,
+            );
+            expect(
+              find.byKey(ValueKey('${player.id}-manage-utilities')),
               findsNothing,
             );
             if (adaptive) {

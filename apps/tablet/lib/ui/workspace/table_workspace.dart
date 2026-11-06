@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:doubling_season/models/token_definition.dart';
+import 'package:doubling_season/models/widget_definition.dart';
 import '../artwork_credit.dart';
 import 'package:doubling_season/database/counter_database.dart';
 import 'package:doubling_season/widgets/mana/mana_text.dart';
@@ -52,6 +53,7 @@ enum WorkspacePage {
   tokenArtwork,
   tokenSummary,
   utilities,
+  utilityTools,
   rules,
   presets,
   player,
@@ -1238,6 +1240,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     WorkspacePage.tokenArtwork => 'Token artwork',
     WorkspacePage.tokenSummary => 'Board summary',
     WorkspacePage.utilities => 'Utilities',
+    WorkspacePage.utilityTools => 'Player tools',
     WorkspacePage.rules => 'Rules',
     WorkspacePage.presets => 'Saved setups',
     WorkspacePage.player => 'Player customization',
@@ -1300,6 +1303,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
             ? const SizedBox.shrink()
             : _list([TokenBoardSummary(player: p!)]),
       WorkspacePage.utilities => _utilitiesPage(),
+      WorkspacePage.utilityTools => _utilityToolsPage(),
       WorkspacePage.rules => _rulesPage(),
       WorkspacePage.presets => _presetsPage(),
       WorkspacePage.player => _playerPage(),
@@ -1455,6 +1459,8 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       preferredHeight: focusedCommander
           ? _combinedContentHeight(min(620.0, localBounds.width)) +
                 (visibleError == null && _status == null ? 0 : 64)
+          : _page == WorkspacePage.utilityTools
+          ? 270
           : 640,
       surfaceKey: focusedCommander
           ? const ValueKey('commander-workspace')

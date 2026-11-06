@@ -525,8 +525,7 @@ void main() {
               await tester.pumpAndSettle();
             }
             for (final target in [
-              find.byKey(ValueKey('${p.id}-player-details')),
-              find.byKey(ValueKey('${p.id}-manage-utilities')),
+              find.byKey(ValueKey('${p.id}-utility-tools')),
               for (final color in PlayerState.manaColors)
                 find.byKey(ValueKey('${p.id}-mana-$color-add')),
             ]) {

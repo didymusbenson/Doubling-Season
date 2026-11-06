@@ -96,7 +96,7 @@ void main() {
       fixture.player.utilities.where((utility) => utility.kind == 'the_ring'),
       isEmpty,
     );
-    await tap(tester, find.widgetWithText(ListTile, 'The Ring'));
+    await tap(tester, find.byKey(const ValueKey('utility-toggle-the_ring')));
     final ring = fixture.player.utilities.singleWhere(
       (utility) => utility.kind == 'the_ring',
     );

@@ -1672,13 +1672,11 @@ class _PlayerSpaceState extends State<_PlayerSpace>
         final lifeHeight = localViews
             ? 136.0
             : (lane.maxHeight * .30 + 32).clamp(160.0, 180.0);
-        final toolHeight = lane.maxWidth < 132 ? 96.0 : 48.0;
         // Keep the life surface fixed even at the existing 480px boundary.
         // Tools and utilities share the remaining viewport instead of shrinking
         // touch targets, adding a menu, or overflowing the seat.
         final shortFooter =
-            lane.maxHeight <
-            lifeHeight + (localViews ? 44 : 0) + toolHeight + 44;
+            lane.maxHeight < lifeHeight + (localViews ? 44 : 0) + 44 + 72;
         void reorderUtilities(int old, int next) =>
             perform(() => widget.reorderFeedback.reorderUtilities(old, next));
         Widget utilityItem(BuildContext context, int index) {
@@ -1744,6 +1742,9 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                 DragBoundary(
                   child: ReorderableListView.builder(
                     scrollController: utilityScroll,
+                    padding: widget.turns == 2
+                        ? const EdgeInsets.only(top: 72)
+                        : const EdgeInsets.only(bottom: 72),
                     reverse: widget.turns == 2,
                     buildDefaultDragHandles: false,
                     itemCount: visible.length,
@@ -1830,14 +1831,13 @@ class _PlayerSpaceState extends State<_PlayerSpace>
             ),
           ],
         );
-        Widget utilityBody(Widget tools) => shortFooter
+        Widget utilityBody() => shortFooter
             ? compactUtilityReorder
                   ? compactReorderList
                   : CustomScrollView(
                       key: ValueKey('${p.id}-life-footer-scroll'),
                       controller: utilityScroll,
                       slivers: [
-                        SliverToBoxAdapter(child: tools),
                         if (visible.length > 1)
                           SliverToBoxAdapter(
                             child: SizedBox(
@@ -1864,9 +1864,28 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                               childCount: visible.length,
                             ),
                           ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 72)),
                       ],
                     )
             : utilities;
+        Widget utilityArea(Widget body) => Stack(
+          children: [
+            Positioned.fill(child: body),
+            Positioned(
+              left: 12,
+              bottom: 12,
+              child: FloatingActionButton.small(
+                key: ValueKey('${p.id}-utility-tools'),
+                heroTag: '${p.id}-utility-tools',
+                onPressed: () => widget.onOpen(WorkspacePage.utilityTools),
+                child: Icon(
+                  Icons.tune,
+                  semanticLabel: '${profile.name}, utilities and customization',
+                ),
+              ),
+            ),
+          ],
+        );
         return _LifePanel(
           compact: localViews,
           seamControlCenters: [
@@ -1879,7 +1898,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                     0,
                   ),
           ],
-          compose: (surface, tools) {
+          compose: (surface) {
             if (localViews) {
               final utilityContent = KeyedSubtree(
                 key: _utilityLaneKey,
@@ -1887,10 +1906,9 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                   key: PageStorageKey('${p.id}-utility-scroll-position'),
                   child: Column(
                     children: [
-                      if (!shortFooter) tools,
                       Expanded(
                         key: ValueKey('${p.id}-utility-section'),
-                        child: utilityBody(tools),
+                        child: utilityArea(utilityBody()),
                       ),
                     ],
                   ),
@@ -1941,7 +1959,6 @@ class _PlayerSpaceState extends State<_PlayerSpace>
             final content = Column(
               children: [
                 surface,
-                if (!shortFooter) tools,
                 Expanded(
                   key: ValueKey('${p.id}-utility-section'),
                   child: KeyedSubtree(
@@ -1950,7 +1967,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                     key: _utilityLaneKey,
                     child: KeyedSubtree(
                       key: PageStorageKey('${p.id}-utility-scroll-position'),
-                      child: utilityBody(tools),
+                      child: utilityArea(utilityBody()),
                     ),
                   ),
                 ),
@@ -2281,7 +2298,7 @@ class _SeatSharedControlClipper extends CustomClipper<Path> {
 }
 
 class _LifePanel extends StatelessWidget {
-  final Widget Function(Widget surface, Widget tools) compose;
+  final Widget Function(Widget surface) compose;
   final bool twoPlayer;
   final bool phone;
   final bool compact;
@@ -2319,48 +2336,6 @@ class _LifePanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = Color(profile.color);
     final artColor = profile.artworkUrl != null ? Colors.white : null;
-    Widget shortcut(IconData icon, String label, WorkspacePage page) =>
-        Semantics(
-          label: '${profile.name}, $label',
-          button: true,
-          onTap: () => onOpen(page),
-          excludeSemantics: true,
-          child: InkWell(
-            onTap: () => onOpen(page),
-            child: SizedBox(
-              height: 44,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [Icon(icon, size: 19, color: artColor)],
-              ),
-            ),
-          ),
-        );
-    final shortcuts = [
-      KeyedSubtree(
-        key: ValueKey('${player.id}-manage-utilities'),
-        child: shortcut(
-          Icons.widgets_outlined,
-          'Manage utilities',
-          WorkspacePage.utilities,
-        ),
-      ),
-      SizedBox(
-        key: ValueKey('${player.id}-player-details'),
-        height: 44,
-        child: Semantics(
-          label: '${profile.name}, player details',
-          button: true,
-          onTap: () => onOpen(WorkspacePage.player),
-          excludeSemantics: true,
-          child: IconButton(
-            onPressed: () => onOpen(WorkspacePage.player),
-            icon: const Icon(Icons.edit_outlined, size: 19),
-            padding: EdgeInsets.zero,
-          ),
-        ),
-      ),
-    ];
     return LayoutBuilder(
       builder: (context, constraints) {
         // One set of rectangles owns both overlay placement and life-ink
@@ -2548,28 +2523,7 @@ class _LifePanel extends StatelessWidget {
             ),
           ),
         );
-        final tools = SizedBox(
-          key: ValueKey('${player.id}-life-tools'),
-          height: constraints.maxWidth < 132 ? 96 : 48,
-          child: constraints.maxWidth < 132
-              ? Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 2,
-                  runSpacing: 4,
-                  children: [
-                    for (final shortcut in shortcuts)
-                      SizedBox(width: 44, height: 44, child: shortcut),
-                  ],
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    for (final shortcut in shortcuts)
-                      SizedBox(width: 44, height: 44, child: shortcut),
-                  ],
-                ),
-        );
-        return compose(surface, tools);
+        return compose(surface);
       },
     );
   }

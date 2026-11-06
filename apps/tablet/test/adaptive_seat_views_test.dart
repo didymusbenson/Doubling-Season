@@ -149,7 +149,7 @@ void main() {
               await tester.tap(find.byKey(ValueKey('${p.id}-utilities-tab')));
               await tester.pumpAndSettle();
               expect(
-                find.byKey(ValueKey('${p.id}-manage-utilities')).hitTestable(),
+                find.byKey(ValueKey('${p.id}-utility-tools')).hitTestable(),
                 findsOneWidget,
               );
               expect(life.hitTestable(), findsOneWidget);

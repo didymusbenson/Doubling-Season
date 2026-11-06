@@ -102,6 +102,7 @@ void main() {
       final before = fixture.player.utilities.map((u) => u.toJson()).toList();
       final dimensions = '${size.width.toInt()}x${size.height.toInt()}';
       await capture(tester, 'legacy-board-$dimensions');
+      await openPlayerTools(tester, playerId: fixture.playerId);
       await tester.tap(
         find.byKey(ValueKey('${fixture.playerId}-manage-utilities')),
       );
@@ -129,6 +130,7 @@ void main() {
           await tester.pumpAndSettle();
           final player = f.controller.player(playerId);
           final before = player.utilities.map((u) => u.toJson()).toList();
+          await openPlayerTools(tester, playerId: playerId);
           await tester.tap(find.byKey(ValueKey('$playerId-manage-utilities')));
           await tester.pumpAndSettle();
           for (final u in player.utilities) {
@@ -223,7 +225,7 @@ void main() {
       });
       await tester.pumpAndSettle();
       expect(find.text('Legacy settings'), findsNothing);
-      expect(find.text('Add a utility'), findsOneWidget);
+      expect(find.byType(SwitchListTile), findsWidgets);
       expect(find.text('Life Total'), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.tap(byControlLabel('Close workspace'));

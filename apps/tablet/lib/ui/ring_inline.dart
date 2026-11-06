@@ -34,10 +34,6 @@ class RingInline extends StatelessWidget {
               style: const TextStyle(fontSize: 12),
             ),
           ),
-      Text(
-        '${utility.value} ${utility.value == 1 ? 'temptation' : 'temptations'}',
-        style: const TextStyle(fontSize: 12),
-      ),
       if (RingService.bearer(utility).isNotEmpty)
         Text(
           'Bearer: ${RingService.bearer(utility)}',
@@ -52,7 +48,7 @@ class RingInline extends StatelessWidget {
           FilledButton.tonal(
             key: ValueKey('ring-tempt-${utility.id}'),
             onPressed: onTempt,
-            child: const Text('Tempt'),
+            child: const Text('Next temptation'),
           ),
           ?trailing,
         ],
