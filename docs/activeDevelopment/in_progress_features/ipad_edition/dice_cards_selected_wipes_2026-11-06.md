@@ -24,5 +24,24 @@ empty stacks or remove them.
 
 ## Validation
 
-Implementation checkpoint. Automated and visual validation are pending.
-No app distribution, main merge or deployment is part of this feedback branch.
+- Flutter 3.41.2 analysis passes with no issues. Full tablet suite passes:
+  1,309 tests, 7 opt-in skips. Release web compilation passes.
+- Dice tests cover complete half-card hit areas including taps over the die
+  painting, enabled/disabled semantics, light/dark contrast, 0–20 clamping,
+  holds/cancellation, focused results and 375 ms completion. Reduced motion,
+  lifecycle interruption, repeated Roll and Back/Close remain covered.
+- Wipe tests cover multitype union selection, toggle-only changes, All tokens
+  selecting/clearing all options, Cancel preserving selection and board state,
+  Set to 0 retaining full stack metadata, matching deletion, unchanged profiles
+  and archives, persistence failure atomicity, repeated wipes without extra
+  history, and one Undo after reopening restoring every affected board.
+- Font-loaded Flutter-rendered screenshots reviewed at phone/tablet dimensions,
+  1.0/1.3 text scales, wide and narrow drawers. Dice are cards with internal
+  indicators and full tap halves; category checkboxes and separate zero/delete
+  actions are legible. Evidence: /tmp/dice-card-captures/ and
+  /tmp/dice-wipe-captures/ on the validating Mac.
+- Live browser inspection was not completed: the in-app browser was unavailable
+  and Safari access was not approved. No alternate browser route was attempted.
+  Widget captures do not establish native-device or browser acceptance.
+
+No app installation, Firebase distribution, main merge or deployment was made.

@@ -56,7 +56,7 @@ extension _DicePages on _TableWorkspaceState {
         final gap = _embedded ? 8.0 : 12.0;
         // Each card owns two full-height halves, at least 48px wide each.
         // Reduce columns rather than shrinking the tappable card regions.
-        const minimumTileWidth = 112.0;
+        const minimumTileWidth = 104.0;
         final columns = constraints.maxWidth >= 6 * minimumTileWidth + 5 * gap
             ? 6
             : constraints.maxWidth >= 3 * minimumTileWidth + 2 * gap
@@ -129,7 +129,8 @@ extension _DicePages on _TableWorkspaceState {
         value: '$count',
         height: 128,
         iconSize: 22,
-        iconPadding: 6,
+        iconPadding: 8,
+        iconY: .7,
         foregroundColor: count > 0
             ? scheme.onSecondaryContainer
             : scheme.onSurface,

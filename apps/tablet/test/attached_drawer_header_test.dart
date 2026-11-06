@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tripling_table/ui/game_drawer_body.dart';
-import 'package:tripling_table/ui/half_stepper.dart';
 import 'package:tripling_table/ui/table_theme.dart';
 import 'package:tripling_table/ui/workspace/table_workspace.dart';
 
@@ -355,8 +354,12 @@ void main() {
       }
       await drawer.open(WorkspacePage.boardWipes);
       await tester.pumpAndSettle();
-      await tester.ensureVisible(named('Everyone, Wipe creatures'));
-      await tester.tap(named('Everyone, Wipe creatures'));
+      await tester.ensureVisible(named('Everyone, Creatures'));
+      await tester.tap(named('Everyone, Creatures'));
+      await tester.pumpAndSettle();
+      final remove = find.byKey(const ValueKey('wipe-remove'));
+      await tester.ensureVisible(remove);
+      await tester.tap(remove);
       await tester.pumpAndSettle();
       final scroll = tester.state<ScrollableState>(verticalScroll());
       expectAttached(
@@ -415,7 +418,16 @@ void main() {
           diceRects.map((rect) => rect.top).toSet(),
           hasLength(dimensions.width < 704 ? 2 : 1),
         );
-        for (final half in find.byType(NumericHoldRegion).evaluate()) {
+        for (final half
+            in find
+                .byWidgetPredicate(
+                  (w) =>
+                      w is Semantics &&
+                      RegExp(
+                        r'^(Increase|Decrease) d\d+$',
+                      ).hasMatch(w.properties.label ?? ''),
+                )
+                .evaluate()) {
           final bounds = tester.getSize(
             find.byElementPredicate((element) => element == half),
           );

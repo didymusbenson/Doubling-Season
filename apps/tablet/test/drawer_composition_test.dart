@@ -5,7 +5,6 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tripling_table/domain/table_state.dart';
-import 'package:tripling_table/ui/half_stepper.dart';
 import 'package:tripling_table/ui/workspace/table_workspace.dart';
 
 import 'support/table_fixture.dart';
@@ -125,37 +124,46 @@ void main() {
       },
     );
 
-    testWidgets('dice buttons stay48px and short results balance at $width', (
-      tester,
-    ) async {
-      final fixture = TableFixture();
-      await fixture.initialize();
-      addTearDown(fixture.dispose);
-      await mount(tester, fixture, width: width, page: WorkspacePage.dice);
-      final halves = find.byType(NumericHoldRegion);
-      expect(halves, findsNWidgets(12));
-      for (final element in halves.evaluate()) {
-        final rect = tester.getRect(
-          find.byElementPredicate((candidate) => candidate == element),
+    testWidgets(
+      'dice card halves stay48px and short results balance at $width',
+      (tester) async {
+        final fixture = TableFixture();
+        await fixture.initialize();
+        addTearDown(fixture.dispose);
+        await mount(tester, fixture, width: width, page: WorkspacePage.dice);
+        final halves = find.byWidgetPredicate(
+          (w) =>
+              w is Semantics &&
+              RegExp(
+                r'^(Increase|Decrease) d\d+$',
+              ).hasMatch(w.properties.label ?? ''),
         );
-        expect(rect.width, greaterThanOrEqualTo(48 - .001));
-        expect(rect.height, greaterThanOrEqualTo(48));
-      }
-      expectSafe(tester, halves);
-      await tester.ensureVisible(find.text('Roll 1 die'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Roll 1 die'));
-      await tester.pumpAndSettle();
-      final viewport = tester.getRect(identified('game-drawer-body-viewport'));
-      final content = tester.getRect(identified('game-drawer-body-content'));
-      expect(content.center.dx, viewport.center.dx);
-      expect(
-        tester.getCenter(identified('game-drawer-attached-group')),
-        tester.getCenter(identified('game-drawer-page-viewport')),
-      );
-      expectSafe(tester, find.byKey(const ValueKey('dice-reroll-button')));
-      expect(tester.takeException(), isNull);
-    });
+        expect(halves, findsNWidgets(12));
+        for (final element in halves.evaluate()) {
+          final rect = tester.getRect(
+            find.byElementPredicate((candidate) => candidate == element),
+          );
+          expect(rect.width, greaterThanOrEqualTo(48 - .001));
+          expect(rect.height, greaterThanOrEqualTo(48));
+        }
+        expectSafe(tester, halves);
+        await tester.ensureVisible(find.text('Roll 1 die'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Roll 1 die'));
+        await tester.pumpAndSettle();
+        final viewport = tester.getRect(
+          identified('game-drawer-body-viewport'),
+        );
+        final content = tester.getRect(identified('game-drawer-body-content'));
+        expect(content.center.dx, viewport.center.dx);
+        expect(
+          tester.getCenter(identified('game-drawer-attached-group')),
+          tester.getCenter(identified('game-drawer-page-viewport')),
+        );
+        expectSafe(tester, find.byKey(const ValueKey('dice-reroll-button')));
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
   testWidgets(
@@ -365,7 +373,8 @@ void main() {
       for (final sides in [4, 6, 8, 10, 12, 20]) {
         final plus = find.byWidgetPredicate(
           (widget) =>
-              widget is NumericHoldRegion && widget.label == 'Increase d$sides',
+              widget is Semantics &&
+              widget.properties.label == 'Increase d$sides',
         );
         await tester.ensureVisible(plus);
         for (var count = 0; count < 3; count++) {

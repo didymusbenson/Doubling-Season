@@ -806,7 +806,9 @@ extension _GamePages on _TableWorkspaceState {
           ? null
           : () => _applySelectedWipe(remove: true),
       icon: const Icon(Icons.delete_outline),
-      label: Text(_wipeSelections.contains('wipe_all') ? 'Delete All' : 'Delete selected'),
+      label: Text(
+        _wipeSelections.contains('wipe_all') ? 'Delete All' : 'Delete selected',
+      ),
     ),
     const SizedBox(height: 4),
     const Text('Remove the selected token stacks from the board entirely.'),
@@ -845,7 +847,9 @@ extension _GamePages on _TableWorkspaceState {
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(48, 56),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-          foregroundColor: selected ? scheme.onSecondaryContainer : scheme.onSurface,
+          foregroundColor: selected
+              ? scheme.onSecondaryContainer
+              : scheme.onSurface,
           backgroundColor: selected ? scheme.secondaryContainer : null,
           side: BorderSide(color: scheme.outline),
         ),
@@ -865,10 +869,14 @@ extension _GamePages on _TableWorkspaceState {
               .map((entry) => entry.value.toLowerCase())
               .join(', ');
     final button = remove
-        ? selected.contains('wipe_all') ? 'Delete All' : 'Delete selected'
+        ? selected.contains('wipe_all')
+              ? 'Delete All'
+              : 'Delete selected'
         : 'Set to 0';
     _confirm(
-      remove ? 'Delete $description for everyone?' : 'Set $description to 0 for everyone?',
+      remove
+          ? 'Delete $description for everyone?'
+          : 'Set $description to 0 for everyone?',
       remove
           ? 'Remove the matching token stacks entirely. Utilities, life and player counters remain. Restore the whole wipe from History.'
           : 'Set matching token amounts to 0 and clear tapped and summoning sickness. Keep the empty stacks, artwork and counters. Utilities, life and player counters remain. Restore the whole wipe from History.',

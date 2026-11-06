@@ -86,3 +86,10 @@ counter-dialog test closes through its normal UI before the next theme case.
 All 16 theme regressions pass. Initial aggregate at 85940aa passed analysis,
 1,301 tests (7 opt-in skips), and release web compilation. Final aggregate after
 these review corrections is being rerun; report its exact head separately.
+
+
+Final contrast-only validation at `a2d791f8d59ce13cc8d24650d8ae0efb6c96766f`:
+Flutter analysis passed, all 1,303 tests passed with 7 opt-in skips, and the
+release web build passed. The subsequent dice-card/selected-wipe follow-up
+also passed its full aggregate (1,309 tests, 7 skips), analysis and release web
+compilation. This records completed automated validation, not native acceptance.

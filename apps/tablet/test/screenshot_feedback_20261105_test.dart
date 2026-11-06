@@ -251,7 +251,9 @@ void main() {
       await capture(tester, 'global-wipes');
       final before = fixture.repository.encoded;
       await tap(tester, find.text('Artifacts'));
-      expect(find.text('Wipe artifacts for everyone?'), findsOneWidget);
+      expect(fixture.repository.encoded, before);
+      await tap(tester, find.text('Delete selected'));
+      expect(find.text('Delete artifacts for everyone?'), findsOneWidget);
       await tap(tester, find.text('Cancel'));
       expect(fixture.repository.encoded, before);
       expect(tester.takeException(), isNull);
