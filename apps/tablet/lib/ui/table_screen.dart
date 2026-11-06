@@ -27,7 +27,9 @@ import 'utility_inline_actions.dart';
 
 part 'phone_player_view.dart';
 
-const _playerDividerWidth = 5.0;
+// The exposed table separates player spaces without a painted border.
+const _playerRiverWidth = 8.0;
+const _playerCornerRadius = 14.0;
 
 /// The table is composed in seat-local coordinates, then oriented toward each
 /// player. Tokens remain on the physical outer edge in the four-slot layout.
@@ -259,7 +261,7 @@ class _TableScreenState extends State<TableScreen>
                       SeatLayoutPolicy.useLocalViews(
                         width:
                             (constraints.maxWidth -
-                                (mostSeats - 1) * _playerDividerWidth) /
+                                (mostSeats - 1) * _playerRiverWidth) /
                             mostSeats,
                         textScaler: MediaQuery.textScalerOf(context),
                       );
@@ -283,10 +285,9 @@ class _TableScreenState extends State<TableScreen>
                     final rowIndex = rowPlayers.indexOf(player);
                     final seatWidth =
                         (constraints.maxWidth -
-                            (rowPlayers.length - 1) * _playerDividerWidth) /
+                            (rowPlayers.length - 1) * _playerRiverWidth) /
                         rowPlayers.length;
-                    final seatLeft =
-                        rowIndex * (seatWidth + _playerDividerWidth);
+                    final seatLeft = rowIndex * (seatWidth + _playerRiverWidth);
                     // A cutout follows its real control across the opening.
                     // The opposite row must fill back in as that control leaves.
                     final sharedCenters = horizontalDrawer && !two
@@ -301,7 +302,7 @@ class _TableScreenState extends State<TableScreen>
                                           (constraints.maxWidth / 2 +
                                               delta -
                                               seatLeft),
-                                -_playerDividerWidth / 2 -
+                                -_playerRiverWidth / 2 -
                                     ((delta == -54) == (turns == 0)
                                         ? opening
                                         : 0),
@@ -349,19 +350,25 @@ class _TableScreenState extends State<TableScreen>
                           (number == 0 || number == 2 ? -1 : 1) * gap / 2,
                           0,
                         ),
-                        child: Material(
-                          color: Theme.of(context).colorScheme.surface,
-                          child: IgnorePointer(
-                            ignoring: drawerMounted,
-                            child: ExcludeSemantics(
-                              excluding: drawerMounted,
-                              child: Opacity(
-                                key: ValueKey('empty-table-controls-$number'),
-                                opacity: (1 - progress * 3).clamp(0.0, 1.0),
-                                child: _EmptyControlSpace(
-                                  onOpen: (page) => open(
-                                    page,
-                                    turns: number == 1 || number == 2 ? 2 : 0,
+                        child: ClipRRect(
+                          key: ValueKey('empty-space-clip-$number'),
+                          borderRadius: BorderRadius.circular(
+                            _playerCornerRadius,
+                          ),
+                          child: Material(
+                            color: Theme.of(context).colorScheme.surface,
+                            child: IgnorePointer(
+                              ignoring: drawerMounted,
+                              child: ExcludeSemantics(
+                                excluding: drawerMounted,
+                                child: Opacity(
+                                  key: ValueKey('empty-table-controls-$number'),
+                                  opacity: (1 - progress * 3).clamp(0.0, 1.0),
+                                  child: _EmptyControlSpace(
+                                    onOpen: (page) => open(
+                                      page,
+                                      turns: number == 1 || number == 2 ? 2 : 0,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -405,9 +412,6 @@ class _TableScreenState extends State<TableScreen>
                       Expanded(
                         child: LayoutBuilder(
                           builder: (context, table) {
-                            final dividerColor = Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant;
                             // Two opposing full-width seats open their shared
                             // horizontal seam. A vertical channel would cut through
                             // both 60% token lanes instead of their life rails.
@@ -437,10 +441,11 @@ class _TableScreenState extends State<TableScreen>
                               children: [
                                 for (var i = 0; i < players.length; i++) ...[
                                   if (i > 0)
-                                    VerticalDivider(
-                                      width: _playerDividerWidth,
-                                      thickness: _playerDividerWidth,
-                                      color: dividerColor,
+                                    SizedBox(
+                                      key: ValueKey(
+                                        'player-river-$rowIndex-$i',
+                                      ),
+                                      width: _playerRiverWidth,
                                     ),
                                   Expanded(
                                     child: players[i] == null
@@ -465,6 +470,12 @@ class _TableScreenState extends State<TableScreen>
                             return Stack(
                               key: const ValueKey('table-surface'),
                               children: [
+                                const Positioned.fill(
+                                  child: ColoredBox(
+                                    key: ValueKey('table-river-background'),
+                                    color: Colors.black,
+                                  ),
+                                ),
                                 if (drawerMounted)
                                   Positioned.fill(
                                     key: const ValueKey('table-drawer-surface'),
@@ -557,15 +568,13 @@ class _TableScreenState extends State<TableScreen>
                                             child: row(seatRows[0], 0),
                                           ),
                                         ),
-                                        Divider(
+                                        SizedBox(
                                           key: const ValueKey(
-                                            'player-horizontal-divider',
+                                            'player-horizontal-river',
                                           ),
                                           height: two
-                                              ? opening + _playerDividerWidth
-                                              : _playerDividerWidth,
-                                          thickness: _playerDividerWidth,
-                                          color: dividerColor,
+                                              ? opening + _playerRiverWidth
+                                              : _playerRiverWidth,
                                         ),
                                         Expanded(
                                           child: Transform.translate(
@@ -589,7 +598,7 @@ class _TableScreenState extends State<TableScreen>
                                       child: CustomPaint(
                                         painter: _DrawerWallPainter(
                                           opening,
-                                          dividerColor,
+                                          Colors.black,
                                           horizontal: horizontalDrawer,
                                           notchScale: horizontalDrawer
                                               ? progress.clamp(0.0, 1.0)
@@ -1241,6 +1250,28 @@ class _EmptyControlSpace extends StatelessWidget {
   );
 }
 
+/// Follow the moving inner rail while leaving token widths and retained lane
+/// state alone. Horizontal drawers translate (or resize two-player) seats, so
+/// their local clip remains the complete rounded rectangle.
+class _PlayerSpaceClipper extends CustomClipper<RRect> {
+  const _PlayerSpaceClipper({required this.shift, required this.insetLeft});
+  final double shift;
+  final bool insetLeft;
+
+  @override
+  RRect getClip(Size size) {
+    final inset = shift.clamp(0.0, size.width);
+    return RRect.fromRectAndRadius(
+      Rect.fromLTWH(insetLeft ? inset : 0, 0, size.width - inset, size.height),
+      const Radius.circular(_playerCornerRadius),
+    );
+  }
+
+  @override
+  bool shouldReclip(_PlayerSpaceClipper old) =>
+      shift != old.shift || insetLeft != old.insetLeft;
+}
+
 class _PlayerSpace extends StatefulWidget {
   final BoardReorderFeedback reorderFeedback;
   final LifeTapFeedback? sharedLifeFeedback;
@@ -1459,29 +1490,36 @@ class _PlayerSpaceState extends State<_PlayerSpace>
     onPointerCancel: (event) => _seatPointers.remove(event.pointer),
     child: RotatedBox(
       quarterTurns: widget.turns,
-      child: LayoutBuilder(
-        builder: (context, seat) {
-          final localViews = SeatLayoutPolicy.useLocalViews(
-            width: seat.maxWidth,
-            textScaler: MediaQuery.textScalerOf(context),
-          );
-          final changed =
-              _seatSize != null &&
-              (_seatSize != seat.biggest || _localViews != localViews);
-          if (changed && _seatPointers.isNotEmpty) {
-            _settleLayoutTransition();
-          }
-          if (_layoutTransitionPending) {
-            return _buildSeat(context, _localViews ?? localViews);
-          }
-          if (changed) {
-            localViewEpoch++;
-            compactUtilityReorder = false;
-          }
-          _seatSize = seat.biggest;
-          _localViews = localViews;
-          return _buildSeat(context, localViews);
-        },
+      child: ClipRRect(
+        key: ValueKey('${widget.player.id}-space-clip'),
+        clipper: _PlayerSpaceClipper(
+          shift: widget.drawerShift,
+          insetLeft: !widget.tokenLeft,
+        ),
+        child: LayoutBuilder(
+          builder: (context, seat) {
+            final localViews = SeatLayoutPolicy.useLocalViews(
+              width: seat.maxWidth,
+              textScaler: MediaQuery.textScalerOf(context),
+            );
+            final changed =
+                _seatSize != null &&
+                (_seatSize != seat.biggest || _localViews != localViews);
+            if (changed && _seatPointers.isNotEmpty) {
+              _settleLayoutTransition();
+            }
+            if (_layoutTransitionPending) {
+              return _buildSeat(context, _localViews ?? localViews);
+            }
+            if (changed) {
+              localViewEpoch++;
+              compactUtilityReorder = false;
+            }
+            _seatSize = seat.biggest;
+            _localViews = localViews;
+            return _buildSeat(context, localViews);
+          },
+        ),
       ),
     ),
   );
@@ -2150,7 +2188,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                     Size(box.maxWidth, 0),
                     0,
                   ).dayNight -
-                  Offset(tokenWidth + 1, _playerDividerWidth / 2);
+                  Offset(tokenWidth + 1, _playerRiverWidth / 2);
               return Stack(
                 clipBehavior: Clip.hardEdge,
                 children: [
@@ -2430,7 +2468,7 @@ class _LifePanel extends StatelessWidget {
               ? _SeatSharedControlClipper(seamControlCenters)
               : _LifeHubNotch(
                   atStart: centerNotchAtStart,
-                  inset: -_playerDividerWidth / 2,
+                  inset: -_playerRiverWidth / 2,
                   enabled: centerNotch > 0,
                   sharedControls: true,
                   twoPlayer: twoPlayer,
@@ -2778,7 +2816,7 @@ class _LifeHubNotch extends CustomClipper<Path> {
                     ? const Offset(26, 26)
                     : Offset(
                         atStart ? inset : size.width - inset,
-                        -_playerDividerWidth / 2,
+                        -_playerRiverWidth / 2,
                       ),
                 radius: (twoPlayer ? 26 : 30) * radiusScale,
               ),
@@ -2787,7 +2825,7 @@ class _LifeHubNotch extends CustomClipper<Path> {
               Rect.fromCircle(
                 center: Offset(
                   atStart ? inset + 54 : size.width - inset - 54,
-                  -_playerDividerWidth / 2,
+                  -_playerRiverWidth / 2,
                 ),
                 radius: sharedControls && !twoPlayer ? 26 * radiusScale : 0,
               ),

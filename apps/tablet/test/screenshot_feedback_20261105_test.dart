@@ -261,7 +261,9 @@ void main() {
   );
 
   for (final brightness in Brightness.values) {
-    testWidgets('player seams are stronger in $brightness', (tester) async {
+    testWidgets('player spaces use a black river in $brightness', (
+      tester,
+    ) async {
       final fixture = TableFixture();
       await fixture.initialize();
       fixture.catalog.loaded = true;
@@ -277,11 +279,18 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      final divider = tester.widget<Divider>(
-        find.byKey(const ValueKey('player-horizontal-divider')),
+      final river = tester.widget<SizedBox>(
+        find.byKey(const ValueKey('player-horizontal-river')),
       );
-      expect(divider.thickness, 5);
-      expect(divider.color, theme.colorScheme.onSurfaceVariant);
+      expect(river.height, 8);
+      expect(
+        tester
+            .widget<ColoredBox>(
+              find.byKey(const ValueKey('table-river-background')),
+            )
+            .color,
+        Colors.black,
+      );
       expect(tester.takeException(), isNull);
     });
   }

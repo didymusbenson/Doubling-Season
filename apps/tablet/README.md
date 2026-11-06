@@ -3,7 +3,13 @@
 The separate tablet app developed from the Tripling Season iPad specifications.
 “Tripling Table” is a development name, not a selected store name.
 
-**Current work (2026-11-05): adaptive five/six-player layouts.**
+**Current work (2026-11-06): soft player spaces.**
+The [approved Soft separation implementation](../../docs/activeDevelopment/in_progress_features/ipad_edition/soft_player_spaces_2026-11-06.md)
+uses an 8 px black river and 14 px player-space corners instead of hard table
+dividers. The central drawer, player-local controls, and adaptive seat views
+retain their behavior. Native acceptance remains separate.
+
+**Previous work (2026-11-05): adaptive five/six-player layouts.**
 The [adaptive seats implementation](../../docs/activeDevelopment/in_progress_features/ipad_edition/adaptive_five_six_seats_2026-11-05.md)
 adds five/six-player games and local Tokens/Utilities views wherever a seat is
 narrow. Wider seats keep both lanes, including the two-seat side of five-player

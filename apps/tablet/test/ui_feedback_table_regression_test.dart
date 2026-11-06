@@ -245,23 +245,26 @@ void main() {
   ]) {
     for (final seats in [2, 3, 4]) {
       testWidgets(
-        '$seats seats at $size keep dividers, game controls and local token FABs clear',
+        '$seats seats at $size keep player rivers, game controls and local token FABs clear',
         (tester) async {
           final fixture = await showTable(
             tester,
             size,
             tableFor(seats, tokens: 4),
           );
-          final divider = find.byKey(
-            const ValueKey('player-horizontal-divider'),
+          final divider = find.byKey(const ValueKey('player-horizontal-river'));
+          expect(bounds(tester, divider).height, 8);
+          final verticalRivers = find.byWidgetPredicate(
+            (widget) =>
+                widget is SizedBox &&
+                widget.key is ValueKey<String> &&
+                (widget.key! as ValueKey<String>).value.startsWith(
+                  'player-river-',
+                ),
           );
-          expect(bounds(tester, divider).height, 5);
-          final hardVerticalDividers = find.byWidgetPredicate(
-            (widget) => widget is VerticalDivider && widget.thickness == 5,
-          );
-          expect(hardVerticalDividers, findsNWidgets(seats == 2 ? 0 : 2));
-          for (final element in hardVerticalDividers.evaluate()) {
-            expect(bounds(tester, find.byWidget(element.widget)).width, 5);
+          expect(verticalRivers, findsNWidgets(seats == 2 ? 0 : 2));
+          for (final element in verticalRivers.evaluate()) {
+            expect(bounds(tester, find.byWidget(element.widget)).width, 8);
           }
           final strip = find.byWidgetPredicate(
             (widget) => widget.runtimeType.toString() == '_GameHub',
@@ -402,7 +405,7 @@ void main() {
             expect(
               laneSize.height,
               closeTo(
-                (tableHeight - 5) / 2 -
+                (tableHeight - 8) / 2 -
                     (adaptive ? tester.getSize(life).height + 44 : 0),
                 .01,
               ),

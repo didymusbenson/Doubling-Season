@@ -126,7 +126,7 @@ void main() {
         );
         for (final row in f.controller.session.seatRows) {
           final expectedWidth =
-              (size.width - (row.length - 1) * 5) / row.length;
+              (size.width - (row.length - 1) * 8) / row.length;
           for (final p in row.whereType<PlayerState>()) {
             final seat = find.byKey(ValueKey(p.id));
             expect(tester.getSize(seat).width, closeTo(expectedWidth, .01));
