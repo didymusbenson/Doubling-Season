@@ -240,7 +240,6 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
               profile: profile,
               controller: widget.controller,
               epoch: epoch,
-              enabledRules: 0,
               onOpen: widget.onOpen,
               lifeFeedback: feedback,
               onChange: (delta) async {

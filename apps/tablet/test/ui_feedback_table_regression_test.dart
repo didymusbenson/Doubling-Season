@@ -354,12 +354,9 @@ void main() {
               find.byKey(ValueKey('${player.id}-player-details')),
               within: tools,
             ).center;
-            for (final label in ['$name, rules', '$name, Manage utilities']) {
+            for (final label in ['$name, Manage utilities']) {
               final button = byControlLabel(label);
               expect(button.hitTestable(), findsOneWidget);
-              if (label.endsWith(', rules')) {
-                expect(tester.widget<Semantics>(button).properties.value, '0');
-              }
               final point = bounds(tester, button, within: tools).center;
               expect(
                 point.dy < editPosition.dy ||
@@ -411,7 +408,14 @@ void main() {
             expect(nameBounds.right, lessThanOrEqualTo(laneBounds.right + .01));
             final localFab = bounds(tester, fab, within: lane);
             expect(fab.hitTestable(), findsOneWidget);
-            expect(localFab.left, closeTo(12, .01));
+            expect(localFab.right, closeTo(laneSize.width - 12, .01));
+            final modifiers = find.byKey(
+              ValueKey('${player.id}-token-modifiers'),
+            );
+            final localModifiers = bounds(tester, modifiers, within: lane);
+            expect(modifiers.hitTestable(), findsOneWidget);
+            expect(localModifiers.left, closeTo(12, .01));
+            expect(localModifiers.bottom, closeTo(laneSize.height - 12, .01));
             expect(localFab.bottom, closeTo(laneSize.height - 12, .01));
             expect(
               laneSize.height,
@@ -442,7 +446,7 @@ void main() {
               find.byKey(ValueKey('${player.id}-board-summary')),
               within: lane,
             );
-            expect(localSummary.left, closeTo(68, .01));
+            expect(localSummary.left, greaterThan(localModifiers.right));
             expect(localSummary.bottom, closeTo(laneSize.height - 12, .01));
             expect(localSummary.overlaps(localFab), isFalse);
             final tokenList = find.descendant(

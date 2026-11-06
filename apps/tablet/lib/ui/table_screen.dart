@@ -14,6 +14,7 @@ import 'workspace/table_workspace.dart';
 import 'table_artwork.dart';
 import 'seat_layout_policy.dart';
 import 'tablet_token_card.dart';
+import 'token_modifier_button.dart';
 import 'half_stepper.dart';
 import 'life_tap_feedback.dart';
 import 'board_reorder_feedback.dart';
@@ -1499,10 +1500,6 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                   center.dx + 30 > splitTokenLeft &&
                   center.dx - 30 < splitTokenLeft + splitTokenWidth,
             ));
-    final enabled = widget.board
-        .effectiveSources(p.id)
-        .where((s) => s.enabled && s.count > 0)
-        .length;
     Widget tokenLane = KeyedSubtree(
       key: _tokenLaneKey,
       child: Stack(
@@ -1570,64 +1567,97 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                   ),
           ),
           Positioned(
-            left: 124,
-            bottom: 12,
-            child: Material(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              elevation: 3,
-              shape: CircleBorder(
-                side: BorderSide(color: Theme.of(context).colorScheme.outline),
-              ),
-              child: SizedBox(
-                width: 40,
-                height: 44,
-                child: IconButton(
-                  key: ValueKey('${p.id}-start-turn'),
-
-                  onPressed: () => perform(() => widget.board.startTurn(p.id)),
-                  icon: Icon(
-                    ManaIcons.untap,
-                    size: 20,
-                    semanticLabel: '${profile.name}, Start turn',
-                  ),
-                  padding: EdgeInsets.zero,
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            left: 68,
-            bottom: 12,
-            child: Material(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              elevation: 3,
-              shape: CircleBorder(
-                side: BorderSide(color: Theme.of(context).colorScheme.outline),
-              ),
-              child: IconButton(
-                key: ValueKey('${p.id}-board-summary'),
-
-                onPressed: () => widget.onOpen(WorkspacePage.tokenSummary),
-                icon: Icon(
-                  Icons.style_outlined,
-                  size: 20,
-                  semanticLabel: '${profile.name}, board summary',
-                ),
-              ),
-            ),
-          ),
-          Positioned(
             left: 12,
+            right: 12,
             bottom: 12,
-            child: FloatingActionButton.small(
-              key: ValueKey('${p.id}-add-token'),
-              heroTag: '${p.id}-add-token',
-
-              onPressed: () => widget.onOpen(WorkspacePage.tokens),
-              child: Icon(
-                Icons.add,
-                semanticLabel: '${profile.name}, add token',
-              ),
+            child: LayoutBuilder(
+              builder: (context, controls) {
+                // Keep the original app's calculator at the local bottom-left.
+                // A single row retains trailing scroll clearance, even in the
+                // narrowest six-player view. Only its text contracts, never the
+                // direct action targets.
+                final gap = controls.maxWidth < 260 ? 4.0 : 12.0;
+                final modifierWidth = math.min(
+                  120.0,
+                  controls.maxWidth - 124 - gap * 3,
+                );
+                Widget circle(Widget child) => Material(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  elevation: 3,
+                  shape: CircleBorder(
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                  ),
+                  child: child,
+                );
+                return Row(
+                  children: [
+                    SizedBox(
+                      width: modifierWidth,
+                      height: 44,
+                      child: TokenModifierButton(
+                        key: ValueKey('${p.id}-token-modifiers'),
+                        playerName: profile.name,
+                        sources: widget.board.effectiveSources(p.id),
+                        extended: modifierWidth >= 86,
+                        onPressed: () => widget.onOpen(WorkspacePage.rules),
+                      ),
+                    ),
+                    const Spacer(),
+                    SizedBox(width: gap),
+                    circle(
+                      SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: IconButton(
+                          key: ValueKey('${p.id}-board-summary'),
+                          onPressed: () =>
+                              widget.onOpen(WorkspacePage.tokenSummary),
+                          icon: Icon(
+                            Icons.style_outlined,
+                            size: 20,
+                            semanticLabel: '${profile.name}, board summary',
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: gap),
+                    circle(
+                      SizedBox(
+                        width: 40,
+                        height: 44,
+                        child: IconButton(
+                          key: ValueKey('${p.id}-start-turn'),
+                          onPressed: () =>
+                              perform(() => widget.board.startTurn(p.id)),
+                          icon: Icon(
+                            ManaIcons.untap,
+                            size: 20,
+                            semanticLabel: '${profile.name}, Start turn',
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: gap),
+                    SizedBox(
+                      width: 40,
+                      height: 44,
+                      child: FloatingActionButton.small(
+                        key: ValueKey('${p.id}-add-token'),
+                        heroTag: '${p.id}-add-token',
+                        onPressed: () => widget.onOpen(WorkspacePage.tokens),
+                        child: Icon(
+                          Icons.add,
+                          semanticLabel: '${profile.name}, add token',
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -1953,7 +1983,6 @@ class _PlayerSpaceState extends State<_PlayerSpace>
             p.generation,
             widget.controller.session.generation,
           ),
-          enabledRules: enabled,
           onOpen: widget.onOpen,
           lifeFeedback: lifeFeedback,
           onChange: (delta) async {
@@ -2264,7 +2293,7 @@ class _LifePanel extends StatelessWidget {
   final PlayerState player;
   final SeatProfile profile;
   final TableController controller;
-  final int epoch, enabledRules;
+  final int epoch;
   final Future<void> Function(int) onChange;
   final LifeTapFeedback lifeFeedback;
   final void Function(WorkspacePage, [String?]) onOpen;
@@ -2282,7 +2311,6 @@ class _LifePanel extends StatelessWidget {
     required this.profile,
     required this.controller,
     required this.epoch,
-    required this.enabledRules,
     required this.onChange,
     required this.lifeFeedback,
     required this.onOpen,
@@ -2294,11 +2322,9 @@ class _LifePanel extends StatelessWidget {
     Widget shortcut(
       IconData icon,
       String label,
-      WorkspacePage page, {
-      int? count,
-    }) => Semantics(
+      WorkspacePage page,
+    ) => Semantics(
       label: '${profile.name}, $label',
-      value: count == null ? null : '$count',
       button: true,
       onTap: () => onOpen(page),
       excludeSemantics: true,
@@ -2310,30 +2336,12 @@ class _LifePanel extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, size: 19, color: artColor),
-              if (count != null && count != 0) ...[
-                const SizedBox(width: 3),
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      '$count',
-                      style: TextStyle(fontSize: 11, color: artColor),
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
         ),
       ),
     );
     final shortcuts = [
-      shortcut(
-        Icons.rule_outlined,
-        'rules',
-        WorkspacePage.rules,
-        count: enabledRules,
-      ),
       KeyedSubtree(
         key: ValueKey('${player.id}-manage-utilities'),
         child: shortcut(
