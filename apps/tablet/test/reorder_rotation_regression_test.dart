@@ -293,7 +293,7 @@ void main() {
         if (!scenario.compact) return;
         await showAdaptiveUtilities(tester, playerId: playerId);
         final footer = find.byKey(ValueKey('$playerId-life-footer-scroll'));
-        tester.widget<CustomScrollView>(footer).controller!.jumpTo(48);
+        tester.widget<CustomScrollView>(footer).controller!.jumpTo(0);
         await tester.pumpAndSettle();
         final enter = find.byKey(ValueKey('$playerId-start-utility-reorder'));
         await tester.ensureVisible(enter);

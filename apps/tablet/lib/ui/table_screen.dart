@@ -1576,10 +1576,15 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                 // A single row retains trailing scroll clearance, even in the
                 // narrowest six-player view. Only its text contracts, never the
                 // direct action targets.
-                final gap = controls.maxWidth < 260 ? 4.0 : 12.0;
+                // During pointer cancellation a former split lane can retain
+                // its layout for one frame inside a much narrower seat. Keep
+                // real touch sizes and scroll that transient row, not negative
+                // constraints or scaled-down targets.
+                final availableWidth = math.max(180.0, controls.maxWidth);
+                final gap = availableWidth < 260 ? 4.0 : 12.0;
                 final modifierWidth = math.min(
                   120.0,
-                  controls.maxWidth - 124 - gap * 3,
+                  availableWidth - 124 - gap * 3,
                 );
                 Widget circle(Widget child) => Material(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -1591,7 +1596,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                   ),
                   child: child,
                 );
-                return Row(
+                final row = Row(
                   children: [
                     SizedBox(
                       width: modifierWidth,
@@ -1657,6 +1662,12 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                     ),
                   ],
                 );
+                return controls.maxWidth < 180
+                    ? SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(width: availableWidth, child: row),
+                      )
+                    : row;
               },
             ),
           ),
@@ -1740,18 +1751,24 @@ class _PlayerSpaceState extends State<_PlayerSpace>
               )
             : _reorderViewport(
                 DragBoundary(
-                  child: ReorderableListView.builder(
-                    scrollController: utilityScroll,
-                    padding: widget.turns == 2
-                        ? const EdgeInsets.only(top: 72)
-                        : const EdgeInsets.only(bottom: 72),
-                    reverse: widget.turns == 2,
-                    buildDefaultDragHandles: false,
-                    itemCount: visible.length,
-                    onReorder: reorderUtilities,
-                    proxyDecorator: (child, index, animation) =>
-                        Material(elevation: 5, child: child),
-                    itemBuilder: utilityItem,
+                  // A bounded proxy needs a small over-scroll gutter around
+                  // the viewport. Otherwise clamping exactly to its edge stops
+                  // Flutter's edge auto-scroller before the first/last slot.
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: ReorderableListView.builder(
+                      scrollController: utilityScroll,
+                      padding: widget.turns == 2
+                          ? const EdgeInsets.only(top: 72)
+                          : const EdgeInsets.only(bottom: 72),
+                      reverse: widget.turns == 2,
+                      buildDefaultDragHandles: false,
+                      itemCount: visible.length,
+                      onReorder: reorderUtilities,
+                      proxyDecorator: (child, index, animation) =>
+                          Material(elevation: 5, child: child),
+                      itemBuilder: utilityItem,
+                    ),
                   ),
                 ),
               );
