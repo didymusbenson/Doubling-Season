@@ -185,7 +185,9 @@ void main() {
           await revealLegacy(tester);
           await tester.tap(find.text('Legacy settings'));
           await tester.pumpAndSettle();
-          await tester.ensureVisible(find.byKey(ValueKey('legacy-settings-${legacy.id}')));
+          await tester.ensureVisible(
+            find.byKey(ValueKey('legacy-settings-${legacy.id}')),
+          );
           await tester.pumpAndSettle();
           await tester.tap(
             find.byKey(ValueKey('legacy-settings-${legacy.id}')),
