@@ -215,10 +215,6 @@ void main() {
       );
       await tester.tap(find.text('Counters'));
       await tester.pumpAndSettle();
-      addTearDown(() async {
-        tester.state<NavigatorState>(find.byType(Navigator)).pop();
-        await tester.pumpAndSettle();
-      });
       final chip = find.byKey(const ValueKey('player-counter-energy'));
       final material = tester.widget<Material>(
         find.descendant(of: chip, matching: find.byType(Material)).first,
@@ -230,6 +226,8 @@ void main() {
         contrast(side.color, theme.colorScheme.surface),
         greaterThanOrEqualTo(3),
       );
+      await tester.tap(find.byIcon(Icons.close).first);
+      await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     });
     for (final page in [

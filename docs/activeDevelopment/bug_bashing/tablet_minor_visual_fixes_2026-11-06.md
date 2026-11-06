@@ -77,3 +77,12 @@ real utility actions, disabled controls and all six seat-name contrasts (>=4.5).
 Font-loaded widget captures are at `/tmp/theme-captures/` on the validating Mac.
 Full final suite/build validation is pending at this checkpoint. No native-device
 acceptance, installation or publication is claimed.
+
+Review follow-up adds scoped enabled outlines to the custom-life +/- icon
+buttons and player counter chips, without outlining plain icon buttons. The
+Menu handle retains one outer border rather than duplicated inner/outer edges.
+Mounted regressions cover the actual dial and player-counter components. The
+counter-dialog test closes through its normal UI before the next theme case.
+All 16 theme regressions pass. Initial aggregate at 85940aa passed analysis,
+1,301 tests (7 opt-in skips), and release web compilation. Final aggregate after
+these review corrections is being rerun; report its exact head separately.
