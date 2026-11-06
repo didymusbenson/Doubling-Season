@@ -97,11 +97,31 @@ void main() {
                   .clipper!
                   .getClip(tester.getSize(reveal))
                   .shift(tester.getTopLeft(reveal));
+              final dice = tester.getCenter(
+                find.byKey(const ValueKey('table-dice-layer')),
+              );
+              if (seats == 2) {
+                final mask = find.byKey(const ValueKey('drawer-board-mask'));
+                final clip = tester.widget<ClipPath>(mask);
+                final box = tester.renderObject<RenderBox>(mask);
+                final path = clip.clipper!.getClip(box.size);
+                expect(
+                  path.contains(
+                    box.globalToLocal(Offset(dice.dx, channel.top - 5)),
+                  ),
+                  isFalse,
+                );
+                expect(
+                  path.contains(
+                    box.globalToLocal(Offset(table.center.dx, channel.top - 5)),
+                  ),
+                  isTrue,
+                );
+              }
               final samples = seats == 2
                   ? [
-                      Offset(table.center.dx, channel.top - 14),
-                      Offset(table.center.dx - 5, channel.top - 10),
-                      Offset(table.center.dx + 5, channel.top - 10),
+                      Offset(table.left + 8, channel.top + 10),
+                      Offset(table.right - 8, channel.top + 10),
                       Offset(table.left + 8, channel.top + 6),
                     ]
                   : [
@@ -118,9 +138,10 @@ void main() {
                 final pixels = (await image.toByteData(
                   format: ui.ImageByteFormat.rawRgba,
                 ))!;
-                // These points lie inside the exposed half-circle, away from its
-                // antialiased wall and the Dice target. The final point is inside
-                // the rectangular workspace, proving both surfaces match.
+                // Vertical samples cover the exposed half-circle and channel.
+                // The horizontal notch now belongs to Dice, whose shadow covers
+                // its exposed pixels, so verify its mask above and sample the
+                // rectangular surface here instead of the control's shadow.
                 for (final point in samples) {
                   final local = boundary.globalToLocal(point);
                   final index =

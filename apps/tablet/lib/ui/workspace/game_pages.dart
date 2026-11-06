@@ -1245,7 +1245,10 @@ class _StartingLifeDialState extends State<_StartingLifeDial> {
                   button: true,
                   child: IconButton.filledTonal(
                     onPressed: canDecrease ? () => _step(-1) : null,
-                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                    constraints: const BoxConstraints(
+                      minWidth: 48,
+                      minHeight: 48,
+                    ),
                     icon: const Icon(Icons.remove),
                   ),
                 ),
@@ -1271,8 +1274,12 @@ class _StartingLifeDialState extends State<_StartingLifeDial> {
                         Semantics(
                           label: 'Custom starting life',
                           value: '${widget.value}',
-                          increasedValue: canIncrease ? '${widget.value + 1}' : null,
-                          decreasedValue: canDecrease ? '${widget.value - 1}' : null,
+                          increasedValue: canIncrease
+                              ? '${widget.value + 1}'
+                              : null,
+                          decreasedValue: canDecrease
+                              ? '${widget.value - 1}'
+                              : null,
                           onIncrease: canIncrease ? () => _step(1) : null,
                           onDecrease: canDecrease ? () => _step(-1) : null,
                           excludeSemantics: true,
@@ -1318,7 +1325,10 @@ class _StartingLifeDialState extends State<_StartingLifeDial> {
                   button: true,
                   child: IconButton.filledTonal(
                     onPressed: canIncrease ? () => _step(1) : null,
-                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                    constraints: const BoxConstraints(
+                      minWidth: 48,
+                      minHeight: 48,
+                    ),
                     icon: const Icon(Icons.add),
                   ),
                 ),

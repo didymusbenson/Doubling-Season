@@ -152,7 +152,10 @@ void main() {
           );
           (picker.controller! as FixedExtentScrollController).jumpToItem(56);
           await tester.pumpAndSettle();
-          expect((picker.controller! as FixedExtentScrollController).selectedItem, 56);
+          expect(
+            (picker.controller! as FixedExtentScrollController).selectedItem,
+            56,
+          );
           await capture(tester, 'new-game-custom');
         } else {
           await tap(tester, find.widgetWithText(ChoiceChip, '$startingLife'));
@@ -187,7 +190,9 @@ void main() {
     addTearDown(fixture.dispose);
     final drawer = await mount(tester, fixture, WorkspacePage.reset);
     await tap(tester, find.widgetWithText(ChoiceChip, 'Custom'));
-    var picker = tester.widget<ListWheelScrollView>(find.byType(ListWheelScrollView));
+    var picker = tester.widget<ListWheelScrollView>(
+      find.byType(ListWheelScrollView),
+    );
     (picker.controller! as FixedExtentScrollController).jumpToItem(0);
     await tester.pumpAndSettle();
     IconButton step(String name) => tester.widget<IconButton>(
@@ -206,10 +211,18 @@ void main() {
     await tester.pumpAndSettle();
     await drawer.open(WorkspacePage.reset);
     await tester.pumpAndSettle();
-    picker = tester.widget<ListWheelScrollView>(find.byType(ListWheelScrollView));
-    expect((picker.controller! as FixedExtentScrollController).selectedItem, 24);
+    picker = tester.widget<ListWheelScrollView>(
+      find.byType(ListWheelScrollView),
+    );
+    expect(
+      (picker.controller! as FixedExtentScrollController).selectedItem,
+      24,
+    );
     await tap(tester, byControlLabel('Increase starting life'));
-    expect((picker.controller! as FixedExtentScrollController).selectedItem, 25);
+    expect(
+      (picker.controller! as FixedExtentScrollController).selectedItem,
+      25,
+    );
     expect(fixture.controller.session.startingLife, 40);
     expect(fixture.controller.session.history, isEmpty);
     expect(tester.takeException(), isNull);

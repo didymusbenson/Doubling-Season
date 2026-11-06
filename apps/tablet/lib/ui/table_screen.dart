@@ -292,7 +292,9 @@ class _TableScreenState extends State<TableScreen>
                             for (final delta in [-54.0, 0.0, 54.0])
                               Offset(
                                 turns == 0
-                                    ? constraints.maxWidth / 2 + delta - seatLeft
+                                    ? constraints.maxWidth / 2 +
+                                          delta -
+                                          seatLeft
                                     : seatWidth -
                                           (constraints.maxWidth / 2 +
                                               delta -
@@ -798,7 +800,7 @@ class _TwoPlayerControlsGeometry {
   Offset get dice => upper - const Offset(54, 0);
   Offset get menu => lower;
   Offset get dayNight => lower + const Offset(54, 0);
-  Offset notch(int side) => side < 0 ? upper : lower;
+  Offset notch(int side) => side < 0 ? dice : lower;
 }
 
 /// Only the part of the actual centered flank control crossing into life is
@@ -2221,12 +2223,7 @@ class _SeatSharedControlClipper extends CustomClipper<Path> {
   Path getClip(Size size) {
     final cutouts = Path();
     for (final center in centers) {
-      cutouts.addOval(
-        Rect.fromCircle(
-          center: center,
-          radius: 30,
-        ),
-      );
+      cutouts.addOval(Rect.fromCircle(center: center, radius: 30));
     }
     return Path.combine(
       PathOperation.difference,
