@@ -429,7 +429,14 @@ void main() {
                 .isNotEmpty;
             expect(
               frameSize.width,
-              math.min(combined ? 620 : 720, localViewport.width - 32),
+              math.min(
+                combined
+                    ? 620
+                    : scene.value == WorkspacePage.tokenSummary
+                    ? 600
+                    : 720,
+                localViewport.width - 32,
+              ),
             );
             if (combined) {
               expect(frameSize.height, greaterThanOrEqualTo(44));

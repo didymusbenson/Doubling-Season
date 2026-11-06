@@ -53,7 +53,6 @@ enum WorkspacePage {
   tokenArtwork,
   tokenSummary,
   utilities,
-  utilityTools,
   rules,
   presets,
   player,
@@ -1241,7 +1240,6 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     WorkspacePage.tokenArtwork => 'Token artwork',
     WorkspacePage.tokenSummary => 'Board summary',
     WorkspacePage.utilities => 'Utilities',
-    WorkspacePage.utilityTools => 'Player tools',
     WorkspacePage.rules => 'Rules',
     WorkspacePage.presets => 'Saved setups',
     WorkspacePage.player => 'Player customization',
@@ -1302,9 +1300,11 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       WorkspacePage.tokenSummary =>
         p == null
             ? const SizedBox.shrink()
-            : _list([TokenBoardSummary(player: p!)]),
+            : _list([
+                _section('Board summary'),
+                TokenBoardSummary(player: p!, showHeading: false),
+              ]),
       WorkspacePage.utilities => _utilitiesPage(),
-      WorkspacePage.utilityTools => _utilityToolsPage(),
       WorkspacePage.rules => _rulesPage(),
       WorkspacePage.presets => _presetsPage(),
       WorkspacePage.player => _playerPage(),
@@ -1456,12 +1456,14 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     }
     final content = TableModalFrame(
       quarterTurns: widget.quarterTurns,
-      preferredWidth: focusedCommander ? 620 : 720,
+      preferredWidth: focusedCommander
+          ? 620
+          : _page == WorkspacePage.tokenSummary
+          ? 600
+          : 720,
       preferredHeight: focusedCommander
           ? _combinedContentHeight(min(620.0, localBounds.width)) +
                 (visibleError == null && _status == null ? 0 : 64)
-          : _page == WorkspacePage.utilityTools
-          ? 270
           : 640,
       surfaceKey: focusedCommander
           ? const ValueKey('commander-workspace')

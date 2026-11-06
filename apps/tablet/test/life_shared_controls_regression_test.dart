@@ -527,7 +527,8 @@ void main() {
             for (final target in [
               find.byKey(ValueKey('${p.id}-utility-tools')),
               for (final color in PlayerState.manaColors)
-                find.byKey(ValueKey('${p.id}-mana-$color-add')),
+                for (final action in ['spend', 'add'])
+                  find.byKey(ValueKey('${p.id}-mana-$color-$action')),
             ]) {
               // Slivers deliberately instantiate offscreen utilities lazily.
               // Advance the one scroll owner until the requested control exists.

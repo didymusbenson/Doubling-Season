@@ -30,6 +30,18 @@ ThemeData tableTheme(Brightness brightness) {
         ? const Color(0xFF0E1311)
         : const Color(0xFFE3E6DD),
     visualDensity: VisualDensity.standard,
+    // Numeric controls in rules/utilities are Cards, not FilledButtons.
+    // Give their actual painted surfaces a visible boundary in both themes;
+    // elevation and near-identical Material tones are not a boundary.
+    cardTheme: CardThemeData(
+      color: scheme.surfaceContainerHighest,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: scheme.outline, width: 1.5),
+      ),
+    ),
     iconButtonTheme: IconButtonThemeData(
       style: IconButton.styleFrom(minimumSize: const Size(44, 44)),
     ),

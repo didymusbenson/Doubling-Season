@@ -11,24 +11,6 @@ extension _LibraryPages on _TableWorkspaceState {
     },
   );
 
-  Widget _utilityToolsPage() => _list([
-    _section('$_seatName’s tools'),
-    ListTile(
-      key: ValueKey('${p?.id}-manage-utilities'),
-      leading: const Icon(Icons.widgets_outlined),
-      title: const Text('Utilities'),
-      subtitle: const Text('Show or hide utilities on your board'),
-      onTap: () => _go(WorkspacePage.utilities),
-    ),
-    ListTile(
-      key: ValueKey('${p?.id}-player-details'),
-      leading: const Icon(Icons.tune),
-      title: const Text('Player customization'),
-      subtitle: const Text('Name, color and artwork'),
-      onTap: () => _go(WorkspacePage.player),
-    ),
-  ]);
-
   Widget _utilitiesPage() {
     final player = p;
     if (player == null) {

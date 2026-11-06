@@ -19,14 +19,15 @@ class TokenModifierButton extends StatelessWidget {
     required this.onPressed,
   });
 
-  String _label(List<ModifierSource> active) {
-    if (active.isEmpty) return 'Rules';
+  static String previewLabel(List<ModifierSource> sources) {
+    final active = sources.where((s) => s.enabled && s.count > 0).toList();
+    if (active.isEmpty) return '';
     // Complex custom outcomes and companion-token trees are not a single
     // multiplier. Avoid evaluating those graphs on each board repaint.
     if (active.any(
       (source) => {'custom', 'chatterfang'}.contains(source.definitionId),
     )) {
-      return 'Rules';
+      return '';
     }
     final results = ScopedRulesCalculator(
       active,
@@ -35,13 +36,13 @@ class TokenModifierButton extends StatelessWidget {
             !results.first.wasCapped &&
             results.first.quantity > 1
         ? '×${results.first.quantity}'
-        : 'Rules';
+        : '';
   }
 
   @override
   Widget build(BuildContext context) {
     final active = sources.where((s) => s.enabled && s.count > 0).toList();
-    final label = _label(active);
+    final label = previewLabel(active);
     final colors = Theme.of(context).colorScheme;
     return Semantics(
       label: '$playerName, token modifiers',
@@ -71,7 +72,7 @@ class TokenModifierButton extends StatelessWidget {
                         size: 22,
                         color: colors.onPrimaryContainer,
                       ),
-                      if (extended) ...[
+                      if (extended && label.isNotEmpty) ...[
                         const SizedBox(width: 5),
                         Flexible(
                           child: FittedBox(

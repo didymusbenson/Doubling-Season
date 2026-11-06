@@ -15,6 +15,7 @@ import 'table_artwork.dart';
 import 'seat_layout_policy.dart';
 import 'tablet_token_card.dart';
 import 'token_modifier_button.dart';
+import 'player_tools_fab.dart';
 import 'half_stepper.dart';
 import 'life_tap_feedback.dart';
 import 'board_reorder_feedback.dart';
@@ -1582,8 +1583,11 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                 // constraints or scaled-down targets.
                 final availableWidth = math.max(180.0, controls.maxWidth);
                 final gap = availableWidth < 260 ? 4.0 : 12.0;
+                final sources = widget.board.effectiveSources(p.id);
                 final modifierWidth = math.min(
-                  120.0,
+                  TokenModifierButton.previewLabel(sources).isEmpty
+                      ? 44.0
+                      : 86.0,
                   availableWidth - 124 - gap * 3,
                 );
                 Widget circle(Widget child) => Material(
@@ -1604,7 +1608,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                       child: TokenModifierButton(
                         key: ValueKey('${p.id}-token-modifiers'),
                         playerName: profile.name,
-                        sources: widget.board.effectiveSources(p.id),
+                        sources: sources,
                         extended: modifierWidth >= 86,
                         onPressed: () => widget.onOpen(WorkspacePage.rules),
                       ),
@@ -1888,26 +1892,34 @@ class _PlayerSpaceState extends State<_PlayerSpace>
         Widget utilityArea(Widget body) => LayoutBuilder(
           builder: (context, area) => Stack(
             children: [
-              Positioned.fill(child: body),
+              // At the shortest seats, even a fully scrolled 44px control
+              // would sit underneath the FAB. Reserve its trailing strip there
+              // instead of requiring a hidden portion of a stepper to be tapped.
+              Positioned.fill(
+                right: !compactUtilityReorder && area.maxHeight < 116 ? 72 : 0,
+                child: body,
+              ),
               // Reorder already owns its compact Done control. Keep the menu
               // from intercepting that target or a dragged utility row.
               if (!compactUtilityReorder)
                 Positioned(
-                  left: 12,
+                  right: 12,
                   bottom: math.max(0.0, math.min(12.0, area.maxHeight - 48)),
                   child: SizedBox(
                     width: 48,
                     height: 48,
-                    child: FloatingActionButton.small(
+                    child: PlayerToolsFab(
                       key: ValueKey('${p.id}-utility-tools'),
-                      heroTag: '${p.id}-utility-tools',
-                      onPressed: () =>
-                          widget.onOpen(WorkspacePage.utilityTools),
-                      child: Icon(
-                        Icons.tune,
-                        semanticLabel:
-                            '${profile.name}, utilities and customization',
+                      playerId: p.id,
+                      playerName: profile.name,
+                      quarterTurns: widget.turns,
+                      interactionEpoch: Object.hash(
+                        widget.interactionEpoch,
+                        localViewEpoch,
+                        p.generation,
                       ),
+                      onUtilities: () => widget.onOpen(WorkspacePage.utilities),
+                      onCustomize: () => widget.onOpen(WorkspacePage.player),
                     ),
                   ),
                 ),
@@ -3028,8 +3040,9 @@ class _UtilityRow extends StatelessWidget {
                             builder: (context, constraints) {
                               // Two columns keep both +/- targets usable in the narrow
                               // portrait lane; landscape fits all six colors in two rows.
-                              final columns =
-                                  constraints.maxWidth >= (phone ? 296 : 200)
+                              final columns = constraints.maxWidth < 180
+                                  ? 1
+                                  : constraints.maxWidth >= (phone ? 296 : 200)
                                   ? 3
                                   : 2;
                               final width =

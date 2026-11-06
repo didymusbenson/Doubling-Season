@@ -147,11 +147,11 @@ void main() {
       Finder button(String id) => find.byKey(ValueKey('$id-token-modifiers'));
       Finder text(String id, String label) =>
           find.descendant(of: button(id), matching: find.text(label));
-      expect(text(owner, 'Rules'), findsOneWidget);
+      expect(text(owner, 'Rules'), findsNothing);
       await fixture.board.setModifier(owner, 'token_doubler', 1);
       await tester.pumpAndSettle();
       expect(text(owner, '×2'), findsOneWidget);
-      expect(text(other, 'Rules'), findsOneWidget);
+      expect(text(other, 'Rules'), findsNothing);
       await fixture.board.setModifier(other, 'primal_vigor', 1);
       await tester.pumpAndSettle();
       expect(text(owner, '×4'), findsOneWidget);
@@ -165,7 +165,7 @@ void main() {
       );
       await fixture.board.setModifier(owner, 'chatterfang', 1);
       await tester.pumpAndSettle();
-      expect(text(owner, 'Rules'), findsOneWidget);
+      expect(text(owner, 'Rules'), findsNothing);
       expect(fixture.controller.player(owner).tokens.first.amount, 3);
       expect(tester.takeException(), isNull);
     },

@@ -625,11 +625,7 @@ extension _GamePages on _TableWorkspaceState {
         padding: const EdgeInsets.only(bottom: 12),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: scheme.outlineVariant.withValues(alpha: .6),
-              ),
-            ),
+            border: Border(bottom: BorderSide(color: scheme.outline)),
           ),
           child: Padding(
             padding: const EdgeInsets.only(bottom: 12),

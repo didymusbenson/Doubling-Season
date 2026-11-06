@@ -5,7 +5,12 @@ import '../domain/table_state.dart';
 /// counters are included; variable power remains explicit instead of guessed.
 class TokenBoardSummary extends StatelessWidget {
   final PlayerState player;
-  const TokenBoardSummary({super.key, required this.player});
+  final bool showHeading;
+  const TokenBoardSummary({
+    super.key,
+    required this.player,
+    this.showHeading = true,
+  });
   @override
   Widget build(BuildContext context) {
     final tokens = player.tokens
@@ -49,31 +54,117 @@ class TokenBoardSummary extends StatelessWidget {
         (t) => t.amount,
       ),
     };
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Board summary', style: Theme.of(context).textTheme.titleLarge),
-        const Text(
-          'Only this player’s tokens. Zero stacks and emblems are excluded.',
-        ),
-        for (final row in rows.entries)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 7),
-            child: Row(
-              children: [
-                Expanded(child: Text(row.key)),
-                Text(
-                  '${row.value}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ],
+    final theme = Theme.of(context);
+    Widget section(String title, List<String> labels) => Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w700,
             ),
           ),
+          const SizedBox(height: 8),
+          for (final label in labels)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 3, child: Text(label)),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      '${rows[label]}',
+                      textAlign: TextAlign.end,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+    final sections = [
+      section('Token totals', [
+        'Tokens',
+        'Creatures',
+        'Artifacts',
+        'Enchantments',
+      ]),
+      section('Creature status', [
+        'Untapped creatures',
+        'Tapped creatures',
+        'Summoning sick creatures',
+      ]),
+      section('Power', ['Known total power', 'Known untapped power']),
+      section('Artifact status', ['Untapped artifacts', 'Tapped artifacts']),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (showHeading) ...[
+          Text('Board summary', style: theme.textTheme.titleLarge),
+          const SizedBox(height: 8),
+        ],
+        Text(
+          'Only this player’s tokens. Zero stacks and emblems are excluded.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 16),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final wide =
+                constraints.maxWidth >= 480 &&
+                MediaQuery.textScalerOf(context).scale(14) <= 18;
+            return Column(
+              children: [
+                for (var i = 0; i < sections.length; i += wide ? 2 : 1) ...[
+                  if (i > 0) const SizedBox(height: 12),
+                  if (wide)
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(child: sections[i]),
+                          const SizedBox(width: 12),
+                          Expanded(child: sections[i + 1]),
+                        ],
+                      ),
+                    )
+                  else
+                    sections[i],
+                ],
+              ],
+            );
+          },
+        ),
         if (variable.isNotEmpty) ...[
-          const Divider(),
-          const Text('Variable power — excluded from known power totals'),
+          const SizedBox(height: 16),
+          Text(
+            'Variable power — excluded from known power totals',
+            style: theme.textTheme.labelLarge,
+          ),
+          const SizedBox(height: 8),
           for (final entry in variable.entries)
-            Text('${entry.value} × ${entry.key}'),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text('${entry.value} × ${entry.key}'),
+            ),
         ],
       ],
     );
