@@ -169,10 +169,10 @@ void main() {
       final original = hidden.toJson();
       await tester.tap(find.byKey(const ValueKey('phone-action-utilities')));
       await tester.pumpAndSettle();
-      expect(find.text('Add a utility'), findsOneWidget);
+      expect(find.byType(SwitchListTile), findsWidgets);
       final hiddenMenu = find.byKey(ValueKey('utility-menu-${hidden.id}'));
       await tester.ensureVisible(hiddenMenu);
-      await tester.tap(hiddenMenu);
+      await tester.tap(find.byKey(ValueKey('utility-edit-${hidden.id}')));
       await tester.pumpAndSettle();
       expect(
         find.text('Hidden from the board. Its values are still saved.'),

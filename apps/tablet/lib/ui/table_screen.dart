@@ -1714,6 +1714,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                 DragBoundary(
                   child: ReorderableListView.builder(
                     scrollController: utilityScroll,
+                    padding: const EdgeInsets.only(bottom: 72),
                     reverse: widget.turns == 2,
                     buildDefaultDragHandles: false,
                     itemCount: visible.length,
@@ -1834,9 +1835,28 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                               childCount: visible.length,
                             ),
                           ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 72)),
                       ],
                     )
             : utilities;
+        Widget utilityArea(Widget body) => Stack(
+          children: [
+            Positioned.fill(child: body),
+            Positioned(
+              left: 12,
+              bottom: 12,
+              child: FloatingActionButton.small(
+                key: ValueKey('${p.id}-utility-tools'),
+                heroTag: '${p.id}-utility-tools',
+                onPressed: () => widget.onOpen(WorkspacePage.utilityTools),
+                child: Icon(
+                  Icons.tune,
+                  semanticLabel: '${profile.name}, utilities and customization',
+                ),
+              ),
+            ),
+          ],
+        );
         return _LifePanel(
           compact: localViews,
           seamControlCenters: [
@@ -1860,7 +1880,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                       if (!shortFooter) tools,
                       Expanded(
                         key: ValueKey('${p.id}-utility-section'),
-                        child: utilityBody(tools),
+                        child: utilityArea(utilityBody(tools)),
                       ),
                     ],
                   ),
@@ -1920,7 +1940,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                     key: _utilityLaneKey,
                     child: KeyedSubtree(
                       key: PageStorageKey('${p.id}-utility-scroll-position'),
-                      child: utilityBody(tools),
+                      child: utilityArea(utilityBody(tools)),
                     ),
                   ),
                 ),
@@ -2334,29 +2354,7 @@ class _LifePanel extends StatelessWidget {
         WorkspacePage.rules,
         count: enabledRules,
       ),
-      KeyedSubtree(
-        key: ValueKey('${player.id}-manage-utilities'),
-        child: shortcut(
-          Icons.widgets_outlined,
-          'Manage utilities',
-          WorkspacePage.utilities,
-        ),
-      ),
-      SizedBox(
-        key: ValueKey('${player.id}-player-details'),
-        height: 44,
-        child: Semantics(
-          label: '${profile.name}, player details',
-          button: true,
-          onTap: () => onOpen(WorkspacePage.player),
-          excludeSemantics: true,
-          child: IconButton(
-            onPressed: () => onOpen(WorkspacePage.player),
-            icon: const Icon(Icons.edit_outlined, size: 19),
-            padding: EdgeInsets.zero,
-          ),
-        ),
-      ),
+
     ];
     return LayoutBuilder(
       builder: (context, constraints) {

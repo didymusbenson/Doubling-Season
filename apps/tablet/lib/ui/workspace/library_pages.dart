@@ -11,6 +11,24 @@ extension _LibraryPages on _TableWorkspaceState {
     },
   );
 
+  Widget _utilityToolsPage() => _list([
+    _section('$_seatName’s tools'),
+    ListTile(
+      key: ValueKey('${p?.id}-manage-utilities'),
+      leading: const Icon(Icons.widgets_outlined),
+      title: const Text('Utilities'),
+      subtitle: const Text('Show or hide utilities on your board'),
+      onTap: () => _go(WorkspacePage.utilities),
+    ),
+    ListTile(
+      key: ValueKey('${p?.id}-player-details'),
+      leading: const Icon(Icons.tune),
+      title: const Text('Player customization'),
+      subtitle: const Text('Name, color and artwork'),
+      onTap: () => _go(WorkspacePage.player),
+    ),
+  ]);
+
   Widget _utilitiesPage() {
     final player = p;
     if (player == null) {
@@ -24,106 +42,152 @@ extension _LibraryPages on _TableWorkspaceState {
     final legacy = player.utilities
         .where((utility) => !_board.isStandaloneUtilityKind(utility.kind))
         .toList();
-    final enabledKinds = player.utilities
-        .where((utility) => utility.visible)
-        .map((utility) => utility.kind)
-        .toSet();
+    final definitions = {
+      for (final definition in _board.utilityDefinitions)
+        definition.id: definition,
+    };
+    final standalone = player.utilities
+        .where((utility) => _board.isStandaloneUtilityKind(utility.kind))
+        .toList();
+    final existingKinds = standalone.map((utility) => utility.kind).toSet();
+    final choices = <_UtilityChoice>[
+      for (final utility in standalone)
+        _UtilityChoice(utility: utility, definition: definitions[utility.kind]),
+      for (final definition in definitions.values)
+        if (!existingKinds.contains(definition.id))
+          _UtilityChoice(definition: definition),
+    ]..sort((a, b) {
+      final name = a.sortName.compareTo(b.sortName);
+      return name != 0 ? name : a.id.compareTo(b.id);
+    });
     final query = _field('utilities.search');
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
           child: _contentTop(
-            PlayerField(controller: query, label: 'Search utilities'),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Utilities · $_seatName',
+                key: const ValueKey('utility-picker-heading'),
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          child: PlayerField(
+            key: const ValueKey('utility-picker-search'),
+            controller: query,
+            label: 'Search utilities',
+            prefixIcon: const Icon(Icons.search),
           ),
         ),
         Expanded(
-          child: _list([
-            for (final utility in player.utilities.where(
-              (utility) => _board.isStandaloneUtilityKind(utility.kind),
-            ))
-              Card(
-                key: ValueKey('utility-menu-${utility.id}'),
-                child: ListTile(
-                  dense: true,
-                  visualDensity: VisualDensity.compact,
-                  leading: Icon(
-                    utility.visible
-                        ? Icons.dashboard_outlined
-                        : Icons.visibility_off_outlined,
-                  ),
-                  title: Text(utility.name),
-                  subtitle: Text(
-                    utility.kind == 'mana_pool'
-                        ? 'Mana total: ${player.mana.values.fold(0, (a, b) => a + b)}${utility.visible ? '' : ' · hidden'}'
-                        : '${_board.utilityValue(player.id, utility.id)}${utility.isActive ? ' · active' : ''}${utility.visible ? '' : ' · hidden'}',
-                  ),
-                  trailing: MergeSemantics(
-                    child: Semantics(
-                      label: utility.visible
-                          ? 'Remove utility'
-                          : 'Restore utility',
-                      child: IconButton(
-                        icon: Icon(
-                          utility.visible
-                              ? Icons.close
-                              : Icons.visibility_outlined,
+          child: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: query,
+            builder: (context, value, _) {
+              final matching = choices.where((choice) => choice.matches(value.text));
+              return _list([
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text('Switch off to hide. Your values stay saved.'),
+                ),
+                for (final choice in matching)
+                  Row(
+                    key: choice.utility == null
+                        ? ValueKey('utility-choice-${choice.id}')
+                        : ValueKey('utility-menu-${choice.utility!.id}'),
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: SwitchListTile(
+                          key: ValueKey('utility-toggle-${choice.id}'),
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(choice.name),
+                          subtitle: Text(
+                            '${choice.visible ? 'Shown on board' : 'Hidden from board'}'
+                            '${choice.description.isEmpty ? '' : '\n${choice.description}'}',
+                          ),
+                          value: choice.visible,
+                          onChanged: _working
+                              ? null
+                              : (visible) => _run(() {
+                                  final utility = choice.utility;
+                                  return utility == null
+                                      ? _board.addUtility(
+                                          player.id,
+                                          choice.id,
+                                          captured: _board.scope(player.id),
+                                        )
+                                      : _board.setUtility(
+                                          player.id,
+                                          utility.id,
+                                          visible: visible,
+                                          captured: _board.scope(player.id),
+                                        );
+                                }),
                         ),
-                        onPressed: () => utility.visible
-                            ? _removeBoardUtility(utility)
-                            : _run(
-                                () => _board.setUtility(
-                                  player.id,
-                                  utility.id,
-                                  visible: true,
+                      ),
+                      // A separate action must not sit inside SwitchListTile's
+                      // merged semantics or change what tapping the row does.
+                      SizedBox(
+                        width: 48,
+                        child: choice.utility == null
+                            ? null
+                            : Semantics(
+                                label: 'Edit ${choice.name}',
+                                button: true,
+                                child: IconButton(
+                                  key: ValueKey('utility-edit-${choice.utility!.id}'),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 48,
+                                    minHeight: 48,
+                                  ),
+                                  onPressed: _working
+                                      ? null
+                                      : () => _update(
+                                          () => _itemId = choice.utility!.id,
+                                        ),
+                                  icon: const Icon(Icons.edit_outlined),
                                 ),
                               ),
                       ),
+                    ],
+                  ),
+                if (matching.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Column(
+                      children: [
+                        const Text('No utilities match your search.'),
+                        TextButton(
+                          onPressed: query.clear,
+                          child: const Text('Clear search'),
+                        ),
+                      ],
                     ),
                   ),
-                  onTap: () => _update(() => _itemId = utility.id),
-                ),
-              ),
-            if (legacy.isNotEmpty)
-              ExpansionTile(
-                key: const PageStorageKey('legacy-utility-settings'),
-                title: const Text('Legacy settings'),
-                leading: const Icon(Icons.inventory_2_outlined, size: 20),
-                dense: true,
-                children: [
-                  for (final utility in legacy)
-                    ListTile(
-                      key: ValueKey('legacy-settings-${utility.id}'),
-                      dense: true,
-                      title: Text(utility.name),
-                      trailing: const Icon(Icons.edit_outlined, size: 18),
-                      onTap: () => _update(() => _itemId = utility.id),
-                    ),
-                ],
-              ),
-            _section('Add a utility'),
-            ValueListenableBuilder<TextEditingValue>(
-              valueListenable: query,
-              builder: (context, value, _) => Column(
-                children: [
-                  for (final definition in _board.utilityDefinitions.where(
-                    (d) =>
-                        !enabledKinds.contains(d.id) &&
-                        d.matches(searchQuery: value.text),
-                  ))
-                    ListTile(
-                      key: ValueKey('add-utility-${definition.id}'),
-                      title: Text(definition.name),
-                      subtitle: Text(definition.description),
-                      trailing: const Icon(Icons.add),
-                      onTap: () => _run(
-                        () => _board.addUtility(player.id, definition.id),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ], controls: false),
+                if (legacy.isNotEmpty && value.text.trim().isEmpty)
+                  ExpansionTile(
+                    key: const PageStorageKey('legacy-utility-settings'),
+                    title: const Text('Legacy settings'),
+                    leading: const Icon(Icons.inventory_2_outlined, size: 20),
+                    children: [
+                      for (final utility in legacy)
+                        ListTile(
+                          key: ValueKey('legacy-settings-${utility.id}'),
+                          title: Text(utility.name),
+                          trailing: const Icon(Icons.edit_outlined, size: 18),
+                          onTap: () => _update(() => _itemId = utility.id),
+                        ),
+                    ],
+                  ),
+              ], controls: false);
+            },
+          ),
         ),
       ],
     );
@@ -1594,5 +1658,28 @@ extension _LibraryPages on _TableWorkspaceState {
     } else {
       _run(export);
     }
+  }
+}
+
+/// An existing saved instance or a catalog entry that has not been enabled yet.
+/// Catalog order and identity never depend on visibility, so a switch cannot
+/// move its own row. Imported/custom duplicate instances remain independent.
+class _UtilityChoice {
+  const _UtilityChoice({this.utility, this.definition});
+  final UtilityState? utility;
+  final WidgetDefinition? definition;
+  String get id => utility?.id ?? definition!.id;
+  String get name => utility?.name ?? definition!.name;
+  String get description => utility?.description.isNotEmpty == true
+      ? utility!.description
+      : definition?.description ?? '';
+  String get sortName => (definition?.name ?? name).toLowerCase();
+  bool get visible => utility?.visible ?? false;
+  bool matches(String query) {
+    final search = query.trim().toLowerCase();
+    return search.isEmpty ||
+        '$name $description ${definition?.name ?? ''} ${definition?.description ?? ''}'
+            .toLowerCase()
+            .contains(search);
   }
 }

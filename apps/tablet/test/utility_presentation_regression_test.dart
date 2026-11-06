@@ -223,7 +223,7 @@ void main() {
       });
       await tester.pumpAndSettle();
       expect(find.text('Legacy settings'), findsNothing);
-      expect(find.text('Add a utility'), findsOneWidget);
+      expect(find.byType(SwitchListTile), findsWidgets);
       expect(find.text('Life Total'), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.tap(byControlLabel('Close workspace'));
