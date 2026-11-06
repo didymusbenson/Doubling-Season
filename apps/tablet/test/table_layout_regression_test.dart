@@ -298,11 +298,11 @@ void main() {
                   allowsUtilityScroll(size, seats)
                       ? (size.width < size.height
                             ? 28
-                            : (seats == 2 ? 74 : 106))
+                            : (seats == 2 ? 82 : 106))
                       : 1,
                 ),
                 reason:
-                    'Shared-control clearance permits modest utility scrolling; all life and mana controls retain full targets.',
+                    'Shared-control/FAB clearance and the two 4px reorder gutters permit modest utility scrolling; all life and mana controls retain full targets.',
               );
               final ledger = find.byKey(
                 ValueKey('${player.id}-commander-ledger'),
