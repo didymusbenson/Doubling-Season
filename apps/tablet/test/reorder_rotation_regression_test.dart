@@ -394,6 +394,20 @@ void main() {
                   (w) => w.runtimeType.toString() == '_UtilityRow',
                 ),
               );
+        final beforeRow = globalBounds(tester, row());
+        // Compact seats can have less than 10 px of travel after the wider
+        // player river. Preserve the grip until the existing drag boundary
+        // clamps the row; do not mistake that deliberate clamp for drift.
+        final boundedMovement = Offset(
+          movement.dx.clamp(
+            bounds.left - beforeRow.left,
+            bounds.right - beforeRow.right,
+          ),
+          movement.dy.clamp(
+            bounds.top - beforeRow.top,
+            bounds.bottom - beforeRow.bottom,
+          ),
+        );
         final gesture = await tester.startGesture(start);
         var released = false;
         try {
@@ -421,8 +435,8 @@ void main() {
           );
           closeOffset(
             grab,
-            start + movement,
-            'An off-center grip follows the pointer.',
+            start + boundedMovement,
+            'An off-center grip follows the pointer within its drag boundary.',
           );
           final destination = tokenTarget == null
               ? Offset(

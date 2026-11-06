@@ -340,7 +340,7 @@ void main() {
     TargetPlatform.macOS,
   ]) {
     testWidgets(
-      '$platform colored life surface includes names and border-inset corners; tools are disjoint',
+      '$platform colored life surface includes names and rounded corner padding; tools are disjoint',
       (tester) async {
         final fixture = await showTable(tester);
         for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
@@ -355,11 +355,15 @@ void main() {
             var expected = player.life;
             for (final point in [
               const Offset(1, 1),
+              const Offset(14, 1),
+              const Offset(7, 7),
               const Offset(1, 32),
               Offset(box.size.width - 1, 32),
               Offset(box.size.width / 2 - 1, 1),
               Offset(box.size.width / 2 + 1, 1),
               Offset(box.size.width - 1, 1),
+              Offset(box.size.width - 14, 1),
+              Offset(box.size.width - 7, 7),
               Offset(1, box.size.height - 1),
               Offset(box.size.width / 2 - 1, box.size.height - 1),
               Offset(box.size.width / 2 + 1, box.size.height - 1),
@@ -369,7 +373,18 @@ void main() {
                 find.byKey(ValueKey('${player.id}-life-clip')),
               );
               if (!clip.clipper!.getClip(box.size).contains(point)) continue;
-              expected += point.dx < box.size.width / 2 ? -1 : 1;
+              final space = find.byKey(ValueKey('${player.id}-space-clip'));
+              final spaceBox = tester.renderObject<RenderBox>(space);
+              final rounded = tester
+                  .widget<ClipRRect>(space)
+                  .clipper!
+                  .getClip(spaceBox.size);
+              final visible = rounded.contains(
+                spaceBox.globalToLocal(box.localToGlobal(point)),
+              );
+              // Rounded-away corners belong to the black table, not life.
+              // Every visible part of the colored padding still steps life.
+              if (visible) expected += point.dx < box.size.width / 2 ? -1 : 1;
               await tester.tapAt(box.localToGlobal(point));
               await tester.pumpAndSettle();
               expect(
