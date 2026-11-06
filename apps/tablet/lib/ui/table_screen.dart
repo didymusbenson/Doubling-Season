@@ -16,6 +16,7 @@ import 'seat_layout_policy.dart';
 import 'tablet_token_card.dart';
 import 'half_stepper.dart';
 import 'life_tap_feedback.dart';
+import 'board_reorder_feedback.dart';
 import 'monarch_crown.dart';
 import 'table_mana_icons.dart';
 import 'ring_inline.dart';
@@ -51,6 +52,12 @@ class _TableScreenState extends State<TableScreen>
   Size lastTabletSize = const Size(900, 700);
   Size lastPhoneSize = const Size(390, 844);
   final Map<String, LifeTapFeedback> _presentationLife = {};
+  final Map<String, BoardReorderFeedback> _presentationOrder = {};
+  BoardReorderFeedback _orderFor(PlayerState player) =>
+      _presentationOrder.putIfAbsent(
+        '${widget.controller.session.id}:${player.id}',
+        () => BoardReorderFeedback(board, playerId: player.id),
+      );
   int _presentationSerial = 0;
   final Set<int> _activePointers = {};
   void _cancelActivePointers() {
@@ -126,6 +133,9 @@ class _TableScreenState extends State<TableScreen>
   void dispose() {
     drawerAnimation.dispose();
     for (final feedback in _presentationLife.values) {
+      feedback.dispose();
+    }
+    for (final feedback in _presentationOrder.values) {
       feedback.dispose();
     }
     catalog.dispose();
@@ -292,6 +302,7 @@ class _TableScreenState extends State<TableScreen>
                       controller: controller,
                       board: board,
                       player: player,
+                      reorderFeedback: _orderFor(player),
                       sharedLifeFeedback: widget.enablePhonePresentation
                           ? _feedbackFor(player)
                           : null,
@@ -647,6 +658,19 @@ class _TableScreenState extends State<TableScreen>
   }
 
   Widget _presentations(BuildContext context, Widget tablet) {
+    final activeOrderKeys = widget.controller.session.players
+        .map((p) => '${widget.controller.session.id}:${p.id}')
+        .toSet();
+    if (_presentationOrder.keys.any((key) => !activeOrderKeys.contains(key))) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        for (final key in _presentationOrder.keys.toList()) {
+          if (!activeOrderKeys.contains(key)) {
+            _presentationOrder.remove(key)?.dispose();
+          }
+        }
+      });
+    }
     if (!widget.enablePhonePresentation) return tablet;
     if (widget.compactPlayerOne) phoneVisited = true;
     final activeLifeKeys = widget.controller.session.players
@@ -694,6 +718,9 @@ class _TableScreenState extends State<TableScreen>
                   controller: widget.controller,
                   board: board,
                   catalog: catalog,
+                  reorderFeedback: _orderFor(
+                    widget.controller.session.players.first,
+                  ),
                   lifeFeedback: _feedbackFor(
                     widget.controller.session.players.first,
                   ),
@@ -1202,6 +1229,7 @@ class _EmptyControlSpace extends StatelessWidget {
 }
 
 class _PlayerSpace extends StatefulWidget {
+  final BoardReorderFeedback reorderFeedback;
   final LifeTapFeedback? sharedLifeFeedback;
   final TableController controller;
   final BoardService board;
@@ -1220,6 +1248,7 @@ class _PlayerSpace extends StatefulWidget {
   const _PlayerSpace({
     super.key,
     this.sharedLifeFeedback,
+    required this.reorderFeedback,
     required this.controller,
     required this.board,
     required this.player,
@@ -1330,12 +1359,17 @@ class _PlayerSpaceState extends State<_PlayerSpace>
   void initState() {
     super.initState();
     _listenToLife();
+    widget.reorderFeedback.addListener(_lifeChanged);
     WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void didUpdateWidget(covariant _PlayerSpace oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.reorderFeedback != widget.reorderFeedback) {
+      oldWidget.reorderFeedback.removeListener(_lifeChanged);
+      widget.reorderFeedback.addListener(_lifeChanged);
+    }
     if (oldWidget.controller != widget.controller ||
         oldWidget.player.id != widget.player.id ||
         oldWidget.sharedLifeFeedback != widget.sharedLifeFeedback) {
@@ -1384,6 +1418,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    widget.reorderFeedback.removeListener(_lifeChanged);
     lifeFeedback.removeListener(_lifeChanged);
     if (_ownsLifeFeedback) lifeFeedback.dispose();
     tokenScroll.dispose();
@@ -1440,6 +1475,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
 
   Widget _buildSeat(BuildContext context, bool localViews) {
     final p = widget.player;
+    final tokens = widget.reorderFeedback.tokens;
     final profile = widget.controller.profile(p.seatId);
     final seatWidth = _seatSize!.width;
     final splitTokenWidth = (seatWidth - 1) * .6;
@@ -1462,7 +1498,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
         key: ValueKey('${p.id}-token-lane'),
         children: [
           Positioned.fill(
-            child: p.tokens.isEmpty
+            child: tokens.isEmpty
                 ? _EmptyLane(
                     icon: Icons.style_outlined,
                     text: 'Your token board',
@@ -1480,15 +1516,15 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                             ? const EdgeInsets.only(top: 88)
                             : const EdgeInsets.only(bottom: 88),
                         buildDefaultDragHandles: false,
-                        itemCount: p.tokens.length,
+                        itemCount: tokens.length,
                         onReorder: (old, next) => perform(
-                          () => widget.board.reorder(p.id, 'tokens', old, next),
+                          () => widget.reorderFeedback.reorderTokens(old, next),
                         ),
                         proxyDecorator: (child, index, animation) =>
                             Material(elevation: 5, child: child),
                         itemBuilder: (context, index) {
                           _rememberReorder(context);
-                          final t = p.tokens[index];
+                          final t = tokens[index];
                           return ReorderableDelayedDragStartListener(
                             key: ValueKey(t.id),
                             index: index,
@@ -1582,7 +1618,7 @@ class _PlayerSpaceState extends State<_PlayerSpace>
         ],
       ),
     );
-    final visible = p.utilities.where(widget.board.isUtilityVisible).toList();
+    final visible = widget.reorderFeedback.utilities;
     Widget innerLane = LayoutBuilder(
       builder: (context, lane) {
         // Short player-local seats keep utility padding compact so the taller
@@ -1598,12 +1634,8 @@ class _PlayerSpaceState extends State<_PlayerSpace>
         final shortFooter =
             lane.maxHeight <
             lifeHeight + (localViews ? 44 : 0) + toolHeight + 44;
-        void reorderUtilities(int old, int next) => perform(() async {
-          final ids = visible.map((u) => u.id).toList();
-          if (next > old) next--;
-          ids.insert(next, ids.removeAt(old));
-          await widget.board.reorderVisibleUtilities(p.id, ids);
-        });
+        void reorderUtilities(int old, int next) =>
+            perform(() => widget.reorderFeedback.reorderUtilities(old, next));
         Widget utilityItem(BuildContext context, int index) {
           _rememberReorder(context);
           final u = visible[index];

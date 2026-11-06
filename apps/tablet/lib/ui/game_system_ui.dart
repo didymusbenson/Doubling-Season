@@ -66,7 +66,7 @@ class _GameSystemUiState extends State<GameSystemUi>
     _keyboardRestore?.cancel();
     final active = state == AppLifecycleState.resumed;
     if (_active == active) return;
-    _active = active;
+    setState(() => _active = active);
     _apply(active);
   }
 
@@ -94,5 +94,23 @@ class _GameSystemUiState extends State<GameSystemUi>
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    final media = MediaQuery.maybeOf(context);
+    if (media == null) return widget.child;
+    // Hiding the iOS home indicator does not clear its safe-area inset. Consume
+    // that inset for the fullscreen table, or its SafeArea leaves a blank strip.
+    // Keep cutout/side padding and keyboard occlusion unchanged. Always retain
+    // the wrapper so lifecycle changes do not remount the loaded game.
+    final fullscreenIos =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS && _active;
+    return MediaQuery(
+      data: fullscreenIos
+          ? media.copyWith(
+              padding: media.padding.copyWith(bottom: 0),
+              viewPadding: media.viewPadding.copyWith(bottom: 0),
+            )
+          : media,
+      child: widget.child,
+    );
+  }
 }

@@ -126,6 +126,88 @@ void main() {
   );
 
   testWidgets(
+    'iOS fullscreen consumes only bottom safe area across keyboard and resume',
+    (tester) async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      const tableKey = ValueKey('table-surface');
+      const insets = EdgeInsets.fromLTRB(44, 24, 12, 20);
+      MediaQueryData? tableMedia;
+      Widget shell({double keyboard = 0}) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: MediaQuery(
+          data: MediaQueryData(
+            padding: insets,
+            viewPadding: insets,
+            viewInsets: EdgeInsets.only(bottom: keyboard),
+          ),
+          child: GameSystemUi(
+            child: Builder(
+              builder: (context) {
+                tableMedia = MediaQuery.of(context);
+                return const SafeArea(child: SizedBox.expand(key: tableKey));
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpWidget(shell());
+      final tableElement = tester.element(find.byKey(tableKey));
+      expect(tableMedia!.padding, const EdgeInsets.fromLTRB(44, 24, 12, 0));
+      expect(tableMedia!.viewPadding.bottom, 0);
+      expect(tester.getBottomRight(find.byKey(tableKey)).dy, 600);
+      expect(tester.getTopLeft(find.byKey(tableKey)), const Offset(44, 24));
+
+      await tester.pumpWidget(shell(keyboard: 300));
+      expect(tableMedia!.viewInsets.bottom, 300);
+      expect(tableMedia!.viewPadding.bottom, 0);
+      await tester.pumpWidget(shell());
+      expect(tableMedia!.viewInsets.bottom, 0);
+      expect(tester.getBottomRight(find.byKey(tableKey)).dy, 600);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pump();
+      expect(tableMedia!.padding, insets);
+      expect(tableMedia!.viewPadding, insets);
+      expect(tester.getBottomRight(find.byKey(tableKey)).dy, 580);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(tester.getBottomRight(find.byKey(tableKey)).dy, 600);
+      expect(tester.element(find.byKey(tableKey)), same(tableElement));
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+  );
+
+  testWidgets(
+    'other platforms preserve all platform-provided safe area insets',
+    (tester) async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      const media = MediaQueryData(
+        padding: EdgeInsets.fromLTRB(44, 24, 12, 20),
+        viewPadding: EdgeInsets.fromLTRB(44, 24, 12, 20),
+      );
+      MediaQueryData? actual;
+      await tester.pumpWidget(
+        MediaQuery(
+          data: media,
+          child: GameSystemUi(
+            child: Builder(
+              builder: (context) {
+                actual = MediaQuery.of(context);
+                return const SizedBox();
+              },
+            ),
+          ),
+        ),
+      );
+      expect(actual, media);
+    },
+    variant: TargetPlatformVariant({
+      TargetPlatform.android,
+      TargetPlatform.linux,
+    }),
+  );
+
+  testWidgets(
     'desktop leaves system chrome alone',
     (tester) async {
       await tester.pumpWidget(const GameSystemUi(child: SizedBox()));

@@ -61,6 +61,7 @@ class BoardService {
     void Function(GameSession, PlayerState) mutate, {
     BoardScope? captured,
     String? groupKey,
+    String? commandId,
     int? delta,
     int? expectedRevision,
     bool gameOrigin = false,
@@ -74,6 +75,7 @@ class BoardService {
       playerId: gameOrigin ? null : playerId,
       affectedPlayerIds: affectedPlayerIds ?? (gameOrigin ? [playerId] : null),
       groupKey: groupKey,
+      commandId: commandId,
       delta: delta,
       effectiveDelta: effectiveDelta,
       describeDelta: describeDelta,
@@ -1148,6 +1150,22 @@ class BoardService {
     final item = items.removeAt(oldIndex);
     items.insert(newIndex, item);
   });
+
+  /// Resolve the displayed sequence by identity inside the durable queue.
+  /// A second drag may start before an earlier reorder has finished saving.
+  Future<void> reorderTokens(
+    String playerId,
+    List<String> ids, {
+    String? commandId,
+  }) => _commit(playerId, 'Reorder tokens', (s, p) {
+    if (ids.length != p.tokens.length ||
+        ids.toSet().length != ids.length ||
+        !p.tokens.every((t) => ids.contains(t.id))) {
+      throw StateError('Tokens changed while dragging. Try again.');
+    }
+    final byId = {for (final t in p.tokens) t.id: t};
+    p.tokens = [for (final id in ids) byId[id]!];
+  }, commandId: commandId);
   // Presentation only: legacy payloads and their bound command handlers remain
   // intact so saved history can still resolve exact values and entity IDs.
   static const _builtInUtilityKinds = {
@@ -1572,21 +1590,23 @@ class BoardService {
     },
     affectedPlayerIds: _initiativeAffectedPlayers(playerId, id),
   );
-  Future<void> reorderVisibleUtilities(String playerId, List<String> ids) =>
-      _commit(playerId, 'Reorder utilities', (s, p) {
-        final visible = p.utilities.where(isUtilityVisible).toList();
-        if (ids.length != visible.length ||
-            ids.toSet().length != ids.length ||
-            !visible.every((u) => ids.contains(u.id))) {
-          throw StateError('Utilities changed while dragging. Try again.');
-        }
-        final byId = {for (final u in visible) u.id: u};
-        var i = 0;
-        p.utilities = [
-          for (final u in p.utilities)
-            isUtilityVisible(u) ? byId[ids[i++]]! : u,
-        ];
-      });
+  Future<void> reorderVisibleUtilities(
+    String playerId,
+    List<String> ids, {
+    String? commandId,
+  }) => _commit(playerId, 'Reorder utilities', (s, p) {
+    final visible = p.utilities.where(isUtilityVisible).toList();
+    if (ids.length != visible.length ||
+        ids.toSet().length != ids.length ||
+        !visible.every((u) => ids.contains(u.id))) {
+      throw StateError('Utilities changed while dragging. Try again.');
+    }
+    final byId = {for (final u in visible) u.id: u};
+    var i = 0;
+    p.utilities = [
+      for (final u in p.utilities) isUtilityVisible(u) ? byId[ids[i++]]! : u,
+    ];
+  }, commandId: commandId);
 
   Future<void> createCustomUtility(
     String playerId, {

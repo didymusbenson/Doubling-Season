@@ -8,6 +8,7 @@ class _PhonePlayerView extends StatefulWidget {
     required this.board,
     required this.catalog,
     required this.lifeFeedback,
+    required this.reorderFeedback,
     required this.interactionEpoch,
     required this.active,
     required this.inputLocked,
@@ -19,6 +20,7 @@ class _PhonePlayerView extends StatefulWidget {
   final BoardService board;
   final TabletCatalog catalog;
   final LifeTapFeedback lifeFeedback;
+  final BoardReorderFeedback reorderFeedback;
   final int interactionEpoch;
   final bool active, inputLocked;
   final ValueChanged<bool> onInputLock;
@@ -40,6 +42,7 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
   void initState() {
     super.initState();
     _bind();
+    widget.reorderFeedback.addListener(_refresh);
   }
 
   void _bind() {
@@ -54,6 +57,10 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
   @override
   void didUpdateWidget(covariant _PhonePlayerView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.reorderFeedback != widget.reorderFeedback) {
+      oldWidget.reorderFeedback.removeListener(_refresh);
+      widget.reorderFeedback.addListener(_refresh);
+    }
     if (sessionId != widget.controller.session.id ||
         oldWidget.lifeFeedback != widget.lifeFeedback) {
       feedback.removeListener(_refresh);
@@ -67,6 +74,7 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
   @override
   void dispose() {
     feedback.removeListener(_refresh);
+    widget.reorderFeedback.removeListener(_refresh);
     scroll.dispose();
     super.dispose();
   }
@@ -190,7 +198,8 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
   Widget build(BuildContext context) {
     final p = player;
     final profile = widget.controller.profile(p.seatId);
-    final visible = p.utilities.where(widget.board.isUtilityVisible).toList();
+    final visible = widget.reorderFeedback.utilities;
+    final tokens = widget.reorderFeedback.tokens;
     final epoch = Object.hash(
       widget.interactionEpoch,
       widget.active,
@@ -293,14 +302,12 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
                         itemCount: visible.length,
                         proxyDecorator: (child, index, animation) =>
                             Material(elevation: 5, child: child),
-                        onReorder: (old, next) => perform(() async {
-                          final ids = visible.map((u) => u.id).toList();
-                          if (next > old) {
-                            next--;
-                          }
-                          ids.insert(next, ids.removeAt(old));
-                          await widget.board.reorderVisibleUtilities(p.id, ids);
-                        }),
+                        onReorder: (old, next) => perform(
+                          () => widget.reorderFeedback.reorderUtilities(
+                            old,
+                            next,
+                          ),
+                        ),
                         itemBuilder: (context, index) {
                           final u = visible[index];
                           return ReorderableDelayedDragStartListener(
@@ -348,7 +355,7 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
                           );
                         },
                       ),
-                      if (p.tokens.isEmpty)
+                      if (tokens.isEmpty)
                         SliverToBoxAdapter(
                           child: SizedBox(
                             height: 160,
@@ -362,13 +369,13 @@ class _PhonePlayerViewState extends State<_PhonePlayerView> {
                         )
                       else
                         SliverReorderableList(
-                          itemCount: p.tokens.length,
+                          itemCount: tokens.length,
                           onReorder: (old, next) => perform(
                             () =>
-                                widget.board.reorder(p.id, 'tokens', old, next),
+                                widget.reorderFeedback.reorderTokens(old, next),
                           ),
                           itemBuilder: (context, index) {
-                            final token = p.tokens[index];
+                            final token = tokens[index];
                             return ReorderableDelayedDragStartListener(
                               key: ValueKey('phone-token-${token.id}'),
                               index: index,
