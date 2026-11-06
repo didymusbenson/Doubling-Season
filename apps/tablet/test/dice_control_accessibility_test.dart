@@ -16,7 +16,7 @@ double contrast(Color first, Color second) {
 void main() {
   for (final brightness in Brightness.values) {
     for (final width in [248.0, 300.0, 440.0, 760.0]) {
-      testWidgets('dice buttons are clear and usable at $width $brightness', (
+      testWidgets('dice cards have complete tappable halves at $width $brightness', (
         tester,
       ) async {
         tester.view.physicalSize = const Size(1200, 900);
@@ -57,23 +57,26 @@ void main() {
             expect(bounds.width, greaterThanOrEqualTo(48));
             expect(bounds.height, greaterThanOrEqualTo(48));
             final surface = tester.widget<Material>(
-              find.byKey(
-                ValueKey('dice-${increase ? 'increase' : 'decrease'}-d$sides'),
-              ),
+              find.byKey(ValueKey('dice-card-d$sides')),
             );
-            final enabled = increase || sides == 6;
+            final card = tester.getRect(find.byKey(ValueKey('dice-card-d$sides')));
+            final half = tester.getRect(action);
+            expect(half.top, card.top);
+            expect(half.bottom, card.bottom);
+            expect(half.width, closeTo(card.width / 2, .01));
+            expect(half.left, increase ? card.center.dx : card.left);
             expect(
               surface.color,
-              enabled ? scheme.primary : scheme.surfaceContainerHighest,
+              sides == 6 ? scheme.secondaryContainer : scheme.surfaceContainerHighest,
             );
+            final enabled = increase || sides == 6;
             final icon = tester.widget<Icon>(
               find.descendant(of: action, matching: find.byType(Icon)),
             );
-            expect(icon.size, 28);
-            expect(
-              contrast(icon.color!, surface.color!),
-              greaterThanOrEqualTo(4.5),
-            );
+            expect(icon.size, 22);
+            if (enabled) {
+              expect(contrast(icon.color!, surface.color!), greaterThanOrEqualTo(4.5));
+            }
             expect(
               tester.widget<Semantics>(action).properties.enabled,
               enabled,
@@ -87,7 +90,7 @@ void main() {
         final minus = byControlLabel('Decrease d4');
         await tester.ensureVisible(plus);
         await tester.pumpAndSettle();
-        expect(tester.getRect(plus).left - tester.getRect(minus).right, 8);
+        expect(tester.getRect(plus).left - tester.getRect(minus).right, 0);
         await tester.tap(minus);
         await tester.pumpAndSettle();
         expect(
@@ -96,7 +99,10 @@ void main() {
               .value,
           0,
         );
-        await tester.tap(plus);
+        // The die silhouette itself is read-only painting; its right half
+        // still increments and its left half still decrements the whole card.
+        final die = tester.getRect(find.byKey(const ValueKey('dice-count-d4')));
+        await tester.tapAt(Offset(die.center.dx + 8, die.center.dy));
         await tester.pumpAndSettle();
         expect(
           tester
@@ -106,11 +112,11 @@ void main() {
         );
         expect(
           tester
-              .widget<Material>(find.byKey(const ValueKey('dice-decrease-d4')))
+              .widget<Material>(find.byKey(const ValueKey('dice-card-d4')))
               .color,
-          scheme.primary,
+          scheme.secondaryContainer,
         );
-        await tester.tap(minus);
+        await tester.tapAt(Offset(die.center.dx - 8, die.center.dy));
         await tester.pumpAndSettle();
         expect(tester.widget<Semantics>(minus).properties.enabled, false);
         expect(tester.takeException(), isNull);

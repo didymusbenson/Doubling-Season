@@ -353,20 +353,24 @@ void main() {
       await open(tester, f, page: WorkspacePage.boardWipes);
       final shell = find.byKey(const ValueKey('context-workspace'));
       final rect = tester.getRect(shell);
-      await tester.tap(byControlLabel('Everyone, Wipe all tokens'));
+      await tester.tap(byControlLabel('Everyone, All tokens'));
       await tester.pumpAndSettle();
-      expect(find.text('Wipe all tokens for everyone?'), findsOneWidget);
+      final delete = find.byKey(const ValueKey('wipe-remove'));
+      await tester.ensureVisible(delete);
+      await tester.tap(delete);
+      await tester.pumpAndSettle();
+      expect(find.text('Delete all tokens for everyone?'), findsOneWidget);
       await capture(tester, 'everyone-wipe-confirmation');
       expect(tester.getRect(shell), rect);
       expect(f.controller.session.players[0].tokens, isNotEmpty);
-      await tester.tap(find.widgetWithText(FilledButton, 'Wipe all tokens'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete All'));
       await tester.pumpAndSettle();
       expect(
         f.controller.session.players.every((player) => player.tokens.isEmpty),
         isTrue,
       );
       expect(f.controller.session.history, hasLength(1));
-      expect(byControlLabel('Everyone, Wipe all tokens'), findsOneWidget);
+      expect(byControlLabel('Everyone, All tokens'), findsOneWidget);
       expect(find.widgetWithText(ChoiceChip, 'Board wipes'), findsNothing);
       await undoInHistory(tester, f);
       expect(f.controller.session.players[0].tokens, hasLength(1));

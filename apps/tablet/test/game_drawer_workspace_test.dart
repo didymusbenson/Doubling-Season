@@ -217,10 +217,12 @@ void main() {
     final drawer = GameDrawerController();
     await mount(tester, fixture.controller, fixture.catalog, drawer);
     await tapText(tester, 'Board wipes');
-    await tester.tap(_control('Everyone, Wipe creatures'));
+    await tester.tap(_control('Everyone, Creatures'));
     await tester.pumpAndSettle();
-    expect(find.text('Wipe creatures for everyone?'), findsOneWidget);
-    await tapText(tester, 'Wipe');
+    expect(fixture.player.tokens, isNotEmpty);
+    await tapText(tester, 'Delete selected');
+    expect(find.text('Delete creatures for everyone?'), findsOneWidget);
+    await tapText(tester, 'Delete selected');
     expect(fixture.player.tokens, isEmpty);
     expect(find.byType(Dialog), findsNothing);
     await tester.tap(_control('Back'));

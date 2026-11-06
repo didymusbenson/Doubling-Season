@@ -1046,16 +1046,29 @@ class BoardService {
 
   /// Wipe the active table as one durable command and one chronological Undo.
   /// The persistent seat roster and archived games are not active boards.
-  Future<void> wipeEveryone(String action) async {
-    if (!wipeOptions.containsKey(action)) {
-      throw ArgumentError.value(action, 'action', 'Choose a board wipe');
+  Future<void> wipeEveryone(String action) => wipeSelectedEveryone({action});
+
+  Future<void> wipeSelectedEveryone(
+    Iterable<String> actions, {
+    bool remove = true,
+  }) async {
+    // Capture the selection before awaiting the serialized command queue.
+    final selected = actions.toSet();
+    if (selected.isEmpty || selected.any((a) => !wipeOptions.containsKey(a))) {
+      throw ArgumentError.value(actions, 'actions', 'Choose a board wipe');
     }
+    final description = selected.contains('wipe_all')
+        ? 'all tokens'
+        : wipeOptions.entries
+              .where((e) => selected.contains(e.key))
+              .map((e) => e.value.toLowerCase())
+              .join(', ');
     final before = controller.session;
     final generations = {
       for (final player in before.players) player.id: player.generation,
     };
     final ok = await controller.commit(
-      'Everyone: wipe ${wipeOptions[action]!.toLowerCase()}',
+      'Everyone: ${remove ? 'wipe' : 'set to 0 —'} $description',
       expectedSessionId: before.id,
       expectedGeneration: before.generation,
       mutate: (session) {
@@ -1069,9 +1082,29 @@ class BoardService {
           }
         }
         for (final player in session.players) {
-          final oldCount = player.tokens.length;
-          player.tokens.removeWhere((token) => _matchesWipe(token, action));
-          if (player.tokens.length != oldCount) player.generation++;
+          bool matches(TokenState token) =>
+              selected.any((action) => _matchesWipe(token, action));
+          var changed = false;
+          if (remove) {
+            final oldCount = player.tokens.length;
+            player.tokens.removeWhere(matches);
+            changed = player.tokens.length != oldCount;
+          } else {
+            for (final token in player.tokens.where(matches)) {
+              if (token.amount == 0 &&
+                  token.tapped == 0 &&
+                  token.summoningSick == 0) {
+                continue;
+              }
+              // Match the original app's Set to 0: retain the stack identity,
+              // artwork, counters and ordering, clearing only quantity/status.
+              token.amount = 0;
+              token.tapped = 0;
+              token.summoningSick = 0;
+              changed = true;
+            }
+          }
+          if (changed) player.generation++;
         }
       },
     );

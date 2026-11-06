@@ -54,9 +54,9 @@ extension _DicePages on _TableWorkspaceState {
     child: LayoutBuilder(
       builder: (context, constraints) {
         final gap = _embedded ? 8.0 : 12.0;
-        // Separate 48px buttons with an 8px gap. Reduce columns rather than
-        // shrinking targets when the embedded drawer has little horizontal room.
-        const minimumTileWidth = 104.0;
+        // Each card owns two full-height halves, at least 48px wide each.
+        // Reduce columns rather than shrinking the tappable card regions.
+        const minimumTileWidth = 112.0;
         final columns = constraints.maxWidth >= 6 * minimumTileWidth + 5 * gap
             ? 6
             : constraints.maxWidth >= 3 * minimumTileWidth + 2 * gap
@@ -65,7 +65,7 @@ extension _DicePages on _TableWorkspaceState {
             ? 2
             : 1;
         final tileWidth = min(
-          116.0,
+          140.0,
           (constraints.maxWidth - (columns - 1) * gap) / columns,
         );
         return Column(
@@ -82,30 +82,7 @@ extension _DicePages on _TableWorkspaceState {
                     SizedBox(
                       key: ValueKey('dice-selection-d${entry.key}'),
                       width: tileWidth,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          DieOutline(
-                            key: ValueKey('dice-count-d${entry.key}'),
-                            sides: entry.key,
-                            value: entry.value,
-                            selected: entry.value > 0,
-                            semanticsLabel:
-                                'D${entry.key} quantity: ${entry.value}',
-                          ),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            height: 48,
-                            child: Row(
-                              children: [
-                                _diceStep(entry.key, entry.value, false),
-                                const SizedBox(width: 8),
-                                _diceStep(entry.key, entry.value, true),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                      child: _diceCard(entry.key, entry.value),
                     ),
                 ],
               ),
@@ -133,47 +110,56 @@ extension _DicePages on _TableWorkspaceState {
         : 'Roll $count ${count == 1 ? 'die' : 'dice'}';
   }
 
-  Widget _diceStep(int sides, int count, bool increase) {
+  Widget _diceCard(int sides, int count) {
     final enabled =
-        !_working &&
-        !_diceRolling &&
-        !_closing &&
-        !_navigating &&
-        (increase ? count < 20 : count > 0);
+        !_working && !_diceRolling && !_closing && !_navigating && _validScope;
     final scheme = Theme.of(context).colorScheme;
-    return Expanded(
-      child: Material(
-        key: ValueKey('dice-${increase ? 'increase' : 'decrease'}-d$sides'),
-        color: enabled ? scheme.primary : scheme.surfaceContainerHighest,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: BorderSide(
-            color: enabled ? scheme.primary : scheme.outlineVariant,
-          ),
+    return Material(
+      key: ValueKey('dice-card-d$sides'),
+      color: count > 0
+          ? scheme.secondaryContainer
+          : scheme.surfaceContainerHighest,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: scheme.outline),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: HalfStepper(
+        label: 'D$sides quantity',
+        value: '$count',
+        height: 128,
+        iconSize: 22,
+        iconPadding: 6,
+        foregroundColor: count > 0
+            ? scheme.onSecondaryContainer
+            : scheme.onSurface,
+        decreaseKey: ValueKey('dice-decrease-d$sides'),
+        increaseKey: ValueKey('dice-increase-d$sides'),
+        decreaseLabel: 'Decrease d$sides',
+        increaseLabel: 'Increase d$sides',
+        onDecrease: enabled && count > 0
+            ? () => _changeDiceCount(sides, -1)
+            : null,
+        onIncrease: enabled && count < 20
+            ? () => _changeDiceCount(sides, 1)
+            : null,
+        onDecreaseHoldStep: (amount) => _changeDiceCount(sides, -amount),
+        onIncreaseHoldStep: (amount) => _changeDiceCount(sides, amount),
+        interactionEpoch: Object.hash(
+          _sessionId,
+          _sessionGeneration,
+          _closing,
+          _navigating,
+          _page,
         ),
-        clipBehavior: Clip.antiAlias,
-        child: NumericHoldRegion(
-          label: '${increase ? 'Increase' : 'Decrease'} d$sides',
-          onTap: enabled
-              ? () => _changeDiceCount(sides, increase ? 1 : -1)
-              : null,
-          onStep: enabled
-              ? (amount) => _changeDiceCount(sides, increase ? amount : -amount)
-              : null,
-          step: 5,
-          interactionEpoch: Object.hash(
-            _sessionId,
-            _sessionGeneration,
-            _closing,
-            _navigating,
-            _page,
-          ),
-          child: Center(
-            child: Icon(
-              increase ? Icons.add : Icons.remove,
-              size: 28,
-              color: enabled ? scheme.onPrimary : scheme.onSurfaceVariant,
-            ),
+        displayOverlay: Center(
+          child: DieOutline(
+            key: ValueKey('dice-count-d$sides'),
+            sides: sides,
+            value: count,
+            selected: count > 0,
+            size: 64,
+            semanticsLabel: 'D$sides quantity: $count',
           ),
         ),
       ),
@@ -372,7 +358,7 @@ class _DiceRollAnimationState extends State<_DiceRollAnimation>
   late final AnimationController _animation =
       AnimationController(
         vsync: this,
-        duration: const Duration(milliseconds: 750),
+        duration: const Duration(milliseconds: 375),
       )..addListener(() {
         if (_animation.value == 1) _finish();
       });

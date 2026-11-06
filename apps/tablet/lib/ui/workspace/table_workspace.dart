@@ -264,6 +264,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   String _customEffect = 'multiply';
   bool _customGlobal = false;
   final Map<int, int> _diceCounts = {4: 0, 6: 1, 8: 0, 10: 0, 12: 0, 20: 0};
+  final Set<String> _wipeSelections = {};
   DiceRoll? _diceRoll;
   bool _diceRolling = false;
   int _diceRollSerial = 0;

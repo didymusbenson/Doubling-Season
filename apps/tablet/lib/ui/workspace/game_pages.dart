@@ -763,9 +763,7 @@ extension _GamePages on _TableWorkspaceState {
       ],
     ),
     const SizedBox(height: 8),
-    const Text(
-      'Remove matching tokens from every player. Utilities, life and player counters stay. Undo the whole wipe in History.',
-    ),
+    const Text('Select which tokens to wipe from every player.'),
     const SizedBox(height: 16),
     LayoutBuilder(
       builder: (context, bounds) {
@@ -785,33 +783,98 @@ extension _GamePages on _TableWorkspaceState {
     ),
     const SizedBox(height: 12),
     Text(
-      'Type-based wipes keep emblems. All tokens also removes emblems. Check protection and other card effects before applying a wipe.',
+      'Tokens matching any selected category are included. Type-based wipes keep emblems. All tokens includes lands and emblems.',
+      style: Theme.of(context).textTheme.bodySmall,
+    ),
+    const SizedBox(height: 20),
+    const Text('Choose board wipe action:'),
+    const SizedBox(height: 8),
+    OutlinedButton.icon(
+      key: const ValueKey('wipe-zero'),
+      onPressed: _working || _wipeSelections.isEmpty
+          ? null
+          : () => _applySelectedWipe(remove: false),
+      icon: const Icon(Icons.exposure_zero),
+      label: const Text('Set to 0'),
+    ),
+    const SizedBox(height: 4),
+    const Text('Keep the empty stacks, artwork and counters.'),
+    const SizedBox(height: 12),
+    FilledButton.icon(
+      key: const ValueKey('wipe-remove'),
+      onPressed: _working || _wipeSelections.isEmpty
+          ? null
+          : () => _applySelectedWipe(remove: true),
+      icon: const Icon(Icons.delete_outline),
+      label: Text(_wipeSelections.contains('wipe_all') ? 'Delete All' : 'Delete selected'),
+    ),
+    const SizedBox(height: 4),
+    const Text('Remove the selected token stacks from the board entirely.'),
+    const SizedBox(height: 12),
+    Text(
+      'Utilities, life and player counters stay. Undo the whole wipe in History. Check protection and other card effects before applying a wipe.',
       style: Theme.of(context).textTheme.bodySmall,
     ),
   ], centered: true);
 
   Widget _wipeOptionButton(MapEntry<String, String> entry) {
-    void press() => _confirm(
-      'Wipe ${entry.value.toLowerCase()} for everyone?',
-      '${BoardService.wipeDescriptions[entry.key]} Utilities, life and player counters remain. Restore the whole wipe from History.',
-      () => _board.wipeEveryone(entry.key),
-      button: 'Wipe ${entry.value.toLowerCase()}',
-      compactButton: 'Wipe',
-    );
+    final selected = _wipeSelections.contains(entry.key);
+    void toggle() => _update(() {
+      if (entry.key == 'wipe_all') {
+        _wipeSelections.clear();
+        if (!selected) _wipeSelections.addAll(BoardService.wipeOptions.keys);
+      } else {
+        _wipeSelections.remove('wipe_all');
+        if (selected) {
+          _wipeSelections.remove(entry.key);
+        } else {
+          _wipeSelections.add(entry.key);
+        }
+      }
+    });
+    final scheme = Theme.of(context).colorScheme;
     return Semantics(
-      label: 'Everyone, Wipe ${entry.value.toLowerCase()}',
+      label: 'Everyone, ${entry.value}',
       button: true,
+      selected: selected,
       enabled: !_working,
-      onTap: _working ? null : press,
+      onTap: _working ? null : toggle,
       excludeSemantics: true,
-      child: OutlinedButton(
+      child: OutlinedButton.icon(
+        key: ValueKey('wipe-select-${entry.key}'),
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(48, 56),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+          foregroundColor: selected ? scheme.onSecondaryContainer : scheme.onSurface,
+          backgroundColor: selected ? scheme.secondaryContainer : null,
+          side: BorderSide(color: scheme.outline),
         ),
-        onPressed: _working ? null : press,
-        child: Text(entry.value, textAlign: TextAlign.center),
+        onPressed: _working ? null : toggle,
+        icon: Icon(selected ? Icons.check_box : Icons.check_box_outline_blank),
+        label: Text(entry.value, textAlign: TextAlign.center),
       ),
+    );
+  }
+
+  void _applySelectedWipe({required bool remove}) {
+    final selected = Set<String>.of(_wipeSelections);
+    final description = selected.contains('wipe_all')
+        ? 'all tokens'
+        : BoardService.wipeOptions.entries
+              .where((entry) => selected.contains(entry.key))
+              .map((entry) => entry.value.toLowerCase())
+              .join(', ');
+    final button = remove
+        ? selected.contains('wipe_all') ? 'Delete All' : 'Delete selected'
+        : 'Set to 0';
+    _confirm(
+      remove ? 'Delete $description for everyone?' : 'Set $description to 0 for everyone?',
+      remove
+          ? 'Remove the matching token stacks entirely. Utilities, life and player counters remain. Restore the whole wipe from History.'
+          : 'Set matching token amounts to 0 and clear tapped and summoning sickness. Keep the empty stacks, artwork and counters. Utilities, life and player counters remain. Restore the whole wipe from History.',
+      () => _board.wipeSelectedEveryone(selected, remove: remove),
+      button: button,
+      compactButton: button,
     );
   }
 
