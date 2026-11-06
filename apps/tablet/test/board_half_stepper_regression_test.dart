@@ -415,17 +415,31 @@ void main() {
               reason: 'Zero counters take no space on the life chip.',
             );
             for (final label in [
-              'rules',
+              'token modifiers',
               'commander damage by source',
               'player details',
             ]) {
               final snapshot = fixture.controller.session.players
                   .map((p) => p.life)
                   .toList();
+              if (label == 'player details') {
+                await openPlayerTools(tester, playerId: player.id);
+              } else if (label == 'token modifiers' &&
+                  find
+                      .byKey(ValueKey('${player.id}-tokens-tab'))
+                      .evaluate()
+                      .isNotEmpty) {
+                await tester.tap(
+                  find.byKey(ValueKey('${player.id}-tokens-tab')),
+                );
+                await tester.pumpAndSettle();
+              }
               await tester.tap(
-                byControlLabel(
-                  '${fixture.controller.profile(player.seatId).name}, $label',
-                ),
+                label == 'player details'
+                    ? find.byKey(ValueKey('${player.id}-player-details'))
+                    : byControlLabel(
+                        '${fixture.controller.profile(player.seatId).name}, $label',
+                      ),
               );
               await tester.pumpAndSettle();
               expect(byControlLabel('Close workspace'), findsOneWidget);

@@ -604,7 +604,7 @@ void main() {
             find.byKey(ValueKey('${p.id}-life-footer-scroll')),
           )
           .controller!
-          .jumpTo(48);
+          .jumpTo(0);
       await tester.pumpAndSettle();
       await tester.ensureVisible(enter);
       await tester.pumpAndSettle();
@@ -691,7 +691,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text(firstName));
       await tester.pumpAndSettle();
-      normalScroll.jumpTo(48);
+      normalScroll.jumpTo(0);
       await tester.pumpAndSettle();
       expect(enter.hitTestable(), findsNothing);
       expect(
@@ -713,7 +713,7 @@ void main() {
       final p = f.controller.session.players.first;
       Future<void> enter() async {
         final normal = find.byKey(ValueKey('${p.id}-life-footer-scroll'));
-        tester.widget<CustomScrollView>(normal).controller!.jumpTo(48);
+        tester.widget<CustomScrollView>(normal).controller!.jumpTo(0);
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(ValueKey('${p.id}-start-utility-reorder')));
         await tester.pumpAndSettle();

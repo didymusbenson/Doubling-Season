@@ -43,7 +43,10 @@ Future<void> showAdaptiveUtilities(
 }
 
 /// Open the player-facing utilities/customization menu from its lane FAB.
-Future<void> openPlayerTools(WidgetTester tester, {required String playerId}) async {
+Future<void> openPlayerTools(
+  WidgetTester tester, {
+  required String playerId,
+}) async {
   await showAdaptiveUtilities(tester, playerId: playerId);
   await tester.tap(find.byKey(ValueKey('$playerId-utility-tools')));
   await tester.pumpAndSettle();

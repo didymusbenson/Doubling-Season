@@ -1868,23 +1868,34 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                       ],
                     )
             : utilities;
-        Widget utilityArea(Widget body) => Stack(
-          children: [
-            Positioned.fill(child: body),
-            Positioned(
-              left: 12,
-              bottom: 12,
-              child: FloatingActionButton.small(
-                key: ValueKey('${p.id}-utility-tools'),
-                heroTag: '${p.id}-utility-tools',
-                onPressed: () => widget.onOpen(WorkspacePage.utilityTools),
-                child: Icon(
-                  Icons.tune,
-                  semanticLabel: '${profile.name}, utilities and customization',
+        Widget utilityArea(Widget body) => LayoutBuilder(
+          builder: (context, area) => Stack(
+            children: [
+              Positioned.fill(child: body),
+              // Reorder already owns its compact Done control. Keep the menu
+              // from intercepting that target or a dragged utility row.
+              if (!compactUtilityReorder)
+                Positioned(
+                  left: 12,
+                  bottom: math.max(0.0, math.min(12.0, area.maxHeight - 48)),
+                  child: SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: FloatingActionButton.small(
+                      key: ValueKey('${p.id}-utility-tools'),
+                      heroTag: '${p.id}-utility-tools',
+                      onPressed: () =>
+                          widget.onOpen(WorkspacePage.utilityTools),
+                      child: Icon(
+                        Icons.tune,
+                        semanticLabel:
+                            '${profile.name}, utilities and customization',
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
+            ],
+          ),
         );
         return _LifePanel(
           compact: localViews,

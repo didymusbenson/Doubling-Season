@@ -903,6 +903,7 @@ void main() {
         await tester.tap(byControlLabel('Close workspace'));
         await tester.pumpAndSettle();
         await showAdaptiveUtilities(tester, playerId: player.id);
+        await openPlayerTools(tester, playerId: player.id);
         await tester.tap(find.byKey(ValueKey('${player.id}-player-details')));
         await tester.pumpAndSettle();
         await tester.tap(find.widgetWithText(SwitchListTile, 'Has partner'));
