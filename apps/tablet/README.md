@@ -3,11 +3,17 @@
 The separate tablet app developed from the Tripling Season iPad specifications.
 “Tripling Table” is a development name, not a selected store name.
 
-**Current work (2026-11-07): Monarch wears the life total.**
+**Current work (2026-11-07): gameplay layout feedback.**
 The [Monarch crown implementation](../../docs/activeDevelopment/in_progress_features/ipad_edition/monarch_life_crown_2026-11-07.md)
 places a tilted gold crown on the life number, replacing its summary badge.
-Life taps and the existing Monarch controls remain unchanged. Native acceptance
-remains separate.
+Life taps and the existing Monarch controls remain unchanged.
+[Utility actions](../../docs/activeDevelopment/bug_bashing/utility_header_spacing_2026-11-07.md)
+now share their row with numeric controls; Squirrel Girl says "Make Squirrels"
+and the Ring says "Tempt".
+[Token headers](../../docs/activeDevelopment/bug_bashing/token_header_spacing_2026-11-07.md)
+align text baselines and give counter strips consistent, scalable spacing.
+Combined analysis, 1,449 tests (7 existing skips), and release web build pass.
+Native acceptance remains separate.
 
 **Previous work (2026-11-06): soft player spaces.**
 The [approved Soft separation implementation](../../docs/activeDevelopment/in_progress_features/ipad_edition/soft_player_spaces_2026-11-06.md)

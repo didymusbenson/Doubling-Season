@@ -70,3 +70,10 @@ and global control hit-region separation checks remain intact.
   `token_header_spacing_test.dart` checks pass.
 - All six 2/3/4-seat full/fadeout first-card clearance checks also pass with
   real Roboto/Material/Mana fonts.
+
+## Combined feedback validation
+
+The integration with the utility-action rows and Monarch crown passes analysis,
+all **1,449 tablet tests with 7 existing skips**, and the release web build. The
+baseline assertion follow-up changes tests only; no further production edit was
+needed. Native device acceptance, installation, and deployment remain separate.

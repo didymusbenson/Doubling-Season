@@ -27,7 +27,7 @@ Girl's button, and change the Ring action to "Tempt".
 - The Ring action and accessible label say "Tempt". Its next-ability reminder,
   optional bearer, cumulative rules and progression are unchanged.
 - No saved-state migration, root phone-app changes, device installation, or
-  publication is part of this change.
+  deployment is part of this change.
 
 ## Validation
 
@@ -40,7 +40,11 @@ Girl's button, and change the Ring action to "Tempt".
   Cathars' secondary action wraps below when needed, and controls remain readable.
 - Final focused layout/label suite: 19 passed, including Ring alignment,
   six-digit value wrapping, accessible Tempt text and saved Squirrel labels.
-- Analysis: no issues. Full regression rerun is pending the combined feedback
-  integration, so the final tree is validated once with the other UI fixes.
+- Combined feedback integration: `flutter analyze` reports no issues and the
+  full tablet suite passes **1,449 tests with 7 existing skips**.
+- `flutter build web --release --base-href /Doubling-Season/tablet/
+  --pwa-strategy=none` passes. Subsequent changes are test assertions and
+  documentation only; application sources are identical to the built tree.
+- Independent read-only review found no actionable utility code or visual issue.
 
 Widget renders are automated Flutter evidence, not native device acceptance.
