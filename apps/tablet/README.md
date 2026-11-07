@@ -3,7 +3,13 @@
 The separate tablet app developed from the Tripling Season iPad specifications.
 “Tripling Table” is a development name, not a selected store name.
 
-**Current work (2026-11-06): soft player spaces.**
+**Current work (2026-11-07): Monarch wears the life total.**
+The [Monarch crown implementation](../../docs/activeDevelopment/in_progress_features/ipad_edition/monarch_life_crown_2026-11-07.md)
+places a tilted gold crown on the life number, replacing its summary badge.
+Life taps and the existing Monarch controls remain unchanged. Native acceptance
+remains separate.
+
+**Previous work (2026-11-06): soft player spaces.**
 The [approved Soft separation implementation](../../docs/activeDevelopment/in_progress_features/ipad_edition/soft_player_spaces_2026-11-06.md)
 uses an 8 px black river and 14 px player-space corners instead of hard table
 dividers. The central drawer, player-local controls, and adaptive seat views

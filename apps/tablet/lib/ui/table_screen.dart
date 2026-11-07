@@ -2414,6 +2414,7 @@ class _LifePanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = Color(profile.color);
     final artColor = profile.artworkUrl != null ? Colors.white : null;
+    final monarch = controller.session.monarchPlayerId == player.id;
     return LayoutBuilder(
       builder: (context, constraints) {
         // One set of rectangles owns both overlay placement and life-ink
@@ -2486,7 +2487,7 @@ class _LifePanel extends StatelessWidget {
               children: [
                 HalfStepper(
                   label: '${profile.name}, life',
-                  value: '${lifeFeedback.life}',
+                  value: '${lifeFeedback.life}${monarch ? ', Monarch' : ''}',
                   height: height,
                   inkExclusions: [ledgerRect, ?summaryRect],
                   iconSize: 22,
@@ -2522,6 +2523,7 @@ class _LifePanel extends StatelessWidget {
                           : null,
                       builder: (delta) => _LifeNumber(
                         playerId: player.id,
+                        monarch: monarch,
                         life: lifeFeedback.life,
                         delta: lifeFeedback.displayDelta(delta),
                         color: artColor,
@@ -2536,7 +2538,8 @@ class _LifePanel extends StatelessWidget {
                 ),
                 Positioned(
                   top: phone ? 6 : 28,
-                  left: 26,
+                  // Leave the upper-left of the total free for its crown.
+                  left: monarch ? math.max(26, constraints.maxWidth / 2) : 26,
                   right: 26,
                   height: compact ? 16 : 18,
                   child: IgnorePointer(
@@ -2624,7 +2627,6 @@ class _LifeCounterSummary extends StatelessWidget {
   static double preferredWidth(PlayerState player, TableController controller) {
     final count =
         player.counters.values.where((value) => value != 0).length +
-        (controller.session.monarchPlayerId == player.id ? 1 : 0) +
         (player.citysBlessing ? 1 : 0) +
         (player.utilities.any(
               (utility) =>
@@ -2637,7 +2639,6 @@ class _LifeCounterSummary extends StatelessWidget {
   }
 
   static bool hasContent(PlayerState player, TableController controller) =>
-      controller.session.monarchPlayerId == player.id ||
       player.citysBlessing ||
       player.counters.values.any((value) => value != 0) ||
       player.utilities.any(
@@ -2649,7 +2650,6 @@ class _LifeCounterSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!hasContent(player, controller)) return const SizedBox.shrink();
-    final monarch = controller.session.monarchPlayerId == player.id;
     final initiative = player.utilities.any(
       (utility) =>
           {'initiative', 'the_initiative'}.contains(utility.kind) &&
@@ -2659,7 +2659,6 @@ class _LifeCounterSummary extends StatelessWidget {
         .where((entry) => entry.value != 0)
         .toList();
     final statuses = <Widget>[
-      if (monarch) const MonarchCrown(),
       if (player.citysBlessing) const Icon(TableManaIcons.ascend),
       if (initiative) const Icon(Icons.explore_outlined),
     ];
@@ -2684,7 +2683,6 @@ class _LifeCounterSummary extends StatelessWidget {
         ),
     ];
     final summary = [
-      if (monarch) 'Monarch',
       if (player.citysBlessing) 'City’s blessing',
       if (initiative) 'Initiative',
       for (final counter in counters) '${counter.key}: ${counter.value}',
@@ -3325,12 +3323,14 @@ class _LifeDeltaState extends State<_LifeDelta> {
 /// alignment. Reserved side slots also bound long signed changes.
 class _LifeNumber extends StatelessWidget {
   final String playerId;
+  final bool monarch;
   final int life;
   final int? delta;
   final Color? color;
   final double fontSize;
   const _LifeNumber({
     required this.playerId,
+    required this.monarch,
     required this.life,
     required this.delta,
     required this.color,
@@ -3364,7 +3364,17 @@ class _LifeNumber extends StatelessWidget {
       final height = painter.height * scale;
       painter.dispose();
       final positive = (delta ?? 0) >= 0;
+      final numberLeft = (box.maxWidth - width) / 2;
+      final numberTop = (box.maxHeight - height) / 2;
+      // Perch on the leading digit, rather than adding a separate status chip.
+      // These are the same fitted text bounds used by the delta. The crown
+      // therefore follows negative/long totals and text scaling without moving
+      // the number, delta, ledger, or either full life hit region.
+      final crownSize = math.min(56.0, height * .68);
+      final crownLeft = math.max(3.0, numberLeft - crownSize * .36);
+      final crownTop = numberTop - crownSize * .50;
       return Stack(
+        clipBehavior: Clip.none,
         children: [
           Positioned(
             left: (box.maxWidth - width) / 2,
@@ -3382,6 +3392,33 @@ class _LifeNumber extends StatelessWidget {
               ),
             ),
           ),
+          if (monarch)
+            Positioned(
+              left: crownLeft,
+              top: crownTop,
+              width: crownSize,
+              height: crownSize,
+              child: TweenAnimationBuilder<double>(
+                key: ValueKey('$playerId-monarch-crown'),
+                tween: Tween(begin: 0, end: 1),
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, child) => Opacity(
+                  opacity: value,
+                  child: Transform.scale(
+                    scale: .88 + .12 * value,
+                    alignment: Alignment.bottomRight,
+                    child: child,
+                  ),
+                ),
+                child: Transform.rotate(
+                  angle: -.24,
+                  child: MonarchCrown(size: crownSize, worn: true),
+                ),
+              ),
+            ),
           Positioned(
             left: positive
                 ? (box.maxWidth + width) / 2 + gap
