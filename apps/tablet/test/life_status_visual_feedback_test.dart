@@ -378,7 +378,7 @@ void main() {
               );
               expect(
                 find.descendant(
-                  of: summary,
+                  of: surface,
                   matching: find.byType(MonarchCrown),
                 ),
                 player.id == f.playerId ? findsOneWidget : findsNothing,

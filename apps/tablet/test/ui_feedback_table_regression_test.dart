@@ -752,18 +752,14 @@ void main() {
       await tapStatus(1, 'City’s blessing', false);
       await tapStatus(1, 'Monarch', false);
       expect(fixture.controller.session.monarchPlayerId, players[1].id);
-      final oldSummary = find.byKey(
-        ValueKey('${players[0].id}-life-counter-summary'),
-      );
-      final newSummary = find.byKey(
-        ValueKey('${players[1].id}-life-counter-summary'),
-      );
+      final oldSurface = find.byKey(ValueKey('${players[0].id}-life-surface'));
+      final newSurface = find.byKey(ValueKey('${players[1].id}-life-surface'));
       expect(
-        find.descendant(of: oldSummary, matching: find.byType(MonarchCrown)),
+        find.descendant(of: oldSurface, matching: find.byType(MonarchCrown)),
         findsNothing,
       );
       expect(
-        find.descendant(of: newSummary, matching: find.byType(MonarchCrown)),
+        find.descendant(of: newSurface, matching: find.byType(MonarchCrown)),
         findsOneWidget,
       );
       expect(
@@ -776,11 +772,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(fixture.controller.session.monarchPlayerId, players[0].id);
       expect(
-        find.descendant(of: oldSummary, matching: find.byType(MonarchCrown)),
+        find.descendant(of: oldSurface, matching: find.byType(MonarchCrown)),
         findsOneWidget,
       );
       expect(
-        find.descendant(of: newSummary, matching: find.byType(MonarchCrown)),
+        find.descendant(of: newSurface, matching: find.byType(MonarchCrown)),
         findsNothing,
       );
       expect(fixture.controller.player(players[1].id).citysBlessing, isTrue);

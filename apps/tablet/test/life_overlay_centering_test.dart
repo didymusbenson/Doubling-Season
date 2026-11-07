@@ -124,10 +124,7 @@ void main() {
                       ['one', 'many', 'city'].contains(phase) ||
                       (phase == 'initiative' &&
                           player.id ==
-                              fixture.controller.session.players.first.id) ||
-                      (phase == 'monarch' &&
-                          player.id ==
-                              fixture.controller.session.players.last.id);
+                              fixture.controller.session.players.first.id);
                   final surface = find.byKey(
                     ValueKey('${player.id}-life-surface'),
                   );
