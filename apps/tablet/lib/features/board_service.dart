@@ -1260,7 +1260,7 @@ class BoardService {
         colorIdentity: 'G',
         defaultValue: 1,
         hasAction: true,
-        actionButtonText: 'Make Squirrels · 1GGG',
+        actionButtonText: 'Make Squirrels',
         actionType: 'the_unbeatable_squirrel_girl',
         artwork: [
           ArtworkVariant(

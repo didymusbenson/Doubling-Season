@@ -10,12 +10,14 @@ class UtilityInlineActions extends StatefulWidget {
   final String playerId;
   final UtilityState utility;
   final List<Widget> management;
+  final Widget? valueControl;
   const UtilityInlineActions({
     super.key,
     required this.board,
     required this.playerId,
     required this.utility,
     this.management = const [],
+    this.valueControl,
   });
 
   static const labels = {
@@ -23,7 +25,7 @@ class UtilityInlineActions extends StatefulWidget {
     'krenko_mob_boss': 'Make Goblins',
     'krenko_tin_street': 'Make Goblins',
     'hare_apparent': 'Make Rabbits',
-    'the_unbeatable_squirrel_girl': 'Make Squirrels · 1GGG',
+    'the_unbeatable_squirrel_girl': 'Make Squirrels',
     'academy_manufactor': 'Make Tokens',
     'cathars_crusade': 'Resolve All',
     'brudiclad_telchor_engineer': 'Resolve Trigger',
@@ -114,27 +116,55 @@ class _UtilityInlineActionsState extends State<UtilityInlineActions> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Wrap(
-          spacing: 6,
-          runSpacing: 4,
-          children: [
-            FilledButton.tonal(
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Keep the primary action beside its value rather than sizing the
+            // header from its name. Only wrap the pair when a narrow lane or
+            // large text would otherwise leave an unreadable action label.
+            final value = widget.valueControl;
+            final inlineValue =
+                value != null &&
+                constraints.maxWidth >=
+                    96 + MediaQuery.textScalerOf(context).scale(100);
+            final primary = FilledButton.tonal(
               key: ValueKey('utility-action-${widget.utility.id}'),
+              style: value == null
+                  ? null
+                  : FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
               onPressed: _working
                   ? null
                   : kind == 'brudiclad_telchor_engineer'
                   ? _chooseTarget
                   : () => _resolve(),
               child: Text(_working ? 'Working…' : label),
-            ),
-            if (kind == 'cathars_crusade')
-              OutlinedButton(
-                key: ValueKey('utility-quick-${widget.utility.id}'),
-                onPressed: _working ? null : () => _resolve(quick: true),
-                child: const Text('Quick +1/+1'),
-              ),
-            ...widget.management,
-          ],
+            );
+            return Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (inlineValue)
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: constraints.maxWidth - 96,
+                    ),
+                    child: primary,
+                  )
+                else
+                  primary,
+                ?value,
+                if (kind == 'cathars_crusade')
+                  OutlinedButton(
+                    key: ValueKey('utility-quick-${widget.utility.id}'),
+                    onPressed: _working ? null : () => _resolve(quick: true),
+                    child: const Text('Quick +1/+1'),
+                  ),
+                ...widget.management,
+              ],
+            );
+          },
         ),
         if (choosing) ...[
           const Text(

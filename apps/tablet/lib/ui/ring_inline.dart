@@ -42,13 +42,18 @@ class RingInline extends StatelessWidget {
           style: const TextStyle(fontSize: 12),
         ),
       Wrap(
-        spacing: 4,
+        spacing: 6,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           FilledButton.tonal(
             key: ValueKey('ring-tempt-${utility.id}'),
+            style: trailing == null
+                ? null
+                : FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
             onPressed: onTempt,
-            child: const Text('Next temptation'),
+            child: const Text('Tempt'),
           ),
           ?trailing,
         ],

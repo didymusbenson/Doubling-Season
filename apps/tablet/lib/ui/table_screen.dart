@@ -2915,6 +2915,9 @@ class _UtilityRow extends StatelessWidget {
     final mana = utility.kind == 'mana_pool' || utility.kind == 'mana';
     final step = (utility.configuration['tapIncrement'] as num?)?.toInt() ?? 1;
     final actionOnly = utility.configuration['actionOnly'] == true;
+    final hasInlineAction =
+        utility.kind == 'the_ring' ||
+        UtilityInlineActions.labels.containsKey(utility.kind);
     final toggle =
         utility.configuration['isToggle'] == true ||
         utility.configuration['type'] == 'toggle' ||
@@ -3047,6 +3050,7 @@ class _UtilityRow extends StatelessWidget {
                             else if (!mana &&
                                 !toggle &&
                                 !actionOnly &&
+                                !hasInlineAction &&
                                 !narrowStorm &&
                                 !narrowValue)
                               Padding(
@@ -3065,6 +3069,7 @@ class _UtilityRow extends StatelessWidget {
                         if (!mana &&
                             !toggle &&
                             !actionOnly &&
+                            !hasInlineAction &&
                             (narrowStorm || narrowValue))
                           Align(
                             alignment: Alignment.centerLeft,
@@ -3168,13 +3173,28 @@ class _UtilityRow extends StatelessWidget {
                             ),
                           ),
                         if (utility.kind == 'the_ring')
-                          RingInline(utility: utility, onTempt: onTempt)
+                          RingInline(
+                            utility: utility,
+                            onTempt: onTempt,
+                            trailing: actionOnly
+                                ? null
+                                : SizedBox(
+                                    width: largeValue ? double.infinity : 90,
+                                    child: valueStepper,
+                                  ),
+                          )
                         else
                           UtilityInlineActions(
                             key: ValueKey('inline-actions-${utility.id}'),
                             board: board,
                             playerId: player.id,
                             utility: utility,
+                            valueControl: hasInlineAction && !actionOnly
+                                ? SizedBox(
+                                    width: largeValue ? double.infinity : 90,
+                                    child: valueStepper,
+                                  )
+                                : null,
                           ),
                       ],
                     ),

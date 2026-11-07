@@ -56,6 +56,7 @@ void main() {
   testWidgets(
     'Ring shows cumulative rules through and beyond four temptations',
     (tester) async {
+      final semantics = tester.ensureSemantics();
       final utility = UtilityState(
         id: 'ring',
         kind: 'the_ring',
@@ -96,13 +97,16 @@ void main() {
           find.textContaining(RegExp(r'^\d+ temptations?$')),
           findsNothing,
         );
-        expect(find.text('Next temptation'), findsOneWidget);
+        expect(find.text('Tempt'), findsOneWidget);
+        expect(find.text('Next temptation'), findsNothing);
         final tempt = find.byKey(const ValueKey('ring-tempt-ring'));
         await tester.ensureVisible(tempt);
+        expect(tester.getSemantics(tempt).label, 'Tempt');
         await tester.tap(tempt);
         expect(tester.takeException(), isNull);
       }
       expect(taps, 8);
+      semantics.dispose();
     },
   );
 

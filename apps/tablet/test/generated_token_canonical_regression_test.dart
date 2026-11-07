@@ -300,10 +300,7 @@ void main() {
       expect(options.first['artist'], 'Kim Dingwall');
       expect(options.first['url'], contains('/d/8/d8b94ebb-'));
       expect(options.last['artist'], 'Swayart');
-      expect(
-        utility.configuration['actionButtonText'],
-        'Make Squirrels · 1GGG',
-      );
+      expect(utility.configuration['actionButtonText'], 'Make Squirrels');
     },
   );
 

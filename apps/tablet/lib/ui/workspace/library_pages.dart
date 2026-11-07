@@ -393,8 +393,10 @@ extension _LibraryPages on _TableWorkspaceState {
             runSpacing: 8,
             children: [
               _button(
-                utility.configuration['actionButtonText'] as String? ??
-                    'Resolve action',
+                action == 'the_unbeatable_squirrel_girl'
+                    ? 'Make Squirrels'
+                    : utility.configuration['actionButtonText'] as String? ??
+                          'Resolve action',
                 () => _run(
                   () => _board.utilityAction(
                     player.id,
