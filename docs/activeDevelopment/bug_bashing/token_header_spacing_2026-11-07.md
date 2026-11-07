@@ -56,3 +56,17 @@ Native device acceptance is separate from rendered widget checks.
 - Full tablet suite and web build are delegated to the combined feedback
   integration branch. No deployment, device installation, or native acceptance
   is claimed. Keep this note in bug tracking until native acceptance.
+
+### Combined-suite follow-up
+
+The integration suite found 11 drawer checks still asserting the name's old
+exact top coordinate. The status group continues to start at `5 + inset`; the
+name now moves within that same header for baseline alignment. Updated only
+that assertion to require minimum original clearance plus exact first-baseline
+alignment. All artwork positioning, exact status inset, subsequent-card inset,
+and global control hit-region separation checks remain intact.
+
+- All 60 combined `game_drawer_shell_test.dart` and
+  `token_header_spacing_test.dart` checks pass.
+- All six 2/3/4-seat full/fadeout first-card clearance checks also pass with
+  real Roboto/Material/Mana fonts.
