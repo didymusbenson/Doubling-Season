@@ -484,6 +484,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
     VoidCallback? onHold,
     Key? key,
     bool consumeDisabled = false,
+    double height = 40,
   }) => Semantics(
     key: key,
     button: true,
@@ -500,7 +501,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
           onLongPress: _inputOpen ? null : onHold,
           child: SizedBox(
             width: 38,
-            height: 40,
+            height: height,
             child: Center(
               child: _readable(
                 Padding(
@@ -688,9 +689,13 @@ class _TabletTokenCardState extends State<TabletTokenCard>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // Align the first text line even when a long name
+                              // or the status badges wrap onto another row.
                               LayoutBuilder(
                                 builder: (context, constraints) => Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
                                   children: [
                                     Expanded(
                                       child: _field(
@@ -729,41 +734,51 @@ class _TabletTokenCardState extends State<TabletTokenCard>
                                   ],
                                 ),
                               ),
+                              // Keep breathing room on both sides of the pills.
+                              // A minimum, not fixed, height preserves larger text.
                               if (counters.isNotEmpty || widget.expanded)
-                                SizedBox(
-                                  height: 32,
-                                  child: SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: Row(
-                                      children: [
-                                        for (final entry in counters)
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              right: 4,
-                                            ),
-                                            child: Semantics(
-                                              button: true,
-                                              label:
-                                                  '$_target, manage ${entry.$1} counters',
-                                              child: InkWell(
-                                                onTap: () => _open(
-                                                  WorkspacePage.tokenCounters,
-                                                ),
-                                                child: CounterPillView(
-                                                  name: entry.$1,
-                                                  amount: entry.$2,
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                  ),
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      minHeight: 32,
+                                    ),
+                                    child: SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Row(
+                                        children: [
+                                          for (final entry in counters)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                right: 4,
+                                              ),
+                                              child: Semantics(
+                                                button: true,
+                                                label:
+                                                    '$_target, manage ${entry.$1} counters',
+                                                child: InkWell(
+                                                  onTap: () => _open(
+                                                    WorkspacePage.tokenCounters,
+                                                  ),
+                                                  child: CounterPillView(
+                                                    name: entry.$1,
+                                                    amount: entry.$2,
+                                                  ),
                                                 ),
                                               ),
                                             ),
+                                          _action(
+                                            Icons.add_circle_outline,
+                                            'Manage counters',
+                                            () => _open(
+                                              WorkspacePage.tokenCounters,
+                                            ),
+                                            height: 32,
                                           ),
-                                        _action(
-                                          Icons.add_circle_outline,
-                                          'Manage counters',
-                                          () => _open(
-                                            WorkspacePage.tokenCounters,
-                                          ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
