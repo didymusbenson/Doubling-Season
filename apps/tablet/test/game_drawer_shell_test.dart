@@ -181,7 +181,17 @@ void main() {
       nameBox.getTransformTo(tokenBox),
       Offset.zero & nameBox.size,
     );
-    expect(localName.top, 8 + inset);
+    // The header retains its exact content inset; the name now moves down
+    // within that header to share the first status baseline. Do not restore
+    // top-edge alignment merely to preserve the old text coordinate.
+    expect(localName.top, greaterThanOrEqualTo(8 + inset));
+    final nameBaseline =
+        localName.top +
+        nameBox.getDryBaseline(nameBox.constraints, TextBaseline.alphabetic)!;
+    final totalsBaseline =
+        localTotals.top +
+        totalBox.getDryBaseline(totalBox.constraints, TextBaseline.alphabetic)!;
+    expect(nameBaseline, closeTo(totalsBaseline, .01));
     for (final content in [
       name,
       totals,
