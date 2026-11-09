@@ -21,10 +21,32 @@ const _capture = ValueKey('creation-capture');
 
 void main() {
   late TableFixture fixture;
+  late String opaqueCardImage;
   setUp(() => fixture = TableFixture());
   tearDown(() => fixture.dispose());
 
   setUpAll(() async {
+    // Match the catalog JPEG's dimensions and opaque white corner matte.
+    // Keep a white interior panel to prove that only the corners are clipped.
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    const source = Rect.fromLTWH(0, 0, 672, 936);
+    canvas.drawRect(source, Paint()..color = Colors.white);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(source, const Radius.circular(28)),
+      Paint()..color = const Color(0xff202020),
+    );
+    canvas.drawRect(
+      const Rect.fromLTWH(200, 300, 272, 336),
+      Paint()..color = Colors.white,
+    );
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(672, 936);
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    opaqueCardImage =
+        'data:image/png;base64,${base64Encode(bytes!.buffer.asUint8List())}';
+    image.dispose();
+    picture.dispose();
     Directory sdk = File(Platform.resolvedExecutable).parent;
     while (!Directory(
       '${sdk.path}/bin/cache/artifacts/material_fonts',
@@ -55,6 +77,8 @@ void main() {
     bool nativeInput = false,
     double scale = 1,
     bool artwork = true,
+    String? imageUrl,
+    Brightness brightness = Brightness.dark,
     String artist = 'Noah Bradley',
     String abilities = '{2}, Sacrifice this token: Draw a card.',
   }) async {
@@ -72,9 +96,11 @@ void main() {
             ? [
                 ArtworkVariant(
                   set: 'TEST',
-                  url: Platform.environment['TABLET_CREATION_ART'] == null
-                      ? _image
-                      : 'data:image/jpeg;base64,${base64Encode(File(Platform.environment['TABLET_CREATION_ART']!).readAsBytesSync())}',
+                  url:
+                      imageUrl ??
+                      (Platform.environment['TABLET_CREATION_ART'] == null
+                          ? _image
+                          : 'data:image/jpeg;base64,${base64Encode(File(Platform.environment['TABLET_CREATION_ART']!).readAsBytesSync())}'),
                   artist: artist,
                 ),
               ]
@@ -94,9 +120,9 @@ void main() {
       RepaintBoundary(
         key: _capture,
         child: MaterialApp(
-          theme: tableTheme(Brightness.dark).copyWith(
+          theme: tableTheme(brightness).copyWith(
             textTheme: tableTheme(
-              Brightness.dark,
+              brightness,
             ).textTheme.apply(fontFamily: 'Roboto'),
           ),
           builder: (context, child) => MediaQuery(
@@ -194,6 +220,66 @@ void main() {
       await close(tester);
     },
   );
+
+  for (final brightness in Brightness.values) {
+    for (final size in [const Size(1133, 744), const Size(390, 844)]) {
+      testWidgets(
+        '${brightness.name} ${size.width} card corners reveal the modal surface',
+        (tester) async {
+          await open(
+            tester,
+            size: size,
+            imageUrl: opaqueCardImage,
+            brightness: brightness,
+          );
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 100)),
+          );
+          await tester.pumpAndSettle();
+          final art = tester.getRect(
+            find.byKey(const ValueKey('creation-token-artwork')),
+          );
+          final boundary = tester.renderObject<RenderRepaintBoundary>(
+            find.byKey(_capture),
+          );
+          await tester.runAsync(() async {
+            final image = await boundary.toImage();
+            try {
+              final bytes = (await image.toByteData(
+                format: ui.ImageByteFormat.rawRgba,
+              ))!;
+              Color at(Offset point) {
+                final offset =
+                    (point.dy.floor() * image.width + point.dx.floor()) * 4;
+                return Color.fromARGB(
+                  bytes.getUint8(offset + 3),
+                  bytes.getUint8(offset),
+                  bytes.getUint8(offset + 1),
+                  bytes.getUint8(offset + 2),
+                );
+              }
+
+              final surface = at(art.topLeft + const Offset(-3, 2));
+              for (final corner in [
+                art.topLeft + const Offset(1, 1),
+                art.topRight + const Offset(-2, 1),
+                art.bottomLeft + const Offset(1, -2),
+                art.bottomRight + const Offset(-2, -2),
+              ]) {
+                expect(at(corner), surface, reason: 'Unclipped corner $corner');
+              }
+              // Clipping must not remove real white card content or crop it.
+              expect(at(art.center), Colors.white);
+            } finally {
+              image.dispose();
+            }
+          });
+          expect(tester.takeException(), isNull);
+          await close(tester);
+        },
+      );
+    }
+  }
 
   testWidgets('keyboard opens and returns to compact form with draft intact', (
     tester,

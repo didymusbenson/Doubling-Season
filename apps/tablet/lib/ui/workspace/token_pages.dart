@@ -34,22 +34,33 @@ extension _TokenPages on _TableWorkspaceState {
         LayoutBuilder(
           builder: (context, bounds) {
             final compact = bounds.maxWidth < 520;
+            final artworkWidth = compact ? 140.0 : 180.0;
             final artwork = selected.artwork.firstOrNull;
             final art = artwork == null
                 ? null
                 : SizedBox(
-                    width: compact ? 140 : 180,
+                    width: artworkWidth,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        AspectRatio(
-                          aspectRatio: 5 / 7,
-                          child: TableArtwork(
-                            key: const ValueKey('creation-token-artwork'),
-                            url: artwork.url,
-                            fit: BoxFit.contain,
-                            showLoadStatus: true,
-                            placeholder: const Icon(Icons.image_outlined),
+                        // Full-card JPEGs include opaque white outside the
+                        // printed card's rounded corners. Clip the preview,
+                        // not its background or cached bytes, so both themes
+                        // show through and the complete card stays contained.
+                        ClipRRect(
+                          key: const ValueKey('creation-card-clip'),
+                          borderRadius: BorderRadius.circular(
+                            artworkWidth * .06,
+                          ),
+                          child: AspectRatio(
+                            aspectRatio: 5 / 7,
+                            child: TableArtwork(
+                              key: const ValueKey('creation-token-artwork'),
+                              url: artwork.url,
+                              fit: BoxFit.contain,
+                              showLoadStatus: true,
+                              placeholder: const Icon(Icons.image_outlined),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 8),
