@@ -10,11 +10,7 @@ extension _TokenPages on _TableWorkspaceState {
     if (selected != null) {
       if (RingService.isRingDefinition(selected.name, selected.type)) {
         return _list([
-          _button(
-            'Back to search',
-            () => _update(() => _selectedDefinition = null),
-            icon: Icons.arrow_back,
-          ),
+          _tokenSearchBack(),
           _section(
             'The Ring',
             detail:
@@ -34,40 +30,50 @@ extension _TokenPages on _TableWorkspaceState {
       final revision = c.session.revision;
       final quantity = _field('create.quantity', '1');
       return _list([
-        _button(
-          'Back to search',
-          () => _update(() => _selectedDefinition = null),
-          icon: Icons.arrow_back,
-        ),
+        _tokenSearchBack(),
         LayoutBuilder(
           builder: (context, bounds) {
-            final compact = bounds.maxWidth < 420;
-            final art = SizedBox(
-              width: compact ? double.infinity : 180,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _section(
-                    selected.name,
-                    detail: '${selected.pt} ${selected.cleanType}'.trim(),
-                  ),
-                  if (selected.abilities.isNotEmpty)
-                    ManaText(selected.abilities),
-                  if (selected.artwork.isNotEmpty)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: _art(
-                        selected.artwork.first.url,
-                        width: 160,
-                        height: 150,
-                      ),
+            final compact = bounds.maxWidth < 520;
+            final artwork = selected.artwork.firstOrNull;
+            final art = artwork == null
+                ? null
+                : SizedBox(
+                    width: compact ? 140 : 180,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AspectRatio(
+                          aspectRatio: 5 / 7,
+                          child: TableArtwork(
+                            key: const ValueKey('creation-token-artwork'),
+                            url: artwork.url,
+                            fit: BoxFit.contain,
+                            showLoadStatus: true,
+                            placeholder: const Icon(Icons.image_outlined),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TabletArtworkCredit(
+                          key: const ValueKey('creation-artwork-credit'),
+                          url: artwork.url,
+                          artist: artwork.artist,
+                        ),
+                      ],
                     ),
-                ],
-              ),
-            );
+                  );
             final controls = Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _section(
+                  selected.name,
+                  detail: '${selected.pt} ${selected.cleanType}'.trim(),
+                ),
+                if (selected.abilities.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: ManaText(selected.abilities),
+                  ),
                 _input(
                   'create.quantity',
                   'Quantity before modifiers',
@@ -133,16 +139,22 @@ extension _TokenPages on _TableWorkspaceState {
                 ),
               ],
             );
+            if (art == null) return controls;
             return compact
                 ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [art, const SizedBox(height: 12), controls],
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(child: art),
+                      const SizedBox(height: 12),
+                      controls,
+                    ],
                   )
                 : Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       art,
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 24),
                       Expanded(child: controls),
                     ],
                   );
@@ -505,6 +517,16 @@ extension _TokenPages on _TableWorkspaceState {
         ],
       ),
     ], controller: validation.scrollController),
+  );
+
+  Widget _tokenSearchBack() => Align(
+    alignment: Alignment.centerLeft,
+    child: TextButton.icon(
+      key: const ValueKey('creation-back-to-search'),
+      onPressed: () => _update(() => _selectedDefinition = null),
+      icon: const Icon(Icons.arrow_back),
+      label: const Text('Back to search'),
+    ),
   );
 
   void _clearCustomTokenDraft() {

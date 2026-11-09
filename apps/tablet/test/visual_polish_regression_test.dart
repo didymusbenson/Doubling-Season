@@ -438,7 +438,7 @@ void main() {
                 localViewport.width - 32,
               ),
             );
-            if (combined) {
+            if (combined || scene.key == 'token-create') {
               expect(frameSize.height, greaterThanOrEqualTo(44));
               expect(
                 frameSize.height,

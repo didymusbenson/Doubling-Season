@@ -14,6 +14,7 @@ class TableModalFrame extends StatelessWidget {
     this.surfaceKey,
     this.preferredWidth = 720,
     this.preferredHeight = 640,
+    this.fitContentHeight = false,
   });
 
   final Widget child;
@@ -21,6 +22,9 @@ class TableModalFrame extends StatelessWidget {
   final Key? surfaceKey;
   final double preferredWidth;
   final double preferredHeight;
+
+  /// Let a short, shrink-wrapped form use less than the available height.
+  final bool fitContentHeight;
 
   static Size localSize(Size viewport, int quarterTurns) {
     final local = quarterTurns.isOdd
@@ -49,10 +53,15 @@ class TableModalFrame extends StatelessWidget {
         child: Center(
           child: RotatedBox(
             quarterTurns: quarterTurns,
-            child: SizedBox(
+            child: Container(
               key: surfaceKey ?? const ValueKey('table-modal-surface'),
               width: math.min(preferredWidth, bounds.width),
-              height: math.min(preferredHeight, bounds.height),
+              height: fitContentHeight
+                  ? null
+                  : math.min(preferredHeight, bounds.height),
+              constraints: BoxConstraints(
+                maxHeight: math.min(preferredHeight, bounds.height),
+              ),
               child: Material(
                 color: Theme.of(context).colorScheme.surface,
                 elevation: 24,

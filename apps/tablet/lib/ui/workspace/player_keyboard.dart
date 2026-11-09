@@ -251,11 +251,15 @@ class PlayerKeyboardHost extends StatefulWidget {
     this.enabled = true,
     this.canEdit,
     this.showValue = false,
+    this.fitContentHeight = false,
     this.onClose,
   });
   final Widget child;
   final bool enabled;
   final bool showValue;
+
+  /// Fit the idle form, expanding to the bounded viewport only while typing.
+  final bool fitContentHeight;
   final VoidCallback? onClose;
   final bool Function()? canEdit;
 
@@ -1024,9 +1028,14 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
     ),
   );
 
-  Widget _formPane({bool focused = false}) => Expanded(
+  Widget _formPane({bool focused = false}) => Flexible(
+    fit: widget.fitContentHeight && _controller == null
+        ? FlexFit.loose
+        : FlexFit.tight,
     child: Stack(
-      fit: StackFit.expand,
+      fit: widget.fitContentHeight && _controller == null
+          ? StackFit.loose
+          : StackFit.expand,
       children: [
         Offstage(offstage: focused, child: widget.child),
         if (focused) _focusedKeyboard(),
@@ -1042,6 +1051,9 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
         child: const Text('Done'),
       );
       return Column(
+        mainAxisSize: widget.fitContentHeight
+            ? MainAxisSize.min
+            : MainAxisSize.max,
         children: [
           _formPane(),
           if (_controller != null)
@@ -1118,7 +1130,14 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
                 : KeyEventResult.ignored,
             child: LayoutBuilder(
               builder: (context, constraints) {
-                if (_controller == null) return Column(children: [_formPane()]);
+                if (_controller == null) {
+                  return Column(
+                    mainAxisSize: widget.fitContentHeight
+                        ? MainAxisSize.min
+                        : MainAxisSize.max,
+                    children: [_formPane()],
+                  );
+                }
                 final short = constraints.maxHeight < 400;
                 if (short) {
                   // Keep the exact form and its scroll/selection state mounted while

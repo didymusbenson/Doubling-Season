@@ -921,6 +921,13 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     ),
   );
 
+  bool get _compactTokenCreation =>
+      _page == WorkspacePage.tokens &&
+      _selectedDefinition != null &&
+      !_createCustom &&
+      _confirmation == null &&
+      _validScope;
+
   bool get _ownsCommanderControls =>
       (_page == WorkspacePage.commanderDamage ||
           _page == WorkspacePage.counters) &&
@@ -1000,6 +1007,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       );
     }
     return ListView(
+      shrinkWrap: _compactTokenCreation,
       controller: controller,
       padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
       children: [
@@ -1335,6 +1343,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       widget.quarterTurns,
     );
     final surface = PlayerKeyboardHost(
+      fitContentHeight: _compactTokenCreation,
       enabled: !_closing && !_working && !_navigating,
       canEdit: () => !_closing && !_working && !_navigating,
       onClose: _requestClose,
@@ -1342,6 +1351,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         '$_page:$_itemId:${_selectedDefinition?.id}:$_createCustom:${_confirmation?.title}:$_closeSaveFailed',
       ),
       child: Column(
+        mainAxisSize: _compactTokenCreation
+            ? MainAxisSize.min
+            : MainAxisSize.max,
         children: [
           SizedBox(
             height: 2,
@@ -1391,7 +1403,8 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
                 ],
               ),
             ),
-          Expanded(
+          Flexible(
+            fit: _compactTokenCreation ? FlexFit.loose : FlexFit.tight,
             child: _embedded
                 ? GameDrawerHeaderScope(
                     header: _drawerHeader(),
@@ -1411,16 +1424,14 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
                   )
                 : Stack(
                     children: [
-                      Positioned.fill(
-                        child: ClipPath(
-                          clipper: _WorkspaceControlCutout(_controlWidth + 8),
-                          child: Semantics(
-                            container: true,
-                            explicitChildNodes: true,
-                            namesRoute: true,
-                            label: _title,
-                            child: _content(),
-                          ),
+                      ClipPath(
+                        clipper: _WorkspaceControlCutout(_controlWidth + 8),
+                        child: Semantics(
+                          container: true,
+                          explicitChildNodes: true,
+                          namesRoute: true,
+                          label: _title,
+                          child: _content(),
                         ),
                       ),
                       Positioned(top: 6, right: 8, child: _dismissControls()),
@@ -1456,6 +1467,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     }
     final content = TableModalFrame(
       quarterTurns: widget.quarterTurns,
+      fitContentHeight: _compactTokenCreation,
       preferredWidth: focusedCommander
           ? 620
           : _page == WorkspacePage.tokenSummary
