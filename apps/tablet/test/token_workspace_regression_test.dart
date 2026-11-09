@@ -10,8 +10,12 @@ import 'support/table_fixture.dart';
 void main() {
   late TableFixture fixture;
 
-  Future<void> openWorkspace(WidgetTester tester, WorkspacePage page) async {
-    tester.view.physicalSize = const Size(1133, 744);
+  Future<void> openWorkspace(
+    WidgetTester tester,
+    WorkspacePage page, {
+    Size size = const Size(1133, 744),
+  }) async {
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -56,6 +60,51 @@ void main() {
   }
 
   tearDown(() => fixture.dispose());
+
+  for (final size in [const Size(320, 568), const Size(1133, 744)]) {
+    testWidgets(
+      'Token search remains usable with separate compact actions at $size',
+      (tester) async {
+        await initialize();
+        await openWorkspace(tester, WorkspacePage.tokens, size: size);
+        final search = find.byWidgetPredicate(
+          (widget) =>
+              widget is PlayerField &&
+              widget.label == 'Search tokens, abilities, type, or P/T',
+        );
+        final searchRect = tester.getRect(search);
+        final customRect = tester.getRect(
+          find.widgetWithText(OutlinedButton, 'Custom token'),
+        );
+        expect(searchRect.width, greaterThanOrEqualTo(160));
+        if (size.width == 320) {
+          expect(customRect.top, greaterThanOrEqualTo(searchRect.bottom));
+        } else {
+          expect(customRect.center.dy, closeTo(searchRect.center.dy, 2));
+        }
+        expect(
+          searchRect.overlaps(
+            tester.getRect(byControlLabel('Close workspace')),
+          ),
+          isFalse,
+        );
+        expect(search.hitTestable(), findsOneWidget);
+        if (size.width == 320) {
+          expect(byControlLabel('Clear token search'), findsNothing);
+          tester.widget<PlayerField>(search).controller.text = 'Saproling';
+          await tester.pumpAndSettle();
+          expect(tester.getSize(search).width, greaterThanOrEqualTo(160));
+          expect(byControlLabel('Clear token search'), findsOneWidget);
+          await tester.tap(byControlLabel('Clear token search'));
+          await tester.pumpAndSettle();
+          expect(tester.widget<PlayerField>(search).controller.text, isEmpty);
+          expect(byControlLabel('Clear token search'), findsNothing);
+        }
+        expect(tester.takeException(), isNull);
+        await closeWorkspace(tester);
+      },
+    );
+  }
 
   testWidgets('Create exits search only after the save succeeds', (
     tester,
@@ -106,6 +155,79 @@ void main() {
     expect(fixture.token('source').amount, 3);
     await closeWorkspace(tester);
   });
+
+  for (final initial in [1000000, 999999999999]) {
+    for (final counter in [false, true]) {
+      testWidgets(
+        'Correct persisted ${counter ? 'counter' : 'total'} $initial above manual-entry bounds',
+        (tester) async {
+          fixture = TableFixture(
+            stateWithTokens([
+              sampleToken(amount: initial, counters: {'charge': initial}),
+            ]),
+          );
+          await fixture.initialize();
+          final otherSeats = fixture.controller.session.players
+              .skip(1)
+              .map((player) => player.toJson())
+              .toList();
+          await openWorkspace(
+            tester,
+            counter ? WorkspacePage.tokenCounters : WorkspacePage.tokenStatus,
+          );
+          final label = counter ? 'charge' : 'Total';
+          final edit = byControlLabel('Edit $label');
+          await tester.ensureVisible(edit);
+          await tester.tap(edit);
+          await tester.pumpAndSettle();
+          final field = tester.widget<PlayerField>(
+            find.byWidgetPredicate(
+              (widget) => widget is PlayerField && widget.label == 'Set $label',
+            ),
+          );
+          field.controller.text = '7';
+          await tester.tap(find.text('Set'));
+          await tester.pumpAndSettle();
+          final token = fixture.token('source');
+          expect(counter ? token.counters['charge'] : token.amount, 7);
+          expect(counter ? token.amount : token.counters['charge'], initial);
+          expect(fixture.controller.session.history, hasLength(1));
+          expect(
+            fixture.controller.session.players
+                .skip(1)
+                .map((player) => player.toJson())
+                .toList(),
+            otherSeats,
+          );
+          final reopened = await fixture.repository.open();
+          final restored = reopened.state.session
+              .player(fixture.playerId)
+              .tokens
+              .single;
+          expect(counter ? restored.counters['charge'] : restored.amount, 7);
+          expect(tester.takeException(), isNull);
+          await closeWorkspace(tester);
+        },
+      );
+    }
+  }
+
+  testWidgets(
+    'Total stepper adjusts a large saved total by one without truncation',
+    (tester) async {
+      fixture = TableFixture(stateWithTokens([sampleToken(amount: 1000001)]));
+      await fixture.initialize();
+      await openWorkspace(tester, WorkspacePage.tokenStatus);
+      await tester.tap(byControlLabel('Decrease Total'));
+      await tester.pumpAndSettle();
+      expect(fixture.token('source').amount, 1000000);
+      await tester.tap(byControlLabel('Increase Total'));
+      await tester.pumpAndSettle();
+      expect(fixture.token('source').amount, 1000001);
+      expect(tester.takeException(), isNull);
+      await closeWorkspace(tester);
+    },
+  );
 
   testWidgets('Counter catalog exposes integrated split and add to one', (
     tester,

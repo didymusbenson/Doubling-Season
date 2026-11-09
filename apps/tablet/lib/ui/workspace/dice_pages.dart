@@ -1,11 +1,37 @@
 part of 'table_workspace.dart';
 
+bool _prefersReducedDiceMotion(BuildContext context) =>
+    MediaQuery.disableAnimationsOf(context) ||
+    // Flutter 3.41 exposes iOS Reduce Motion only through the engine feature;
+    // it is separate from Android disableAnimations and VoiceOver navigation.
+    WidgetsBinding
+        .instance
+        .platformDispatcher
+        .accessibilityFeatures
+        .reduceMotion ||
+    platformPrefersReducedDiceMotion();
+
 extension _DicePages on _TableWorkspaceState {
   Future<void> _rollSelectedDice({bool again = false}) async {
-    if (_working || _closing || _navigating || !_validScope) return;
+    if (_diceRolling || _working || _closing || _navigating || !_validScope) {
+      return;
+    }
+    // Lock before navigation yields: repeated taps accept just one roll.
+    _update(() => _diceRolling = true);
     if (!again) await _go(WorkspacePage.diceResults);
-    if (!mounted || _page != WorkspacePage.diceResults || !_validScope) return;
-    _update(() => _diceRoll = DiceRoll.generate(_diceCounts));
+    if (!mounted) return;
+    if (_closing || _page != WorkspacePage.diceResults || !_validScope) {
+      _update(() => _diceRolling = false);
+      return;
+    }
+    // Only this immutable snapshot uses randomness. Animation never rerolls it.
+    final roll = DiceRoll.generate(_diceCounts);
+    _update(() {
+      _diceRoll = roll;
+      _diceRollSerial++;
+      _diceRolling =
+          roll.groups.isNotEmpty && !_prefersReducedDiceMotion(context);
+    });
   }
 
   Widget _diceBody({required Widget child, required Key scrollKey}) => _embedded
@@ -17,7 +43,9 @@ extension _DicePages on _TableWorkspaceState {
         )
       : SingleChildScrollView(
           key: scrollKey,
-          padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
+          // Both selector silhouettes and result headings clear the standalone
+          // top-right controls (6px offset +44px targets +6px breathing room).
+          padding: const EdgeInsets.fromLTRB(20, 56, 20, 20),
           child: Center(child: child),
         );
 
@@ -90,7 +118,9 @@ extension _DicePages on _TableWorkspaceState {
             FilledButton.icon(
               key: const ValueKey('dice-roll-button'),
               style: FilledButton.styleFrom(minimumSize: const Size(88, 48)),
-              onPressed: _working || _navigating ? null : _rollSelectedDice,
+              onPressed: _diceRolling || _working || _navigating
+                  ? null
+                  : _rollSelectedDice,
               icon: const Icon(Icons.casino_outlined),
               label: Text(_diceRollLabel, textAlign: TextAlign.center),
             ),
@@ -110,6 +140,7 @@ extension _DicePages on _TableWorkspaceState {
   Widget _diceStep(int sides, int count, bool increase) {
     final enabled =
         !_working &&
+        !_diceRolling &&
         !_closing &&
         !_navigating &&
         (increase ? count < 20 : count > 0);
@@ -142,17 +173,36 @@ extension _DicePages on _TableWorkspaceState {
   }
 
   void _changeDiceCount(int sides, int delta) {
-    if (_working || _closing || _navigating || !_validScope) return;
+    if (_diceRolling || _working || _closing || _navigating || !_validScope) {
+      return;
+    }
     _update(
       () => _diceCounts[sides] = (_diceCounts[sides]! + delta).clamp(0, 20),
     );
   }
 
-  Widget _diceResultsPage() => _diceBody(
+  Widget _diceResultsPage() {
+    final serial = _diceRollSerial;
+    return _DiceRollAnimation(
+      key: ValueKey('dice-animation-$serial'),
+      animate: _diceRolling,
+      onFinished: () {
+        if (mounted && serial == _diceRollSerial && _diceRolling) {
+          // Unlock even if navigation is waiting on unrelated work.
+          _diceRolling = false;
+          _refresh();
+        }
+      },
+      builder: (context, progress) => _diceResultsBody(progress),
+    );
+  }
+
+  Widget _diceResultsBody(double progress) => _diceBody(
     scrollKey: const PageStorageKey('dice-results-scroll'),
     child: LayoutBuilder(
       builder: (context, constraints) {
         final roll = _diceRoll;
+        final rolling = progress < 1;
         final rolledCount =
             roll?.groups.fold(0, (count, group) => count + group.count) ?? 0;
         final gridWidth = min(
@@ -169,85 +219,113 @@ extension _DicePages on _TableWorkspaceState {
                 textAlign: TextAlign.center,
               ),
             if (roll != null && roll.groups.isNotEmpty)
-              SizedBox(
-                width: gridWidth,
-                child: Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 12,
-                  runSpacing: 20,
-                  children: [
-                    for (final group in roll.groups)
-                      SizedBox(
-                        width: min(
-                          gridWidth,
-                          group.faces.length * 80.0 +
-                              max(0, group.faces.length - 1) * 12,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _diceGroupLabel(group),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              alignment: WrapAlignment.center,
-                              spacing: 12,
-                              runSpacing: 12,
-                              children: [
-                                for (
-                                  var face = 0;
-                                  face < group.faces.length;
-                                  face++
-                                )
-                                  SizedBox(
-                                    width: 80,
-                                    child: DieOutline(
-                                      key: ValueKey(
-                                        'dice-result-d${group.sides}-$face',
-                                      ),
-                                      sides: group.sides,
-                                      value: group.faces[face],
-                                      selected: true,
-                                      size: 72,
-                                      showDenomination: false,
-                                      semanticsLabel:
-                                          'D${group.sides} result ${face + 1}: ${group.faces[face]}',
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            if (group.faces.length > 1) ...[
+              ExcludeSemantics(
+                excluding: rolling,
+                child: SizedBox(
+                  width: gridWidth,
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 12,
+                    runSpacing: 20,
+                    children: [
+                      for (final group in roll.groups)
+                        SizedBox(
+                          width: min(
+                            gridWidth,
+                            group.faces.length * 80.0 +
+                                max(0, group.faces.length - 1) * 12,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _diceGroupLabel(group),
                               const SizedBox(height: 8),
-                              Text(
-                                'Subtotal: ${group.total}',
-                                textAlign: TextAlign.center,
+                              Wrap(
+                                alignment: WrapAlignment.center,
+                                spacing: 12,
+                                runSpacing: 12,
+                                children: [
+                                  for (
+                                    var face = 0;
+                                    face < group.faces.length;
+                                    face++
+                                  )
+                                    SizedBox(
+                                      width: 80,
+                                      child: Transform.rotate(
+                                        angle: rolling
+                                            ? sin(
+                                                    progress * pi * 8 +
+                                                        face * .7,
+                                                  ) *
+                                                  .10 *
+                                                  (1 - progress)
+                                            : 0,
+                                        child: Transform.scale(
+                                          scale: rolling
+                                              ? .94 + .06 * progress
+                                              : 1,
+                                          child: DieOutline(
+                                            key: ValueKey(
+                                              'dice-result-d${group.sides}-$face',
+                                            ),
+                                            sides: group.sides,
+                                            value: rolling
+                                                ? 1 +
+                                                      ((progress * 12).floor() +
+                                                              face * 3) %
+                                                          group.sides
+                                                : group.faces[face],
+                                            selected: true,
+                                            size: 72,
+                                            showDenomination: false,
+                                            semanticsLabel:
+                                                'D${group.sides} result ${face + 1}: ${group.faces[face]}',
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
+                              if (group.faces.length > 1) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  rolling
+                                      ? 'Subtotal: —'
+                                      : 'Subtotal: ${group.total}',
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             const SizedBox(height: 20),
-            Text(
-              'Total: ${roll?.total ?? 0}',
-              key: const ValueKey('dice-summary'),
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineMedium,
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                rolling ? 'Rolling…' : 'Total: ${roll?.total ?? 0}',
+                key: const ValueKey('dice-summary'),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
             ),
             Text(
-              '$rolledCount ${rolledCount == 1 ? 'die' : 'dice'} rolled',
+              '$rolledCount ${rolledCount == 1 ? 'die' : 'dice'} ${rolling ? 'rolling' : 'rolled'}',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
               key: const ValueKey('dice-reroll-button'),
               style: FilledButton.styleFrom(minimumSize: const Size(88, 48)),
-              onPressed: _working || _navigating
+              onPressed: _diceRolling || _working || _navigating
                   ? null
                   : () => _rollSelectedDice(again: true),
               icon: const Icon(Icons.refresh),
-              label: const Text('Roll again'),
+              label: Text(rolling ? 'Rolling…' : 'Roll again'),
             ),
           ],
         );
@@ -257,7 +335,105 @@ extension _DicePages on _TableWorkspaceState {
 
   Widget _diceGroupLabel(DiceRollGroup group) => Text(
     '${group.faces.length} × D${group.sides}',
+    key: ValueKey('dice-group-d${group.sides}'),
     textAlign: TextAlign.center,
     style: Theme.of(context).textTheme.titleMedium,
+  );
+}
+
+/// Motion belongs to the current result surface, never to the saved game.
+/// Disposing or interrupting the surface releases the repeat-tap lock.
+class _DiceRollAnimation extends StatefulWidget {
+  const _DiceRollAnimation({
+    super.key,
+    required this.animate,
+    required this.onFinished,
+    required this.builder,
+  });
+
+  final bool animate;
+  final VoidCallback onFinished;
+  final Widget Function(BuildContext, double) builder;
+
+  @override
+  State<_DiceRollAnimation> createState() => _DiceRollAnimationState();
+}
+
+class _DiceRollAnimationState extends State<_DiceRollAnimation>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  late final AnimationController _animation =
+      AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 750),
+      )..addListener(() {
+        if (_animation.value == 1) _finish();
+      });
+  bool _started = false;
+  bool _finished = false;
+  late final void Function() _removeMotionListener;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _removeMotionListener = listenToPlatformReducedDiceMotion((reduced) {
+      if (mounted && reduced) _settle();
+    });
+  }
+
+  void _finish() {
+    if (_finished) return;
+    _finished = true;
+    // Completion can happen during a rebuild or disposal; never mutate the
+    // workspace until that frame has finished, and let it check roll identity.
+    final notify = widget.onFinished;
+    WidgetsBinding.instance.addPostFrameCallback((_) => notify());
+  }
+
+  void _settle() {
+    _animation.value = 1;
+    _finish();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!widget.animate || _prefersReducedDiceMotion(context)) {
+      _settle();
+    } else if (!_started) {
+      _started = true;
+      _animation.forward();
+    }
+  }
+
+  @override
+  void didUpdateWidget(_DiceRollAnimation oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.animate) _settle();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) _settle();
+  }
+
+  @override
+  void didChangeAccessibilityFeatures() {
+    if (_prefersReducedDiceMotion(context)) _settle();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _removeMotionListener();
+    _finish();
+    _animation.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _animation,
+    builder: (context, _) => widget.builder(context, _animation.value),
   );
 }

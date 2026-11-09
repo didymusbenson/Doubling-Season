@@ -1068,6 +1068,9 @@ try {
   await captureGameView('05a-dice-selector-outlines');
   await click('Roll 1 die', { role: 'button' });
   async function verifyDiceResults(expected) {
+    // Results are deliberately absent from semantics during the brief roll.
+    // Wait for the visible final total before taking one coherent snapshot.
+    const summary = await find('Total:', { startsWith: true });
     const rows = new Map();
     for (const node of await semantics()) {
       const match = node.name.match(/^D(4|6|8|10|12|20) result (\d+): (\d+)$/);
@@ -1083,7 +1086,6 @@ try {
       assert.equal([...rows.values()].filter(row => row.sides === Number(sides)).length, count, `Wrong D${sides} count`);
     }
     assert.equal(rows.size, Object.values(expected).reduce((sum, count) => sum + count, 0), 'Unexpected extra result');
-    const summary = await find('Total:', { startsWith: true });
     const total = Number(summary.name.match(/^Total:\s*(\d+)/)?.[1]);
     assert.equal(total, [...rows.values()].reduce((sum, row) => sum + row.value, 0), 'Dice total differs from individual values.');
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../domain/table_state.dart';
+import '../domain/input_validation.dart';
 import '../state/table_controller.dart';
 
 /// Immediate, seat-local acknowledgement of accepted life taps.
@@ -85,7 +86,7 @@ class LifeTapFeedback extends ChangeNotifier {
       if (!_disposed && _samePlayerSession(receipt)) {
         _captureErrorScope(receipt);
         error =
-            'A life change was not saved. Check the displayed total before retrying. $failure';
+            'A life change was not saved. Check the displayed total before retrying. ${inputErrorMessage(failure)}';
       }
       return false;
     } finally {

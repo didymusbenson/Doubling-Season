@@ -495,6 +495,42 @@ class BoardService {
     _token(p, tokenId);
     p.tokens.removeWhere((t) => t.id == tokenId);
   }, captured: captured);
+  // Matches the aggregate's persisted numeric range. Creation and manual
+  // entry keep their smaller limits; stepping a saved total must not truncate it.
+  static const maxStoredTokenTotal = 999999999999;
+
+  Future<void> adjustTokenTotal(
+    String playerId,
+    String tokenId,
+    int delta, {
+    BoardScope? captured,
+  }) => _commit(
+    playerId,
+    'Adjust token total',
+    (s, p) {
+      final t = _token(p, tokenId);
+      final next = t.amount + delta;
+      if (next < 0 || next > maxStoredTokenTotal) return;
+      if (delta > 0 &&
+          p.summoningSicknessEnabled &&
+          _creature(t) &&
+          !t.hasHaste &&
+          !_emblem(t)) {
+        t.summoningSick += delta;
+      }
+      t.amount = next;
+      t.tapped = min(t.tapped, next);
+      t.summoningSick = min(t.summoningSick, next);
+    },
+    captured: captured,
+    groupKey: 'token-total:$tokenId:${delta.sign}',
+    delta: delta,
+    effectiveDelta: (before, after) =>
+        _token(_player(after, playerId), tokenId).amount -
+        _token(_player(before, playerId), tokenId).amount,
+    describeDelta: (actual) => 'Token total ${actual >= 0 ? '+' : ''}$actual',
+  );
+
   Future<void> editToken(
     String playerId,
     String tokenId, {
@@ -506,9 +542,39 @@ class BoardService {
     int? amount,
     int? tapped,
     int? summoningSick,
+    Map<String, String>? expectedFields,
     BoardScope? captured,
   }) => _commit(playerId, 'Edit token', (s, p) {
     final t = _token(p, tokenId);
+    // Check inside the serialized mutation, after earlier accepted writes.
+    final current = {
+      'name': t.name,
+      'pt': t.pt,
+      'abilities': t.abilities,
+      'colors': t.colors,
+      'type': t.type,
+      'amount': '${t.amount}',
+      'tapped': '${t.tapped}',
+      'summoningSick': '${t.summoningSick}',
+    };
+    final requested = {
+      'name': name,
+      'pt': pt,
+      'abilities': abilities,
+      'colors': colors,
+      'type': type,
+      'amount': amount?.toString(),
+      'tapped': tapped?.toString(),
+      'summoningSick': summoningSick?.toString(),
+    };
+    for (final entry in (expectedFields ?? <String, String>{}).entries) {
+      if (current[entry.key] != entry.value &&
+          current[entry.key] != requested[entry.key]) {
+        throw StateError(
+          'This token changed in another view. Review the retained field or discard the old draft before continuing.',
+        );
+      }
+    }
     // Inline editing preserves the original raw text, including empty fields.
     if (name != null) t.name = name;
     if (pt != null) t.pt = pt;
@@ -590,10 +656,21 @@ class BoardService {
     String name,
     int value, {
     BoardScope? captured,
+    int? expectedValue,
   }) => _commit(playerId, 'Set $name counters to $value', (s, p) {
     _quantity(value);
     if (name.trim().isEmpty) throw const FormatException('Name the counter');
     final t = _token(p, tokenId);
+    final current = switch (name) {
+      '+1/+1' => t.plusOneCounters,
+      '-1/-1' => t.minusOneCounters,
+      _ => t.counters[name] ?? 0,
+    };
+    if (expectedValue != null && current != expectedValue && current != value) {
+      throw StateError(
+        'This counter changed in another view. Edit your retained draft to confirm it before saving.',
+      );
+    }
     switch (name) {
       case '+1/+1':
         t.plusOneCounters = value;
