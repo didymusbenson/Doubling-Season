@@ -2051,6 +2051,16 @@
         "artist": "John Donahue"
       },
       {
+        "set": "TRC",
+        "url": "https://cards.scryfall.io/large/front/2/1/215c8aec-f26f-4777-aa90-252e537f5df9.jpg",
+        "artist": "Arthur Yuan"
+      },
+      {
+        "set": "TRC",
+        "url": "https://cards.scryfall.io/large/front/c/a/ca8e8a9a-d673-4644-9eec-f4f549307d9b.jpg",
+        "artist": "Arthur Yuan"
+      },
+      {
         "set": "WDMU",
         "url": "https://cards.scryfall.io/large/front/2/9/29eea3f8-9c71-4ac7-8e67-0559d8ad3214.jpg",
         "artist": "Kohei Hayama"
@@ -2341,26 +2351,15 @@
     "pt": "4/4",
     "colors": "G",
     "type": "Creature — Beast",
-    "popularity": 6,
+    "popularity": 5,
     "artwork": [
       {
         "set": "FRA",
         "url": "https://cards.scryfall.io/large/front/8/5/859bda9a-fa90-4ad3-b0c1-6fc62e27c12f.jpg",
         "artist": "Simon Dominic"
-      },
-      {
-        "set": "TRC",
-        "url": "https://cards.scryfall.io/large/front/2/1/215c8aec-f26f-4777-aa90-252e537f5df9.jpg",
-        "artist": "Arthur Yuan"
-      },
-      {
-        "set": "TRC",
-        "url": "https://cards.scryfall.io/large/front/c/a/ca8e8a9a-d673-4644-9eec-f4f549307d9b.jpg",
-        "artist": "Arthur Yuan"
       }
     ],
     "reverse_related": [
-      "Beast",
       "Bestial Incursion",
       "Garruk, Curse Breaker",
       "Garruk, Veiled Butcher",
@@ -3309,7 +3308,7 @@
     "pt": "1/1",
     "colors": "",
     "type": "Artifact Creature — Borg",
-    "popularity": 0,
+    "popularity": 14,
     "artwork": [
       {
         "set": "TRK",
@@ -3322,7 +3321,22 @@
         "artist": "Henry Peters"
       }
     ],
-    "reverse_related": []
+    "reverse_related": [
+      "Antagonist Incorporator",
+      "Assembly Specialist",
+      "Borg",
+      "Borg Incursion",
+      "Class-4 Tactical Cube",
+      "Collective Override",
+      "Conquest Mission",
+      "Deliver from Chaos",
+      "Join the Collective",
+      "Locutus of Borg",
+      "Maturation Chamber",
+      "Stratagem Emulator",
+      "Tenacious Drone",
+      "Type-03 Borg Vessel"
+    ]
   },
   {
     "name": "Brainiac",
@@ -3401,7 +3415,7 @@
     "pt": "2/2",
     "colors": "",
     "type": "Creature — Wizard Soldier",
-    "popularity": 13,
+    "popularity": 15,
     "artwork": [
       {
         "set": "FRA",
@@ -3414,11 +3428,13 @@
       "Command the Stage",
       "Craftwork Crusher",
       "Fatehold Chronologist // Peer Review",
+      "Flourishing Forces",
       "Germinate Recruits",
       "Heartstring Puller",
       "Hexhaven Battalion",
       "Ingris Stingerquill",
       "Prudent Fateseer // Peer Review",
+      "Quintorius, Fate Splitter",
       "Recursive Recruitment",
       "Semester Foreseer // Peer Review",
       "Stingerquill Charm",
@@ -4271,7 +4287,7 @@
     "pt": "1/1",
     "colors": "WG",
     "type": "Creature — Citizen",
-    "popularity": 23,
+    "popularity": 24,
     "artwork": [
       {
         "set": "BLC",
@@ -4297,12 +4313,23 @@
         "set": "TDC",
         "url": "https://cards.scryfall.io/large/front/4/0/40135aa8-d531-427d-ab5c-9a2192f61bf9.jpg",
         "artist": "Maria Poliakova"
+      },
+      {
+        "set": "TRC",
+        "url": "https://cards.scryfall.io/large/front/b/b/bb355701-39e2-428e-a62b-feac0bdada72.jpg",
+        "artist": "Charles Chaisson"
+      },
+      {
+        "set": "TRC",
+        "url": "https://cards.scryfall.io/large/front/f/8/f801903a-5db6-4566-ad33-2c1de8ac4287.jpg",
+        "artist": "Charles Chaisson"
       }
     ],
     "reverse_related": [
       "Boss's Chauffeur",
       "Cabaretti Charm",
       "Caldaia Guardian",
+      "Citizen",
       "Citizen's Crowbar",
       "Courier's Briefcase",
       "Darling of the Masses",
@@ -4331,18 +4358,8 @@
     "pt": "1/1",
     "colors": "W",
     "type": "Creature — Citizen",
-    "popularity": 4,
+    "popularity": 3,
     "artwork": [
-      {
-        "set": "TRC",
-        "url": "https://cards.scryfall.io/large/front/b/b/bb355701-39e2-428e-a62b-feac0bdada72.jpg",
-        "artist": "Charles Chaisson"
-      },
-      {
-        "set": "TRC",
-        "url": "https://cards.scryfall.io/large/front/f/8/f801903a-5db6-4566-ad33-2c1de8ac4287.jpg",
-        "artist": "Charles Chaisson"
-      },
       {
         "set": "UMA",
         "url": "https://cards.scryfall.io/large/front/1/6/165164e7-5693-4d65-b789-8ed8a222365b.jpg",
@@ -4350,7 +4367,6 @@
       }
     ],
     "reverse_related": [
-      "Citizen",
       "Icatian Crier",
       "Icatian Town",
       "Sarpadian Empires, Vol. VII"
@@ -8390,6 +8406,11 @@
         "set": "RIX",
         "url": "https://cards.scryfall.io/large/front/5/7/577a3396-e974-47fb-91bd-01751cae83bf.jpg",
         "artist": "Lius Lasahido"
+      },
+      {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/4/0/40116092-622d-4dbb-9f32-6ccebbd9559b.jpg",
+        "artist": "Brendan Sullivan"
       },
       {
         "set": "TDC",
@@ -14882,7 +14903,7 @@
     "pt": "3/3",
     "colors": "",
     "type": "Artifact Creature — Illusion",
-    "popularity": 0,
+    "popularity": 3,
     "artwork": [
       {
         "set": "TRK",
@@ -14890,7 +14911,11 @@
         "artist": "Flavio Greco Paglia"
       }
     ],
-    "reverse_related": []
+    "reverse_related": [
+      "Adversary by Algorithm",
+      "Holo-Engineer",
+      "Hologram Stalker"
+    ]
   },
   {
     "name": "Illusion",
@@ -15740,7 +15765,7 @@
     "pt": "",
     "colors": "U",
     "type": "Planeswalker — Jace",
-    "popularity": 35,
+    "popularity": 37,
     "artwork": [
       {
         "set": "FRA",
@@ -15754,6 +15779,7 @@
       "Avatar of Burgeoning Echoes",
       "Campus Crier",
       "Countersculpt",
+      "Crux of the Theory",
       "Fatehold Charm",
       "Hexhaven Battalion",
       "Inspired Tethermage",
@@ -15765,6 +15791,7 @@
       "Overwrite the Multiverse",
       "Plan for All Outcomes",
       "Protege's Awakening",
+      "Remnants of Beleren",
       "Repurposed Enforcer",
       "Rewrite Regrets",
       "Sanctum Lurker",
@@ -16154,7 +16181,7 @@
     "pt": "2/1",
     "colors": "R",
     "type": "Creature — Klingon Warrior",
-    "popularity": 0,
+    "popularity": 12,
     "artwork": [
       {
         "set": "TRK",
@@ -16172,7 +16199,20 @@
         "artist": "Henry Peters"
       }
     ],
-    "reverse_related": []
+    "reverse_related": [
+      "Boarding Action",
+      "Cha'DIch Investigator",
+      "D-7 Battle Cruiser",
+      "Glory to the Empire!",
+      "Klingon Warrior",
+      "L'Rell, Fierce Visionary",
+      "Right of Vengeance",
+      "Rite of Ascension",
+      "Sins of the Father",
+      "The Destruction of Praxis",
+      "The Duras Sisters",
+      "Worf, Defiant Commander"
+    ]
   },
   {
     "name": "Knight",
@@ -17882,7 +17922,7 @@
     "pt": "0/1",
     "colors": "G",
     "type": "Legendary Creature — Ooze Slug",
-    "popularity": 0,
+    "popularity": 1,
     "artwork": [
       {
         "set": "TRK",
@@ -17890,7 +17930,9 @@
         "artist": "Leesha Hannigan"
       }
     ],
-    "reverse_related": []
+    "reverse_related": [
+      "Rok-Tahk, Budding Scientist"
+    ]
   },
   {
     "name": "Mutagen",
@@ -18255,7 +18297,7 @@
     "pt": "",
     "colors": "",
     "type": "Artifact — Equipment",
-    "popularity": 0,
+    "popularity": 1,
     "artwork": [
       {
         "set": "TRK",
@@ -18263,7 +18305,9 @@
         "artist": "David Frasheski"
       }
     ],
-    "reverse_related": []
+    "reverse_related": [
+      "Gwyndala, the Progeny"
+    ]
   },
   {
     "name": "New Planet",
@@ -18271,7 +18315,7 @@
     "pt": "",
     "colors": "",
     "type": "Land — Planet",
-    "popularity": 0,
+    "popularity": 9,
     "artwork": [
       {
         "set": "TRK",
@@ -18279,7 +18323,17 @@
         "artist": "David Frasheski"
       }
     ],
-    "reverse_related": []
+    "reverse_related": [
+      "Artificial Anomaly",
+      "David and Carol Marcus, Creators",
+      "Gaseous Anomaly",
+      "Genesis Effect",
+      "Saurian Explorer",
+      "Spatial Anomaly",
+      "Stable Wormhole",
+      "Subspace Anomaly",
+      "Temporal Anomaly"
+    ]
   },
   {
     "name": "Nightmare",
@@ -18535,7 +18589,7 @@
     "pt": "1/1",
     "colors": "R",
     "type": "Creature — Officer",
-    "popularity": 0,
+    "popularity": 18,
     "artwork": [
       {
         "set": "TRK",
@@ -18588,7 +18642,26 @@
         "artist": "Carlos Dattoli"
       }
     ],
-    "reverse_related": []
+    "reverse_related": [
+      "Academy Instructor",
+      "Captain Benjamin Sisko",
+      "Captain James T. Kirk",
+      "Captain Janeway, Endgame",
+      "Captain Jean-Luc Picard",
+      "Excalbian Gamemaster",
+      "Georgiou, Terran Emperor",
+      "Impossible Choice",
+      "Kobayashi Maru Scenario",
+      "M'Ress, Crew Coordinator",
+      "MACO Strike Team",
+      "Make It So",
+      "Officer",
+      "Photosynthetic Physician",
+      "Shuttlecraft Galileo",
+      "U.S.S. Cerritos, Following Up",
+      "U.S.S. Enterprise-A, Free Spirit",
+      "Worf, Son of Mogh"
+    ]
   },
   {
     "name": "Ogre",
@@ -19098,7 +19171,7 @@
     "pt": "2/2",
     "colors": "W",
     "type": "Creature — Ox",
-    "popularity": 3,
+    "popularity": 4,
     "artwork": [
       {
         "set": "MSC",
@@ -19124,6 +19197,7 @@
     "reverse_related": [
       "Bovine Intervention",
       "Bruse Tarl, Roving Rancher",
+      "Oko, Lord of the Fae",
       "Ox"
     ]
   },
@@ -20274,7 +20348,7 @@
     "pt": "1/1",
     "colors": "G",
     "type": "Legendary Creature — Dog",
-    "popularity": 0,
+    "popularity": 1,
     "artwork": [
       {
         "set": "TRK",
@@ -20282,7 +20356,9 @@
         "artist": "Brooklyn Smith"
       }
     ],
-    "reverse_related": []
+    "reverse_related": [
+      "Captain Jonathan Archer"
+    ]
   },
   {
     "name": "Powerstone",
@@ -21252,7 +21328,7 @@
     "pt": "2/2",
     "colors": "B",
     "type": "Creature — Romulan",
-    "popularity": 0,
+    "popularity": 3,
     "artwork": [
       {
         "set": "TRK",
@@ -21260,7 +21336,11 @@
         "artist": "Ariel Orea"
       }
     ],
-    "reverse_related": []
+    "reverse_related": [
+      "Cloak and Phaser",
+      "In the Pale Moonlight",
+      "Sela, Tal Shiar Paradox"
+    ]
   },
   {
     "name": "Rowan Kenrith Emblem",
@@ -28308,7 +28388,7 @@
     "pt": "1/1",
     "colors": "",
     "type": "Creature — Tribble",
-    "popularity": 0,
+    "popularity": 3,
     "artwork": [
       {
         "set": "TRC",
@@ -28321,7 +28401,11 @@
         "artist": "Kevin Glint"
       }
     ],
-    "reverse_related": []
+    "reverse_related": [
+      "Koloth, Tribble Hunter",
+      "Tribble",
+      "Tribble Cluster"
+    ]
   },
   {
     "name": "Triskelavite",
@@ -30276,7 +30360,7 @@
     "pt": "2/2",
     "colors": "RG",
     "type": "Creature — Worm",
-    "popularity": 0,
+    "popularity": 1,
     "artwork": [
       {
         "set": "TRK",
@@ -30284,7 +30368,9 @@
         "artist": "Leesha Hannigan"
       }
     ],
-    "reverse_related": []
+    "reverse_related": [
+      "Cleveland Booker, Empath"
+    ]
   },
   {
     "name": "Wraith",
