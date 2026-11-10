@@ -67,12 +67,29 @@ No capacity values are logged, exported or sent off-device by the bridge.
 ## Validation
 
 Flutter 3.41.2 / Dart 3.11.0 on cloud Linux. No package/lockfile update.
+Published source `79211b1f81e7ba526042219c5ba6158a770e9c94` has the exact
+locally tested tree `bed16d94cc276b44f6cfa73126dfb3b46698c5b6` (local source
+checkpoint `ae56f4d`). Only documentation changed after these final checks.
 
 - Focused export, recovery actions, archive integration and native capacity:
   **84 passed** in 22 seconds.
 - Independent final static review: no blocking findings after hardening.
-- Final combined analyzer/full/namespace/web checks: running at this source
-  checkpoint; completion will be appended with the validated source identity.
+- `flutter analyze --no-pub`: no issues. An initial test-style lint was corrected
+  before the final combined run; no failed test run is counted as a pass.
+- Full `flutter test --no-pub --reporter expanded`: **1,972 passed, 8 expected
+  skips**, 6m36s. This includes all new integration and bridge regressions.
+- Explicit `phone_preview_v1` safety checks: **457 passed, 57 intentional
+  same-app-only skips**, 29 seconds.
+- Release JavaScript web build: **passed**, 56.0 seconds, with successful optional
+  Wasm compiler dry run. Browser and Wasm runtimes were not exercised.
+- Whitespace checks and all 29 canonical-plan local links: passed. Privacy plist
+  parsed; Xcode resource reference inspected. No native build was performed.
+
+The source was published through the connected GitHub API, fetched back, and its
+complete tree compared to the local checkpoint. No statuses or PR-triggered
+GitHub Actions runs were recorded for that exact source commit. No PR was opened.
+The original app and native identifiers, signing, versions and dependencies are
+unchanged. The final follow-up commit records validation only.
 
 Environment for reproducible cloud checks uses writable HOME/XDG config,
 existing PUB_CACHE, and Flutter's documented `BOT=true CI=true` mode. Bot mode

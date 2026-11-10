@@ -428,10 +428,14 @@ invoked from startup, and no migration route selects it automatically. iOS's
 DiskSpace required-reason manifest is included. No identity, namespace, dependency,
 version, permission, automatic cleanup or production migration activation changed.
 
-The 84 focused integration/export/adapter/capacity checks pass. Final combined
-analyzer, full-suite, preview-namespace and web validation is in progress at this
-source checkpoint. Native SDKs/devices are unavailable here: native compilation,
-actual-volume/low-space measurements and privacy-archive inspection remain open.
+Published source `79211b1` matches the tested local tree exactly. Analyzer is
+clean; **1,972 full tests / 8 expected skips**, **457 preview-namespace checks /
+57 intentional same-app-only skips**, and release JavaScript web compilation with
+optional Wasm dry run pass. The 84 focused checks also passed. The integration
+record identifies the precise tree, commands and scoped limitations. No statuses
+or PR workflow runs were recorded for that source commit; no PR was opened.
+Native SDKs/devices are unavailable here: native compilation, actual-volume/
+low-space measurements and privacy-archive inspection remain open.
 
 Next safe work is native validation of this bridge and a deliberate private
 support-directory/retention design with capture/conversion budgets. No retention
