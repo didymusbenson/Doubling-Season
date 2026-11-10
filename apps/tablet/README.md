@@ -4,13 +4,17 @@
 See the [current implementation and acceptance plan](../../docs/activeDevelopment/in_progress_features/tripling_season_update_plan.md).
 The baseline includes 2–6-player tables and fixed-Player-1 phone presentation.
 Preserve the separate Table identity, original app and existing storage. Feature
-work continues after the safety milestone; no release, merge or deployment is
-part of this checkpoint. Later dated entries below retain their own evidence.
+work continues after the safety milestone; no release, default-branch merge or
+deployment is part of this checkpoint. The integrated fixture migration and
+guarded supporter foundations pass 1,546 tests (8 expected skips), analysis and
+the release web build. They do not yet establish native migration/update safety.
+See [migration implementation](docs/legacy_migration_foundation.md) and the
+current plan for remaining gates. Later dated entries retain their own evidence.
 
 The separate tablet app developed from the Tripling Season iPad specifications.
 “Tripling Table” is a development name, not a selected store name.
 
-**Current work (2026-11-07): gameplay layout feedback.**
+**Previous work (2026-11-07): gameplay layout feedback.**
 The [Monarch crown implementation](../../docs/activeDevelopment/in_progress_features/ipad_edition/monarch_life_crown_2026-11-07.md)
 places a tilted gold crown on the life number, replacing its summary badge.
 Life taps and the existing Monarch controls remain unchanged.

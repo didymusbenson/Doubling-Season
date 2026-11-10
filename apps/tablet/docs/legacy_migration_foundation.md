@@ -81,6 +81,15 @@ an isolated test directory are the caller's responsibility.
 
 ## Verification
 
+Combined source checkpoint `18965405d44673783f0fa46a22f6517da6b92fb6` integrates
+this foundation with supporter continuity and the current plan. The full Table
+suite passed **1,546 tests with 8 expected skips**, analyzer reported no issues,
+and the release web build passed. Combined namespaced tests passed **42 with 46
+expected same-app-only skips**. Three cross-component cases additionally verify
+model capture through commit/preset load and that retained supporter evidence
+cannot grant or revoke authoritative local ownership. See the canonical plan for
+commands, exact scope and remaining native/production gates.
+
 Run from `apps/tablet` with Flutter 3.41.2:
 
 ```sh

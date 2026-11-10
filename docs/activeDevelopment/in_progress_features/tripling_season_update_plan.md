@@ -137,8 +137,39 @@ startup migration hooks were changed.
   confirms live gameplay and fresh presets stay separate. It also proves archived
   supporter evidence cannot grant ownership and a stale archive cannot revoke
   current same-app offline ownership. Preview namespaces reject legacy support.
-- Integration validation is in progress. Record exact aggregate results below
-  before marking the source checkpoint validated.
+
+### Combined validation
+
+Validated integrated source/test commit `18965405d44673783f0fa46a22f6517da6b92fb6`
+with Flutter 3.41.2 / Dart 3.11.0. This record changes documentation only after
+that source validation; it does not certify a production update.
+
+- `flutter analyze --no-pub`: no issues.
+- `flutter test --no-pub`: **1,546 passed, 8 expected skips**, 8m36s. The skips
+  comprise seven pre-existing cases plus the namespace-only support guard case.
+- `flutter test --no-pub test/update_foundations_integration_test.dart`:
+  **3 passed**. These cases also passed in the full suite.
+- Namespaced snapshot, migration, supporter, storage and integration tests:
+  **42 passed, 46 expected same-app-only skips** under `phone_preview_v1`.
+  Production support/media sentinels remain unchanged.
+- Release JavaScript web build with the existing `/Doubling-Season/tablet/`
+  base path and `--pwa-strategy=none`: passed. The optional Wasm compiler dry run
+  also succeeded; no Wasm runtime or browser acceptance is claimed.
+- Independent read-only boundary review found no correctness issue. Fourteen
+  canonical-plan local links resolve and `git diff --check` is clean.
+- The feature branch is published and its source tree matches the validated local
+  tree. No PR or CI run was created; the exact source commit has no recorded
+  workflow runs/statuses. Android/iOS builds, native update rehearsals and real
+  store restoration were not run. No default-branch merge or deployment occurred.
+
+Reproduce the explicit namespace check from `apps/tablet`:
+
+```sh
+flutter test --no-pub --dart-define=TABLE_STORAGE_NAMESPACE=phone_preview_v1 \
+  test/legacy_snapshot_capture_test.dart test/legacy_migration_test.dart \
+  test/support_continuity_test.dart test/storage_namespace_test.dart \
+  test/update_foundations_integration_test.dart
+```
 
 **Next technical work:** raw consistent source acquisition and shipped adapters;
 built-in/action utility, rule and independent-counter mappings; production
