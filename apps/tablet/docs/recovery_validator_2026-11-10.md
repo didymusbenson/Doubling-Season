@@ -71,10 +71,32 @@ regular-file payload.
 
 ## Validation
 
-Before the full regression checkpoint: **52 focused tests pass**, analysis is
-clean, and **9 standalone Dart-to-JavaScript/Node checks pass**. Full tests,
-namespace regression and the release web build are in progress. No completed
-update-safety or release claim is made.
+Runtime and Flutter test source `3aff186444af97f0db1aa90dee21bcf5b402e568`, tree
+`531ba8bd55d06dc10de70af5332fecbe1dbc80c7`, was fetched from the feature
+branch and matched the local checkpoint exactly. The following tool/evidence
+follow-up does not change app runtime or Flutter test sources.
+
+Final checks use Flutter 3.41.2 / Dart 3.11.0 on Linux. Runtime and Flutter test
+hashes are unchanged from the verified source checkpoint.
+
+- Focused validator suite: **52 passed**.
+- Full `flutter test --no-pub --reporter expanded`: **2,096 passed / 8 expected
+  skips**, 5m55s.
+- Standalone Dart-to-JavaScript/Node harness: **39 checks passed**.
+- Final `flutter analyze --no-pub`: **no issues**, 1.6 seconds, including the
+  standalone harness. Its intentional CLI result output has a line-scoped lint
+  exemption; the initial tool-only analyzer notice is resolved.
+- Explicit `phone_preview_v1` safety selection: **581 passed / 57 intentional
+  same-app-only skips**, 32 seconds.
+- Release JavaScript web compilation: **passed**, 39.0 seconds. Optional Wasm
+  compiler dry run passed; Wasm runtime acceptance was not performed. The
+  existing `--pwa-strategy` deprecation warning remains.
+- Independent source and tooling review: no remaining blocking findings.
+- The changed records/current plan have **40 valid local links**. Dependency
+  lockfiles, original startup/native identity files and live data are unchanged.
+
+No commit statuses or PR-triggered workflow runs were recorded for the runtime
+source checkpoint. No PR, default merge, deployment or release occurred.
 
 Review caught two resource-amplification risks during implementation: repeated
 cancellation listeners and expanded path prefixes. A removable single waiter,
@@ -83,7 +105,35 @@ those cases. A separate JavaScript runtime check reproduced an integral-double
 JSON discrepancy (`2.0` passed an `int` check under JavaScript). Pre-decode
 canonical integer tokens within the exact shared numeric range now reject
 fraction, exponent, negative-zero and unsafe-precision forms consistently.
-The final JavaScript smoke passes after this fix. No data restore was attempted.
+The final JavaScript smoke passes after this fix. The permanent, in-memory
+[standalone smoke tool](../tool/recovery_validator_smoke.dart) checks all five numeric fields with six raw
+numeric forms each, including lexical forms that VM-only object serialization
+would miss. It also checks complete and partial evidence, per-file/global
+hashes, framing, traversal, limits, cancellation and inert numeric strings.
+No data restore was attempted.
+
+Reproduce from `apps/tablet` with Flutter 3.41.2 and resolved dependencies:
+
+```sh
+flutter analyze --no-pub
+flutter test --no-pub --reporter expanded
+flutter test --no-pub --reporter expanded \
+  --dart-define=TABLE_STORAGE_NAMESPACE=phone_preview_v1 \
+  test/legacy_*test.dart test/native_recovery_capacity_test.dart \
+  test/historical_hive_fixtures_test.dart test/later_historical_hive_fixtures_test.dart \
+  test/table_startup_gate_test.dart test/catalog_compatibility_test.dart \
+  test/table_repository_compatibility_test.dart test/support_continuity_test.dart \
+  test/storage_namespace_test.dart test/update_foundations_integration_test.dart
+flutter build web --release --no-pub \
+  --base-href /Doubling-Season/tablet/ --pwa-strategy=none
+dart compile js --packages=.dart_tool/package_config.json \
+  tool/recovery_validator_smoke.dart -o build/recovery_validator_smoke.js
+node -e "globalThis.self=globalThis;require('./build/recovery_validator_smoke.js')"
+```
+
+The standalone JavaScript check exercises the dormant API that the app does not
+yet import. Node execution and release compilation are not browser interaction,
+native device, real-user-data or original-installation update acceptance.
 
 ## Remaining acceptance
 
