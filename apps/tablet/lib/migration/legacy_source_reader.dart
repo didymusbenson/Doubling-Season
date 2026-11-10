@@ -135,13 +135,19 @@ class LegacySourceReader {
   static const maxTotalBytes = 256 * 1024 * 1024;
   static const maxFiles = 4096;
   static const inventoryKey = 'raw_source_inventory_v1';
+  static const captureIntentKey = 'raw_source_capture_intent_v1';
 
   static final Map<Object, Future<void>> _locks = {};
 
+  /// [retainInventoryIntent] opts a recovery store into an immutable manifest
+  /// record before any raw-file retention. Such stores must allow
+  /// [captureIntentKey]; conflicting partial captures then fail before writing
+  /// more raw records. Existing rehearsal stores keep their original format.
   Future<LegacyAcquiredSource> acquireCopiedDirectory({
     required Directory directory,
     required LegacySourceLayout layout,
     required LegacyMigrationStorage recoveryStorage,
+    bool retainInventoryIntent = false,
     Future<void> Function(String boundary)? onBoundary,
   }) async {
     final identity = recoveryStorage.lockIdentity;
@@ -154,6 +160,7 @@ class LegacySourceReader {
         directory: directory,
         layout: layout,
         recoveryStorage: recoveryStorage,
+        retainInventoryIntent: retainInventoryIntent,
         onBoundary: onBoundary,
       );
     } finally {
@@ -166,6 +173,7 @@ class LegacySourceReader {
     required Directory directory,
     required LegacySourceLayout layout,
     required LegacyMigrationStorage recoveryStorage,
+    required bool retainInventoryIntent,
     Future<void> Function(String boundary)? onBoundary,
   }) async {
     final files = await _readDirectory(directory);
@@ -181,6 +189,13 @@ class LegacySourceReader {
       'layout': layout.toJson(),
       'files': manifest,
     };
+    // Durable archives bind retries to this exact file inventory before any
+    // raw bytes become retained authority. Existing rehearsal stores retain
+    // their original format unless this stricter contract is explicitly used.
+    if (retainInventoryIntent) {
+      await _retain(recoveryStorage, captureIntentKey, inventory);
+      await onBoundary?.call('capture_intent');
+    }
     // Retain before inspecting the schema, preferences or checksums. Even a
     // corrupt/unknown source remains available without destructive recovery.
     for (final entry in files.entries) {

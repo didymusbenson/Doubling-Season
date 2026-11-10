@@ -330,3 +330,21 @@ and entrypoints are unchanged by this follow-up. Production inventory/lease,
 recovery-retention and disk-capacity policy, actual shipped native updates,
 store restoration and device/accessibility acceptance remain open. No release,
 PR, default merge, deployment or store action occurred.
+
+## Retained source archive foundation (2026-11-10)
+
+Branch `feat/durable-migration-capture-20261110`, based on `4cf2441`, adds an
+explicit-parent, immutable native recovery archive. A capture intent pins the
+complete raw-file manifest before retention; partial retries refuse changed
+sources. Individual flushed/readback-verified records, retained incomplete
+attempts, corruption refusal and a whole-capture archive-writer lease keep
+failures from replacing previously retained evidence. The
+[component record](../../../apps/tablet/docs/retained_source_archive_2026-11-10.md)
+separates actual subprocess/cross-process evidence from injected ENOSPC tests.
+
+This advances isolated M1/M4 retention only. Production durable-directory
+selection, free-space/reserve policy, export/recovery UX, retention duration,
+all-writer quiescence and actual mobile storage/update acceptance remain open.
+There is no original startup or coordinator activation, automatic cleanup,
+default-branch merge, deployment or release. This is not collective
+migration/update-safe acceptance.
