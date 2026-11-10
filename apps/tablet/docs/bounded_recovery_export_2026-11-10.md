@@ -28,8 +28,10 @@ Version 2 is an independently framed UTF-8 JSON Lines artifact:
    opaque bytes; Hive, JSON records and original app recovery are not opened.
 4. Source footer: stable-read result after rechecking keys, kinds, link targets,
    lengths and content hashes.
-5. Completion trailer: complete/partial status, bounded problems, entry count,
-   and SHA-256 of every exact preceding output byte, including newlines.
+5. Hashed summary: complete/partial status, bounded problems and entry count.
+6. Checksum-only trailer: SHA-256 of every exact preceding output byte, including
+   the summary and all newlines. Completeness metadata is therefore independently
+   verifiable too. Checksums provide integrity, not authenticity.
 
 Hard-link aliases of coordination inodes are detected using filesystem identity
 without opening them. Their relative key and coordination target are retained as
@@ -101,8 +103,29 @@ failed attempts consume space; retention cleanup is intentionally not authorized
 
 ## Validation
 
-Flutter 3.41.2 / Dart 3.11.0 on cloud Linux. Final validation results will be
-recorded here after the complete checks finish. No package or lockfile change.
+Flutter 3.41.2 / Dart 3.11.0 on cloud Linux. Published source `bc91c7a` has
+exactly the locally validated tree `c4564e570365255fe238d179190a87c72e936946`
+(local source commit `e8b74d6`). No package or lockfile change.
+
+- `flutter analyze --no-pub`: no issues.
+- New export suite: **27 passed**, including independent tampering of each
+  hashed summary field.
+- Full `flutter test --no-pub --reporter expanded`: **1,948 passed, 8 expected
+  skips**, 6m25s.
+- Explicit `phone_preview_v1` safety suite: **433 passed, 57 intentional
+  same-app-only skips**, 28s.
+- Release JavaScript web build: **passed**, 36.7s, including the optional Wasm
+  compiler dry run. Browser and Wasm runtimes were not exercised.
+- Formatting, whitespace checks and all 27 canonical-plan local links: passed.
+- Independent final read-only review: no blocking findings. Identified path-case,
+  coordination hard-link and exclusion-manifest concerns were addressed and
+  re-reviewed before final validation.
+
+No source or test changes occurred after the final validation run began. Earlier
+checkpoints had a repeated adapter-test registration; it was moved outside its
+unrelated boundary loop before this final run. The numbers above describe unique
+registrations on the final source, not a sum of earlier runs. Native runtime,
+original-identity updates and device/store acceptance are not claimed.
 
 New coverage includes exact binary/corrupt/nested/link bytes, a 10 MiB file with
 fixed chunks and a forbidden whole-file API, capacity preflight and reserve loss,
@@ -125,3 +148,28 @@ shipped-installation fixtures; original-identity no-uninstall updates; native
 full-device/quota/power-loss tests; real store restoration; platform/OS/device and
 accessibility acceptance; parity decisions; and deliberate release approval all
 remain open. A bounded rehearsal export does not collectively make updates safe.
+
+
+## Publication
+
+CLI push could not obtain credentials. The connected GitHub API published an
+identical tree on `feat/bounded-recovery-export-20261110`; the remote ref was
+fetched back and tree identity verified. The local source commit remains on a
+checkpoint branch. The source checkpoint has no recorded statuses or GitHub Actions runs. No PR, default-branch merge, deployment, store action or release occurred.
+
+
+Commands from `apps/tablet`:
+
+```sh
+flutter analyze --no-pub
+flutter test --no-pub --reporter expanded
+flutter test --no-pub --reporter expanded \
+  --dart-define=TABLE_STORAGE_NAMESPACE=phone_preview_v1 \
+  test/legacy_*test.dart test/historical_hive_fixtures_test.dart \
+  test/later_historical_hive_fixtures_test.dart test/table_startup_gate_test.dart \
+  test/catalog_compatibility_test.dart test/table_repository_compatibility_test.dart \
+  test/support_continuity_test.dart test/storage_namespace_test.dart \
+  test/update_foundations_integration_test.dart
+flutter build web --release --no-pub \
+  --base-href /Doubling-Season/tablet/ --pwa-strategy=none
+```

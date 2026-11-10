@@ -367,11 +367,11 @@ release JavaScript web compilation with optional Wasm dry run pass. Independent
 review found no remaining blocker. The combined report records exact commands,
 source identity and verification limits. No production startup or activation is wired.
 
-M1/M4 now have caller-owned retained archives connected to the isolated rehearsal
-and recovery adapter. M9, live all-writer quiescence, support-directory/OS
-retention selection, bounded export and disk-capacity policy remain open. The
-combined backup is in-memory JSON and is not a large/full-device-safe export
-claim. Native shipped-installation, store and device acceptance remain required.
+At `698f1ce`, M1/M4 had caller-owned retained archives connected to the isolated
+rehearsal and recovery adapter. M9, live all-writer quiescence, support-directory/OS
+retention selection, bounded export and disk-capacity policy remained open. That
+checkpoint used in-memory JSON; the subsequent bounded-export checkpoint below
+replaces that limitation for explicitly configured native rehearsal exports. Native shipped-installation, store and device acceptance remain required.
 The explicit release hold is unchanged.
 
 
@@ -385,8 +385,10 @@ allocation. A required destination-capacity measurement gates preflight, writes
 and completion while retaining an explicit reserve; unknown capacity refuses.
 Cancellation, ENOSPC and process exit retain attempts, and retry never overwrites
 source evidence or an earlier output. Hard-linked coordination aliases retain
-metadata without releasing either store's POSIX lease. Legacy in-memory JSON is
-now a bounded diagnostic fallback, not the full-archive path.
+metadata without releasing either store's POSIX lease. The completeness summary
+is included in the export digest, so later verification detects changed status,
+problems or entry counts. Legacy in-memory JSON is now a bounded diagnostic
+fallback, not the full-archive path.
 
 This closes the isolated bounded-export implementation gap, not production
 capacity or retention acceptance. Native free-space measurement, real private
@@ -394,3 +396,11 @@ support-directory selection, capture/conversion reserve budgets, destination
 picker/save/restore UX, actual volume exhaustion, device power-loss and genuine
 M9 original-installation upgrades remain open. Production startup/cutover, store
 actions, default-branch merge, deployment and release remain held.
+
+
+Published source `bc91c7a` passes analyzer, **1,948 full tests / 8 expected skips**
+and **433 namespace checks / 57 intentional skips**. Release JavaScript web
+compilation and the Wasm compiler dry run pass. The protected-summary format
+and coordination-lock hardening passed independent final review. The linked
+record distinguishes these final results from prior validation runs and retains
+the native/cutover limitations.
