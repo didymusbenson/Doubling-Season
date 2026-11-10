@@ -19,17 +19,52 @@ class UnsupportedTableFormat implements Exception {
   String toString() => message;
 }
 
+class _DecodedTable {
+  final TabletState state;
+  final bool needsUpgrade;
+  const _DecodedTable(this.state, {required this.needsUpgrade});
+}
+
 /// A single aggregate is the transaction boundary for gameplay, undo and archives.
 /// The previous validated generation is flushed before promoting its successor.
 class TableRepository {
+  // Keep physical names: changing this key would hide existing games.
   static const boxName = TableStorageKeys.aggregate;
+  static const envelopeVersion = 2;
+  final Future<void> Function() _initializeStorage;
+  final Future<Box<String>> Function(String) _openBox;
   Box<String>? _box;
   Box<String>? _backup;
   String? _lastGood;
   int _sequence = 0;
 
+  TableRepository()
+    : _initializeStorage = (() => Hive.initFlutter('tripling_season_tablet')),
+      _openBox = ((name) => Hive.openBox<String>(name));
+
+  /// Exercises the real repository with isolated storage and injected failures.
+  TableRepository.forTesting({
+    required Future<Box<String>> Function(String) openBox,
+  }) : _initializeStorage = (() async {}),
+       _openBox = openBox;
+
   Future<TableLoadResult> open() async {
-    await Hive.initFlutter('tripling_season_tablet');
+    // A failed retry must not leave a previously opened writer available.
+    _box = null;
+    _backup = null;
+    _lastGood = null;
+    _sequence = 0;
+    try {
+      return await _open();
+    } catch (_) {
+      _box = null;
+      _lastGood = null;
+      rethrow;
+    }
+  }
+
+  Future<TableLoadResult> _open() async {
+    await _initializeStorage();
     final boxes = <String, Box<String>>{};
     final openErrors = <String, Object>{};
     for (final name in [
@@ -38,7 +73,7 @@ class TableRepository {
       '${boxName}_recovery',
     ]) {
       try {
-        boxes[name] = await Hive.openBox<String>(name);
+        boxes[name] = await _openBox(name);
       } catch (error) {
         // Never delete/recreate an unreadable Hive container to obtain a clean boot.
         openErrors[name] = error;
@@ -53,15 +88,26 @@ class TableRepository {
       if (recovery?.get('current') case final String value)
         (encoded: value, box: recovery!),
     ];
-    final previous = <({String encoded, Box<String>? box})>[
+    final previous = <({String encoded, Box<String> box})>[
       if (_backup?.get('current') case final String value)
-        (encoded: value, box: _backup),
-      // Read the original same-container backup for first-pass v1 compatibility.
+        (encoded: value, box: _backup!),
+      // Read original same-container backups without renaming or clearing them.
       if (main?.get('previous') case final String value)
-        (encoded: value, box: main),
+        (encoded: value, box: main!),
       if (recovery?.get('previous') case final String value)
-        (encoded: value, box: recovery),
+        (encoded: value, box: recovery!),
     ];
+    // Inspect every live generation before writing anything. In particular, an
+    // unsupported backup must not be overwritten by a seemingly usable current.
+    for (final candidate in [...current, ...previous]) {
+      try {
+        _decode(candidate.encoded);
+      } on UnsupportedTableFormat {
+        rethrow;
+      } catch (_) {
+        // Ordinary corruption can recover after its exact bytes are retained.
+      }
+    }
     current.sort(
       (a, b) =>
           _encodedSequence(b.encoded).compareTo(_encodedSequence(a.encoded)),
@@ -70,7 +116,10 @@ class TableRepository {
       (a, b) =>
           _encodedSequence(b.encoded).compareTo(_encodedSequence(a.encoded)),
     );
-    if (current.isEmpty && previous.isEmpty && openErrors.isEmpty) {
+    if (current.isEmpty &&
+        previous.isEmpty &&
+        openErrors.isEmpty &&
+        boxes.values.every((box) => box.isEmpty)) {
       _box = main;
       final state = TabletState.initial();
       await save(state);
@@ -78,47 +127,43 @@ class TableRepository {
     }
     final failures = <String>[];
     var recovered = openErrors.isNotEmpty;
-    for (final candidate in current) {
+    for (final candidate in [...current, ...previous]) {
+      final _DecodedTable decoded;
       try {
-        final state = _decode(candidate.encoded);
-        _box = candidate.box;
-        _lastGood = candidate.encoded;
-        _sequence = _encodedSequence(candidate.encoded);
-        return TableLoadResult(
-          state,
-          recoveryMessage: recovered
-              ? 'The latest storage generation could not be read. A complete saved '
-                    'generation was recovered; the original data has been preserved.'
-              : null,
-        );
+        decoded = _decode(candidate.encoded);
+      } on UnsupportedTableFormat {
+        rethrow;
       } catch (error) {
-        if (error is UnsupportedTableFormat) rethrow;
         failures.add(error.toString());
         recovered = true;
-        await _quarantine(candidate.box, candidate.encoded);
+        // Do not overwrite a damaged generation if its preservation fails.
+        await _retain(candidate.box, candidate.encoded, 'quarantine');
+        continue;
       }
-    }
-    for (final candidate in previous) {
-      try {
-        final state = _decode(candidate.encoded);
-        _box = main ?? recovery;
-        if (_box == null) {
-          throw StateError(
-            'The backup is intact but writable storage is unavailable.',
-          );
-        }
-        _lastGood = candidate.encoded;
-        _sequence = _encodedSequence(candidate.encoded);
-        return TableLoadResult(
-          state,
-          recoveryMessage:
-              'The latest save could not be read. The preceding complete save was '
-              'recovered; the original data has been preserved.',
+      final isPrevious = previous.contains(candidate);
+      _box = isPrevious ? main ?? recovery : candidate.box;
+      if (_box == null) {
+        throw StateError(
+          'The backup is intact but writable storage is unavailable.',
         );
-      } catch (error) {
-        if (error is UnsupportedTableFormat) rethrow;
-        failures.add(error.toString());
       }
+      _lastGood = candidate.encoded;
+      _sequence = _encodedSequence(candidate.encoded);
+      if (decoded.needsUpgrade) {
+        // Unlike the rolling previous generation, this immutable checkpoint is
+        // never an automatic fallback and is never rotated by normal gameplay.
+        await _retain(_backup ?? _box!, candidate.encoded, 'before_format_2');
+        // Promotion must finish before gameplay can start. IO failure is not
+        // corruption: propagate it rather than trying a different/older game.
+        await save(decoded.state);
+      }
+      return TableLoadResult(
+        decoded.state,
+        recoveryMessage: recovered || isPrevious
+            ? 'The latest save could not be read. A complete saved generation '
+                  'was recovered; the original data has been preserved.'
+            : null,
+      );
     }
     throw StateError(
       'No complete saved generation could be opened. All original '
@@ -128,22 +173,27 @@ class TableRepository {
 
   int _encodedSequence(String encoded) {
     try {
-      return jsonMap(jsonDecode(encoded))['sequence'] as int? ?? 0;
+      final sequence = jsonMap(jsonDecode(encoded))['sequence'] as int? ?? 0;
+      if (sequence < 0 || sequence >= 0x1fffffffffffff) {
+        throw const FormatException('Invalid save sequence.');
+      }
+      return sequence;
     } catch (_) {
-      // Unknown/damaged envelopes must be inspected before a valid older backup.
+      // Damaged envelopes must be inspected before a valid older backup.
       return 0x1fffffffffffff;
     }
   }
 
-  Future<void> _quarantine(Box<String> box, String encoded) async {
-    try {
-      await box.put(
-        'quarantine_${DateTime.now().microsecondsSinceEpoch}',
-        encoded,
-      );
-      await box.flush();
-    } catch (_) {
-      // The original unreadable record remains in place if storage cannot write.
+  Future<void> _retain(Box<String> box, String encoded, String reason) async {
+    final key = '${reason}_${sha256.convert(utf8.encode(encoded))}';
+    final existing = box.get(key);
+    if (existing != null && existing != encoded) {
+      throw StateError('The recovery checkpoint could not be verified.');
+    }
+    if (existing == null) await box.put(key, encoded);
+    await box.flush();
+    if (box.get(key) != encoded) {
+      throw StateError('The recovery checkpoint could not be verified.');
     }
   }
 
@@ -154,7 +204,9 @@ class TableRepository {
     final payload = jsonEncode(state.toJson());
     final encoded = jsonEncode({
       'format': 'tripling-season-tablet',
-      'version': 1,
+      // Old readers reject this before validating/checksumming the payload,
+      // rather than treating a 5/6-player save as corrupt and rolling it back.
+      'version': envelopeVersion,
       'sequence': _sequence + 1,
       'sha256': sha256.convert(utf8.encode(payload)).toString(),
       'payload': payload,
@@ -192,28 +244,109 @@ class TableRepository {
     }
   }
 
-  TabletState _decode(String encoded) {
+  _DecodedTable _decode(String encoded) {
     final envelope = jsonMap(jsonDecode(encoded));
+    final version = envelope['version'];
     if (envelope['format'] != 'tripling-season-tablet' ||
-        envelope['version'] != 1) {
+        (version != 1 && version != envelopeVersion) ||
+        envelope.keys.any(
+          (key) => !{
+            'format',
+            'version',
+            'sequence',
+            'sha256',
+            'payload',
+          }.contains(key),
+        )) {
       throw const UnsupportedTableFormat(
         'This save uses an unsupported tablet format. Open it with the matching '
         'or newer app version; the stored game has not been changed.',
       );
     }
+    if (_encodedSequence(encoded) == 0x1fffffffffffff) {
+      throw const FormatException('Invalid save sequence.');
+    }
     final payload = envelope['payload'] as String;
     if (sha256.convert(utf8.encode(payload)).toString() != envelope['sha256']) {
       throw const FormatException('Saved data integrity check failed.');
     }
-    final json = jsonMap(jsonDecode(payload));
-    if (json['schemaVersion'] != TabletState.currentSchemaVersion) {
+    final Map<String, dynamic> json;
+    try {
+      json = jsonMap(jsonDecode(payload));
+    } catch (_) {
+      throw const UnsupportedTableFormat(
+        'This integrity-checked save cannot be interpreted by this app. '
+        'The stored game has not been changed.',
+      );
+    }
+    final schema = json['schemaVersion'];
+    if ((version == 1 && schema != 1) ||
+        (version == envelopeVersion &&
+            schema != TabletState.currentSchemaVersion)) {
       throw const UnsupportedTableFormat(
         'This save requires a different app version. The stored game has not been changed.',
       );
     }
-    final state = TabletState.fromJson(json);
-    validateTabletState(state);
-    return state;
+    final TabletState state;
+    try {
+      state = TabletState.fromJson(json);
+    } catch (_) {
+      // Integrity succeeded, but this reader cannot interpret the payload.
+      // Treat a changed field shape like an unsupported version, not permission
+      // to replace it with an older game.
+      throw const UnsupportedTableFormat(
+        'This save contains data this app cannot interpret. '
+        'The stored game has not been changed.',
+      );
+    }
+    // A future writer that accidentally reused a schema must not lose fields or
+    // extra players through fallback. Extension maps remain fully supported.
+    _requireKnownFields(json, state.toJson());
+    if ([
+      state.session,
+      ...state.archives.map((archive) => archive.session),
+    ].any((game) => game.players.length > TabletState.maximumPlayers)) {
+      throw const UnsupportedTableFormat(
+        'This save needs support for more players. The stored game has not been changed.',
+      );
+    }
+    state.schemaVersion = TabletState.currentSchemaVersion;
+    try {
+      validateTabletState(state);
+    } catch (_) {
+      // A valid checksum plus unsupported semantics (for example a new enum or
+      // changed bound) is not evidence of storage corruption. Do not repeat the
+      // original six-player mistake through a different validator constraint.
+      throw const UnsupportedTableFormat(
+        'This integrity-checked save needs a compatible app version. '
+        'The stored game has not been changed.',
+      );
+    }
+    return _DecodedTable(state, needsUpgrade: version == 1);
+  }
+
+  void _requireKnownFields(dynamic original, dynamic parsed) {
+    if (original is Map && parsed is Map) {
+      for (final key in original.keys) {
+        if (!parsed.containsKey(key)) {
+          throw const UnsupportedTableFormat(
+            'This save contains fields from a different app version. '
+            'The stored game has not been changed.',
+          );
+        }
+        _requireKnownFields(original[key], parsed[key]);
+      }
+    } else if (original is List && parsed is List) {
+      if (original.length != parsed.length) {
+        throw const UnsupportedTableFormat(
+          'This save contains data this app cannot preserve. '
+          'The stored game has not been changed.',
+        );
+      }
+      for (var i = 0; i < original.length; i++) {
+        _requireKnownFields(original[i], parsed[i]);
+      }
+    }
   }
 
   Future<void> flush() async => _box?.flush();
