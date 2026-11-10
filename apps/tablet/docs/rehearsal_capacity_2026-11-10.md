@@ -127,7 +127,10 @@ flutter build web --release --no-pub \
 Production limits still need evidence covering the complete capture, conversion,
 promotion, export and host-save lifecycle. The coordinator remains confined to
 temporary rehearsals; private retained production authority and startup are not
-wired. Live writer quiescence, genuinely shipped source fixtures, original-
+wired. A subsequent [retained rehearsal slice](retained_rehearsal_2026-11-10.md)
+adds explicit budget-required isolated retained storage; the temporary-only
+boundary above describes this earlier checkpoint. Live writer quiescence,
+genuinely shipped source fixtures, original-
 identity no-uninstall updates, recovery/save/restore UX, real store restoration,
 platform/device/accessibility acceptance and feature-parity decisions remain
 required. No collective migration/update-safe or release-ready claim is made.

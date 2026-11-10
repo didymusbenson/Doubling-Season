@@ -101,8 +101,11 @@ class LegacyRehearsalRecoveryActions implements LegacyRecoveryActions {
       if (sourceArchive != null)
         'Recovery export will also attempt to include the supplied source archive, '
             'including pending evidence. Keep that archive and the original installation.',
-      'Only an isolated temporary rehearsal was checked. Keep the original '
-          'installation and offline copy; temporary files can be removed by the OS.',
+      coordinator.isRetained
+          ? 'Only an isolated retained rehearsal was checked. Keep the original '
+                'installation and offline copy; this does not establish live update safety.'
+          : 'Only an isolated temporary rehearsal was checked. Keep the original '
+                'installation and offline copy; temporary files can be removed by the OS.',
     ],
     canRetry: !completed && !result.alreadyPromoted,
   );

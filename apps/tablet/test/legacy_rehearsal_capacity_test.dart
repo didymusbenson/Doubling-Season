@@ -33,6 +33,12 @@ Matcher _failure(LegacyRecoveryCapacityFailure reason) => throwsA(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  for (final retained in [false, true]) {
+    group(retained ? 'retained' : 'temporary', () => _suite(retained));
+  }
+}
+
+void _suite(bool retained) {
   late Directory parent;
   late Directory source;
   final rehearsals = <LegacyMigrationCoordinator>[];
@@ -52,12 +58,24 @@ void main() {
   Future<LegacyMigrationCoordinator> create({
     LegacyRehearsalCapacity? capacity,
   }) async {
-    final result = await LegacyMigrationCoordinator.createRehearsal(
-      capacity: capacity ?? budget(),
-    );
+    final result = retained
+        ? await LegacyMigrationCoordinator.createRetainedIn(
+            parent,
+            capacity: capacity ?? budget(),
+          )
+        : await LegacyMigrationCoordinator.createRehearsal(
+            capacity: capacity ?? budget(),
+          );
     rehearsals.add(result);
     return result;
   }
+
+  Future<LegacyMigrationCoordinator> reopen(
+    Directory root, {
+    LegacyRehearsalCapacity? capacity,
+  }) => retained
+      ? LegacyMigrationCoordinator.reopenRetained(root, capacity: capacity)
+      : LegacyMigrationCoordinator.reopenRehearsal(root, capacity: capacity);
 
   setUp(() async {
     parent = Directory(
@@ -120,13 +138,13 @@ void main() {
       for (final value in [null, -1, 0x8000000000000000]) {
         available = value;
         await expectLater(
-          LegacyMigrationCoordinator.createRehearsal(capacity: budget()),
+          create(),
           _failure(LegacyRecoveryCapacityFailure.unknown),
         );
       }
       throwsProbe = true;
       await expectLater(
-        LegacyMigrationCoordinator.createRehearsal(capacity: budget()),
+        create(),
         _failure(LegacyRecoveryCapacityFailure.unknown),
       );
     },
@@ -137,9 +155,7 @@ void main() {
     () async {
       final c = await create();
       final original = await _files(c.directory);
-      final readOnly = await LegacyMigrationCoordinator.reopenRehearsal(
-        c.directory,
-      );
+      final readOnly = await reopen(c.directory);
       await expectLater(
         readOnly.rehearse(sourceDirectory: source, layout: _layout()),
         throwsStateError,
@@ -150,16 +166,10 @@ void main() {
       );
       expect(await _files(c.directory), original);
       await expectLater(
-        LegacyMigrationCoordinator.reopenRehearsal(
-          c.directory,
-          capacity: budget(maximum: 999999),
-        ),
+        reopen(c.directory, capacity: budget(maximum: 999999)),
         throwsStateError,
       );
-      final reopened = await LegacyMigrationCoordinator.reopenRehearsal(
-        c.directory,
-        capacity: budget(),
-      );
+      final reopened = await reopen(c.directory, capacity: budget());
       expect(
         (await reopened.rehearse(
           sourceDirectory: source,
@@ -238,17 +248,14 @@ void main() {
           await policy.writeAsString('{broken');
         }
         final before = await _files(c.directory);
-        await expectLater(
-          LegacyMigrationCoordinator.reopenRehearsal(c.directory),
-          throwsA(anything),
-        );
+        await expectLater(reopen(c.directory), throwsA(anything));
         await expectLater(
           c.rehearse(sourceDirectory: source, layout: _layout()),
           throwsA(anything),
         );
-        final recovery = await LegacyMigrationCoordinator.reopenForRecovery(
-          c.directory,
-        );
+        final recovery = await (retained
+            ? LegacyMigrationCoordinator.reopenRetainedForRecovery(c.directory)
+            : LegacyMigrationCoordinator.reopenForRecovery(c.directory));
         await expectLater(
           recovery.rehearse(sourceDirectory: source, layout: _layout()),
           throwsStateError,
@@ -340,17 +347,11 @@ void main() {
     () async {
       final c = await create();
       expect(c.directory.path, await c.directory.resolveSymbolicLinks());
-      await LegacyMigrationCoordinator.reopenRehearsal(
-        Directory('${c.directory.path}/'),
-        capacity: budget(),
-      );
+      await reopen(Directory('${c.directory.path}/'), capacity: budget());
       final link = Link('${parent.path}/alias');
       await link.create(c.directory.path);
       await expectLater(
-        LegacyMigrationCoordinator.reopenRehearsal(
-          Directory('${link.path}/'),
-          capacity: budget(),
-        ),
+        reopen(Directory('${link.path}/'), capacity: budget()),
         throwsStateError,
       );
       expect(destinations, contains(c.directory.path));
@@ -370,10 +371,7 @@ void main() {
         ]);
         expect(result.exitCode, 0);
         await expectLater(
-          LegacyMigrationCoordinator.reopenRehearsal(
-            c.directory,
-            capacity: budget(),
-          ),
+          reopen(c.directory, capacity: budget()),
           throwsStateError,
         );
       },
