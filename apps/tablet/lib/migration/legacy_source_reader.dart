@@ -275,9 +275,39 @@ class LegacySourceReader {
       }
     }
     final boxes = <String, Map<Object, dynamic>>{};
+    var liveCount = 0;
+    var hasOrderlessLiveRecord = false;
+    const liveOrderFields = {
+      'items': 11,
+      'trackerWidgets': 5,
+      'toggleWidgets': 4,
+    };
     for (final name in LegacyMigrationSnapshot.collections) {
       final path = layout.boxes[name];
-      boxes[name] = path == null ? {} : _decodeBox(requireFile(path));
+      if (path == null) continue;
+      final audited = _decodeFrames(requireFile(path), _registry(audit: true));
+      final orderField = liveOrderFields[name];
+      if (orderField != null) {
+        liveCount += audited.length;
+        hasOrderlessLiveRecord |= audited.values.any(
+          (value) => value is Map && value[orderField] == null,
+        );
+      }
+    }
+    // A default order of zero erases evidence that pre-order schemas used a
+    // different UI ordering rule. One surviving board record has no relative
+    // order to lose; otherwise refuse rather than infer a schema from a label.
+    // Count only final live frames, across all board kinds, after retention.
+    if (liveCount > 1 && hasOrderlessLiveRecord) {
+      throw const FormatException(
+        'Legacy live board lacks explicit order; historical ordering needs compatibility handling.',
+      );
+    }
+    for (final name in LegacyMigrationSnapshot.collections) {
+      final path = layout.boxes[name];
+      boxes[name] = path == null
+          ? {}
+          : _decodeFrames(requireFile(path), _registry(audit: false));
       await onBoundary?.call('decoded:$name');
     }
     Map<Object, T> typed<T>(String name) => boxes[name]!.cast<Object, T>();
@@ -542,29 +572,29 @@ class _SchemaAuditAdapter extends TypeAdapter<Map<int, dynamic>> {
 }
 
 Map<Object, dynamic> _decodeBox(Uint8List bytes) {
-  Map<Object, dynamic> decode(HiveImpl registry) {
-    final result = SplayTreeMap<Object, dynamic>((a, b) {
-      if (a is int) return b is int ? a.compareTo(b) : -1;
-      return b is int ? 1 : (a as String).compareTo(b as String);
-    });
-    final reader = _BoundedHiveReader(bytes, registry);
-    while (reader.availableBytes > 0) {
-      final offset = reader.usedBytes;
-      final frame = reader.readFrame(frameOffset: offset);
-      if (frame == null || reader.usedBytes <= offset) {
-        throw const FormatException('Corrupt or truncated legacy Hive frame.');
-      }
-      if (frame.deleted) {
-        result.remove(frame.key);
-      } else {
-        result[frame.key as Object] = frame.value;
-      }
-    }
-    return result;
-  }
+  _decodeFrames(bytes, _registry(audit: true));
+  return _decodeFrames(bytes, _registry(audit: false));
+}
 
-  decode(_registry(audit: true));
-  return decode(_registry(audit: false));
+Map<Object, dynamic> _decodeFrames(Uint8List bytes, HiveImpl registry) {
+  final result = SplayTreeMap<Object, dynamic>((a, b) {
+    if (a is int) return b is int ? a.compareTo(b) : -1;
+    return b is int ? 1 : (a as String).compareTo(b as String);
+  });
+  final reader = _BoundedHiveReader(bytes, registry);
+  while (reader.availableBytes > 0) {
+    final offset = reader.usedBytes;
+    final frame = reader.readFrame(frameOffset: offset);
+    if (frame == null || reader.usedBytes <= offset) {
+      throw const FormatException('Corrupt or truncated legacy Hive frame.');
+    }
+    if (frame.deleted) {
+      result.remove(frame.key);
+    } else {
+      result[frame.key as Object] = frame.value;
+    }
+  }
+  return result;
 }
 
 // Old Hive decoders allocate variable-length lists before checking the payload.
