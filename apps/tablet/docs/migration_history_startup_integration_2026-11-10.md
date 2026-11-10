@@ -80,10 +80,59 @@ checks; the combined results above supersede component-only counts.
 
 ## Still held
 
-Real shipped-version installation copies, later historical artwork/utility/rule
-coverage, explicit support policy for pre-order boards, live all-writer
+Real shipped-version installation copies, broader historical variants and native
+artwork-file coverage, explicit support policy for pre-order boards, live all-writer
 quiescence, durable production archive/export/retention and full-disk policy,
 leased startup activation, process/power-loss evidence, same-identity
 no-uninstall native upgrades, store restoration, device/OS/accessibility and
 hands-on acceptance remain open. Passing this checkpoint does not establish
 migration/update-safe release status.
+
+## Later-schema and test-readiness follow-up
+
+Published source checkpoint: `af94b82ebd4ffe884192df46a999ec8e0afcfbaa`, tree
+`13725b1f689e983251a66c5357cba28f1963495b`. This is byte-identical to local
+validation commit `2804b7d2c917698f86cbba45a4faaf3fa141e1a4`. The connected
+GitHub API published the identical tree when command-line Git push could not
+obtain credentials after the environment reset. The feature ref was advanced
+without force, against the expected prior head, and fetched back for verification.
+The original local history is retained as a backup; no work was discarded.
+
+The follow-up adds exact `fa577ac` repository models/adapters for types 0–12:
+artwork metadata, trackers/toggles and saved templates, and initial rule schemas.
+It verifies raw-file retention, defaults for subsequently added fields, separate
+live state/fresh presets, and idempotent coordinator reopen. All 28 new archived
+sources match their exact Git blobs; repeated generation is byte-identical.
+Together with the initial fixtures, all **50 source archives** and every frozen
+fixture hash were checked. These are synthetic fixtures, not shipped captures;
+this extension tests artwork metadata, not historical native artwork-file access.
+
+The drawer regression now awaits the actual image providers and verifies rendered
+images before its unchanged strict pixel checks. No runtime code changes are in
+this follow-up. The 44 drawer cases passed; three isolated repetitions passed
+both before and after the synchronization change. The migration fixture/source/
+coordinator component check passed 57 tests.
+
+Final combined verification with Flutter 3.41.2 / Dart 3.11.0:
+
+- Analyzer: **no issues** (3.4s).
+- Full `flutter test --no-pub --reporter expanded`: **1,879 passed, 8 expected
+  skips**, 6m24s.
+- Explicit preview namespace suite: **364 passed, 57 intentional same-app-only
+  skips**, 18s. Use the namespace command above with the additional
+  `test/later_historical_hive_fixtures_test.dart` argument.
+- Release JavaScript web build: **passed** (59.2s), including the optional Wasm
+  compiler dry run. No runtime browser or native acceptance is claimed.
+- Authored-code/documentation diff checks pass. The byte-exact archived
+  `fa577ac` constants intentionally retain five original trailing-whitespace
+  lines rather than altering their source provenance.
+- No root/Table runtime files, lockfiles, app identifiers, entrypoints, signing
+  or release configuration changed after `5c881bd`.
+- Published source commit has no recorded statuses or PR workflow runs. There
+  was no PR, default merge, deployment, native install, store restore or upload.
+
+This closes the interrupted validation and expands isolated historical coverage.
+It does not close the production/native acceptance gates listed above. Priority
+remains complete read-only production inventory, all-writer quiescence and leased
+activation, durable recovery/export/retention and disk-capacity policy, followed
+by deliberately authorized real-installation and store acceptance.

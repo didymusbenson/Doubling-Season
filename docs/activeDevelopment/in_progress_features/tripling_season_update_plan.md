@@ -312,3 +312,21 @@ The complete recovered validation of `5c881bd` passed: analyzer clean,
 same-app skips**, and release JavaScript web compilation (including the optional
 Wasm compiler dry run). An earlier interrupted run's intermittent artwork-pixel
 failure is documented rather than counted as a pass.
+
+### Later historical coverage and final verification
+
+Published source `af94b82` adds frozen `fa577ac` artwork metadata, utility/template
+and initial-rule schemas, plus image-readiness synchronization for the existing
+strict drawer pixel test. All 50 archived source files match their exact Git
+blobs; fixture generation is repeatable. These are synthetic repository-history
+fixtures, not shipped-device or native artwork-file evidence.
+
+The final integrated source tree passed analyzer, **1,879 tests / 8 expected
+skips**, **364 preview-namespace checks / 57 intentional same-app skips**, and
+release JavaScript web compilation with optional Wasm dry run. See the
+[combined record](../../../apps/tablet/docs/migration_history_startup_integration_2026-11-10.md)
+for the exact source tree, commands and publication verification. Runtime code
+and entrypoints are unchanged by this follow-up. Production inventory/lease,
+recovery-retention and disk-capacity policy, actual shipped native updates,
+store restoration and device/accessibility acceptance remain open. No release,
+PR, default merge, deployment or store action occurred.
