@@ -5,8 +5,11 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import 'legacy_archive_capacity.dart';
 import 'legacy_migration.dart';
 import 'legacy_migration_journal.dart';
 import 'legacy_source_reader.dart';
@@ -26,25 +29,107 @@ import 'legacy_migration_recovery.dart';
 /// guarantees are not provided by Dart's portable filesystem API.
 class LegacySourceArchive {
   static const _marker = 'tripling-season-retained-source-v1';
+  static const _budgetedMarker = 'tripling-season-retained-source-budgeted-v1';
+  static const _policyFile = 'capacity-policy.json';
   static const _layoutKey = 'capture_layout_v1';
   static final Map<String, Future<void>> _locks = {};
   final Directory directory;
-  LegacySourceArchive._(this.directory);
+  final LegacyArchiveCapacity? _capacity;
+  final bool _requiresCapacity;
+  final bool _recoveryOnly;
+  LegacySourceArchive._(
+    this.directory,
+    this._capacity,
+    this._requiresCapacity,
+    this._recoveryOnly,
+  );
 
   /// Create only a new child, never adopt or modify an existing directory.
   /// A failed creation is retained for review, not automatically removed.
-  static Future<LegacySourceArchive> createIn(Directory parent) async {
+  static Future<LegacySourceArchive> createIn(
+    Directory parent, {
+    LegacyArchiveCapacity? capacity,
+  }) async {
     _requireRootIsolate();
     await _requireRealDirectory(parent);
+    final marker = capacity == null ? _marker : _budgetedMarker;
+    final policy = capacity == null
+        ? null
+        : canonicalMigrationJson(capacity.toJson());
+    await capacity?.checkCreation(
+      parent,
+      utf8.encode(marker).length +
+          (policy == null ? 0 : utf8.encode(policy).length),
+    );
     final root = await parent.createTemp('tripling-retained-source-');
     await File('${root.path}/archive.lock').writeAsBytes([], flush: true);
-    await File('${root.path}/archive.txt').writeAsString(_marker, flush: true);
-    return reopen(root);
+    if (policy != null) {
+      await capacity!.checkWrite(root, utf8.encode(policy).length);
+      await File(
+        '${root.path}/$_policyFile',
+      ).writeAsString(policy, flush: true);
+    }
+    await capacity?.checkWrite(root, utf8.encode(marker).length);
+    await File('${root.path}/archive.txt').writeAsString(marker, flush: true);
+    await capacity?.checkWrite(root, 0);
+    return reopen(root, capacity: capacity);
+  }
+
+  /// Dormant native entry point. Uses this app's private Application Support
+  /// location, never cache/documents/shared storage or another app's sandbox.
+  /// The caller supplies measured budgets and owns source/writer authorization.
+  /// No startup path invokes this; no release or live migration is enabled.
+  static Future<LegacySourceArchive> createInApplicationSupport({
+    required LegacyArchiveCapacity capacity,
+  }) async {
+    _requireRootIsolate();
+    if (kIsWeb ||
+        (defaultTargetPlatform != TargetPlatform.android &&
+            defaultTargetPlatform != TargetPlatform.iOS)) {
+      throw UnsupportedError('Native mobile application support is required.');
+    }
+    final supplied = await getApplicationSupportDirectory();
+    final normalized = _normalizedDirectory(supplied);
+    if (!supplied.isAbsolute ||
+        await FileSystemEntity.type(normalized.path, followLinks: false) !=
+            FileSystemEntityType.directory) {
+      throw StateError(
+        'Application support must be a real absolute directory.',
+      );
+    }
+    // The OS may legitimately use ancestor aliases such as iOS /var. Resolve
+    // only the trusted platform-provided root, not a caller-supplied source.
+    final parent = Directory(await normalized.resolveSymbolicLinks());
+    return createIn(parent, capacity: capacity);
   }
 
   static Future<LegacySourceArchive> reopen(
     Directory directory, {
     Iterable<String> heldCoordinationPaths = const [],
+    LegacyArchiveCapacity? capacity,
+  }) => _open(
+    directory,
+    capacity: capacity,
+    heldCoordinationPaths: heldCoordinationPaths,
+  );
+
+  /// Physical evidence only. A damaged/missing policy must not prevent exporting
+  /// surviving bytes, but cannot authorize capture, decoding or promotion.
+  /// Recognized archive identity and safe coordination files remain mandatory.
+  static Future<LegacySourceArchive> reopenForRecovery(
+    Directory directory, {
+    Iterable<String> heldCoordinationPaths = const [],
+  }) => _open(
+    directory,
+    recoveryOnly: true,
+    heldCoordinationPaths: heldCoordinationPaths,
+  );
+
+  static Future<LegacySourceArchive> _open(
+    Directory directory, {
+    Iterable<String> heldCoordinationPaths = const [],
+    LegacyArchiveCapacity? capacity,
+    bool recoveryOnly = false,
   }) async {
     _requireRootIsolate();
     await _requireRealDirectory(directory);
@@ -66,12 +151,54 @@ class LegacySourceArchive {
       ...heldCoordinationPaths,
     ]);
     await _requireFile('${root.path}/archive.txt');
-    if (await File('${root.path}/archive.txt').length() != _marker.length ||
-        await File('${root.path}/archive.txt').readAsString() != _marker) {
+    final markerFile = File('${root.path}/archive.txt');
+    if (await markerFile.length() > 128) {
       throw StateError('Unknown archive marker was preserved.');
     }
+    final marker = await markerFile.readAsString();
+    if (marker != _marker && marker != _budgetedMarker) {
+      throw StateError('Unknown archive marker was preserved.');
+    }
+    final budgeted = marker == _budgetedMarker;
+    if (budgeted && !recoveryOnly) {
+      final policyPath = '${root.path}/$_policyFile';
+      await _rejectCoordinationAlias(policyPath, [
+        '${root.path}/archive.lock',
+        ...heldCoordinationPaths,
+      ]);
+      await _requireFile(policyPath);
+      final file = File(policyPath);
+      if (await file.length() > 1024) {
+        throw StateError('Invalid archive capacity policy was preserved.');
+      }
+      final encoded = await file.readAsString();
+      final policy = jsonDecode(encoded);
+      if (policy is! Map<String, dynamic> ||
+          policy['maxArchiveBytes'] is! int ||
+          policy['conversionReserveBytes'] is! int ||
+          policy['safetyReserveBytes'] is! int) {
+        throw StateError('Invalid archive capacity policy was preserved.');
+      }
+      final declared = LegacyArchiveCapacity(
+        availableBytes: (_) async => null,
+        maxArchiveBytes: policy['maxArchiveBytes'] as int,
+        conversionReserveBytes: policy['conversionReserveBytes'] as int,
+        safetyReserveBytes: policy['safetyReserveBytes'] as int,
+      );
+      if (canonicalMigrationJson(declared.toJson()) != encoded ||
+          (capacity != null &&
+              canonicalMigrationJson(capacity.toJson()) != encoded)) {
+        throw StateError(
+          'Archive capacity policy conflicts; evidence was kept.',
+        );
+      }
+    } else if (capacity != null) {
+      throw StateError(
+        'Existing unbudgeted archives cannot adopt a new policy.',
+      );
+    }
     await _requireFile('${root.path}/archive.lock');
-    return LegacySourceArchive._(root);
+    return LegacySourceArchive._(root, capacity, budgeted, recoveryOnly);
   }
 
   /// Each archive belongs to exactly one declared source layout. A completed
@@ -83,7 +210,12 @@ class LegacySourceArchive {
     Future<void> Function(String boundary)? onBoundary,
   }) => _withLease(() async {
     await _requireSeparate(source);
-    final storage = _ArchiveRecords(directory, onBoundary);
+    if (_requiresCapacity && _capacity == null) {
+      throw StateError(
+        'The retained capacity policy and a fresh probe are required.',
+      );
+    }
+    final storage = _ArchiveRecords(directory, onBoundary, capacity: _capacity);
     await storage.write(_layoutKey, canonicalMigrationJson(layout.toJson()));
     final reader = LegacySourceReader();
     final retained = await reader.openRetained(
@@ -213,6 +345,11 @@ class LegacySourceArchive {
     Iterable<String> heldCoordinationPaths = const [],
   }) async {
     _requireRootIsolate();
+    if (_recoveryOnly && !allowUnknownFiles) {
+      throw StateError(
+        'This archive is open for physical recovery export only.',
+      );
+    }
     final path = directory.path;
     final previous = _locks[path] ?? Future<void>.value();
     final done = Completer<void>();
@@ -220,7 +357,12 @@ class LegacySourceArchive {
     await previous;
     RandomAccessFile? lease;
     try {
-      await reopen(directory, heldCoordinationPaths: heldCoordinationPaths);
+      await _open(
+        directory,
+        heldCoordinationPaths: heldCoordinationPaths,
+        capacity: allowUnknownFiles ? null : _capacity,
+        recoveryOnly: allowUnknownFiles,
+      );
       // This inode is exclusively for the process lock. Do not read/close
       // another descriptor for it while locked: POSIX locks are process-wide.
       lease = await File('$path/archive.lock').open(mode: FileMode.append);
@@ -244,6 +386,7 @@ class LegacySourceArchive {
               FileSystemEntityType.file ||
           !(name == 'archive.txt' ||
               name == 'archive.lock' ||
+              (_requiresCapacity && name == _policyFile) ||
               _pendingName.hasMatch(name) ||
               (name.endsWith('.record') &&
                   _validKey(name.substring(0, name.length - 7))))) {
@@ -269,10 +412,12 @@ class _ArchiveRecords extends LegacyMigrationStorage {
   final Directory directory;
   final Future<void> Function(String boundary)? onBoundary;
   final Iterable<String> heldCoordinationPaths;
+  final LegacyArchiveCapacity? capacity;
   _ArchiveRecords(
     this.directory,
     this.onBoundary, {
     this.heldCoordinationPaths = const [],
+    this.capacity,
   });
 
   @override
@@ -351,11 +496,13 @@ class _ArchiveRecords extends LegacyMigrationStorage {
     if (encoded.length > _maxRecordBytes) {
       throw const FormatException('Retained record exceeds its bound.');
     }
+    await capacity?.checkWrite(directory, encoded.length);
     // Random, exclusive attempt files are never overwritten or cleaned up.
     // A short write/full disk leaves only this attempt, not a corrupt authority.
     final pending = File('${directory.path}/pending_${const Uuid().v4()}.part');
     await pending.create(exclusive: true);
     await onBoundary?.call('archive_before_write:$key');
+    await capacity?.checkWrite(directory, encoded.length);
     final handle = await pending.open(mode: FileMode.writeOnly);
     try {
       await handle.writeFrom(encoded);
@@ -371,6 +518,7 @@ class _ArchiveRecords extends LegacyMigrationStorage {
       throw const FormatException('Pending archive record readback failed.');
     }
     await onBoundary?.call('archive_verified:$key');
+    await capacity?.checkWrite(directory, 0);
     if (await FileSystemEntity.type(target.path, followLinks: false) !=
         FileSystemEntityType.notFound) {
       throw StateError('Archive changed before record publication.');

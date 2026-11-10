@@ -444,3 +444,21 @@ shipped fixtures, save/restore UX, M9 no-uninstall updates, store restoration,
 platform/device/accessibility acceptance and parity decisions remain required.
 **No default merge, deployment, store action or release is authorized by this
 checkpoint.**
+
+## Retained capture storage and capacity guards — 2026-11-10
+
+The next isolated slice adds an opt-in Android/iOS private Application Support
+archive factory and a persisted **keep-all-until-explicit-review** policy. See
+[the capture-capacity record](../../../apps/tablet/docs/retained_capture_capacity_2026-11-10.md).
+New budgeted archives enforce measured writes while preserving separate safety
+and caller-planned conversion reserves. Existing bytes and failed attempts count
+toward the retained-size ceiling; retries cannot bypass policy or delete evidence.
+A strict semantic reopen refuses damaged policies, while a recovery-only reopen
+still permits exact physical export without authorizing capture or promotion.
+
+This advances M1/M4 storage planning and capture protection, not production
+activation or completed update safety. No production limits, expiry or cleanup
+are selected. Conversion/promotion write guards, actual support-directory/OS
+retention acceptance, all-writer quiescence, genuine shipped fixtures and original-
+identity updates remain gates. The release hold, no default merge and no deployment
+remain in force. Final validation is linked in the implementation record.
