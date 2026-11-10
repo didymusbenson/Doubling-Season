@@ -1,5 +1,12 @@
 # Tripling Table
 
+**Copied-source migration integration (2026-11-10):**
+The [combined safety checkpoint](docs/migration_integration_2026-11-10.md) joins
+raw copied-Hive/preferences acquisition with conservative utility, counter and
+rule mappings. Real-source fixtures exercise durable reopen and fail-closed
+activation. Production migration and release remain held.
+
+
 **Update-safety continuation (2026-11-10):**
 The feature-only [catalog reader/cache safeguards](docs/catalog_update_safety_2026-11-10.md)
 join retained-save recovery and supporter persistence work. This is not original

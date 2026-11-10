@@ -5,6 +5,7 @@ import 'package:doubling_season/models/token_definition.dart';
 
 import '../domain/table_state.dart';
 import '../storage/table_repository.dart';
+import 'legacy_rule_mapping.dart';
 
 /// A copied, versioned inventory, not a handle to the original Hive installation.
 /// Acquisition from a quiescent, backed-up installation is a separate release gate.
@@ -117,12 +118,12 @@ class LegacyMigrationPlan {
   bool get canCommit => blockers.isEmpty;
 }
 
-/// Deliberately conservative first slice. Unknown utility semantics, duplicate
-/// custom counters and unsupported axis counters block activation, never vanish.
+/// Unknown utility/rule semantics and ambiguous counter identities block
+/// activation, never vanish. Recognized rules remain local to the source seat.
 /// The complete unmodified inventory is retained separately by the journal.
 class LegacyMigrationConverter {
   // Bump whenever mapping semantics or activation blockers change.
-  static const mappingVersion = 1;
+  static const mappingVersion = 2;
 
   LegacyMigrationPlan convert(LegacyMigrationSnapshot snapshot) {
     final raw = snapshot.toJson();
@@ -145,6 +146,38 @@ class LegacyMigrationConverter {
         result,
         (record) => (jsonMap(record['value'])['order'] as num?) ?? 0,
       );
+      if (const {
+        'items',
+        'trackerWidgets',
+        'toggleWidgets',
+      }.contains(collection)) {
+        // Match BoardOrderPersistence.compareModels within each source kind,
+        // including its mixed integer/string key tie-break (not Hive key order).
+        result.sort((a, b) {
+          final order = ((jsonMap(a['value'])['order'] as num?) ?? 0).compareTo(
+            (jsonMap(b['value'])['order'] as num?) ?? 0,
+          );
+          if (order != 0) return order;
+          final ak = a['key'], bk = b['key'];
+          return ak is int && bk is int
+              ? ak.compareTo(bk)
+              : ak.toString().compareTo(bk.toString());
+        });
+        final keyTypesByPosition = <num, Set<bool>>{};
+        for (final record in result) {
+          final order = (jsonMap(record['value'])['order'] as num?) ?? 0;
+          keyTypesByPosition
+              .putIfAbsent(order, () => <bool>{})
+              .add(record['key'] is int);
+        }
+        // Its mixed-key comparator can be non-transitive (2 < 10 < "11" < 2).
+        // No guessed tie order can certify that source state as lossless.
+        if (keyTypesByPosition.values.any((types) => types.length > 1)) {
+          blockers.add(
+            'Legacy $collection has ambiguous tied source positions.',
+          );
+        }
+      }
       return result;
     }
 
@@ -189,17 +222,28 @@ class LegacyMigrationConverter {
       for (final rawCounter in m['counters'] as List? ?? []) {
         final counter = jsonMap(rawCounter);
         final name = counter['name'] as String;
+        if (const {'+1/+1', '-1/-1', '+1/+0', '+0/+1'}.contains(name)) {
+          blockers.add('Token $id has an ambiguous reserved counter "$name".');
+        }
         if (counters.containsKey(name)) {
           blockers.add('Token $id has duplicate custom counter "$name".');
         } else {
           counters[name] = counter['amount'] as int;
         }
       }
-      if ((m['plusOnePowerCounters'] as int? ?? 0) != 0 ||
-          (m['plusOneToughnessCounters'] as int? ?? 0) != 0) {
-        blockers.add(
-          'Token $id needs independent power/toughness counter parity.',
-        );
+      for (final axis in const {
+        'plusOnePowerCounters': '+1/+0',
+        'plusOneToughnessCounters': '+0/+1',
+      }.entries) {
+        final amount = m[axis.key] as int? ?? 0;
+        if (amount < 0) {
+          throw FormatException('Token $id has a negative ${axis.key}.');
+        }
+        // A custom counter with this label has a separate source identity.
+        // Never merge the two values or silently change its P/T behavior.
+        if (amount > 0 && !counters.containsKey(axis.value)) {
+          counters[axis.value] = amount;
+        }
       }
       player.tokens.add(
         TokenState(
@@ -238,6 +282,27 @@ class LegacyMigrationConverter {
         throw const FormatException('A legacy utility has no valid name.');
       }
       for (final field in [
+        'description',
+        'colorIdentity',
+        'artworkUrl',
+        'artworkSet',
+        'actionButtonText',
+        'actionType',
+        'onDescription',
+        'offDescription',
+        'onArtworkUrl',
+        'offArtworkUrl',
+      ]) {
+        if (m[field] != null && m[field] is! String) {
+          throw FormatException('Invalid legacy utility $field.');
+        }
+      }
+      for (final field in ['isCustom', 'hasAction', 'actionOnly']) {
+        if (m[field] != null && m[field] is! bool) {
+          throw FormatException('Invalid legacy utility $field.');
+        }
+      }
+      for (final field in [
         'defaultValue',
         'tapIncrement',
         'longPressIncrement',
@@ -246,35 +311,85 @@ class LegacyMigrationConverter {
           throw FormatException('Invalid legacy utility $field.');
         }
       }
-      // A mutable display name and random widgetId are not semantic identities.
-      // Only explicit custom, non-action utilities are certified in this slice.
-      if (m['isCustom'] != true ||
+      // Source widgetId is a random instance UUID; names are editable. Passive
+      // built-ins therefore keep their original independent tracker/toggle
+      // behavior instead of being guessed into a bound player/game projection.
+      // Action types, unlike names, are persisted dispatch identities.
+      final String kind;
+      final action = m['actionType'];
+      if (toggle) {
+        if (m['isCustom'] is! bool) {
+          blockers.add('Utility $id has no explicit legacy identity.');
+          return null;
+        }
+        kind = m['isCustom'] == true ? 'custom_toggle' : 'legacy_toggle';
+      } else if (action != null ||
           m['hasAction'] == true ||
-          m['actionOnly'] == true ||
-          m['actionType'] != null) {
-        blockers.add('Utility $id requires an explicit counterpart mapping.');
-        return null;
+          m['actionOnly'] == true) {
+        const actions = {
+          'krenko_mob_boss': false,
+          'krenko_tin_street': false,
+          'cathars_crusade': false,
+          'academy_manufactor': false,
+          'hare_apparent': false,
+          'rhys_the_redeemed': true,
+          'brudiclad_telchor_engineer': true,
+        };
+        if (m['hasAction'] != true ||
+            !actions.containsKey(action) ||
+            (m['actionOnly'] ?? false) != actions[action]) {
+          blockers.add('Utility $id requires an explicit counterpart mapping.');
+          return null;
+        }
+        kind = action as String;
+      } else {
+        if (m['isCustom'] is! bool) {
+          blockers.add('Utility $id has no explicit legacy identity.');
+          return null;
+        }
+        kind = m['isCustom'] == true ? 'custom_tracker' : 'legacy_tracker';
       }
-      if (toggle && (m['onArtworkUrl'] != null || m['offArtworkUrl'] != null)) {
-        blockers.add('Utility $id requires state-specific artwork parity.');
-      }
-      if (!toggle &&
-          (m['longPressIncrement'] as int? ?? 5) !=
-              (m['tapIncrement'] as int? ?? 1)) {
-        blockers.add(
-          'Utility $id requires separate long-press increment parity.',
-        );
+      if (!toggle) {
+        for (final field in ['defaultValue', 'currentValue']) {
+          final value = m[field] as int? ?? 0;
+          if (value < 0 || value > 999999) {
+            blockers.add('Utility $id has an unsupported $field.');
+          }
+        }
+        for (final field in ['tapIncrement', 'longPressIncrement']) {
+          if ((m[field] as int? ?? (field == 'tapIncrement' ? 1 : 5)) < 1 ||
+              (m[field] as int? ?? 1) > 999999) {
+            blockers.add('Utility $id has an unsupported $field.');
+          }
+        }
       }
       return {
-        'kind': toggle ? 'custom_toggle' : 'custom_tracker',
+        'kind': kind,
         'name': m['name'] as String,
         'description': m[toggle ? 'onDescription' : 'description'] ?? '',
         'colors': m['colorIdentity'] ?? '',
         'artworkUrl': m['artworkUrl'],
         'defaultValue': m['defaultValue'] ?? 0,
         'visible': true,
-        'configuration': {...m, 'type': toggle ? 'toggle' : 'tracker'},
+        'configuration': {
+          ...m,
+          'type': toggle ? 'toggle' : 'tracker',
+          'legacyInteractionVersion': 1,
+        },
       };
+    }
+
+    if ([...all['trackerWidgets'] as List, ...all['toggleWidgets'] as List].any(
+      (raw) {
+        final r = jsonMap(raw);
+        final utility = jsonMap(r['value']);
+        return utility['isCustom'] == false && utility['actionType'] == null;
+      },
+    )) {
+      warnings.add(
+        'Passive legacy utilities keep their independent values; '
+        'canonical life, counters and game statuses use the new table defaults.',
+      );
     }
 
     for (final collection in ['trackerWidgets', 'toggleWidgets']) {
@@ -373,37 +488,14 @@ class LegacyMigrationConverter {
         : (prefs['isDarkMode'] as bool? ?? false)
         ? 'dark'
         : 'light';
-    if ((all['tokenRules'] as List).isNotEmpty) {
-      blockers.add('Legacy rules require explicit semantic mapping.');
-    }
-    if ((prefs['tokenMultiplier'] as int? ?? 1) != 1 ||
-        (prefs['counterMultiplier'] as int? ?? 1) != 1) {
-      blockers.add(
-        'Legacy multiplier preferences require explicit rule mapping.',
-      );
-    }
-    for (final key in const [
-      'preset_token_doublers',
-      'preset_doubling_season',
-      'preset_primal_vigor',
-      'preset_ojer_taq',
-      'preset_academy_manufactor_count',
-      'preset_chatterfang',
-      'preset_plus_one_doublers',
-      'preset_plus_one_extra',
-      'preset_all_counter_doublers',
-    ]) {
-      if ((prefs[key] as int? ?? 0) != 0) {
-        blockers.add(
-          'Active legacy rule $key requires explicit semantic mapping.',
-        );
-      }
-    }
-    if (prefs['preset_academy_manufactor'] == true) {
-      blockers.add(
-        'Active legacy Academy Manufactor requires explicit semantic mapping.',
-      );
-    }
+    mapLegacyRules(
+      player: player,
+      preferences: prefs,
+      records: records('tokenRules'),
+      identity: identity,
+      blockers: blockers,
+      warnings: warnings,
+    );
     if ((all['artworkPreferences'] as List).isNotEmpty) {
       warnings.add(
         'Global artwork defaults are retained separately; not applied to every seat.',

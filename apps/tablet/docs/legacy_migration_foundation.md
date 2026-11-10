@@ -22,6 +22,12 @@ an isolated test directory are the caller's responsibility.
 
 ## Implemented sequence
 
+The [copied native source reader](legacy_source_acquisition_2026-11-10.md) now
+retains raw files from an explicitly quiescent copy, decodes existing adapters
+and Android/Apple preferences, then supplies the detached snapshot below. It is
+not a live-installation backup procedure. See the
+[combined integration evidence](migration_integration_2026-11-10.md).
+
 1. `LegacySnapshotCapture.capture` serializes caller-supplied consistent,
    detached legacy models and complete preference data. It requires all seven
    source collections even when empty. It preserves typed Hive keys, deck covers,
@@ -57,22 +63,23 @@ an isolated test directory are the caller's responsibility.
 
 ## Explicit mapping limits
 
-- Only explicitly custom, non-action tracker/toggle utilities are mapped in this
-  slice. Display names and random widget IDs are never treated as semantic
-  identity. Built-in/action utility counterparts, canonical life/status mappings
-  and rules block commit until their semantics have dedicated mappings/tests.
-- Custom toggles with state-specific artwork and trackers whose long-press
-  increment differs from their tap increment block activation pending parity.
-- Nonzero independent power/toughness counters and duplicate custom counter
-  names block activation rather than being silently collapsed. Source values
-  remain in retained recovery data.
+- Mapping revision 2 supports independently preserved passive built-ins, known
+  action utilities, original one-shot hold amounts and toggle-state artwork,
+  dedicated axis counters, preset modifier counts and recognized custom rules.
+  See [the semantic mapping checkpoint](legacy_semantic_mapping_2026-11-10.md)
+  for exact coverage, fixtures and fail-closed cases. Names/random widget IDs
+  never become semantic bindings to canonical life/status/counter pools.
+- Duplicate/reserved custom counter labels, unknown utility/rule behavior,
+  ambiguous custom rule grouping/order and unsupported values block activation.
+  Full source values remain in retained recovery data.
 - Custom-token definitions, favorites/recents, theme and summoning-sickness
   preference are copied without consulting/replacing them with catalog entries.
   Global artwork defaults remain separately retained, not applied to every seat.
   Full preferences are retained, including supporter metadata, but cached flags
-  are never interpreted as verified purchase ownership. Non-default legacy
-  multipliers and active built-in `preset_*` modifier preferences require future
-  explicit rule mapping and block activation.
+  are never interpreted as verified purchase ownership. Non-default obsolete legacy
+  multipliers and unknown active `preset_*` preferences still require explicit
+  source-version semantics and block activation. Recognized rules stay local to
+  the source seat.
 - Four seats/40 starting life are explicit fixture defaults, not recovered match
   information or an approved production first-run policy.
 - Old model getters can already normalize some invalid legacy values (for
@@ -111,7 +118,7 @@ crash, and proves retry reaches the exact same durable generation with no
 additional records or identities.
 
 Still required before migration-safe status: actual shipped-build support and
-raw fixtures; quiescent/raw backup acquisition; source adapter validation;
+raw fixtures; live quiescent backup acquisition; historical adapter validation;
 remaining utility/rule/preference parity; image decoding and representative
 large/full-disk fixtures; production aggregate/media commit integration and
 later-game restart checks; same-identity signed no-uninstall device upgrades;

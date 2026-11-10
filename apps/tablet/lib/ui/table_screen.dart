@@ -2927,7 +2927,7 @@ class _UtilityRow extends StatelessWidget {
           'the_initiative',
           'toggle',
         ].contains(utility.kind);
-    final color = utility.artworkUrl == null
+    final color = utility.displayedArtworkUrl == null
         ? Theme.of(context).colorScheme.onSurface
         : Colors.white;
     return LayoutBuilder(
@@ -2946,12 +2946,12 @@ class _UtilityRow extends StatelessWidget {
         final valueStepper = Container(
           key: ValueKey('${utility.id}-value-surface'),
           decoration: BoxDecoration(
-            color: utility.artworkUrl == null
+            color: utility.displayedArtworkUrl == null
                 ? Theme.of(context).colorScheme.surfaceContainerHighest
                 : const Color(0xDD111715),
             borderRadius: BorderRadius.circular(9),
             border: Border.all(
-              color: utility.artworkUrl == null
+              color: utility.displayedArtworkUrl == null
                   ? Theme.of(context).colorScheme.outline
                   : const Color(0xFFBDC9C0),
             ),
@@ -2963,8 +2963,21 @@ class _UtilityRow extends StatelessWidget {
             increaseLabel: 'Increase ${utility.name}',
             onDecrease: () => onChange(-step),
             onIncrease: () => onChange(step),
-            onDecreaseHoldStep: (amount) => onChange(-amount),
-            onIncreaseHoldStep: (amount) => onChange(amount),
+            onDecreaseHold: utility.legacySingleStepHold
+                ? () => onChange(-utility.legacyHoldIncrement)
+                : null,
+            onIncreaseHold: utility.legacySingleStepHold
+                ? () => onChange(utility.legacyHoldIncrement)
+                : null,
+            holdRepeatInterval: utility.legacySingleStepHold
+                ? null
+                : const Duration(milliseconds: 300),
+            onDecreaseHoldStep: utility.legacySingleStepHold
+                ? null
+                : (amount) => onChange(-amount),
+            onIncreaseHoldStep: utility.legacySingleStepHold
+                ? null
+                : (amount) => onChange(amount),
             interactionEpoch: interactionEpoch,
             foregroundColor: color,
             iconSize: 15,
@@ -2986,7 +2999,7 @@ class _UtilityRow extends StatelessWidget {
             ),
           ),
           child: _ArtworkSurface(
-            url: utility.artworkUrl,
+            url: utility.displayedArtworkUrl,
             child: Stack(
               children: [
                 Padding(
@@ -3158,12 +3171,12 @@ class _UtilityRow extends StatelessWidget {
                               );
                             },
                           ),
-                        if (utility.description.isNotEmpty &&
+                        if (utility.displayedDescription.isNotEmpty &&
                             utility.kind != 'the_ring')
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 6),
                             child: Text(
-                              utility.description,
+                              utility.displayedDescription,
                               key: ValueKey(
                                 'utility-description-${utility.id}',
                               ),
