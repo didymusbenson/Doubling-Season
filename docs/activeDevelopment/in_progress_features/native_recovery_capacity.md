@@ -91,3 +91,11 @@ passed 18 checks on each fresh iOS 26.2 / Android 15 test device using only
 synthetic temporary fixtures. The built simulator and device apps contain the DiskSpace
 `E174.1` declaration. This is narrower than production or signed-archive privacy
 acceptance; see the linked report for exact coverage and remaining gates.
+
+The same report now also records the dormant Application Support factory at
+production source `4940913`: **17 factory checks plus 18 bridge checks per native
+test device**. Only synthetic archives were created in those dedicated test
+apps. After the Mac fixture-only canonical-path correction `d13981c`, analysis
+is clean and all **33** combined capacity-policy/bridge host tests pass. This
+adds private-location/capture/reopen evidence, not original-installation or
+release acceptance.
