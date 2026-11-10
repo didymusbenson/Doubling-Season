@@ -81,7 +81,7 @@ commit, exact tests/results and remaining limits to the relevant row or record.
 | M4 | Recoverable durable commit and idempotent restart. Table repository has checksummed generations; source data spans other stores. | Versioned journal, staging generation, durable marker and reopen verification; inject failure at every boundary. Retry cannot duplicate or replace later gameplay. Keep recovery material; retention/cleanup is not implicitly approved. | Partial: isolated durable journal, revisioned receipt, retry serialization and every-boundary fault injection implemented. No production coordinator or later-play protection integration yet. |
 | M5 | Saved setup fidelity and scope. `PresetService` saves/renames/deletes/imports/exports and loads Replace/Append; loads are seat-scoped commands. | Preserve token `extra` display style, source identity and deck metadata or report limitations; rich-art roundtrip and failed writes; Save/Replace/Append/Undo on multiple seats, cover apply/undo, no life/history collateral reset. Audit original editing behavior before adding an editor. | Partial: legacy preset metadata/order/cover retained, artwork display style survives save/load, and fresh seat-scoped loads tested. [Audit gaps](../todo_features/unified_tripling_season/preset_audit.md) remain open. |
 | M6 | Custom library, favorites/recents, preferences and rule definitions. Current Table and legacy scopes differ. | Explicit key/field map, unknown-key recovery, no global artwork preference silently applied to every seat/new game; preserve unsupported rules rather than enable/substitute them. | Partial: custom definitions, favorites/recents, theme and sickness mapped; all preferences and rules retained. Non-default multipliers, active built-ins and unsupported rules block activation. |
-| M7 | Data OTA compatibility. `TabletCatalog` validates downloaded hashes but compares minimum app version to hardcoded `1.11.0`. | Explicit catalog compatibility contract independent of product display version; bundled/cached/remote, older/newer/future/malformed manifests and offline fallback. Keep old clients compatible. Data OTA is not binary migration. | Open; existing OTA code is not update-safety proof. |
+| M7 | Data OTA compatibility. Table now declares reader/schema v1 independently of product display version, with a conservative legacy minimum-app bridge. | Bundled/cached/remote verification, future/malformed refusal, retained offline fallback and restart/retry tests are implemented. Actual old-client/publisher compatibility, native storage failures and rollout policy remain required. | Partial: [catalog safety implementation](../../../apps/tablet/docs/catalog_update_safety_2026-11-10.md); not production compatibility certification. |
 | M8 | Original supporter ownership and cosmetics. Root IAP owns three `com.loosetie.doublingseason.*` products; Table uses configured separate IDs and keys. | Explicit original-update configuration with original IDs, cached legacy continuity plus real restore evidence; failed/offline/pending restore cannot revoke access or require repurchase. Never grant cross-app ownership by conflating keys. Track cosmetic parity separately as P3. | Partial: dormant native identity/product guard, offline ownership union, serialized durable restore callbacks and legacy cosmetic renderer implemented. Real store restoration/cutover untested. |
 | M9 | Genuine original-install update. Current separate Table builds cannot prove it. | Approved backed-up source installation, actual shipped binary/version/signing identity, no uninstall, successful launch/reopen, all M1–M8 checks, compatibility/device floor and recovery/rollback evidence. | Blocked on future deliberate cutover and native evidence; not authorized now. |
 | F1 | Full-table 2–6, partner commander sources and local adaptive views exist. | Preserve existing scoped commands, all-modal input, history/archive and no reset on layout. Native small-tablet/Android usability, accessibility and stress remain separate acceptance. | Source present; [recorded checks](ipad_edition/adaptive_five_six_seats_2026-11-05.md), native gates open. |
@@ -178,6 +178,28 @@ large/full-disk recovery fixtures; catalog compatibility; and user-visible
 recovery. These must precede any migration-safe claim. Native no-uninstall
 upgrades, actual store restores, device/OS floor, retained-recovery policy and the
 explicit release decision remain separate later gates.
+
+## Continued safety integration (2026-11-10)
+
+Feature branch: `feat/table-update-safety-integration-20261110`. This continues
+`f01f9d4`, integrates save compatibility `ec614a3` and supporter acceptance
+preparation `1bc5f52`, and adds the M7 catalog reader/cache contract. The source
+baseline and release hold above remain in force. The previous legacy source
+reader worktree was not available; no unpublished raw acquisition implementation
+is claimed or duplicated by this checkpoint.
+
+- [Retained saves and historical-reader rollback](../../../apps/tablet/docs/save_compatibility_2026-11-10.md)
+  adds schema upgrades/refusal, historical aggregate checksum handling and
+  retained recovery. This is Table save safety, not production legacy cutover.
+- [Supporter persistence and native acceptance preparation](supporter_update_continuity_2026-11-10.md)
+  adds callback/restore failure protections and an explicit native checklist.
+  No real store restoration or original-identity update was performed.
+- [Catalog update safety](../../../apps/tablet/docs/catalog_update_safety_2026-11-10.md)
+  covers M7's isolated technical reader/cache foundation. No shared publisher,
+  original app, catalog payload, identity, signing or release change is included.
+
+Combined validation is in progress. A final result will distinguish focused,
+full, namespace and build checks from still-unrun native/store acceptance.
 
 ## Validation record and commands
 

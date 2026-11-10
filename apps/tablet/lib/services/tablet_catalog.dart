@@ -1,4 +1,5 @@
 import '../storage/storage_namespace.dart';
+import 'catalog_compatibility.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart' show ChangeNotifier;
@@ -16,19 +17,103 @@ class CatalogUpdate {
   final int? size;
   final String? minimumVersion;
   final String? error;
+  final int schemaVersion;
+  final int minimumReaderVersion;
   const CatalogUpdate({
     this.version = 0,
     this.sha256Hash = '',
     this.size,
     this.minimumVersion,
     this.error,
+    this.schemaVersion = CatalogCompatibility.schemaVersion,
+    this.minimumReaderVersion = CatalogCompatibility.readerVersion,
   });
+
+  factory CatalogUpdate.fromManifest(Map<String, dynamic> manifest) {
+    final update = CatalogUpdate(
+      version: CatalogCompatibility.positiveInteger(
+        manifest['version'],
+        'version',
+      ),
+      sha256Hash: manifest['sha256'] as String,
+      size: manifest['size'] == null
+          ? null
+          : CatalogCompatibility.positiveInteger(manifest['size'], 'size'),
+      minimumVersion: manifest['min_app_version'] as String?,
+      schemaVersion: manifest.containsKey('schema_version')
+          ? CatalogCompatibility.positiveInteger(
+              manifest['schema_version'],
+              'schema_version',
+            )
+          : 1,
+      minimumReaderVersion: manifest.containsKey('min_catalog_reader_version')
+          ? CatalogCompatibility.positiveInteger(
+              manifest['min_catalog_reader_version'],
+              'min_catalog_reader_version',
+            )
+          : 1,
+    );
+    update.validate();
+    return update;
+  }
+
+  void validate() {
+    if (error != null) throw StateError(error!);
+    CatalogCompatibility.positiveInteger(version, 'version');
+    if (!RegExp(r'^[a-fA-F0-9]{64}$').hasMatch(sha256Hash)) {
+      throw const FormatException('Invalid catalog checksum');
+    }
+    if (size != null &&
+        (size! <= 0 || size! > CatalogCompatibility.maximumPayloadBytes)) {
+      throw const FormatException('Invalid or oversized catalog size');
+    }
+    CatalogCompatibility.validate(
+      schema: schemaVersion,
+      minimumReader: minimumReaderVersion,
+      legacyMinimum: minimumVersion,
+    );
+  }
+
+  Map<String, dynamic> toManifest() => {
+    'version': version,
+    'sha256': sha256Hash.toLowerCase(),
+    if (size != null) 'size': size,
+    if (minimumVersion != null) 'min_app_version': minimumVersion,
+    'schema_version': schemaVersion,
+    'min_catalog_reader_version': minimumReaderVersion,
+  };
 }
 
 /// Shared read-only definitions; every mutable board selection stays on its seat.
 class TabletCatalog extends ChangeNotifier {
   final TableController controller;
-  TabletCatalog(this.controller);
+  final Future<http.Response> Function(Uri) _get;
+  final AssetBundle _assets;
+  final Future<Box<String>> Function() _openCache;
+  Future<void> _pending = Future<void>.value();
+
+  TabletCatalog(this.controller)
+    : _get = http.get,
+      _assets = rootBundle,
+      _openCache = (() => Hive.openBox<String>(TableStorageKeys.catalog));
+
+  TabletCatalog.forTesting(
+    this.controller, {
+    required http.Client client,
+    required AssetBundle assets,
+    required Future<Box<String>> Function() openCache,
+  }) : _get = client.get,
+       _assets = assets,
+       _openCache = openCache;
+
+  // Re-check versions inside the queue: late downloads cannot replace a newer
+  // generation, and load/revert cannot race an in-flight apply.
+  Future<void> _serialize(Future<void> Function() action) {
+    final result = _pending.then((_) => action());
+    _pending = result.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    return result;
+  }
+
   List<TokenDefinition> _bundled = [];
   bool loaded = false;
   String? error;
@@ -47,53 +132,100 @@ class TabletCatalog extends ChangeNotifier {
           .toList();
   bool isFavorite(String id) => _ids('favorites').contains(id);
 
-  static const _cacheBox = TableStorageKeys.catalog;
-  Future<Box<String>> _cache() => Hive.openBox<String>(_cacheBox);
-  Future<void> load() async {
-    String? cacheFailure;
+  Future<void> load() => _serialize(_load);
+
+  Future<void> _load() async {
+    List<TokenDefinition>? selected;
+    var selectedVersion = 0;
+    final warnings = <String>[];
     try {
-      final box = await _cache();
-      final stored = box.get('override');
-      if (stored != null) {
+      final bundled = await _readBundled();
+      selected = bundled.tokens;
+      selectedVersion = bundled.update.version;
+    } catch (failure) {
+      warnings.add('Bundled catalog unavailable: $failure');
+    }
+    try {
+      final box = await _openCache();
+      for (final key in ['override', 'previous']) {
+        final stored = box.get(key);
+        if (stored == null) continue;
         try {
-          final record = jsonDecode(stored) as Map;
-          final raw = record['payload'] as String;
-          if (sha256.convert(utf8.encode(raw)).toString() != record['sha256']) {
-            throw const FormatException('Stored catalog checksum mismatch');
+          final candidate = _decodeRecord(stored);
+          if (selected == null || candidate.update.version > selectedVersion) {
+            selected = candidate.tokens;
+            selectedVersion = candidate.update.version;
           }
-          _bundled = _parse(raw);
-          version = record['version'] as int;
-          loaded = true;
-          error = null;
-          notifyListeners();
-          return;
-        } catch (e) {
-          cacheFailure =
-              'Downloaded catalog could not be read; using bundled tokens. $e';
+        } catch (failure) {
+          // Keep unreadable/future records for recovery. Never clear storage
+          // merely to fall back to bundled or a prior compatible generation.
+          warnings.add(
+            'Downloaded catalog ($key) was retained but not used: $failure',
+          );
         }
       }
-    } catch (e) {
-      cacheFailure = 'Catalog cache unavailable; using bundled tokens. $e';
+    } catch (failure) {
+      warnings.add('Catalog cache unavailable: $failure');
     }
-    try {
-      final raw = await rootBundle.loadString(
-        'packages/doubling_season/assets/token_database.json',
-      );
-      final manifest =
-          jsonDecode(
-                await rootBundle.loadString(
-                  'packages/doubling_season/assets/token_manifest.json',
-                ),
-              )
-              as Map;
-      _bundled = _parse(raw);
-      version = (manifest['version'] as num?)?.toInt() ?? 0;
+    if (loaded && version > selectedVersion) {
+      selected = _bundled;
+      selectedVersion = version;
+    }
+    if (selected != null) {
+      _bundled = selected;
+      version = selectedVersion;
       loaded = true;
-      error = cacheFailure;
-    } catch (e) {
-      error = 'The token catalog could not be loaded: $e';
     }
+    error = warnings.isEmpty ? null : warnings.join(' ');
     notifyListeners();
+  }
+
+  Future<({CatalogUpdate update, List<TokenDefinition> tokens})>
+  _readBundled() async {
+    final raw = await _assets.loadString(
+      'packages/doubling_season/assets/token_database.json',
+    );
+    final update = CatalogUpdate.fromManifest(
+      Map<String, dynamic>.from(
+        jsonDecode(
+              await _assets.loadString(
+                'packages/doubling_season/assets/token_manifest.json',
+              ),
+            )
+            as Map,
+      ),
+    );
+    return (update: update, tokens: _validatePayload(raw, update));
+  }
+
+  List<TokenDefinition> _validatePayload(String raw, CatalogUpdate update) {
+    update.validate();
+    final bytes = utf8.encode(raw);
+    if (bytes.length > CatalogCompatibility.maximumPayloadBytes ||
+        (update.size != null && bytes.length != update.size)) {
+      throw const FormatException('Catalog size verification failed');
+    }
+    if (sha256.convert(bytes).toString() != update.sha256Hash.toLowerCase()) {
+      throw const FormatException('Catalog integrity verification failed');
+    }
+    return _parse(raw);
+  }
+
+  ({CatalogUpdate update, List<TokenDefinition> tokens}) _decodeRecord(
+    String stored,
+  ) {
+    final record = Map<String, dynamic>.from(jsonDecode(stored) as Map);
+    // Records written before this contract have no record version or reader
+    // metadata. They are exactly the historical v1 list/cache representation.
+    if (record.containsKey('record_version') &&
+        (record['record_version'] is! int || record['record_version'] != 1)) {
+      throw const FormatException('Unsupported catalog cache record version');
+    }
+    final update = CatalogUpdate.fromManifest(record);
+    return (
+      update: update,
+      tokens: _validatePayload(record['payload'] as String, update),
+    );
   }
 
   List<TokenDefinition> _parse(String raw) {
@@ -216,85 +348,94 @@ class TabletCatalog extends ChangeNotifier {
 
   Future<CatalogUpdate> checkForUpdate() async {
     try {
-      final response = await http
-          .get(Uri.parse(RemoteUrls.tokenManifestUrl))
-          .timeout(const Duration(seconds: 15));
+      final response = await _get(
+        Uri.parse(RemoteUrls.tokenManifestUrl),
+      ).timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
         throw StateError('Server returned ${response.statusCode}');
       }
-      final m = jsonDecode(response.body) as Map;
-      final v = (m['version'] as num).toInt();
-      final hash = m['sha256'] as String;
-      if (!RegExp(r'^[a-fA-F0-9]{64}$').hasMatch(hash)) {
-        throw const FormatException('Invalid catalog checksum');
-      }
-      return CatalogUpdate(
-        version: v,
-        sha256Hash: hash,
-        size: (m['size'] as num?)?.toInt(),
-        minimumVersion: m['min_app_version'] as String?,
+      return CatalogUpdate.fromManifest(
+        Map<String, dynamic>.from(jsonDecode(response.body) as Map),
       );
     } catch (e) {
       return CatalogUpdate(error: 'Update check failed: $e');
     }
   }
 
-  Future<void> applyUpdate(CatalogUpdate update) async {
-    if (update.error != null) throw StateError(update.error!);
+  Future<void> applyUpdate(CatalogUpdate update) => _serialize(() async {
+    update.validate();
     if (update.version <= version) return;
-    // Catalog format compatibility follows the shared phone app, whose schema we reuse.
-    if (update.minimumVersion != null &&
-        _compareVersion(update.minimumVersion!, '1.11.0') > 0) {
-      throw StateError(
-        'This catalog requires a newer Tripling Season edition (${update.minimumVersion}).',
-      );
+    final box = await _openCache();
+    final previous = box.get('override');
+    if (previous != null) {
+      // A downgraded client must not overwrite an unknown future cache. A
+      // damaged record is retained too; explicit Revert remains available.
+      final existing = _decodeRecord(previous);
+      if (existing.update.version >= update.version) {
+        // A prior flush may have failed after put changed Hive's read cache.
+        // Retry must establish durability, then activate the verified record.
+        await box.flush();
+        if (box.get('override') != previous) {
+          throw StateError('Catalog retry readback failed');
+        }
+        _bundled = existing.tokens;
+        version = existing.update.version;
+        loaded = true;
+        error = null;
+        notifyListeners();
+        return;
+      }
     }
-    final response = await http
-        .get(Uri.parse(RemoteUrls.tokenDatabaseUrl))
-        .timeout(const Duration(seconds: 60));
+    final retained = box.get('previous');
+    if (retained != null) _decodeRecord(retained);
+    final response = await _get(
+      Uri.parse(RemoteUrls.tokenDatabaseUrl),
+    ).timeout(const Duration(seconds: 60));
     if (response.statusCode != 200) {
       throw StateError('Download failed (${response.statusCode})');
     }
-    final bytes = response.bodyBytes;
-    if (update.size != null && bytes.length != update.size) {
-      throw const FormatException('Catalog size verification failed');
+    final raw = utf8.decode(response.bodyBytes);
+    final parsed = _validatePayload(raw, update);
+    final encoded = jsonEncode({
+      ...update.toManifest(),
+      'record_version': 1,
+      'payload': raw,
+    });
+    // Retain the last acknowledged generation before replacing the current
+    // one. Store metadata with the bytes so reopening checks compatibility too.
+    if (previous != null) {
+      await box.put('previous', previous);
+      await box.flush();
+      if (box.get('previous') != previous) {
+        throw StateError('Previous catalog readback failed');
+      }
     }
-    if (sha256.convert(bytes).toString() != update.sha256Hash.toLowerCase()) {
-      throw const FormatException('Catalog integrity verification failed');
-    }
-    final raw = utf8.decode(bytes);
-    final parsed = _parse(raw);
-    final box = await _cache();
-    // A catalog generation is one independently persisted key; game saves never
-    // copy, journal or archive these shared definition bytes.
-    await box.put(
-      'override',
-      jsonEncode({
-        'version': update.version,
-        'sha256': update.sha256Hash.toLowerCase(),
-        'payload': raw,
-      }),
-    );
+    await box.put('override', encoded);
     await box.flush();
+    if (box.get('override') != encoded) {
+      throw StateError('Catalog readback failed');
+    }
+    _decodeRecord(box.get('override')!);
     _bundled = parsed;
     version = update.version;
+    loaded = true;
+    error = null;
     notifyListeners();
-  }
+  });
 
-  Future<void> revertToBundled() async {
-    final box = await _cache();
-    await box.delete('override');
+  Future<void> revertToBundled() => _serialize(() async {
+    // Verify a usable replacement before discarding downloaded generations.
+    final bundled = await _readBundled();
+    final box = await _openCache();
+    // This is the existing explicit user-selected revert, never automatic
+    // cleanup during load/failure. Both downloaded generations must be removed
+    // or the previous one would reactivate on the next offline launch.
+    await box.deleteAll(['override', 'previous']);
     await box.flush();
-    await load();
-  }
-
-  static int _compareVersion(String a, String b) {
-    final x = a.split('.').map((s) => int.tryParse(s) ?? 0).toList();
-    final y = b.split('.').map((s) => int.tryParse(s) ?? 0).toList();
-    for (var i = 0; i < 3; i++) {
-      final d = (i < x.length ? x[i] : 0) - (i < y.length ? y[i] : 0);
-      if (d != 0) return d;
-    }
-    return 0;
-  }
+    _bundled = bundled.tokens;
+    version = bundled.update.version;
+    loaded = true;
+    error = null;
+    notifyListeners();
+  });
 }

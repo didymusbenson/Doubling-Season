@@ -19,7 +19,9 @@ List<T> _objects<T>(dynamic value, T Function(Map<String, dynamic>) parse) =>
 
 /// Independent product state. No phone Hive boxes or persisted adapters are used.
 class TabletState {
-  static const currentSchemaVersion = 1;
+  // Schema 1 was used by both 2–4 and 2–6 player writers. Schema 2 is an
+  // explicit reader boundary, not a change to original-app Hive adapters.
+  static const currentSchemaVersion = 2;
   static const maximumPlayers = 6;
   static const seatColors = [
     0xffd7bd78,

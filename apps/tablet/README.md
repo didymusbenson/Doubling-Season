@@ -1,5 +1,11 @@
 # Tripling Table
 
+**Update-safety continuation (2026-11-10):**
+The feature-only [catalog reader/cache safeguards](docs/catalog_update_safety_2026-11-10.md)
+join retained-save recovery and supporter persistence work. This is not original
+installation migration, native/store acceptance, or release authorization.
+
+
 **Current work (2026-11-10): migration/update safety foundations.**
 See the [current implementation and acceptance plan](../../docs/activeDevelopment/in_progress_features/tripling_season_update_plan.md).
 The baseline includes 2–6-player tables and fixed-Player-1 phone presentation.
@@ -9,7 +15,11 @@ deployment is part of this checkpoint. The integrated fixture migration and
 guarded supporter foundations pass 1,546 tests (8 expected skips), analysis and
 the release web build. They do not yet establish native migration/update safety.
 See [migration implementation](docs/legacy_migration_foundation.md) and the
-current plan for remaining gates. Later dated entries retain their own evidence.
+current plan for remaining gates.
+The [Table save compatibility boundary](docs/save_compatibility_2026-11-10.md)
+adds explicit format/schema 2 with retained pre-upgrade checkpoints and
+fail-closed rollback behavior. It does not establish native update safety.
+Later dated entries retain their own evidence.
 
 The separate tablet app developed from the Tripling Season iPad specifications.
 “Tripling Table” is a development name, not a selected store name.

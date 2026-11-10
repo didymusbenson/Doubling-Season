@@ -75,14 +75,39 @@ class _FailingPreferences extends InMemorySharedPreferencesStore {
   _FailingPreferences(super.data) : super.withData();
   String? failedKey;
   bool throws = false;
+  bool failOnlyOnce = false;
+  String? silentlyDroppedKey;
+  String? failReadAfterKey;
+  int readFailures = 0;
+  String? blockedKey;
+  Completer<void>? writeBarrier;
+  final writes = <(String, Object)>[];
+
+  @override
+  Future<Map<String, Object>> getAll() async {
+    if (readFailures > 0) {
+      readFailures--;
+      throw StateError('test preferences could not be reopened');
+    }
+    return super.getAll();
+  }
 
   @override
   Future<bool> setValue(String valueType, String key, Object value) async {
+    writes.add((key, value));
+    if (key == blockedKey) await writeBarrier?.future;
     if (key == failedKey) {
+      if (failOnlyOnce) failedKey = null;
       if (throws) throw StateError('test write failed');
       return false;
     }
-    return super.setValue(valueType, key, value);
+    if (key == silentlyDroppedKey) return true;
+    final result = await super.setValue(valueType, key, value);
+    if (key == failReadAfterKey) {
+      failReadAfterKey = null;
+      readFailures++;
+    }
+    return result;
   }
 }
 
@@ -493,6 +518,240 @@ void main() {
         },
       );
     }
+
+    test(
+      'failed color never leaks through cached preferences on reopening',
+      () async {
+        final persistence = _FailingPreferences({
+          'flutter.${keys[2]}': true,
+          'flutter.${LegacySupportContinuity.heartStyleKey}': 'future-style',
+        })..failedKey = 'flutter.${TableStorageKeys.supportColor}';
+        SharedPreferencesStorePlatform.instance = persistence;
+        final service = await create();
+        await service.setHeartColor(0xff010203);
+        // No manual reload between the failed write and opening another service.
+        final reopened = await create();
+        expect(reopened.legacyHeartStyle!.id, 'rainbow');
+        final preferences = await SharedPreferences.getInstance();
+        expect(preferences.containsKey(TableStorageKeys.supportColor), isFalse);
+        expect(
+          preferences.getString(LegacySupportContinuity.heartStyleKey),
+          'future-style',
+        );
+      },
+    );
+
+    for (final key in [TableStorageKeys.supportOwned, keys[2]]) {
+      test('store acknowledgement waits for actual $key readback', () async {
+        final persistence = _FailingPreferences({'flutter.${keys[0]}': true})
+          ..silentlyDroppedKey = 'flutter.$key';
+        SharedPreferencesStorePlatform.instance = persistence;
+        final service = await create();
+        store.emit(ids[2], PurchaseStatus.restored);
+        await flush();
+        expect(store.completed, isEmpty);
+        expect(service.owned, {ids[0]});
+        expect(service.message, contains('could not be saved'));
+        persistence.silentlyDroppedKey = null;
+        store.emit(ids[2], PurchaseStatus.restored);
+        await flush();
+        expect(store.completed, [ids[2]]);
+        expect(service.owned, {ids[0], ids[2]});
+      });
+    }
+
+    test(
+      'a lost color write cannot replace a preserved legacy gradient',
+      () async {
+        final persistence = _FailingPreferences({
+          'flutter.${keys[2]}': true,
+          'flutter.${LegacySupportContinuity.heartStyleKey}': 'temur',
+        })..silentlyDroppedKey = 'flutter.${TableStorageKeys.supportColor}';
+        SharedPreferencesStorePlatform.instance = persistence;
+        final service = await create();
+        await service.setHeartColor(0xff010203);
+        expect(service.legacyHeartStyle!.id, 'temur');
+        expect(service.message, contains('could not be saved'));
+        final reopened = await create();
+        expect(reopened.legacyHeartStyle!.id, 'temur');
+      },
+    );
+
+    test(
+      'readback failure leaves the transaction unacknowledged and retryable',
+      () async {
+        final persistence = _FailingPreferences({'flutter.${keys[0]}': true})
+          ..failReadAfterKey = 'flutter.${keys[2]}';
+        SharedPreferencesStorePlatform.instance = persistence;
+        final service = await create();
+        store.emit(ids[2], PurchaseStatus.restored);
+        await flush();
+        expect(store.completed, isEmpty);
+        expect(service.tier, 1);
+        expect(service.message, contains('could not be saved'));
+        store.emit(ids[2], PurchaseStatus.restored);
+        await flush();
+        expect(store.completed, [ids[2]]);
+        expect(service.tier, 3);
+        expect(service.message, isNull);
+      },
+    );
+
+    test(
+      'buy and restore remain blocked throughout receipt persistence',
+      () async {
+        final barrier = Completer<void>();
+        final persistence = _FailingPreferences({})
+          ..blockedKey = 'flutter.${TableStorageKeys.supportOwned}'
+          ..writeBarrier = barrier;
+        SharedPreferencesStorePlatform.instance = persistence;
+        final service = await create();
+        store.emit(ids[2], PurchaseStatus.purchased);
+        await flush();
+        expect(service.delivering, isTrue);
+        expect(service.busy, isTrue);
+        expect(service.message, contains('Saving your supporter badge'));
+        await service.buy(_product(ids[2]));
+        await service.buy(_product(ids[0]));
+        await service.restore();
+        expect(store.purchases, 0);
+        expect(store.restores, 0);
+        expect(store.completed, isEmpty);
+        barrier.complete();
+        await flush();
+        expect(service.busy, isFalse);
+        expect(store.completed, [ids[2]]);
+      },
+    );
+
+    test(
+      'ordered color writes keep the latest choice and untouched legacy value',
+      () async {
+        final barrier = Completer<void>();
+        final persistence =
+            _FailingPreferences({
+                'flutter.${keys[2]}': true,
+                'flutter.${LegacySupportContinuity.heartStyleKey}': 'azorius',
+              })
+              ..blockedKey = 'flutter.${TableStorageKeys.supportColor}'
+              ..writeBarrier = barrier;
+        SharedPreferencesStorePlatform.instance = persistence;
+        final service = await create();
+        final first = service.setHeartColor(0xff010203);
+        await flush();
+        final second = service.setHeartColor(0xff040506);
+        await flush();
+        expect(service.savingCosmetic, isTrue);
+        expect(persistence.writes.length, 1);
+        barrier.complete();
+        await Future.wait([first, second]);
+        expect(service.savingCosmetic, isFalse);
+        expect(service.heartColor, 0xff040506);
+        final reopened = await create();
+        expect(reopened.heartColor, 0xff040506);
+        final prefs = await SharedPreferences.getInstance();
+        expect(
+          prefs.getString(LegacySupportContinuity.heartStyleKey),
+          'azorius',
+        );
+      },
+    );
+
+    test(
+      'a queued successful choice clears the earlier queued color failure',
+      () async {
+        final barrier = Completer<void>();
+        final persistence = _FailingPreferences({'flutter.${keys[2]}': true})
+          ..failedKey = 'flutter.${TableStorageKeys.supportColor}'
+          ..failOnlyOnce = true
+          ..blockedKey = 'flutter.${TableStorageKeys.supportColor}'
+          ..writeBarrier = barrier;
+        SharedPreferencesStorePlatform.instance = persistence;
+        final service = await create();
+        final first = service.setHeartColor(0xff010203);
+        await flush();
+        final second = service.setHeartColor(0xff040506);
+        barrier.complete();
+        await Future.wait([first, second]);
+        expect(service.message, isNull);
+        expect(service.heartColor, 0xff040506);
+        expect(service.savingCosmetic, isFalse);
+        final reopened = await create();
+        expect(reopened.heartColor, 0xff040506);
+      },
+    );
+
+    test(
+      'color retry clears its own error without clearing a newer store error',
+      () async {
+        final persistence = _FailingPreferences({'flutter.${keys[2]}': true})
+          ..failedKey = 'flutter.${TableStorageKeys.supportColor}';
+        SharedPreferencesStorePlatform.instance = persistence;
+        final service = await create();
+        await service.setHeartColor(0xff010203);
+        expect(service.message, contains('could not be saved'));
+        persistence.failedKey = null;
+        await service.setHeartColor(0xff010203);
+        expect(service.message, isNull);
+        persistence.failedKey = 'flutter.${TableStorageKeys.supportColor}';
+        await service.setHeartColor(0xff040506);
+        final barrier = Completer<void>();
+        persistence
+          ..failedKey = null
+          ..blockedKey = 'flutter.${TableStorageKeys.supportColor}'
+          ..writeBarrier = barrier;
+        final retry = service.setHeartColor(0xff040506);
+        await flush();
+        store.updates.addError(StateError('new store failure'));
+        await flush();
+        barrier.complete();
+        await retry;
+        expect(service.message, contains('store could not finish'));
+        expect(service.heartColor, 0xff040506);
+      },
+    );
+
+    test(
+      'restore merges ownership added to the backing store after initialization',
+      () async {
+        final persistence = _FailingPreferences({});
+        SharedPreferencesStorePlatform.instance = persistence;
+        final service = await create();
+        await persistence.setValue(
+          'StringList',
+          'flutter.${TableStorageKeys.supportOwned}',
+          [ids[2], 'unknown-preserved'],
+        );
+        store.emit(ids[0], PurchaseStatus.restored);
+        await flush();
+        expect(service.owned, {ids[0], ids[2], 'unknown-preserved'});
+        final prefs = await SharedPreferences.getInstance();
+        expect(
+          prefs.getStringList(TableStorageKeys.supportOwned),
+          containsAll([ids[0], ids[2], 'unknown-preserved']),
+        );
+      },
+    );
+
+    test(
+      'failed refresh never revokes the last confirmed offline tier or style',
+      () async {
+        final persistence = _FailingPreferences({
+          'flutter.${keys[2]}': true,
+          'flutter.${LegacySupportContinuity.heartStyleKey}': 'simic',
+        });
+        SharedPreferencesStorePlatform.instance = persistence;
+        store.available = false;
+        final service = await create();
+        persistence.readFailures = 1;
+        await service.initialize();
+        expect(service.tier, 3);
+        expect(service.legacyHeartStyle!.id, 'simic');
+        expect(persistence.writes, isEmpty);
+        await service.initialize();
+        expect(service.tier, 3);
+      },
+    );
 
     test('overlapping restore events retain every original tier', () async {
       final service = await create();
