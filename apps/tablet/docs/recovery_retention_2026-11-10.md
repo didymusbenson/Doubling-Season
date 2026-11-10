@@ -70,11 +70,33 @@ snapshot, original-installation coverage or restore readiness.
 
 ## Validation
 
-Before the full regression checkpoint, the focused retention suite passes
-**23 tests** and full `flutter analyze --no-pub` reports **no issues** (1.5s).
-Full/namespace regression, release web compilation and the unchanged standalone
-JavaScript validator harness remain in progress. No update-safety or release
-claim is made.
+Validated source `4c898d266d6457c64e32ddfffa909df10acd952a`, tree
+`3cd5a699b75c6a98e90715d30a028522ca891c25`, matches the remotely fetched
+feature-branch checkpoint exactly. Only documentation changes follow this
+runtime/test checkpoint. The existing validator and JavaScript harness are
+unchanged.
+
+Final checks use Flutter 3.41.2 / Dart 3.11.0 on Linux:
+
+- Focused retention suite: **23 passed**.
+- Full `flutter analyze --no-pub`: **no issues**, 1.5 seconds.
+- Full `flutter test --no-pub --reporter expanded`: **2,119 passed / 8 expected
+  skips**, 5m54s.
+- Explicit `phone_preview_v1` safety selection: **604 passed / 57 intentional
+  same-app-only skips**, 32 seconds.
+- Release JavaScript web compilation: **passed**, 36.5 seconds. Optional Wasm
+  compiler dry run passed; Wasm runtime acceptance was not performed. The
+  existing `--pwa-strategy` deprecation warning remains.
+- Unchanged standalone JavaScript validator harness: **39 checks passed**.
+- Independent frozen-source/test review: **no remaining blocking findings**.
+- Whitespace and all **42 local links** in changed records/current plan pass.
+  Lockfiles, original startup/native identities and the pure validator are
+  unchanged.
+
+The file-I/O retainer is dormant native code. App web compilation and the
+JavaScript parser harness do not exercise native filesystem behavior. No new
+native build, physical-device update, real-user-data capture or store restore
+was performed. No collective migration/update-safe or release claim is made.
 
 Focused coverage includes:
 
@@ -97,6 +119,28 @@ Focused coverage includes:
 
 These are Linux fault tests, not a physical full volume, device power loss,
 platform retention acceptance or an original installation update.
+
+Reproduce from `apps/tablet` with Flutter 3.41.2 and resolved dependencies:
+
+```sh
+flutter analyze --no-pub
+flutter test --no-pub --reporter expanded
+flutter test --no-pub --reporter expanded \
+  --dart-define=TABLE_STORAGE_NAMESPACE=phone_preview_v1 \
+  test/legacy_*test.dart test/native_recovery_capacity_test.dart \
+  test/historical_hive_fixtures_test.dart test/later_historical_hive_fixtures_test.dart \
+  test/table_startup_gate_test.dart test/catalog_compatibility_test.dart \
+  test/table_repository_compatibility_test.dart test/support_continuity_test.dart \
+  test/storage_namespace_test.dart test/update_foundations_integration_test.dart
+flutter build web --release --no-pub \
+  --base-href /Doubling-Season/tablet/ --pwa-strategy=none
+dart compile js --packages=.dart_tool/package_config.json \
+  tool/recovery_validator_smoke.dart -o build/recovery_validator_smoke.js
+node -e "globalThis.self=globalThis;require('./build/recovery_validator_smoke.js')"
+```
+
+No source commit statuses or PR-triggered workflow runs were recorded. No PR,
+default merge, deployment or release occurred.
 
 ## Remaining acceptance
 
