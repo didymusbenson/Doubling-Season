@@ -127,8 +127,16 @@ Follow-up checkpoint validation (Flutter 3.41.2 / Dart 3.11.0):
 - Independent read-only review identified a queued-color feedback race. The
   fix and failed-first/successful-second regression passed re-review; no
   remaining concrete correctness issue was found.
-- Final release web build and full regression rerun are pending at this
-  checkpoint. The earlier partial full run was deliberately stopped to include
-  the review fix, not recorded as a pass. Heavy builds are being serialized.
+- Final release JavaScript web build passed; Wasm compiler dry run also passed.
+  No browser/Wasm runtime or native acceptance is claimed.
+- To avoid duplicate heavy runs, the standalone full regression rerun was
+  intentionally stopped after 508 passing tests and 7 encountered skips, with
+  no observed failures. This is not a full-suite pass. The final integrated
+  exact-tree suite is authoritative and remains required before integration
+  validation is complete. An earlier partial run was also stopped to include
+  the review fix; neither partial run is counted as a pass.
+- Source checkpoint `aaab229` on `feat/table-support-acceptance-20261110` is
+  remotely verified with the same tree as the validated local source. The final
+  handoff changes this validation record only.
 
 No native upgrade/store exercise or feature acceptance is claimed.
