@@ -1,21 +1,33 @@
 import '../storage/storage_namespace.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:doubling_season/models/heart_style.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'legacy_support_continuity.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Optional, non-consumable cosmetic support. Product identifiers are supplied
-/// by this app's release configuration, never borrowed from the phone product.
+/// by this app's release configuration. Original purchase continuity is dormant
+/// unless explicitly requested in a verified same-app native update.
 class TableSupportService extends ChangeNotifier {
   static final instance = TableSupportService._();
-  TableSupportService._() : _storeOverride = null, _productIds = productIds;
+  TableSupportService._()
+    : _storeOverride = null,
+      _productIds = productIds,
+      _legacyContinuityRequested = LegacySupportContinuity.requested,
+      _packageNameLoader = _installedPackageName;
 
   @visibleForTesting
   TableSupportService.forTesting({
     required InAppPurchase store,
     required List<String> configuredProductIds,
+    bool legacyContinuityRequested = false,
+    Future<String> Function()? packageNameLoader,
   }) : _storeOverride = store,
-       _productIds = configuredProductIds;
+       _productIds = configuredProductIds,
+       _legacyContinuityRequested = legacyContinuityRequested,
+       _packageNameLoader = packageNameLoader ?? _installedPackageName;
   static const productIds = [
     String.fromEnvironment('TABLE_SUPPORT_THANKS_ID'),
     String.fromEnvironment('TABLE_SUPPORT_PLAY_ID'),
@@ -24,6 +36,28 @@ class TableSupportService extends ChangeNotifier {
   static const tierNames = ['Say thanks', 'Play Booster', 'Collector Booster'];
   final InAppPurchase? _storeOverride;
   final List<String> _productIds;
+  final bool _legacyContinuityRequested;
+  final Future<String> Function() _packageNameLoader;
+  bool _legacyContinuityEnabled = false;
+  String? _legacyHeartStyleId;
+  bool _hasTableHeartColor = false;
+
+  static Future<String> _installedPackageName() async =>
+      (await PackageInfo.fromPlatform()).packageName;
+
+  /// Preserve original tier colors and named/gradient collector badges. An
+  /// explicit Table collector color choice takes priority over the old style.
+  HeartStyle? get legacyHeartStyle {
+    if (!_legacyContinuityEnabled || tier == 0) return null;
+    if (tier == 1) return HeartStyle.red();
+    if (tier == 2) return HeartStyle.blue();
+    if (_hasTableHeartColor) return null;
+    return HeartStyle.getAllStyles().firstWhere(
+      (style) => style.id == _legacyHeartStyleId,
+      orElse: HeartStyle.rainbow,
+    );
+  }
+
   InAppPurchase get _store => _storeOverride ?? InAppPurchase.instance;
   final Set<String> owned = {};
   List<ProductDetails> products = [];
@@ -41,6 +75,12 @@ class TableSupportService extends ChangeNotifier {
   int heartColor = 0xff93bd9b;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
   Future<void>? _initialization;
+  Future<void> _updateQueue = Future<void>.value();
+  bool _disposed = false;
+
+  void _notify() {
+    if (!_disposed) notifyListeners();
+  }
 
   void _setMessage(String? value, {PurchaseDetails? purchase}) {
     _message = value;
@@ -72,11 +112,38 @@ class TableSupportService extends ChangeNotifier {
   Future<void> _initialize() async {
     loading = true;
     _setMessage(null);
-    notifyListeners();
+    _notify();
     try {
       final prefs = await SharedPreferences.getInstance();
-      owned.addAll(prefs.getStringList(TableStorageKeys.supportOwned) ?? []);
-      heartColor = prefs.getInt(TableStorageKeys.supportColor) ?? heartColor;
+      final savedOwnership = prefs.get(TableStorageKeys.supportOwned);
+      if (savedOwnership is List) {
+        owned.addAll(savedOwnership.whereType<String>());
+      }
+      final savedColor = prefs.get(TableStorageKeys.supportColor);
+      _hasTableHeartColor = savedColor is int;
+      if (savedColor is int) heartColor = savedColor;
+      if (_legacyContinuityRequested) {
+        _legacyContinuityEnabled = LegacySupportContinuity.isCompatible(
+          requested: true,
+          isWeb: kIsWeb,
+          platform: defaultTargetPlatform,
+          storageNamespace: tableStorageNamespace,
+          packageName: kIsWeb || tableStorageNamespace.isNotEmpty
+              ? ''
+              : await _packageNameLoader(),
+          configuredProductIds: _productIds,
+        );
+        if (!_legacyContinuityEnabled) {
+          available = false;
+          products = [];
+          _setMessage(
+            'Original support purchases require the verified original app and product configuration. Purchases are disabled in this build.',
+          );
+          return;
+        }
+        owned.addAll(LegacySupportContinuity.cachedOwnership(prefs));
+        _legacyHeartStyleId = LegacySupportContinuity.cachedHeartStyle(prefs);
+      }
       if (kIsWeb || _productIds.any((id) => id.isEmpty)) {
         _setMessage(
           'Support purchases aren’t available in this build. All gameplay is included.',
@@ -91,13 +158,17 @@ class TableSupportService extends ChangeNotifier {
         return;
       }
       _subscription ??= _store.purchaseStream.listen(
-        _updates,
+        (updates) {
+          // Purchase callbacks can overlap while preference writes are pending.
+          // Serialize them so a later tier never overwrites an earlier one.
+          _updateQueue = _updateQueue.then((_) => _updates(updates));
+        },
         onError: (Object e) {
           pending = false;
           _setMessage(
             'The store could not finish this request. Try again later.',
           );
-          notifyListeners();
+          _notify();
         },
       );
       final result = await _store.queryProductDetails(_productIds.toSet());
@@ -113,15 +184,23 @@ class TableSupportService extends ChangeNotifier {
       );
     } finally {
       loading = false;
-      notifyListeners();
+      _notify();
     }
   }
 
   Future<void> buy(ProductDetails product) async {
-    if (pending || restoring || owned.contains(product.id)) return;
+    if (!available ||
+        loading ||
+        pending ||
+        restoring ||
+        owned.contains(product.id) ||
+        !_productIds.contains(product.id) ||
+        !products.any((candidate) => candidate.id == product.id)) {
+      return;
+    }
     pending = true;
     _setMessage(null);
-    notifyListeners();
+    _notify();
     try {
       final started = await _store.buyNonConsumable(
         purchaseParam: PurchaseParam(productDetails: product),
@@ -129,12 +208,12 @@ class TableSupportService extends ChangeNotifier {
       if (!started) {
         pending = false;
         _setMessage('The purchase did not start. Please try again.');
-        notifyListeners();
+        _notify();
       }
     } catch (_) {
       pending = false;
       _setMessage('The store could not start the purchase.');
-      notifyListeners();
+      _notify();
     }
   }
 
@@ -142,7 +221,7 @@ class TableSupportService extends ChangeNotifier {
     if (!available || pending || restoring) return;
     restoring = true;
     _setMessage(null);
-    notifyListeners();
+    _notify();
     try {
       await _store.restorePurchases();
     } catch (_) {
@@ -152,7 +231,7 @@ class TableSupportService extends ChangeNotifier {
     } finally {
       restoring = false;
     }
-    notifyListeners();
+    _notify();
   }
 
   Future<void> _updates(List<PurchaseDetails> updates) async {
@@ -165,9 +244,25 @@ class TableSupportService extends ChangeNotifier {
         final resolvesPreviousError =
             _messagePurchase == (purchase.productID, purchase.purchaseID);
         try {
-          owned.add(purchase.productID);
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setStringList(TableStorageKeys.supportOwned, owned.toList());
+          final updatedOwned = {...owned, purchase.productID};
+          if (!await prefs.setStringList(
+            TableStorageKeys.supportOwned,
+            updatedOwned.toList(),
+          )) {
+            throw StateError('Support ownership was not persisted');
+          }
+          if (_legacyContinuityEnabled) {
+            final key = LegacySupportContinuity.purchaseKeyFor(
+              purchase.productID,
+            )!;
+            // Keep the original cache usable if the previous version is opened
+            // again. Never clear another tier or claim a different product ID.
+            if (!await prefs.setBool(key, true)) {
+              throw StateError('Original support ownership was not persisted');
+            }
+          }
+          owned.add(purchase.productID);
           if (purchase.pendingCompletePurchase) {
             await _store.completePurchase(purchase);
           }
@@ -188,19 +283,27 @@ class TableSupportService extends ChangeNotifier {
         );
       }
     }
-    notifyListeners();
+    _notify();
   }
 
   Future<void> setHeartColor(int color) async {
     if (tier < 3) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(TableStorageKeys.supportColor, color);
-    heartColor = color;
-    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!await prefs.setInt(TableStorageKeys.supportColor, color)) {
+        throw StateError('Support color was not persisted');
+      }
+      heartColor = color;
+      _hasTableHeartColor = true;
+    } catch (_) {
+      _setMessage('Your badge color could not be saved. Please try again.');
+    }
+    _notify();
   }
 
   @override
   void dispose() {
+    _disposed = true;
     unawaited(_subscription?.cancel());
     super.dispose();
   }

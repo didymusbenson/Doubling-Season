@@ -1,51 +1,42 @@
-# Phone mode — feature-branch implementation
+# Phone mode: current implementation and acceptance
 
-Status: **WIP, not validated or released.** Branch: `feature/phone-mode`.
+**Source inspected 2026-11-10 at `0273043`. Implemented, not release accepted.**
+The phone source is present in `apps/tablet`; `feature/phone-mode` and PR #66 are
+historical implementation checkpoints, not evidence of current remote status.
+Use the [current update matrix](../tripling_season_update_plan.md) for migration
+and release gates and the [October record](../../todo_features/unified_tripling_season/implementation_summary.md)
+for dated tests and independent design choices.
 
-## Explicit direction
+## Required behavior and source
 
-Fixed Player 1 of the N-player session. Fixed compact life above one scrolling
-utilities-then-tokens body. Approved option C means direct Add Token, Utilities
-jump and More. No generated concept image is used as design context or committed.
-Tablets retain full-table presentation, phones compact; folding dismisses menus
-and modals while preserving the complete session. Keep separate Table identity
-until a later deliberate original-product cutover. Do not merge this feature into
-stable main merely because a checkpoint builds.
+- `ui/table_presentation.dart` selects fixed Player 1 using physical display size
+  on native builds, with a provisional 600 logical-pixel shortest-side threshold.
+  Stable tablet web remains full-table; explicit preview builds may select phone.
+- `ui/phone_player_view.dart` and `ui/table_screen.dart` provide fixed compact life,
+  utilities then tokens in one scrolling body, and option C: Add Token, Utilities
+  jump, More. Use actual Table styling, not discarded generated concept images.
+- The same 2–6-player session and command authority serve both presentations.
+  View changes are not player-count changes, resets, migrations or new histories.
+- Phone native keyboards, retained field drafts and input cancellation are in the
+  source. Tablet input remains player-facing. Pending accepted commands must
+  complete once, and stale drafts must not overwrite newer state.
+- Development iOS family `1,2` retains `LooseTie.Tripling-Table`; original IDs and
+  providers are not used. No original-installation migration is wired at baseline.
 
-## Current implementation and independent judgments
+## Evidence and remaining acceptance
 
-- Added a presentation-only host; it does not reset a game or alter player count.
-  Physical display size, not a narrow tablet window, chooses native compact mode.
-  Web compact preview requires an explicit build define. Threshold is provisional
-  and requires foldable/native validation; hardware posture accuracy is not proven.
-- Reuses actual Table token cards, utility controls, commander editor and command
-  model. No generated-image token layout/style is carried into implementation.
-- Keeps visited view trees at their last meaningful layout sizes offstage to retain
-  item-local drafts and scroll state during reflow. This avoids a second state
-  authority but needs memory/performance and stale-target tests.
-- Added explicit non-committing posture dismissal for keyboard/workspace drafts,
-  idempotent close handling, and numeric-hold cancellation epochs.
-- Utilities action opens management when empty; otherwise scrolls to the actual
-  utility section. More separates Player 1 tools from whole-game tools/history.
-- Adapts selected-token and utility-detail layouts at compact content widths.
-- iOS family includes iPhone and iPad under the unchanged Table bundle ID. No
-  production original-app identity, release version or OTA data is changed.
+Tests include `phone_presentation_test.dart`, `phone_draft_retention_test.dart`
+and `native_phone_keyboard_test.dart`. Later whole-app recorded validation is
+linked from the [current plan](../tripling_season_update_plan.md#validation-record-and-commands).
+The October SDK-blocked/authored-not-executed status is superseded by later
+recorded executions; it must not be repeated as a present tool limitation.
 
-## Validation and open work
+Still required for final acceptance: physical phone/foldable classification,
+landscape/large-text/native keyboard and picker coverage, fold transitions during
+holds and pending saves, stale/deleted draft targets, hidden-seat/partner state,
+performance and accessibility. Keep actual device evidence separate from widget,
+browser, simulator and build results. Current main/preview/native-install status
+must be checked rather than inferred from these source files.
 
-Offline Dart formatting and whitespace checks run in cloud. Full SDK bootstrap
-was blocked after dependency tooling attempted an unnecessary cloud metadata
-request; no credentials/metadata access was pursued. Analyzer, runtime tests and
-builds must run through authorized CI before claiming readiness.
-
-Independent review identified draft recovery, duplicate route-pop, hidden hold,
-reordering, small-modal overflow and action semantics issues; corrections are
-being integrated. New tests cover presentation policy, Player 1 targeting, basic
-posture continuity, non-committing keyboard dismissal and phone layout captures.
-These are authored tests, not yet a claim of passing execution.
-
-Still required: end-to-end phone routes, full existing tablet regression suite,
-real rendered UX review, large text/keyboard stress, fold transitions during
-pending saves and drafts, preview storage isolation, signed native feature build
-and device validation. Migration/preset gaps are documented separately; no live
-original-install migration or production cutover is implemented here.
+Original-product cutover and release remain held. Phone readiness does not prove
+safe migration, entitlement continuity or complete original feature parity.

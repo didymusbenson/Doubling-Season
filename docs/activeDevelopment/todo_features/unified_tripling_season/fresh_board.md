@@ -1,6 +1,9 @@
 # First migrated game: preserve Player 1's board
 
-**Status: DEFERRED / SPECULATIVE / NOT IMPLEMENTED.** See [scope](README.md).
+**Status: active implementation contract, 2026-11-10; original-install acceptance open.**
+Isolated fixture conversion is authorized. The complete live installation
+migration is not implemented or accepted at baseline `0273043`; track M1–M4 and
+M9 in the [current plan](../../in_progress_features/tripling_season_update_plan.md).
 
 ## Latest direction supersedes the fresh-board proposal
 
@@ -67,5 +70,6 @@ presentation changes never rerun migration or call a game-reset command.
 - Switching phone/full-table view preserves Player 1's migrated board and all
   hidden players; no gameplay action is inferred from posture.
 
-No live migration, cleanup, automatic source deletion or production cutover is
-implemented or authorized by this document.
+This contract authorizes isolated development, not automatic migration of a real
+installation, source deletion, production cutover, merge or release. The source
+snapshot and all unsupported entries must remain recoverable.

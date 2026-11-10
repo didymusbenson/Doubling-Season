@@ -1,4 +1,26 @@
-# IPAD EDITION
+# Tripling Table: tablet dossier and current status
+
+**Current source checkpoint: `0273043`, reconciled 2026-11-10.**
+Use the [Tripling Season update plan](../tripling_season_update_plan.md) as the
+current implementation/acceptance index. Table already supports 2–6 players,
+adaptive local Tokens/Utilities views, and fixed-Player-1 phone presentation.
+The separate identity remains the development safety boundary while migration
+foundations are built for a possible original-product update. Release is held.
+
+Recent source/evidence: [adaptive five/six seats](adaptive_five_six_seats_2026-11-05.md),
+[soft player spaces](soft_player_spaces_2026-11-06.md),
+[phone status](../phone_mode/implementation.md),
+[latest creation-preview fix](../../bug_bashing/token_creation_corners_2026-11-09.md).
+The dated 2–4-player and phone-deferred statements below describe the original
+MVP, not the current implemented source. Native acceptance and migration safety
+are not established by web/source checks. D37 curated utilities and deferred
+custom-rule authoring still require explicit Season-update parity decisions.
+
+## Historical October discovery and correction record
+
+The paragraphs below retain the dated design history. Their original 2–4-only,
+separate-final-product and pending-review labels are superseded by the current
+summary above where later work changed the scope.
 
 **Latest utility revision:** [built-in redundancy cleanup](utility_redundancy_2026-10-23.md), pending final parent review. Stored legacy payloads/history remain intact.
 

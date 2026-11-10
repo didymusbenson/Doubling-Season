@@ -38,6 +38,8 @@ class PresetService {
     'artworkUrl': t.artworkUrl,
     'artworkSet': t.artworkSet,
     'artworkOptions': t.artworkOptions,
+    if (t.extra['artworkDisplayStyle'] case final String style)
+      'artworkDisplayStyle': style,
   };
   Map<String, dynamic> _utilityTemplate(UtilityState u) => {
     'kind': u.kind,
@@ -138,6 +140,10 @@ class PresetService {
             artworkUrl: m['artworkUrl'] as String?,
             artworkSet: m['artworkSet'] as String?,
             artworkOptions: d.artwork.map((a) => a.toJson()).toList(),
+            extra: {
+              if (m['artworkDisplayStyle'] case final String style)
+                'artworkDisplayStyle': style,
+            },
           );
           p.tokens.add(t);
           if (t.artworkUrl != null) {

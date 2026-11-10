@@ -1,7 +1,9 @@
 # Phone presentation: fixed Player 1 of an N-player game
 
-**Status: option C approved; implementation isolated on the phone feature branch.**
-The feature stays on a dedicated branch and keeps the Tripling Table identity.
+**Status: option C is implemented in the Table development source at `0273043`.**
+Original-product cutover and physical phone/foldable acceptance remain open.
+The original feature branch is historical context; the current work keeps the
+Tripling Table identity and a separate unreleased checkpoint.
 See [product scope](README.md) and [decision/progress record](implementation_summary.md).
 
 ## Explicit owner decisions (2026-10-30)
@@ -111,6 +113,6 @@ tokens, large text, both phone orientations and keyboard validation failures.
 Exercise folds during holds, pending saves, edits, menus and history operations.
 Verify all hidden seats and partner commander relationships, not only Player 1.
 
-Capture design/UX reviews at realistic populated sizes. Keep 2–4-player tablet
+Capture design/UX reviews at realistic populated sizes. Keep current 2–6-player tablet
 visual/behavioral regressions intact. No automatic route is enabled in the stable
 main tablet app merely to expose the experimental preview.

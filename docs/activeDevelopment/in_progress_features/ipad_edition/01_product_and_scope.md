@@ -1,5 +1,14 @@
 # Product and scope
 
+**Current-status note (2026-11-10):** retain the dated design/evidence below as
+history, using the [current implementation and acceptance matrix](../tripling_season_update_plan.md)
+for scope and work status. Source at `0273043` includes 2–6-player tables and phone
+presentation; separate Table identity remains for development, and isolated
+migration foundations are now active. Older 2–4-only, phone-deferred or
+migration-unapproved language does not describe the current work. Existing
+behavioral contracts remain unless the newer plan explicitly supersedes them;
+release, real-installation cutover and unrun native acceptance remain held.
+
 **Status:** confirmed direction plus proposed release boundaries. See [decision status](09_decision_register.md).
 
 **Accepted preset direction:** save/load reusable token lists and utility preferences through an evolution of Decks. Loading targets one seat with empty-state selected token entries and configured utilities. Optional deck image can update that seat’s saved life art; player name and other seats’ art remain independent. D38 accepts midgame replace and append for that seat’s preset-managed fields, each as one undoable action; neither resets life, commander damage, player counters or the timeline. Commander selection remains unapproved.

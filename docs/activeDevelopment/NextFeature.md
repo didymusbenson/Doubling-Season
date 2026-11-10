@@ -1,6 +1,19 @@
 # Feature Priority Queue
 
-**Last updated:** 2026-10-20 (IPAD EDITION discovery link; queue unchanged)
+**Last updated:** 2026-11-10 (current cross-product priority reconciled).
+
+## Current priority: migration/update safety, then feature work
+
+Use the [Tripling Season update plan](in_progress_features/tripling_season_update_plan.md)
+for active work, evidence and acceptance gates. Table already contains 2–6-player
+and phone presentations. Build isolated non-destructive migration/supporter
+foundations now; continue the feature set before release. No production cutover,
+merge, deployment or store release is authorized by this queue.
+
+## Historical original-app queue
+
+The following 1.11/1.12 queue is retained as original-app history, not a statement
+that Table is still discovery-only or that migration work must wait behind it.
 
 The 1.11 implementation scope is closed aside from acceptance testing. New
 implementation work proceeds through the immediate queue below.
@@ -51,14 +64,15 @@ priority:
    path reuse live in `todo_features/Optimizations.md`; none is required for
    1.11 acceptance.
 
-## Separate Project Discovery
+## Table development dossier
 
 - **IPAD EDITION** — new Flutter large-screen/tabletop project with a central
   life tracker and independent per-player token and utility lanes. Detailed
   product, architecture, isolation, recovery, research, validation and open
   decisions live in [the planning dossier](in_progress_features/ipad_edition/README.md).
-  Discovery only; this does not change the 1.11 acceptance or implementation
-  priorities above.
+  The original discovery status is superseded by implemented Table/phone work
+  and the current migration/update plan linked above; original release evidence
+  remains independently scoped.
 
 ## Explicitly Descoped
 

@@ -225,8 +225,16 @@ metadata.
 | 5 | TokenArtworkPreference |
 | 6 | TrackerWidget |
 | 7 | ToggleWidget |
+| 8 | TrackerWidgetTemplate |
+| 9 | ToggleWidgetTemplate |
+| 10 | TokenRule |
+| 11 | RuleTrigger |
+| 12 | RuleOutcome |
 
-Next new model gets ID **8**. Add to `HiveTypeIds` in `lib/utils/constants.dart` and register in `hive_setup.dart`.
+IDs 0–12 are allocated at `0273043`; recheck `HiveTypeIds` in
+`lib/utils/constants.dart` and registered adapters before any new allocation.
+13 is only the next currently unallocated ID, not an approved migration schema
+change. Preserve every existing type ID and field index.
 
 **CRITICAL — Always specify `defaultValue` when adding new fields to existing models.**
 Without it, Hive cannot deserialize old user data → data loss on upgrade.
@@ -316,6 +324,13 @@ Use the actual provider/status paths as the behavioral authority, including
 eligible sickness added by a positive absolute-total edit.
 
 ### Separate tablet app
+
+Current plan: [migration/update implementation and acceptance](docs/activeDevelopment/in_progress_features/tripling_season_update_plan.md)
+(2026-11-10). The source includes 2–6-player adaptive tables and fixed-Player-1
+phone presentation. Keep Table development identity/storage and original app data
+intact; migration foundation work is not original-identity cutover or release.
+Older 2–4 layout/October review notes below are historical where superseded by
+later adaptive-seat and soft-player-space implementation records.
 
 Tablet icon artwork lives in `apps/tablet/assets/AppIconSource.png`. Regenerate
 only its iOS/Android/web icons with `python3 apps/tablet/tool/generate_app_icons.py`

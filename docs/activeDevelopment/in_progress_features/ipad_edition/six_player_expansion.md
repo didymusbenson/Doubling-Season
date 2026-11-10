@@ -1,5 +1,12 @@
 # Six-player expansion
 
+**Implemented scope supersedes this historical proposal:** at `0273043`, New
+Game and saved-state validation support 2–6 players. See the
+[2026-11-05 implementation/evidence](adaptive_five_six_seats_2026-11-05.md) and
+[current acceptance matrix](../tripling_season_update_plan.md). Native tuning
+remains open. The original deferred-scope text below records the October decision
+and is no longer an instruction to defer or remove existing five/six-player code.
+
 **Status:** deferred feature, requested 2026-10-21. Initial scope remains customizable **2–4 players**; five/six-player implementation and release support are not promised now.
 **Related:** [D04](09_decision_register.md), [layout](02_layout_and_interaction.md), [validation](08_delivery_validation_and_risks.md).
 

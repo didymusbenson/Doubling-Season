@@ -1,5 +1,14 @@
 # Data, persistence and migration
 
+**Current-status note (2026-11-10):** retain the dated design/evidence below as
+history, using the [current implementation and acceptance matrix](../tripling_season_update_plan.md)
+for scope and work status. Source at `0273043` includes 2–6-player tables and phone
+presentation; separate Table identity remains for development, and isolated
+migration foundations are now active. Older 2–4-only, phone-deferred or
+migration-unapproved language does not describe the current work. Existing
+behavioral contracts remain unless the newer plan explicitly supersedes them;
+release, real-installation cutover and unrun native acceptance remain held.
+
 **Status:** current-game state/history persistence and latest-action global undo are required; concrete storage engine, migration, session format, acknowledgement and preference policies remain proposals. Resolve D14–D24 in the [decision register](09_decision_register.md). Current-code statements refer to baseline `8894640543833eaf37bd62b971a0955c26bafa49`; see the [evidence audit](../../../../ai_docs/research/2026-10-20-ipad-edition-current-architecture.md).
 
 ## Existing behavior that constrains reuse

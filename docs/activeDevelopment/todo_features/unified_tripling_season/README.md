@@ -1,90 +1,53 @@
-# Unified Tripling Season — speculative future direction
+# Unified Tripling Season: current direction and source contracts
 
-**Status: OPTION C APPROVED / PHONE FEATURE-BRANCH IMPLEMENTATION.** Updated 2026-10-30.
-This records the agreed direction and open design choices, not a release promise
-or permission to migrate/reset anyone's installation now. Phone implementation
-is authorized after option C approval and remains isolated on its feature branch.
+**Updated 2026-11-10: migration/update safety work is active; release is held.**
+Start with the [current implementation and acceptance matrix](../../in_progress_features/tripling_season_update_plan.md).
+This directory keeps its historical path so existing links work. It is no longer
+an all-speculative or phone-not-implemented proposal.
 
-## Direction recorded from the owner
+## Current direction
 
-Explore shipping the Tripling Table experience as an update to the original
-Tripling Season, retaining its existing installation and store identity instead
-of requiring a separate app. Keep the new Table styles and aesthetic.
+Develop the Table experience toward a future update to the original Tripling
+Season, preserving its installation identity and durable user value. Continue
+using the separate Tripling Table identity and isolated storage for development.
+Do not switch identifiers, replace original installations, merge or publish as
+part of the present safety milestone. The owner will continue feature work before
+release.
 
-Phone view means **Seat 1 of an N-player game**, not a new one-player game type.
-A four-player session remains four-player when only Seat 1 is visible. Its
-life, counters and commander-damage relationships still belong to that session.
-Screen size/posture changes presentation, never player count or game state.
-The other seats remain intact and become visible in the full-table layout.
+At baseline `0273043` (`fix/tripling-card-corners-20261109`), `apps/tablet`
+already has 2–6-player sessions, adaptive player-local token/utility views, and
+fixed-Player-1 phone presentation. Phone view does not change the session count.
+Native phone posture/device acceptance remains open; stable web full-table and
+explicit phone-preview routing remain distinct.
 
-The owner requested three speculative documents:
+## Contracts and evidence
 
-1. [Safe installation and deck migration](migration.md): existing saved TS decks
-   must become usable TT configurations without losing persistent content.
-2. [First migrated board continuity](fresh_board.md): preserve existing live
-   token state and enabled utilities with Table counterparts. This supersedes
-   the earlier fresh-board reset proposal.
-3. [Focused Seat 1 phone experience](focused_seat.md): compact life above tokens,
-   complete commander/counter controls, utilities and thumb-reachable actions.
+- [Migration](migration.md): preserve saved decks, custom definitions, preferences,
+  media and supporters; build non-destructive, resumable migration foundations.
+- [First migrated board continuity](fresh_board.md): retain the live token board
+  and enabled supported utilities. The earlier clear-board proposal is superseded.
+- [Focused Player 1](focused_seat.md): approved option C, one scrolling body,
+  compact life and complete hidden-session continuity.
+- [Saved-configuration audit](preset_audit.md): concrete partial mappings and
+  missing acceptance; JSON import alone is not installation migration.
+- [Phone decision/history record](implementation_summary.md): historical branch
+  checkpoints and independent choices, not current release certification.
+- [Temporary preview and cutover cleanup](preview_workflow.md): distinct storage,
+  combined publisher and later retirement requirements. No deployment now.
 
-## Feature-branch preview infrastructure
+## Unchanged boundaries
 
-Phone implementation stays on a separate feature branch; main remains the stable
-tablet delivery line. See [temporary Pages preview and mandatory cutover cleanup](preview_workflow.md)
-for the custom publisher and isolated browser storage. Infrastructure setup does
-not start the deferred phone UI.
+Keep original source/providers/identifiers and existing Table storage keys intact.
+Preserve original purchases and restoration; do not charge supporters again or
+assume Table flags prove original ownership. Verify actually shipped iOS/Android
+versions rather than treating repository version labels as store evidence.
 
-## Existing implementation is not this proposal
+Copied-fixture migration work is authorized. Production startup migration,
+original-identity cutover, irreversible cleanup, distribution and release remain
+later work. Deferred authoring/cosmetic/parity decisions are explicit in the
+[current matrix](../../in_progress_features/tripling_season_update_plan.md#explicit-parity-choices-and-deferred-feature-work),
+not blanket permission to add features or silently remove them.
 
-As inspected at `3d3723ecbfbe4fb1c868e11433c5c359cd5e5877`, original and tablet
-apps have separate entry points, identities, storage and purchase configuration.
-The tablet engine supports 2–4 players; narrow windows currently receive a
-more-room fallback. A focused Seat 1 presentation is not implemented. The
-existing legacy deck importer is not a full-installation migration.
-
-A true one-player engine is **not required by this proposal**. N means a
-supported session size, not approval to expand beyond the existing 2–4 players.
-The earlier [foldable concept](../../in_progress_features/ipad_edition/foldable_phone_future_version.md)
-is consistent with preserving a full session while focusing one seat. Seat 1
-is the fixed phone target (Player 1); switching focused players is out of scope.
-
-## Confirmed development identity and later cutover
-
-Keep the separate **Tripling Table / tablet identity and storage** throughout
-exploration, development and ordinary testing. Existing Tripling Season code and
-installations must remain undisturbed; the apps continue to coexist. Do not
-rebrand or repoint routine development builds to the original identifiers.
-
-A distinct, deliberate cutover phase will later test this as a Tripling Season
-release, using the original store identity and real upgrade/migration paths on
-backed-up test installations. Success under the separate tablet identity does
-not prove an in-place original-app update. The cutover is future work, not an
-instruction to switch identifiers or migrate an installation now. See the
-[migration cutover gates](migration.md#development-isolation-and-release-cutover).
-
-## Boundaries and later decisions
-
-- No runtime, schema, store, signing, OTA or release-version changes in this work.
-- Do not automatically enable implementation because these documents exist.
-- Verify the actual latest released versions on each store before designing the
-  production migration. Repository version labels are not proof of shipment.
-- Preserve original purchase ownership and restoration. This is not a request
-  to charge existing supporters again or decide future pricing.
-- Available window size, orientation and hinge/posture can select a presentation;
-  hardware labels alone are insufficient. Tablet compact mode is out of scope;
-  phones do not offer the full tablet layout. Fold transitions dismiss transient
-  menus/modals and preserve gameplay. No exact breakpoints are chosen yet.
-- Compatibility with old devices, minimum OS versions, migration recovery,
-  accessibility, rollout and feature parity are release gates, not solved facts.
-
-## Working approach
-
-Develop and checkpoint in the cloud by default. Commit and push meaningful
-completed work and WIP before environment handoff. Use a Mac only when required
-for native building/validation or explicitly requested; pull the verified remote
-checkpoint there rather than treating the Mac as the default editing environment.
-
-## Review and decision records
-
-- [Saved-configuration audit](preset_audit.md): source/test evidence and migration gaps.
-- [Implementation summary and decision ledger](implementation_summary.md): distinguishes owner feedback from assistant choices; tracks approved option C and implementation progress.
+Continue cloud-first development with pushed feature-branch checkpoints. Use a
+Mac when native building/validation is required or explicitly requested; keep
+actual store/device acceptance separate from source, web and in-memory results.
