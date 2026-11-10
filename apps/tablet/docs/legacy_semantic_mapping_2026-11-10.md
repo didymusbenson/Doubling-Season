@@ -77,8 +77,8 @@ Academy precedence; fresh preset loading; and phone/tablet board plus management
 holds and toggle descriptions. Existing Table action/hold tests verify that
 newly created Table utilities keep their existing behavior.
 
-These fixtures describe repository models at `17af6ef`, not actual shipped
-installation evidence. Native update validation, production authority/media
+These fixtures describe the root models shared by repository baseline
+`60ff248`, not actual shipped installation evidence. Native update validation, production authority/media
 integration, historical source-version support, broader preference behavior,
 same-identity no-uninstall upgrades and recovery UX remain separate gates.
 The release remains held. See the integration record for aggregate validation.
@@ -89,5 +89,5 @@ Validation for this isolated branch with Flutter 3.41.2:
 - `flutter test --no-pub test/legacy_*test.dart test/utility_*test.dart test/half_stepper_regression_test.dart test/update_foundations_integration_test.dart`: 154 passed.
 - `flutter test --no-pub --dart-define=TABLE_STORAGE_NAMESPACE=phone_preview_v1 test/legacy_migration_test.dart test/legacy_semantic_mapping_test.dart`: 30 passed.
 
-Full-suite and release-build validation belong to the combined integration
-checkpoint. Neither has been claimed from these focused runs.
+Full-suite and release-build validation belong to the
+[combined integration checkpoint](migration_integration_2026-11-10.md). Neither has been claimed from these focused runs.

@@ -73,11 +73,43 @@ and [semantic limits](legacy_semantic_mapping_2026-11-10.md).
 
 ## Validation
 
-Combined analyzer and focused suite: **307 passed, one expected namespace-only
-skip**, including the eight new integration cases. Full regression, explicit
-namespace and release-web validation are in progress; final evidence will be
-recorded for the exact source tree. Component-only counts in the two linked
-records remain historical evidence, not a substitute for these combined checks.
+Validated source checkpoint `7d01314254fe5ed0c06c90d0ad352e376c26537e`
+with Flutter 3.41.2 / Dart 3.11.0. The remote tree exactly matches the source
+used for these checks. This follow-up record changes documentation only.
+
+- `flutter analyze --no-pub`: no issues.
+- Combined legacy, catalog, save, support and integration suite: **307 passed,
+  one expected namespace-only skip**. All eight new end-to-end cases pass.
+- Full `flutter test --no-pub`: **1,769 passed, 8 expected skips**, no failures
+  (5m56s). Seven skips are pre-existing and one is the namespace-only guard.
+- Explicit `phone_preview_v1` combined safety/storage checks: **254 passed,
+  57 intentional same-app-only skips**, including actual Hive capture, journal
+  reopen and existing production namespace sentinels.
+- Release JavaScript web build: passed with the existing Table base path and
+  `--pwa-strategy=none`. Optional Wasm compiler dry run also passed. This is not
+  browser interaction or Wasm runtime acceptance.
+- Independent read-only review found no correctness issue in the integrated
+  contracts, new tests or claims. All 21 canonical-plan local links resolve;
+  `git diff --check` passes.
+- No commit statuses or PR workflow runs were recorded for this source commit.
+  No PR, default-branch merge, deployment, Android/iOS build, native installation
+  update or real store restoration was performed.
+
+Component-only counts in the two linked records remain historical evidence,
+not substitutes for these combined checks. Reproduce from `apps/tablet`:
+
+```sh
+flutter analyze --no-pub
+flutter test --no-pub
+flutter test --no-pub test/legacy_*test.dart \
+  test/catalog_compatibility_test.dart test/table_repository_compatibility_test.dart \
+  test/support_continuity_test.dart test/update_foundations_integration_test.dart
+flutter test --no-pub --dart-define=TABLE_STORAGE_NAMESPACE=phone_preview_v1 \
+  test/legacy_*test.dart test/catalog_compatibility_test.dart \
+  test/table_repository_compatibility_test.dart test/support_continuity_test.dart \
+  test/storage_namespace_test.dart test/update_foundations_integration_test.dart
+flutter build web --no-pub --release --base-href /Doubling-Season/tablet/ --pwa-strategy=none
+```
 
 ## Remaining gates
 

@@ -4,7 +4,9 @@
 The [combined safety checkpoint](docs/migration_integration_2026-11-10.md) joins
 raw copied-Hive/preferences acquisition with conservative utility, counter and
 rule mappings. Real-source fixtures exercise durable reopen and fail-closed
-activation. Production migration and release remain held.
+activation. Integrated analysis, 1,769 tests (8 expected skips), 254 preview
+checks (57 intentional same-app skips), and a release web build pass.
+Original-install migration and release remain gated.
 
 
 **Update-safety continuation (2026-11-10):**

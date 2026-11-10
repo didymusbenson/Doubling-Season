@@ -86,7 +86,9 @@ not a live-installation backup procedure. See the
   example a null token type to empty). This serializer cannot replace a raw
   source backup or certify unknown older adapters.
 
-## Verification
+## Historical foundation validation
+
+Current combined evidence is in [the integration record](migration_integration_2026-11-10.md).
 
 Combined source checkpoint `18965405d44673783f0fa46a22f6517da6b92fb6` integrates
 this foundation with supporter continuity and the current plan. The full Table

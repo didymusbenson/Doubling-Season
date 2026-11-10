@@ -171,7 +171,7 @@ flutter test --no-pub --dart-define=TABLE_STORAGE_NAMESPACE=phone_preview_v1 \
   test/update_foundations_integration_test.dart
 ```
 
-**Next technical work:** raw consistent source acquisition and shipped adapters;
+**Next work recorded at this historical checkpoint:** raw consistent source acquisition and shipped adapters;
 built-in/action utility, rule and independent-counter mappings; production
 aggregate/media authority integration with later-game protection; image decoding,
 large/full-disk recovery fixtures; catalog compatibility; and user-visible
@@ -224,9 +224,16 @@ documents exact boundaries and eight real-Hive end-to-end cases. An older
 happy-path source fixture's tied integer/string board keys are now separated;
 the ambiguous tied source itself is tested as a retained activation blocker.
 
-Analyzer is clean and **307 focused tests passed / one expected skip**.
-Full-suite, namespace and release-build checks are in progress. No original
-startup, identity, production store, native installation or deployment changed.
+Validated source `7d01314254fe5ed0c06c90d0ad352e376c26537e` has an exact
+remote/local tree match. Analyzer is clean; **307 focused tests passed / one
+expected skip**; full regression passed **1,769 / 8 expected skips** in 5m56s;
+preview-namespace checks passed **254 / 57 intentional same-app-only skips**.
+Release JavaScript web build and optional Wasm compiler dry run passed. Independent
+review found no correctness issue; all 21 local links resolve and diff checks pass.
+No commit statuses or PR workflow runs were recorded for that source commit.
+No original startup, identity, production store, native installation, PR,
+default-branch merge or deployment changed. No original-install/store acceptance
+or collective migration-safe status is claimed.
 The previous checkpoint's missing raw-source worktree is historical: this named
 published source branch is now integrated, with actual shipped-version/native
 acquisition and production authority still outstanding.

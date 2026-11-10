@@ -135,3 +135,7 @@ Integration-wide full-suite/web/native evidence must remain separate from this
 focused component validation. No full-suite run, platform build, device update,
 real shipped-version fixture, store restoration, merge or deployment is claimed
 by this component checkpoint.
+
+The later [combined integration record](migration_integration_2026-11-10.md)
+verifies this reader together with revision-2 mappings, save/support/catalog
+safeguards and real-Hive end-to-end fixtures.
