@@ -108,3 +108,7 @@ store restoration, recovery save/restore UX and feature-parity decisions remain
 open. External backup parsing/import needs a separate bounded untrusted-stream
 validator before any quarantine restoration can be considered. No default
 merge, deployment, store action or release is part of this checkpoint.
+
+
+The next isolated slice adds [read-only recovery-stream validation](recovery_validator_2026-11-10.md).
+It does not introduce quarantine import, restore or active-store authority.
