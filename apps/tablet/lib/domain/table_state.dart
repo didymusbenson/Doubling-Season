@@ -483,6 +483,23 @@ class UtilityState {
     'artworkUrl': artworkUrl,
     'configuration': configuration,
   };
+
+  /// Imported phone utilities retain their one-shot hold gesture instead of
+  /// adopting the Table's accelerating hold. New Table utilities are unchanged.
+  bool get legacySingleStepHold =>
+      configuration['legacyInteractionVersion'] == 1;
+  int get legacyHoldIncrement =>
+      configuration['longPressIncrement'] as int? ?? 5;
+  String? get displayedArtworkUrl =>
+      legacySingleStepHold && configuration['type'] == 'toggle'
+      ? (configuration[isActive ? 'onArtworkUrl' : 'offArtworkUrl']
+                as String?) ??
+            artworkUrl
+      : artworkUrl;
+  String get displayedDescription =>
+      legacySingleStepHold && configuration['type'] == 'toggle' && !isActive
+      ? configuration['offDescription'] as String? ?? ''
+      : description;
   UtilityState copy() => UtilityState.fromJson(cloneJson(toJson()));
 }
 

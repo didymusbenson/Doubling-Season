@@ -106,7 +106,12 @@ class _UtilityInlineActionsState extends State<UtilityInlineActions> {
   @override
   Widget build(BuildContext context) {
     final kind = widget.utility.kind;
-    final label = UtilityInlineActions.labels[kind];
+    final label =
+        UtilityInlineActions.labels.containsKey(kind) &&
+            widget.utility.legacySingleStepHold
+        ? widget.utility.configuration['actionButtonText'] as String? ??
+              UtilityInlineActions.labels[kind]
+        : UtilityInlineActions.labels[kind];
     if (label == null) {
       if (widget.management.isEmpty) return const SizedBox.shrink();
       return Wrap(spacing: 4, children: widget.management);

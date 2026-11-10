@@ -332,12 +332,39 @@ extension _LibraryPages on _TableWorkspaceState {
                   () => _board.adjustUtility(player.id, utility.id, step),
                 ),
                 minimum: utility.kind == 'life_total' ? null : 0,
-                holdMinusStep: (amount) => _runDirect(
-                  () => _board.adjustUtility(player.id, utility.id, -amount),
-                ),
-                holdPlusStep: (amount) => _runDirect(
-                  () => _board.adjustUtility(player.id, utility.id, amount),
-                ),
+                holdMinus: utility.legacySingleStepHold
+                    ? () => _runDirect(
+                        () => _board.adjustUtility(
+                          player.id,
+                          utility.id,
+                          -utility.legacyHoldIncrement,
+                        ),
+                      )
+                    : null,
+                holdPlus: utility.legacySingleStepHold
+                    ? () => _runDirect(
+                        () => _board.adjustUtility(
+                          player.id,
+                          utility.id,
+                          utility.legacyHoldIncrement,
+                        ),
+                      )
+                    : null,
+                holdMinusStep: utility.legacySingleStepHold
+                    ? null
+                    : (amount) => _runDirect(
+                        () => _board.adjustUtility(
+                          player.id,
+                          utility.id,
+                          -amount,
+                        ),
+                      ),
+                holdPlusStep: utility.legacySingleStepHold
+                    ? null
+                    : (amount) => _runDirect(
+                        () =>
+                            _board.adjustUtility(player.id, utility.id, amount),
+                      ),
               ),
             ),
             SizedBox(
@@ -726,7 +753,7 @@ extension _LibraryPages on _TableWorkspaceState {
       }
     }
     final previewing = candidate.text.isNotEmpty;
-    final shown = previewing ? candidate.text : utility.artworkUrl;
+    final shown = previewing ? candidate.text : utility.displayedArtworkUrl;
     final current = options.where((art) => art['url'] == shown).firstOrNull;
     final artist = previewing
         ? candidateArtist.text

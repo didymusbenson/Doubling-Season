@@ -348,7 +348,7 @@ void main() {
   );
 
   test(
-    'active current/older rule preferences and unsupported custom behavior block activation',
+    'active current/older rule preferences and utility behavior map without loss',
     () {
       final prefs = {
         for (final key in [
@@ -371,7 +371,7 @@ void main() {
         final plan = LegacyMigrationConverter().convert(
           LegacyMigrationSnapshot(input),
         );
-        expect(plan.canCommit, isFalse, reason: entry.key);
+        expect(plan.canCommit, isTrue, reason: entry.key);
         expect(plan.state.library['legacyPreferences'][entry.key], entry.value);
       }
       final input = fixture();
@@ -382,9 +382,15 @@ void main() {
       final plan = LegacyMigrationConverter().convert(
         LegacyMigrationSnapshot(input),
       );
-      expect(plan.blockers, hasLength(2));
-      expect(plan.blockers.join(), contains('state-specific artwork'));
-      expect(plan.blockers.join(), contains('long-press increment'));
+      expect(plan.blockers, isEmpty);
+      expect(
+        plan.state.session.players.first.utilities.last.legacyHoldIncrement,
+        7,
+      );
+      expect(
+        plan.state.session.players.first.utilities.first.displayedArtworkUrl,
+        'file:///fixture/on.png',
+      );
     },
   );
 
@@ -501,7 +507,9 @@ void main() {
       final token = input['collections']['items'][0]['value'] as Map;
       token['plusOnePowerCounters'] = 3;
       (token['counters'] as List).add({'name': 'shield', 'amount': 2});
-      input['collections']['trackerWidgets'][0]['value']['isCustom'] = false;
+      (token['counters'] as List).add({'name': '+1/+0', 'amount': 2});
+      input['collections']['trackerWidgets'][0]['value']['actionType'] =
+          'unknown';
       input['collections']['tokenRules'] = [
         {
           'key': 'rule',
