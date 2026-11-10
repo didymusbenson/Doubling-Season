@@ -195,6 +195,49 @@ class LegacySourceReader {
     await _verifyRetained(recoveryStorage, inventory);
     await onBoundary?.call('inventory');
 
+    return _decodeRetained(
+      files,
+      layout,
+      recoveryStorage,
+      inventory,
+      onBoundary,
+    );
+  }
+
+  /// Resume from the complete immutable archive, not from a possibly changed
+  /// installation. An incomplete inventory still requires the original copy.
+  Future<LegacyAcquiredSource?> openRetained({
+    required LegacySourceLayout layout,
+    required LegacyMigrationStorage recoveryStorage,
+  }) async {
+    final encoded = await recoveryStorage.read(inventoryKey);
+    if (encoded == null) return null;
+    final inventory = Map<String, dynamic>.from(jsonDecode(encoded) as Map);
+    if (inventory['version'] != 1 ||
+        canonicalMigrationJson(inventory['layout']) !=
+            canonicalMigrationJson(layout.toJson())) {
+      throw const FormatException('Retained acquisition layout conflicts.');
+    }
+    await _verifyRetained(recoveryStorage, inventory);
+    final files = <String, Uint8List>{};
+    for (final entry in (inventory['files'] as Map).entries) {
+      _validateRelative(entry.key as String);
+      final hash = entry.value['sha256'] as String;
+      final record =
+          jsonDecode((await recoveryStorage.read('raw_file_$hash'))!) as Map;
+      files[entry.key as String] = base64Decode(record['bytes'] as String);
+    }
+    await recoveryStorage.flush();
+    return _decodeRetained(files, layout, recoveryStorage, inventory, null);
+  }
+
+  Future<LegacyAcquiredSource> _decodeRetained(
+    Map<String, Uint8List> files,
+    LegacySourceLayout layout,
+    LegacyMigrationStorage recoveryStorage,
+    Map<String, dynamic> inventory,
+    Future<void> Function(String boundary)? onBoundary,
+  ) async {
     Uint8List requireFile(String path) {
       final value = files[path];
       if (value == null) {
@@ -391,11 +434,33 @@ Future<void> _verifyRetained(
       'Retained source inventory is missing or changed.',
     );
   }
-  for (final metadata in (inventory['files'] as Map).values) {
+  final files = inventory['files'];
+  if (inventory['version'] != 1 ||
+      files is! Map ||
+      files.length > LegacySourceReader.maxFiles) {
+    throw const FormatException('Unsupported retained source inventory.');
+  }
+  var total = 0;
+  for (final entry in files.entries) {
+    _validateRelative(entry.key as String);
+    final metadata = entry.value as Map;
+    final length = metadata['length'];
+    if (length is! int ||
+        length < 0 ||
+        length > LegacySourceReader.maxFileBytes ||
+        total + length > LegacySourceReader.maxTotalBytes ||
+        metadata['sha256'] is! String ||
+        !RegExp(r'^[a-f0-9]{64}$').hasMatch(metadata['sha256'] as String)) {
+      throw const FormatException('Invalid retained source bounds or digest.');
+    }
+    total += length;
     final hash = metadata['sha256'] as String;
     final encoded = await storage.read('raw_file_$hash');
     if (encoded == null) {
       throw const FormatException('Retained source file is missing.');
+    }
+    if (encoded.length > ((length + 2) ~/ 3) * 4 + 256) {
+      throw const FormatException('Retained file encoding exceeds its bounds.');
     }
     final record = jsonDecode(encoded) as Map;
     final bytes = base64Decode(record['bytes'] as String);
