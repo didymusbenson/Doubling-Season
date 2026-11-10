@@ -144,3 +144,7 @@ revalidation. Genuine shipped fixtures, live source quiescence, production
 startup/authority and sizing, native low-space/power-loss behavior, original-
 identity upgrades, real store restoration and device/feature acceptance remain
 open. No default merge, deployment, store action or release is included.
+
+
+The next isolated slice adds [retention of independently supplied evidence](recovery_retention_2026-11-10.md),
+without changing this validator or granting imported data store authority.
