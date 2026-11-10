@@ -376,8 +376,9 @@ void main() {
         final rehearsalBefore = await _hashes(coordinator.directory);
         await controller.saveBackup((backup) async {
           expect(backup.complete, isTrue);
-          if (hostThrows)
+          if (hostThrows) {
             throw const FileSystemException('Private host failure');
+          }
           return false;
         });
         expect(
