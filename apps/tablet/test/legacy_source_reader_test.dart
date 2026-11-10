@@ -536,6 +536,169 @@ void main() {
   );
 
   test(
+    'orderless token plus live utilities refuses after retention across kinds',
+    () async {
+      await _fixture(directory, rich: true);
+      final registry = HiveImpl()
+        ..registerAdapter<Item>(_HistoricalItemAdapter());
+      final writer = BinaryWriterImpl(registry);
+      writer.writeFrame(
+        Frame('old', Item(name: 'Old token', pt: '2/2', createdAt: _date)),
+      );
+      await _file(directory, 'items.hive', writer.toBytes());
+      final before = await _hashes(directory);
+      await expectLater(
+        read(),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'reason',
+            contains('lacks explicit order'),
+          ),
+        ),
+      );
+      for (final entry in before.entries) {
+        final saved = jsonDecode(recovery.values['raw_file_${entry.value}']!);
+        expect(
+          base64Decode(saved['bytes']),
+          await File(entry.key).readAsBytes(),
+        );
+      }
+      expect(await _hashes(directory), before);
+    },
+  );
+
+  test(
+    'superseded and tombstoned orderless frames do not block explicit live survivors',
+    () async {
+      await _fixture(directory);
+      final old = BinaryWriterImpl(
+        HiveImpl()..registerAdapter<Item>(_HistoricalItemAdapter()),
+      );
+      old.writeFrame(
+        Frame(1, Item(name: 'Old version', pt: '1/1', createdAt: _date)),
+      );
+      old.writeFrame(
+        Frame(3, Item(name: 'Deleted old', pt: '1/1', createdAt: _date)),
+      );
+      final current = BinaryWriterImpl(_registry());
+      current.writeFrame(
+        Frame(
+          1,
+          Item(name: 'Current first', pt: '1/1', order: 1, createdAt: _date),
+        ),
+      );
+      current.writeFrame(
+        Frame(
+          2,
+          Item(name: 'Current second', pt: '1/1', order: 2, createdAt: _date),
+        ),
+      );
+      current.writeFrame(Frame.deleted(3));
+      await _file(directory, 'items.hive', [
+        ...old.toBytes(),
+        ...current.toBytes(),
+      ]);
+      final before = await _hashes(directory);
+      final acquired = await read();
+      final items = acquired.snapshot.toJson()['collections']['items'] as List;
+      expect(items.map((item) => item['value']['name']), [
+        'Current first',
+        'Current second',
+      ]);
+      expect(await _hashes(directory), before);
+    },
+  );
+
+  for (final type in [0, 6, 7]) {
+    for (final missing in [true, false]) {
+      test(
+        'live type $type ${missing ? "absent" : "null"} order refuses across board kinds',
+        () async {
+          await _fixture(directory, rich: true);
+          final fields = switch (type) {
+            0 => <int, dynamic>{
+              0: '',
+              1: 'Old',
+              2: '1/1',
+              3: '',
+              4: 1,
+              5: 0,
+              6: 0,
+              7: 0,
+              8: 0,
+              9: <dynamic>[],
+              10: _date,
+              11: null,
+            },
+            6 => <int, dynamic>{
+              0: 'custom',
+              1: 'Old tracker',
+              2: '',
+              3: '',
+              4: null,
+              5: null,
+              6: _date,
+              7: 1,
+              8: 0,
+              9: 1,
+              10: 5,
+              11: true,
+            },
+            _ => <int, dynamic>{
+              0: 'custom',
+              1: 'Old toggle',
+              2: '',
+              3: null,
+              4: null,
+              5: _date,
+              6: false,
+              7: 'on',
+              8: 'off',
+              11: true,
+            },
+          };
+          if (missing) fields.remove({0: 11, 6: 5, 7: 4}[type]);
+          final writer = BinaryWriterImpl(
+            HiveImpl()..registerAdapter(_RawFieldsAdapter(type)),
+          );
+          writer.writeFrame(Frame('old', _RawFields(fields)));
+          await _file(
+            directory,
+            {
+              0: 'items.hive',
+              6: 'trackerwidgets.hive',
+              7: 'togglewidgets.hive',
+            }[type]!,
+            writer.toBytes(),
+          );
+          final before = await _hashes(directory);
+          await expectLater(
+            read(),
+            throwsA(
+              isA<FormatException>().having(
+                (error) => error.message,
+                'reason',
+                contains('lacks explicit order'),
+              ),
+            ),
+          );
+          for (final entry in before.entries) {
+            final saved = jsonDecode(
+              recovery.values['raw_file_${entry.value}']!,
+            );
+            expect(
+              base64Decode(saved['bytes']),
+              await File(entry.key).readAsBytes(),
+            );
+          }
+          expect(await _hashes(directory), before);
+        },
+      );
+    }
+  }
+
+  test(
     'oversized source file refuses before allocation or retention',
     () async {
       await _fixture(directory);
@@ -724,6 +887,28 @@ class _MalformedScalarAdapter extends _HistoricalItemAdapter {
       } else {
         writer.write(fields[i]);
       }
+    }
+  }
+}
+
+class _RawFields {
+  final Map<int, dynamic> fields;
+  _RawFields(this.fields);
+}
+
+class _RawFieldsAdapter extends TypeAdapter<_RawFields> {
+  @override
+  final int typeId;
+  _RawFieldsAdapter(this.typeId);
+  @override
+  _RawFields read(BinaryReader reader) => throw UnimplementedError();
+  @override
+  void write(BinaryWriter writer, _RawFields value) {
+    writer.writeByte(value.fields.length);
+    for (final entry in value.fields.entries) {
+      writer
+        ..writeByte(entry.key)
+        ..write(entry.value);
     }
   }
 }

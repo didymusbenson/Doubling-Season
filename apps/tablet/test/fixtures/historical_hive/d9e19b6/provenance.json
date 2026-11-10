@@ -1,0 +1,30 @@
+{
+  "kind": "synthetic-repository-history-not-shipped-device-capture",
+  "repository": "https://github.com/didymusbenson/Doubling-Season",
+  "commit": "d9e19b69b32d63b8e9b98af4d3cca991b66b131a",
+  "sourceSha256": {
+    "lib/models/item.dart": "18fdf89e5199cf63d6f4dc2ddb7da4fed242303914877a44d4a52f955c1b262e",
+    "lib/models/item.g.dart": "82b80ffd9b5ab708c5cdbaaf6278395ab446e31e3f621fa124a47faacb99b689",
+    "lib/models/token_counter.dart": "3cea53599332e1306fa009fe96b2cd11b12af62d323e8b42126b6ff0d5c88cba",
+    "lib/models/token_counter.g.dart": "54370d46efa21bd2e7976d4d1664969e3ce1c3da5fd20f58ed06a0f4cff7c0a0",
+    "lib/models/token_template.dart": "64d1239f20223a6b74be3e6d83df4561246ffce4baeba362f1a53f53aecf29e4",
+    "lib/models/token_template.g.dart": "538170adde9170645ae28420b8b9f43ef3d415cedb6e4f03d68ec5078a8c8e7b",
+    "lib/models/deck.dart": "7de9d740f753f0eff5be953301791be7877298180f3736aedcc4f7a83112b314",
+    "lib/models/deck.g.dart": "a23b56652c5c0689f862230dbc00caa081385ed7636e425aebd3c0d20902b3f0",
+    "lib/utils/constants.dart": "d9589dbddd4d24afb768c3cb3bbb9f4cbdd71a864c4f307692e32dac3f7e8712",
+    "pubspec.lock": "4b33759bfc89c12d9969e7efd2cbe2150668a0cdb7ec4bb6045d7ad11cbd2c2e",
+    "lib/screens/content_screen.dart": "c3a66b38e0f99cc76ba8b5323c869db139e2be78fbc6e27bc6eee9c85b448770"
+  },
+  "writerRuntime": {
+    "dart": "Dart SDK version: 3.11.0 (stable) (Mon Feb 9 00:38:07 2026 -0800) on \"linux_x64\"",
+    "resolvedHiveVersion": "2.2.3"
+  },
+  "fixtureSha256": {
+    "copy/items.hive": "d93d53caf96060abda8ce2653a72fc558d05b59bb829ec3f95796a369870309c",
+    "copy/decks.hive": "ec80f1c51ccbbca0ea78a095191931aecedd0392b05427c8d2522dd30314784a",
+    "copy/preferences.xml": "824ffbe33c14d10b702a07b03fcee8d2c5d4488893542981cf60a000f60fd5a5",
+    "multi/items.hive": "b3ed1b5e855da2c710cc245d14b11fd3f592bec4836aed2d5f95bfce5737d026",
+    "multi/decks.hive": "ec80f1c51ccbbca0ea78a095191931aecedd0392b05427c8d2522dd30314784a",
+    "multi/preferences.xml": "824ffbe33c14d10b702a07b03fcee8d2c5d4488893542981cf60a000f60fd5a5"
+  }
+}
