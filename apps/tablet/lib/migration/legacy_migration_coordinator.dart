@@ -583,8 +583,9 @@ class _RehearsalFiles implements LegacyRecoveryRecordSource {
                 TableStorageKeys.media,
               ].any((box) => key == '$box.lock')) &&
           await FileSystemEntity.type(entity.path, followLinks: false) ==
-              FileSystemEntityType.file)
+              FileSystemEntityType.file) {
         continue;
+      }
       result.add(key);
     }
     return result..sort();
@@ -629,8 +630,9 @@ class _RehearsalFiles implements LegacyRecoveryRecordSource {
 
   Future<bool> matches(Map<String, String> records) async {
     final finalKeys = await keys();
-    if (jsonEncode(finalKeys) != jsonEncode(records.keys.toList()..sort()))
+    if (jsonEncode(finalKeys) != jsonEncode(records.keys.toList()..sort())) {
       return false;
+    }
     for (final entry in records.entries) {
       if (await read(entry.key) != entry.value) return false;
     }

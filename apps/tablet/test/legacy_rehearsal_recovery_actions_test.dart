@@ -345,8 +345,9 @@ void main() {
         final current = (await _current(coordinator))!;
         final state = TableRepository.decodeGeneration(current);
         final sequence = (jsonDecode(current) as Map)['sequence'] as int;
-        if (scenario == 'divergent_equal')
+        if (scenario == 'divergent_equal') {
           state.session.players.first.life = 13;
+        }
         await _destination(coordinator, (hive) async {
           await (await hive.openBox<String>(
             '${TableStorageKeys.aggregate}_previous',
