@@ -783,6 +783,63 @@ void main() {
     skip: !Platform.isLinux,
   );
 
+  for (final aliasName in ['archive.txt', 'archive.lock']) {
+    test(
+      'archive $aliasName alias fails closed without releasing outer lease',
+      () async {
+        final archive = await LegacySourceArchive.createIn(parent);
+        final coordinator = await LegacyMigrationCoordinator.createRehearsal();
+        final lockPath = '${coordinator.directory.path}/coordinator.lock';
+        await File(
+          lockPath,
+        ).writeAsString('tripling-season-retained-source-v1');
+        await File('${archive.directory.path}/$aliasName').delete();
+        expect(
+          (await Process.run('ln', [
+            lockPath,
+            '${archive.directory.path}/$aliasName',
+          ])).exitCode,
+          0,
+        );
+        final source = LegacyRecoveryFiles(
+          coordinator.directory,
+          name: 'rehearsal',
+          excludedTopLevelLockFiles: {'coordinator.lock'},
+        );
+        final lease = await File(lockPath).open(mode: FileMode.append);
+        await lease.lock(FileLock.exclusive);
+        try {
+          for (final streamed in [true, false]) {
+            await expectLater(
+              streamed
+                  ? archive.exportRecoveryBackup(
+                      options: _options(output),
+                      additionalSources: [source],
+                    )
+                  : archive.createRecoveryBackup(additionalSources: [source]),
+              throwsStateError,
+            );
+            final probe = await Process.run('python3', [
+              '-c',
+              'import fcntl,sys; f=open(sys.argv[1], "a")\ntry: fcntl.lockf(f, fcntl.LOCK_EX | fcntl.LOCK_NB)\nexcept BlockingIOError: sys.exit(0)\nsys.exit(3)',
+              lockPath,
+            ]);
+            expect(
+              probe.exitCode,
+              0,
+              reason: 'Validation must not close an outer coordination inode.',
+            );
+            expect(await _outputs(output), isEmpty);
+          }
+        } finally {
+          await lease.close();
+          await coordinator.directory.delete(recursive: true);
+        }
+      },
+      skip: !Platform.isLinux,
+    );
+  }
+
   test(
     'legacy in-memory backup fails before aggregate serialization exceeds its bound',
     () async {

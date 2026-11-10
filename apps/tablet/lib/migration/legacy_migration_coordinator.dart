@@ -98,6 +98,7 @@ class LegacyMigrationCoordinator {
     required LegacySourceLayout layout,
     Future<void> Function(String boundary)? onBoundary,
     String? expectedTransactionId,
+    Iterable<String> heldCoordinationPaths = const [],
   }) async {
     if (sourceDirectory != null && sourceArchive != null) {
       throw ArgumentError(
@@ -112,6 +113,7 @@ class LegacyMigrationCoordinator {
         layout: layout,
         onBoundary: onBoundary,
         expectedTransactionId: expectedTransactionId,
+        heldCoordinationPaths: heldCoordinationPaths,
       ),
     );
   }
@@ -122,6 +124,7 @@ class LegacyMigrationCoordinator {
     required LegacySourceLayout layout,
     Future<void> Function(String boundary)? onBoundary,
     String? expectedTransactionId,
+    Iterable<String> heldCoordinationPaths = const [],
   }) async {
     final hive = HiveImpl();
     try {
@@ -188,6 +191,10 @@ class LegacyMigrationCoordinator {
           : await sourceArchive.copyRetainedTo(
               layout: layout,
               recoveryStorage: raw,
+              heldCoordinationPaths: [
+                ...heldCoordinationPaths,
+                ..._RehearsalFiles(directory).coordinationFiles.values,
+              ],
               onBoundary: onBoundary,
             );
       if (source == null) {
@@ -380,6 +387,7 @@ class LegacyMigrationCoordinator {
           sourceDirectory: sourceDirectory,
           sourceArchive: sourceArchive,
           layout: layout,
+          heldCoordinationPaths: files.coordinationFiles.values,
         );
       } finally {
         // Only this new disposable clone is removed, never retained/user data.

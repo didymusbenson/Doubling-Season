@@ -42,7 +42,10 @@ class LegacySourceArchive {
     return reopen(root);
   }
 
-  static Future<LegacySourceArchive> reopen(Directory directory) async {
+  static Future<LegacySourceArchive> reopen(
+    Directory directory, {
+    Iterable<String> heldCoordinationPaths = const [],
+  }) async {
     _requireRootIsolate();
     await _requireRealDirectory(directory);
     final root = _normalizedDirectory(directory);
@@ -52,6 +55,16 @@ class LegacySourceArchive {
         .startsWith('tripling-retained-source-')) {
       throw StateError('Only a marked retained-source archive can be opened.');
     }
+    // A marker read closes a descriptor too. Screen identities before reading
+    // markers or opening this store's lease while another store is leased.
+    await _rejectCoordinationAlias(
+      '${root.path}/archive.lock',
+      heldCoordinationPaths,
+    );
+    await _rejectCoordinationAlias('${root.path}/archive.txt', [
+      '${root.path}/archive.lock',
+      ...heldCoordinationPaths,
+    ]);
     await _requireFile('${root.path}/archive.txt');
     if (await File('${root.path}/archive.txt').length() != _marker.length ||
         await File('${root.path}/archive.txt').readAsString() != _marker) {
@@ -108,8 +121,13 @@ class LegacySourceArchive {
     required LegacySourceLayout layout,
     required LegacyMigrationStorage recoveryStorage,
     Future<void> Function(String boundary)? onBoundary,
+    Iterable<String> heldCoordinationPaths = const [],
   }) => _withLease(() async {
-    final storage = _ArchiveRecords(directory, null);
+    final storage = _ArchiveRecords(
+      directory,
+      null,
+      heldCoordinationPaths: heldCoordinationPaths,
+    );
     if (await storage.read(_layoutKey) !=
         canonicalMigrationJson(layout.toJson())) {
       throw const FormatException('The retained source layout conflicts.');
@@ -124,7 +142,7 @@ class LegacySourceArchive {
       );
     }
     return source.copyRetainedTo(recoveryStorage, onBoundary: onBoundary);
-  });
+  }, heldCoordinationPaths: heldCoordinationPaths);
 
   /// Exact physical archive evidence, including incomplete, corrupt and unknown
   /// files, without decoding or repair. The caller leases any additional stores
@@ -143,6 +161,9 @@ class LegacySourceArchive {
       ]),
     ),
     allowUnknownFiles: true,
+    heldCoordinationPaths: additionalSources
+        .whereType<LegacyRecoveryFiles>()
+        .expand((source) => source.coordinationFiles.values),
   );
 
   /// Bounded file-backed export under the same whole-archive writer lease.
@@ -162,6 +183,9 @@ class LegacySourceArchive {
       ],
     ),
     allowUnknownFiles: true,
+    heldCoordinationPaths: additionalSources
+        .whereType<LegacyRecoveryFiles>()
+        .expand((source) => source.coordinationFiles.values),
   );
 
   Future<void> _requireSeparate(Directory source) async {
@@ -186,6 +210,7 @@ class LegacySourceArchive {
   Future<T> _withLease<T>(
     Future<T> Function() operation, {
     bool allowUnknownFiles = false,
+    Iterable<String> heldCoordinationPaths = const [],
   }) async {
     _requireRootIsolate();
     final path = directory.path;
@@ -195,7 +220,7 @@ class LegacySourceArchive {
     await previous;
     RandomAccessFile? lease;
     try {
-      await reopen(directory);
+      await reopen(directory, heldCoordinationPaths: heldCoordinationPaths);
       // This inode is exclusively for the process lock. Do not read/close
       // another descriptor for it while locked: POSIX locks are process-wide.
       lease = await File('$path/archive.lock').open(mode: FileMode.append);
@@ -243,7 +268,12 @@ class _ArchiveRecords extends LegacyMigrationStorage {
   static const _maxRecordBytes = 192 * 1024 * 1024;
   final Directory directory;
   final Future<void> Function(String boundary)? onBoundary;
-  _ArchiveRecords(this.directory, this.onBoundary);
+  final Iterable<String> heldCoordinationPaths;
+  _ArchiveRecords(
+    this.directory,
+    this.onBoundary, {
+    this.heldCoordinationPaths = const [],
+  });
 
   @override
   Object get lockIdentity => directory.path;
@@ -263,6 +293,10 @@ class _ArchiveRecords extends LegacyMigrationStorage {
         await file.length() > _maxRecordBytes) {
       throw const FormatException('Invalid retained record file.');
     }
+    await _rejectCoordinationAlias(file.path, [
+      '${directory.path}/archive.lock',
+      ...heldCoordinationPaths,
+    ]);
     final buffer = BytesBuilder(copy: false);
     await for (final chunk in file.openRead(0, _maxRecordBytes + 1)) {
       buffer.add(chunk);
@@ -390,4 +424,24 @@ Directory _normalizedDirectory(Directory directory) {
     path = path.substring(0, path.length - 1);
   }
   return Directory(path);
+}
+
+// stat/identity checks never open a descriptor for the compared inode.
+Future<void> _rejectCoordinationAlias(
+  String path,
+  Iterable<String> coordinationPaths,
+) async {
+  if (await FileSystemEntity.type(path, followLinks: false) !=
+      FileSystemEntityType.file) {
+    return;
+  }
+  for (final coordination in coordinationPaths) {
+    if (await FileSystemEntity.type(coordination, followLinks: false) ==
+            FileSystemEntityType.file &&
+        await FileSystemEntity.identical(path, coordination)) {
+      throw StateError(
+        'Recovery control or record aliases a coordination file.',
+      );
+    }
+  }
 }

@@ -1,6 +1,8 @@
 package com.loosetie.triplingtable
 
 import android.os.Build
+import android.os.StatFs
+import java.io.File
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -15,6 +17,28 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "com.loosetie.triplingtable/recovery_capacity"
+        ).setMethodCallHandler { call, result ->
+            if (call.method != "availableBytes") {
+                result.notImplemented()
+            } else {
+                try {
+                    val path = call.argument<String>("path")
+                    require(path != null && path.startsWith("/") && !path.contains('\u0000'))
+                    val directory = File(path)
+                    // The Dart caller supplies an existing canonical directory.
+                    require(directory.isDirectory && directory.canonicalPath == path)
+                    val available = StatFs(path).availableBytes
+                    require(available >= 0)
+                    require(directory.isDirectory && directory.canonicalPath == path)
+                    result.success(mapOf("path" to path, "availableBytes" to available))
+                } catch (_: Exception) {
+                    result.error("capacity_unavailable", "Destination capacity is unavailable.", null)
+                }
+            }
+        }
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "com.loosetie.triplingtable/system_ui"

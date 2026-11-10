@@ -78,7 +78,7 @@ commit, exact tests/results and remaining limits to the relevant row or record.
 | M1 | Complete source inventory and private consistent snapshot. Legacy `lib/database/hive_setup.dart` can recreate failed boxes; `lib/utils/constants.dart` assigns IDs 0–12. | Read copied fixtures without normal destructive recovery; inventory boxes, adapters, prefs, local files, source version and hashes; refuse corrupt/unknown sources without changing them. Obtain actual shipped-version fixtures later. | Partial: [copied native source acquisition](../../../apps/tablet/docs/legacy_source_acquisition_2026-11-10.md), immutable caller-owned archives and guarded archive-to-rehearsal transfer are implemented. Live quiescent acquisition, production storage/capacity selection and actual shipped fixtures remain open. |
 | M2 | Independent live-board and saved-deck conversion. `PresetService.importJson` accepts phone schemas 1–3; it is not installation migration. | Stable source-to-destination IDs, duplicate decks/stacks, order, counters including power-only/toughness-only, explicit utility counterpart map, report unsupported/ambiguous data. Never feed live state through zero-state preset load. | Partial: mapping revision 2 supports separate live/preset paths, independent passive utilities, known actions and axis counters. Unsupported/ambiguous cases still block commit; [combined acquisition-to-map evidence](../../../apps/tablet/docs/migration_integration_2026-11-10.md). |
 | M3 | Owned artwork and credits. Table has immutable media and v4 embedded-asset imports; legacy deck JSON omits cover/bytes. | Copy/hash/reopen local bytes, remap all references including custom library/covers/preferences; preserve missing-file metadata with usable fallback. Validate offline reopening, corrupt/oversize assets and interruption. | Partial: copied-file acquisition and fixture journal copy/hash/remap/reopen are integrated, including covers and toggle-state art. The isolated coordinator now decodes images and promotes production-format media; missing-file recovery acceptance and live-installation media authority remain open. |
-| M4 | Recoverable durable commit and idempotent restart. Table repository has checksummed generations; source data spans other stores. | Versioned journal, staging generation, durable marker and reopen verification; inject failure at every boundary. Retry cannot duplicate or replace later gameplay. Keep recovery material; retention/cleanup is not implicitly approved. | Partial: isolated durable journal, revisioned receipt, immutable archive transfer, retry serialization and every-boundary fault injection implemented. The coordinator protects later gameplay and supports clone-only inspection plus combined archive/rehearsal recovery export. A bounded file-backed export and explicit measured-capacity/reserve contract now cover rehearsal recovery. Production startup/authority, native capacity measurement and save UX remain open. |
+| M4 | Recoverable durable commit and idempotent restart. Table repository has checksummed generations; source data spans other stores. | Versioned journal, staging generation, durable marker and reopen verification; inject failure at every boundary. Retry cannot duplicate or replace later gameplay. Keep recovery material; retention/cleanup is not implicitly approved. | Partial: isolated durable journal, revisioned receipt, immutable archive transfer, retry serialization and every-boundary fault injection implemented. The coordinator protects later gameplay and supports clone-only inspection plus combined archive/rehearsal recovery export. A bounded file-backed export and explicit measured-capacity/reserve contract now cover rehearsal recovery. A dormant Android/iOS native capacity bridge is implemented; native measurement acceptance, production startup/authority and save UX remain open. |
 | M5 | Saved setup fidelity and scope. `PresetService` saves/renames/deletes/imports/exports and loads Replace/Append; loads are seat-scoped commands. | Preserve token `extra` display style, source identity and deck metadata or report limitations; rich-art roundtrip and failed writes; Save/Replace/Append/Undo on multiple seats, cover apply/undo, no life/history collateral reset. Audit original editing behavior before adding an editor. | Partial: legacy preset metadata/order/cover retained, artwork display style survives save/load, and fresh seat-scoped loads tested. [Audit gaps](../todo_features/unified_tripling_season/preset_audit.md) remain open. |
 | M6 | Custom library, favorites/recents, preferences and rule definitions. Current Table and legacy scopes differ. | Explicit key/field map, unknown-key recovery, no global artwork preference silently applied to every seat/new game; preserve unsupported rules rather than enable/substitute them. | Partial: native preference decode, custom definitions and recognized built-in/custom rule mapping are integrated; all raw preferences/rules remain retained. Obsolete non-default multipliers and unknown/ambiguous semantics still block activation. |
 | M7 | Data OTA compatibility. Table now declares reader/schema v1 independently of product display version, with a conservative legacy minimum-app bridge. | Bundled/cached/remote verification, future/malformed refusal, retained offline fallback and restart/retry tests are implemented. Actual old-client/publisher compatibility, native storage failures and rollout policy remain required. | Partial: [catalog safety implementation](../../../apps/tablet/docs/catalog_update_safety_2026-11-10.md); not production compatibility certification. |
@@ -404,3 +404,39 @@ compilation and the Wasm compiler dry run pass. The protected-summary format
 and coordination-lock hardening passed independent final review. The linked
 record distinguishes these final results from prior validation runs and retains
 the native/cutover limitations.
+
+
+## Integrated bounded recovery and native capacity — 2026-11-10
+
+`feat/table-migration-integration-20261110` incorporates `6515ace` by fast-forward
+from `698f1ce`. The [integration evidence](../../../apps/tablet/docs/bounded_recovery_integration_2026-11-10.md)
+adds archive-to-rehearsal-to-controller streaming checks for interrupted,
+promoted/later-game and corrupt evidence, explicitly partial copies, mid-export
+capacity loss, host cancellation/failure and retry without replacing attempts.
+Complete physical export never means the source is safe to activate.
+
+Review found and fixed one POSIX coordination gap: archive markers or retained
+records hard-linked to held coordination files could close a descriptor and
+release another store's process-wide lock before export screening. These aliases
+now fail closed before opening; ordinary unknown evidence aliases remain
+metadata-only. Cross-process and clone-inspection regressions cover the fix.
+
+The [native capacity foundation](native_recovery_capacity.md) measures the actual
+explicit destination volume through Android `StatFs` or iOS `statfs`, returning
+unknown on errors or unsupported platforms. Its channel is registered but never
+invoked from startup, and no migration route selects it automatically. iOS's
+DiskSpace required-reason manifest is included. No identity, namespace, dependency,
+version, permission, automatic cleanup or production migration activation changed.
+
+The 84 focused integration/export/adapter/capacity checks pass. Final combined
+analyzer, full-suite, preview-namespace and web validation is in progress at this
+source checkpoint. Native SDKs/devices are unavailable here: native compilation,
+actual-volume/low-space measurements and privacy-archive inspection remain open.
+
+Next safe work is native validation of this bridge and a deliberate private
+support-directory/retention design with capture/conversion budgets. No retention
+duration or deletion was selected. Production writer quiescence/authority, actual
+shipped fixtures, save/restore UX, M9 no-uninstall updates, store restoration,
+platform/device/accessibility acceptance and parity decisions remain required.
+**No default merge, deployment, store action or release is authorized by this
+checkpoint.**

@@ -15,6 +15,7 @@ import 'package:tripling_table/migration/legacy_preferences_decode.dart';
 import 'package:tripling_table/migration/legacy_source_reader.dart';
 import 'package:tripling_table/migration/legacy_source_archive.dart';
 import 'package:tripling_table/migration/legacy_migration_recovery.dart';
+import 'package:tripling_table/migration/legacy_recovery_export.dart';
 import 'package:tripling_table/migration/legacy_rehearsal_recovery_actions.dart';
 import 'package:tripling_table/services/tablet_media_store.dart';
 import 'package:tripling_table/storage/storage_namespace.dart';
@@ -106,6 +107,75 @@ Future<String?> _current(LegacyMigrationCoordinator coordinator) =>
       )).get('current'),
     );
 
+// Independent fixture consumer: validate the exact stream trailer and every
+// file's framing/digest, then compare physical bytes rather than decoded records.
+Future<Map<String, Map<String, List<int>>>> _streamFiles(File file) async {
+  final bytes = await file.readAsBytes();
+  final lines = const LineSplitter().convert(utf8.decode(bytes));
+  final records = lines.map((line) => jsonDecode(line) as Map).toList();
+  expect(records.first['format'], LegacyRecoveryExport.format);
+  expect(records.first['version'], 2);
+  final trailerBytes = utf8.encode('${lines.last}\n');
+  expect(records.last['type'], 'checksum');
+  expect(
+    records.last['sha256'],
+    sha256
+        .convert(bytes.sublist(0, bytes.length - trailerBytes.length))
+        .toString(),
+  );
+  final result = <String, Map<String, List<int>>>{};
+  Map<String, List<int>>? source;
+  Map? entry;
+  var chunks = <int>[];
+  for (final record in records) {
+    switch (record['type']) {
+      case 'source':
+        source = result[record['name'] as String] = {};
+      case 'entry':
+        entry = record;
+        chunks = [];
+      case 'chunk':
+        final chunk = base64Decode(record['data'] as String);
+        expect(
+          chunk.length,
+          lessThanOrEqualTo(LegacyRecoveryExport.chunkBytes),
+        );
+        chunks.addAll(chunk);
+      case 'end_entry':
+        expect(record['readable'], isTrue);
+        expect(record['bytes'], chunks.length);
+        expect(record['sha256'], sha256.convert(chunks).toString());
+        if (entry!['kind'] == 'file') {
+          expect(entry['length'], chunks.length);
+          source![entry['key'] as String] = chunks;
+        }
+    }
+  }
+  expect(
+    records.singleWhere((r) => r['type'] == 'summary')['entries'],
+    records.where((r) => r['type'] == 'entry').length,
+  );
+  return result;
+}
+
+Future<Map<String, List<int>>> _physicalFiles(Directory directory) async => {
+  await for (final file in directory.list(recursive: true, followLinks: false))
+    if (file is File &&
+        !{
+          'archive.lock',
+          'coordinator.lock',
+        }.contains(file.path.substring(directory.path.length + 1)))
+      file.path.substring(directory.path.length + 1): await file.readAsBytes(),
+};
+
+Future<List<File>> _exportFiles(Directory directory) async => [
+  await for (final entity in directory.list(
+    recursive: true,
+    followLinks: false,
+  ))
+    if (entity is File) entity,
+];
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory parent;
@@ -127,6 +197,313 @@ void main() {
 
   Future<void> capture() =>
       archive.captureCopiedDirectory(source: source, layout: _layout());
+
+  LegacyRehearsalRecoveryActions streamedActions(
+    Directory output, {
+    Future<int?> Function(Directory)? available,
+    Future<void> Function(String)? onBoundary,
+  }) => LegacyRehearsalRecoveryActions(
+    coordinator: coordinator,
+    sourceArchive: archive,
+    layout: _layout(),
+    exportOptions: LegacyRecoveryExportOptions(
+      parent: output,
+      budget: LegacyRecoveryExportBudget(
+        availableBytes: available ?? (_) async => 1 << 40,
+        reserveBytes: 4096,
+      ),
+      onBoundary: onBoundary,
+    ),
+  );
+
+  for (final stage in ['interrupted', 'promoted', 'corrupt']) {
+    test(
+      'controller streams exact $stage archive and rehearsal evidence',
+      () async {
+        await capture();
+        if (stage == 'interrupted') {
+          await expectLater(
+            coordinator.rehearse(
+              sourceArchive: archive,
+              layout: _layout(),
+              onBoundary: (boundary) async {
+                if (boundary == 'staged') throw StateError('Interrupted');
+              },
+            ),
+            throwsStateError,
+          );
+        } else {
+          await coordinator.rehearse(sourceArchive: archive, layout: _layout());
+          await _destination(coordinator, (hive) async {
+            final repo = TableRepository.forTesting(
+              openBox: (name) => hive.openBox<String>(name),
+            );
+            final state = (await repo.open()).state;
+            state.session.players.first.life = 13;
+            state.session.players.first.tokens.single.amount = 27;
+            await repo.save(state);
+          });
+        }
+        if (stage == 'corrupt') {
+          await File(
+            '${archive.directory.path}/capture_layout_v1.record',
+          ).writeAsBytes([0, 255, 128]);
+          await File(
+            '${archive.directory.path}/pending_unknown.part',
+          ).writeAsString('Opaque pending evidence');
+        }
+        final output = await Directory('${parent.path}/exports').create();
+        final actions = streamedActions(output);
+        final controller = LegacyRecoveryController(actions);
+        addTearDown(controller.dispose);
+        await controller.inspect();
+        expect(controller.report!.phase, switch (stage) {
+          'interrupted' => LegacyRecoveryPhase.ready,
+          'corrupt' => LegacyRecoveryPhase.blocked,
+          _ => LegacyRecoveryPhase.completed,
+        });
+        final priorReport = controller.report;
+        final sourceBefore = await _hashes(source);
+        final archiveBefore = await _hashes(archive.directory);
+        final rehearsalBefore = await _hashes(coordinator.directory);
+        final currentBefore = await _current(coordinator);
+        // Close the repository before comparing/exporting physical Hive bytes.
+        final rehearsalAfterRead = await _hashes(coordinator.directory);
+        expect(rehearsalAfterRead, rehearsalBefore);
+        final saved = File('${parent.path}/user-selected-recovery.jsonl');
+        await controller.saveBackup((backup) async {
+          expect(backup.isStreamed, isTrue);
+          expect(
+            backup.complete,
+            isTrue,
+          ); // Complete physical evidence, not approval.
+          expect(() => backup.bytes, throwsUnsupportedError);
+          final sink = saved.openWrite();
+          await sink.addStream(backup.openRead());
+          await sink.flush();
+          await sink.close();
+          expect(await saved.length(), backup.byteLength);
+          return true;
+        });
+        expect(controller.actionMessage, startsWith('Recovery copy saved'));
+        expect(controller.report, same(priorReport));
+        final files = await _streamFiles(saved);
+        expect(
+          files.keys,
+          unorderedEquals([
+            'rehearsal_files_base64_v1',
+            'retained_source_files_base64_v1',
+          ]),
+        );
+        expect(
+          files['rehearsal_files_base64_v1'],
+          await _physicalFiles(coordinator.directory),
+        );
+        expect(
+          files['retained_source_files_base64_v1'],
+          await _physicalFiles(archive.directory),
+        );
+        expect(await _hashes(source), sourceBefore);
+        expect(await _hashes(archive.directory), archiveBefore);
+        expect(await _hashes(coordinator.directory), rehearsalBefore);
+        expect(await _current(coordinator), currentBefore);
+        expect(await _exportFiles(output), hasLength(1));
+      },
+    );
+  }
+
+  test(
+    'capacity loss keeps the pending export and retry preserves both stores',
+    () async {
+      await capture();
+      await coordinator.rehearse(sourceArchive: archive, layout: _layout());
+      final sourceBefore = await _hashes(source);
+      final archiveBefore = await _hashes(archive.directory);
+      final rehearsalBefore = await _hashes(coordinator.directory);
+      final output = await Directory('${parent.path}/exports').create();
+      var capacity = 1 << 40;
+      var inject = true;
+      final controller = LegacyRecoveryController(
+        streamedActions(
+          output,
+          available: (_) async => capacity,
+          onBoundary: (boundary) async {
+            if (inject && boundary == 'export_written') capacity = 0;
+          },
+        ),
+      );
+      addTearDown(controller.dispose);
+      var delivered = false;
+      await controller.saveBackup((_) async => delivered = true);
+      expect(delivered, isFalse);
+      expect(controller.actionMessage, startsWith('Not enough storage'));
+      expect(controller.busy, isFalse);
+      final pending = (await _exportFiles(output)).single;
+      expect(pending.path, endsWith('recovery.part'));
+      final pendingBefore = await pending.readAsBytes();
+      expect(pendingBefore, isNotEmpty);
+      inject = false;
+      capacity = 1 << 40;
+      await controller.saveBackup((backup) async {
+        delivered = true;
+        expect(
+          await backup.openRead().fold<int>(0, (n, b) => n + b.length),
+          backup.byteLength,
+        );
+        return true;
+      });
+      expect(delivered, isTrue);
+      expect(controller.actionMessage, startsWith('Recovery copy saved'));
+      expect(await _exportFiles(output), hasLength(2));
+      expect(await pending.readAsBytes(), pendingBefore);
+      expect(await _hashes(source), sourceBefore);
+      expect(await _hashes(archive.directory), archiveBefore);
+      expect(await _hashes(coordinator.directory), rehearsalBefore);
+    },
+  );
+
+  for (final hostThrows in [false, true]) {
+    test(
+      'host ${hostThrows ? 'failure' : 'cancellation'} retains verified export for a new retry',
+      () async {
+        await capture();
+        final output = await Directory('${parent.path}/exports').create();
+        final controller = LegacyRecoveryController(streamedActions(output));
+        addTearDown(controller.dispose);
+        await controller.inspect();
+        final priorReport = controller.report;
+        final archiveBefore = await _hashes(archive.directory);
+        final rehearsalBefore = await _hashes(coordinator.directory);
+        await controller.saveBackup((backup) async {
+          expect(backup.complete, isTrue);
+          if (hostThrows)
+            throw const FileSystemException('Private host failure');
+          return false;
+        });
+        expect(
+          controller.actionMessage,
+          startsWith(
+            hostThrows
+                ? 'Recovery copy could not be saved'
+                : 'Recovery copy was not saved',
+          ),
+        );
+        expect(
+          controller.actionMessage,
+          isNot(contains('Private host failure')),
+        );
+        expect(controller.report, same(priorReport));
+        final first = (await _exportFiles(output)).single;
+        expect(first.path, endsWith('recovery-complete.jsonl'));
+        final firstBefore = await first.readAsBytes();
+        await controller.saveBackup((backup) async {
+          await backup.openRead().drain<void>();
+          return true;
+        });
+        expect(controller.actionMessage, startsWith('Recovery copy saved'));
+        expect(await _exportFiles(output), hasLength(2));
+        expect(await first.readAsBytes(), firstBefore);
+        expect(await _hashes(archive.directory), archiveBefore);
+        expect(await _hashes(coordinator.directory), rehearsalBefore);
+      },
+    );
+  }
+
+  test(
+    'changed physical evidence is saved only as an explicitly partial copy',
+    () async {
+      await capture();
+      await coordinator.rehearse(sourceArchive: archive, layout: _layout());
+      final changed = File('${archive.directory.path}/opaque.future');
+      await changed.writeAsString('before');
+      final sourceBefore = await _hashes(source);
+      final rehearsalBefore = await _hashes(coordinator.directory);
+      final currentBefore = await _current(coordinator);
+      final output = await Directory('${parent.path}/exports').create();
+      var copied = 0;
+      final controller = LegacyRecoveryController(
+        streamedActions(
+          output,
+          onBoundary: (boundary) async {
+            if (boundary == 'export_source_copied' && ++copied == 2) {
+              // Simulate an uncooperative writer. Leases only cover our writers.
+              await changed.writeAsString('after');
+            }
+          },
+        ),
+      );
+      addTearDown(controller.dispose);
+      await controller.saveBackup((backup) async {
+        expect(backup.complete, isFalse);
+        expect(backup.problems, isNotEmpty);
+        expect(backup.fileName, 'recovery-partial.jsonl');
+        await backup.openRead().drain<void>();
+        return true;
+      });
+      expect(
+        controller.actionMessage,
+        startsWith('Partial recovery copy saved'),
+      );
+      expect(controller.actionMessage, contains('this copy is incomplete'));
+      final file = (await _exportFiles(output)).single;
+      final files = await _streamFiles(file);
+      expect(
+        files['retained_source_files_base64_v1']!['opaque.future'],
+        utf8.encode('before'),
+      );
+      expect(await changed.readAsString(), 'after');
+      expect(await _hashes(source), sourceBefore);
+      expect(await _hashes(coordinator.directory), rehearsalBefore);
+      expect(await _current(coordinator), currentBefore);
+    },
+  );
+
+  for (final inspect in [false, true]) {
+    for (final key in ['capture_layout_v1', LegacySourceReader.inventoryKey]) {
+      test(
+        '${inspect ? 'inspection' : 'rehearsal'} refuses $key alias to outer coordinator lease',
+        () async {
+          await capture();
+          final record = File('${archive.directory.path}/$key.record');
+          final lock = File('${coordinator.directory.path}/coordinator.lock');
+          await lock.writeAsBytes(await record.readAsBytes(), flush: true);
+          await record.delete();
+          expect(
+            (await Process.run('ln', [lock.path, record.path])).exitCode,
+            0,
+          );
+          final archiveBefore = await _hashes(archive.directory);
+          final sourceBefore = await _hashes(source);
+          await expectLater(
+            inspect
+                ? coordinator.inspectRehearsal(
+                    sourceArchive: archive,
+                    layout: _layout(),
+                  )
+                : coordinator.rehearse(
+                    sourceArchive: archive,
+                    layout: _layout(),
+                  ),
+            throwsA(
+              isA<StateError>().having(
+                (e) => e.message,
+                'guard',
+                contains('aliases a coordination file'),
+              ),
+            ),
+          );
+          expect(await _current(coordinator), isNull);
+          expect(await _hashes(archive.directory), archiveBefore);
+          expect(await _hashes(source), sourceBefore);
+          expect(
+            await FileSystemEntity.identical(lock.path, record.path),
+            isTrue,
+          );
+        },
+        skip: !Platform.isLinux,
+      );
+    }
+  }
 
   test(
     'retained source feeds real repository and media without offline copy',
