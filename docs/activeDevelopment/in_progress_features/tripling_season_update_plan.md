@@ -348,3 +348,25 @@ all-writer quiescence and actual mobile storage/update acceptance remain open.
 There is no original startup or coordinator activation, automatic cleanup,
 default-branch merge, deployment or release. This is not collective
 migration/update-safe acceptance.
+
+
+## Durable archive and rehearsal integration (2026-11-10)
+
+Feature branch `feat/table-migration-integration-20261110` now includes retained
+archive `e664313` and explicit archive-to-rehearsal/recovery orchestration. The
+[combined record](../../../apps/tablet/docs/durable_archive_integration_2026-11-10.md)
+describes immutable intent-first raw transfer, source/layout refusal, archive
+rechecking on retry, self-contained retained rehearsal bytes, later-game
+protection, non-mutating inspection and combined physical recovery export.
+
+Integration testing also reproduced and fixed a normalized-directory symlink
+root bug in source capture/archive guards. The focused tests and analyzer pass;
+complete full-suite/namespace/web verification is in progress and will be
+recorded in the combined report. No production startup or activation is wired.
+
+M1/M4 now have caller-owned retained archives connected to the isolated rehearsal
+and recovery adapter. M9, live all-writer quiescence, support-directory/OS
+retention selection, bounded export and disk-capacity policy remain open. The
+combined backup is in-memory JSON and is not a large/full-device-safe export
+claim. Native shipped-installation, store and device acceptance remain required.
+The explicit release hold is unchanged.

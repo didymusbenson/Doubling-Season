@@ -4,12 +4,14 @@ import '../storage/table_repository.dart';
 import 'legacy_migration_coordinator.dart';
 import 'legacy_migration_recovery.dart';
 import 'legacy_source_reader.dart';
+import 'legacy_source_archive.dart';
 
 /// Explicit native rehearsal adapter. No production route, source discovery,
 /// restore, save destination picker, or original-installation mutation exists.
 class LegacyRehearsalRecoveryActions implements LegacyRecoveryActions {
   final LegacyMigrationCoordinator coordinator;
   final Directory? sourceDirectory;
+  final LegacySourceArchive? sourceArchive;
   final LegacySourceLayout layout;
   String? _inspectedTransaction;
 
@@ -17,6 +19,7 @@ class LegacyRehearsalRecoveryActions implements LegacyRecoveryActions {
     required this.coordinator,
     required this.layout,
     this.sourceDirectory,
+    this.sourceArchive,
   });
 
   @override
@@ -24,6 +27,7 @@ class LegacyRehearsalRecoveryActions implements LegacyRecoveryActions {
     try {
       final result = await coordinator.inspectRehearsal(
         sourceDirectory: sourceDirectory,
+        sourceArchive: sourceArchive,
         layout: layout,
       );
       _inspectedTransaction = result.transactionId;
@@ -41,6 +45,7 @@ class LegacyRehearsalRecoveryActions implements LegacyRecoveryActions {
     try {
       final checked = await coordinator.inspectRehearsal(
         sourceDirectory: sourceDirectory,
+        sourceArchive: sourceArchive,
         layout: layout,
       );
       if (checked.transactionId != expected) {
@@ -58,6 +63,7 @@ class LegacyRehearsalRecoveryActions implements LegacyRecoveryActions {
       if (checked.alreadyPromoted) return _report(checked);
       final promoted = await coordinator.rehearse(
         sourceDirectory: sourceDirectory,
+        sourceArchive: sourceArchive,
         layout: layout,
         expectedTransactionId: expected,
       );
@@ -69,7 +75,7 @@ class LegacyRehearsalRecoveryActions implements LegacyRecoveryActions {
 
   @override
   Future<LegacyRecoveryBackup> createBackup() =>
-      coordinator.createRecoveryBackup();
+      coordinator.createRecoveryBackup(sourceArchive: sourceArchive);
 
   LegacyRecoveryReport _report(
     LegacyMigrationPromotion result, {
@@ -81,6 +87,9 @@ class LegacyRehearsalRecoveryActions implements LegacyRecoveryActions {
     transactionId: result.transactionId,
     warnings: [
       ...result.warnings,
+      if (sourceArchive != null)
+        'Recovery export will also attempt to include the supplied source archive, '
+            'including pending evidence. Keep that archive and the original installation.',
       'Only an isolated temporary rehearsal was checked. Keep the original '
           'installation and offline copy; temporary files can be removed by the OS.',
     ],

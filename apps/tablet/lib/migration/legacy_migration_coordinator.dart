@@ -17,6 +17,8 @@ import 'legacy_migration.dart';
 import 'legacy_migration_journal.dart';
 import 'legacy_migration_recovery.dart';
 import 'legacy_source_reader.dart';
+import 'legacy_source_archive.dart';
+import 'legacy_recovery_files.dart';
 
 class LegacyMigrationPromotion {
   final String transactionId;
@@ -91,14 +93,21 @@ class LegacyMigrationCoordinator {
   /// Once the complete archive exists, retries do not read the source directory.
   Future<LegacyMigrationPromotion> rehearse({
     Directory? sourceDirectory,
+    LegacySourceArchive? sourceArchive,
     required LegacySourceLayout layout,
     Future<void> Function(String boundary)? onBoundary,
     String? expectedTransactionId,
   }) async {
+    if (sourceDirectory != null && sourceArchive != null) {
+      throw ArgumentError(
+        'Choose an offline copy or a retained archive, not both.',
+      );
+    }
     return _withLease(
-      sourceDirectory,
+      sourceDirectory ?? sourceArchive?.directory,
       () => _rehearseLocked(
         sourceDirectory: sourceDirectory,
+        sourceArchive: sourceArchive,
         layout: layout,
         onBoundary: onBoundary,
         expectedTransactionId: expectedTransactionId,
@@ -108,6 +117,7 @@ class LegacyMigrationCoordinator {
 
   Future<LegacyMigrationPromotion> _rehearseLocked({
     Directory? sourceDirectory,
+    LegacySourceArchive? sourceArchive,
     required LegacySourceLayout layout,
     Future<void> Function(String boundary)? onBoundary,
     String? expectedTransactionId,
@@ -137,6 +147,7 @@ class LegacyMigrationCoordinator {
             (key) =>
                 key is! String ||
                 (key != LegacySourceReader.inventoryKey &&
+                    key != LegacySourceReader.captureIntentKey &&
                     !(key.startsWith('raw_file_') &&
                         hash.hasMatch(key.substring(9)))),
           ) ||
@@ -171,10 +182,13 @@ class LegacyMigrationCoordinator {
         );
       }
       final reader = LegacySourceReader();
-      var source = await reader.openRetained(
-        layout: layout,
-        recoveryStorage: raw,
-      );
+      var source = sourceArchive == null
+          ? await reader.openRetained(layout: layout, recoveryStorage: raw)
+          : await sourceArchive.copyRetainedTo(
+              layout: layout,
+              recoveryStorage: raw,
+              onBoundary: onBoundary,
+            );
       if (source == null) {
         if (sourceDirectory == null) {
           throw StateError(
@@ -330,43 +344,60 @@ class LegacyMigrationCoordinator {
   /// A successful new promotion in the clone means ready, not completed.
   Future<LegacyMigrationPromotion> inspectRehearsal({
     Directory? sourceDirectory,
+    LegacySourceArchive? sourceArchive,
     required LegacySourceLayout layout,
-  }) => _withLease(sourceDirectory, () async {
-    final files = _RehearsalFiles(directory);
-    final keys = await files.keys();
-    final records = <String, String>{};
-    for (final key in keys) {
-      records[key] = (await files.read(key))!;
-    }
-    if (!await files.matches(records)) {
-      throw const FormatException('Rehearsal files changed during inspection.');
-    }
-    final clone = await createRehearsal();
-    try {
-      for (final entry in records.entries) {
-        final record = jsonDecode(entry.value) as Map;
-        if (record['kind'] != 'file' || entry.key.contains('/')) {
-          throw StateError('Unexpected rehearsal entries require review.');
-        }
-        await File(
-          '${clone.directory.path}/${entry.key}',
-        ).writeAsBytes(base64Decode(record['bytes'] as String), flush: true);
-      }
-      return await clone.rehearse(
-        sourceDirectory: sourceDirectory,
-        layout: layout,
+  }) async {
+    if (sourceDirectory != null && sourceArchive != null) {
+      throw ArgumentError(
+        'Choose an offline copy or a retained archive, not both.',
       );
-    } finally {
-      // Only this new disposable clone is removed, never retained/user data.
-      await clone.directory.delete(recursive: true);
     }
-  }, allowUnknownFiles: true);
+    return _withLease(sourceDirectory ?? sourceArchive?.directory, () async {
+      final files = _RehearsalFiles(directory);
+      final keys = await files.keys();
+      final records = <String, String>{};
+      for (final key in keys) {
+        records[key] = (await files.read(key))!;
+      }
+      if (!await files.matches(records)) {
+        throw const FormatException(
+          'Rehearsal files changed during inspection.',
+        );
+      }
+      final clone = await createRehearsal();
+      try {
+        for (final entry in records.entries) {
+          final record = jsonDecode(entry.value) as Map;
+          if (record['kind'] != 'file' || entry.key.contains('/')) {
+            throw StateError('Unexpected rehearsal entries require review.');
+          }
+          await File(
+            '${clone.directory.path}/${entry.key}',
+          ).writeAsBytes(base64Decode(record['bytes'] as String), flush: true);
+        }
+        return await clone.rehearse(
+          sourceDirectory: sourceDirectory,
+          sourceArchive: sourceArchive,
+          layout: layout,
+        );
+      } finally {
+        // Only this new disposable clone is removed, never retained/user data.
+        await clone.directory.delete(recursive: true);
+      }
+    }, allowUnknownFiles: true);
+  }
 
   /// Physical bytes preserve unknown/corrupt Hive records and all media without
   /// opening a box. This is not an original-installation backup or restore API.
-  Future<LegacyRecoveryBackup> createRecoveryBackup() => _withLease(
-    null,
-    () => LegacyRecoveryBackup.capture([_RehearsalFiles(directory)]),
+  Future<LegacyRecoveryBackup> createRecoveryBackup({
+    LegacySourceArchive? sourceArchive,
+  }) => _withLease(
+    sourceArchive?.directory,
+    () => sourceArchive == null
+        ? LegacyRecoveryBackup.capture([_RehearsalFiles(directory)])
+        : sourceArchive.createRecoveryBackup(
+            additionalSources: [_RehearsalFiles(directory)],
+          ),
     allowUnknownFiles: true,
   );
 
@@ -557,85 +588,22 @@ void _verifyReferences(dynamic value, Box<dynamic> media, [String? field]) {
 /// Exact filesystem records, including entries the coordinator cannot interpret.
 /// Lock files are process coordination, not retained content. No symlink is read
 /// as a file; its literal target is retained without opening the target.
-class _RehearsalFiles implements LegacyRecoveryRecordSource {
-  final Directory directory;
-  _RehearsalFiles(this.directory);
-  @override
-  String get name => 'rehearsal_files_base64_v1';
-  @override
-  Future<List<String>> keys() async {
-    final result = <String>[];
-    await for (final entity in directory.list(
-      recursive: true,
-      followLinks: false,
-    )) {
-      final key = entity.path.substring(directory.path.length + 1);
-      // Only known top-level lock files are coordination, not user evidence.
-      if (!key.contains('/') &&
-          (key == 'coordinator.lock' ||
-              [
-                LegacyMigrationCoordinator.rawBoxName,
-                LegacyMigrationCoordinator.journalBoxName,
-                LegacyMigrationCoordinator.controlBoxName,
-                TableStorageKeys.aggregate,
-                '${TableStorageKeys.aggregate}_previous',
-                '${TableStorageKeys.aggregate}_recovery',
-                TableStorageKeys.media,
-              ].any((box) => key == '$box.lock')) &&
-          await FileSystemEntity.type(entity.path, followLinks: false) ==
-              FileSystemEntityType.file) {
-        continue;
-      }
-      result.add(key);
-    }
-    return result..sort();
-  }
-
-  @override
-  Future<String?> read(String key) async {
-    if (key.isEmpty ||
-        key.startsWith('/') ||
-        key
-            .split('/')
-            .any((part) => part.isEmpty || part == '.' || part == '..')) {
-      throw const FormatException('Invalid recovery path.');
-    }
-    final parts = key.split('/');
-    var parent = directory.path;
-    for (final part in parts.take(parts.length - 1)) {
-      parent = '$parent/$part';
-      if (await FileSystemEntity.type(parent, followLinks: false) !=
-          FileSystemEntityType.directory) {
-        throw const FormatException('Recovery path changed.');
-      }
-    }
-    final path = '${directory.path}/$key';
-    final type = await FileSystemEntity.type(path, followLinks: false);
-    if (type == FileSystemEntityType.notFound) return null;
-    if (type == FileSystemEntityType.link) {
-      return jsonEncode({'kind': 'link', 'target': await Link(path).target()});
-    }
-    if (type == FileSystemEntityType.directory) {
-      return jsonEncode({'kind': 'directory'});
-    }
-    if (type != FileSystemEntityType.file ||
-        await File(path).length() > 512 * 1024 * 1024) {
-      throw const FormatException('Recovery file is unreadable or too large.');
-    }
-    return jsonEncode({
-      'kind': 'file',
-      'bytes': base64Encode(await File(path).readAsBytes()),
-    });
-  }
-
-  Future<bool> matches(Map<String, String> records) async {
-    final finalKeys = await keys();
-    if (jsonEncode(finalKeys) != jsonEncode(records.keys.toList()..sort())) {
-      return false;
-    }
-    for (final entry in records.entries) {
-      if (await read(entry.key) != entry.value) return false;
-    }
-    return true;
-  }
+class _RehearsalFiles extends LegacyRecoveryFiles {
+  _RehearsalFiles(super.directory)
+    : super(
+        name: 'rehearsal_files_base64_v1',
+        excludedTopLevelLockFiles: {
+          'coordinator.lock',
+          for (final box in [
+            LegacyMigrationCoordinator.rawBoxName,
+            LegacyMigrationCoordinator.journalBoxName,
+            LegacyMigrationCoordinator.controlBoxName,
+            TableStorageKeys.aggregate,
+            '${TableStorageKeys.aggregate}_previous',
+            '${TableStorageKeys.aggregate}_recovery',
+            TableStorageKeys.media,
+          ])
+            '$box.lock',
+        },
+      );
 }

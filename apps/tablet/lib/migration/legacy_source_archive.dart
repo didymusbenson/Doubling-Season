@@ -10,6 +10,8 @@ import 'package:uuid/uuid.dart';
 import 'legacy_migration.dart';
 import 'legacy_migration_journal.dart';
 import 'legacy_source_reader.dart';
+import 'legacy_recovery_files.dart';
+import 'legacy_migration_recovery.dart';
 
 /// Retains an offline installation copy in a caller-selected recovery location.
 ///
@@ -42,7 +44,7 @@ class LegacySourceArchive {
   static Future<LegacySourceArchive> reopen(Directory directory) async {
     _requireRootIsolate();
     await _requireRealDirectory(directory);
-    final root = Directory.fromUri(directory.absolute.uri.normalizePath());
+    final root = _normalizedDirectory(directory);
     if (!root.uri.pathSegments
         .where((part) => part.isNotEmpty)
         .last
@@ -99,6 +101,47 @@ class LegacySourceArchive {
     );
   });
 
+  /// Copy complete, verified records while holding the archive's writer lease.
+  /// The destination is caller-owned rehearsal storage, never selected here.
+  Future<LegacyAcquiredSource> copyRetainedTo({
+    required LegacySourceLayout layout,
+    required LegacyMigrationStorage recoveryStorage,
+    Future<void> Function(String boundary)? onBoundary,
+  }) => _withLease(() async {
+    final storage = _ArchiveRecords(directory, null);
+    if (await storage.read(_layoutKey) !=
+        canonicalMigrationJson(layout.toJson())) {
+      throw const FormatException('The retained source layout conflicts.');
+    }
+    final source = await LegacySourceReader().openRetained(
+      layout: layout,
+      recoveryStorage: storage,
+    );
+    if (source == null) {
+      throw StateError(
+        'Complete the retained source capture before rehearsal.',
+      );
+    }
+    return source.copyRetainedTo(recoveryStorage, onBoundary: onBoundary);
+  });
+
+  /// Exact physical archive evidence, including incomplete, corrupt and unknown
+  /// files, without decoding or repair. The caller leases any additional stores
+  /// first. Only the coordination inode is excluded from the retained archive.
+  Future<LegacyRecoveryBackup> createRecoveryBackup({
+    List<LegacyRecoveryRecordSource> additionalSources = const [],
+  }) => _withLease(
+    () => LegacyRecoveryBackup.capture([
+      ...additionalSources,
+      LegacyRecoveryFiles(
+        directory,
+        name: 'retained_source_files_base64_v1',
+        excludedTopLevelLockFiles: const {'archive.lock'},
+      ),
+    ]),
+    allowUnknownFiles: true,
+  );
+
   Future<void> _requireSeparate(Directory source) async {
     void check(String path) {
       final destination = directory.path;
@@ -114,11 +157,14 @@ class LegacySourceArchive {
       }
     }
 
-    check(Directory.fromUri(source.absolute.uri.normalizePath()).path);
+    check(_normalizedDirectory(source).path);
     if (await source.exists()) check(await source.resolveSymbolicLinks());
   }
 
-  Future<T> _withLease<T>(Future<T> Function() operation) async {
+  Future<T> _withLease<T>(
+    Future<T> Function() operation, {
+    bool allowUnknownFiles = false,
+  }) async {
     _requireRootIsolate();
     final path = directory.path;
     final previous = _locks[path] ?? Future<void>.value();
@@ -132,7 +178,7 @@ class LegacySourceArchive {
       // another descriptor for it while locked: POSIX locks are process-wide.
       lease = await File('$path/archive.lock').open(mode: FileMode.append);
       await lease.lock(FileLock.exclusive);
-      await _validateEntries();
+      if (!allowUnknownFiles) await _validateEntries();
       return await operation();
     } finally {
       try {
@@ -300,7 +346,7 @@ Future<void> _requireFile(String path) async {
 }
 
 Future<void> _requireRealDirectory(Directory directory) async {
-  var current = Directory.fromUri(directory.absolute.uri.normalizePath());
+  var current = _normalizedDirectory(directory);
   while (true) {
     if (await FileSystemEntity.type(current.path, followLinks: false) !=
         FileSystemEntityType.directory) {
@@ -310,4 +356,16 @@ Future<void> _requireRealDirectory(Directory directory) async {
     if (parent.path == current.path) return;
     current = parent;
   }
+}
+
+Directory _normalizedDirectory(Directory directory) {
+  var path = Directory.fromUri(directory.absolute.uri.normalizePath()).path;
+  // A trailing separator makes native lstat follow a directory symlink even
+  // when followLinks is false. Preserve only filesystem root separators.
+  while (path.endsWith(Platform.pathSeparator) &&
+      path != Platform.pathSeparator &&
+      !RegExp(r'^[A-Za-z]:[\\/]$').hasMatch(path)) {
+    path = path.substring(0, path.length - 1);
+  }
+  return Directory(path);
 }

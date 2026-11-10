@@ -117,6 +117,50 @@ class LegacyAcquiredSource {
     for (final e in _media.entries) e.key: Uint8List.fromList(e.value),
   };
 
+  /// Mirror verified immutable raw evidence into an isolated recovery store.
+  /// The caller serializes destination access. Intent is written before any raw
+  /// record and inventory last, so failed copies cannot switch source on retry.
+  Future<LegacyAcquiredSource> copyRetainedTo(
+    LegacyMigrationStorage destination, {
+    Future<void> Function(String boundary)? onBoundary,
+  }) async {
+    await _verifyRetained(_recovery, _inventory);
+    // Refuse an already completed different capture before writing its intent.
+    final prior = await destination.read(LegacySourceReader.inventoryKey);
+    final inventory = canonicalMigrationJson(_inventory);
+    if (prior != null && prior != inventory) {
+      throw const FormatException('Destination retains a different source.');
+    }
+    await _retain(destination, LegacySourceReader.captureIntentKey, _inventory);
+    await onBoundary?.call('archive_copy_intent');
+    final files = _inventory['files'] as Map;
+    for (final metadata in files.values) {
+      final key = 'raw_file_${metadata['sha256']}';
+      final value = await _recovery.read(key);
+      if (value == null) {
+        throw const FormatException('Retained source file is missing.');
+      }
+      await _retain(
+        destination,
+        key,
+        jsonDecode(value) as Map<String, dynamic>,
+      );
+      await onBoundary?.call('archive_copy:$key');
+    }
+    // Verify the original again before making the destination complete.
+    await _verifyRetained(_recovery, _inventory);
+    await _retain(destination, LegacySourceReader.inventoryKey, _inventory);
+    await _verifyRetained(destination, _inventory);
+    await onBoundary?.call('archive_copy_inventory');
+    return LegacyAcquiredSource._(
+      snapshot,
+      localMedia,
+      inventoryDigest,
+      destination,
+      _inventory,
+    );
+  }
+
   /// Recheck retained originals immediately before letting the journal stage.
   Future<LegacyMigrationResult> prepare(LegacyMigrationJournal journal) async {
     await _verifyRetained(_recovery, _inventory);
@@ -189,6 +233,13 @@ class LegacySourceReader {
       'layout': layout.toJson(),
       'files': manifest,
     };
+    final priorIntent = await recoveryStorage.read(captureIntentKey);
+    if (priorIntent != null &&
+        priorIntent != canonicalMigrationJson(inventory)) {
+      throw const FormatException(
+        'The interrupted capture retains another source.',
+      );
+    }
     // Durable archives bind retries to this exact file inventory before any
     // raw bytes become retained authority. Existing rehearsal stores retain
     // their original format unless this stricter contract is explicitly used.
@@ -365,10 +416,18 @@ class LegacySourceReader {
   }
 
   Future<Map<String, Uint8List>> _readDirectory(Directory directory) async {
-    directory = Directory.fromUri(directory.absolute.uri.normalizePath());
-    final root = directory.path.endsWith(Platform.pathSeparator)
-        ? directory.path.substring(0, directory.path.length - 1)
-        : directory.path;
+    var root = Directory.fromUri(directory.absolute.uri.normalizePath()).path;
+    // Native lstat follows a link when a directory separator trails its name.
+    // Remove that ambiguity before checking the copied root and each ancestor.
+    while (root.endsWith(Platform.pathSeparator) &&
+        root != Platform.pathSeparator &&
+        !RegExp(r'^[A-Za-z]:[\\/]$').hasMatch(root)) {
+      root = root.substring(0, root.length - 1);
+    }
+    directory = Directory(root);
+    final prefixLength = root.endsWith(Platform.pathSeparator)
+        ? root.length
+        : root.length + 1;
     // Reject links at every ancestor too: a lexical path must not hide a jump
     // outside the explicitly supplied copy.
     var ancestor = directory.absolute;
@@ -396,7 +455,7 @@ class LegacySourceReader {
           'Links and non-files are not supported in source copies.',
         );
       }
-      final relative = entity.absolute.path.substring(root.length + 1);
+      final relative = entity.absolute.path.substring(prefixLength);
       final path = Platform.isWindows
           ? relative.replaceAll('\\', '/')
           : relative;
@@ -477,6 +536,12 @@ Future<void> _verifyRetained(
       canonicalMigrationJson(inventory)) {
     throw const FormatException(
       'Retained source inventory is missing or changed.',
+    );
+  }
+  final intent = await storage.read(LegacySourceReader.captureIntentKey);
+  if (intent != null && intent != canonicalMigrationJson(inventory)) {
+    throw const FormatException(
+      'Retained source inventory conflicts with intent.',
     );
   }
   final files = inventory['files'];
