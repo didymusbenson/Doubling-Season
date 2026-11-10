@@ -19,6 +19,7 @@ import 'legacy_migration_recovery.dart';
 import 'legacy_source_reader.dart';
 import 'legacy_source_archive.dart';
 import 'legacy_recovery_files.dart';
+import 'legacy_recovery_export.dart';
 
 class LegacyMigrationPromotion {
   final String transactionId;
@@ -396,6 +397,25 @@ class LegacyMigrationCoordinator {
     () => sourceArchive == null
         ? LegacyRecoveryBackup.capture([_RehearsalFiles(directory)])
         : sourceArchive.createRecoveryBackup(
+            additionalSources: [_RehearsalFiles(directory)],
+          ),
+    allowUnknownFiles: true,
+  );
+
+  /// Streams both physical stores while holding coordinator then archive
+  /// leases. The explicit destination must remain outside all source evidence.
+  Future<LegacyRecoveryExport> exportRecoveryBackup({
+    required LegacyRecoveryExportOptions options,
+    LegacySourceArchive? sourceArchive,
+  }) => _withLease(
+    sourceArchive?.directory,
+    () => sourceArchive == null
+        ? LegacyRecoveryExport.write(
+            sources: [_RehearsalFiles(directory)],
+            options: options,
+          )
+        : sourceArchive.exportRecoveryBackup(
+            options: options,
             additionalSources: [_RehearsalFiles(directory)],
           ),
     allowUnknownFiles: true,

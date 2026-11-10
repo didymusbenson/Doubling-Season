@@ -15,6 +15,7 @@ import 'package:tripling_table/migration/legacy_migration_coordinator.dart';
 import 'package:tripling_table/migration/legacy_preferences_decode.dart';
 import 'package:tripling_table/migration/legacy_source_reader.dart';
 import 'package:tripling_table/migration/legacy_migration_recovery.dart';
+import 'package:tripling_table/migration/legacy_recovery_export.dart';
 import 'package:tripling_table/migration/legacy_rehearsal_recovery_actions.dart';
 import 'package:tripling_table/storage/storage_namespace.dart';
 import 'package:tripling_table/storage/table_repository.dart';
@@ -167,6 +168,42 @@ void main() {
     'staged',
     'intent',
   ]) {
+    test(
+      'explicit export options deliver a file-backed recovery stream',
+      () async {
+        final coordinator = await LegacyMigrationCoordinator.createRehearsal();
+        final output = await Directory.systemTemp.createTemp(
+          'recovery-action-output-',
+        );
+        try {
+          final actions = LegacyRehearsalRecoveryActions(
+            coordinator: coordinator,
+            layout: _layout(),
+            exportOptions: LegacyRecoveryExportOptions(
+              parent: output,
+              budget: LegacyRecoveryExportBudget(
+                availableBytes: (_) async => 1 << 40,
+              ),
+            ),
+          );
+          final backup = await actions.createBackup();
+          expect(backup.isStreamed, isTrue);
+          expect(backup.complete, isTrue);
+          expect(
+            await backup.openRead().fold<int>(
+              0,
+              (n, bytes) => n + bytes.length,
+            ),
+            backup.byteLength,
+          );
+          expect(() => backup.bytes, throwsUnsupportedError);
+        } finally {
+          await coordinator.directory.delete(recursive: true);
+          await output.delete(recursive: true);
+        }
+      },
+    );
+
     test(
       '${boundary ?? 'empty'} inspection reports ready without promoting or changing any files',
       () async {

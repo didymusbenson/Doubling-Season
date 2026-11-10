@@ -11,6 +11,7 @@ import 'legacy_migration.dart';
 import 'legacy_migration_journal.dart';
 import 'legacy_source_reader.dart';
 import 'legacy_recovery_files.dart';
+import 'legacy_recovery_export.dart';
 import 'legacy_migration_recovery.dart';
 
 /// Retains an offline installation copy in a caller-selected recovery location.
@@ -131,14 +132,35 @@ class LegacySourceArchive {
   Future<LegacyRecoveryBackup> createRecoveryBackup({
     List<LegacyRecoveryRecordSource> additionalSources = const [],
   }) => _withLease(
-    () => LegacyRecoveryBackup.capture([
-      ...additionalSources,
-      LegacyRecoveryFiles(
-        directory,
-        name: 'retained_source_files_base64_v1',
-        excludedTopLevelLockFiles: const {'archive.lock'},
-      ),
-    ]),
+    () => LegacyRecoveryBackup.capture(
+      LegacyRecoveryFiles.shareCoordination([
+        ...additionalSources,
+        LegacyRecoveryFiles(
+          directory,
+          name: 'retained_source_files_base64_v1',
+          excludedTopLevelLockFiles: const {'archive.lock'},
+        ),
+      ]),
+    ),
+    allowUnknownFiles: true,
+  );
+
+  /// Bounded file-backed export under the same whole-archive writer lease.
+  Future<LegacyRecoveryExport> exportRecoveryBackup({
+    required LegacyRecoveryExportOptions options,
+    List<LegacyRecoveryFiles> additionalSources = const [],
+  }) => _withLease(
+    () => LegacyRecoveryExport.write(
+      options: options,
+      sources: [
+        ...additionalSources,
+        LegacyRecoveryFiles(
+          directory,
+          name: 'retained_source_files_base64_v1',
+          excludedTopLevelLockFiles: const {'archive.lock'},
+        ),
+      ],
+    ),
     allowUnknownFiles: true,
   );
 

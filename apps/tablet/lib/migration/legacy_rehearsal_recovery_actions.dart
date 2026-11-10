@@ -5,6 +5,7 @@ import 'legacy_migration_coordinator.dart';
 import 'legacy_migration_recovery.dart';
 import 'legacy_source_reader.dart';
 import 'legacy_source_archive.dart';
+import 'legacy_recovery_export.dart';
 
 /// Explicit native rehearsal adapter. No production route, source discovery,
 /// restore, save destination picker, or original-installation mutation exists.
@@ -13,6 +14,7 @@ class LegacyRehearsalRecoveryActions implements LegacyRecoveryActions {
   final Directory? sourceDirectory;
   final LegacySourceArchive? sourceArchive;
   final LegacySourceLayout layout;
+  final LegacyRecoveryExportOptions? exportOptions;
   String? _inspectedTransaction;
 
   LegacyRehearsalRecoveryActions({
@@ -20,6 +22,7 @@ class LegacyRehearsalRecoveryActions implements LegacyRecoveryActions {
     required this.layout,
     this.sourceDirectory,
     this.sourceArchive,
+    this.exportOptions,
   });
 
   @override
@@ -74,8 +77,16 @@ class LegacyRehearsalRecoveryActions implements LegacyRecoveryActions {
   }
 
   @override
-  Future<LegacyRecoveryBackup> createBackup() =>
-      coordinator.createRecoveryBackup(sourceArchive: sourceArchive);
+  Future<LegacyRecoveryBackup> createBackup() async {
+    final options = exportOptions;
+    if (options == null) {
+      return coordinator.createRecoveryBackup(sourceArchive: sourceArchive);
+    }
+    return (await coordinator.exportRecoveryBackup(
+      options: options,
+      sourceArchive: sourceArchive,
+    )).backup;
+  }
 
   LegacyRecoveryReport _report(
     LegacyMigrationPromotion result, {

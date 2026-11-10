@@ -108,9 +108,25 @@ abstract interface class LegacyRecoveryRecordSource {
   Future<String?> read(String key);
 }
 
+class LegacyRecoveryCancelled implements Exception {
+  const LegacyRecoveryCancelled();
+}
+
+enum LegacyRecoveryCapacityFailure { unknown, insufficient, outputLimit }
+
+class LegacyRecoveryCapacityException implements Exception {
+  final LegacyRecoveryCapacityFailure reason;
+  const LegacyRecoveryCapacityException(this.reason);
+}
+
 class LegacyRecoveryBackup {
   static const format = 'tripling-season-migration-recovery';
-  final String _encoded;
+  // Legacy JSON is a bounded fallback. Native full exports use a file stream.
+  static const maxTotalCharacters = 4 * 1024 * 1024;
+  static const maxRecords = 10000;
+  final String? _encoded;
+  final Stream<List<int>> Function()? _openRead;
+  final int? byteLength;
   final bool complete;
   final List<String> problems;
   final String fileName;
@@ -121,9 +137,29 @@ class LegacyRecoveryBackup {
     required List<String> problems,
     required this.fileName,
   }) : _encoded = encoded,
+       _openRead = null,
+       byteLength = null,
        problems = List.unmodifiable(problems);
 
-  Uint8List get bytes => Uint8List.fromList(utf8.encode(_encoded));
+  LegacyRecoveryBackup.streamed({
+    required this.fileName,
+    required this.byteLength,
+    required this.complete,
+    required List<String> problems,
+    required Stream<List<int>> Function() openRead,
+  }) : _encoded = null,
+       _openRead = openRead,
+       problems = List.unmodifiable(problems);
+
+  bool get isStreamed => _openRead != null;
+  Stream<List<int>> openRead() => _openRead?.call() ?? Stream.value(bytes);
+
+  Uint8List get bytes {
+    if (_encoded == null) {
+      throw UnsupportedError('Consume file-backed recovery with openRead().');
+    }
+    return Uint8List.fromList(utf8.encode(_encoded));
+  }
 
   /// Copies exact strings, including corrupt/unrecognized envelopes. A partial
   /// copy remains useful but is never represented as a complete backup. Reads
@@ -133,18 +169,32 @@ class LegacyRecoveryBackup {
     DateTime? capturedAt,
   }) async {
     if (sources.isEmpty ||
-        sources.any((source) => source.name.isEmpty) ||
+        sources.length > 32 ||
+        sources.any(
+          (source) => source.name.isEmpty || source.name.length > 256,
+        ) ||
         sources.map((source) => source.name).toSet().length != sources.length) {
       throw ArgumentError('Recovery requires uniquely named record sources.');
     }
     final time = (capturedAt ?? DateTime.now()).toUtc();
     final problems = <String>[];
     final copies = <String, dynamic>{};
+    var totalCharacters = 0;
+    var totalRecords = 0;
     for (final source in sources) {
       final records = <String, String>{};
       List<String> keys;
       try {
         keys = (await source.keys()).toSet().toList()..sort();
+        totalRecords += keys.length;
+        totalCharacters += keys.fold<int>(0, (sum, key) => sum + key.length);
+        if (totalRecords > maxRecords || totalCharacters > maxTotalCharacters) {
+          throw const LegacyRecoveryCapacityException(
+            LegacyRecoveryCapacityFailure.outputLimit,
+          );
+        }
+      } on LegacyRecoveryCapacityException {
+        rethrow;
       } catch (_) {
         problems.add('${source.name}: record inventory could not be read.');
         copies[source.name] = {'records': records, 'inventoryReadable': false};
@@ -157,8 +207,16 @@ class LegacyRecoveryBackup {
           if (value == null) {
             unreadable.add(key);
           } else {
+            if (value.length > maxTotalCharacters - totalCharacters) {
+              throw const LegacyRecoveryCapacityException(
+                LegacyRecoveryCapacityFailure.outputLimit,
+              );
+            }
+            totalCharacters += value.length;
             records[key] = value;
           }
+        } on LegacyRecoveryCapacityException {
+          rethrow;
         } catch (_) {
           unreadable.add(key);
         }
@@ -276,6 +334,23 @@ class LegacyRecoveryController extends ChangeNotifier {
     _notify();
     try {
       await operation();
+    } on LegacyRecoveryCancelled {
+      actionMessage =
+          'Recovery copy was cancelled. Original records and any '
+          'unfinished copy remain unchanged.';
+    } on LegacyRecoveryCapacityException catch (error) {
+      actionMessage = switch (error.reason) {
+        LegacyRecoveryCapacityFailure.unknown =>
+          'Available storage could not be verified. Choose a location with '
+              'measurable free space; keep the original records.',
+        LegacyRecoveryCapacityFailure.insufficient =>
+          'Not enough storage remains for the recovery copy and safety reserve. '
+              'Choose another private location or free unrelated space. '
+              'Keep the original records and unfinished copies.',
+        LegacyRecoveryCapacityFailure.outputLimit =>
+          'This recovery copy exceeds the configured size limit. Use a '
+              'file-backed export with sufficient capacity. Keep the originals.',
+      };
     } catch (_) {
       if (inspectionFailure) {
         // Raw exceptions can include a whole source payload. Keep diagnostics
