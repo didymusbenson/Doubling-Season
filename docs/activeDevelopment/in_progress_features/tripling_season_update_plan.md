@@ -290,3 +290,25 @@ Remaining priority is production archive/export/retention and disk-capacity
 policy, actual shipped-version copies, all-writer quiescence, native process and
 no-uninstall update evidence, store restore and device/accessibility acceptance.
 Temporary fixtures and passing web builds cannot satisfy those release gates.
+
+## Historical-source and dormant-startup safety checkpoint (2026-11-10)
+
+Feature branch `feat/table-migration-integration-20261110` integrates source
+`5c881bd`. The [combined history/startup record](../../../apps/tablet/docs/migration_history_startup_integration_2026-11-10.md)
+adds frozen bytes from exact historical repository adapters and a dormant,
+non-activating inventory gate. The historical fixtures exposed a silent
+creation-time-to-Hive-key ordering change; multi-record sources with absent/null
+live order now fail closed after exact raw retention. Single-record old Item
+fixtures and explicit-order sources remain supported within the recorded limits.
+
+The fixtures are synthetic, not copies from shipped installations. The gate is
+not wired into either startup and cannot activate any candidate. Actual shipped
+copies, production retention/lease/activation and native/store/device acceptance
+remain open; release stays held. See the linked record for exact final validation
+and outstanding gates rather than treating earlier component counts as acceptance.
+
+The complete recovered validation of `5c881bd` passed: analyzer clean,
+**1,876 tests / 8 expected skips**, **361 namespace checks / 57 intentional
+same-app skips**, and release JavaScript web compilation (including the optional
+Wasm compiler dry run). An earlier interrupted run's intermittent artwork-pixel
+failure is documented rather than counted as a pass.

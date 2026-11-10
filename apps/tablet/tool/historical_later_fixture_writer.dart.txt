@@ -1,0 +1,62 @@
+// Synthetic payload, using only exact archived fa577ac models/adapters.
+import 'package:hive/hive.dart';
+import 'lib/models/item.dart';
+import 'lib/models/token_counter.dart';
+import 'lib/models/deck.dart';
+import 'lib/models/token_template.dart';
+import 'lib/models/token_definition.dart';
+import 'lib/models/token_artwork_preference.dart';
+import 'lib/models/tracker_widget.dart';
+import 'lib/models/toggle_widget.dart';
+import 'lib/models/tracker_widget_template.dart';
+import 'lib/models/toggle_widget_template.dart';
+import 'lib/models/token_rule.dart';
+import 'lib/models/rule_trigger.dart';
+import 'lib/models/rule_outcome.dart';
+Future<void> main(List<String> args) async {
+  Hive.init(args.first);
+  Hive.registerAdapter(ItemAdapter());
+  Hive.registerAdapter(TokenCounterAdapter());
+  Hive.registerAdapter(DeckAdapter());
+  Hive.registerAdapter(TokenTemplateAdapter());
+  Hive.registerAdapter(ArtworkVariantAdapter());
+  Hive.registerAdapter(TokenArtworkPreferenceAdapter());
+  Hive.registerAdapter(TrackerWidgetAdapter());
+  Hive.registerAdapter(ToggleWidgetAdapter());
+  Hive.registerAdapter(TrackerWidgetTemplateAdapter());
+  Hive.registerAdapter(ToggleWidgetTemplateAdapter());
+  Hive.registerAdapter(TokenRuleAdapter());
+  Hive.registerAdapter(RuleTriggerAdapter());
+  Hive.registerAdapter(RuleOutcomeAdapter());
+  final date = DateTime.utc(2026, 1, 1);
+  final art = ArtworkVariant(set: 'OLD', url: 'https://example.invalid/historical.png');
+  final item = Item(name: 'Historical Goblin', pt: '1/1', colors: 'R',
+    amount: 11, tapped: 3, summoningSick: 2, order: 5,
+    counters: [TokenCounter(name: 'charge', amount: 4)],
+    createdAt: date, artworkUrl: art.url, artworkSet: art.set,
+    artworkOptions: [art]);
+  final tracker = TrackerWidget(widgetId: 'historical-tracker', name: 'Old tracker',
+    description: 'Retained description', colorIdentity: 'G', order: 2,
+    createdAt: date, currentValue: 17, defaultValue: 4, tapIncrement: 2,
+    longPressIncrement: 7, isCustom: true, artworkUrl: art.url,
+    artworkSet: art.set, artworkOptions: [art]);
+  final toggle = ToggleWidget(widgetId: 'historical-toggle', name: 'Old toggle',
+    colorIdentity: 'U', order: 8, createdAt: date, isActive: true,
+    onDescription: 'Active historical text', offDescription: 'Inactive historical text',
+    isCustom: true, artworkUrl: art.url, artworkSet: art.set, artworkOptions: [art]);
+  await (await Hive.openBox<Item>('items')).put(7, item);
+  await (await Hive.openBox<TrackerWidget>('trackerWidgets')).put(4, tracker);
+  await (await Hive.openBox<ToggleWidget>('toggleWidgets')).put(2, toggle);
+  await (await Hive.openBox<Deck>('decks')).put('preset', Deck(
+    name: 'Historical utilities', templates: [TokenTemplate.fromItem(item)],
+    trackerWidgets: [TrackerWidgetTemplate.fromWidget(tracker)],
+    toggleWidgets: [ToggleWidgetTemplate.fromWidget(toggle)]));
+  await (await Hive.openBox<TokenArtworkPreference>('artworkPreferences')).put(
+    'goblin', TokenArtworkPreference(tokenIdentity: 'Historical Goblin|1/1|R||',
+      lastUsedArtwork: art.url));
+  final rules = await Hive.openBox<TokenRule>('tokenRules');
+  await rules.put('multiply', TokenRule(name: 'Old multiply', enabled: false,
+    order: 2, trigger: RuleTrigger(triggerType: 'color', targetColor: 'R'),
+    outcomes: [RuleOutcome(multiplier: 3)]));
+  await Hive.close();
+}

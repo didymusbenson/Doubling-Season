@@ -53,3 +53,23 @@ runtimes, or complete the native update/release acceptance matrix. Later
 artwork/utility/rule schemas still need historical coverage. Multi-record pre-order
 boards now remain safely blocked pending an explicit supported compatibility
 policy. Release remains held; no merge, PR, deployment or native installation.
+
+## Later-schema extension
+
+Added `fa577ac` frozen repository-source fixtures for artwork, live utilities,
+saved utility templates and initial custom rules (type IDs 0–12). Exact source
+archives and generator/runtime digests accompany the bytes. Current readers must
+supply later artist/actionOnly/count defaults without changing historical values.
+The coordinator regression checks isolated promotion/reopen, disabled local-only
+rules, retained artwork preferences, and fresh preset defaults independent of
+live utility state. No production behavior or startup path changes were needed.
+These remain synthetic repository-history fixtures, not shipped-device evidence.
+
+Extension validation: `flutter analyze --no-pub` reported no issues; 57 focused
+historical/source-reader/coordinator tests passed. The three later-fixture tests
+also passed after adding a historical nested counter to exercise every adapter.
+All 28 archived source files matched their exact Git blobs; repeated generation
+produced identical fixture and driver digests and provenance. The asserted
+manifest inventory contains all 28 sources and all seven frozen copied files.
+Artwork coverage here is metadata only, using inert remote URLs; historical
+native local-media capture and restore remain unverified.

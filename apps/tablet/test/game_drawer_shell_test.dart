@@ -59,6 +59,35 @@ void main() {
     await catalog.delete(recursive: true);
   });
 
+  Future<void> waitForArtwork(WidgetTester tester) async {
+    final images = find.descendant(
+      of: find.byType(TableArtwork),
+      matching: find.byType(Image),
+    );
+    expect(images, findsWidgets);
+    // Image codecs finish outside the fake test clock. Await the providers
+    // actually used by the cards instead of racing a fixed wall-clock sleep.
+    await tester.runAsync(() async {
+      await Future.wait([
+        for (final element in images.evaluate())
+          precacheImage((element.widget as Image).image, element),
+      ]);
+    });
+    await tester.pumpAndSettle();
+    final decodedImages = find.descendant(
+      of: find.byType(TableArtwork),
+      matching: find.byType(RawImage),
+    );
+    expect(decodedImages, findsWidgets);
+    for (final image in tester.widgetList<RawImage>(decodedImages)) {
+      expect(
+        image.image,
+        isNotNull,
+        reason: 'Artwork must decode before capture',
+      );
+    }
+  }
+
   Future<TableFixture> show(
     WidgetTester tester,
     Size size,
@@ -97,10 +126,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     if (artStyle != null) {
-      await tester.runAsync(() async {
-        await Future<void>.delayed(const Duration(milliseconds: 100));
-      });
-      await tester.pumpAndSettle();
+      await waitForArtwork(tester);
     }
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox());
@@ -292,10 +318,7 @@ void main() {
             expect(tester.widget<TableArtworkSurface>(artwork).style, style);
             expectFirstTokenContentClear(tester, p, inset: seats == 2 ? 30 : 0);
           }
-          await tester.runAsync(() async {
-            await Future<void>.delayed(const Duration(milliseconds: 100));
-          });
-          await tester.pumpAndSettle();
+          await waitForArtwork(tester);
           await capture(tester, '$seats-centered-$style-expanded');
           expect(tester.takeException(), isNull);
         },

@@ -1,0 +1,49 @@
+{
+  "kind": "synthetic-repository-history-not-shipped-device-capture",
+  "repository": "https://github.com/didymusbenson/Doubling-Season",
+  "commit": "fa577acca33ca5f2a0b7d7c929bf386764e69504",
+  "sourceSha256": {
+    "lib/models/deck.dart": "4891e866a99d631484a5b8aaab4f33ce52bc50383fc9514463cfacf2474de516",
+    "lib/models/deck.g.dart": "c064f504c1fa35a06493a243dc5dea073a1bc8ff048d2aae4bf151bcee05ac07",
+    "lib/models/item.dart": "baee03655293b63a86d9db3e6e770cae1ec0b607f728c0505e755c6d749b0689",
+    "lib/models/item.g.dart": "7074957bb97828d2c442e7e010beffd08aa0d64ec4705b9f0c7434811f3dca93",
+    "lib/models/rule_outcome.dart": "cd1aa6d0cccd0edae62a97105b99b4072fbdd8e2403d53b2043e6be165d46bac",
+    "lib/models/rule_outcome.g.dart": "9337d4644407e55f473e9e10635896b353313a519780e340a52e01b4c845210a",
+    "lib/models/rule_trigger.dart": "539ad8a748afe644bbe79eef836915c6a2deba0ad0a7960959b3bdb9c2d93ff2",
+    "lib/models/rule_trigger.g.dart": "81e3406640078030a4dcf59ba092a06b2a098cb5859561fb0fa22f7d1031abf3",
+    "lib/models/toggle_widget.dart": "be103d7743a29d84e9cfba7b7375254ac48481c40f167068c8899d592537b326",
+    "lib/models/toggle_widget.g.dart": "8d8dd98f90732bff42555cf5988400af83b9614906bd033b50b94d5041667964",
+    "lib/models/toggle_widget_template.dart": "7dda4bc126680ca9a495a27f318e688ce093e9a33642476643970de65b96fdd0",
+    "lib/models/toggle_widget_template.g.dart": "6ee27e39aca250036c942c9d766f133bb73efce53c19559cc4974e727335ae4d",
+    "lib/models/token_artwork_preference.dart": "9b00a9891f95aaf487f3d99a2d2e8dc0799cf92ce9b0b85f034d2e7f81c0345e",
+    "lib/models/token_artwork_preference.g.dart": "39c1bba147e95d917ab4734ddc0a701a624dd4d6cbf61cc805f4ddcd2c687b62",
+    "lib/models/token_counter.dart": "3cea53599332e1306fa009fe96b2cd11b12af62d323e8b42126b6ff0d5c88cba",
+    "lib/models/token_counter.g.dart": "54370d46efa21bd2e7976d4d1664969e3ce1c3da5fd20f58ed06a0f4cff7c0a0",
+    "lib/models/token_definition.dart": "03999ad2b98bb29450bbec04a10305a277c39d31cd63af41a1cae8a76b69fbc5",
+    "lib/models/token_definition.g.dart": "8ffee665997683b7cc307234822c49a422ac2ac7e2453bf8e4a8a062e22b1395",
+    "lib/models/token_rule.dart": "1b8c8ae5c17d0bb2d96e6903f123673884d5bca7e819a3450a896e34ba9756d2",
+    "lib/models/token_rule.g.dart": "d6d8ef10c158236cbad03fd03659020025f248683429fd96a82664b3deae06e1",
+    "lib/models/token_template.dart": "c44d27794b060cf57c35dcd4bf85186681eb2d11a473ab134cd9c51a308fbb51",
+    "lib/models/token_template.g.dart": "fac9db485e1fee32edba5d9f2bc64394ab608ddc1165fd5526f412f22ddbfa6e",
+    "lib/models/tracker_widget.dart": "df0f24a76e51855eee5bd2c1b22dd1c5d6cdc0f7b98a404314be5cb816aef81b",
+    "lib/models/tracker_widget.g.dart": "0a699f14a7e65d2c6b712d07a8dacc05a2faf8a5223b2d4be1f954b9b39df230",
+    "lib/models/tracker_widget_template.dart": "378579a09e6f2ca5575124b87d27125fd36ef8354070f03a603e788425d61639",
+    "lib/models/tracker_widget_template.g.dart": "4e2840fb4ebef9a8903b0d71c1b15937fa4c95a28c5ced7f29179551cdab2fd9",
+    "lib/utils/constants.dart": "57121c7cd6716afe720c7b398b6c16a806f0aa0c926af039c5d2859752eebb4b",
+    "pubspec.lock": "1291ab627450afbb2b1347582c02530876f70e7c0e90c5cdb636917c7572d4ad"
+  },
+  "writerRuntime": {
+    "dart": "Dart SDK version: 3.11.0 (stable) (Mon Feb 9 00:38:07 2026 -0800) on \"linux_x64\"",
+    "resolvedHiveVersion": "2.2.3"
+  },
+  "writerSha256": "aaca848b5890ac7da03f336557ef207e07fd4fb5e3c1038d97a5ab5f27921331",
+  "fixtureSha256": {
+    "copy/items.hive": "99a1d3743c5648eb205d0302c0e7089f163c2b384e00ec386efb25a271f20701",
+    "copy/decks.hive": "7edafb18277e24a5874b3714b3ab5a20804a3b7fceccf54cf6b471eae558462a",
+    "copy/trackerwidgets.hive": "4f4a962e8279e72917f5a8ca68a265d75ec86fd583777c97116518c5e96d68aa",
+    "copy/togglewidgets.hive": "f4f7a465219b9507d9c372f060b3bcccc0426cd081c927895e42e9e9ec8797e2",
+    "copy/artworkpreferences.hive": "aa1a491ed6e98ef9a50f11ff344381cba163e23209d135125cdb99715f75d768",
+    "copy/tokenrules.hive": "73339f03a5637f5c1afe18e2d0a62808759d99d85f96fb021a7045571cb1a6c7",
+    "copy/preferences.xml": "824ffbe33c14d10b702a07b03fcee8d2c5d4488893542981cf60a000f60fd5a5"
+  }
+}

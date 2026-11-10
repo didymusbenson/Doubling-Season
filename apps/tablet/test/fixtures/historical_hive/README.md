@@ -63,3 +63,29 @@ retention. It does not trust a caller's version label or invent historical
 sorting. A sole surviving record remains supported; superseded frames and
 tombstones do not count. Saved template ordering is not treated as live state.
 The explicit-order `d9e19b6` multi-record fixture remains supported.
+
+## Later artwork, utilities and initial rules
+
+`fa577ac/` extends coverage using exact source from repository commit `fa577ac`
+(full hash in provenance), before ArtworkVariant artist, tracker actionOnly and
+TokenRule count fields existed. All 26 model/adapter files, constants and the
+historical lockfile are archived unmodified. The fixture exercises all type IDs
+0–12, including nested utility templates, artwork options and rule trigger/outcome.
+The source commit is not asserted to have shipped.
+
+Reproduce with `python3 tool/generate_later_historical_hive_fixtures.py --dart
+/path/to/flutter/bin/dart`, then run
+`flutter test test/later_historical_hive_fixtures_test.dart`. The separate frozen
+writer is `tool/historical_later_fixture_writer.dart.txt`; its digest is recorded
+alongside verified Dart 3.11.0 and Hive 2.2.3 runtime provenance. No current adapter
+writes these bytes. Remote artwork URLs are inert example.invalid metadata, not
+network resources or evidence of local media recovery.
+
+The current reader preserves exact raw files and historical artwork, utility
+values/state, rule trigger/outcome and disabled state, with empty artist, false
+actionOnly and count 1 defaults. The isolated coordinator preserves live values
+and local-only rules across reopen/retry; loading the saved preset into another
+seat uses tracker default 4 instead of live 17, inactive toggle instead of active,
+and zero token quantity instead of live 11. The source directory stays unchanged.
+Genuine native installation copies, other historical schema transitions, actual
+local media and release/platform acceptance remain separate outstanding gates.
