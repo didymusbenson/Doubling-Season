@@ -55,8 +55,29 @@ lockfile, application version, signing or original Hive schema changes.
 - Archive/source-reader/physical-file regressions: **55 passed**, including the
   three symlink-root cases that failed before the fix. Existing POSIX lease,
   abrupt-process-exit and ENOSPC component cases remain included.
-- Full suite, explicit preview namespace and release web compilation are running;
-  this interim source checkpoint does not claim their completion.
+- Full `flutter test --no-pub --reporter expanded`: **1,920 passed, 8 expected
+  skips**, 6m55s.
+- Explicit `phone_preview_v1` safety suite: **405 passed, 57 intentional
+  same-app-only skips**, 48s.
+- Release JavaScript web build: **passed** (59.5s), including the optional Wasm
+  compiler dry run. Browser runtime, Wasm runtime and native acceptance were not run.
+- Independent read-only review found no remaining blocker in the final code,
+  including the normalization fix. All 26 canonical-plan local links resolve;
+  authored diffs pass whitespace checks.
+
+Published source commit: `7dfd489c427fc5f9a3d5036cd2c11298ec7200e1`, tree
+`12c3d3b6faefa1f45993701641b0aa6859ebe8b5`. This exactly matches locally validated
+source commit `00a8ffe3b5645667ea63ae3d99c669ec3973849b`. Command-line push could
+not obtain credentials, so the connected GitHub API published the identical tree
+and advanced the feature ref without force against the verified expected head.
+The remote was fetched back and its tree matched. The local validation commit
+was retained on a backup branch. This validation record is a docs-only follow-up;
+no source/test files changed after validation started.
+
+The source commit has no recorded commit statuses or PR-triggered workflow runs.
+No PR or CI run was created. Android/iOS builds, native original-installation
+updates, store restore and device acceptance were not run. Feature-branch
+publication did not merge or deploy anything.
 
 Commands from `apps/tablet`:
 
