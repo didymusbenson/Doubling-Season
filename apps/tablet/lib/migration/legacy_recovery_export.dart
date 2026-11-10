@@ -104,7 +104,8 @@ class LegacyRecoveryExport {
 
   /// Version 2 is JSON Lines, with a header, named sources, entries and bounded
   /// base64 chunks. Each file has its original byte length and SHA-256. The last
-  /// line hashes every preceding byte. It is a recovery artifact, not a restore
+  /// line hashes every preceding byte, including the completeness summary.
+  /// This is integrity, not authenticity. It is a recovery artifact, not a restore
   /// command or a backup of unlisted original-installation stores.
   ///
   /// Callers hold all source writer leases for the entire operation. There is
@@ -355,15 +356,17 @@ class LegacyRecoveryExport {
         }
         await line({'type': 'end_source', 'stableDuringRead': stable});
       }
-      checksum = digest.finish();
-      payloadLength = written;
-      final footer = <String, Object?>{
-        'type': 'complete',
+      // Completeness is evidence too. Include it in the hashed bytes so a
+      // later independent verifier need not trust an unprotected final flag.
+      await line({
+        'type': 'summary',
         'complete': problems.isEmpty,
         'entries': entryCount,
-        'sha256': checksum,
         'problems': problems,
-      };
+      });
+      checksum = digest.finish();
+      payloadLength = written;
+      final footer = <String, Object?>{'type': 'checksum', 'sha256': checksum};
       trailer = utf8.encode('${jsonEncode(footer)}\n');
       await line(footer, hash: false);
       await writer.flush();

@@ -159,6 +159,39 @@ void main() {
     await coordinator.directory.delete(recursive: true);
   });
 
+  test(
+    'explicit export options deliver a file-backed recovery stream',
+    () async {
+      final coordinator = await LegacyMigrationCoordinator.createRehearsal();
+      final output = await Directory.systemTemp.createTemp(
+        'recovery-action-output-',
+      );
+      try {
+        final actions = LegacyRehearsalRecoveryActions(
+          coordinator: coordinator,
+          layout: _layout(),
+          exportOptions: LegacyRecoveryExportOptions(
+            parent: output,
+            budget: LegacyRecoveryExportBudget(
+              availableBytes: (_) async => 1 << 40,
+            ),
+          ),
+        );
+        final backup = await actions.createBackup();
+        expect(backup.isStreamed, isTrue);
+        expect(backup.complete, isTrue);
+        expect(
+          await backup.openRead().fold<int>(0, (n, bytes) => n + bytes.length),
+          backup.byteLength,
+        );
+        expect(() => backup.bytes, throwsUnsupportedError);
+      } finally {
+        await coordinator.directory.delete(recursive: true);
+        await output.delete(recursive: true);
+      }
+    },
+  );
+
   for (final boundary in <String?>[
     null,
     'copied',
@@ -168,42 +201,6 @@ void main() {
     'staged',
     'intent',
   ]) {
-    test(
-      'explicit export options deliver a file-backed recovery stream',
-      () async {
-        final coordinator = await LegacyMigrationCoordinator.createRehearsal();
-        final output = await Directory.systemTemp.createTemp(
-          'recovery-action-output-',
-        );
-        try {
-          final actions = LegacyRehearsalRecoveryActions(
-            coordinator: coordinator,
-            layout: _layout(),
-            exportOptions: LegacyRecoveryExportOptions(
-              parent: output,
-              budget: LegacyRecoveryExportBudget(
-                availableBytes: (_) async => 1 << 40,
-              ),
-            ),
-          );
-          final backup = await actions.createBackup();
-          expect(backup.isStreamed, isTrue);
-          expect(backup.complete, isTrue);
-          expect(
-            await backup.openRead().fold<int>(
-              0,
-              (n, bytes) => n + bytes.length,
-            ),
-            backup.byteLength,
-          );
-          expect(() => backup.bytes, throwsUnsupportedError);
-        } finally {
-          await coordinator.directory.delete(recursive: true);
-          await output.delete(recursive: true);
-        }
-      },
-    );
-
     test(
       '${boundary ?? 'empty'} inspection reports ready without promoting or changing any files',
       () async {

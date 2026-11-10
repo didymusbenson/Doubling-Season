@@ -236,7 +236,11 @@ void main() {
       final lines = await _lines(result.file);
       expect(lines.first['format'], LegacyRecoveryExport.format);
       expect(lines.first['version'], 2);
-      expect(lines.last['complete'], isTrue);
+      expect(
+        lines.singleWhere((line) => line['type'] == 'summary')['complete'],
+        isTrue,
+      );
+      expect(lines.last.keys, ['type', 'sha256']);
       expect(lines.last['sha256'], result.sha256Digest);
       final entries = lines.where((e) => e['type'] == 'entry').toList();
       expect(entries.map((e) => e['key']), [
@@ -447,7 +451,42 @@ void main() {
         expect(result.file.path, endsWith('recovery-partial.jsonl'));
         expect(result.problems, isNotEmpty);
         expect(result.problems.join(), isNot(contains('Private source')));
-        expect((await _lines(result.file)).last['complete'], isFalse);
+        expect(
+          (await _lines(
+            result.file,
+          )).singleWhere((line) => line['type'] == 'summary')['complete'],
+          isFalse,
+        );
+      }
+    },
+  );
+
+  test(
+    'summary completeness, problems and counts are protected by the digest',
+    () async {
+      final result = await export(files: _FailingRead(source));
+      final lines = await _lines(result.file);
+      final summaryIndex = lines.indexWhere(
+        (line) => line['type'] == 'summary',
+      );
+      expect(lines[summaryIndex]['complete'], isFalse);
+      for (final field in ['complete', 'problems', 'entries']) {
+        final altered = lines
+            .map((line) => Map<String, dynamic>.from(line))
+            .toList();
+        altered[summaryIndex][field] = switch (field) {
+          'complete' => true,
+          'problems' => <String>[],
+          _ => 999,
+        };
+        final changedPayload = utf8.encode(
+          '${altered.take(altered.length - 1).map(jsonEncode).join('\n')}\n',
+        );
+        expect(
+          sha256.convert(changedPayload).toString(),
+          isNot(altered.last['sha256']),
+          reason: field,
+        );
       }
     },
   );
