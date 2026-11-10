@@ -92,3 +92,43 @@ checks using the original listing/products and store account; receipt/refund
 behavior verification; explicit identity/version/build/signing configuration;
 cosmetic acceptance; and the user's separate release approval. Mocked tests and
 web builds cannot establish any of these native/store outcomes.
+
+## Persistence hardening follow-up
+
+A follow-up from integrated `f01f9d4` closes additional local persistence gaps
+without changing the original-update guard or adding the deferred heart picker.
+
+- Preference operations are serialized and reload the backing store before use.
+  A failed write cannot leak its optimistic `SharedPreferences` process cache into
+  a newly opened support view. Failure cleanup never deletes original values.
+- Purchase delivery merges freshly observed ownership, writes both applicable
+  caches and reads them back before acknowledging the store. A successful setter
+  that did not actually retain the data is a failure, not a delivered purchase.
+- Buy/restore remain blocked while receipt persistence/completion is active.
+  Cosmetic writes run in order, retain the last confirmed display on failure,
+  and clear only their own resolved error on a successful retry.
+- Original named heart preferences, including unknown values, remain untouched.
+  The existing five-color UI only gains an in-progress save guard; no picker or
+  feature-set decision is implemented by this pass.
+
+The [native/store acceptance packet](supporter_native_acceptance_2026-11-10.md)
+records current read-only readiness, the exact later test cases and sanitized
+record fields. It explicitly separates local reload verification from physical
+power-loss guarantees, original-listing sandbox restores and future release
+permission. No native/store test has been performed by this follow-up.
+
+Follow-up checkpoint validation (Flutter 3.41.2 / Dart 3.11.0):
+
+- Focused continuity/feedback/modal/integration suite: 79 passed, one expected
+  namespace-only skip, including 11 new persistence regressions.
+- `flutter analyze --no-pub`: no issues.
+- Preview namespace support/storage/integration suite: 11 passed, 57 expected
+  same-app-only skips. Production sentinels remain unchanged.
+- Independent read-only review identified a queued-color feedback race. The
+  fix and failed-first/successful-second regression passed re-review; no
+  remaining concrete correctness issue was found.
+- Final release web build and full regression rerun are pending at this
+  checkpoint. The earlier partial full run was deliberately stopped to include
+  the review fix, not recorded as a pass. Heavy builds are being serialized.
+
+No native upgrade/store exercise or feature acceptance is claimed.

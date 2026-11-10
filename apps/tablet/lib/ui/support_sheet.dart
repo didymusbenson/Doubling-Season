@@ -105,7 +105,7 @@ class _TableSupportContentState extends State<TableSupportContent> {
                   final action = service.owned.contains(product.id)
                       ? const Icon(Icons.check_circle_outline)
                       : FilledButton(
-                          onPressed: service.pending || service.restoring
+                          onPressed: service.busy
                               ? null
                               : () => service.buy(product),
                           child: Text(product.price),
@@ -165,7 +165,9 @@ class _TableSupportContentState extends State<TableSupportContent> {
                       child: Semantics(
                         label: 'Choose badge color',
                         child: IconButton(
-                          onPressed: () => service.setHeartColor(color),
+                          onPressed: service.savingCosmetic
+                              ? null
+                              : () => service.setHeartColor(color),
                           icon: Icon(Icons.favorite, color: Color(color)),
                         ),
                       ),
@@ -177,9 +179,7 @@ class _TableSupportContentState extends State<TableSupportContent> {
             Padding(
               padding: const EdgeInsets.only(top: 12),
               child: TextButton(
-                onPressed: service.pending || service.restoring
-                    ? null
-                    : service.restore,
+                onPressed: service.busy ? null : service.restore,
                 child: const Text('Restore purchases'),
               ),
             ),
