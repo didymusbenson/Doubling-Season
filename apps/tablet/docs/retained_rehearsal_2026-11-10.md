@@ -48,19 +48,55 @@ arbitrary caller-supplied parent aliases are refused.
 
 ## Validation
 
-Frozen-source analysis is clean and 44 retained/dual-mode capacity tests pass.
-An earlier broader 169-test run passed before the final creation-readback
-refinement; it does not replace validation of the final source. Independent
-review found no blocking issue after the native path correction. Full regression,
-preview-namespace checks and web compilation are in progress. The prior
-2,017-test checkpoint does not validate these factories. Final source identity
-and results will be recorded before combined validation is claimed.
+Validated source `ef589f7e4bf7cec2b49300dc560cd169b648ff3c`, tree
+`7a50b55caa96d6865df2be1779e1e8bfc578a570`, matches the remotely fetched
+feature-branch tree exactly. Final evidence below uses Flutter 3.41.2 / Dart
+3.11.0 on Linux. Only documentation changes after validation.
+
+- `flutter analyze --no-pub`: **no issues**, 1.8 seconds.
+- Final retained and dual-mode capacity selection: **44 tests passed**.
+- Full `flutter test --no-pub --reporter expanded`: **2,044 passed / 8 expected
+  skips**, 5m58s.
+- Explicit `phone_preview_v1` safety selection: **529 passed / 57 intentional
+  same-app-only skips**, 32 seconds.
+- Release JavaScript web compilation: **passed**, 37.8 seconds. Optional Wasm
+  compiler dry run passed; browser/Wasm runtime acceptance was not performed.
+  The existing `--pwa-strategy` deprecation warning remains.
+- Independent source review after the native path fix: no blocking findings.
+- Whitespace and all **37 local links** in the changed records/current plan pass.
+  Dependency lockfiles and original startup/native identity files are unchanged.
+
+The earlier broader 169-test focused run predates the final creation-readback
+refinement. The subsequent 44-test and full/namespace runs cover the final code.
+Android/iOS support-factory tests use mocked platform responses on Linux; they
+are not a new native-device or real Application Support retention acceptance.
+No native build, actual app update, store restoration or real user-data capture
+was performed for this slice.
+
+No source commit statuses or PR-triggered workflow runs were recorded. No PR,
+default merge, deployment or release occurred.
 
 Review identified a trailing-separator final-symlink check in the initial native
 factory. New Android/iOS path-provider regressions reproduced it before the
 normalization fix. Retained creation now also strictly rereads the saved controls
 before returning success; tests corrupt either policy or marker and verify that
 the factory refuses while keeping the failed child.
+
+Reproduce from `apps/tablet` with the pinned SDK and resolved dependencies:
+
+```sh
+flutter analyze --no-pub
+flutter test --no-pub --reporter expanded
+flutter test --no-pub --reporter expanded \
+  --dart-define=TABLE_STORAGE_NAMESPACE=phone_preview_v1 \
+  test/legacy_*test.dart test/native_recovery_capacity_test.dart \
+  test/historical_hive_fixtures_test.dart test/later_historical_hive_fixtures_test.dart \
+  test/table_startup_gate_test.dart test/catalog_compatibility_test.dart \
+  test/table_repository_compatibility_test.dart test/support_continuity_test.dart \
+  test/storage_namespace_test.dart test/update_foundations_integration_test.dart
+flutter build web --release --no-pub \
+  --base-href /Doubling-Season/tablet/ --pwa-strategy=none
+```
 
 ## Remaining acceptance
 

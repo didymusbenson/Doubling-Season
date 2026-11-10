@@ -514,9 +514,14 @@ temporary-only API restrictions. The factory never adopts current app storage
 or selects its rehearsal as the live table. Inspection still uses a temporary
 clone and never removes retained evidence.
 
-Focused checks and final review are in progress. The linked record will identify
-the final validated source and exact results. This closes a temporary-only
-rehearsal limitation, not production authority, OS retention, native full-disk,
+Published source `ef589f7` matches the tested local tree. Analysis is clean;
+**2,044 full tests / 8 expected skips**, **529 preview-namespace checks / 57
+intentional skips**, and release web compilation with optional Wasm dry run pass.
+Final focused checks and independent source review pass. The linked record names
+the exact source/tree, commands and limits; native support-root tests are mocked,
+not real-device evidence. No PR or source commit statuses/PR-triggered workflows
+were recorded. This closes a temporary-only rehearsal limitation, not production
+authority, OS retention, native full-disk,
 original-installation, real-store or feature-parity acceptance. Live source
 quiescence and genuinely shipped fixtures remain required. No startup caller,
 original identity change, cleanup, default merge, deployment or release occurs.
