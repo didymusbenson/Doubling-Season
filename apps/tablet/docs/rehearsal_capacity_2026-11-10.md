@@ -68,18 +68,59 @@ lease protections. A complete physical export is not proof of safe activation.
 
 ## Validation
 
-Initial frozen-source checks with Flutter 3.41.2 / Dart 3.11.0 pass clean
-analysis and 66 capacity/coordinator/archive-integration tests. Independent
-source review found no blocking issue. Full regression, preview-namespace
-checks and release web compilation are in progress. Final results and source
-identity will be recorded before combined validation is claimed. The earlier
-1,994-test result belongs to `2e5c094`'s runtime/test tree.
+Validated source: `8773a1cdba6983ba64f07b40baec50c011a76b7c`, tree
+`98ef0befb99643e60d35e4d049d85d00d9799d3b`, on
+`feat/migration-safety-recovery-20261110`. The remote source tree was fetched and
+compared exactly with the local tree. Only this validation documentation changes
+after the checks. Flutter 3.41.2 / Dart 3.11.0 on cloud Linux:
+
+- `flutter analyze --no-pub`: **no issues**, 1.9 seconds.
+- Capacity, coordinator and archive-integration selection: **66 passed**,
+  14 seconds. Rich migration tests fail each successive capacity check and
+  verify safe retry, unchanged source and retained prior evidence.
+- Full `flutter test --no-pub --reporter expanded`: **2,017 passed / 8 expected
+  skips**, 5m47s.
+- Explicit `phone_preview_v1` safety selection: **502 passed / 57 intentional
+  same-app-only skips**, 32 seconds.
+- Release JavaScript web build: **passed**, 39.0 seconds. Optional Wasm compiler
+  dry run passed; no browser or Wasm runtime acceptance is claimed. Flutter still
+  warns that the existing `--pwa-strategy` option is deprecated.
+- Independent source review: no blocking findings, including final lock handling
+  and post-lease policy revalidation.
+- Whitespace checks and all **36 local documentation links** in the changed
+  records/current plan: passed. Both dependency lockfiles are unchanged.
 
 Initial analysis reported two brace-style lints, corrected before the clean run.
 An overly broad nonempty-lock guard changed four existing cross-store alias
 diagnostics; restricting it to Hive's truncating lock files restored those
 regressions. An earlier test command also named a nonexistent journal test file.
-The corrected 66-test run has no selection errors or failing tests.
+The corrected 66-test and full runs have no selection errors or failing tests.
+
+The official SDK and 187 hosted dependency archives were checksum-verified;
+normal offline resolution used the existing lockfiles. Online Dart dependency
+resolution stalled, so it is not claimed as successful. No SDK source, package
+version or lockfile was altered to obtain a test pass.
+
+No commit statuses or PR-triggered workflow runs were recorded for the source
+commit. No PR, default-branch merge, deployment, native build/update or store
+action was performed. Prior native bridge/factory evidence remains tied to its
+own earlier checkpoint, not these new guards.
+
+Reproduce from `apps/tablet` with the pinned SDK and resolved dependencies:
+
+```sh
+flutter analyze --no-pub
+flutter test --no-pub --reporter expanded
+flutter test --no-pub --reporter expanded \
+  --dart-define=TABLE_STORAGE_NAMESPACE=phone_preview_v1 \
+  test/legacy_*test.dart test/native_recovery_capacity_test.dart \
+  test/historical_hive_fixtures_test.dart test/later_historical_hive_fixtures_test.dart \
+  test/table_startup_gate_test.dart test/catalog_compatibility_test.dart \
+  test/table_repository_compatibility_test.dart test/support_continuity_test.dart \
+  test/storage_namespace_test.dart test/update_foundations_integration_test.dart
+flutter build web --release --no-pub \
+  --base-href /Doubling-Season/tablet/ --pwa-strategy=none
+```
 
 ## Remaining gates
 
