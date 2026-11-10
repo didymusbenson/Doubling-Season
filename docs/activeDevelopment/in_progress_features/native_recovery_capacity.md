@@ -62,8 +62,11 @@ Before production use:
   rollback/retry, and original-identity upgrade acceptance separately. Passing
   this bridge's unit tests does not satisfy any of those acceptance gates.
 
-No native compile/runtime validation is claimed by this document. The current
-cloud workspace has Flutter/Dart, but no Android SDK or Apple Xcode toolchain.
+The initial cloud checkpoint did not include native SDK validation. The later
+[isolated native validation](../../../apps/tablet/docs/native_capacity_validation_2026-11-10.md)
+compiles both mobile targets and exercises the real channel on fresh iOS/Android
+simulators. Physical-device, independent available-block comparison, alternate-
+volume, genuine low-space and production-update acceptance remain open.
 
 ## iOS privacy declaration
 
@@ -81,3 +84,18 @@ Cloud validation on 2026-11-10: all 11 focused Dart tests passed and scoped Flut
 analysis reported no issues. Python parsed the privacy plist and checked the
 project's resource reference counts. Native compilation/runtime tests and Xcode
 archive privacy-report inspection were not run (SDKs unavailable).
+
+Native follow-up on 2026-11-10, against source `29a922e`: Android debug APK and
+iOS simulator and unsigned arm64 device debug builds passed. The real native channel and Dart wrapper
+passed 18 checks on each fresh iOS 26.2 / Android 15 test device using only
+synthetic temporary fixtures. The built simulator and device apps contain the DiskSpace
+`E174.1` declaration. This is narrower than production or signed-archive privacy
+acceptance; see the linked report for exact coverage and remaining gates.
+
+The same report now also records the dormant Application Support factory at
+production source `4940913`: **17 factory checks plus 18 bridge checks per native
+test device**. Only synthetic archives were created in those dedicated test
+apps. After the Mac fixture-only canonical-path correction `d13981c`, analysis
+is clean and all **33** combined capacity-policy/bridge host tests pass. This
+adds private-location/capture/reopen evidence, not original-installation or
+release acceptance.

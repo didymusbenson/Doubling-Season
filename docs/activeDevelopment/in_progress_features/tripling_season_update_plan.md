@@ -462,3 +462,15 @@ are selected. Conversion/promotion write guards, actual support-directory/OS
 retention acceptance, all-writer quiescence, genuine shipped fixtures and original-
 identity updates remain gates. The release hold, no default merge and no deployment
 remain in force. Final validation is linked in the implementation record.
+
+
+Final retained-capture validation: source `4940913` and test-only portability fix
+`d13981c` pass clean analysis and **1,994 full tests / 8 expected skips**. The
+same runtime source passes **479 preview-namespace checks / 57 intentional skips**
+and release web/Wasm compilation. The [native evidence](../../../apps/tablet/docs/native_capacity_validation_2026-11-10.md)
+is now integrated: 17 factory + 18 bridge assertions pass on each fresh iOS/Android
+test identity, and final Mac bridge/policy checks pass 33/33. A macOS test-fixture
+path issue was fixed; no production source fix was required. These are synthetic
+native checks, not shipped-installation or physical-device update acceptance.
+The [capture-capacity report](../../../apps/tablet/docs/retained_capture_capacity_2026-11-10.md)
+records exact checkpoints, commands, initial failed checks and remaining gates.

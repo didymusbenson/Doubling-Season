@@ -72,9 +72,10 @@ source is valid or safe to activate.
 
 ## Validation and remaining gates
 
-Validation is recorded below after final checks. Tests use real Linux filesystem
-archives with injected measurements and mocked native location selection, not an
-actual full mobile filesystem. They cover creation refusal, exact reserves,
+The Dart regression suite uses real filesystem archives with injected
+measurements and mocked native location selection, not an actual full mobile
+filesystem. Separate native smoke validation is recorded below. Tests cover
+creation refusal, exact reserves,
 interruption, retained-attempt ceiling, restart policy enforcement, native path
 selection/refusal, coordination aliases, damaged-policy forensic recovery and
 read-only transfer into the existing isolated rehearsal coordinator.
@@ -89,3 +90,63 @@ validate a conversion/promotion write budget.
 
 No dependency/lockfile, original startup, native identity/version, permission,
 cleanup, PR, default-branch merge, deployment or store action is changed.
+
+
+## Final validation
+
+Runtime source is `49409136c13c04651db24d0b4cc181b977d4afdb`. Test-only portability
+fix `d13981cfe30005807b90a5fb2400871c6b5897cb` canonicalizes the macOS temporary
+fixture parent; production source is identical. Final Linux verification ran
+against that exact test checkpoint with Flutter 3.41.2 / Dart 3.11.0:
+
+- `flutter analyze --no-pub`: **no issues**, 1.9 seconds.
+- Full `flutter test --no-pub --reporter expanded`: **1,994 passed / 8 expected
+  skips**, 6m14s. An earlier complete run also passed; this rerun includes the
+  final macOS fixture correction.
+- Explicit `phone_preview_v1` safety selection: **479 passed / 57 intentional
+  same-app-only skips**, 46 seconds. This ran against `4940913`; the later change
+  affects only the fixture's temporary-directory canonicalization.
+- Release JavaScript web build: **passed**, 57.0 seconds, with successful optional
+  Wasm compiler dry run. Browser/Wasm runtime behavior was not tested here. Same
+  runtime source as the final checkpoint.
+- Independent static review: no blocking findings. Its policy-corruption export
+  finding was fixed with the recovery-only capability and regression tests before
+  final validation.
+- Whitespace checks and all local documentation links: passed.
+
+[Native validation](native_capacity_validation_2026-11-10.md) is incorporated from
+`bca234402a709b943bf0c4b6dac714da6577ac10`. Baseline normal-entrypoint Android debug,
+iOS simulator and unsigned iOS device compilation passed. New factory runtime
+source `4940913` was separately built and exercised on fresh iOS 26.2 and Android
+15/API 35 test identities: **17 factory assertions + 18 bridge assertions passed
+on each platform**. These cover the actual native Application Support provider,
+actual-child native capacity measurements, exact persisted policy, synthetic
+capture, strict/read-only/recovery-only reopening, and unchanged source/archive
+bytes. Test archives remain preserved. Final Mac analysis was clean and all
+**33 focused native-bridge + archive-policy tests passed** at `d13981c`.
+
+The first Mac host test run had 17 fixture path failures; these are not counted
+as passing. The test-only fix and successful rerun are recorded in the native
+report. No production-code defect was found by that native follow-up. Neither
+simulator/emulator runs nor unsigned compilation are physical-device, full-disk,
+original-installation, signed-release or store acceptance.
+
+Reproduce the namespace selection from `apps/tablet`:
+
+```sh
+flutter test --no-pub --reporter expanded \
+  --dart-define=TABLE_STORAGE_NAMESPACE=phone_preview_v1 \
+  test/legacy_*test.dart test/native_recovery_capacity_test.dart \
+  test/historical_hive_fixtures_test.dart test/later_historical_hive_fixtures_test.dart \
+  test/table_startup_gate_test.dart test/catalog_compatibility_test.dart \
+  test/table_repository_compatibility_test.dart test/support_continuity_test.dart \
+  test/storage_namespace_test.dart test/update_foundations_integration_test.dart
+flutter build web --release --no-pub \
+  --base-href /Doubling-Season/tablet/ --pwa-strategy=none
+```
+
+The Git CLI lacked push credentials; the authorized GitHub connector published
+identical trees, then branches were fetched and compared locally. No statuses or
+PR-triggered workflow runs were recorded for source checkpoint `d13981c`.
+No PR was opened. The feature branch also incorporates the native evidence docs;
+these final validation additions do not change tested runtime or test code.
