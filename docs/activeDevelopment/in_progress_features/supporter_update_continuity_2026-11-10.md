@@ -1,7 +1,7 @@
 # Supporter continuity for a future Tripling Season update
 
-Status: implementation and focused validation complete on a feature branch;
-full regression validation is in progress.
+Status: guarded implementation and local regression validation complete on a
+feature branch. Production cutover and release acceptance remain outstanding.
 The release remains on hold. Nothing here changes bundle/application identity,
 store product configuration, signing, version/build numbers or published sites.
 
@@ -75,7 +75,12 @@ Validation with Flutter 3.41.2 / Dart 3.11.0:
   same-app-only cases. Production media/support sentinels remain unchanged.
 - Release JavaScript web build: passed. The optional Wasm dry run returned a
   non-fatal 247 warning; Wasm compilation is not verified.
-- Full Table regression suite: still running at this checkpoint.
+- Full Table regression suite: 1,512 passed, 8 expected skips, no failures
+  (12m21s). This includes 50 active continuity regressions.
+- Remote source checkpoint: `5c42e4e` on
+  `feature/table-support-continuity-20261110`; its tree matches the validated
+  local source. No GitHub CI checks or PR workflow runs existed for that
+  feature-only checkpoint.
 
 The existing `shared_preferences_platform_interface` version is now an explicit
 Table dev dependency for false-returning and throwing persistence fixtures;
