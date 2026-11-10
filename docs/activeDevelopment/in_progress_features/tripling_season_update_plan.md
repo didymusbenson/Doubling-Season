@@ -198,8 +198,22 @@ is claimed or duplicated by this checkpoint.
   covers M7's isolated technical reader/cache foundation. No shared publisher,
   original app, catalog payload, identity, signing or release change is included.
 
-Combined validation is in progress. A final result will distinguish focused,
-full, namespace and build checks from still-unrun native/store acceptance.
+Validated source `8829688c48737e01c0bd82e3f6d5b474272ca1f3` with Flutter 3.41.2 /
+Dart 3.11.0. The remote source tree matches the tested local tree. Analyzer is
+clean; **176 focused checks passed / one expected skip**; the full suite passed
+**1,669 tests / 8 expected skips** in 5m33s. Explicit preview-namespace checks
+passed **154 / 57 intentional same-app-only skips**. Release JavaScript web build
+and optional Wasm compiler dry run passed. Independent static review found no
+remaining correctness issue after fixing direct retry and failed-bundle revert
+cases. All 18 local links in this plan resolve, and `git diff --check` is clean.
+
+The source commit had no recorded statuses or PR workflow runs. No PR,
+default-branch merge, deployment, native build/update, store restore or release
+occurred. See the catalog record for exact commands and limits. This is a
+validated development checkpoint; M1–M9 and parity/device/store gates are still
+not collectively accepted. Next work remains raw copied-source acquisition,
+unsupported mapping parity, production journal/media coordination with later-play
+protection, and user-visible recovery, followed by deliberate native acceptance.
 
 ## Validation record and commands
 

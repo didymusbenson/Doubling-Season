@@ -4,6 +4,8 @@
 The feature-only [catalog reader/cache safeguards](docs/catalog_update_safety_2026-11-10.md)
 join retained-save recovery and supporter persistence work. This is not original
 installation migration, native/store acceptance, or release authorization.
+Integrated analysis, 1,669 tests (8 expected skips), 154 preview-isolation checks
+(57 expected same-app skips), and a release web build pass.
 
 
 **Current work (2026-11-10): migration/update safety foundations.**
