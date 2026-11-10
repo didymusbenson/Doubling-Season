@@ -53,7 +53,10 @@ void main() {
   );
 
   setUp(() async {
-    parent = await Directory.systemTemp.createTemp('archive-capacity-');
+    final temporary = await Directory.systemTemp.createTemp(
+      'archive-capacity-',
+    );
+    parent = Directory(await temporary.resolveSymbolicLinks());
     source = await Directory('${parent.path}/source').create();
     await File('${source.path}/preferences.xml').writeAsString('<map/>');
     available = 1024 * 1024;
