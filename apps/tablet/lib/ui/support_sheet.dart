@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:doubling_season/widgets/heart_icon.dart';
 import '../services/table_support_service.dart';
 import 'game_drawer_body.dart';
 import 'table_modal_frame.dart';
@@ -66,17 +67,19 @@ class _TableSupportContentState extends State<TableSupportContent> {
               ],
             ),
           Center(
-            child: Icon(
-              Icons.favorite,
-              size: 48,
-              color: Color(
-                service.tier == 1
-                    ? 0xffdf7474
-                    : service.tier == 2
-                    ? 0xff83b7ce
-                    : service.heartColor,
-              ),
-            ),
+            child: service.legacyHeartStyle != null
+                ? HeartIcon(style: service.legacyHeartStyle!, size: 48)
+                : Icon(
+                    Icons.favorite,
+                    size: 48,
+                    color: Color(
+                      service.tier == 1
+                          ? 0xffdf7474
+                          : service.tier == 2
+                          ? 0xff83b7ce
+                          : service.heartColor,
+                    ),
+                  ),
           ),
           const SizedBox(height: 16),
           Text(
