@@ -1,5 +1,12 @@
 # Tripling Table
 
+**Current work (2026-11-10): migration/update safety foundations.**
+See the [current implementation and acceptance plan](../../docs/activeDevelopment/in_progress_features/tripling_season_update_plan.md).
+The baseline includes 2–6-player tables and fixed-Player-1 phone presentation.
+Preserve the separate Table identity, original app and existing storage. Feature
+work continues after the safety milestone; no release, merge or deployment is
+part of this checkpoint. Later dated entries below retain their own evidence.
+
 The separate tablet app developed from the Tripling Season iPad specifications.
 “Tripling Table” is a development name, not a selected store name.
 
@@ -203,7 +210,7 @@ See [the temporary preview workflow](../../docs/activeDevelopment/todo_features/
 The main publisher assembles stable root/tablet outputs plus a validated phone
 preview at `/preview/phone/`. Only that preview passes the explicit storage
 namespace define; normal native and tablet builds keep existing storage keys.
-Phone implementation remains on its feature branch, with cutover cleanup required.
+Phone implementation is present in the current Table development source; original-product cutover and preview cleanup remain separate later work.
 
 ## Device bars and quiet play
 

@@ -1,5 +1,13 @@
 # Foldable-phone edition — future major version
 
+**Current reconciliation, 2026-11-10:** the fixed-Player-1 phone presentation
+and posture continuity mechanisms now exist at `0273043`; physical foldable
+classification/acceptance and original-product release remain open. Sessions now
+support 2–6. The October future-only boundary below is historical, superseded by
+[approved focused-seat behavior](../../todo_features/unified_tripling_season/focused_seat.md)
+and the [current plan](../tripling_season_update_plan.md). Modal dismissal is no
+longer an undecided product requirement; real-device validation is still needed.
+
 **Status:** accepted future direction, explicitly deferred beyond tablet MVP. No foldable implementation, release date, model support or posture handling is committed now.
 
 The future concept uses a focused single-seat view when the foldable phone is closed and a multiplayer view when unfolded. “Single-seat focused” describes which seat is presented, not an approved standalone one-player game mode or a change to the current 2–4-player game scope. Seat/game identity and gameplay state must not be inferred from screen posture.
@@ -14,6 +22,6 @@ This deferred direction is independent of [six-player expansion](six_player_expa
 
 The owner specified phone view as Seat 1 of an N-player session, with compact
 life above tokens, full commander-source relationships and Table styling.
-See [the deferred focused-seat proposal](../../todo_features/unified_tripling_season/focused_seat.md).
+See [the approved focused-seat contract](../../todo_features/unified_tripling_season/focused_seat.md).
 This clarifies the presentation concept without starting foldable implementation
 or changing the supported player counts.

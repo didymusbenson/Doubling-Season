@@ -1,5 +1,14 @@
 # Outstanding behavior: old-design starting points
 
+**Current-status note (2026-11-10):** retain the dated design/evidence below as
+history, using the [current implementation and acceptance matrix](../tripling_season_update_plan.md)
+for scope and work status. Source at `0273043` includes 2–6-player tables and phone
+presentation; separate Table identity remains for development, and isolated
+migration foundations are now active. Older 2–4-only, phone-deferred or
+migration-unapproved language does not describe the current work. Existing
+behavioral contracts remain unless the newer plan explicitly supersedes them;
+release, real-installation cutover and unrun native acceptance remain held.
+
 **Status:** inferred implementation/product starting points, not newly accepted user decisions. This second pass covers granular questions across the dossier, not only register headings. Read with the [source audit](existing_behavior_audit.md) and [accepted decisions](09_decision_register.md). Explicit tablet decisions, especially D41 modal dismissal and no routine toast/snackbar, override every legacy example.
 
 ## Concrete additional evidence

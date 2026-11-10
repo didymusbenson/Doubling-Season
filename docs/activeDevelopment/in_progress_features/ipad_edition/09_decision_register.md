@@ -1,5 +1,15 @@
 # Decision register
 
+**Current reconciliation, 2026-11-10:** this register preserves dated October
+approvals. Later accepted/implemented scope supersedes D04's deferred six seats
+and D06's no-phone-development boundary: [2–6 adaptive seats](adaptive_five_six_seats_2026-11-05.md)
+and [fixed Player 1](../../todo_features/unified_tripling_season/focused_seat.md)
+are present at `0273043`. Small-tablet usability remains required. Separate
+identity remains a development boundary, not a final separate-product commitment.
+See the [current implementation/acceptance matrix](../tripling_season_update_plan.md)
+for active migration work and held cutover. D37 curated authoring and custom-rule
+limits are not silently revoked; their Season-update parity is an explicit decision.
+
 **Last updated:** 2026-10-22. **D01/D03/D04 have accepted product boundaries; D05/D07 have accepted two-player layout and three-player empty-slot decisions**, with implementation details still open; D26 accepts full tracker fundamentals, with detailed policy gates open; D09 accepts one keyboard at a time; D41 settles sequential modal use; native/IME validation remains. D19/D21 now accept persistent seat customization and D22 accepts two full-reset modes; removed-seat game-data clearing and pre-reset archive restore are also accepted; runtime field mapping and restore transaction/UI details remain open; D33 retention and safeguards are accepted. D37 accepts curated utility customization and default-visible dismissible storm/mana; shared-panel count mapping is accepted (three/four-player central strip/panel; two-player thin shortcut divider). Other decisions remain open unless explicitly noted below. Recommended defaults are proposals, not approvals. Confirmed requirements C01–C16 are in [README](README.md). Flutter with player-facing custom keyboards is the chosen direction, subject to prototype validation.
 
 Use stable IDs in later discussions, commits and acceptance notes. Answering one decision does not approve every downstream proposal. In particular, approving the screenshot layout does not choose the storage design, app distribution or release inventory.

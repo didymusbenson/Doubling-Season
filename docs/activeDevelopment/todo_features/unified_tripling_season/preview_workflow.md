@@ -1,6 +1,9 @@
 # Temporary feature-branch web preview and cutover cleanup
 
-**Infrastructure: implementation in review. Phone UI: still deferred.**
+**Current status, 2026-11-10:** preview workflow and phone UI exist in the source
+at `0273043`; this document describes their isolation/cleanup contract, not the
+currently deployed SHA. Release and deployment are held during the safety work.
+See the [current plan](../../in_progress_features/tripling_season_update_plan.md).
 
 The owner approved a custom Pages workflow so the phone experiment can remain on
 a feature branch while the existing original and tablet code continue from main.
@@ -81,6 +84,6 @@ Before calling the unified release complete:
 6. Update repository docs, links and release workflow so no future main deploy
    accidentally restores an obsolete experimental route.
 7. Separately validate the original-identity upgrade path, entitlements, one-time
-   fresh-board migration and recovery. Preview success does not prove cutover.
+   state-preserving board migration and recovery. Preview success does not prove cutover.
 
 These cleanup steps are future requirements, not permission to perform them now.

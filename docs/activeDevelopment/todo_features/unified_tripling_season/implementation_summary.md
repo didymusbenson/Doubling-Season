@@ -1,6 +1,13 @@
 # Phone feature: decision and implementation summary
 
-**Status: option C implemented in WIP feature branch; lifecycle and visual validation in progress.**
+**Current-status reconciliation, 2026-11-10:** phone presentation is present in
+`apps/tablet` at `0273043`, together with the later 2–6-player work. The checkpoints
+and CI/build obstacles below are dated history, not a description of the latest
+source or current remote branch status. Use the [current acceptance matrix](../../in_progress_features/tripling_season_update_plan.md)
+for remaining migration, native and release gates. No current deployment or
+installed-build equivalence is inferred from these historical records.
+
+**Historical October status: option C implemented in WIP feature branch; lifecycle and visual validation were in progress.**
 This is the end-to-end implementation record for the approved phone direction. The custom Pages preview infrastructure is a separately authorized task,
 not permission to start the phone interface.
 

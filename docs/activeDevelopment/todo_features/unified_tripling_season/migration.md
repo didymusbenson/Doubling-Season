@@ -1,6 +1,10 @@
 # Safe migration from original TS to the unified product
 
-**Status: DEFERRED / SPECULATIVE / NOT IMPLEMENTED.** See [scope](README.md).
+**Status: isolated safety foundations authorized and in progress, 2026-11-10.**
+Production installation capture, startup integration and original-identity
+cutover are not implemented or accepted at baseline `0273043`. See the
+[current M1–M9 matrix](../../in_progress_features/tripling_season_update_plan.md#implementation-and-acceptance-matrix).
+The required transaction below is a target, not a claim every stage exists.
 
 ## Outcome
 
@@ -13,18 +17,20 @@ This is an installation migration, not a requirement to export/import manually.
 
 ## Source inventory and release gate
 
-Before implementation, identify the latest *actually shipped* iOS and Android
+Before production cutover, identify the latest *actually shipped* iOS and Android
 versions and every older source version the update must support. Record adapters,
 box names/type IDs, preference keys, file locations and representative fixtures.
 Do not infer store releases from `pubspec.yaml`, a local development IPA or a
 release-candidate document. Store/account/signing state has not been audited here.
 
-Current code evidence (baseline `3d3723ec`):
+Source inventory refreshed against `0273043` (historical audit began at `3d3723ec`).
+Copied-fixture conversion can proceed while actual shipped-version coverage is
+collected; it must not be presented as complete installation support.
 
 | Area | Existing evidence | Implication |
 |---|---|---|
 | App identity | Root `ios/Runner.xcodeproj/project.pbxproj`, `android/app/build.gradle.kts` use `LooseTie.Doubling-Season` / `com.loosetie.doublingseason` | Preserve original identity and valid signing continuity; tablet IDs are a different installation. |
-| Device support | Root iOS family 1 / target 13; tablet family 2 / target 15 | Universal support and minimum OS need explicit compatibility review. Tablet Android release currently uses debug signing, not a production-update configuration. |
+| Device support | Root iOS family 1 / target 13; Table family 1,2 / target 15 | Universal support and minimum OS need explicit compatibility review. Tablet Android release currently uses debug signing, not a production-update configuration. |
 | Legacy persistence | `lib/database/hive_setup.dart` can delete/recreate boxes after recovery failures | Schema mismatch must not enter this destructive fallback during migration. |
 | Deck interchange | `lib/providers/deck_provider.dart` exports schema 3; tablet `PresetService` accepts legacy 1–3 | Useful mapping evidence, but not a complete migration pipeline. |
 | Local art | Legacy `custom_artwork` and `artwork_cache/deck_box_*`; tablet content-addressed media | Copy bytes and remap ownership/references; a legacy file URL alone is not portable. |
@@ -91,7 +97,7 @@ not arbitrary legacy `file://` rendering.
    policy. No automatic irreversible cleanup is specified here.
 
 Tablet repository checksums, prior generations, quarantine and unknown-schema
-refusal are useful patterns, not proof a migration framework already exists.
+refusal are useful foundations, not proof the full migration transaction exists.
 A failed conversion must not overwrite the good source or force an empty app.
 
 ## Acceptance scenarios before any release

@@ -1,5 +1,12 @@
 # Next Release
 
+**Release hold / status reconciliation, 2026-11-10:** repository versions and
+this staging log are not proof of store shipment. The current Table-to-Season
+migration/update foundations and continuing feature work are tracked in the
+[current plan](../in_progress_features/tripling_season_update_plan.md). No new
+release is authorized. The tablet validation entries below are historical, not
+a complete current source or native acceptance summary.
+
 This directory is the staging area for work implemented and proposed for the next
 production release. Feature records move here after implementation, remain here
 through acceptance testing, and move to `docs/releases/vX.Y/` when that release

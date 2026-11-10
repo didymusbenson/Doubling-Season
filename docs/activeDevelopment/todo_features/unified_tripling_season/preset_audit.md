@@ -1,5 +1,11 @@
 # Saved configurations: migration-readiness audit
 
+**Reconciled 2026-11-10 against `0273043`:** the source gaps below remain
+acceptance items, not approved omissions. See M2/M3/M5 and P1/P4/P5 in the
+[current matrix](../../in_progress_features/tripling_season_update_plan.md).
+Preserving raw fields is distinct from reproducing their runtime behavior;
+existing setup import is not a full-installation converter.
+
 **Read-only source/test assessment, 2026-10-30; not a passed native acceptance run.**
 Runtime baseline: PR61 / `3d3723ec`. The owner has not thoroughly tested Table
 saved configurations and requested closer examination before relying on them.

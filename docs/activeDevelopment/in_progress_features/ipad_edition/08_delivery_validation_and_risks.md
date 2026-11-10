@@ -1,5 +1,14 @@
 # Delivery, validation and risks
 
+**Current-status note (2026-11-10):** retain the dated design/evidence below as
+history, using the [current implementation and acceptance matrix](../tripling_season_update_plan.md)
+for scope and work status. Source at `0273043` includes 2–6-player tables and phone
+presentation; separate Table identity remains for development, and isolated
+migration foundations are now active. Older 2–4-only, phone-deferred or
+migration-unapproved language does not describe the current work. Existing
+behavioral contracts remain unless the newer plan explicitly supersedes them;
+release, real-installation cutover and unrun native acceptance remain held.
+
 **Status:** implementation plan and acceptance proposals. **No implementation validation has run.**
 **Plan created:** 2026-10-20 (America/Phoenix). **Decision alignment:** 2026-10-21.
 **Approval boundary:** C02 confirms Flutter as the starting point. The other confirmed user directions remain as recorded in the [dossier README](README.md). D01/D03/D04 now have accepted product boundaries and D26 has accepted tracker categories; other open details remain in the register; this document approves none of them. A phase, workload, scenario, candidate target, or release checklist is not a new scope commitment.

@@ -1,5 +1,14 @@
 # Layout and interaction
 
+**Current-status note (2026-11-10):** retain the dated design/evidence below as
+history, using the [current implementation and acceptance matrix](../tripling_season_update_plan.md)
+for scope and work status. Source at `0273043` includes 2–6-player tables and phone
+presentation; separate Table identity remains for development, and isolated
+migration foundations are now active. Older 2–4-only, phone-deferred or
+migration-unapproved language does not describe the current work. Existing
+behavioral contracts remain unless the newer plan explicitly supersedes them;
+release, real-installation cutover and unrun native acceptance remain held.
+
 **Status:** D04 accepts customizable 2–4 players. Two-player seat orientation/local lane placement and three-player empty-slot controls are accepted below; other geometry and interaction details remain reviewable (D05–D12).
 
 ## Dedicated regions and attached shortcuts — accepted
