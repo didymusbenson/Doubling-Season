@@ -43,11 +43,10 @@ truncate players, archives, or history.
 - Screen every live current/previous/recovery record before any retention or
   promotion writes. Unknown envelope/schema/typed fields, uninterpretable
   integrity-checked field shapes/semantics, and more than six players stop
-  startup, even
-  when the unsupported record has a lower sequence number. Arbitrary supported
+  startup, even when the unsupported record has a lower sequence number. Arbitrary supported
   extension maps remain intact. Do not silently drop an unknown model field.
-- Integrity failures and unreadable envelopes are retained byte-for-byte under a stable
-  `quarantine_<sha256>` key before recovery can proceed. If retention fails,
+- Integrity failures and unreadable envelopes are retained byte-for-byte under
+  a stable `quarantine_<sha256>` key before recovery can proceed. If retention fails,
   startup stops and the damaged record remains untouched. Unreadable containers
   are never deleted/recreated. Recovery can use another writable container.
 - A failed open/reopen revokes the repository writer so callers cannot save a
@@ -91,10 +90,15 @@ checkpoint retention through repeated saves, quarantine failure, unknown formats
 in every live location, and failed-open writer revocation.
 
 - Focused repository suite: 52 tests passed.
-- Analyzer: passed with no issues. The initial aggregate run was stopped after
-  stalling during concurrent compilation. The first release web compile was
-  killed with exit -9 during that concurrent validation. Serial retries are
-  pending. These results are not a release-readiness claim.
+- Analyzer: passed with no issues. Release web build (normal optimized
+  JavaScript output, Pages base path, no service worker) and Wasm dry run
+  passed on the serial retry. The first compiler run was killed with exit -9
+  during concurrent validation; that attempt is not counted as a pass.
+- The initial aggregate run was stopped after stalling during concurrent
+  compilation. A healthy serial retry was then stopped at the integration
+  coordinator's request to avoid duplicating the final combined-tree suite.
+  Neither incomplete standalone run is counted as an aggregate pass. The
+  integrated exact-tree suite remains authoritative and must run before release.
 - Native upgrade/downgrade installs, actual hardware power loss, browser storage
   eviction/quota and IndexedDB restart behavior, old shipped binary fixtures,
   recovery tooling, media-file backup completeness, concurrent multiple app

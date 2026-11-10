@@ -12,7 +12,8 @@ See [migration implementation](docs/legacy_migration_foundation.md) and the
 current plan for remaining gates.
 The [Table save compatibility boundary](docs/save_compatibility_2026-11-10.md)
 adds explicit format/schema 2 with retained pre-upgrade checkpoints and
-fail-closed rollback behavior. It does not establish native update safety. Later dated entries retain their own evidence.
+fail-closed rollback behavior. It does not establish native update safety.
+Later dated entries retain their own evidence.
 
 The separate tablet app developed from the Tripling Season iPad specifications.
 “Tripling Table” is a development name, not a selected store name.
