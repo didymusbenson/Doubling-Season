@@ -109,7 +109,8 @@ class LegacyRehearsalRecoveryActions implements LegacyRecoveryActions {
 
   LegacyRecoveryReport _failure(Object error) {
     // Never display raw exception text: it may contain private records/paths.
-    final kind = error is FileSystemException
+    final kind =
+        error is FileSystemException || error is LegacyRecoveryCapacityException
         ? LegacyRecoveryIssueKind.storage
         : error is UnsupportedTableFormat
         ? LegacyRecoveryIssueKind.unsupported

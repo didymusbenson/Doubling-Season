@@ -88,6 +88,11 @@ fixtures and original-identity no-uninstall updates; recovery/save UX; store and
 feature-parity acceptance. Holding headroom during capture does not implement or
 validate a conversion/promotion write budget.
 
+The subsequent [rehearsal capacity slice](rehearsal_capacity_2026-11-10.md)
+adds explicit measured conversion/journal/media/promotion write guards to the
+isolated coordinator. Its own validation and remaining limits are recorded
+separately; this capture checkpoint's results do not validate those later changes.
+
 No dependency/lockfile, original startup, native identity/version, permission,
 cleanup, PR, default-branch merge, deployment or store action is changed.
 

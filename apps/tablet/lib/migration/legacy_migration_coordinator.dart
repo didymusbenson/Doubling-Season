@@ -20,6 +20,7 @@ import 'legacy_source_reader.dart';
 import 'legacy_source_archive.dart';
 import 'legacy_recovery_files.dart';
 import 'legacy_recovery_export.dart';
+import 'legacy_rehearsal_capacity.dart';
 
 class LegacyMigrationPromotion {
   final String transactionId;
@@ -48,45 +49,138 @@ class LegacyMigrationCoordinator {
   static const journalBoxName = 'legacy_rehearsal_journal_v1';
   static const controlBoxName = 'legacy_rehearsal_control_v1';
   static const _marker = 'tripling-season-migration-rehearsal-v1';
+  static const _budgetedMarker =
+      'tripling-season-migration-rehearsal-budgeted-v1';
+  static const _policyFile = 'capacity-policy.json';
   static final Map<String, Future<void>> _locks = {};
   final Directory directory;
-  LegacyMigrationCoordinator._(this.directory);
+  final LegacyRehearsalCapacity? _capacity;
+  final bool _requiresCapacity;
+  final bool _recoveryOnly;
+  LegacyMigrationCoordinator._(
+    this.directory,
+    this._capacity,
+    this._requiresCapacity,
+    this._recoveryOnly,
+  );
 
-  static Future<LegacyMigrationCoordinator> createRehearsal() async {
-    final root = await Directory.systemTemp.createTemp(
-      'tripling-migration-rehearsal-',
+  static Future<LegacyMigrationCoordinator> createRehearsal({
+    LegacyRehearsalCapacity? capacity,
+  }) async {
+    final parent = Directory(await Directory.systemTemp.resolveSymbolicLinks());
+    final marker = capacity == null ? _marker : _budgetedMarker;
+    final policy = capacity == null
+        ? null
+        : canonicalMigrationJson(capacity.toJson());
+    await capacity?.checkCreation(
+      parent,
+      utf8.encode(marker).length +
+          (policy == null ? 0 : utf8.encode(policy).length),
     );
-    await File(
-      '${root.path}/rehearsal.txt',
-    ).writeAsString(_marker, flush: true);
+    final root = await parent.createTemp('tripling-migration-rehearsal-');
     await File('${root.path}/coordinator.lock').writeAsBytes([], flush: true);
+    if (policy != null) {
+      await capacity!.checkWrite(root, utf8.encode(policy).length);
+      await File(
+        '${root.path}/$_policyFile',
+      ).writeAsString(policy, flush: true);
+    }
+    await capacity?.checkWrite(root, utf8.encode(marker).length);
+    await File('${root.path}/rehearsal.txt').writeAsString(marker, flush: true);
+    await capacity?.checkWrite(root, 0);
     return LegacyMigrationCoordinator._(
-      Directory(await root.resolveSymbolicLinks()),
+      root,
+      capacity,
+      capacity != null,
+      false,
     );
   }
 
-  /// Reopen only our marked, direct child of the system temporary directory.
-  /// Original/live app destinations cannot accidentally be supplied here.
+  /// Reopen only a marked, real direct child of the canonical temporary directory.
+  /// A budgeted destination may be read without a probe, never written.
   static Future<LegacyMigrationCoordinator> reopenRehearsal(
-    Directory root,
-  ) async {
-    final canonical = await root.resolveSymbolicLinks();
+    Directory root, {
+    LegacyRehearsalCapacity? capacity,
+  }) => _reopen(root, capacity: capacity);
+
+  /// Physical evidence export only, including damaged or missing policy bytes.
+  static Future<LegacyMigrationCoordinator> reopenForRecovery(Directory root) =>
+      _reopen(root, recoveryOnly: true);
+
+  static Future<LegacyMigrationCoordinator> _reopen(
+    Directory supplied, {
+    LegacyRehearsalCapacity? capacity,
+    bool recoveryOnly = false,
+  }) async {
+    final root = Directory.fromUri(supplied.absolute.uri.normalizePath());
+    var normalized = root.path;
+    while (normalized.endsWith(Platform.pathSeparator) &&
+        normalized.length > 1) {
+      normalized = normalized.substring(0, normalized.length - 1);
+    }
+    if (await FileSystemEntity.type(normalized, followLinks: false) !=
+        FileSystemEntityType.directory) {
+      throw StateError('The rehearsal root must be a real directory.');
+    }
+    final canonical = await Directory(normalized).resolveSymbolicLinks();
     final temp = await Directory.systemTemp.resolveSymbolicLinks();
-    if (root.absolute.path != canonical ||
+    if (normalized != canonical ||
         Directory(canonical).parent.path != temp ||
-        !root.uri.pathSegments
+        !Directory(canonical).uri.pathSegments
             .where((part) => part.isNotEmpty)
             .last
-            .startsWith('tripling-migration-rehearsal-') ||
-        await FileSystemEntity.type(
-              '${root.path}/rehearsal.txt',
-              followLinks: false,
-            ) !=
-            FileSystemEntityType.file ||
-        await File('${root.path}/rehearsal.txt').readAsString() != _marker) {
+            .startsWith('tripling-migration-rehearsal-')) {
       throw StateError('Only an isolated migration rehearsal can be reopened.');
     }
-    return LegacyMigrationCoordinator._(Directory(canonical));
+    final directory = Directory(canonical);
+    final coordination = _RehearsalFiles(directory).coordinationFiles.values;
+    final markerFile = File('$canonical/rehearsal.txt');
+    await _requireControlFile(markerFile, coordination, 128);
+    final marker = await markerFile.readAsString();
+    if (marker != _marker && marker != _budgetedMarker) {
+      throw StateError('Unknown rehearsal marker was preserved.');
+    }
+    final budgeted = marker == _budgetedMarker;
+    if (budgeted && !recoveryOnly) {
+      final file = File('$canonical/$_policyFile');
+      await _requireControlFile(file, coordination, 1024);
+      final encoded = await file.readAsString();
+      final policy = jsonDecode(encoded);
+      if (policy is! Map<String, dynamic> ||
+          policy['maxRetainedBytes'] is! int ||
+          policy['safetyReserveBytes'] is! int) {
+        throw StateError('Invalid rehearsal capacity policy was preserved.');
+      }
+      final declared = LegacyRehearsalCapacity(
+        availableBytes: (_) async => null,
+        maxRetainedBytes: policy['maxRetainedBytes'] as int,
+        safetyReserveBytes: policy['safetyReserveBytes'] as int,
+      );
+      if (canonicalMigrationJson(declared.toJson()) != encoded ||
+          (capacity != null &&
+              canonicalMigrationJson(capacity.toJson()) != encoded)) {
+        throw StateError(
+          'Rehearsal capacity policy conflicts; evidence was kept.',
+        );
+      }
+    } else if (capacity != null) {
+      throw StateError('Existing unbudgeted rehearsals cannot adopt a policy.');
+    }
+    return LegacyMigrationCoordinator._(
+      directory,
+      capacity,
+      budgeted,
+      recoveryOnly,
+    );
+  }
+
+  Future<void> _check(int additional) async {
+    if (_recoveryOnly || (_requiresCapacity && _capacity == null)) {
+      throw StateError(
+        'A matching rehearsal policy and fresh capacity probe are required.',
+      );
+    }
+    await _capacity?.checkWrite(directory, additional);
   }
 
   /// The source must be a caller-owned OFFLINE copy. Its explicit evidence is
@@ -140,7 +234,14 @@ class LegacyMigrationCoordinator {
           crashRecovery: false,
           compactionStrategy: (_, _) => false,
         );
-        return (await Future.wait([request(), request()])).first;
+        // Hive 2.2.3 creates empty .hive/.lock files: no content header.
+        // crashRecovery and compaction remain disabled, so opening cannot
+        // truncate retained frames or append implicit repair records.
+        await _check(0);
+        final box = (await Future.wait([request(), request()])).first;
+        await box.flush();
+        await _check(0);
+        return box;
       }
 
       Future<Box<String>> strings(String name) => open<String>(name);
@@ -164,8 +265,8 @@ class LegacyMigrationCoordinator {
           )) {
         throw StateError('Unsupported retained records require review.');
       }
-      final raw = _Storage(rawBox);
-      final journal = LegacyMigrationJournal(_Storage(journalBox));
+      final raw = _Storage(rawBox, _check);
+      final journal = LegacyMigrationJournal(_Storage(journalBox, _check));
       final control = await strings(controlBoxName);
       if (control.keys.any((key) => key != 'intent')) {
         throw StateError('Unsupported coordinator records require review.');
@@ -237,7 +338,7 @@ class LegacyMigrationCoordinator {
         ...receipt,
         'aggregateSha256': sha256.convert(utf8.encode(encoded)).toString(),
       });
-      await _retain(control, 'intent', intent);
+      await _retain(control, 'intent', intent, _check);
       await onBoundary?.call('intent');
 
       // Check any existing authority BEFORE touching production-format media.
@@ -304,11 +405,13 @@ class LegacyMigrationCoordinator {
             );
           }
           await onBoundary?.call('media_before_write:$hash');
+          await _check(_hiveFrameBytes(hash, bytes));
           await media.put(hash, bytes);
           await onBoundary?.call('media_written:$hash');
         }
         await media.flush();
         _verifyBytes(media.get(hash), hash);
+        await _check(0);
         await onBoundary?.call('media:$hash');
       }
       // Every local artwork field, including preset/library metadata, must have
@@ -317,6 +420,7 @@ class LegacyMigrationCoordinator {
       await onBoundary?.call('validated');
       if (existing != null) {
         await aggregate.flush();
+        await _check(0);
         return LegacyMigrationPromotion(
           committed.transactionId,
           true,
@@ -329,6 +433,7 @@ class LegacyMigrationCoordinator {
         throw StateError('The destination changed before promotion.');
       }
       await onBoundary?.call('promotion_before_write');
+      await _check(_hiveFrameBytes('current', encoded));
       await aggregate.put('current', encoded);
       await onBoundary?.call('promotion_written');
       await aggregate.flush();
@@ -336,6 +441,9 @@ class LegacyMigrationCoordinator {
       if (aggregate.get('current') != encoded) {
         throw StateError('Promotion readback failed.');
       }
+      // Failure here is an uncertain acknowledgement, never permission to undo
+      // an aggregate already published or later gameplay written after it.
+      await _check(0);
       return LegacyMigrationPromotion(
         committed.transactionId,
         false,
@@ -372,16 +480,24 @@ class LegacyMigrationCoordinator {
           'Rehearsal files changed during inspection.',
         );
       }
-      final clone = await createRehearsal();
+      final clone = await createRehearsal(capacity: _capacity);
       try {
         for (final entry in records.entries) {
           final record = jsonDecode(entry.value) as Map;
           if (record['kind'] != 'file' || entry.key.contains('/')) {
             throw StateError('Unexpected rehearsal entries require review.');
           }
+          // The newly created clone already has its immutable policy/marker.
+          if (entry.key == 'rehearsal.txt' ||
+              (_requiresCapacity && entry.key == _policyFile)) {
+            continue;
+          }
+          final bytes = base64Decode(record['bytes'] as String);
+          await clone._check(bytes.length);
           await File(
             '${clone.directory.path}/${entry.key}',
-          ).writeAsBytes(base64Decode(record['bytes'] as String), flush: true);
+          ).writeAsBytes(bytes, flush: true);
+          await clone._check(0);
         }
         return await clone.rehearse(
           sourceDirectory: sourceDirectory,
@@ -408,6 +524,7 @@ class LegacyMigrationCoordinator {
             additionalSources: [_RehearsalFiles(directory)],
           ),
     allowUnknownFiles: true,
+    recoveryOperation: true,
   );
 
   /// Streams both physical stores while holding coordinator then archive
@@ -427,13 +544,20 @@ class LegacyMigrationCoordinator {
             additionalSources: [_RehearsalFiles(directory)],
           ),
     allowUnknownFiles: true,
+    recoveryOperation: true,
   );
 
   Future<T> _withLease<T>(
     Directory? sourceDirectory,
     Future<T> Function() operation, {
     bool allowUnknownFiles = false,
+    bool recoveryOperation = false,
   }) async {
+    if (_recoveryOnly && !recoveryOperation) {
+      throw StateError(
+        'Recovery-only rehearsals cannot authorize semantic operations.',
+      );
+    }
     // POSIX file locks are process-wide, not isolate-wide. Restrict Hive
     // writers to Flutter's root isolate; this map then covers every in-process
     // coordinator, and the file lock covers separate processes.
@@ -447,7 +571,16 @@ class LegacyMigrationCoordinator {
     await previous;
     RandomAccessFile? lease;
     try {
-      await reopenRehearsal(directory);
+      final reopened = await _reopen(
+        directory,
+        capacity: recoveryOperation ? null : _capacity,
+        recoveryOnly: recoveryOperation,
+      );
+      if (!recoveryOperation &&
+          reopened._requiresCapacity != _requiresCapacity) {
+        throw StateError('The retained rehearsal policy changed.');
+      }
+      if (!recoveryOperation) await _check(0);
       // Reject links and foreign entries before Hive can follow any file path.
       const boxes = [
         rawBoxName,
@@ -463,6 +596,7 @@ class LegacyMigrationCoordinator {
         final allowed =
             name == 'rehearsal.txt' ||
             name == 'coordinator.lock' ||
+            (_requiresCapacity && name == _policyFile) ||
             boxes.any((box) => name == '$box.hive' || name == '$box.lock');
         if ((!allowUnknownFiles && !allowed) ||
             (!allowUnknownFiles &&
@@ -471,6 +605,30 @@ class LegacyMigrationCoordinator {
           throw StateError(
             'Unexpected rehearsal files were preserved without opening storage.',
           );
+        }
+      }
+      if (!recoveryOperation) {
+        final coordination = _RehearsalFiles(
+          directory,
+        ).coordinationFiles.values.toList();
+        await for (final entry in directory.list(followLinks: false)) {
+          if (entry.path.endsWith('.lock') &&
+              entry.path != '$path/coordinator.lock' &&
+              await File(entry.path).length() != 0) {
+            throw StateError(
+              'Nonempty coordination evidence requires recovery.',
+            );
+          }
+          for (final lock in coordination) {
+            if (entry.path == lock) continue;
+            if (await FileSystemEntity.type(lock, followLinks: false) ==
+                    FileSystemEntityType.file &&
+                await FileSystemEntity.identical(entry.path, lock)) {
+              throw StateError(
+                'Rehearsal content aliases a coordination file.',
+              );
+            }
+          }
         }
       }
       if (sourceDirectory != null) {
@@ -507,6 +665,15 @@ class LegacyMigrationCoordinator {
       }
       lease = await File('$path/coordinator.lock').open(mode: FileMode.append);
       await lease.lock(FileLock.exclusive);
+      final leased = await _reopen(
+        directory,
+        capacity: recoveryOperation ? null : _capacity,
+        recoveryOnly: recoveryOperation,
+      );
+      if (!recoveryOperation && leased._requiresCapacity != _requiresCapacity) {
+        throw StateError('The retained rehearsal policy changed.');
+      }
+      if (!recoveryOperation) await _check(0);
       return await operation();
     } finally {
       try {
@@ -521,27 +688,44 @@ class LegacyMigrationCoordinator {
 
 class _Storage extends LegacyMigrationStorage {
   final Box<String> box;
-  _Storage(this.box);
+  final Future<void> Function(int) check;
+  _Storage(this.box, this.check);
   @override
   Object get lockIdentity => box;
   @override
   Future<String?> read(String key) async => box.get(key);
   @override
-  Future<void> write(String key, String value) => box.put(key, value);
+  Future<void> write(String key, String value) async {
+    await check(_hiveFrameBytes(key, value));
+    await box.put(key, value);
+  }
+
   @override
-  Future<void> flush() => box.flush();
+  Future<void> flush() async {
+    await box.flush();
+    await check(0);
+  }
 }
 
-Future<void> _retain(Box<String> box, String key, String value) async {
+Future<void> _retain(
+  Box<String> box,
+  String key,
+  String value,
+  Future<void> Function(int) check,
+) async {
   final prior = box.get(key);
   if (prior != null && prior != value) {
     throw StateError('Conflicting migration intent was preserved.');
   }
-  if (prior == null) await box.put(key, value);
+  if (prior == null) {
+    await check(_hiveFrameBytes(key, value));
+    await box.put(key, value);
+  }
   await box.flush();
   if (box.get(key) != value) {
     throw StateError('Migration intent readback failed.');
   }
+  await check(0);
 }
 
 void _verifyBytes(dynamic value, String hash) {
@@ -634,4 +818,36 @@ class _RehearsalFiles extends LegacyRecoveryFiles {
             '$box.lock',
         },
       );
+}
+
+// Restricted to the String keys and String/Uint8List values used here. Pinned
+// Hive framing must be checked against its serializer when upgrading Hive.
+int _hiveFrameBytes(String key, Object value) {
+  final bytes = value is String
+      ? utf8.encode(value).length
+      : value is Uint8List
+      ? value.length
+      : throw ArgumentError('Unsupported budgeted Hive value.');
+  return 15 + utf8.encode(key).length + bytes;
+}
+
+Future<void> _requireControlFile(
+  File file,
+  Iterable<String> locks,
+  int maxBytes,
+) async {
+  if (await FileSystemEntity.type(file.path, followLinks: false) !=
+      FileSystemEntityType.file) {
+    throw StateError('Rehearsal controls must be regular files.');
+  }
+  for (final lock in locks) {
+    if (await FileSystemEntity.type(lock, followLinks: false) ==
+            FileSystemEntityType.file &&
+        await FileSystemEntity.identical(file.path, lock)) {
+      throw StateError('Rehearsal control aliases a coordination file.');
+    }
+  }
+  if (await file.length() > maxBytes) {
+    throw StateError('Invalid rehearsal control was preserved.');
+  }
 }

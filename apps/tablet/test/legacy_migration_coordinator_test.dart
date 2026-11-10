@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:doubling_season/models/item.dart';
@@ -13,6 +14,8 @@ import 'package:hive/src/hive_impl.dart';
 import 'package:tripling_table/migration/legacy_migration.dart';
 import 'package:tripling_table/migration/legacy_migration_coordinator.dart';
 import 'package:tripling_table/migration/legacy_preferences_decode.dart';
+import 'package:tripling_table/migration/legacy_rehearsal_capacity.dart';
+import 'package:tripling_table/migration/legacy_migration_recovery.dart';
 import 'package:tripling_table/migration/legacy_source_reader.dart';
 import 'package:tripling_table/services/tablet_media_store.dart';
 import 'package:tripling_table/storage/storage_namespace.dart';
@@ -117,6 +120,170 @@ void main() {
     if (await source.exists()) await source.delete(recursive: true);
     await coordinator.directory.delete(recursive: true);
   });
+
+  Future<void> budgeted(Future<int?> Function(Directory) probe) async {
+    await coordinator.directory.delete(recursive: true);
+    coordinator = await LegacyMigrationCoordinator.createRehearsal(
+      capacity: LegacyRehearsalCapacity(
+        availableBytes: probe,
+        maxRetainedBytes: 10000000,
+        safetyReserveBytes: 100,
+      ),
+    );
+  }
+
+  test(
+    'pinned Hive opens empty files and String/Uint8List append costs are exact',
+    () async {
+      await _destination(coordinator, (hive) async {
+        final box = await hive.openBox<dynamic>(
+          'capacity_frame_probe',
+          crashRecovery: false,
+          compactionStrategy: (_, _) => false,
+        );
+        final file = File(
+          '${coordinator.directory.path}/capacity_frame_probe.hive',
+        );
+        expect(await file.length(), 0);
+        expect(
+          await File(
+            '${coordinator.directory.path}/capacity_frame_probe.lock',
+          ).length(),
+          0,
+        );
+        for (final key in ['ascii', 'é漢字', 'current']) {
+          for (final value in <Object>[
+            '',
+            'é漢字🧙',
+            Uint8List(0),
+            Uint8List(10000),
+          ]) {
+            final before = await file.length();
+            await box.put(key, value);
+            await box.flush();
+            final payload = value is String
+                ? utf8.encode(value).length
+                : (value as Uint8List).length;
+            expect(
+              await file.length() - before,
+              15 + utf8.encode(key).length + payload,
+            );
+          }
+        }
+      });
+    },
+  );
+
+  for (final boundary in ['media_before_write', 'media_written', 'media']) {
+    test(
+      'budgeted $boundary loss preserves copied artwork and safely retries',
+      () async {
+        var available = 10000000;
+        await budgeted((_) async => available);
+        await _fixture(source);
+        final original = await _hashes(source);
+        await expectLater(
+          coordinator.rehearse(
+            sourceDirectory: source,
+            layout: _layout(),
+            onBoundary: (at) async {
+              if (at.startsWith('$boundary:')) available = 99;
+            },
+          ),
+          throwsA(isA<LegacyRecoveryCapacityException>()),
+        );
+        available = 10000000;
+        final result = await coordinator.rehearse(layout: _layout());
+        expect(result.alreadyPromoted, false);
+        expect(result.state.session.players.first.tokens.single.amount, 12);
+        expect(await _hashes(source), original);
+      },
+    );
+  }
+
+  test(
+    'uncertain budgeted promotion acknowledgement never rolls back later gameplay',
+    () async {
+      var available = 10000000;
+      await budgeted((_) async => available);
+      await _fixture(source);
+      await expectLater(
+        coordinator.rehearse(
+          sourceDirectory: source,
+          layout: _layout(),
+          onBoundary: (at) async {
+            if (at == 'promotion_flushed') available = 99;
+          },
+        ),
+        throwsA(isA<LegacyRecoveryCapacityException>()),
+      );
+      available = 10000000;
+      await _destination(coordinator, (hive) async {
+        final repo = TableRepository.forTesting(
+          openBox: (name) => hive.openBox<String>(name),
+        );
+        final state = (await repo.open()).state;
+        state.session.players.first.life = 13;
+        state.session.players.first.tokens.single.amount = 23;
+        await repo.save(state);
+      });
+      final before = await _hashes(coordinator.directory);
+      final retry = await coordinator.rehearse(layout: _layout());
+      expect(retry.alreadyPromoted, true);
+      expect(retry.state.session.players.first.life, 13);
+      expect(retry.state.session.players.first.tokens.single.amount, 23);
+      expect(await _hashes(coordinator.directory), before);
+    },
+  );
+
+  test(
+    'every measured write and flush refusal retains append-only retry evidence',
+    () async {
+      await _fixture(source);
+      final original = await _hashes(source);
+      var calls = 0;
+      var failAt = 0;
+      var enabled = false;
+      Future<int?> probe(Directory _) async {
+        if (enabled && ++calls == failAt) return 99;
+        return 10000000;
+      }
+
+      await budgeted(probe);
+      enabled = true;
+      await coordinator.rehearse(sourceDirectory: source, layout: _layout());
+      final count = calls;
+      expect(count, greaterThan(30));
+      for (var failure = 1; failure <= count; failure++) {
+        enabled = false;
+        await budgeted(probe);
+        calls = 0;
+        failAt = failure;
+        enabled = true;
+        await expectLater(
+          coordinator.rehearse(sourceDirectory: source, layout: _layout()),
+          throwsA(isA<LegacyRecoveryCapacityException>()),
+          reason: 'probe $failure/$count',
+        );
+        final before = <String, List<int>>{
+          await for (final file in coordinator.directory.list())
+            if (file is File) file.path: await file.readAsBytes(),
+        };
+        enabled = false;
+        await coordinator.rehearse(sourceDirectory: source, layout: _layout());
+        for (final entry in before.entries) {
+          final after = await File(entry.key).readAsBytes();
+          expect(after.length, greaterThanOrEqualTo(entry.value.length));
+          expect(
+            after.take(entry.value.length),
+            entry.value,
+            reason: 'retained prefix at probe $failure',
+          );
+        }
+        expect(await _hashes(source), original);
+      }
+    },
+  );
 
   test(
     'real Hive promotion opens through the real repository and media reader',
