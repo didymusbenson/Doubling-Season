@@ -1,5 +1,10 @@
 # Explicit migration-recovery surface
 
+**Follow-up:** The [coordinator integration](migration_recovery_integration_2026-11-10.md)
+adds a native rehearsal adapter and supersedes the missing-adapter status below.
+The original component-only evidence remains historical. Production routing and
+a real save-destination flow remain unwired.
+
 This feature-only checkpoint adds a dormant recovery surface for copied-source
 migration rehearsals. It does not wire original-installation startup, change
 identities/storage, select a production source, activate migration at boot,

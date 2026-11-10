@@ -171,7 +171,7 @@ class TableRepository {
     );
   }
 
-  int _encodedSequence(String encoded) {
+  static int _encodedSequence(String encoded) {
     try {
       final sequence = jsonMap(jsonDecode(encoded))['sequence'] as int? ?? 0;
       if (sequence < 0 || sequence >= 0x1fffffffffffff) {
@@ -200,17 +200,7 @@ class TableRepository {
   Future<void> save(TabletState state) async {
     final box = _box;
     if (box == null) throw StateError('Storage is not open.');
-    validateTabletState(state);
-    final payload = jsonEncode(state.toJson());
-    final encoded = jsonEncode({
-      'format': 'tripling-season-tablet',
-      // Old readers reject this before validating/checksumming the payload,
-      // rather than treating a 5/6-player save as corrupt and rolling it back.
-      'version': envelopeVersion,
-      'sequence': _sequence + 1,
-      'sha256': sha256.convert(utf8.encode(payload)).toString(),
-      'payload': payload,
-    });
+    final encoded = encodeGeneration(state, sequence: _sequence + 1);
     final old = _lastGood;
     if (old != null) {
       final backup = _backup;
@@ -244,7 +234,26 @@ class TableRepository {
     }
   }
 
-  _DecodedTable _decode(String encoded) {
+  /// Shared on-disk codec for guarded migration rehearsals. No storage writes.
+  static String encodeGeneration(TabletState state, {required int sequence}) {
+    if (sequence < 1 || sequence >= 0x1fffffffffffff) {
+      throw const FormatException('Invalid save sequence.');
+    }
+    validateTabletState(state);
+    final payload = jsonEncode(state.toJson());
+    return jsonEncode({
+      'format': 'tripling-season-tablet',
+      'version': envelopeVersion,
+      'sequence': sequence,
+      'sha256': sha256.convert(utf8.encode(payload)).toString(),
+      'payload': payload,
+    });
+  }
+
+  /// Strict validation, without fallback, repair, initialization or promotion.
+  static TabletState decodeGeneration(String encoded) => _decode(encoded).state;
+
+  static _DecodedTable _decode(String encoded) {
     final envelope = jsonMap(jsonDecode(encoded));
     final version = envelope['version'];
     if (envelope['format'] != 'tripling-season-tablet' ||
@@ -325,7 +334,7 @@ class TableRepository {
     return _DecodedTable(state, needsUpgrade: version == 1);
   }
 
-  void _requireKnownFields(dynamic original, dynamic parsed) {
+  static void _requireKnownFields(dynamic original, dynamic parsed) {
     if (original is Map && parsed is Map) {
       for (final key in original.keys) {
         if (!parsed.containsKey(key)) {
