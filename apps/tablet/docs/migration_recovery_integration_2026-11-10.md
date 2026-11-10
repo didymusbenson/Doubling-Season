@@ -61,8 +61,50 @@ writers, hostile filesystem changes, or a second embedded Flutter engine.
 
 ## Validation
 
-Pending final integrated analyzer, focused/full tests, preview namespace and
-release web build. Component counts in earlier records are historical only.
+Validated source `e453ee2fd62f2cb05214e2a3f72bdea1283612f3`, tree
+`1151604f3192140d708fe79f11f590d881911794`, using Flutter 3.41.2 / Dart 3.11.0.
+The final validation follow-up changes documentation only. Remote and local
+source trees match exactly. Earlier component-only counts remain historical.
+
+- `flutter analyze --no-pub`: no issues. Three initial brace-style lints were
+  corrected before restarting final full-suite and web-build validation.
+- Focused coordinator/recovery/adapter tests: **56 passed** (37 existing plus
+  19 new integration cases). They include empty/incomplete capture readiness,
+  close/reopen retry, exact original inventory/hash retention, later gameplay
+  and media, unknown/corrupt raw/journal/aggregate bytes, changed offline source,
+  conflicting generation ordering and overlapping operations.
+- A separate Dart subprocess confirms the POSIX lease remains held after a
+  marker read and becomes available after the coordinator closes. This is a
+  Linux host lock check, not a native device crash/power-loss test.
+- Explicit `phone_preview_v1` combined legacy/catalog/save/support/storage
+  tests: **310 passed, 57 intentional same-app-only skips**, no failures (20s).
+- Release JavaScript web build passed with `/Doubling-Season/tablet/` and
+  `--pwa-strategy=none` (72.8s). The optional Wasm compiler dry run also passed;
+  neither result establishes browser interaction or Wasm runtime acceptance.
+- Independent static review found no remaining must-fix correctness issue
+  within the documented rehearsal/cooperating-writer boundary after resolving
+  the authority-order, unknown-record and lock-inode findings.
+- Full `flutter test --no-pub`: **1,825 passed, 8 expected skips**, no failures
+  (7m18s). This run includes all 56 coordinator/recovery/adapter cases on the
+  final source. The 8 skips are pre-existing/namespace-specific checks.
+
+Commands from `apps/tablet`:
+
+```sh
+flutter analyze --no-pub
+flutter test --no-pub
+flutter test --no-pub --dart-define=TABLE_STORAGE_NAMESPACE=phone_preview_v1 \
+  test/legacy_*test.dart test/catalog_compatibility_test.dart \
+  test/table_repository_compatibility_test.dart test/support_continuity_test.dart \
+  test/storage_namespace_test.dart test/update_foundations_integration_test.dart
+flutter build web --release --base-href /Doubling-Season/tablet/ --pwa-strategy=none
+```
+
+The source commit had no recorded GitHub commit statuses or PR-triggered
+workflow runs. All 44 local links checked in the current plan, Table README and
+integration record resolve, and `git diff --check` passes. No PR, default-branch
+merge, deployment, Android/iOS build, native installation update, real purchase
+restoration or release was performed.
 
 ## Remaining release gates
 

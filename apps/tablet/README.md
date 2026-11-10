@@ -3,8 +3,9 @@
 **Coordinator and recovery integration (2026-11-10):**
 The [rehearsal recovery adapter](docs/migration_recovery_integration_2026-11-10.md)
 joins isolated aggregate/media promotion with read-only snapshot inspection,
-physical-byte recovery export and guarded retries. Final integrated validation
-is recorded there. No startup cutover, release, main merge or deployment.
+physical-byte recovery export and guarded retries. Final analysis, **1,825 tests
+(8 expected skips)**, **310 preview checks (57 intentional skips)** and the release
+web build pass. No startup cutover, release, main merge or deployment.
 
 **Copied-source migration integration (2026-11-10):**
 The [combined safety checkpoint](docs/migration_integration_2026-11-10.md) joins

@@ -280,8 +280,10 @@ Feature branch `feat/table-migration-integration-20261110` joins recovery
 `7a76233` and coordinator `a32a91f`. The
 [integrated recovery record](../../../apps/tablet/docs/migration_recovery_integration_2026-11-10.md)
 describes clone-only inspection, exact physical-file retention, guarded retry,
-unknown-authority refusal and generation-order conflict checks. It records the
-final combined validation separately from earlier component counts. No original
+unknown-authority refusal and generation-order conflict checks. Source `e453ee2`
+passes analysis, **1,825 full tests / 8 expected skips**, **310 preview safety
+checks / 57 intentional skips**, and the release web build. The record separates
+these combined results from earlier component counts. No original
 startup route, main merge, deployment, identity cutover or release is included.
 
 Remaining priority is production archive/export/retention and disk-capacity
