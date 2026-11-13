@@ -1,5 +1,7 @@
 # Saved configurations: migration-readiness audit
 
+**Current follow-up (2026-11-13):** [saved-deck parity and safety](../../bug_bashing/saved_deck_parity_2026-11-13.md) compares the integrated recovery branch, fixes confirmed metadata/omission defects, and records current QA. The October findings below are historical; several have since been fixed.
+
 **Reconciled 2026-11-10 against `0273043`:** the source gaps below remain
 acceptance items, not approved omissions. See M2/M3/M5 and P1/P4/P5 in the
 [current matrix](../../in_progress_features/tripling_season_update_plan.md).

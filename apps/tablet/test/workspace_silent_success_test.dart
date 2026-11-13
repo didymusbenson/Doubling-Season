@@ -1,6 +1,8 @@
 import 'support/control_finders.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tripling_table/domain/table_state.dart';
+import 'package:tripling_table/features/preset_service.dart';
 import 'package:tripling_table/ui/table_theme.dart';
 import 'package:tripling_table/ui/workspace/player_keyboard.dart';
 import 'package:tripling_table/ui/workspace/table_workspace.dart';
@@ -174,6 +176,42 @@ void main() {
       await tap(tester, find.text('Save this player’s setup'));
       expect(fixture.controller.state.decks.single['name'], 'Still here');
       expect(find.textContaining('Simulated storage failure'), findsNothing);
+      expectSilentSuccess();
+      expect(tester.takeException(), isNull);
+      await close(tester);
+    },
+  );
+
+  testWidgets(
+    'hidden-only phone export warns before file picker and cancel changes nothing',
+    (tester) async {
+      await open(tester, WorkspacePage.presets);
+      fixture.player.utilities.clear();
+      fixture.player.utilities.add(
+        UtilityState(
+          id: 'hidden-custom',
+          kind: 'custom_tracker',
+          name: 'Hidden tracker',
+          visible: false,
+          configuration: {'type': 'tracker', 'isCustom': true},
+        ),
+      );
+      final presets = PresetService(fixture.controller, fixture.catalog);
+      await presets.save(fixture.playerId, 'Hidden-only setup');
+      await tester.pumpAndSettle();
+      final before = fixture.repository.encoded;
+
+      await tap(tester, find.text('Export phone v3'));
+      expect(find.text('Export compatibility'), findsOneWidget);
+      expect(find.textContaining('visibility preferences'), findsOneWidget);
+      expect(find.textContaining('mana pool'), findsNothing);
+      expect(find.text('Export with these limitations'), findsOneWidget);
+      expect(fixture.repository.encoded, before);
+      await tap(tester, find.text('Cancel'));
+      expect(find.text('Export compatibility'), findsNothing);
+      expect(find.text('Hidden-only setup'), findsOneWidget);
+      expect(fixture.repository.encoded, before);
+      expect(fixture.player.utilities.single.visible, isFalse);
       expectSilentSuccess();
       expect(tester.takeException(), isNull);
       await close(tester);

@@ -16,30 +16,86 @@ class TabletMediaStore {
     if (bytes.isEmpty || bytes.length > 12 * 1024 * 1024) {
       throw const FormatException('Choose an image smaller than 12 MB.');
     }
-    final hash = sha256.convert(bytes).toString();
-    final box = await _box();
-    if (!box.containsKey(hash)) {
-      await box.put(hash, bytes);
-      await box.flush();
-    }
+    // Own the input before the first await. Neither the caller nor a returned
+    // cached buffer may mutate bytes underneath their content-addressed key.
+    final owned = Uint8List.fromList(bytes);
+    final hash = sha256.convert(owned).toString();
     final reference = 'tablet-art:$hash';
-    _cache[reference] = bytes;
+    final box = await _box();
+    if (box.containsKey(hash)) {
+      if (_verifiedBytes(reference, box.get(hash)) == null) {
+        _cache.remove(reference);
+        throw StateError('Stored artwork failed integrity verification.');
+      }
+    } else {
+      await box.put(hash, owned);
+    }
+    // Retry must flush even when an earlier put left a valid in-memory key but
+    // its flush failed. Never acknowledge a cache-only repair of corrupt data.
+    await box.flush();
+    final stored = _verifiedBytes(reference, box.get(hash));
+    if (stored == null) {
+      _cache.remove(reference);
+      throw StateError('Stored artwork failed integrity verification.');
+    }
+    _cache.putIfAbsent(
+      reference,
+      () => Uint8List.fromList(stored).asUnmodifiableView(),
+    );
     return reference;
   }
 
-  /// Immutable bytes already read or saved, available to fresh drag proxies.
+  /// Immutable bytes already verified by a read or acknowledged save. The
+  /// stable read-only object preserves Flutter's decoded-image identity during
+  /// drag/reorder. A presentation cache hit is not persistence evidence; export
+  /// explicitly requests a storage-verified read.
   static Uint8List? peek(String reference) => _cache[reference];
 
-  static Future<Uint8List?> read(String reference) async {
-    if (_cache.containsKey(reference)) return _cache[reference];
+  /// Cold or explicitly verified reads return null for missing/corrupt stored
+  /// bytes, using the existing artwork placeholder. Export rejects null as
+  /// unavailable, without replacing the saved reference
+  /// or overwriting/removing the original corrupt storage evidence.
+  static Future<Uint8List?> read(
+    String reference, {
+    bool verifyStored = false,
+  }) async {
     if (!reference.startsWith('tablet-art:')) return null;
-    final stored = (await _box()).get(reference.substring(11));
-    final bytes = stored is Uint8List
-        ? stored
-        : stored is List
-        ? Uint8List.fromList(stored.cast<int>())
-        : null;
-    if (bytes != null) _cache[reference] = bytes;
+    // Rendering may reuse a trusted immutable buffer without hashing every
+    // image again on every board update. Acceptance/export must opt out.
+    if (!verifyStored && _cache.containsKey(reference)) {
+      return _cache[reference];
+    }
+    final bytes = _verifiedBytes(
+      reference,
+      (await _box()).get(reference.substring(11)),
+    );
+    if (bytes == null) {
+      _cache.remove(reference);
+      return null;
+    }
+    return _cache.putIfAbsent(
+      reference,
+      () => Uint8List.fromList(bytes).asUnmodifiableView(),
+    );
+  }
+
+  static Uint8List? _verifiedBytes(String reference, dynamic stored) {
+    if (stored is! List || stored.isEmpty || stored.length > 12 * 1024 * 1024) {
+      return null;
+    }
+    final Uint8List bytes;
+    if (stored is Uint8List) {
+      bytes = stored;
+    } else if (stored.every(
+      (value) => value is int && value >= 0 && value <= 255,
+    )) {
+      bytes = Uint8List.fromList(stored.cast<int>());
+    } else {
+      return null;
+    }
+    if ('tablet-art:${sha256.convert(bytes)}' != reference) {
+      return null;
+    }
     return bytes;
   }
 }

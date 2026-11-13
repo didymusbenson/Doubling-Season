@@ -216,19 +216,27 @@ class PresetService {
       throw const FormatException('Expected a setup JSON object');
     }
     final version = data['schemaVersion'];
+    if (version is! int || version < 1 || version > 4) {
+      throw const FormatException(
+        'Supported setup schemas are phone 1–3 and tablet 4',
+      );
+    }
     Map<String, dynamic> preset;
     if (version == 4 && data['product'] == 'tripling-table') {
       preset = cloneJson(Map<String, dynamic>.from(data['preset'] as Map));
       _validatePreset(preset);
       await _importMedia(preset, data['assets']);
     } else {
-      if (version is! int || version < 1 || version > 3) {
+      if (version == 4) {
         throw const FormatException(
           'Supported setup schemas are phone 1–3 and tablet 4',
         );
       }
       final deck = data['deck'];
       if (deck is! Map) throw const FormatException('Missing deck data');
+      if (deck['colorIdentity'] != null && deck['colorIdentity'] is! String) {
+        throw const FormatException('Invalid setup color identity');
+      }
       final tokenMaps =
           (deck['templates'] as List? ?? [])
               .map((v) => Map<String, dynamic>.from(v as Map))
@@ -249,6 +257,9 @@ class PresetService {
         'tokens': tokenMaps,
         'utilities': utilities,
         'imageUrl': deck['customArtworkUrl'],
+        // Keep original metadata and unknown fields without treating them as
+        // live gameplay. Match the copied-installation migration representation.
+        'legacy': cloneJson(Map<String, dynamic>.from(deck)),
       };
       _validatePreset(preset);
     }
@@ -333,8 +344,16 @@ class PresetService {
         warnings.add('Phone v3 does not include the setup cover image.');
       }
       if ((p['utilities'] as List).any((u) => u['kind'] == 'mana_pool')) {
+        warnings.add('The tablet mana pool is omitted from phone v3.');
+      }
+      if ((p['utilities'] as List).any((u) => u['visible'] == false)) {
         warnings.add(
-          'The tablet mana pool and utility visibility preferences are omitted from phone v3.',
+          'Utility visibility preferences are omitted from phone v3.',
+        );
+      }
+      if ((p['tokens'] as List).any((t) => t['artworkDisplayStyle'] != null)) {
+        warnings.add(
+          'Phone v3 ignores per-token artwork display styles and uses its own display preference.',
         );
       }
     }
@@ -388,7 +407,7 @@ class PresetService {
       'exportDate': DateTime.now().toUtc().toIso8601String(),
       'deck': {
         'name': p['name'],
-        'colorIdentity': '',
+        'colorIdentity': (p['legacy'] as Map?)?['colorIdentity'] ?? '',
         'templates': [
           for (var i = 0; i < (p['tokens'] as List).length; i++)
             {...(p['tokens'] as List)[i] as Map, 'order': i},
@@ -423,7 +442,7 @@ class PresetService {
   Future<Map<String, String>> _exportMedia(Map<String, dynamic> preset) async {
     final result = <String, String>{};
     for (final reference in _mediaReferences(preset)) {
-      final bytes = await TabletMediaStore.read(reference);
+      final bytes = await TabletMediaStore.read(reference, verifyStored: true);
       if (bytes == null) {
         throw StateError('Artwork is unavailable for export: $reference');
       }
@@ -447,6 +466,9 @@ class PresetService {
         );
       }
       final bytes = base64Decode(encoded);
+      if (bytes.isEmpty || bytes.length > 12 * 1024 * 1024) {
+        throw const FormatException('Choose an image smaller than 12 MB.');
+      }
       total += bytes.length;
       if (total > 64 * 1024 * 1024) {
         throw const FormatException(
