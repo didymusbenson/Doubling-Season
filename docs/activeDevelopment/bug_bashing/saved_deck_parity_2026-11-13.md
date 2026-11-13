@@ -1,6 +1,6 @@
 # Saved deck parity and safety — 2026-11-13
 
-Status: in progress on `feat/preset-parity-safety-20261113`, branched from
+Status: implemented and cloud-validated on `feat/preset-parity-safety-20261113`, branched from
 `e54b634`. This is an isolated saved-deck fidelity and regression-test slice.
 No new deck editor, overwrite workflow, root-app change, original-identity
 activation, default-branch merge, deployment or release is included.
@@ -119,9 +119,8 @@ Before the aggregate pass:
 - Existing saved-setup UI tests plus hidden-only export warning/Cancel: **4 passed**.
 - Independent review found no remaining blocker after preserving the rendering
   cache fast path and strengthening the warm-cache corruption assertion.
-- Targeted analyzers and formatter passed. Complete analysis, full suite,
-  namespace suite and unpublished release web build are running against the
-  frozen final code; their results are not yet claimed here.
+- Targeted analyzers and formatter passed. Final aggregate results below bind
+  to the frozen source checkpoint, not the earlier partial test runs.
 
 The corruption regression was observed failing before the media fix. Two initial
 new-test fixture expectations incorrectly assumed the default board had no mana
@@ -136,3 +135,48 @@ persistent full disk, physical power loss or native image-rendering pass is
 claimed. Actual I/O/library failures may retain harmless immutable orphan media;
 no recovery cleanup is added.
 
+
+## Final aggregate validation and remote checkpoint
+
+Source checkpoint: `6b14cadaaca49d583ddbf47ab3e3390444256046` on
+`feat/preset-parity-safety-20261113`, tree
+`7416a2ff931f523c18a2ae7edeb1926ee3baff26`.
+
+- Full `flutter analyze --no-pub`: **clean**, 12.1 seconds.
+- Full tablet suite: **2,189 passed / 8 expected skips**, 8 minutes 18 seconds.
+  This includes **70 new regressions** beyond the starting checkpoint.
+- Preview namespace safety suite plus preset/UI regressions: **677 passed /
+  57 intentional skips**, 1 minute 21 seconds.
+- Unpublished release web build: **passed**, 61.9 seconds; optional Wasm compiler
+  dry run also passed. No browser or native rendering acceptance is implied.
+- Final independent review: **passed**. Six changed Dart source/test files match
+  their frozen validation hashes; formatter and diff checks pass.
+- **50 relative documentation links** resolve. Both lockfiles, original root app,
+  platform identities, startup and CI/deployment workflows are unchanged.
+
+The official Flutter 3.41.2 / Dart 3.11.0 SDK and 187 pinned package archives were
+checksum verified. Offline dependency resolution used `--enforce-lockfile`.
+Direct Git transport lacked credentials; existing GitHub connector access
+published the identical locally verified tree. The remote branch and tree were
+read back successfully. No source commit statuses or PR-triggered workflow runs
+were recorded, and no PR, merge, deployment or release was performed.
+
+Reproduce from `apps/tablet` after resolving pinned dependencies:
+
+```sh
+flutter analyze --no-pub
+flutter test --no-pub --reporter expanded
+flutter test --no-pub --reporter expanded \\
+  --dart-define=TABLE_STORAGE_NAMESPACE=phone_preview_v1 \\
+  test/legacy_*test.dart test/native_recovery_capacity_test.dart \\
+  test/historical_hive_fixtures_test.dart test/later_historical_hive_fixtures_test.dart \\
+  test/table_startup_gate_test.dart test/catalog_compatibility_test.dart \\
+  test/table_repository_compatibility_test.dart test/support_continuity_test.dart \\
+  test/storage_namespace_test.dart test/update_foundations_integration_test.dart \\
+  test/preset_*test.dart test/workspace_silent_success_test.dart
+flutter build web --release --no-pub \\
+  --base-href /Doubling-Season/tablet/ --pwa-strategy=none
+```
+
+This completes the bounded existing-flow tranche, not full deck-editing parity,
+original-installation migration/update certification or release preparation.
