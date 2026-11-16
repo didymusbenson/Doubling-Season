@@ -17608,7 +17608,7 @@
     "pt": "*/*",
     "colors": "B",
     "type": "Creature — Minion",
-    "popularity": 1,
+    "popularity": 0,
     "artwork": [
       {
         "set": "DDE",
@@ -17616,9 +17616,7 @@
         "artist": "Dave Kendall"
       }
     ],
-    "reverse_related": [
-      "Phyrexian Processor"
-    ]
+    "reverse_related": []
   },
   {
     "name": "Minotaur",
@@ -19797,6 +19795,24 @@
       "Insect",
       "Phyrexian Swarmlord",
       "Trigon of Infestation"
+    ]
+  },
+  {
+    "name": "Phyrexian Minion",
+    "abilities": "",
+    "pt": "*/*",
+    "colors": "B",
+    "type": "Creature — Phyrexian Minion",
+    "popularity": 1,
+    "artwork": [
+      {
+        "set": "SLD",
+        "url": "https://cards.scryfall.io/large/front/f/8/f85b3716-0352-4401-afae-e5927f2acae0.jpg",
+        "artist": "Dave Kendall"
+      }
+    ],
+    "reverse_related": [
+      "Phyrexian Processor"
     ]
   },
   {
