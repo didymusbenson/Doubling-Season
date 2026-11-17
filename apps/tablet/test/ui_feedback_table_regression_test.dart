@@ -167,7 +167,10 @@ void main() {
       );
       expect(tokenRails, findsNWidgets(4));
       for (final rail in tokenRails.evaluate()) {
-        expect(bounds(tester, find.byWidget(rail.widget)).width, 7);
+        expect(
+          bounds(tester, find.byWidget(rail.widget)).width,
+          closeTo(7, .001),
+        );
       }
       await fixture.controller.adjustMana(fixture.playerId, 'W', 1);
       await tester.pumpAndSettle();
@@ -431,13 +434,18 @@ void main() {
               matching: find.byType(ReorderableListView),
             );
             final localList = bounds(tester, tokenList, within: lane);
-            expect(localList.top, 0);
-            expect(localList.left, 0);
-            expect(localList.size, laneSize);
+            expect(localList.top, closeTo(0, .001));
+            expect(localList.left, closeTo(0, .001));
+            expect(localList.width, closeTo(laneSize.width, .001));
+            expect(localList.height, closeTo(laneSize.height, .001));
+            final list = tester.widget<ReorderableListView>(tokenList);
             expect(
-              tester.widget<ReorderableListView>(tokenList).padding,
-              const EdgeInsets.only(bottom: 88),
-              reason: 'Compact corner controls must not reserve a header.',
+              list.padding,
+              list.reverse
+                  ? const EdgeInsets.only(top: 88)
+                  : const EdgeInsets.only(bottom: 88),
+              reason:
+                  'Corner clearance remains trailing in player-local order.',
             );
             expect(
               find

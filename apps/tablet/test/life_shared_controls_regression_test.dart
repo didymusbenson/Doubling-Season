@@ -394,51 +394,49 @@ void main() {
     await tester.pumpAndSettle();
     expect(f.controller.session.dayNight, 'day');
   });
-  testWidgets(
-    'collapsed utility removes directly and only History exposes undo',
-    (tester) async {
-      final f = await show(tester, const Size(1133, 744), 2);
-      final player = f.player;
-      final storm = player.utilities.firstWhere((u) => u.kind == 'storm_count');
-      final before = player.utilities.map((u) => u.toJson()).toList();
-      final lives = f.controller.session.players.map((p) => p.life).toList();
-      final remove = find.byKey(ValueKey('remove-utility-${storm.id}'));
-      expect(remove.hitTestable(), findsOneWidget);
-      expect(tester.getSize(remove), const Size(44, 44));
-      expect(byControlLabel('Storm, details and actions'), findsNothing);
-      expect(find.byIcon(Icons.undo), findsNothing);
-      await tester.tap(remove);
-      await tester.pumpAndSettle();
-      expect(f.player.utilities.any((u) => u.id == storm.id), isFalse);
-      expect(byControlLabel('Close workspace'), findsNothing);
-      expect(find.byKey(const ValueKey('table-modal-surface')), findsNothing);
-      expect(find.byType(SnackBar), findsNothing);
-      expect(find.byIcon(Icons.undo), findsNothing);
-      expect(f.controller.session.players.map((p) => p.life).toList(), lives);
+  testWidgets('utility swipes away and only History exposes undo', (
+    tester,
+  ) async {
+    final f = await show(tester, const Size(1133, 744), 2);
+    final player = f.player;
+    final storm = player.utilities.firstWhere((u) => u.kind == 'storm_count');
+    final before = player.utilities.map((u) => u.toJson()).toList();
+    final lives = f.controller.session.players.map((p) => p.life).toList();
+    final remove = find.byKey(ValueKey('swipe-utility-${storm.id}'));
+    expect(remove.hitTestable(), findsOneWidget);
+    expect(byControlLabel('Storm, details and actions'), findsWidgets);
+    expect(find.byIcon(Icons.undo), findsNothing);
+    await tester.drag(remove, Offset(-tester.getSize(remove).width * .8, 0));
+    await tester.pumpAndSettle();
+    expect(f.player.utilities.any((u) => u.id == storm.id), isFalse);
+    expect(byControlLabel('Close workspace'), findsNothing);
+    expect(find.byKey(const ValueKey('table-modal-surface')), findsNothing);
+    expect(find.byType(SnackBar), findsNothing);
+    expect(find.byIcon(Icons.undo), findsNothing);
+    expect(f.controller.session.players.map((p) => p.life).toList(), lives);
 
-      await tester.tap(byControlLabel('Game controls'));
-      await tester.pumpAndSettle();
-      expect(find.byIcon(Icons.undo), findsNothing);
-      await tester.tap(find.widgetWithText(OutlinedButton, 'History'));
-      await tester.pumpAndSettle();
-      final undo = find.byWidgetPredicate(
-        (widget) =>
-            widget is Semantics &&
-            (widget.properties.label ?? '').startsWith(
-              'Undo latest: Remove utility',
-            ),
-      );
-      expect(undo.hitTestable(), findsOneWidget);
-      await tester.tap(undo);
-      await tester.pumpAndSettle();
-      await tester.tap(byControlLabel('Close workspace'));
-      await tester.pumpAndSettle();
-      expect(f.player.utilities.map((u) => u.toJson()).toList(), before);
-      expect(f.controller.session.players.map((p) => p.life).toList(), lives);
-      expect(find.byIcon(Icons.undo), findsNothing);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    await tester.tap(byControlLabel('Game controls'));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.undo), findsNothing);
+    await tester.tap(find.widgetWithText(OutlinedButton, 'History'));
+    await tester.pumpAndSettle();
+    final undo = find.byWidgetPredicate(
+      (widget) =>
+          widget is Semantics &&
+          (widget.properties.label ?? '').startsWith(
+            'Undo latest: Remove utility',
+          ),
+    );
+    expect(undo.hitTestable(), findsOneWidget);
+    await tester.tap(undo);
+    await tester.pumpAndSettle();
+    await tester.tap(byControlLabel('Close workspace'));
+    await tester.pumpAndSettle();
+    expect(f.player.utilities.map((u) => u.toJson()).toList(), before);
+    expect(f.controller.session.players.map((p) => p.life).toList(), lives);
+    expect(find.byIcon(Icons.undo), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets(
     'real artwork fixture preserves expanded fade and full treatments',
     (tester) async {
@@ -582,7 +580,7 @@ void main() {
     }
   }
   testWidgets(
-    'short footer reorder auto-scrolls and expanded edits lock dragging',
+    'short footer reorder auto-scrolls and utility editors block dragging',
     (tester) async {
       final f = await show(tester, const Size(650, 480), 4, safeArea: false);
       final p = f.controller.session.players.first;
@@ -688,7 +686,11 @@ void main() {
       await tester.pumpAndSettle();
       normalScroll.jumpTo(96);
       await tester.pumpAndSettle();
-      expect(tester.widget<TextButton>(enter).onPressed, isNull);
+      expect(enter.hitTestable(), findsNothing);
+      expect(
+        find.byKey(const ValueKey('utility-detail-tracker')),
+        findsOneWidget,
+      );
       expect(f.controller.session.players.every((p) => p.life == 40), isTrue);
       expect(
         f.controller.player(p.id).utilities.every((u) => u.value == 0),

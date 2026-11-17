@@ -150,43 +150,51 @@ extension _LibraryPages on _TableWorkspaceState {
         standalone && hasAction && action == 'brudiclad_telchor_engineer';
     final controls = <Widget>[
       _contentTop(
-        Row(
-          children: [
-            _button('All utilities', () async {
-              if (await _flushInline()) _update(() => _itemId = null);
-            }, icon: Icons.arrow_back),
-            const Spacer(),
-            _button('Artwork', () async {
-              if (await _flushInline()) {
-                _update(() => _field('$key.panel').text = 'artwork');
-              }
-            }, icon: Icons.image_outlined),
-            if (standalone) const SizedBox(width: 8),
-            if (standalone)
-              MergeSemantics(
-                child: Semantics(
-                  label: utility.visible
-                      ? 'Remove this utility'
-                      : 'Restore to board',
-                  child: IconButton(
-                    onPressed: _working
-                        ? null
-                        : () => utility.visible
-                              ? _removeBoardUtility(utility)
-                              : _run(
-                                  () => _board.setUtility(
-                                    player.id,
-                                    utility.id,
-                                    visible: true,
+        LayoutBuilder(
+          builder: (context, bounds) {
+            final compact = bounds.maxWidth < 420;
+            final actions = <Widget>[
+              _button('All utilities', () async {
+                if (await _flushInline()) _update(() => _itemId = null);
+              }, icon: Icons.arrow_back),
+              if (!compact) const Spacer(),
+              _button('Artwork', () async {
+                if (await _flushInline()) {
+                  _update(() => _field('$key.panel').text = 'artwork');
+                }
+              }, icon: Icons.image_outlined),
+              if (standalone) const SizedBox(width: 8),
+              if (standalone)
+                MergeSemantics(
+                  child: Semantics(
+                    label: utility.visible
+                        ? 'Remove this utility'
+                        : 'Restore to board',
+                    child: IconButton(
+                      onPressed: _working
+                          ? null
+                          : () => utility.visible
+                                ? _removeBoardUtility(utility)
+                                : _run(
+                                    () => _board.setUtility(
+                                      player.id,
+                                      utility.id,
+                                      visible: true,
+                                    ),
                                   ),
-                                ),
-                    icon: Icon(
-                      utility.visible ? Icons.close : Icons.visibility_outlined,
+                      icon: Icon(
+                        utility.visible
+                            ? Icons.close
+                            : Icons.visibility_outlined,
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
+            ];
+            return compact
+                ? Wrap(spacing: 4, runSpacing: 4, children: actions)
+                : Row(children: actions);
+          },
         ),
       ),
       if (standalone && !utility.visible)
@@ -285,6 +293,7 @@ extension _LibraryPages on _TableWorkspaceState {
                   value: _integer(
                     '$key.value',
                     min: utility.kind == 'life_total' ? -1000000000 : 0,
+                    max: utility.kind == 'life_total' ? 1000000000 : 999999,
                   ),
                 ),
               ),
@@ -972,7 +981,10 @@ extension _LibraryPages on _TableWorkspaceState {
             .rules
             .where((r) => r.definitionId == kind);
         final count = sources.isEmpty ? 0 : sources.first.count;
-        return _board.setModifier(playerId, kind, (count + delta).clamp(0, 20));
+        // A legacy source may exceed today's authoring limit. Submit only the
+        // requested delta; service validation may reject it, but must never
+        // turn one decrement into a jump down to the upper limit.
+        return _board.setModifier(playerId, kind, max(0, count + delta));
       });
 
   Future<void> _adjustCustomModifier(
@@ -984,7 +996,7 @@ extension _LibraryPages on _TableWorkspaceState {
     return _board.setSource(
       playerId,
       sourceId,
-      count: (source.count + delta).clamp(0, 20),
+      count: max(0, source.count + delta),
     );
   });
 

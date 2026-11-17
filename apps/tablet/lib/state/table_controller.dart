@@ -6,6 +6,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 
 import '../domain/table_state.dart';
+import '../domain/input_validation.dart';
 import '../storage/table_repository.dart';
 
 /// The only writer for the tablet aggregate. Commands mutate detached drafts;
@@ -86,10 +87,7 @@ class TableController extends ChangeNotifier {
     return result.future;
   }
 
-  static String _message(Object failure) => failure
-      .toString()
-      .replaceFirst('Bad state: ', '')
-      .replaceFirst('FormatException: ', '');
+  static String _message(Object failure) => inputErrorMessage(failure);
   void _notify() {
     if (!_disposed) notifyListeners();
   }

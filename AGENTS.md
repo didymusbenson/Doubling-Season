@@ -353,7 +353,9 @@ choices fit small-tablet modals; variable lists scroll separately. See
 identity belongs in the life region; retain target context in shared editors.
 Any modal blocks the entire table, dismisses on tapaway without click-through,
 and preserves recoverable drafts. A single custom keyboard faces the initiating
-player for every input. Routine actions do not generate toast/snackbar feedback.
+player for tablet input. Phone presentation uses native keyboards with a reachable
+Done action; symbolic P/T retains text input. Preserve field drafts across
+presentation changes and account for native keyboard insets. Routine actions do not generate toast/snackbar feedback.
 The 2026-10-23 visual pass gives life adaptive taller surfaces with circular hub
 clearance, real symbol-led mana controls, and local-left Add/Summary overlays.
 Modal frames follow their fixed content; variable art/search/archive lists keep
@@ -372,6 +374,10 @@ Tablet utility rows do not render a color-indicator stripe. Retain their color
 metadata/model/storage and other uses of color; tablet tokens keep their 7px
 color rails. This is a tablet utility presentation exception, not a change to
 the original phone application's board components.
+Player counters use steppers only, with no manual set-value editor. Utility
+lane rows expose descriptions immediately; title/disclosure opens details and
+swipe invokes the existing reversible Remove command. Hidden legacy utilities
+retain their separate visibility semantics. Phone Utilities always opens management.
 Numeric steppers use full player-local left/right InkWell halves, except token
 quantity: its compact minus/plus buttons are first in the existing token action
 row, with no dedicated full-width quantity band. The displayed

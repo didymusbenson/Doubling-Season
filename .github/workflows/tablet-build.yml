@@ -38,6 +38,17 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
+      - name: Capture focused phone layout review
+        env:
+          PHONE_CAPTURE_DIR: build/phone-review
+        run: flutter test test/phone_presentation_test.dart
+      - name: Preserve phone review captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phone-layout-review
+          path: apps/tablet/build/phone-review
+          if-no-files-found: warn
       - name: Validate preview storage namespace
         run: flutter test --dart-define=TABLE_STORAGE_NAMESPACE=phone_preview_v1 test/storage_namespace_test.dart
       - id: web-build
@@ -77,6 +88,30 @@ jobs:
         with:
           name: tablet-browser-feedback-${{ github.sha }}
           path: apps/tablet/build/browser-smoke
+          if-no-files-found: warn
+
+  phone-browser:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/tablet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.2'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build web --release --pwa-strategy=none --dart-define=TABLE_STORAGE_NAMESPACE=phone_preview_v1
+      - name: Review actual phone release UI in Chrome
+        timeout-minutes: 8
+        run: node tool/browser_phone_smoke.mjs build/web build/phone-browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phone-browser-review
+          path: apps/tablet/build/phone-browser
           if-no-files-found: warn
 
   ipad-simulator:

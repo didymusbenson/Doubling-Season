@@ -54,6 +54,7 @@ void main() {
       final history = fixture.controller.session.history.length;
       final tempt = find.byKey(ValueKey('ring-tempt-$utilityId'));
       await tester.ensureVisible(tempt);
+      await tester.pumpAndSettle();
       expect(tempt.hitTestable(), findsOneWidget);
       await tester.tap(tempt);
       await tester.pumpAndSettle();
@@ -80,6 +81,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       await tester.ensureVisible(tempt);
+      await tester.pumpAndSettle();
       await tester.tap(tempt);
       await tester.pumpAndSettle();
       expect(utility().value, 2);

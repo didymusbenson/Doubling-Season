@@ -344,61 +344,33 @@ void main() {
     );
   }
 
-  testWidgets('counter correction reads the latest committed queued total', (
-    tester,
-  ) async {
-    await open(tester, _Target.counter, initial: 0);
-    await tap(tester, _Target.counter);
-    await tap(tester, _Target.counter);
-    await tester.tap(byControlLabel('Set energy total'));
-    await tester.pump();
-    expect(find.widgetWithText(TextField, 'Set total'), findsNothing);
-    await release(tester, 0);
-    await release(tester, 1);
-    await tester.pumpAndSettle();
-    final field = tester.widget<TextField>(
-      find.widgetWithText(TextField, 'Set total'),
-    );
-    expect(field.controller!.text, '2');
-    await finish(tester);
-    expect(tester.takeException(), isNull);
-  });
-
   testWidgets(
-    'counter correction waits for direct taps and saves the new total exactly once',
+    'counter steppers expose no manual input and persist queued totals exactly',
     (tester) async {
       await open(tester, _Target.counter, initial: 0);
+      expect(byControlLabel('Set energy total'), findsNothing);
+      expect(find.byType(TextField), findsNothing);
+      final life = player().life;
+      final damage = Map<String, int>.of(player().commanderDamage);
       await tap(tester, _Target.counter);
       await tap(tester, _Target.counter);
-      await tester.tap(byControlLabel('Set energy total'));
-      await tester.pump();
-      expect(find.widgetWithText(TextField, 'Set total'), findsNothing);
+      expect(repository.waits, hasLength(1));
+      expect(_Target.counter.value(player()), 0);
       await release(tester, 0);
       await release(tester, 1);
       await tester.pumpAndSettle();
-      final field = tester.widget<TextField>(
-        find.widgetWithText(TextField, 'Set total'),
-      );
-      expect(field.controller!.text, '2');
+      expect(repository.waits, hasLength(2));
       expect(_Target.counter.value(player()), 2);
-      expect(player().life, 40);
-      field.controller!.text = '7';
-      await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Set'));
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Set'));
-      await tester.pump();
-      expect(repository.waits, hasLength(3));
-      expect(_Target.counter.value(player()), 2);
-      await release(tester, 2);
-      await tester.pumpAndSettle();
-      expect(_Target.counter.value(player()), 7);
-      expect(player().life, 40);
+      expect(player().life, life);
+      expect(player().commanderDamage, damage);
       expect(
         (await repository.open()).state.session
             .player(playerId)
             .counters['energy'],
-        7,
+        2,
       );
-      expect(find.byType(LinearProgressIndicator), findsNothing);
+      expect(byControlLabel('Set energy total'), findsNothing);
+      expect(find.byType(TextField), findsNothing);
       await finish(tester);
       expect(tester.takeException(), isNull);
     },

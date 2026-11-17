@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../domain/table_state.dart';
+import '../domain/input_validation.dart';
 import '../features/board_service.dart';
 
 /// Gameplay belongs on the board. Management remains a separate destination.
@@ -90,7 +91,7 @@ class _UtilityInlineActionsState extends State<UtilityInlineActions> {
     } catch (error) {
       if (mounted) {
         setState(() {
-          _message = error.toString().replaceFirst('Bad state: ', '');
+          _message = inputErrorMessage(error);
           // Reopen deliberately to refresh a stale preview/target set.
           _selectionScope = null;
         });
