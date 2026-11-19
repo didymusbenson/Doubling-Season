@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tripling_table/domain/input_validation.dart';
@@ -64,6 +66,8 @@ void main() {
     WorkspacePage page, {
     String? itemId,
     Size size = const Size(1133, 744),
+    int quarterTurns = 0,
+    double textScale = 1,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -71,6 +75,12 @@ void main() {
     fixture.catalog.loaded = true;
     await tester.pumpWidget(
       MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!,
+        ),
         home: Scaffold(
           body: Builder(
             builder: (context) => TextButton(
@@ -80,6 +90,7 @@ void main() {
                 catalog: fixture.catalog,
                 seatId: fixture.playerId,
                 initialPage: page,
+                quarterTurns: quarterTurns,
                 itemId: itemId,
               ),
               child: const Text('Open'),
@@ -203,11 +214,16 @@ void main() {
 
         Finder digit(int n) => find.byKey(ValueKey('utility-digit-$n'));
         final set = find.text('Set value');
+        final modal = find.byKey(const ValueKey('context-workspace'));
+        final parentBounds = tester.getRect(modal);
+        final exact = find.byKey(const ValueKey('utility-exact-dialog'));
         final apply = find.widgetWithText(FilledButton, 'Apply');
         String draft() => tester
             .widget<Text>(find.byKey(const ValueKey('utility-exact-draft')))
             .data!;
         await hit(set);
+        expect(exact, findsOneWidget);
+        expect(tester.getRect(modal), parentBounds);
         expect(find.byType(EditableText), findsNothing);
         expect(tester.testTextInput.isVisible, isFalse);
         expect(tester.widget<FilledButton>(apply).onPressed, isNull);
@@ -225,12 +241,42 @@ void main() {
         await hit(digit(7));
         expect(draft(), '7');
         await hit(find.text('Cancel'));
+        expect(exact, findsNothing);
         expect(fixture.repository.encoded, stored);
+        for (final dismiss in [
+          () => hit(find.byTooltip('Close exact value editor')),
+          () async {
+            await tester.binding.handlePopRoute();
+            await tester.pumpAndSettle();
+          },
+          () async {
+            await tester.tapAt(const Offset(1, 1));
+            await tester.pumpAndSettle();
+          },
+        ]) {
+          await hit(set);
+          await hit(digit(8));
+          await dismiss();
+          expect(exact, findsNothing);
+          expect(fixture.repository.encoded, stored);
+          expect(tester.getRect(modal), parentBounds);
+        }
         await hit(set);
         for (int i = 0; i < 6; i++) {
           await hit(digit(9));
         }
+        fixture.repository.failSave = true;
         await hit(apply);
+        expect(exact, findsOneWidget);
+        expect(
+          find.textContaining('Simulated storage failure'),
+          findsOneWidget,
+        );
+        expect(draft(), '999999');
+        expect(fixture.repository.encoded, stored);
+        fixture.repository.failSave = false;
+        await hit(apply);
+        expect(exact, findsNothing);
         expect(
           fixture.player.utilities.firstWhere((u) => u.id == storm.id).value,
           999999,
@@ -285,6 +331,98 @@ void main() {
     });
   }
 
+  testWidgets('compact rotated exact editor leaves custom text drafts alone', (
+    tester,
+  ) async {
+    final fixture = TableFixture(stateWithTokens([sampleToken()]));
+    await fixture.initialize();
+    addTearDown(fixture.dispose);
+    await fixture.board.createCustomUtility(
+      fixture.playerId,
+      name: 'My tracker',
+    );
+    final utility = fixture.player.utilities.last;
+    await open(
+      tester,
+      fixture,
+      WorkspacePage.utilities,
+      itemId: utility.id,
+      size: const Size(320, 480),
+      quarterTurns: 1,
+      textScale: 1.5,
+    );
+    final before = fixture.repository.encoded;
+    final name = tester.widget<PlayerField>(field('Name')).controller;
+    name.text = 'Pending text draft';
+    Future<void> hit(Finder target) async {
+      await tester.ensureVisible(target);
+      await tester.pumpAndSettle();
+      await tester.tap(target);
+      await tester.pumpAndSettle();
+    }
+
+    final exact = find.byKey(const ValueKey('utility-exact-dialog'));
+    await hit(find.text('Set value'));
+    expect(exact, findsOneWidget);
+    expect(
+      find.descendant(of: exact, matching: find.byType(EditableText)),
+      findsNothing,
+    );
+    await hit(find.byKey(const ValueKey('utility-digit-0')));
+    await hit(find.text('Cancel'));
+    expect(exact, findsNothing);
+    expect(fixture.repository.encoded, before);
+    expect(name.text, 'Pending text draft');
+    expect(fixture.player.utilities.last.name, 'My tracker');
+    expect(tester.takeException(), isNull);
+    // Reset the test-only unconfirmed draft; workspace Close follows its
+    // normal inline-save contract, separate from the numeric dialog.
+    name.text = 'My tracker';
+    await close(tester);
+  });
+
+  testWidgets(
+    'an accepted Apply blocks duplicates and dismissal while saving',
+    (tester) async {
+      final fixture = _DelayedSaveFixture(TabletState.initial());
+      await fixture.initialize();
+      addTearDown(fixture.dispose);
+      final storm = fixture.player.utilities.firstWhere(
+        (utility) => utility.kind == 'storm_count',
+      );
+      await open(tester, fixture, WorkspacePage.utilities, itemId: storm.id);
+      final exact = find.byKey(const ValueKey('utility-exact-dialog'));
+      await tester.tap(find.text('Set value'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('utility-digit-8')));
+      await tester.pumpAndSettle();
+      final before = fixture.repository.encoded;
+      final attempts = fixture.repository.attempts;
+      final pending = Completer<void>();
+      fixture.repository.pending = pending;
+      final apply = find.widgetWithText(FilledButton, 'Apply');
+      await tester.tap(apply);
+      await tester.pump();
+      expect(fixture.repository.attempts, attempts + 1);
+      expect(tester.widget<FilledButton>(apply).onPressed, isNull);
+      await tester.tap(apply);
+      await tester.tap(find.text('Cancel'));
+      await tester.tapAt(const Offset(1, 1));
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      expect(exact, findsOneWidget);
+      expect(fixture.repository.encoded, before);
+      expect(fixture.repository.attempts, attempts + 1);
+
+      pending.complete();
+      await tester.pumpAndSettle();
+      expect(exact, findsNothing);
+      expect(fixture.board.utilityValue(fixture.playerId, storm.id), 8);
+      expect(fixture.repository.attempts, attempts + 1);
+      await close(tester);
+    },
+  );
+
   testWidgets('starting life uses bounded choices instead of free text', (
     tester,
   ) async {
@@ -301,4 +439,27 @@ void main() {
     expect(find.textContaining('Exception'), findsNothing);
     await close(tester);
   });
+}
+
+class _DelayedSaveFixture extends TableFixture {
+  _DelayedSaveFixture(TabletState super.state)
+    : _delayed = _DelayedSaveRepository(state);
+
+  final _DelayedSaveRepository _delayed;
+
+  @override
+  _DelayedSaveRepository get repository => _delayed;
+}
+
+class _DelayedSaveRepository extends MemoryTableRepository {
+  _DelayedSaveRepository(super.state);
+  Completer<void>? pending;
+  var attempts = 0;
+
+  @override
+  Future<void> save(TabletState state) async {
+    attempts++;
+    await pending?.future;
+    await super.save(state);
+  }
 }

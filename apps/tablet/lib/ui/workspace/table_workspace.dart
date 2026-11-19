@@ -43,6 +43,7 @@ part 'game_pages.dart';
 part 'dice_pages.dart';
 part 'commander_page.dart';
 part 'library_pages.dart';
+part 'utility_exact_dialog.dart';
 
 enum WorkspacePage {
   tokens,
@@ -234,6 +235,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   String? _error;
   String? _status;
   bool _working = false;
+  bool _utilityExactOpen = false;
   bool _createCustom = false;
   bool _createTapped = false;
   bool _applyPresetImage = false;
@@ -1356,8 +1358,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     );
     final surface = PlayerKeyboardHost(
       fitContentHeight: _compactTokenCreation,
-      enabled: !_closing && !_working && !_navigating,
-      canEdit: () => !_closing && !_working && !_navigating,
+      enabled: !_closing && !_working && !_navigating && !_utilityExactOpen,
+      canEdit: () =>
+          !_closing && !_working && !_navigating && !_utilityExactOpen,
       onClose: _requestClose,
       key: ValueKey(
         '$_page:$_itemId:${_selectedDefinition?.id}:$_createCustom:${_confirmation?.title}:$_closeSaveFailed',
