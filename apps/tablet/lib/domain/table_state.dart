@@ -433,6 +433,13 @@ class TokenState {
 }
 
 class UtilityState {
+  static const ringKind = 'the_ring';
+  // The One Ring (LTR 246). The art source contains no card frame or text.
+  static const ringArtworkUrl =
+      'https://cards.scryfall.io/art/front/d/5/d5806e68-1054-458e-866d-1f2470f682b2.webp?1790212038';
+  static const _oldRingArtworkUrl =
+      'https://cards.scryfall.io/large/front/7/2/7215460e-8c06-47d0-94e5-d1832d0218af.jpg';
+
   String id;
   String kind;
   String name;
@@ -490,12 +497,18 @@ class UtilityState {
       configuration['legacyInteractionVersion'] == 1;
   int get legacyHoldIncrement =>
       configuration['longPressIncrement'] as int? ?? 5;
-  String? get displayedArtworkUrl =>
-      legacySingleStepHold && configuration['type'] == 'toggle'
-      ? (configuration[isActive ? 'onArtworkUrl' : 'offArtworkUrl']
-                as String?) ??
-            artworkUrl
-      : artworkUrl;
+
+  /// Retire only the exact old built-in Ring art. Never rewrite a save or
+  /// substitute for custom artwork or an explicitly cleared selection.
+  String? resolveArtworkUrl(String? url) =>
+      kind == ringKind && url == _oldRingArtworkUrl ? ringArtworkUrl : url;
+  String? get displayedArtworkUrl => resolveArtworkUrl(
+    legacySingleStepHold && configuration['type'] == 'toggle'
+        ? (configuration[isActive ? 'onArtworkUrl' : 'offArtworkUrl']
+                  as String?) ??
+              artworkUrl
+        : artworkUrl,
+  );
   String get displayedDescription =>
       legacySingleStepHold && configuration['type'] == 'toggle' && !isActive
       ? configuration['offDescription'] as String? ?? ''

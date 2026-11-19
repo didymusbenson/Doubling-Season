@@ -1237,9 +1237,8 @@ class BoardService {
         artwork: [
           ArtworkVariant(
             set: 'LTR',
-            artist: 'Viko Menezes',
-            url:
-                'https://cards.scryfall.io/large/front/7/2/7215460e-8c06-47d0-94e5-d1832d0218af.jpg',
+            artist: 'Veli Nyström',
+            url: UtilityState.ringArtworkUrl,
           ),
         ],
       ),
@@ -1391,11 +1390,13 @@ class BoardService {
   Future<void> addUtility(
     String playerId,
     String definitionId, {
+    bool visible = true,
     BoardScope? captured,
     int? expectedRevision,
   }) => _commit(
     playerId,
     switch (definitionId) {
+      _ when !visible => 'Set up utility',
       'storm_count' => 'Add fresh Storm',
       'mana_pool' => 'Add fresh Mana pool',
       _ => 'Add utility',
@@ -1405,6 +1406,9 @@ class BoardService {
         (d) => d.id == definitionId,
         orElse: () => throw StateError('Unsupported utility'),
       );
+      // Opening the picker detail must not create a duplicate or reveal a
+      // concurrently added instance. The explicit add path keeps its behavior.
+      if (!visible && p.utilities.any((u) => u.kind == definitionId)) return;
       if ({
         'the_ring',
         'mana_pool',
@@ -1428,6 +1432,7 @@ class BoardService {
         colors: d.colorIdentity,
         value: d.defaultValue ?? 0,
         defaultValue: d.defaultValue ?? 0,
+        visible: visible,
         artworkUrl: d.artwork.isEmpty ? null : d.artwork.first.url,
         configuration: {
           'type': d.type == WidgetType.toggle ? 'toggle' : 'tracker',

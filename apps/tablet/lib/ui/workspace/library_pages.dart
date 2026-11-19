@@ -80,10 +80,6 @@ extension _LibraryPages on _TableWorkspaceState {
                 (choice) => choice.matches(value.text),
               );
               return _list([
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 8),
-                  child: Text('Switch off to hide. Your values stay saved.'),
-                ),
                 for (final choice in matching)
                   _utilityChoiceRow(player, choice, scope),
                 if (matching.isEmpty)
@@ -109,8 +105,8 @@ extension _LibraryPages on _TableWorkspaceState {
                         ListTile(
                           key: ValueKey('legacy-settings-${utility.id}'),
                           title: Text(utility.name),
-                          trailing: const Icon(Icons.edit_outlined, size: 18),
-                          onTap: () => _update(() => _itemId = utility.id),
+                          onTap: () =>
+                              _go(WorkspacePage.utilities, itemId: utility.id),
                         ),
                     ],
                   ),
@@ -127,64 +123,78 @@ extension _LibraryPages on _TableWorkspaceState {
     _UtilityChoice choice,
     BoardScope scope,
   ) {
-    final tile = SwitchListTile(
-      key: ValueKey('utility-toggle-${choice.id}'),
-      contentPadding: EdgeInsets.zero,
-      title: Text(choice.name),
-      subtitle: Text(
-        '${choice.visible ? 'Shown on board' : 'Hidden from board'}'
-        '${choice.description.isEmpty ? '' : '\n${choice.description}'}',
-      ),
-      value: choice.visible,
-      onChanged: _working
-          ? null
-          : (visible) => _run(() {
-              final utility = choice.utility;
-              return utility == null
-                  ? _board.addUtility(player.id, choice.id, captured: scope)
-                  : _board.setUtility(
-                      player.id,
-                      utility.id,
-                      visible: visible,
-                      captured: scope,
-                    );
-            }),
-    );
-    // Keep editing separate from the switch's merged accessibility action.
-    final edit = choice.utility == null
-        ? null
-        : Semantics(
-            label: 'Edit ${choice.name}',
-            button: true,
-            child: IconButton(
-              key: ValueKey('utility-edit-${choice.utility!.id}'),
-              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-              onPressed: _working
-                  ? null
-                  : () => _update(() => _itemId = choice.utility!.id),
-              icon: const Icon(Icons.edit_outlined),
-            ),
-          );
-    return LayoutBuilder(
+    final canInteract = !_working && !_navigating && !_closing;
+    return Row(
       key: choice.utility == null
           ? ValueKey('utility-choice-${choice.id}')
           : ValueKey('utility-menu-${choice.utility!.id}'),
-      builder: (context, bounds) => bounds.maxWidth < 380
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                tile,
-                if (edit != null)
-                  Align(alignment: Alignment.centerRight, child: edit),
-              ],
-            )
-          : Row(
-              children: [
-                Expanded(child: tile),
-                SizedBox(width: 48, child: edit),
-              ],
-            ),
+      children: [
+        Expanded(
+          child: ListTile(
+            key: ValueKey('utility-open-${choice.id}'),
+            contentPadding: EdgeInsets.zero,
+            title: Text(choice.name),
+            subtitle: choice.description.isEmpty
+                ? null
+                : Text(choice.description),
+            onTap: canInteract
+                ? () => _openUtilityChoice(player, choice, scope)
+                : null,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Semantics(
+          label: 'Show ${choice.name} on board',
+          child: Switch(
+            key: ValueKey('utility-toggle-${choice.id}'),
+            value: choice.visible,
+            onChanged: !canInteract
+                ? null
+                : (visible) => _run(() {
+                    final utility = choice.utility;
+                    return utility == null
+                        ? _board.addUtility(
+                            player.id,
+                            choice.id,
+                            captured: scope,
+                          )
+                        : _board.setUtility(
+                            player.id,
+                            utility.id,
+                            visible: visible,
+                            captured: scope,
+                          );
+                  }),
+          ),
+        ),
+      ],
     );
+  }
+
+  Future<void> _openUtilityChoice(
+    PlayerState player,
+    _UtilityChoice choice,
+    BoardScope scope,
+  ) async {
+    var id = choice.utility?.id;
+    if (id == null) {
+      await _run(() async {
+        await _board.addUtility(
+          player.id,
+          choice.id,
+          visible: false,
+          captured: scope,
+        );
+        id = c
+            .player(player.id)
+            .utilities
+            .firstWhere((utility) => utility.kind == choice.id)
+            .id;
+      });
+    }
+    if (id != null && mounted && _validScope) {
+      await _go(WorkspacePage.utilities, itemId: id);
+    }
   }
 
   Widget _utilityDetail(UtilityState utility) {
@@ -740,17 +750,27 @@ extension _LibraryPages on _TableWorkspaceState {
         .where((definition) => definition.id == utility.kind)
         .firstOrNull
         ?.artwork;
-    final options = <Map<String, dynamic>>[
-      for (final raw in utility.configuration['artworkOptions'] as List? ?? [])
-        Map<String, dynamic>.from(raw as Map),
-    ];
-    for (final option in options) {
+    final options = <Map<String, dynamic>>[];
+    for (final raw in utility.configuration['artworkOptions'] as List? ?? []) {
+      final option = Map<String, dynamic>.from(raw as Map);
+      final url = option['url'] as String?;
+      final displayed = utility.resolveArtworkUrl(url);
+      if (displayed != url) {
+        // Old saves get the new official default, not the retired token art.
+        continue;
+      }
       if ((option['artist'] as String? ?? '').isEmpty) {
-        final match = known
-            ?.where((art) => art.url == option['url'])
-            .firstOrNull;
+        final match = known?.where((art) => art.url == url).firstOrNull;
         if (match != null) option['artist'] = match.artist;
       }
+      options.add(option);
+    }
+    final ringDefault = utility.kind == RingService.kind
+        ? known?.where((art) => art.url == RingService.artworkUrl).firstOrNull
+        : null;
+    if (ringDefault != null &&
+        !options.any((art) => art['url'] == ringDefault.url)) {
+      options.insert(0, ringDefault.toJson());
     }
     final previewing = candidate.text.isNotEmpty;
     final shown = previewing ? candidate.text : utility.displayedArtworkUrl;
