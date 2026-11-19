@@ -1,9 +1,11 @@
 import 'support/control_finders.dart';
 import 'dart:io';
+import 'dart:ui' show SemanticsAction;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:tripling_table/ui/table_artwork.dart';
 import 'package:tripling_table/ui/table_screen.dart';
 import 'package:tripling_table/domain/table_state.dart';
 import 'package:tripling_table/state/table_controller.dart';
@@ -102,7 +104,7 @@ void main() {
 
   for (final kind in ['storm_count', 'mana_pool', 'custom_toggle']) {
     for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
-      testWidgets('$kind management shares its header at $size', (
+      testWidgets('$kind header opens without a chevron at $size', (
         tester,
       ) async {
         final (f, id) = await showUtility(tester, kind, seats: 4);
@@ -116,13 +118,30 @@ void main() {
           matching: byControlLabel('${utility.name}, details and actions'),
         );
         expect(header.hitTestable(), findsOneWidget);
+        final background = find.descendant(
+          of: find.byKey(ValueKey('swipe-utility-$id')),
+          matching: find.byType(TableArtworkSurface),
+        );
+        expect(
+          tester.widget<TableArtworkSurface>(background).artworkFit,
+          BoxFit.cover,
+        );
+        final semantics = tester.ensureSemantics();
+        expect(
+          tester
+              .getSemantics(header)
+              .getSemanticsData()
+              .hasAction(SemanticsAction.tap),
+          isTrue,
+        );
+        semantics.dispose();
         expect(find.byKey(ValueKey('remove-utility-$id')), findsNothing);
         expect(
           find.descendant(
             of: header,
             matching: find.byIcon(Icons.chevron_right),
           ),
-          findsOneWidget,
+          findsNothing,
         );
         final inline = tester.widget<UtilityInlineActions>(
           find.byKey(ValueKey('inline-actions-$id')),
@@ -147,6 +166,7 @@ void main() {
           await tester.tap(switchControl);
           await tester.pumpAndSettle();
           expect(f.board.utilityActive(f.playerId, id), isTrue);
+          expect(find.byType(Dialog), findsNothing);
           await f.controller.undo();
           await tester.pumpAndSettle();
           expect(f.board.utilityActive(f.playerId, id), isFalse);
