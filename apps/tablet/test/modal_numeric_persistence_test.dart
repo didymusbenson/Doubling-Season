@@ -95,12 +95,23 @@ void main() {
     _Target target, {
     int turns = 0,
     int initial = 3,
+    bool custom = false,
   }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1133, 744);
     addTearDown(tester.view.reset);
     final state = TabletState.initial();
     target.seed(state.session.players.first, initial);
+    if (custom) {
+      state.session.players.first.utilities.add(
+        UtilityState(
+          id: 'editable-counter',
+          kind: 'custom_tracker',
+          name: 'Custom count',
+          value: initial,
+        ),
+      );
+    }
     repository = _DelayedRepository(state);
     controller = TableController(repository: repository);
     await controller.initialize();
@@ -119,7 +130,7 @@ void main() {
                   catalog: catalog,
                   seatId: playerId,
                   initialPage: target.page,
-                  itemId: target.itemId(player()),
+                  itemId: custom ? 'editable-counter' : target.itemId(player()),
                   quarterTurns: turns,
                 );
                 dismissed++;
@@ -306,25 +317,35 @@ void main() {
 
   for (final fail in [false, true]) {
     testWidgets(
-      'utility taps flush an inline edit before their numeric save (failure=$fail)',
+      'custom utility taps flush an inline edit before their numeric save (failure=$fail)',
       (tester) async {
-        await open(tester, _Target.utility, initial: 3);
+        await open(tester, _Target.utility, initial: 3, custom: true);
         final name = tester
             .widget<TextField>(find.widgetWithText(TextField, 'Name'))
             .controller!;
-        name.text = 'Storm with a saved name';
+        name.text = 'Renamed custom count';
         await tap(tester, _Target.utility);
         expect(repository.waits, hasLength(1));
-        expect(_Target.utility.value(player()), 3);
+        expect(
+          player().utilities
+              .firstWhere((u) => u.id == 'editable-counter')
+              .value,
+          3,
+        );
         await release(tester, 0, fail: fail);
         if (fail) {
           expect(repository.waits, hasLength(1));
-          expect(_Target.utility.value(player()), 3);
+          expect(
+            player().utilities
+                .firstWhere((u) => u.id == 'editable-counter')
+                .value,
+            3,
+          );
           expect(
             find.textContaining('Some changes were not saved.'),
             findsOneWidget,
           );
-          expect(name.text, 'Storm with a saved name');
+          expect(name.text, 'Renamed custom count');
         } else {
           expect(repository.waits, hasLength(2));
           await release(tester, 1);
@@ -333,10 +354,13 @@ void main() {
             playerId,
           );
           expect(
-            saved.utilities.firstWhere((u) => u.kind == 'storm_count').name,
-            'Storm with a saved name',
+            saved.utilities.firstWhere((u) => u.id == 'editable-counter').name,
+            'Renamed custom count',
           );
-          expect(_Target.utility.value(saved), 4);
+          expect(
+            saved.utilities.firstWhere((u) => u.id == 'editable-counter').value,
+            4,
+          );
         }
         await finish(tester);
         expect(tester.takeException(), isNull);
