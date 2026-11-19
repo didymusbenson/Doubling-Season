@@ -27,6 +27,7 @@ import 'package:hive/src/binary/binary_reader_impl.dart';
 import 'package:hive/src/hive_impl.dart';
 
 import 'legacy_migration.dart';
+import 'legacy_media_roots.dart';
 import 'legacy_migration_journal.dart';
 import 'legacy_preferences_decode.dart';
 import 'legacy_snapshot_capture.dart';
@@ -48,6 +49,10 @@ class LegacySourceLayout {
   /// Exact old reference -> path inside the copy. Never follow old file URLs.
   final Map<String, String> mediaPaths;
 
+  /// Caller-verified old artwork directory -> retained relative directory.
+  /// Optional, explicit container-relocation support, not sandbox discovery.
+  final LegacyMediaRoots mediaRoots;
+
   LegacySourceLayout({
     required this.sourceId,
     required this.sourceVersion,
@@ -57,8 +62,10 @@ class LegacySourceLayout {
     required this.preferencesPath,
     required this.preferencesFormat,
     Map<String, String> mediaPaths = const {},
+    Map<String, String> mediaRoots = const {},
   }) : boxes = Map.unmodifiable(boxes),
-       mediaPaths = Map.unmodifiable(mediaPaths) {
+       mediaPaths = Map.unmodifiable(mediaPaths),
+       mediaRoots = LegacyMediaRoots(mediaRoots) {
     if ([sourceId, sourceVersion, copyEvidence].any((s) => s.trim().isEmpty) ||
         boxes.length != LegacyMigrationSnapshot.collections.length ||
         !LegacyMigrationSnapshot.collections.every(boxes.containsKey)) {
@@ -92,6 +99,7 @@ class LegacySourceLayout {
     'preferencesPath': preferencesPath,
     'preferencesFormat': preferencesFormat.name,
     'mediaPaths': mediaPaths,
+    if (mediaRoots.roots.isNotEmpty) 'mediaRoots': mediaRoots.roots,
     'adapterSchema': 'root-0273043-types-0-12',
   };
 }
@@ -404,6 +412,19 @@ class LegacySourceReader {
       final bytes = files[entry.value];
       // Missing media is not fabricated. Existing journal reports missing refs.
       if (bytes != null) media[entry.key] = Uint8List.fromList(bytes);
+    }
+    if (layout.mediaRoots.roots.isNotEmpty) {
+      final retainedPaths = files.keys.toSet();
+      for (final reference in legacyLocalArtworkReferences(json)) {
+        final path = layout.mediaRoots.resolve(reference, retainedPaths);
+        if (path == null) continue;
+        final explicit = layout.mediaPaths[reference];
+        if (explicit != null && explicit != path) {
+          throw const FormatException('Conflicting legacy artwork mappings.');
+        }
+        // These retained buffers remain private. localMedia copies on access.
+        media[reference] = files[path]!;
+      }
     }
     await onBoundary?.call('decoded');
     return LegacyAcquiredSource._(

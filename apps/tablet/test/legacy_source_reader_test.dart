@@ -80,7 +80,12 @@ Future<void> _file(Directory dir, String path, List<int> bytes) async {
   await file.writeAsBytes(bytes, flush: true);
 }
 
-Future<void> _fixture(Directory dir, {bool rich = false}) async {
+Future<void> _fixture(
+  Directory dir, {
+  bool rich = false,
+  String art = _art,
+  String? coverArt,
+}) async {
   final hive = _registry()..init(dir.path);
   final item = Item(
     name: 'Goblin',
@@ -89,9 +94,9 @@ Future<void> _fixture(Directory dir, {bool rich = false}) async {
     tapped: 3,
     summoningSick: 2,
     createdAt: _date,
-    artworkUrl: _art,
+    artworkUrl: art,
     artworkOptions: [
-      ArtworkVariant(set: 'CUSTOM', url: _art, artist: 'user uploaded'),
+      ArtworkVariant(set: 'CUSTOM', url: art, artist: 'user uploaded'),
     ],
     counters: [TokenCounter(name: 'charge', amount: 4)],
   );
@@ -112,7 +117,7 @@ Future<void> _fixture(Directory dir, {bool rich = false}) async {
     Deck(
       name: 'Saved setup',
       templates: [TokenTemplate.fromItem(item)],
-      customArtworkUrl: _art,
+      customArtworkUrl: coverArt ?? art,
     ),
   );
   final trackers = await hive.openBox<TrackerWidget>('trackerWidgets');
@@ -151,7 +156,7 @@ Future<void> _fixture(Directory dir, {bool rich = false}) async {
       Deck(
         name: 'Saved setup',
         templates: [TokenTemplate.fromItem(item)],
-        customArtworkUrl: _art,
+        customArtworkUrl: coverArt ?? art,
         trackerWidgets: trackers.values
             .map(TrackerWidgetTemplate.fromWidget)
             .toList(),
@@ -166,7 +171,7 @@ Future<void> _fixture(Directory dir, {bool rich = false}) async {
   );
   await prefs.put(
     'art',
-    TokenArtworkPreference(tokenIdentity: 'Goblin', customArtworkPath: _art),
+    TokenArtworkPreference(tokenIdentity: 'Goblin', customArtworkPath: art),
   );
   final custom = await hive.openBox<String>('customTokens');
   await custom.put('custom', '{"name":"Custom", "pt":"1/1", "futureField":42}');
@@ -295,6 +300,111 @@ void main() {
       final media = first.localMedia;
       media[_art]![0] = 99;
       expect(first.localMedia[_art]![0], 1);
+    },
+  );
+
+  test(
+    'relocated copied sandbox retains token and duplicate deck artwork',
+    () async {
+      const token = 'file:///old-container/Documents/custom_artwork/token.png';
+      const cover =
+          'file:///old-container/Library/Application%20Support/artwork_cache/deck_box_2.png';
+      final documents = await Directory('${directory.path}/Documents').create();
+      await _fixture(documents, art: token, coverArt: cover);
+      await _file(directory, 'Documents/custom_artwork/token.png', [
+        1,
+        2,
+        3,
+        4,
+      ]);
+      await _file(
+        directory,
+        'Library/Application Support/artwork_cache/deck_box_2.png',
+        [5, 6, 7],
+      );
+      final before = await _hashes(directory);
+      final base = _layout();
+      final layout = LegacySourceLayout(
+        sourceId: base.sourceId,
+        sourceVersion: 'synthetic-current-adapters-not-shipped-certification',
+        copyEvidence: base.copyEvidence,
+        capturedAt: base.capturedAt,
+        boxes: {
+          for (final e in base.boxes.entries) e.key: 'Documents/${e.value}',
+        },
+        preferencesPath: 'Documents/preferences.xml',
+        preferencesFormat: base.preferencesFormat,
+        mediaRoots: {
+          '/old-container/Documents/custom_artwork': 'Documents/custom_artwork',
+          '/old-container/Library/Application Support/artwork_cache':
+              'Library/Application Support/artwork_cache',
+        },
+      );
+      final acquired = await read(layout: layout);
+      expect(acquired.localMedia[token], [1, 2, 3, 4]);
+      expect(acquired.localMedia[cover], [5, 6, 7]);
+      final withoutRoots = LegacySourceLayout(
+        sourceId: layout.sourceId,
+        sourceVersion: layout.sourceVersion,
+        copyEvidence: layout.copyEvidence,
+        capturedAt: layout.capturedAt,
+        boxes: layout.boxes,
+        preferencesPath: layout.preferencesPath,
+        preferencesFormat: layout.preferencesFormat,
+      );
+      final unresolved = await LegacySourceReader().acquireCopiedDirectory(
+        directory: directory,
+        layout: withoutRoots,
+        recoveryStorage: _Memory(),
+      );
+      expect(unresolved.localMedia, isEmpty);
+      final unresolvedPlan = await unresolved.prepare(
+        LegacyMigrationJournal(_Memory()),
+      );
+      expect(
+        unresolvedPlan.warnings
+            .where((w) => w.contains('Missing local artwork'))
+            .length,
+        2,
+      );
+      final conflict = LegacySourceLayout(
+        sourceId: layout.sourceId,
+        sourceVersion: layout.sourceVersion,
+        copyEvidence: layout.copyEvidence,
+        capturedAt: layout.capturedAt,
+        boxes: layout.boxes,
+        preferencesPath: layout.preferencesPath,
+        preferencesFormat: layout.preferencesFormat,
+        mediaRoots: layout.mediaRoots.roots,
+        mediaPaths: {cover: 'Documents/media/upload.png'},
+      );
+      await expectLater(
+        LegacySourceReader().acquireCopiedDirectory(
+          directory: directory,
+          layout: conflict,
+          recoveryStorage: _Memory(),
+        ),
+        throwsFormatException,
+      );
+      final journal = LegacyMigrationJournal(_Memory());
+      final result = await acquired.prepare(journal);
+      expect(result.blockers, isEmpty);
+      expect(
+        result.warnings.where((w) => w.contains('Missing local artwork')),
+        isEmpty,
+      );
+      await journal.commit(result.transactionId);
+      final committed = (await journal.openCommitted())!;
+      final committedJson = jsonEncode(committed.state.toJson());
+      expect(committedJson, contains('tablet-art:'));
+      expect(committedJson, isNot(contains('/old-container/')));
+      final restored = await LegacySourceReader().openRetained(
+        layout: layout,
+        recoveryStorage: recovery,
+      );
+      expect(restored!.localMedia[cover], [5, 6, 7]);
+      expect(await _hashes(directory), before);
+      expect(Hive.isBoxOpen('items'), false);
     },
   );
 

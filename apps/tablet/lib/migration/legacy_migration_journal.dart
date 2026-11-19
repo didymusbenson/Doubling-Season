@@ -136,7 +136,7 @@ class LegacyMigrationJournal {
 
       final mapped = LegacyMigrationConverter().convert(snapshot);
       final warnings = [...mapped.warnings];
-      final references = _localReferences(snapshot.toJson());
+      final references = legacyLocalArtworkReferences(snapshot.toJson());
       for (final ref in references) {
         if (!manifest.containsKey(ref)) {
           warnings.add('Missing local artwork retained for recovery: $ref');
@@ -341,18 +341,21 @@ const _artworkFields = {
 bool _isLocal(String value) =>
     value.startsWith('file://') || value.startsWith('/');
 
-Set<String> _localReferences(dynamic value, [String? field]) {
+/// Exact local references in supported artwork fields; never opens a path.
+Set<String> legacyLocalArtworkReferences(dynamic value, [String? field]) {
   if (value is String && _artworkFields.contains(field) && _isLocal(value)) {
     return {value};
   }
   if (value is Map) {
     return {
       for (final entry in value.entries)
-        ..._localReferences(entry.value, entry.key as String),
+        ...legacyLocalArtworkReferences(entry.value, entry.key as String),
     };
   }
   if (value is List) {
-    return {for (final item in value) ..._localReferences(item, field)};
+    return {
+      for (final item in value) ...legacyLocalArtworkReferences(item, field),
+    };
   }
   return {};
 }
