@@ -50,6 +50,26 @@ class RingService {
     }
   }, captured: captured);
 
+  /// A correction is not a temptation. Resolve relative changes against the
+  /// serialized live count so rapid taps and holds cannot overwrite each other.
+  Future<void> adjustCount(
+    String playerId,
+    String utilityId,
+    int delta, {
+    BoardScope? captured,
+  }) => _change(playerId, utilityId, 'Correct The Ring', (utility) {
+    utility.value = (utility.value + delta).clamp(0, maxTemptations);
+  }, captured: captured);
+
+  Future<void> setBearer(
+    String playerId,
+    String utilityId,
+    String bearer, {
+    BoardScope? captured,
+  }) => _change(playerId, utilityId, 'Correct The Ring', (utility) {
+    utility.configuration[bearerKey] = bearer.trim();
+  }, captured: captured);
+
   Future<void> clearBearer(
     String playerId,
     String utilityId, {

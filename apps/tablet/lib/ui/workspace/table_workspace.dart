@@ -933,13 +933,25 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
           _page == WorkspacePage.counters) &&
       _confirmation == null &&
       _validScope;
-  double get _controlWidth =>
-      (_navigation.isNotEmpty || _confirmation != null) ? 88 : 44;
+  bool get _utilityPickerIsParent =>
+      _page == WorkspacePage.utilities &&
+      _itemId != null &&
+      _navigation.isNotEmpty &&
+      _navigation.last.$1 == WorkspacePage.utilities &&
+      _navigation.last.$2 == null;
+
+  bool get _showBackControl =>
+      _confirmation != null ||
+      (_navigation.isNotEmpty &&
+          !(_utilityPickerIsParent &&
+              _fields['utility.$_itemId.panel']?.text != 'artwork'));
+
+  double get _controlWidth => _showBackControl ? 88 : 44;
 
   Widget _dismissControls() => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      if (_navigation.isNotEmpty || _confirmation != null)
+      if (_showBackControl)
         SizedBox(
           width: 44,
           height: 44,

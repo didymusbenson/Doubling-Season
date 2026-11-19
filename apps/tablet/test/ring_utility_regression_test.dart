@@ -242,6 +242,26 @@ void main() {
         await tester.pumpAndSettle();
         expect(utility().value, 2);
         expect(RingService.bearer(utility()), 'f');
+        final plus = byControlLabel('Increase Total temptations');
+        final minus = byControlLabel('Decrease Total temptations');
+        for (int i = 0; i < 3; i++) {
+          await tester.ensureVisible(plus);
+          await tester.tap(plus);
+          await tester.pumpAndSettle();
+        }
+        expect(utility().value, 5);
+        expect(find.text('Stage 4/4'), findsOneWidget);
+        expect(f.controller.session.history.last.label, 'Correct The Ring');
+        expect(RingService.bearer(utility()), 'f');
+        for (int i = 0; i < 3; i++) {
+          await tester.ensureVisible(minus);
+          await tester.tap(minus);
+          await tester.pumpAndSettle();
+        }
+        expect(utility().value, 2);
+        expect(find.text('Correct'), findsNothing);
+        expect(find.text('Save correction'), findsNothing);
+        expect(byControlLabel('Back'), findsNothing);
         await tester.ensureVisible(find.text('Clear bearer'));
         await tester.tap(find.text('Clear bearer'));
         await tester.pumpAndSettle();

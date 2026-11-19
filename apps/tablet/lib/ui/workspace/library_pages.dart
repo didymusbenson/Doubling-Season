@@ -197,10 +197,6 @@ extension _LibraryPages on _TableWorkspaceState {
     WidgetDefinition? definition,
   ) {
     final key = 'utility.${utility.id}';
-    final fromPicker =
-        _navigation.isNotEmpty &&
-        _navigation.last.$1 == WorkspacePage.utilities &&
-        _navigation.last.$2 == null;
     final custom =
         utility.kind == 'custom_tracker' || utility.kind == 'custom_toggle';
     final scope = _board.scope(p!.id);
@@ -214,21 +210,55 @@ extension _LibraryPages on _TableWorkspaceState {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _contentTop(
-          Row(
+          Wrap(
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              if (ringArt != null) ...[
+              Semantics(
+                link: true,
+                child: InkWell(
+                  key: const ValueKey('utility-picker-breadcrumb'),
+                  onTap: _working || _navigating || _closing
+                      ? null
+                      : () async {
+                          if (_utilityPickerIsParent) {
+                            await _back();
+                          } else {
+                            await _directQueue;
+                            if (await _flushInline() && mounted && !_closing) {
+                              _update(() => _itemId = null);
+                            }
+                          }
+                        },
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minHeight: 48,
+                      minWidth: 48,
+                    ),
+                    child: Align(
+                      widthFactor: 1,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'All utilities',
+                        style: TextStyle(
+                          decoration: TextDecoration.underline,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const ExcludeSemantics(child: Text('/')),
+              if (ringArt != null)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: _art(ringArt, width: 56, height: 44),
                 ),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                child: Text(
-                  utility.name,
-                  key: const ValueKey('utility-panel-title'),
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
+              Text(
+                utility.name,
+                key: const ValueKey('utility-panel-title'),
+                style: Theme.of(context).textTheme.titleLarge,
               ),
             ],
           ),
@@ -272,13 +302,6 @@ extension _LibraryPages on _TableWorkspaceState {
           spacing: 8,
           runSpacing: 4,
           children: [
-            if (!fromPicker)
-              _button('All utilities', () async {
-                await _directQueue;
-                if (await _flushInline() && mounted && !_closing) {
-                  _update(() => _itemId = null);
-                }
-              }, icon: Icons.list_alt),
             _button('Artwork', () async {
               await _directQueue;
               if (await _flushInline() && mounted && !_closing) {
@@ -291,22 +314,129 @@ extension _LibraryPages on _TableWorkspaceState {
     );
   }
 
-  // Track live changes until the player types their own correction. Controller
-  // notifications must happen after build, and never overwrite a pending draft.
-  Widget _utilityCorrectionField(String id, int value) {
-    final current = '$value';
-    final previous = _numericInitials[id];
-    final field = _field(id, current);
-    if (previous != null && previous != current && field.text == previous) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted &&
-            _numericInitials[id] == current &&
-            field.text == previous) {
-          field.text = current;
-        }
-      });
+  // Exact entry is an in-panel draft, never a focused text input. The board
+  // keeps its original full tap/hold stepper for ordinary play.
+  Widget _utilityExactValue(
+    UtilityState utility,
+    int current,
+    BoardScope scope,
+  ) {
+    final draft = _field('utility.${utility.id}.exact', 'closed');
+    final open = draft.text != 'closed';
+    if (!open) {
+      return _button('Set value', () {
+        FocusManager.instance.primaryFocus?.unfocus();
+        _update(() => draft.clear());
+      }, icon: Icons.dialpad);
     }
-    return _input(id, 'Set value', initial: current, numeric: true);
+    const maximum =
+        999999; // Same range as the former standalone tracker editor.
+    final digits = draft.text;
+    final chosen = tryWholeNumber(digits, min: 0, max: maximum);
+    final enabled = !_working && !_closing && !_navigating;
+    String append(int n) => draft.text == '0' ? '$n' : '${draft.text}$n';
+    bool accepts(String next) =>
+        next.length <= 6 && tryWholeNumber(next, min: 0, max: maximum) != null;
+    Widget digit(int n) {
+      final valid = enabled && accepts(append(n));
+      return TextButton(
+        key: ValueKey('utility-digit-$n'),
+        style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+        onPressed: valid
+            ? () => _update(() {
+                final next = append(n);
+                if (accepts(next)) draft.text = next;
+              })
+            : null,
+        child: Text('$n'),
+      );
+    }
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 240),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Set exact value · now $current',
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  digits.isEmpty ? 'Enter a total' : digits,
+                  key: const ValueKey('utility-exact-draft'),
+                  textAlign: TextAlign.end,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              for (final first in [1, 4, 7])
+                Row(
+                  children: [
+                    for (int n = first; n < first + 3; n++)
+                      Expanded(child: digit(n)),
+                  ],
+                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: enabled && digits.isNotEmpty
+                          ? () => _update(draft.clear)
+                          : null,
+                      child: const Text('Clear'),
+                    ),
+                  ),
+                  Expanded(child: digit(0)),
+                  Expanded(
+                    child: IconButton(
+                      tooltip: 'Delete last digit',
+                      onPressed: enabled && digits.isNotEmpty
+                          ? () => _update(() {
+                              final text = draft.text;
+                              if (text.isNotEmpty)
+                                draft.text = text.substring(0, text.length - 1);
+                            })
+                          : null,
+                      icon: const Icon(Icons.backspace_outlined),
+                    ),
+                  ),
+                ],
+              ),
+              Wrap(
+                alignment: WrapAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: enabled
+                        ? () => _update(() => draft.text = 'closed')
+                        : null,
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: enabled && chosen != null
+                        ? () => _run(
+                            () => _board.setUtility(
+                              scope.playerId,
+                              utility.id,
+                              value: chosen,
+                              captured: scope,
+                            ),
+                            after: () => draft.text = 'closed',
+                          )
+                        : null,
+                    child: const Text('Apply'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _utilityDetail(UtilityState utility) {
@@ -429,24 +559,7 @@ extension _LibraryPages on _TableWorkspaceState {
                       ),
               ),
             ),
-            SizedBox(
-              width: 140,
-              child: _utilityCorrectionField('$key.value', currentValue),
-            ),
-            _button(
-              'Set value',
-              () => _run(
-                () => _board.setUtility(
-                  player.id,
-                  utility.id,
-                  value: _integer(
-                    '$key.value',
-                    min: utility.kind == 'life_total' ? -1000000000 : 0,
-                    max: utility.kind == 'life_total' ? 1000000000 : 999999,
-                  ),
-                ),
-              ),
-            ),
+            _utilityExactValue(utility, currentValue, scope),
           ],
         ),
       if (standalone && hasAction) ...[
@@ -590,11 +703,6 @@ extension _LibraryPages on _TableWorkspaceState {
     final scope = _board.scope(player.id);
     final ring = RingService(c);
     final bearer = _field('$key.ringBearer', RingService.bearer(utility));
-    final correction = _field('$key.correct').text == 'true';
-    void resetChoice() {
-      bearer.text = RingService.bearer(utility);
-    }
-
     return Padding(
       key: const ValueKey('utility-detail-the_ring'),
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
@@ -604,55 +712,74 @@ extension _LibraryPages on _TableWorkspaceState {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _utilityPanelHeader(utility, definition),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Stage ${RingService.stage(utility)}/4 · ${utility.value} ${utility.value == 1 ? 'temptation' : 'temptations'}',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => _update(() {
-                    resetChoice();
-                    _field('$key.correct').text = correction ? '' : 'true';
-                    _field('$key.count').text = '${utility.value}';
-                  }),
-                  child: Text(correction ? 'Back' : 'Correct'),
-                ),
-              ],
+            Text(
+              'Stage ${RingService.stage(utility)}/4',
+              style: Theme.of(context).textTheme.titleMedium,
             ),
-            if (correction)
-              _input(
-                '$key.count',
-                'Temptation count',
-                initial: '${utility.value}',
-                numeric: true,
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (var i = 0; i < RingService.reminders.length; i++)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Text(
-                          '${i + 1}. ${RingService.reminders[i]}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: i < RingService.stage(utility)
-                                ? null
-                                : Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                  ],
+            Align(
+              alignment: Alignment.centerLeft,
+              child: SizedBox(
+                width: 235,
+                child: _stepper(
+                  'Total temptations',
+                  utility.value,
+                  () => _runDirect(
+                    () => ring.adjustCount(
+                      player.id,
+                      utility.id,
+                      -1,
+                      captured: scope,
+                    ),
+                  ),
+                  () => _runDirect(
+                    () => ring.adjustCount(
+                      player.id,
+                      utility.id,
+                      1,
+                      captured: scope,
+                    ),
+                  ),
+                  holdMinusStep: (amount) => _runDirect(
+                    () => ring.adjustCount(
+                      player.id,
+                      utility.id,
+                      -amount,
+                      captured: scope,
+                    ),
+                  ),
+                  holdPlusStep: (amount) => _runDirect(
+                    () => ring.adjustCount(
+                      player.id,
+                      utility.id,
+                      amount,
+                      captured: scope,
+                    ),
+                  ),
+                  maximum: RingService.maxTemptations,
                 ),
               ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < RingService.reminders.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Text(
+                        '${i + 1}. ${RingService.reminders[i]}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: i < RingService.stage(utility)
+                              ? null
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
             _input(
               '$key.ringBearer',
               'Ring-bearer label (optional)',
@@ -663,32 +790,42 @@ extension _LibraryPages on _TableWorkspaceState {
               spacing: 8,
               children: [
                 _button(
-                  correction ? 'Save correction' : 'The Ring tempts you',
+                  'The Ring tempts you',
                   () => _run(
-                    () => correction
-                        ? ring.correct(
-                            player.id,
-                            utility.id,
-                            temptations: _integer('$key.count', min: 0),
-                            bearer: bearer.text,
-                            captured: scope,
-                          )
-                        : ring.tempt(
-                            player.id,
-                            utility.id,
-                            bearer: bearer.text,
-                            captured: scope,
-                          ),
+                    () => ring.tempt(
+                      player.id,
+                      utility.id,
+                      bearer: bearer.text,
+                      captured: scope,
+                    ),
                     after: () {
                       final saved = c
                           .player(player.id)
                           .utilities
                           .firstWhere((u) => u.id == utility.id);
                       bearer.text = RingService.bearer(saved);
-                      _field('$key.correct').clear();
                     },
                   ),
                   primary: true,
+                ),
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: bearer,
+                  builder: (context, value, _) =>
+                      value.text.trim() == RingService.bearer(utility)
+                      ? const SizedBox.shrink()
+                      : _button(
+                          'Save bearer',
+                          () => _run(
+                            () => ring.setBearer(
+                              player.id,
+                              utility.id,
+                              value.text,
+                              captured: scope,
+                            ),
+                            after: () => bearer.text = value.text.trim(),
+                          ),
+                          icon: Icons.check,
+                        ),
                 ),
                 _button(
                   'Clear bearer',
@@ -700,6 +837,7 @@ extension _LibraryPages on _TableWorkspaceState {
                     ),
                     after: () => bearer.clear(),
                   ),
+                  icon: Icons.person_remove_outlined,
                 ),
               ],
             ),

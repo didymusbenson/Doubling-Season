@@ -265,6 +265,7 @@ void main() {
             'mana_pool',
             'storm_count',
             'cathars_crusade',
+            'the_ring',
           }.contains(utility.kind)) {
             await capture(
               tester,
@@ -307,19 +308,29 @@ void main() {
       utility.artworkUrl = null;
       final otherSeat = fixture.controller.session.players[1].toJson();
       await showUtility(tester, fixture, utility, const Size(1133, 744));
-      final correction = tester
-          .widget<TextField>(
-            find.byWidgetPredicate(
-              (w) => w is TextField && w.decoration?.labelText == 'Set value',
-            ),
-          )
-          .controller!;
+      final breadcrumb = find.byKey(
+        const ValueKey('utility-picker-breadcrumb'),
+      );
+      expect(tester.getSize(breadcrumb).height, greaterThanOrEqualTo(48));
+      expect(
+        find.widgetWithText(OutlinedButton, 'All utilities'),
+        findsNothing,
+      );
       await tap(tester, byControlLabel('Increase Value'));
-      expect(correction.text, '2');
-      correction.text = '12';
+      await tap(tester, find.text('Set value'));
+      await tap(tester, find.byKey(const ValueKey('utility-digit-1')));
+      await tap(tester, find.byKey(const ValueKey('utility-digit-2')));
       await fixture.board.adjustUtility(fixture.playerId, utility.id, 1);
       await tester.pumpAndSettle();
-      expect(correction.text, '12');
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('utility-exact-draft')))
+            .data,
+        '12',
+      );
+      expect(find.byType(EditableText), findsNothing);
+      await capture(tester, 'krenko-keypad-1133x744');
+      await tap(tester, find.text('Cancel'));
       await tap(tester, find.text('Make Goblins'));
       expect(
         fixture.player.tokens

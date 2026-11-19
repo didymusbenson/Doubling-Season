@@ -176,109 +176,74 @@ void main() {
     }
 
     testWidgets(
-      'invalid edits retain legacy utility totals on repeated submit at $size',
+      'keyboard-free exact entry protects retained totals, cancels, and accepts the full valid range at $size',
       (tester) async {
         final state = stateWithTokens([sampleToken()]);
-        state.session.players.first.utilities
-                .firstWhere((u) => u.kind == 'storm_count')
-                .value =
-            1000000;
+        final storm = state.session.players.first.utilities.firstWhere(
+          (u) => u.kind == 'storm_count',
+        );
+        storm.value =
+            1000000; // Retained values above the manual limit must not be silently clamped.
         final fixture = TableFixture(state);
         await fixture.initialize();
         addTearDown(fixture.dispose);
-        final utilityId = fixture.player.utilities
-            .firstWhere((u) => u.kind == 'storm_count')
-            .id;
         await open(
           tester,
           fixture,
           WorkspacePage.utilities,
-          itemId: utilityId,
+          itemId: storm.id,
           size: size,
         );
-        final value = tester.widget<PlayerField>(field('Set value')).controller;
         final stored = fixture.repository.encoded;
-        final set = find.widgetWithText(OutlinedButton, 'Set value');
-        value.text = 'invalid paste';
-        for (var attempt = 0; attempt < 3; attempt++) {
-          await tester.ensureVisible(set);
-          await tester.tap(set);
+        Future<void> hit(Finder f) async {
+          await tester.ensureVisible(f);
+          await tester.tap(f);
           await tester.pumpAndSettle();
-          expect(value.text, '1000000');
-          expect(fixture.repository.encoded, stored);
-          expect(
-            fixture.player.utilities.firstWhere((u) => u.id == utilityId).value,
-            1000000,
-          );
         }
-        // Explicitly entering a new valid value remains possible.
-        value.text = '7';
-        await tester.tap(set);
-        await tester.pumpAndSettle();
-        expect(
-          fixture.player.utilities.firstWhere((u) => u.id == utilityId).value,
-          7,
-        );
-        await close(tester);
-      },
-    );
 
-    testWidgets(
-      'bad utility values restore clean state without saving at $size',
-      (tester) async {
-        final state = stateWithTokens([sampleToken()]);
-        state.session.players.first.utilities
-                .firstWhere((u) => u.kind == 'storm_count')
-                .value =
-            7;
-        final fixture = TableFixture(state);
-        await fixture.initialize();
-        addTearDown(fixture.dispose);
-        final utilityId = fixture.player.utilities
-            .firstWhere((u) => u.kind == 'storm_count')
-            .id;
-        await open(
-          tester,
-          fixture,
-          WorkspacePage.utilities,
-          itemId: utilityId,
-          size: size,
-        );
-        final value = tester.widget<PlayerField>(field('Set value')).controller;
-        final stored = fixture.repository.encoded;
-        final set = find.widgetWithText(OutlinedButton, 'Set value');
-        for (final invalid in [
-          '',
-          '-',
-          'bad paste',
-          '1.2',
-          '-8',
-          '1000000',
-          '999999999999999999999999',
-        ]) {
-          value.text = invalid;
-          await tester.ensureVisible(set);
-          await tester.tap(set);
-          await tester.pumpAndSettle();
-          expect(value.text, '7', reason: invalid);
-          expect(fixture.repository.encoded, stored, reason: invalid);
-          expect(find.textContaining('FormatException'), findsNothing);
-          expect(find.textContaining('RangeError'), findsNothing);
-          expect(tester.takeException(), isNull);
+        Finder digit(int n) => find.byKey(ValueKey('utility-digit-$n'));
+        final set = find.text('Set value');
+        final apply = find.widgetWithText(FilledButton, 'Apply');
+        String draft() => tester
+            .widget<Text>(find.byKey(const ValueKey('utility-exact-draft')))
+            .data!;
+        await hit(set);
+        expect(find.byType(EditableText), findsNothing);
+        expect(tester.testTextInput.isVisible, isFalse);
+        expect(tester.widget<FilledButton>(apply).onPressed, isNull);
+        for (int i = 0; i < 6; i++) {
+          await hit(digit(9));
         }
-        value.text = '8';
-        await tester.tap(set);
-        await tester.pumpAndSettle();
-        final saved = fixture.player.toJson();
-        final historyLength = fixture.controller.session.history.length;
-        await tester.tap(set);
-        await tester.pumpAndSettle();
-        expect(fixture.player.toJson(), saved);
-        expect(fixture.controller.session.history.length, historyLength);
+        expect(draft(), '999999');
+        expect(tester.widget<TextButton>(digit(1)).onPressed, isNull);
+        expect(fixture.repository.encoded, stored);
+        await hit(find.byTooltip('Delete last digit'));
+        expect(draft(), '99999');
+        await hit(find.text('Clear'));
+        expect(tester.widget<FilledButton>(apply).onPressed, isNull);
+        await hit(digit(0));
+        await hit(digit(7));
+        expect(draft(), '7');
+        await hit(find.text('Cancel'));
+        expect(fixture.repository.encoded, stored);
+        await hit(set);
+        for (int i = 0; i < 6; i++) {
+          await hit(digit(9));
+        }
+        await hit(apply);
         expect(
-          fixture.player.utilities.firstWhere((u) => u.id == utilityId).value,
-          8,
+          fixture.player.utilities.firstWhere((u) => u.id == storm.id).value,
+          999999,
         );
+        expect(find.byType(EditableText), findsNothing);
+        await hit(set);
+        await hit(digit(0));
+        await hit(apply);
+        expect(
+          fixture.player.utilities.firstWhere((u) => u.id == storm.id).value,
+          0,
+        );
+        expect(tester.takeException(), isNull);
         await close(tester);
       },
     );
