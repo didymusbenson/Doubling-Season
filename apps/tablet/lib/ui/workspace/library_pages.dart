@@ -398,8 +398,9 @@ extension _LibraryPages on _TableWorkspaceState {
                       onPressed: enabled && digits.isNotEmpty
                           ? () => _update(() {
                               final text = draft.text;
-                              if (text.isNotEmpty)
+                              if (text.isNotEmpty) {
                                 draft.text = text.substring(0, text.length - 1);
+                              }
                             })
                           : null,
                       icon: const Icon(Icons.backspace_outlined),

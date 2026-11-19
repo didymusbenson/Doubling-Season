@@ -253,6 +253,15 @@ void main() {
         expect(find.text('Stage 4/4'), findsOneWidget);
         expect(f.controller.session.history.last.label, 'Correct The Ring');
         expect(RingService.bearer(utility()), 'f');
+        // Changing only the bearer is still possible without adding a temptation.
+        tester.widget<TextField>(field).controller!.text = 'Merry';
+        await tester.pumpAndSettle();
+        final saveBearer = find.text('Save bearer');
+        await tester.ensureVisible(saveBearer);
+        await tester.tap(saveBearer);
+        await tester.pumpAndSettle();
+        expect(RingService.bearer(utility()), 'Merry');
+        expect(utility().value, 5);
         for (int i = 0; i < 3; i++) {
           await tester.ensureVisible(minus);
           await tester.tap(minus);
