@@ -4,11 +4,10 @@ import 'board_service.dart';
 
 /// Manual, seat-scoped Ring progress. Creature and combat rules stay at the table.
 class RingService {
-  static const kind = 'the_ring';
+  static const kind = UtilityState.ringKind;
   static const bearerKey = 'ringBearer';
   static const maxTemptations = 1000000000;
-  static const artworkUrl =
-      'https://cards.scryfall.io/large/front/7/2/7215460e-8c06-47d0-94e5-d1832d0218af.jpg';
+  static const artworkUrl = UtilityState.ringArtworkUrl;
   // The Ring emblem text, also present in assets/token_database.json.
   // Abilities accumulate; temptation counts above four retain all four.
   static const reminders = [

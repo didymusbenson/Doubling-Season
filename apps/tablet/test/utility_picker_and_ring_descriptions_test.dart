@@ -196,7 +196,7 @@ void main() {
       await tap(tester, toggle('the_ring'));
       final ringId = f.player.utilities.last.id;
       expect(tester.getTopLeft(toggle(ringId)).dy, beforeY);
-      expect(tester.widget<SwitchListTile>(toggle(ringId)).value, isTrue);
+      expect(tester.widget<Switch>(toggle(ringId)).value, isTrue);
       await RingService(
         f.controller,
       ).tempt(f.playerId, ringId, bearer: 'Frodo');
@@ -214,7 +214,7 @@ void main() {
       await tap(tester, toggle(ringId));
       expect(f.player.utilities.last.toJson(), {...before, 'visible': false});
       expect(f.board.isUtilityVisible(f.player.utilities.last), isFalse);
-      expect(tester.widget<SwitchListTile>(toggle(ringId)).value, isFalse);
+      expect(tester.widget<Switch>(toggle(ringId)).value, isFalse);
       await tap(tester, toggle(ringId));
       expect(f.player.utilities.last.toJson(), before);
       expect(f.controller.player(otherId).toJson(), other);
@@ -225,6 +225,82 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.tap(byControlLabel('Close workspace'));
       await tester.pumpAndSettle();
+    },
+  );
+
+  testWidgets(
+    'picker row opens hidden controls without switching on the board',
+    (tester) async {
+      final f = await open(tester);
+      search(tester, 'The Ring');
+      await tester.pumpAndSettle();
+      expect(find.text('Hidden from board'), findsNothing);
+      expect(find.text('Shown on board'), findsNothing);
+      expect(find.byIcon(Icons.edit_outlined), findsNothing);
+      expect(find.byIcon(Icons.chevron_right), findsNothing);
+      expect(byControlLabel('Show The Ring on board'), findsOneWidget);
+
+      await tap(tester, find.byKey(const ValueKey('utility-open-the_ring')));
+      final ring = f.player.utilities.singleWhere(
+        (u) => u.kind == RingService.kind,
+      );
+      expect(ring.visible, isFalse);
+      expect(find.byKey(const ValueKey('utility-picker-search')), findsNothing);
+
+      await tap(tester, byControlLabel('Back'));
+      expect(tester.widget<Switch>(toggle(ring.id)).value, isFalse);
+      await tap(tester, toggle(ring.id));
+      expect(
+        f.player.utilities.singleWhere((u) => u.id == ring.id).visible,
+        isTrue,
+      );
+      expect(
+        find.byKey(const ValueKey('utility-picker-search')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      await tap(tester, byControlLabel('Close workspace'));
+    },
+  );
+
+  testWidgets(
+    'Ring defaults to card art and only replaces the old built-in artwork',
+    (tester) async {
+      final f = TableFixture();
+      await f.initialize();
+      addTearDown(f.dispose);
+      await f.board.addUtility(f.playerId, RingService.kind);
+      final ring = f.player.utilities.singleWhere(
+        (u) => u.kind == RingService.kind,
+      );
+      expect(ring.artworkUrl, RingService.artworkUrl);
+      expect(Uri.parse(ring.artworkUrl!).path, startsWith('/art/'));
+      expect(
+        (ring.configuration['artworkOptions'] as List).single['artist'],
+        'Veli Nyström',
+      );
+
+      const old =
+          'https://cards.scryfall.io/large/front/7/2/'
+          '7215460e-8c06-47d0-94e5-d1832d0218af.jpg';
+      final restored = UtilityState.fromJson({
+        ...ring.toJson(),
+        'artworkUrl': old,
+      });
+      expect(restored.displayedArtworkUrl, RingService.artworkUrl);
+      expect(restored.toJson()['artworkUrl'], old);
+      expect(
+        UtilityState.fromJson({
+          ...restored.toJson(),
+          'kind': 'custom',
+        }).displayedArtworkUrl,
+        old,
+      );
+
+      restored.artworkUrl = 'tablet-art:custom-art';
+      expect(restored.displayedArtworkUrl, 'tablet-art:custom-art');
+      restored.artworkUrl = null;
+      expect(restored.displayedArtworkUrl, isNull);
     },
   );
 
@@ -245,15 +321,15 @@ void main() {
         search(tester, query);
         await tester.pumpAndSettle();
         expect(toggle(id), findsOneWidget);
-        expect(find.byType(SwitchListTile), findsOneWidget);
+        expect(find.byType(Switch), findsOneWidget);
       }
       search(tester, ' no such utility ');
       await tester.pumpAndSettle();
-      expect(find.byType(SwitchListTile), findsNothing);
+      expect(find.byType(Switch), findsNothing);
       expect(find.text('No utilities match your search.'), findsOneWidget);
       await tester.tap(find.text('Clear search'));
       await tester.pumpAndSettle();
-      expect(find.byType(SwitchListTile), findsWidgets);
+      expect(find.byType(Switch), findsWidgets);
       search(tester, 'ring');
       await tester.pumpAndSettle();
       expect(toggle('the_ring'), findsOneWidget);
@@ -271,7 +347,7 @@ void main() {
       await f.board.addUtility(f.playerId, 'krenko_mob_boss');
       search(tester, 'Krenko, Mob Boss');
       await tester.pumpAndSettle();
-      expect(find.byType(SwitchListTile), findsNWidgets(2));
+      expect(find.byType(Switch), findsNWidgets(2));
       final ids = f.player.utilities
           .where((u) => u.kind == 'krenko_mob_boss')
           .map((u) => u.id)
@@ -280,7 +356,7 @@ void main() {
       f.repository.failSave = true;
       await tap(tester, toggle(ids.first));
       expect(f.player.utilities.map((u) => u.toJson()).toList(), before);
-      expect(tester.widget<SwitchListTile>(toggle(ids.first)).value, isTrue);
+      expect(tester.widget<Switch>(toggle(ids.first)).value, isTrue);
       f.repository.failSave = false;
       await tap(tester, toggle(ids.first));
       expect(
@@ -291,7 +367,7 @@ void main() {
         f.player.utilities.firstWhere((u) => u.id == ids.last).visible,
         isTrue,
       );
-      expect(find.byKey(ValueKey('utility-edit-${ids.first}')), findsOneWidget);
+      expect(find.byKey(ValueKey('utility-open-${ids.first}')), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.tap(byControlLabel('Close workspace'));
       await tester.pumpAndSettle();
