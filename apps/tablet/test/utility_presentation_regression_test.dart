@@ -207,14 +207,17 @@ void main() {
           );
           expect(byControlLabel('Remove this utility'), findsNothing);
           expect(find.text('Set value'), findsNothing);
-          expect(find.text('Artwork'), findsOneWidget);
+          expect(
+            find.byKey(const ValueKey('utility-edit-artwork')),
+            findsOneWidget,
+          );
           if (!upper) {
             await capture(
               tester,
               'legacy-metadata-${size.width.toInt()}x${size.height.toInt()}',
             );
           }
-          await tester.tap(find.text('Artwork'));
+          await tester.tap(find.byKey(const ValueKey('utility-edit-artwork')));
           await tester.pumpAndSettle();
           expect(find.text('Upload utility artwork'), findsOneWidget);
           expect(

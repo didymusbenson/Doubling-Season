@@ -2,6 +2,7 @@ import 'support/control_finders.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -14,7 +15,9 @@ import 'package:tripling_table/ui/workspace/table_workspace.dart';
 import 'support/table_fixture.dart';
 
 // Optional captures are Flutter test renderer evidence, not native acceptance.
-final _captureDirectory = Platform.environment['TABLET_CAPTURE_DIR'];
+final _captureDirectory = kIsWeb
+    ? null
+    : Platform.environment['TABLET_CAPTURE_DIR'];
 const _captureKey = ValueKey('utility-capture');
 
 void main() {
@@ -80,6 +83,7 @@ void main() {
     UtilityState utility,
     Size size, {
     int quarterTurns = 0,
+    double textScale = 1,
     VoidCallback? onBackgroundTap,
   }) async {
     tester.view.devicePixelRatio = 1;
@@ -99,6 +103,12 @@ void main() {
         key: _captureKey,
         child: MaterialApp(
           theme: tableTheme(Brightness.dark),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: child!,
+          ),
           home: Scaffold(
             body: Builder(
               builder: (context) => Center(
@@ -125,13 +135,15 @@ void main() {
     );
     await tap(tester, find.text('Open utility'));
     await tester.pumpAndSettle();
-    expect(
-      tester.getSize(find.byKey(const ValueKey('context-workspace'))),
-      TableModalFrame.localSize(
-        Size(size.width, size.height - 44),
-        quarterTurns,
-      ),
+    final frame = tester.getSize(
+      find.byKey(const ValueKey('context-workspace')),
     );
+    final bounds = TableModalFrame.localSize(
+      Size(size.width, size.height - 44),
+      quarterTurns,
+    );
+    expect(frame.width, lessThanOrEqualTo(bounds.width));
+    expect(frame.height, lessThanOrEqualTo(bounds.height));
   }
 
   Future<void> closeUtility(WidgetTester tester) async {
@@ -171,10 +183,18 @@ void main() {
           await showUtility(tester, fixture, utility, size);
           final detail = find.byKey(ValueKey('utility-detail-${utility.kind}'));
           expect(detail, findsOneWidget, reason: utility.kind);
+          final frame = find.byKey(const ValueKey('context-workspace'));
+          final title = find.byKey(const ValueKey('utility-panel-title'));
           expect(
-            tester.getSize(find.byKey(const ValueKey('context-workspace'))),
-            TableModalFrame.localSize(Size(size.width, size.height - 44), 0),
+            tester.getCenter(title).dx,
+            closeTo(tester.getCenter(frame).dx, 1),
+            reason: utility.kind,
           );
+          final back = find.byKey(const ValueKey('utility-back'));
+          expect(tester.getSize(back).height, greaterThanOrEqualTo(48));
+          expect(find.text('All utilities'), findsNothing);
+          if (utility.kind == 'storm_count')
+            expect(tester.getSize(frame).height, lessThan(350));
           final custom = {
             'custom_tracker',
             'custom_toggle',
@@ -202,12 +222,11 @@ void main() {
               closeTo(tester.getSize(fields.last).width, 1),
             );
           }
-          for (final label in ['All utilities', 'Artwork']) {
-            await reachable(
-              tester,
-              find.text(label),
-              reason: '${utility.kind}: $label',
-            );
+          for (final control in [
+            back,
+            find.byKey(const ValueKey('utility-edit-artwork')),
+          ]) {
+            await reachable(tester, control, reason: utility.kind);
           }
           expect(byControlLabel('Remove this utility'), findsNothing);
           expect(byControlLabel('Restore to board'), findsNothing);
@@ -292,6 +311,53 @@ void main() {
     );
   }
 
+  for (final turns in [0, 1, 3]) {
+    testWidgets(
+      'large text keeps a long centered title, back, and close distinct at seat rotation $turns',
+      (tester) async {
+        final fixture = TableFixture();
+        await fixture.initialize();
+        addTearDown(fixture.dispose);
+        await fixture.board.addUtility(
+          fixture.playerId,
+          'the_unbeatable_squirrel_girl',
+        );
+        final utility = fixture.player.utilities.firstWhere(
+          (u) => u.kind == 'the_unbeatable_squirrel_girl',
+        );
+        utility.artworkUrl = null;
+        await showUtility(
+          tester,
+          fixture,
+          utility,
+          turns == 0 ? const Size(320, 700) : const Size(700, 364),
+          quarterTurns: turns,
+          textScale: 1.5,
+        );
+        final frame = tester.renderObject<RenderBox>(
+          find.byKey(const ValueKey('context-workspace')),
+        );
+        final title = find.byKey(const ValueKey('utility-panel-title'));
+        final back = find.byKey(const ValueKey('utility-back'));
+        final x = byControlLabel('Close workspace');
+        expect(
+          frame.globalToLocal(tester.getCenter(title)).dx,
+          closeTo(frame.size.width / 2, 1),
+        );
+        for (final control in [back, x]) {
+          expect(control.hitTestable(), findsOneWidget);
+          expect(
+            tester.getRect(control).overlaps(tester.getRect(title)),
+            isFalse,
+          );
+        }
+        await reachable(tester, find.text('Make Squirrels'));
+        expect(tester.takeException(), isNull);
+        await closeUtility(tester);
+      },
+    );
+  }
+
   testWidgets(
     'expanded Krenko resolves against the live board and keeps a typed correction',
     (tester) async {
@@ -308,9 +374,7 @@ void main() {
       utility.artworkUrl = null;
       final otherSeat = fixture.controller.session.players[1].toJson();
       await showUtility(tester, fixture, utility, const Size(1133, 744));
-      final breadcrumb = find.byKey(
-        const ValueKey('utility-picker-breadcrumb'),
-      );
+      final breadcrumb = find.byKey(const ValueKey('utility-back'));
       expect(tester.getSize(breadcrumb).height, greaterThanOrEqualTo(48));
       expect(
         find.widgetWithText(OutlinedButton, 'All utilities'),
@@ -399,6 +463,12 @@ void main() {
       final utility = fixture.player.utilities.firstWhere(
         (u) => u.kind == 'storm_count',
       );
+      const image =
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+      utility.artworkUrl = image;
+      utility.configuration['artworkOptions'] = [
+        {'url': image, 'artist': 'Ada Art', 'set': 'TEST'},
+      ];
       var backgroundTaps = 0;
       await showUtility(
         tester,
@@ -407,7 +477,15 @@ void main() {
         const Size(744, 1133),
         onBackgroundTap: () => backgroundTaps++,
       );
-      await tap(tester, find.text('Artwork'));
+      final credit = find.textContaining('Ada Art');
+      expect(credit, findsOneWidget);
+      final frame = find.byKey(const ValueKey('context-workspace'));
+      expect(tester.getCenter(credit).dx, lessThan(tester.getCenter(frame).dx));
+      expect(
+        tester.getCenter(credit).dy,
+        greaterThan(tester.getCenter(find.text('Set value')).dy),
+      );
+      await tap(tester, find.byKey(const ValueKey('utility-edit-artwork')));
       await tester.pumpAndSettle();
       expect(find.text('Upload utility artwork').hitTestable(), findsOneWidget);
       expect(find.text('Utility controls').hitTestable(), findsOneWidget);
@@ -463,7 +541,7 @@ void main() {
         field.controller!.text = entry.value;
       }
       await tester.pump();
-      await tap(tester, find.text('Artwork'));
+      await tap(tester, find.byKey(const ValueKey('utility-edit-artwork')));
       await tester.pumpAndSettle();
       final saved = fixture.player.utilities.firstWhere(
         (u) => u.id == utility.id,
@@ -527,7 +605,10 @@ void main() {
             find.text('Create Myr & skip transformation'),
           );
         }
-        await reachable(tester, find.text('Artwork'));
+        await reachable(
+          tester,
+          find.byKey(const ValueKey('utility-edit-artwork')),
+        );
         expect(tester.takeException(), isNull);
         await closeUtility(tester);
       }

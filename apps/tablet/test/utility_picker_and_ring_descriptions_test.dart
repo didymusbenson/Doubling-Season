@@ -247,10 +247,7 @@ void main() {
       expect(ring.visible, isFalse);
       expect(find.byKey(const ValueKey('utility-picker-search')), findsNothing);
 
-      await tap(
-        tester,
-        find.byKey(const ValueKey('utility-picker-breadcrumb')),
-      );
+      await tap(tester, find.byKey(const ValueKey('utility-back')));
       expect(tester.widget<Switch>(toggle(ring.id)).value, isFalse);
       await tap(tester, toggle(ring.id));
       expect(

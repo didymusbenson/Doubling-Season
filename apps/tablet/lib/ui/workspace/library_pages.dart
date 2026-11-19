@@ -72,38 +72,44 @@ extension _LibraryPages on _TableWorkspaceState {
               final matching = choices.where(
                 (choice) => choice.matches(value.text),
               );
-              return _list([
-                for (final choice in matching)
-                  _utilityChoiceRow(player, choice, scope),
-                if (matching.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Column(
+              return _list(
+                [
+                  for (final choice in matching)
+                    _utilityChoiceRow(player, choice, scope),
+                  if (matching.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Column(
+                        children: [
+                          const Text('No utilities match your search.'),
+                          TextButton(
+                            onPressed: query.clear,
+                            child: const Text('Clear search'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (legacy.isNotEmpty && value.text.trim().isEmpty)
+                    ExpansionTile(
+                      key: const PageStorageKey('legacy-utility-settings'),
+                      title: const Text('Legacy settings'),
+                      leading: const Icon(Icons.inventory_2_outlined, size: 20),
                       children: [
-                        const Text('No utilities match your search.'),
-                        TextButton(
-                          onPressed: query.clear,
-                          child: const Text('Clear search'),
-                        ),
+                        for (final utility in legacy)
+                          ListTile(
+                            key: ValueKey('legacy-settings-${utility.id}'),
+                            title: Text(utility.name),
+                            onTap: () => _go(
+                              WorkspacePage.utilities,
+                              itemId: utility.id,
+                            ),
+                          ),
                       ],
                     ),
-                  ),
-                if (legacy.isNotEmpty && value.text.trim().isEmpty)
-                  ExpansionTile(
-                    key: const PageStorageKey('legacy-utility-settings'),
-                    title: const Text('Legacy settings'),
-                    leading: const Icon(Icons.inventory_2_outlined, size: 20),
-                    children: [
-                      for (final utility in legacy)
-                        ListTile(
-                          key: ValueKey('legacy-settings-${utility.id}'),
-                          title: Text(utility.name),
-                          onTap: () =>
-                              _go(WorkspacePage.utilities, itemId: utility.id),
-                        ),
-                    ],
-                  ),
-              ], controls: false);
+                ],
+                controls: false,
+                controller: _playerScroll,
+              );
             },
           ),
         ),
@@ -190,127 +196,225 @@ extension _LibraryPages on _TableWorkspaceState {
     }
   }
 
-  // The workspace owns Close and, when the picker opened this panel, Back.
-  // Board-origin panels also offer a direct route to the visibility list.
-  Widget _utilityPanelHeader(
-    UtilityState utility,
-    WidgetDefinition? definition,
-  ) {
-    final key = 'utility.${utility.id}';
+  Future<void> _returnFromUtility(UtilityState utility) async {
+    if (_working || _closing || _navigating) return;
+    final panel = _field('utility.${utility.id}.panel');
+    if (panel.text == 'artwork') {
+      _update(panel.clear);
+    } else if (_utilityPickerIsParent) {
+      await _back();
+    } else {
+      await _directQueue;
+      if (await _flushInline() && mounted && !_closing) {
+        _update(() => _itemId = null);
+      }
+    }
+  }
+
+  // The title centers against the whole frame, not the leftover space after
+  // a wide Back label. On narrow/large-type surfaces the title gets its own row.
+  Widget _utilityNavigationBar(UtilityState utility) => Padding(
+    padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+    child: LayoutBuilder(
+      builder: (context, box) {
+        final artwork = _field('utility.${utility.id}.panel').text == 'artwork';
+        final caption = artwork ? 'Utility controls' : 'Utilities';
+        final back = TextButton.icon(
+          key: const ValueKey('utility-back'),
+          style: TextButton.styleFrom(
+            minimumSize: const Size(48, 48),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+          ),
+          onPressed: _working || _closing || _navigating
+              ? null
+              : () => _returnFromUtility(utility),
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          label: Text(caption),
+        );
+        final close = MergeSemantics(
+          child: Semantics(
+            label: 'Close workspace',
+            child: IconButton(
+              onPressed: _working || _closing || _navigating
+                  ? null
+                  : _requestClose,
+              icon: const Icon(Icons.close),
+            ),
+          ),
+        );
+        final title = Semantics(
+          header: true,
+          child: Text(
+            artwork ? 'Artwork for ${utility.name}' : utility.name,
+            key: const ValueKey('utility-panel-title'),
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        );
+        final scale = MediaQuery.textScalerOf(context);
+        final side = (artwork ? 68.0 : 44.0) + scale.scale(artwork ? 84 : 70);
+        if (box.maxWidth - 2 * side < scale.scale(150)) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Align(alignment: Alignment.centerLeft, child: back),
+                  ),
+                  close,
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+                child: title,
+              ),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            SizedBox(
+              width: side,
+              child: Align(alignment: Alignment.centerLeft, child: back),
+            ),
+            Expanded(child: title),
+            SizedBox(
+              width: side,
+              child: Align(alignment: Alignment.centerRight, child: close),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+
+  Widget _utilityInfo(UtilityState utility, WidgetDefinition? definition) {
     final custom =
         utility.kind == 'custom_tracker' || utility.kind == 'custom_toggle';
+    final key = 'utility.${utility.id}';
     final scope = _board.scope(p!.id);
     final description = utility.description.trim().isNotEmpty
         ? utility.description.trim()
         : definition?.description ?? '';
-    final ringArt = utility.kind == RingService.kind
-        ? utility.displayedArtworkUrl
-        : null;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _contentTop(
-          Wrap(
-            spacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Semantics(
-                link: true,
-                child: InkWell(
-                  key: const ValueKey('utility-picker-breadcrumb'),
-                  onTap: _working || _navigating || _closing
-                      ? null
-                      : () async {
-                          if (_utilityPickerIsParent) {
-                            await _back();
-                          } else {
-                            await _directQueue;
-                            if (await _flushInline() && mounted && !_closing) {
-                              _update(() => _itemId = null);
-                            }
-                          }
-                        },
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      minHeight: 48,
-                      minWidth: 48,
+    if (!custom && description.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 12),
+      child: custom
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _input(
+                    '$key.name',
+                    'Name',
+                    initial: utility.name,
+                    onCommit: (value) => _board.setUtility(
+                      scope.playerId,
+                      utility.id,
+                      name: value.trim(),
+                      captured: scope,
                     ),
-                    child: Align(
-                      widthFactor: 1,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'All utilities',
-                        style: TextStyle(
-                          decoration: TextDecoration.underline,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _input(
+                    '$key.description',
+                    'Description',
+                    initial: utility.description,
+                    maxLines: 2,
+                    onCommit: (value) => _board.setUtility(
+                      scope.playerId,
+                      utility.id,
+                      description: value,
+                      captured: scope,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: Text(
+                  description,
+                  textAlign:
+                      description.length < 90 && !description.contains('\n')
+                      ? TextAlign.center
+                      : TextAlign.start,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ),
+    );
+  }
+
+  Widget _utilityArtFooter(UtilityState utility, WidgetDefinition? definition) {
+    final url = utility.displayedArtworkUrl;
+    final saved = (utility.configuration['artworkOptions'] as List? ?? [])
+        .whereType<Map>()
+        .where((art) => art['url'] == url)
+        .firstOrNull;
+    final savedArtist = (saved?['artist'] as String?)?.trim() ?? '';
+    final artist = savedArtist.isNotEmpty
+        ? savedArtist
+        : definition?.artwork.where((a) => a.url == url).firstOrNull?.artist;
+    Future<void> edit() async {
+      await _directQueue;
+      if (await _flushInline() && mounted && !_closing) {
+        _update(() => _field('utility.${utility.id}.panel').text = 'artwork');
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: url == null
+                  ? TextButton.icon(
+                      key: const ValueKey('utility-edit-artwork'),
+                      onPressed: _working ? null : edit,
+                      icon: const Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 18,
                       ),
+                      label: const Text('Add artwork'),
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: _art(url, width: 76, height: 48),
+                        ),
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            TabletArtworkCredit(url: url, artist: artist),
+                            IconButton(
+                              key: const ValueKey('utility-edit-artwork'),
+                              tooltip: 'Edit artwork',
+                              onPressed: _working ? null : edit,
+                              icon: const Icon(Icons.edit_outlined, size: 18),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ),
-                ),
-              ),
-              const ExcludeSemantics(child: Text('/')),
-              if (ringArt != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: _art(ringArt, width: 56, height: 44),
-                ),
-              Text(
-                utility.name,
-                key: const ValueKey('utility-panel-title'),
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ],
+            ),
           ),
-        ),
-        if (!custom && description.isNotEmpty) Text(description),
-        if (custom)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _input(
-                  '$key.name',
-                  'Name',
-                  initial: utility.name,
-                  onCommit: (value) => _board.setUtility(
-                    scope.playerId,
-                    utility.id,
-                    name: value.trim(),
-                    captured: scope,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _input(
-                  '$key.description',
-                  'Description',
-                  initial: utility.description,
-                  maxLines: 2,
-                  onCommit: (value) => _board.setUtility(
-                    scope.playerId,
-                    utility.id,
-                    description: value,
-                    captured: scope,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          children: [
-            _button('Artwork', () async {
-              await _directQueue;
-              if (await _flushInline() && mounted && !_closing) {
-                _update(() => _field('$key.panel').text = 'artwork');
-              }
-            }, icon: Icons.image_outlined),
-          ],
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -484,7 +588,36 @@ extension _LibraryPages on _TableWorkspaceState {
     final transforming =
         standalone && hasAction && action == 'brudiclad_telchor_engineer';
     final controls = <Widget>[
-      _utilityPanelHeader(utility, definition),
+      _utilityInfo(utility, definition),
+      if (standalone && hasAction) ...[
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: preview.isNotEmpty
+              ? ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 96),
+                  child: SingleChildScrollView(
+                    key: const ValueKey('utility-action-preview'),
+                    child: Center(
+                      child: Text(TokenCreationResult.breakdownString(preview)),
+                    ),
+                  ),
+                )
+              : Center(
+                  child: Text(
+                    action == 'cathars_crusade'
+                        ? 'Resolve $currentValue pending creature entries as +1/+1 counters on your creatures, including applicable modifiers.'
+                        : 'Apply this utility’s action to $_seatName’s board.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+        ),
+        if (transforming) ...[
+          const Text(
+            'Choose the token every token will become. This also creates the Myr shown above and clears summoning sickness.',
+          ),
+          const SizedBox(height: 8),
+        ],
+      ],
       if (standalone && utility.kind == 'mana_pool')
         ..._manaControls(player)
       else if (standalone && toggle)
@@ -509,6 +642,7 @@ extension _LibraryPages on _TableWorkspaceState {
         )
       else if (standalone && !actionOnly)
         Wrap(
+          alignment: WrapAlignment.center,
           spacing: 12,
           runSpacing: 6,
           crossAxisAlignment: WrapCrossAlignment.center,
@@ -563,66 +697,46 @@ extension _LibraryPages on _TableWorkspaceState {
             _utilityExactValue(utility, currentValue, scope),
           ],
         ),
-      if (standalone && hasAction) ...[
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: preview.isNotEmpty
-              ? ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 96),
-                  child: SingleChildScrollView(
-                    key: const ValueKey('utility-action-preview'),
-                    child: Text(TokenCreationResult.breakdownString(preview)),
-                  ),
-                )
-              : Text(
-                  action == 'cathars_crusade'
-                      ? 'Resolve $currentValue pending creature entries as +1/+1 counters on your creatures, including applicable modifiers.'
-                      : 'Apply this utility’s action to $_seatName’s board.',
+      if (standalone && hasAction && !transforming)
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _button(
+              action == 'the_unbeatable_squirrel_girl'
+                  ? 'Make Squirrels'
+                  : utility.configuration['actionButtonText'] as String? ??
+                        definition?.actionButtonText ??
+                        'Resolve action',
+              () => _run(
+                () => _board.utilityAction(
+                  player.id,
+                  utility.id,
+                  captured: scope,
                 ),
-        ),
-        if (transforming) ...[
-          const Text(
-            'Choose the token every token will become. This also creates the Myr shown above and clears summoning sickness.',
-          ),
-          const SizedBox(height: 8),
-        ] else
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
+              ),
+              primary: true,
+            ),
+            if (action == 'cathars_crusade')
               _button(
-                action == 'the_unbeatable_squirrel_girl'
-                    ? 'Make Squirrels'
-                    : utility.configuration['actionButtonText'] as String? ??
-                          definition?.actionButtonText ??
-                          'Resolve action',
+                'Quick +1/+1 to creatures',
                 () => _run(
                   () => _board.utilityAction(
                     player.id,
                     utility.id,
+                    quick: true,
                     captured: scope,
                   ),
                 ),
-                primary: true,
               ),
-              if (action == 'cathars_crusade')
-                _button(
-                  'Quick +1/+1 to creatures',
-                  () => _run(
-                    () => _board.utilityAction(
-                      player.id,
-                      utility.id,
-                      quick: true,
-                      captured: scope,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-      ],
+          ],
+        ),
     ];
     final targets = transforming
         ? ListView(
+            shrinkWrap: true,
+            primary: false,
             key: const ValueKey('utility-transform-targets'),
             children: [
               for (final token in player.tokens.where(
@@ -665,36 +779,38 @@ extension _LibraryPages on _TableWorkspaceState {
             ],
           )
         : null;
-    return Padding(
-      key: ValueKey('utility-detail-${utility.kind}'),
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-      child: transforming
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ...controls,
-                Expanded(child: targets!),
-                _button(
-                  'Create Myr & skip transformation',
-                  () => _run(
-                    () => _board.utilityAction(
-                      player.id,
-                      utility.id,
-                      skip: true,
-                      expectedRevision: revision,
-                      captured: scope,
-                    ),
+    return SingleChildScrollView(
+      key: const ValueKey('utility-fixed-controls'),
+      padding: const EdgeInsets.fromLTRB(20, 2, 20, 12),
+      child: Column(
+        key: ValueKey('utility-detail-${utility.kind}'),
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ...controls,
+          if (targets != null) ...[
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 175),
+              child: targets,
+            ),
+            Center(
+              child: _button(
+                'Create Myr & skip transformation',
+                () => _run(
+                  () => _board.utilityAction(
+                    player.id,
+                    utility.id,
+                    skip: true,
+                    expectedRevision: revision,
+                    captured: scope,
                   ),
                 ),
-              ],
-            )
-          : SingleChildScrollView(
-              key: const ValueKey('utility-fixed-controls'),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: controls,
               ),
             ),
+          ],
+          _utilityArtFooter(utility, definition),
+        ],
+      ),
     );
   }
 
@@ -712,13 +828,42 @@ extension _LibraryPages on _TableWorkspaceState {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _utilityPanelHeader(utility, definition),
+            _utilityInfo(utility, definition),
             Text(
               'Stage ${RingService.stage(utility)}/4',
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium,
             ),
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (var i = 0; i < RingService.reminders.length; i++)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Text(
+                            '${i + 1}. ${RingService.reminders[i]}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: i < RingService.stage(utility)
+                                  ? null
+                                  : Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
             Align(
-              alignment: Alignment.centerLeft,
+              alignment: Alignment.center,
               child: SizedBox(
                 width: 235,
                 child: _stepper(
@@ -760,34 +905,20 @@ extension _LibraryPages on _TableWorkspaceState {
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (var i = 0; i < RingService.reminders.length; i++)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Text(
-                        '${i + 1}. ${RingService.reminders[i]}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: i < RingService.stage(utility)
-                              ? null
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                ],
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 410),
+                child: _input(
+                  '$key.ringBearer',
+                  'Ring-bearer label (optional)',
+                  initial: RingService.bearer(utility),
+                  helper:
+                      'A creature on the table needs no token or label here.',
+                ),
               ),
             ),
-            _input(
-              '$key.ringBearer',
-              'Ring-bearer label (optional)',
-              initial: RingService.bearer(utility),
-              helper: 'A creature on the table needs no token or label here.',
-            ),
             Wrap(
+              alignment: WrapAlignment.center,
               spacing: 8,
               children: [
                 _button(
@@ -846,9 +977,11 @@ extension _LibraryPages on _TableWorkspaceState {
               padding: EdgeInsets.only(top: 6),
               child: Text(
                 'Manual reminders. Creature eligibility and combat effects resolve at the table.',
+                textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 11),
               ),
             ),
+            _utilityArtFooter(utility, definition),
           ],
         ),
       ),
@@ -916,16 +1049,10 @@ extension _LibraryPages on _TableWorkspaceState {
     }
 
     return _list([
-      _section('Artwork for ${utility.name}'),
       Wrap(
         spacing: 8,
         runSpacing: 8,
         children: [
-          _button(
-            'Utility controls',
-            () => _update(() => _field('$key.panel').clear()),
-            icon: Icons.arrow_back,
-          ),
           _button(
             'Upload utility artwork',
             () => _run(() async {
@@ -1035,7 +1162,7 @@ extension _LibraryPages on _TableWorkspaceState {
             ),
         ],
       ),
-    ]);
+    ], controls: false);
   }
 
   List<Widget> _manaControls(PlayerState player) => [
@@ -1050,6 +1177,7 @@ extension _LibraryPages on _TableWorkspaceState {
         final columns = constraints.maxWidth >= 660 ? 3 : 2;
         final width = (constraints.maxWidth - 8 * (columns - 1)) / columns;
         return Wrap(
+          alignment: WrapAlignment.center,
           spacing: 8,
           runSpacing: 8,
           children: [
@@ -1060,7 +1188,7 @@ extension _LibraryPages on _TableWorkspaceState {
       },
     ),
     Align(
-      alignment: Alignment.centerRight,
+      alignment: Alignment.center,
       child: _button(
         'Empty unlocked mana',
         () => _confirm(

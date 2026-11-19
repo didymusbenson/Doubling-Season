@@ -933,18 +933,22 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
           _page == WorkspacePage.counters) &&
       _confirmation == null &&
       _validScope;
+  UtilityState? get _focusedUtility =>
+      !_embedded &&
+          _page == WorkspacePage.utilities &&
+          _itemId != null &&
+          _confirmation == null &&
+          _validScope
+      ? p?.utilities.where((utility) => utility.id == _itemId).firstOrNull
+      : null;
+  bool get _fitWorkspaceHeight =>
+      _compactTokenCreation || _focusedUtility != null;
   bool get _utilityPickerIsParent =>
       _page == WorkspacePage.utilities &&
-      _itemId != null &&
       _navigation.isNotEmpty &&
       _navigation.last.$1 == WorkspacePage.utilities &&
       _navigation.last.$2 == null;
-
-  bool get _showBackControl =>
-      _confirmation != null ||
-      (_navigation.isNotEmpty &&
-          !(_utilityPickerIsParent &&
-              _fields['utility.$_itemId.panel']?.text != 'artwork'));
+  bool get _showBackControl => _confirmation != null || _navigation.isNotEmpty;
 
   double get _controlWidth => _showBackControl ? 88 : 44;
 
@@ -1019,7 +1023,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       );
     }
     return ListView(
-      shrinkWrap: _compactTokenCreation,
+      shrinkWrap: _fitWorkspaceHeight,
       controller: controller,
       padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
       children: [
@@ -1346,6 +1350,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   Widget build(BuildContext context) {
     final visibleError = _directFailure ?? _error;
     final focusedCommander = _ownsCommanderControls;
+    final utility = _focusedUtility;
     final media = MediaQuery.of(context);
     final localBounds = TableModalFrame.localSize(
       Size(
@@ -1355,7 +1360,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       widget.quarterTurns,
     );
     final surface = PlayerKeyboardHost(
-      fitContentHeight: _compactTokenCreation,
+      fitContentHeight: _fitWorkspaceHeight,
       enabled: !_closing && !_working && !_navigating,
       canEdit: () => !_closing && !_working && !_navigating,
       onClose: _requestClose,
@@ -1363,9 +1368,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         '$_page:$_itemId:${_selectedDefinition?.id}:$_createCustom:${_confirmation?.title}:$_closeSaveFailed',
       ),
       child: Column(
-        mainAxisSize: _compactTokenCreation
-            ? MainAxisSize.min
-            : MainAxisSize.max,
+        mainAxisSize: _fitWorkspaceHeight ? MainAxisSize.min : MainAxisSize.max,
         children: [
           SizedBox(
             height: 2,
@@ -1416,7 +1419,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
               ),
             ),
           Flexible(
-            fit: _compactTokenCreation ? FlexFit.loose : FlexFit.tight,
+            fit: _fitWorkspaceHeight ? FlexFit.loose : FlexFit.tight,
             child: _embedded
                 ? GameDrawerHeaderScope(
                     header: _drawerHeader(),
@@ -1426,6 +1429,14 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
                       label: _title,
                       child: _content(),
                     ),
+                  )
+                : utility != null
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _utilityNavigationBar(utility),
+                      Flexible(fit: FlexFit.loose, child: _content()),
+                    ],
                   )
                 : focusedCommander
                 ? Semantics(
@@ -1479,8 +1490,15 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     }
     final content = TableModalFrame(
       quarterTurns: widget.quarterTurns,
-      fitContentHeight: _compactTokenCreation,
-      preferredWidth: focusedCommander
+      fitContentHeight: _fitWorkspaceHeight,
+      preferredWidth: utility != null
+          ? (utility.kind == 'mana_pool'
+                ? 720
+                : (utility.kind == RingService.kind ||
+                          utility.kind.startsWith('custom_')
+                      ? 620
+                      : 560))
+          : focusedCommander
           ? 620
           : _page == WorkspacePage.tokenSummary
           ? 600
@@ -1497,7 +1515,14 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     return PopScope<void>(
       canPop: _allowPop,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) _requestClose();
+        if (didPop) return;
+        if (utility != null) {
+          _returnFromUtility(utility);
+        } else if (_confirmation != null && _page == WorkspacePage.utilities) {
+          _back();
+        } else {
+          _requestClose();
+        }
       },
       child: Stack(
         fit: StackFit.expand,

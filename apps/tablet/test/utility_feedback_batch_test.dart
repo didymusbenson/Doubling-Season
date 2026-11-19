@@ -191,7 +191,7 @@ void main() {
         f.player.utilities.singleWhere((u) => u.id == hidden.id).toJson(),
         {...original, 'value': 40, 'visible': false},
       );
-      await tester.tap(find.byKey(const ValueKey('utility-picker-breadcrumb')));
+      await tester.tap(find.byKey(const ValueKey('utility-back')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('utility-toggle-${hidden.id}')));
       await tester.pumpAndSettle();

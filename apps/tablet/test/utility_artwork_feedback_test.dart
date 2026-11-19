@@ -50,7 +50,7 @@ void main() {
       );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Artwork'));
+      await tester.tap(find.byKey(const ValueKey('utility-edit-artwork')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Credited Artist'));
       await tester.pump();
