@@ -99,7 +99,7 @@ future additions straightforward without changing stored data.
 - Tap: `{T}`
 - Colored mana: `{W}`, `{U}`, `{B}`, `{R}`, `{G}`
 - Colorless mana: `{C}`
-- Generic mana: `{0}`, `{1}`, `{2}`, `{3}`
+- Generic mana: `{0}` through `{9}` (all single-digit keyboard shortcuts)
 
 ### Rendered surfaces
 
@@ -137,7 +137,7 @@ not see raw brace codes while choosing a token.
 
 - Untap `{Q}`
 - Variables `{X}`, `{Y}`, `{Z}`
-- Generic values `{4}` through `{20}`, `{100}`, and `{1000000}`
+- Generic values `{10}` through `{20}`, `{100}`, and `{1000000}`
 - Hybrid and two-brid symbols such as `{W/U}` and `{2/W}`
 - Phyrexian costs
 - Snow, energy, acorn, ticket, radiation, card-type, counter, and ability icons

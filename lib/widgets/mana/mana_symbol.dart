@@ -26,39 +26,57 @@ class ManaSymbol extends StatelessWidget {
     '1',
     '2',
     '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
   };
 
   static bool supports(String code) => supportedCodes.contains(code);
 
   static String spokenLabel(String code) => switch (code) {
-        'T' => 'tap',
-        'W' => 'one white mana',
-        'U' => 'one blue mana',
-        'B' => 'one black mana',
-        'R' => 'one red mana',
-        'G' => 'one green mana',
-        'C' => 'one colorless mana',
-        '0' => 'zero generic mana',
-        '1' => 'one generic mana',
-        '2' => 'two generic mana',
-        '3' => 'three generic mana',
-        _ => '{$code}',
-      };
+    'T' => 'tap',
+    'W' => 'one white mana',
+    'U' => 'one blue mana',
+    'B' => 'one black mana',
+    'R' => 'one red mana',
+    'G' => 'one green mana',
+    'C' => 'one colorless mana',
+    '0' => 'zero generic mana',
+    '1' => 'one generic mana',
+    '2' => 'two generic mana',
+    '3' => 'three generic mana',
+    '4' => 'four generic mana',
+    '5' => 'five generic mana',
+    '6' => 'six generic mana',
+    '7' => 'seven generic mana',
+    '8' => 'eight generic mana',
+    '9' => 'nine generic mana',
+    _ => '{$code}',
+  };
 
   static IconData _iconFor(String code) => switch (code) {
-        'T' => ManaIcons.tap,
-        'W' => ManaIcons.white,
-        'U' => ManaIcons.blue,
-        'B' => ManaIcons.black,
-        'R' => ManaIcons.red,
-        'G' => ManaIcons.green,
-        'C' => ManaIcons.colorless,
-        '0' => ManaIcons.generic0,
-        '1' => ManaIcons.generic1,
-        '2' => ManaIcons.generic2,
-        '3' => ManaIcons.generic3,
-        _ => throw ArgumentError.value(code, 'code', 'Unsupported Mana symbol'),
-      };
+    'T' => ManaIcons.tap,
+    'W' => ManaIcons.white,
+    'U' => ManaIcons.blue,
+    'B' => ManaIcons.black,
+    'R' => ManaIcons.red,
+    'G' => ManaIcons.green,
+    'C' => ManaIcons.colorless,
+    '0' => ManaIcons.generic0,
+    '1' => ManaIcons.generic1,
+    '2' => ManaIcons.generic2,
+    '3' => ManaIcons.generic3,
+    '4' => ManaIcons.generic4,
+    '5' => ManaIcons.generic5,
+    '6' => ManaIcons.generic6,
+    '7' => ManaIcons.generic7,
+    '8' => ManaIcons.generic8,
+    '9' => ManaIcons.generic9,
+    _ => throw ArgumentError.value(code, 'code', 'Unsupported Mana symbol'),
+  };
 
   static Color _backgroundFor(String code, Brightness brightness) =>
       switch (code) {
@@ -67,15 +85,27 @@ class ManaSymbol extends StatelessWidget {
         'B' => const Color(0xff211b18),
         'R' => const Color(0xffd3202a),
         'G' => const Color(0xff00733e),
-        _ => brightness == Brightness.dark
-            ? const Color(0xffd0d0d0)
-            : const Color(0xffc6c1bf),
+        _ =>
+          brightness == Brightness.dark
+              ? const Color(0xffd0d0d0)
+              : const Color(0xffc6c1bf),
       };
 
   static Color _foregroundFor(String code) => switch (code) {
-        'W' || 'C' || '0' || '1' || '2' || '3' => Colors.black87,
-        _ => Colors.white,
-      };
+    'W' ||
+    'C' ||
+    '0' ||
+    '1' ||
+    '2' ||
+    '3' ||
+    '4' ||
+    '5' ||
+    '6' ||
+    '7' ||
+    '8' ||
+    '9' => Colors.black87,
+    _ => Colors.white,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -93,11 +123,7 @@ class ManaSymbol extends StatelessWidget {
         border: Border.all(color: Colors.black54, width: size * 0.055),
       ),
       alignment: Alignment.center,
-      child: Icon(
-        icon,
-        size: size * 0.76,
-        color: _foregroundFor(code),
-      ),
+      child: Icon(icon, size: size * 0.76, color: _foregroundFor(code)),
     );
   }
 }

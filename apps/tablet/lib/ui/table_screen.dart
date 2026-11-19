@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:doubling_season/widgets/mana/mana_icons.dart';
+import 'package:doubling_season/widgets/mana/mana_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/semantics.dart';
@@ -3166,7 +3167,7 @@ class _UtilityRow extends StatelessWidget {
                             utility.kind != 'the_ring')
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 6),
-                            child: Text(
+                            child: ManaText(
                               utility.displayedDescription,
                               key: ValueKey(
                                 'utility-description-${utility.id}',

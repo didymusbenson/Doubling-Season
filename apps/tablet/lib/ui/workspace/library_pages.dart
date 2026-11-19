@@ -135,7 +135,7 @@ extension _LibraryPages on _TableWorkspaceState {
             title: Text(choice.name),
             subtitle: choice.description.isEmpty
                 ? null
-                : Text(choice.description),
+                : ManaText(choice.description),
             onTap: canInteract
                 ? () => _openUtilityChoice(player, choice, scope)
                 : null,
@@ -343,7 +343,7 @@ extension _LibraryPages on _TableWorkspaceState {
           : Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 460),
-                child: Text(
+                child: ManaText(
                   description,
                   textAlign:
                       description.length < 90 && !description.contains('\n')

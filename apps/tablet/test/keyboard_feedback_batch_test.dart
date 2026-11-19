@@ -273,8 +273,13 @@ void main() {
             of: find.byType(PlayerKeyboardHost),
             matching: find.byType(FilledButton),
           );
-          for (final element in keys.evaluate()) {
-            final rect = tester.getRect(find.byWidget(element.widget));
+          // Compact forms never shrink keys to squeeze in the Mana row.
+          // Every key fits when scrolled into view, including below the fold.
+          for (final element in keys.evaluate().toList()) {
+            final key = find.byWidget(element.widget);
+            await tester.ensureVisible(key);
+            await tester.pump();
+            final rect = tester.getRect(key);
             expect(rect.width, greaterThanOrEqualTo(44));
             expect(rect.height, greaterThanOrEqualTo(44));
             expect(shell.contains(rect.topLeft), isTrue);
@@ -282,9 +287,15 @@ void main() {
           }
           final value = tester.widget<EditableText>(find.byType(EditableText));
           expect(identical(value.controller, c), isTrue);
-          await tester.tap(find.text(numeric ? '1' : 'q'));
+          final firstKey = find.text(numeric ? '1' : 'q');
+          final secondKey = find.text(numeric ? '2' : 'a');
+          await tester.ensureVisible(firstKey);
           await tester.pump();
-          await tester.tap(find.text(numeric ? '2' : 'a'));
+          await tester.tap(firstKey);
+          await tester.pump();
+          await tester.ensureVisible(secondKey);
+          await tester.pump();
+          await tester.tap(secondKey);
           await tester.pump();
           expect(c.text, numeric ? 'draft12' : 'draftqa');
           await tester.tap(byControlLabel('Close'));

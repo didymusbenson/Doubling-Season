@@ -109,7 +109,7 @@ class _UtilityExactDialogState extends State<_UtilityExactDialog> {
                       onPressed: _saving
                           ? null
                           : () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close),
+                      icon: Icon(PlayerKeyboardGlyphs.close(context)),
                     ),
                   ],
                 ),
@@ -157,7 +157,9 @@ class _UtilityExactDialogState extends State<_UtilityExactDialog> {
                                           _digits.length - 1,
                                         ),
                                       ),
-                                icon: const Icon(Icons.backspace_outlined),
+                                icon: Icon(
+                                  PlayerKeyboardGlyphs.delete(context),
+                                ),
                               ),
                             ),
                           ],

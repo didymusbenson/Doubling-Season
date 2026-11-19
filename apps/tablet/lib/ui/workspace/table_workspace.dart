@@ -22,6 +22,7 @@ import '../../features/preset_service.dart';
 import '../../features/ring_service.dart';
 import '../../services/tablet_catalog.dart';
 import 'player_keyboard.dart';
+import 'player_keyboard_glyphs.dart';
 import '../table_artwork.dart';
 import '../table_modal_frame.dart';
 import '../game_drawer_body.dart';

@@ -1,6 +1,9 @@
 import 'support/control_finders.dart';
 import 'dart:ui' show PointerDeviceKind;
 
+import 'package:doubling_season/utils/mana_symbol_parser.dart';
+import 'package:doubling_season/widgets/mana/mana_text.dart';
+import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -218,7 +221,7 @@ void main() {
           expect(afterQ, const TextSelection.collapsed(offset: 1));
           await tap(find.text('a'));
           expect(controller.text, 'qaa');
-          await tap(find.byIcon(Icons.keyboard_arrow_left));
+          await tap(byControlLabel('Move cursor left'));
           await tap(find.text('q'));
           expect(controller.text, 'qaqa');
           controller.selection = const TextSelection(
@@ -227,7 +230,7 @@ void main() {
           );
           await tap(find.text('z'));
           expect(controller.text, 'qza');
-          await tap(find.byIcon(Icons.backspace_outlined));
+          await tap(byControlLabel('Delete previous character'));
           expect(controller.text, 'qa');
           await tap(byControlLabel('Select all'));
           await tap(find.text('z'));
@@ -241,6 +244,186 @@ void main() {
         variant: TargetPlatformVariant({platform}),
       );
     }
+  }
+
+  for (final platform in [TargetPlatform.iOS, TargetPlatform.macOS]) {
+    testWidgets(
+      'Apple keyboards use native-style command symbols on $platform',
+      (tester) async {
+        await tabletSize(tester);
+        final controller = TextEditingController(text: 'ab');
+        addTearDown(controller.dispose);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: PlayerKeyboardHost(
+                child: PlayerField(
+                  controller: controller,
+                  label: 'Abilities',
+                  maxLines: 2,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.byType(PlayerField));
+        await tester.pumpAndSettle();
+        for (final icon in [
+          CupertinoIcons.shift,
+          CupertinoIcons.arrow_left,
+          CupertinoIcons.arrow_right,
+          CupertinoIcons.return_icon,
+          CupertinoIcons.delete_left,
+          CupertinoIcons.doc_on_clipboard,
+        ]) {
+          expect(find.byIcon(icon), findsOneWidget);
+        }
+        expect(find.byIcon(Icons.backspace_outlined), findsNothing);
+        await tester.tap(byControlLabel('Shift'));
+        await tester.pumpAndSettle();
+        expect(find.byIcon(CupertinoIcons.shift_fill), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+      variant: TargetPlatformVariant({platform}),
+    );
+  }
+
+  testWidgets(
+    'mana row replaces selected text and parses as rendered symbols',
+    (tester) async {
+      await tabletSize(tester);
+      final controller = TextEditingController(text: 'Cost 🔥 and draw')
+        ..selection = const TextSelection(baseOffset: 7, extentOffset: 5);
+      addTearDown(controller.dispose);
+      String? saved;
+      await tester.pumpWidget(
+        _EditorHarness(
+          controller: controller,
+          value: () => controller.text,
+          onChanged: (_) {},
+          onCommit: (value) async => saved = value,
+          onResult: (_) {},
+          multiline: true,
+        ),
+      );
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+      final semantics = tester.ensureSemantics();
+      final strip = find.byKey(
+        const ValueKey('player-keyboard-mana-shortcuts'),
+      );
+      expect(strip, findsOneWidget);
+      expect(
+        find.descendant(
+          of: strip,
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is SizedBox &&
+                widget.key is ValueKey<String> &&
+                (widget.key! as ValueKey<String>).value.startsWith(
+                  'mana-shortcut-',
+                ),
+          ),
+        ),
+        findsNWidgets(16),
+      );
+      for (final (key, label) in [
+        ('W', 'Insert one white mana'),
+        ('9', 'Insert nine generic mana'),
+        ('T', 'Insert tap'),
+      ]) {
+        final keyFinder = find.byKey(ValueKey('mana-shortcut-$key'));
+        await tester.ensureVisible(keyFinder);
+        await tester.pumpAndSettle();
+        expect(find.bySemanticsLabel(label), findsOneWidget);
+        await tester.tap(keyFinder);
+        await tester.pumpAndSettle();
+      }
+      expect(controller.text, 'Cost {W}{9}{T} and draw');
+      expect(controller.selection, const TextSelection.collapsed(offset: 14));
+      final spans = ManaSymbolParser.buildSpans(
+        text: controller.text,
+        symbolSize: 20,
+        textColor: null,
+      );
+      expect(spans.whereType<WidgetSpan>(), hasLength(3));
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+      expect(saved, controller.text);
+      await tester.pumpWidget(MaterialApp(home: ManaText(saved!)));
+      expect(
+        find.bySemanticsLabel(
+          'Cost one white mananine generic manatap and draw',
+        ),
+        findsOneWidget,
+      );
+      semantics.dispose();
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  for (final turns in [0, 1]) {
+    testWidgets(
+      'mana shortcuts scroll on a small tablet view at $turns turns',
+      (tester) async {
+        // Constrain only the window: this is a tablet viewport, not a phone.
+        await tester.binding.setSurfaceSize(const Size(320, 490));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final controller = TextEditingController(text: 'A' * 1200);
+        final number = TextEditingController(text: '12');
+        addTearDown(controller.dispose);
+        addTearDown(number.dispose);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: RotatedBox(
+                quarterTurns: turns,
+                child: PlayerKeyboardHost(
+                  focusTextEntry: true,
+                  child: ListView(
+                    children: [
+                      PlayerField(controller: controller, label: 'Rules text'),
+                      PlayerField(
+                        controller: number,
+                        label: 'Quantity',
+                        numeric: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.byType(PlayerField).first);
+        await tester.pumpAndSettle();
+        final strip = find.byKey(
+          const ValueKey('player-keyboard-mana-shortcuts'),
+        );
+        final scroll = tester.state<ScrollableState>(
+          find.descendant(of: strip, matching: find.byType(Scrollable)),
+        );
+        expect(scroll.position.maxScrollExtent, greaterThan(0));
+        controller.selection = TextSelection.collapsed(
+          offset: controller.text.length,
+        );
+        final last = find.byKey(const ValueKey('mana-shortcut-T'));
+        await tester.ensureVisible(last);
+        await tester.pumpAndSettle();
+        expect(last.hitTestable(), findsOneWidget);
+        await tester.tap(last);
+        await tester.pumpAndSettle();
+        expect(controller.text, '${'A' * 1200}{T}');
+        await tester.tap(find.text('Done'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(PlayerField).last);
+        await tester.pumpAndSettle();
+        expect(strip, findsNothing);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
   }
 
   testWidgets('failed save keeps draft and supports close then resume', (

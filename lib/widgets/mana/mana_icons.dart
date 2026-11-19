@@ -21,12 +21,20 @@ class ManaIcons {
   static const IconData generic1 = IconData(0xe606, fontFamily: fontFamily);
   static const IconData generic2 = IconData(0xe607, fontFamily: fontFamily);
   static const IconData generic3 = IconData(0xe608, fontFamily: fontFamily);
+  static const IconData generic4 = IconData(0xe609, fontFamily: fontFamily);
+  static const IconData generic5 = IconData(0xe60a, fontFamily: fontFamily);
+  static const IconData generic6 = IconData(0xe60b, fontFamily: fontFamily);
+  static const IconData generic7 = IconData(0xe60c, fontFamily: fontFamily);
+  static const IconData generic8 = IconData(0xe60d, fontFamily: fontFamily);
+  static const IconData generic9 = IconData(0xe60e, fontFamily: fontFamily);
   static const IconData tap = IconData(0xe61a, fontFamily: fontFamily);
   static const IconData untap = IconData(0xe61b, fontFamily: fontFamily);
   static const IconData artistNib = IconData(0xe924, fontFamily: fontFamily);
   static const IconData power = IconData(0xe921, fontFamily: fontFamily);
   static const IconData toughness = IconData(0xe922, fontFamily: fontFamily);
-  static const IconData summoningSickness =
-      IconData(0xe96a, fontFamily: fontFamily);
+  static const IconData summoningSickness = IconData(
+    0xe96a,
+    fontFamily: fontFamily,
+  );
   static const IconData colorless = IconData(0xe904, fontFamily: fontFamily);
 }

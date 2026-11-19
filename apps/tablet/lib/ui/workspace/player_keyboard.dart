@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:doubling_season/widgets/mana/mana_symbol.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../player_input_mode.dart';
+import 'player_keyboard_glyphs.dart';
 import '../../domain/input_validation.dart';
 
 bool _playerKeyboardEditorOpen = false;
@@ -286,6 +288,7 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
   final FocusNode _draftFocus = FocusNode(debugLabel: 'Inline token draft');
   final _draftEditable = GlobalKey<EditableTextState>();
   final _keysScroll = ScrollController();
+  final _manaScroll = ScrollController();
   TextEditingController? _controller;
   Future<bool> Function()? _onExit;
   bool _numeric = false;
@@ -664,6 +667,7 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
     _hardwareFocus.dispose();
     _draftFocus.dispose();
     _keysScroll.dispose();
+    _manaScroll.dispose();
     super.dispose();
   }
 
@@ -673,6 +677,8 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
     double? width,
     String? semantics,
     IconData? icon,
+    Widget? symbol,
+    Key? key,
     bool selected = false,
     bool backspace = false,
   }) {
@@ -716,12 +722,14 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
             ),
           ),
           onPressed: _editable ? perform : null,
-          child: icon == null
-              ? Text(
-                  action == null && _shift ? text.toUpperCase() : text,
-                  maxLines: 1,
-                )
-              : Icon(icon, size: 22),
+          child:
+              symbol ??
+              (icon == null
+                  ? Text(
+                      action == null && _shift ? text.toUpperCase() : text,
+                      maxLines: 1,
+                    )
+                  : Icon(icon, size: 22)),
         ),
       ),
     );
@@ -739,6 +747,7 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
       );
     }
     return SizedBox(
+      key: key,
       width: width,
       height: 48,
       child: Padding(
@@ -839,6 +848,65 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
     },
   );
 
+  static const _manaCodes = [
+    'W',
+    'U',
+    'B',
+    'R',
+    'G',
+    '0',
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+    'T',
+  ];
+
+  Widget _manaShortcuts(double availableWidth) {
+    const keyWidth = 44.5;
+    const rowWidth = keyWidth * 16;
+    // The horizontal scrollbar and separately scrollable alphabet bank make
+    // this a single row even on the narrow face of a rotated table.
+    return Semantics(
+      label: 'Mana shortcuts',
+      container: true,
+      explicitChildNodes: true,
+      child: SizedBox(
+        width: math.min(availableWidth, rowWidth),
+        height: 54,
+        child: Scrollbar(
+          controller: _manaScroll,
+          thumbVisibility: availableWidth < rowWidth,
+          thickness: 3,
+          child: SingleChildScrollView(
+            key: const ValueKey('player-keyboard-mana-shortcuts'),
+            controller: _manaScroll,
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              children: [
+                for (final code in _manaCodes)
+                  _key(
+                    '{$code}',
+                    key: ValueKey('mana-shortcut-$code'),
+                    width: keyWidth,
+                    semantics: 'Insert ${ManaSymbol.spokenLabel(code)}',
+                    symbol: ManaSymbol(code: code, size: 24),
+                    action: () => _replace('{$code}'),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _keyBank(double availableWidth) {
     final rows = _numeric
         ? ['12345', '67890']
@@ -858,17 +926,22 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
         _key(
           'Shift',
           width: 44.5,
-          icon: Icons.arrow_upward,
+          icon: PlayerKeyboardGlyphs.shift(context, selected: _shift),
           semantics: 'Shift',
           selected: _shift,
           action: () => setState(() => _shift = !_shift),
         ),
       if (_numeric)
-        _key('−', width: 44.5, icon: Icons.remove, action: () => _replace('-')),
+        _key(
+          '−',
+          width: 44.5,
+          icon: PlayerKeyboardGlyphs.minus(context),
+          action: () => _replace('-'),
+        ),
       _key(
         'Move cursor left',
         width: 44.5,
-        icon: Icons.keyboard_arrow_left,
+        icon: PlayerKeyboardGlyphs.cursorLeft(context),
         semantics: 'Move cursor left',
         action: () => _move(false, extend: _selecting),
       ),
@@ -883,21 +956,21 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
         _key(
           'Return',
           width: 44.5,
-          icon: Icons.keyboard_return,
+          icon: PlayerKeyboardGlyphs.returnKey(context),
           semantics: 'Return',
           action: () => _replace('\n'),
         ),
       _key(
         'Move cursor right',
         width: 44.5,
-        icon: Icons.keyboard_arrow_right,
+        icon: PlayerKeyboardGlyphs.cursorRight(context),
         semantics: 'Move cursor right',
         action: () => _move(true, extend: _selecting),
       ),
       _key(
         'Delete previous character',
         width: 55,
-        icon: Icons.backspace_outlined,
+        icon: PlayerKeyboardGlyphs.delete(context),
         semantics: 'Delete previous character',
         backspace: true,
         action: _delete,
@@ -905,13 +978,13 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
       _key(
         'Extend selection',
         width: 44.5,
-        icon: Icons.select_all,
+        icon: PlayerKeyboardGlyphs.selection(context),
         semantics: 'Extend selection',
         selected: _selecting,
         action: () => setState(() => _selecting = !_selecting),
       ),
     ];
-    return SingleChildScrollView(
+    final keys = SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: SizedBox(
         width: width,
@@ -929,6 +1002,10 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
           ],
         ),
       ),
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [if (!_numeric) _manaShortcuts(availableWidth), keys],
     );
   }
 
@@ -966,7 +1043,9 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
                             label: 'Select all',
                             child: IconButton(
                               onPressed: _editable ? _selectAll : null,
-                              icon: const Icon(Icons.select_all),
+                              icon: Icon(
+                                PlayerKeyboardGlyphs.selection(context),
+                              ),
                             ),
                           ),
                         ),
@@ -975,7 +1054,7 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
                             label: 'Text editing actions',
                             child: IconButton(
                               onPressed: _editable ? _toggleEditingMenu : null,
-                              icon: const Icon(Icons.more_horiz),
+                              icon: Icon(PlayerKeyboardGlyphs.more(context)),
                             ),
                           ),
                         ),
@@ -984,7 +1063,10 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
                             label: 'Paste',
                             child: IconButton(
                               onPressed: _editable ? _paste : null,
-                              icon: const Icon(Icons.content_paste, size: 20),
+                              icon: Icon(
+                                PlayerKeyboardGlyphs.paste(context),
+                                size: 20,
+                              ),
                             ),
                           ),
                         ),
@@ -1002,7 +1084,7 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
                       label: 'Close',
                       child: IconButton(
                         onPressed: _editable ? widget.onClose : null,
-                        icon: const Icon(Icons.close),
+                        icon: Icon(PlayerKeyboardGlyphs.close(context)),
                       ),
                     ),
                   ),
@@ -1038,10 +1120,11 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
                       ),
                     ],
                   )
-                : LayoutBuilder(
-                    builder: (context, constraints) => Align(
-                      alignment: Alignment.topCenter,
-                      child: _keyBank(constraints.maxWidth),
+                : SingleChildScrollView(
+                    key: const ValueKey('player-focused-keyboard-scroll'),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) =>
+                          _keyBank(constraints.maxWidth),
                     ),
                   ),
           ),
@@ -1177,7 +1260,7 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
                 // own clearly bounded region; neither keys nor the outer shell shrink.
                 final keyboardHeight = math.min(
                   constraints.maxHeight - 96,
-                  widget.showValue ? 340.0 : 244.0,
+                  (widget.showValue ? 340.0 : 244.0) + (_numeric ? 0 : 54),
                 );
                 return Column(
                   children: [
@@ -1223,7 +1306,11 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
                                           onPressed: _editable
                                               ? _selectAll
                                               : null,
-                                          icon: const Icon(Icons.select_all),
+                                          icon: Icon(
+                                            PlayerKeyboardGlyphs.selection(
+                                              context,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -1234,7 +1321,9 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
                                           onPressed: _editable
                                               ? _toggleEditingMenu
                                               : null,
-                                          icon: const Icon(Icons.more_horiz),
+                                          icon: Icon(
+                                            PlayerKeyboardGlyphs.more(context),
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -1243,8 +1332,8 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
                                         label: 'Paste',
                                         child: IconButton(
                                           onPressed: _editable ? _paste : null,
-                                          icon: const Icon(
-                                            Icons.content_paste,
+                                          icon: Icon(
+                                            PlayerKeyboardGlyphs.paste(context),
                                             size: 20,
                                           ),
                                         ),
