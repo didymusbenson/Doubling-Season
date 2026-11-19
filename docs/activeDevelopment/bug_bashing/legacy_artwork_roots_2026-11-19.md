@@ -54,6 +54,14 @@ an explicit user-facing recovery policy for these existing media limits.
   pub.dev archive hashes.
 - Focused reader/media-root suite: 47 passed.
 - Full tablet analysis: no issues.
-- Aggregate tablet and preview-namespace validation pending at this checkpoint.
+- Full tablet suite: 2,209 passed / 8 expected skips (6 minutes 40 seconds).
+- Preview-namespace suite: 697 passed / 57 intentional skips (41 seconds).
 - Independent review found no path escape or source overwrite; redundant
   indexing was removed and the existing oversized-media limit documented.
+
+Source checkpoint `c0864030aa5b5de405b9894fee45b740e5bbeb51` was pushed to
+`feat/legacy-artwork-roots-20261119` through the existing GitHub connector;
+remote tree `d622161365c5adb8e548752d9a3dab205c49b64d` exactly matched the
+locally tested tree. Direct Git push had no credentials. No checks were recorded
+for that source commit; tablet CI is PR/manual-triggered and no PR or dispatch
+was created. This final documentation update does not change tested source.
