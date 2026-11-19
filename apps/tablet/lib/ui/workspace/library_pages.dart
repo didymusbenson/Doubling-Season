@@ -296,9 +296,13 @@ extension _LibraryPages on _TableWorkspaceState {
         utility.kind == 'custom_tracker' || utility.kind == 'custom_toggle';
     final key = 'utility.${utility.id}';
     final scope = _board.scope(p!.id);
-    final description = utility.description.trim().isNotEmpty
+    final suppliedDescription = utility.description.trim().isNotEmpty
         ? utility.description.trim()
         : definition?.description ?? '';
+    final description =
+        suppliedDescription.isEmpty && utility.kind == 'storm_count'
+        ? 'Count spells cast this turn, including spells cast by other players.'
+        : suppliedDescription;
     if (!custom && description.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 8, 4, 12),

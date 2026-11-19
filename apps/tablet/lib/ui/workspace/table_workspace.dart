@@ -248,6 +248,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   _Confirmation? _confirmation;
   final _navigation = <(WorkspacePage, String?, double, double)>[];
   final _playerScroll = ScrollController();
+  final _utilityFormAnchor = GlobalKey();
   final _counterScroll = ScrollController();
 
   void _rememberLocation() => _navigation.add((
@@ -1363,6 +1364,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     );
     final surface = PlayerKeyboardHost(
       fitContentHeight: _fitWorkspaceHeight,
+      focusTextEntry: utility != null,
       enabled: !_closing && !_working && !_navigating && !_utilityExactOpen,
       canEdit: () =>
           !_closing && !_working && !_navigating && !_utilityExactOpen,
@@ -1371,6 +1373,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
         '$_page:$_itemId:${_selectedDefinition?.id}:$_createCustom:${_confirmation?.title}:$_closeSaveFailed',
       ),
       child: Column(
+        key: utility != null ? _utilityFormAnchor : null,
         mainAxisSize: _fitWorkspaceHeight ? MainAxisSize.min : MainAxisSize.max,
         children: [
           SizedBox(
@@ -1517,10 +1520,15 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     );
     return PopScope<void>(
       canPop: _allowPop,
-      onPopInvokedWithResult: (didPop, result) {
+      onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         if (utility != null) {
-          _returnFromUtility(utility);
+          if (await PlayerKeyboardHost.finishActiveEntry(
+            _utilityFormAnchor.currentContext,
+          )) {
+            return;
+          }
+          if (mounted) await _returnFromUtility(utility);
         } else if (_confirmation != null && _page == WorkspacePage.utilities) {
           _back();
         } else {

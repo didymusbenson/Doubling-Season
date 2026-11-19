@@ -252,6 +252,7 @@ class PlayerKeyboardHost extends StatefulWidget {
     this.canEdit,
     this.showValue = false,
     this.fitContentHeight = false,
+    this.focusTextEntry = false,
     this.onClose,
   });
   final Widget child;
@@ -260,6 +261,18 @@ class PlayerKeyboardHost extends StatefulWidget {
 
   /// Fit the idle form, expanding to the bounded viewport only while typing.
   final bool fitContentHeight;
+
+  /// A player-facing utility's keyboard replaces its form instead of squeezing it.
+  final bool focusTextEntry;
+
+  static Future<bool> finishActiveEntry(BuildContext? formContext) async {
+    final host = formContext
+        ?.findAncestorStateOfType<_PlayerKeyboardHostState>();
+    if (host == null || host._controller == null) return false;
+    await host.finishField();
+    return true;
+  }
+
   final VoidCallback? onClose;
   final bool Function()? canEdit;
 
@@ -924,6 +937,15 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
       color: Theme.of(context).colorScheme.surfaceContainerHigh,
       child: Column(
         children: [
+          if (widget.focusTextEntry)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: Text(
+                _label,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
           SizedBox(
             height: 44,
             child: Semantics(label: _label, child: _draft(compact: true)),
@@ -1136,6 +1158,13 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
                         ? MainAxisSize.min
                         : MainAxisSize.max,
                     children: [_formPane()],
+                  );
+                }
+                if (widget.focusTextEntry) {
+                  return ConstrainedBox(
+                    key: const ValueKey('utility-focused-text-entry'),
+                    constraints: const BoxConstraints(maxHeight: 380),
+                    child: Column(children: [_formPane(focused: true)]),
                   );
                 }
                 final short = constraints.maxHeight < 400;

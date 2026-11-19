@@ -229,6 +229,46 @@ void main() {
   );
 
   testWidgets(
+    'Utilities restores a filtered scrolled picker without changing the selected seat',
+    (tester) async {
+      final f = await open(tester, size: const Size(540, 460));
+      search(tester, 'a');
+      await tester.pumpAndSettle();
+      ScrollPosition position() => tester
+          .widget<ListView>(find.byType(ListView).first)
+          .controller!
+          .position;
+      expect(position().maxScrollExtent, greaterThan(0));
+      position().jumpTo(position().maxScrollExtent);
+      await tester.pumpAndSettle();
+      final offset = position().pixels;
+      final other = f.controller.session.players[1].toJson();
+      final row = find
+          .byWidgetPredicate(
+            (w) => w is ListTile && w.key.toString().contains('utility-open-'),
+          )
+          .hitTestable()
+          .last;
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('utility-panel-title')), findsOneWidget);
+      await tap(tester, find.byKey(const ValueKey('utility-back')));
+      expect(
+        tester
+            .widget<PlayerField>(
+              find.byKey(const ValueKey('utility-picker-search')),
+            )
+            .controller
+            .text,
+        'a',
+      );
+      expect(position().pixels, closeTo(offset, 1));
+      expect(f.controller.session.players[1].toJson(), other);
+      await tap(tester, byControlLabel('Close workspace'));
+    },
+  );
+
+  testWidgets(
     'picker row opens hidden controls without switching on the board',
     (tester) async {
       final f = await open(tester);

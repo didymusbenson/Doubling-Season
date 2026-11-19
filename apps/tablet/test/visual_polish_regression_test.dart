@@ -432,13 +432,17 @@ void main() {
               math.min(
                 combined
                     ? 620
+                    : scene.key == 'storm'
+                    ? 560
                     : scene.value == WorkspacePage.tokenSummary
                     ? 600
                     : 720,
                 localViewport.width - 32,
               ),
             );
-            if (combined || scene.key == 'token-create') {
+            if (combined ||
+                scene.key == 'token-create' ||
+                scene.value == WorkspacePage.utilities) {
               expect(frameSize.height, greaterThanOrEqualTo(44));
               expect(
                 frameSize.height,

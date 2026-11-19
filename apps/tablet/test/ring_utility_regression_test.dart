@@ -232,10 +232,25 @@ void main() {
         await tester.tap(field);
         await tester.pumpAndSettle();
         expect(find.text('Done'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('utility-focused-text-entry')),
+          findsOneWidget,
+        );
+        expect(find.text('The Ring tempts you').hitTestable(), findsNothing);
         await tester.tap(find.text('f'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Done'));
         await tester.pumpAndSettle();
+        // The first system Back while typing dismisses only that input surface.
+        await tester.tap(field);
+        await tester.pumpAndSettle();
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('utility-focused-text-entry')),
+          findsNothing,
+        );
+        expect(find.text('The Ring tempts you').hitTestable(), findsOneWidget);
         expect(RingService.bearer(utility()), '');
         await tester.ensureVisible(find.text('The Ring tempts you'));
         await tester.tap(find.text('The Ring tempts you'));

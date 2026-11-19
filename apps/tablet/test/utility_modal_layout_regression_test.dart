@@ -193,8 +193,9 @@ void main() {
           final back = find.byKey(const ValueKey('utility-back'));
           expect(tester.getSize(back).height, greaterThanOrEqualTo(48));
           expect(find.text('All utilities'), findsNothing);
-          if (utility.kind == 'storm_count')
+          if (utility.kind == 'storm_count') {
             expect(tester.getSize(frame).height, lessThan(350));
+          }
           final custom = {
             'custom_tracker',
             'custom_toggle',
