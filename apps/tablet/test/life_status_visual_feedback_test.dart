@@ -246,10 +246,10 @@ void main() {
               expect(
                 tester
                     .widgetList<TableArtworkSurface>(miniArt)
-                    .every((art) => art.artworkFit == BoxFit.fitWidth),
+                    .every((art) => art.artworkFit == BoxFit.cover),
                 isTrue,
                 reason:
-                    'Life-only cover must not change the mini-ledger or token artwork policy.',
+                    'Shared artwork fills the ledger even when a cell is narrow.',
               );
               expect(
                 local(tester, name, surface).bottom,

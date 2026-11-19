@@ -3019,6 +3019,7 @@ class _UtilityRow extends StatelessWidget {
                             Expanded(
                               child: Semantics(
                                 label: '${utility.name}, details and actions',
+                                onTap: onOpen,
                                 hint: 'Open utility controls',
                                 button: true,
                                 excludeSemantics: true,
@@ -3034,23 +3035,13 @@ class _UtilityRow extends StatelessWidget {
                                     padding: const EdgeInsets.symmetric(
                                       vertical: 10,
                                     ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            utility.name,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ),
-                                        Icon(
-                                          Icons.chevron_right,
-                                          size: 18,
-                                          color: color,
-                                        ),
-                                      ],
+                                    alignment: AlignmentDirectional.centerStart,
+                                    child: Text(
+                                      utility.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -3287,7 +3278,7 @@ class _ArtworkSurface extends StatelessWidget {
     this.url,
     this.tint,
     required this.child,
-    this.artworkFit = BoxFit.fitWidth,
+    this.artworkFit = BoxFit.cover,
   });
   @override
   Widget build(BuildContext context) => ColoredBox(

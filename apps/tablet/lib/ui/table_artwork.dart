@@ -226,7 +226,9 @@ class TableArtworkSurface extends StatelessWidget {
     this.style = 'full',
     this.expanded = false,
     this.shadeArtwork = true,
-    this.artworkFit = BoxFit.fitWidth,
+    // Preserve the art's aspect ratio while filling tall as well as wide
+    // cards. Fit-width alone leaves bands above and below landscape art.
+    this.artworkFit = BoxFit.cover,
   });
 
   @override
