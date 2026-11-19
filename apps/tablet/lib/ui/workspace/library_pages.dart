@@ -418,131 +418,43 @@ extension _LibraryPages on _TableWorkspaceState {
     );
   }
 
-  // Exact entry is an in-panel draft, never a focused text input. The board
-  // keeps its original full tap/hold stepper for ordinary play.
-  Widget _utilityExactValue(
-    UtilityState utility,
-    int current,
-    BoardScope scope,
-  ) {
-    final draft = _field('utility.${utility.id}.exact', 'closed');
-    final open = draft.text != 'closed';
-    if (!open) {
-      return _button('Set value', () {
-        FocusManager.instance.primaryFocus?.unfocus();
-        _update(() => draft.clear());
-      }, icon: Icons.dialpad);
-    }
-    const maximum =
-        999999; // Same range as the former standalone tracker editor.
-    final digits = draft.text;
-    final chosen = tryWholeNumber(digits, min: 0, max: maximum);
-    final enabled = !_working && !_closing && !_navigating;
-    String append(int n) => draft.text == '0' ? '$n' : '${draft.text}$n';
-    bool accepts(String next) =>
-        next.length <= 6 && tryWholeNumber(next, min: 0, max: maximum) != null;
-    Widget digit(int n) {
-      final valid = enabled && accepts(append(n));
-      return TextButton(
-        key: ValueKey('utility-digit-$n'),
-        style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-        onPressed: valid
-            ? () => _update(() {
-                final next = append(n);
-                if (accepts(next)) draft.text = next;
-              })
-            : null,
-        child: Text('$n'),
+  Widget _utilityExactValue(UtilityState utility, BoardScope scope) =>
+      TextFieldTapRegion(
+        // Opening exact entry must not finish an unrelated inline text draft.
+        child: _button('Set value', () async {
+          if (_utilityExactOpen || _working || _closing || _navigating) return;
+          _update(() => _utilityExactOpen = true);
+          try {
+            await _directQueue;
+            if (!mounted ||
+                _closing ||
+                !_validScope ||
+                p?.generation != scope.playerGeneration ||
+                p?.utilities.any((entry) => entry.id == utility.id) != true) {
+              return;
+            }
+            final quarterTurns = widget.quarterTurns;
+            final current = _board.utilityValue(scope.playerId, utility.id);
+            await showDialog<void>(
+              context: context,
+              useSafeArea: false,
+              barrierColor: Colors.black.withValues(alpha: .36),
+              builder: (_) => _UtilityExactDialog(
+                quarterTurns: quarterTurns,
+                current: current,
+                onApply: (value) => _board.setUtility(
+                  scope.playerId,
+                  utility.id,
+                  value: value,
+                  captured: scope,
+                ),
+              ),
+            );
+          } finally {
+            if (mounted) _update(() => _utilityExactOpen = false);
+          }
+        }, icon: Icons.dialpad),
       );
-    }
-
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 240),
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Set exact value · now $current',
-                style: Theme.of(context).textTheme.labelMedium,
-              ),
-              Semantics(
-                liveRegion: true,
-                child: Text(
-                  digits.isEmpty ? 'Enter a total' : digits,
-                  key: const ValueKey('utility-exact-draft'),
-                  textAlign: TextAlign.end,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-              for (final first in [1, 4, 7])
-                Row(
-                  children: [
-                    for (int n = first; n < first + 3; n++)
-                      Expanded(child: digit(n)),
-                  ],
-                ),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: enabled && digits.isNotEmpty
-                          ? () => _update(draft.clear)
-                          : null,
-                      child: const Text('Clear'),
-                    ),
-                  ),
-                  Expanded(child: digit(0)),
-                  Expanded(
-                    child: IconButton(
-                      tooltip: 'Delete last digit',
-                      onPressed: enabled && digits.isNotEmpty
-                          ? () => _update(() {
-                              final text = draft.text;
-                              if (text.isNotEmpty) {
-                                draft.text = text.substring(0, text.length - 1);
-                              }
-                            })
-                          : null,
-                      icon: const Icon(Icons.backspace_outlined),
-                    ),
-                  ),
-                ],
-              ),
-              Wrap(
-                alignment: WrapAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: enabled
-                        ? () => _update(() => draft.text = 'closed')
-                        : null,
-                    child: const Text('Cancel'),
-                  ),
-                  FilledButton(
-                    onPressed: enabled && chosen != null
-                        ? () => _run(
-                            () => _board.setUtility(
-                              scope.playerId,
-                              utility.id,
-                              value: chosen,
-                              captured: scope,
-                            ),
-                            after: () => draft.text = 'closed',
-                          )
-                        : null,
-                    child: const Text('Apply'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _utilityDetail(UtilityState utility) {
     final definition = _board.utilityDefinitions
@@ -694,7 +606,7 @@ extension _LibraryPages on _TableWorkspaceState {
                       ),
               ),
             ),
-            _utilityExactValue(utility, currentValue, scope),
+            _utilityExactValue(utility, scope),
           ],
         ),
       if (standalone && hasAction && !transforming)
