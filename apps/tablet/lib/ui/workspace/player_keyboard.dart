@@ -255,6 +255,7 @@ class PlayerKeyboardHost extends StatefulWidget {
     this.showValue = false,
     this.fitContentHeight = false,
     this.focusTextEntry = false,
+    this.onFocusedTextChanged,
     this.onClose,
   });
   final Widget child;
@@ -266,6 +267,7 @@ class PlayerKeyboardHost extends StatefulWidget {
 
   /// A player-facing utility's keyboard replaces its form instead of squeezing it.
   final bool focusTextEntry;
+  final ValueChanged<bool>? onFocusedTextChanged;
 
   static Future<bool> finishActiveEntry(BuildContext? formContext) async {
     final host = formContext
@@ -358,6 +360,7 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
       _activeNativeFocus = nativeFocus;
     });
     if (_nativeInput) return true;
+    if (widget.focusTextEntry) widget.onFocusedTextChanged?.call(true);
     _hardwareFocus.requestFocus();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted &&
@@ -386,6 +389,9 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
         _onExit = null;
         _activeNativeFocus = null;
       });
+      if (widget.focusTextEntry && !_nativeInput) {
+        widget.onFocusedTextChanged?.call(false);
+      }
     } finally {
       _finishing = false;
     }

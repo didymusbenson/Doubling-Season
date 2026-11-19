@@ -225,6 +225,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   late int _sessionGeneration;
   String? _playerId;
   String? _itemId;
+  String? _typingUtilityId;
   final _fields = <String, TextEditingController>{};
   final _numericInitials = <String, String>{};
   final _inlineEdits = <String, _InlineEdit>{};
@@ -761,6 +762,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       if (!await _flushInline() || !mounted || _closing) return;
       setState(() {
         _rememberLocation();
+        _typingUtilityId = null;
         _page = page;
         _itemId = itemId;
         _confirmation = null;
@@ -1366,6 +1368,12 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     final surface = PlayerKeyboardHost(
       fitContentHeight: _fitWorkspaceHeight,
       focusTextEntry: utility != null,
+      onFocusedTextChanged: utility == null
+          ? null
+          : (active) {
+              final id = active ? utility.id : null;
+              if (_typingUtilityId != id) _update(() => _typingUtilityId = id);
+            },
       enabled: !_closing && !_working && !_navigating && !_utilityExactOpen,
       canEdit: () =>
           !_closing && !_working && !_navigating && !_utilityExactOpen,
@@ -1499,7 +1507,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       quarterTurns: widget.quarterTurns,
       fitContentHeight: _fitWorkspaceHeight,
       preferredWidth: utility != null
-          ? (utility.kind == 'mana_pool'
+          ? (_typingUtilityId == utility.id
+                ? 760
+                : utility.kind == 'mana_pool'
                 ? 720
                 : (utility.kind == RingService.kind ||
                           utility.kind.startsWith('custom_')

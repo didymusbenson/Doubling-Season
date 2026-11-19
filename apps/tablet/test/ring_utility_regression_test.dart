@@ -229,9 +229,18 @@ void main() {
               w.decoration?.labelText == 'Ring-bearer label (optional)',
         );
         await tester.ensureVisible(field);
+        final shell = find.byKey(const ValueKey('context-workspace'));
+        final idleWidth = tester.getSize(shell).width;
         await tester.tap(field);
         await tester.pumpAndSettle();
         expect(find.text('Done'), findsOneWidget);
+        expect(tester.getSize(shell).width, greaterThan(idleWidth));
+        if (size.width >= 760) {
+          expect(
+            find.byKey(const ValueKey('mana-shortcut-T')).hitTestable(),
+            findsOneWidget,
+          );
+        }
         expect(
           find.byKey(const ValueKey('utility-focused-text-entry')),
           findsOneWidget,
@@ -241,6 +250,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.text('Done'));
         await tester.pumpAndSettle();
+        expect(tester.getSize(shell).width, idleWidth);
         // The first system Back while typing dismisses only that input surface.
         await tester.tap(field);
         await tester.pumpAndSettle();

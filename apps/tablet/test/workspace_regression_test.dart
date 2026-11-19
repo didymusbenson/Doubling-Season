@@ -202,7 +202,9 @@ void main() {
                   children: [
                     Positioned(
                       left: 40,
-                      top: 340,
+                      // Put the test control behind the dismissible table, not
+                      // inside the taller keyboard after its mana row was added.
+                      top: turns == 0 ? 160 : 540,
                       child: TextButton(
                         key: const Key('behind'),
                         onPressed: () => behindTaps++,
@@ -230,6 +232,8 @@ void main() {
         await tester.tap(find.text('Edit'));
         await tester.pumpAndSettle();
         expect(find.byType(PlayerKeyboardHost), findsOneWidget);
+        final dismiss = byControlLabel('Finish editing Name');
+        expect(tester.getRect(dismiss).contains(behind), isTrue);
         await tester.tapAt(behind);
         await tester.pumpAndSettle();
         expect(commits, 1);

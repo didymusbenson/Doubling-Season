@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:doubling_season/widgets/mana/mana_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -108,8 +109,8 @@ void main() {
             ValueKey('utility-description-krenko-$id'),
           );
           expect(description.hitTestable(), findsOneWidget);
-          final text = tester.widget<Text>(description);
-          expect(text.data, 'Nontoken goblins you control');
+          final text = tester.widget<ManaText>(description);
+          expect(text.text, 'Nontoken goblins you control');
           expect(text.maxLines, isNull);
           final row = find.byKey(ValueKey('swipe-utility-krenko-$id'));
           final dismissSemantics = find
