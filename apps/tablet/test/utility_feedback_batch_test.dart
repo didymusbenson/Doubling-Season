@@ -170,7 +170,7 @@ void main() {
       final original = hidden.toJson();
       await tester.tap(find.byKey(const ValueKey('phone-action-utilities')));
       await tester.pumpAndSettle();
-      expect(find.byType(SwitchListTile), findsWidgets);
+      expect(find.byType(Switch), findsWidgets);
       tester
               .widget<PlayerField>(
                 find.byKey(const ValueKey('utility-picker-search')),
@@ -181,18 +181,24 @@ void main() {
       await tester.pumpAndSettle();
       final hiddenMenu = find.byKey(ValueKey('utility-menu-${hidden.id}'));
       await tester.ensureVisible(hiddenMenu);
-      await tester.tap(find.byKey(ValueKey('utility-edit-${hidden.id}')));
+      await tester.tap(find.byKey(ValueKey('utility-open-${hidden.id}')));
+      await tester.pumpAndSettle();
+      expect(byControlLabel('Restore to board'), findsNothing);
+      expect(byControlLabel('Close workspace'), findsOneWidget);
+      await tester.tap(byControlLabel('Increase Value'));
       await tester.pumpAndSettle();
       expect(
-        find.text('Hidden from the board. Its values are still saved.'),
-        findsOneWidget,
+        f.player.utilities.singleWhere((u) => u.id == hidden.id).toJson(),
+        {...original, 'value': 40, 'visible': false},
       );
-      await tester.tap(byControlLabel('Restore to board'));
+      await tester.tap(byControlLabel('Back'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('utility-toggle-${hidden.id}')));
       await tester.pumpAndSettle();
       final restored = f.player.utilities
           .singleWhere((u) => u.id == hidden.id)
           .toJson();
-      expect(restored, {...original, 'visible': true});
+      expect(restored, {...original, 'value': 40, 'visible': true});
       expect(f.controller.session.history.last.label, 'Show utility');
       await tester.tap(byControlLabel('Close workspace'));
       await tester.pumpAndSettle();

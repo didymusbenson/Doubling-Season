@@ -175,13 +175,31 @@ void main() {
             tester.getSize(find.byKey(const ValueKey('context-workspace'))),
             TableModalFrame.localSize(Size(size.width, size.height - 44), 0),
           );
-          for (final label in ['Name', 'Description']) {
-            await reachable(
-              tester,
+          final custom = {
+            'custom_tracker',
+            'custom_toggle',
+          }.contains(utility.kind);
+          final fields = [
+            for (final label in ['Name', 'Description'])
               find.byWidgetPredicate(
                 (w) => w is TextField && w.decoration?.labelText == label,
               ),
-              reason: utility.kind,
+          ];
+          expect(
+            find.byKey(const ValueKey('utility-panel-title')),
+            findsOneWidget,
+          );
+          for (final field in fields) {
+            if (custom) {
+              await reachable(tester, field, reason: utility.kind);
+            } else {
+              expect(field, findsNothing, reason: utility.kind);
+            }
+          }
+          if (custom) {
+            expect(
+              tester.getSize(fields.first).width,
+              closeTo(tester.getSize(fields.last).width, 1),
             );
           }
           for (final label in ['All utilities', 'Artwork']) {
@@ -191,11 +209,9 @@ void main() {
               reason: '${utility.kind}: $label',
             );
           }
-          await reachable(
-            tester,
-            byControlLabel('Remove this utility'),
-            reason: utility.kind,
-          );
+          expect(byControlLabel('Remove this utility'), findsNothing);
+          expect(byControlLabel('Restore to board'), findsNothing);
+          expect(find.byIcon(Icons.close), findsOneWidget);
           expect(find.byType(ExpansionTile), findsNothing);
           if (utility.kind == 'mana_pool') {
             for (final color in PlayerState.manaColors) {
@@ -276,6 +292,54 @@ void main() {
   }
 
   testWidgets(
+    'expanded Krenko resolves against the live board and keeps a typed correction',
+    (tester) async {
+      final fixture = TableFixture();
+      await fixture.initialize();
+      addTearDown(fixture.dispose);
+      await fixture.board.addUtility(fixture.playerId, 'krenko_mob_boss');
+      final utility = fixture.player.utilities.firstWhere(
+        (u) => u.kind == 'krenko_mob_boss',
+      );
+      // A retained minimal utility can lack display/action metadata; resolve its
+      // actual catalog controls without rewriting the saved configuration.
+      utility.configuration.clear();
+      utility.artworkUrl = null;
+      final otherSeat = fixture.controller.session.players[1].toJson();
+      await showUtility(tester, fixture, utility, const Size(1133, 744));
+      final correction = tester
+          .widget<TextField>(
+            find.byWidgetPredicate(
+              (w) => w is TextField && w.decoration?.labelText == 'Set value',
+            ),
+          )
+          .controller!;
+      await tap(tester, byControlLabel('Increase Value'));
+      expect(correction.text, '2');
+      correction.text = '12';
+      await fixture.board.adjustUtility(fixture.playerId, utility.id, 1);
+      await tester.pumpAndSettle();
+      expect(correction.text, '12');
+      await tap(tester, find.text('Make Goblins'));
+      expect(
+        fixture.player.tokens
+            .where((t) => t.name == 'Goblin')
+            .fold<int>(0, (n, t) => n + t.amount),
+        3,
+      );
+      await tap(tester, find.text('Make Goblins'));
+      expect(
+        fixture.player.tokens
+            .where((t) => t.name == 'Goblin')
+            .fold<int>(0, (n, t) => n + t.amount),
+        9,
+      );
+      expect(fixture.controller.session.players[1].toJson(), otherSeat);
+      await closeUtility(tester);
+    },
+  );
+
+  testWidgets(
     'compact mana actions preserve locks, conversion, and seat scope',
     (tester) async {
       final fixture = TableFixture();
@@ -339,11 +403,7 @@ void main() {
       await tap(tester, find.text('Utility controls'));
       await tester.pumpAndSettle();
       expect(
-        find
-            .byWidgetPredicate(
-              (w) => w is TextField && w.decoration?.labelText == 'Name',
-            )
-            .hitTestable(),
+        find.byKey(const ValueKey('utility-panel-title')).hitTestable(),
         findsOneWidget,
       );
       await tester.tapAt(const Offset(4, 500));

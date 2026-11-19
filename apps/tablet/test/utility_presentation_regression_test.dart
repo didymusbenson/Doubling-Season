@@ -259,7 +259,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Legacy settings'), findsNothing);
       await search(tester, 'Storm');
-      expect(find.byType(SwitchListTile), findsWidgets);
+      expect(find.byType(Switch), findsWidgets);
       expect(find.text('Life Total'), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.tap(byControlLabel('Close workspace'));

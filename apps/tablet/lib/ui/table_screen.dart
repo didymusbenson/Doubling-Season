@@ -3019,7 +3019,7 @@ class _UtilityRow extends StatelessWidget {
                             Expanded(
                               child: Semantics(
                                 label: '${utility.name}, details and actions',
-                                hint: 'Tap to edit utility',
+                                hint: 'Open utility controls',
                                 button: true,
                                 excludeSemantics: true,
                                 child: InkWell(

@@ -4,13 +4,6 @@ part of 'table_workspace.dart';
 const _customRuleAuthoringEnabled = false;
 
 extension _LibraryPages on _TableWorkspaceState {
-  Future<void> _removeBoardUtility(UtilityState utility) => _run(
-    () => _board.removeUtility(p!.id, utility.id),
-    after: () {
-      if (_itemId == utility.id) _itemId = null;
-    },
-  );
-
   Widget _utilitiesPage() {
     final player = p;
     if (player == null) {
@@ -187,10 +180,132 @@ extension _LibraryPages on _TableWorkspaceState {
     );
   }
 
+  // The workspace owns Close and, when the picker opened this panel, Back.
+  // Board-origin panels also offer a direct route to the visibility list.
+  Widget _utilityPanelHeader(
+    UtilityState utility,
+    WidgetDefinition? definition,
+  ) {
+    final key = 'utility.${utility.id}';
+    final fromPicker =
+        _navigation.isNotEmpty &&
+        _navigation.last.$1 == WorkspacePage.utilities &&
+        _navigation.last.$2 == null;
+    final custom =
+        utility.kind == 'custom_tracker' || utility.kind == 'custom_toggle';
+    final scope = _board.scope(p!.id);
+    final description = utility.description.trim().isNotEmpty
+        ? utility.description.trim()
+        : definition?.description ?? '';
+    final ringArt = utility.kind == RingService.kind
+        ? utility.displayedArtworkUrl
+        : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _contentTop(
+          Row(
+            children: [
+              if (ringArt != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: _art(ringArt, width: 56, height: 44),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: Text(
+                  utility.name,
+                  key: const ValueKey('utility-panel-title'),
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (!custom && description.isNotEmpty) Text(description),
+        if (custom)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _input(
+                  '$key.name',
+                  'Name',
+                  initial: utility.name,
+                  onCommit: (value) => _board.setUtility(
+                    scope.playerId,
+                    utility.id,
+                    name: value.trim(),
+                    captured: scope,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _input(
+                  '$key.description',
+                  'Description',
+                  initial: utility.description,
+                  maxLines: 2,
+                  onCommit: (value) => _board.setUtility(
+                    scope.playerId,
+                    utility.id,
+                    description: value,
+                    captured: scope,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            if (!fromPicker)
+              _button('All utilities', () async {
+                await _directQueue;
+                if (await _flushInline() && mounted && !_closing) {
+                  _update(() => _itemId = null);
+                }
+              }, icon: Icons.list_alt),
+            _button('Artwork', () async {
+              await _directQueue;
+              if (await _flushInline() && mounted && !_closing) {
+                _update(() => _field('$key.panel').text = 'artwork');
+              }
+            }, icon: Icons.image_outlined),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Track live changes until the player types their own correction. Controller
+  // notifications must happen after build, and never overwrite a pending draft.
+  Widget _utilityCorrectionField(String id, int value) {
+    final current = '$value';
+    final previous = _numericInitials[id];
+    final field = _field(id, current);
+    if (previous != null && previous != current && field.text == previous) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            _numericInitials[id] == current &&
+            field.text == previous) {
+          field.text = current;
+        }
+      });
+    }
+    return _input(id, 'Set value', initial: current, numeric: true);
+  }
+
   Widget _utilityDetail(UtilityState utility) {
+    final definition = _board.utilityDefinitions
+        .where((d) => d.id == utility.kind)
+        .firstOrNull;
     if (utility.kind == RingService.kind &&
         _field('utility.${utility.id}.panel').text != 'artwork') {
-      return _ringDetail(utility);
+      return _ringDetail(utility, definition);
     }
     final player = p!;
     final key = 'utility.${utility.id}';
@@ -198,13 +313,27 @@ extension _LibraryPages on _TableWorkspaceState {
     final revision = c.session.revision;
     final currentValue = _board.utilityValue(player.id, utility.id);
     final standalone = _board.isStandaloneUtilityKind(utility.kind);
-    final toggle = utility.configuration['type'] == 'toggle';
+    final toggle = utility.configuration['type'] == null
+        ? definition?.type == WidgetType.toggle ||
+              utility.kind == 'custom_toggle'
+        : utility.configuration['type'] == 'toggle';
     final active = _board.utilityActive(player.id, utility.id);
     final action =
-        utility.configuration['actionType'] as String? ?? utility.kind;
-    final hasAction = utility.configuration['hasAction'] == true;
-    final actionOnly = utility.configuration['actionOnly'] == true;
-    final step = utility.configuration['tapIncrement'] as int? ?? 1;
+        utility.configuration['actionType'] as String? ??
+        definition?.actionType ??
+        utility.kind;
+    final hasAction =
+        utility.configuration['hasAction'] as bool? ??
+        definition?.hasAction ??
+        false;
+    final actionOnly =
+        utility.configuration['actionOnly'] as bool? ??
+        definition?.actionOnly ??
+        false;
+    final step =
+        utility.configuration['tapIncrement'] as int? ??
+        definition?.tapIncrement ??
+        1;
     final preview = standalone && hasAction
         ? _board.utilityPreview(player.id, utility.id)
         : <TokenCreationResult>[];
@@ -214,105 +343,28 @@ extension _LibraryPages on _TableWorkspaceState {
     final transforming =
         standalone && hasAction && action == 'brudiclad_telchor_engineer';
     final controls = <Widget>[
-      _contentTop(
-        LayoutBuilder(
-          builder: (context, bounds) {
-            final compact = bounds.maxWidth < 420;
-            final actions = <Widget>[
-              _button('All utilities', () async {
-                if (await _flushInline()) _update(() => _itemId = null);
-              }, icon: Icons.arrow_back),
-              if (!compact) const Spacer(),
-              _button('Artwork', () async {
-                if (await _flushInline()) {
-                  _update(() => _field('$key.panel').text = 'artwork');
-                }
-              }, icon: Icons.image_outlined),
-              if (standalone) const SizedBox(width: 8),
-              if (standalone)
-                MergeSemantics(
-                  child: Semantics(
-                    label: utility.visible
-                        ? 'Remove this utility'
-                        : 'Restore to board',
-                    child: IconButton(
-                      onPressed: _working
-                          ? null
-                          : () => utility.visible
-                                ? _removeBoardUtility(utility)
-                                : _run(
-                                    () => _board.setUtility(
-                                      player.id,
-                                      utility.id,
-                                      visible: true,
-                                    ),
-                                  ),
-                      icon: Icon(
-                        utility.visible
-                            ? Icons.close
-                            : Icons.visibility_outlined,
-                      ),
-                    ),
-                  ),
-                ),
-            ];
-            return compact
-                ? Wrap(spacing: 4, runSpacing: 4, children: actions)
-                : Row(children: actions);
-          },
-        ),
-      ),
-      if (standalone && !utility.visible)
-        const Text('Hidden from the board. Its values are still saved.'),
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 2,
-            child: _input(
-              '$key.name',
-              'Name',
-              initial: utility.name,
-              onCommit: (value) => _board.setUtility(
-                player.id,
-                utility.id,
-                name: value.trim(),
-                captured: scope,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 3,
-            child: _input(
-              '$key.description',
-              'Description',
-              initial: utility.description,
-              maxLines: 2,
-              onCommit: (value) => _board.setUtility(
-                player.id,
-                utility.id,
-                description: value,
-                captured: scope,
-              ),
-            ),
-          ),
-        ],
-      ),
+      _utilityPanelHeader(utility, definition),
       if (standalone && utility.kind == 'mana_pool')
         ..._manaControls(player)
       else if (standalone && toggle)
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(active ? 'Active' : 'Inactive'),
-          subtitle: Text(
-            active
-                ? utility.description
-                : utility.configuration['offDescription'] as String? ?? '',
-          ),
+          subtitle:
+              !active &&
+                  (utility.configuration['offDescription'] as String? ?? '')
+                      .isNotEmpty
+              ? Text(utility.configuration['offDescription'] as String)
+              : null,
           value: active,
-          onChanged: (v) =>
-              _run(() => _board.setUtility(player.id, utility.id, isActive: v)),
+          onChanged: (v) => _run(
+            () => _board.setUtility(
+              player.id,
+              utility.id,
+              isActive: v,
+              captured: scope,
+            ),
+          ),
         )
       else if (standalone && !actionOnly)
         Wrap(
@@ -369,12 +421,7 @@ extension _LibraryPages on _TableWorkspaceState {
             ),
             SizedBox(
               width: 140,
-              child: _input(
-                '$key.value',
-                'Set value',
-                initial: '$currentValue',
-                numeric: true,
-              ),
+              child: _utilityCorrectionField('$key.value', currentValue),
             ),
             _button(
               'Set value',
@@ -423,12 +470,12 @@ extension _LibraryPages on _TableWorkspaceState {
                 action == 'the_unbeatable_squirrel_girl'
                     ? 'Make Squirrels'
                     : utility.configuration['actionButtonText'] as String? ??
+                          definition?.actionButtonText ??
                           'Resolve action',
                 () => _run(
                   () => _board.utilityAction(
                     player.id,
                     utility.id,
-                    expectedRevision: revision,
                     captured: scope,
                   ),
                 ),
@@ -527,7 +574,7 @@ extension _LibraryPages on _TableWorkspaceState {
     );
   }
 
-  Widget _ringDetail(UtilityState utility) {
+  Widget _ringDetail(UtilityState utility, WidgetDefinition? definition) {
     final player = p!;
     final key = 'utility.${utility.id}';
     final scope = _board.scope(player.id);
@@ -546,76 +593,7 @@ extension _LibraryPages on _TableWorkspaceState {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _contentTop(
-              Row(
-                children: [
-                  _button('All utilities', () async {
-                    if (await _flushInline()) _update(() => _itemId = null);
-                  }, icon: Icons.arrow_back),
-                  const Spacer(),
-                  _button('Artwork', () async {
-                    if (await _flushInline()) {
-                      _update(() => _field('$key.panel').text = 'artwork');
-                    }
-                  }, icon: Icons.image_outlined),
-                  MergeSemantics(
-                    child: Semantics(
-                      label: utility.visible
-                          ? 'Remove this utility'
-                          : 'Restore to board',
-                      child: IconButton(
-                        onPressed: () => utility.visible
-                            ? _removeBoardUtility(utility)
-                            : _run(
-                                () => _board.setUtility(
-                                  player.id,
-                                  utility.id,
-                                  visible: true,
-                                ),
-                              ),
-                        icon: Icon(
-                          utility.visible
-                              ? Icons.close
-                              : Icons.visibility_outlined,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: _input(
-                    '$key.name',
-                    'Name',
-                    initial: utility.name,
-                    onCommit: (value) => _board.setUtility(
-                      player.id,
-                      utility.id,
-                      name: value.trim(),
-                      captured: scope,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: _input(
-                    '$key.description',
-                    'Description',
-                    initial: utility.description,
-                    onCommit: (value) => _board.setUtility(
-                      player.id,
-                      utility.id,
-                      description: value,
-                      captured: scope,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            _utilityPanelHeader(utility, definition),
             Row(
               children: [
                 Expanded(
