@@ -190,11 +190,13 @@ void main() {
       'keyboard-free exact entry protects retained totals, cancels, and accepts the full valid range at $size',
       (tester) async {
         final state = stateWithTokens([sampleToken()]);
-        final storm = state.session.players.first.utilities.firstWhere(
-          (u) => u.kind == 'storm_count',
+        final tracker = UtilityState(
+          id: 'retained-exact-tracker',
+          name: 'Krenko, Tin Street Kingpin',
+          kind: 'krenko_tin_street',
+          value: 1000000, // Old totals are kept until an exact edit is applied.
         );
-        storm.value =
-            1000000; // Retained values above the manual limit must not be silently clamped.
+        state.session.players.first.utilities.add(tracker);
         final fixture = TableFixture(state);
         await fixture.initialize();
         addTearDown(fixture.dispose);
@@ -202,7 +204,7 @@ void main() {
           tester,
           fixture,
           WorkspacePage.utilities,
-          itemId: storm.id,
+          itemId: tracker.id,
           size: size,
         );
         final stored = fixture.repository.encoded;
@@ -278,7 +280,7 @@ void main() {
         await hit(apply);
         expect(exact, findsNothing);
         expect(
-          fixture.player.utilities.firstWhere((u) => u.id == storm.id).value,
+          fixture.player.utilities.firstWhere((u) => u.id == tracker.id).value,
           999999,
         );
         expect(find.byType(EditableText), findsNothing);
@@ -286,7 +288,7 @@ void main() {
         await hit(digit(0));
         await hit(apply);
         expect(
-          fixture.player.utilities.firstWhere((u) => u.id == storm.id).value,
+          fixture.player.utilities.firstWhere((u) => u.id == tracker.id).value,
           0,
         );
         expect(tester.takeException(), isNull);
@@ -387,10 +389,11 @@ void main() {
       final fixture = _DelayedSaveFixture(TabletState.initial());
       await fixture.initialize();
       addTearDown(fixture.dispose);
-      final storm = fixture.player.utilities.firstWhere(
-        (utility) => utility.kind == 'storm_count',
+      await fixture.board.addUtility(fixture.playerId, 'krenko_tin_street');
+      final tracker = fixture.player.utilities.firstWhere(
+        (utility) => utility.kind == 'krenko_tin_street',
       );
-      await open(tester, fixture, WorkspacePage.utilities, itemId: storm.id);
+      await open(tester, fixture, WorkspacePage.utilities, itemId: tracker.id);
       final exact = find.byKey(const ValueKey('utility-exact-dialog'));
       await tester.tap(find.text('Set value'));
       await tester.pumpAndSettle();
@@ -417,7 +420,7 @@ void main() {
       pending.complete();
       await tester.pumpAndSettle();
       expect(exact, findsNothing);
-      expect(fixture.board.utilityValue(fixture.playerId, storm.id), 8);
+      expect(fixture.board.utilityValue(fixture.playerId, tracker.id), 8);
       expect(fixture.repository.attempts, attempts + 1);
       await close(tester);
     },

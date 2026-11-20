@@ -226,6 +226,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
   String? _playerId;
   String? _itemId;
   String? _typingUtilityId;
+  (String, String, int)? _utilityTransformDraft;
   final _fields = <String, TextEditingController>{};
   final _numericInitials = <String, String>{};
   final _inlineEdits = <String, _InlineEdit>{};
@@ -593,6 +594,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       if (!await _flushInline() || !mounted || _closing) return;
       setState(() {
         final destination = _navigation.removeLast();
+        if (_itemId != destination.$2) _utilityTransformDraft = null;
         _page = destination.$1;
         _itemId = destination.$2;
         _restoreDraft();
@@ -763,6 +765,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       setState(() {
         _rememberLocation();
         _typingUtilityId = null;
+        _utilityTransformDraft = null;
         _page = page;
         _itemId = itemId;
         _confirmation = null;

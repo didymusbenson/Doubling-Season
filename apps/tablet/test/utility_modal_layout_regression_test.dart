@@ -266,10 +266,12 @@ void main() {
           } else if (utility.configuration['actionOnly'] != true) {
             await reachable(tester, byControlLabel('Increase Value'));
             await reachable(tester, byControlLabel('Decrease Value'));
-            await reachable(
-              tester,
-              find.widgetWithText(OutlinedButton, 'Set value'),
-            );
+            final exact = find.widgetWithText(OutlinedButton, 'Set value');
+            if (utility.kind == 'storm_count') {
+              expect(exact, findsNothing);
+            } else {
+              await reachable(tester, exact);
+            }
           }
           if (utility.configuration['hasAction'] == true) {
             final label = utility.kind == 'brudiclad_telchor_engineer'
@@ -484,7 +486,7 @@ void main() {
       expect(tester.getCenter(credit).dx, lessThan(tester.getCenter(frame).dx));
       expect(
         tester.getCenter(credit).dy,
-        greaterThan(tester.getCenter(find.text('Set value')).dy),
+        greaterThan(tester.getCenter(byControlLabel('Increase Value')).dy),
       );
       await tap(tester, find.byKey(const ValueKey('utility-edit-artwork')));
       await tester.pumpAndSettle();
@@ -554,6 +556,133 @@ void main() {
       await closeUtility(tester);
     },
   );
+
+  for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
+    testWidgets('Brudiclad chooses and confirms in the same view at $size', (
+      tester,
+    ) async {
+      final fixture = TableFixture(
+        stateWithTokens([
+          sampleToken(),
+          sampleToken(
+            id: 'bat',
+            name: 'Bat',
+            pt: '1/1',
+            type: 'Creature — Bat Token',
+            abilities: 'Flying',
+            colors: 'B',
+          ),
+          sampleToken(
+            id: 'bear',
+            name: 'Bear',
+            pt: '2/2',
+            type: 'Creature — Bear Token',
+            abilities: 'Vigilance',
+            colors: 'G',
+          ),
+          sampleToken(
+            id: 'empty',
+            name: 'Empty',
+            amount: 0,
+            tapped: 0,
+            sick: 0,
+          ),
+        ]),
+      );
+      await fixture.initialize();
+      addTearDown(fixture.dispose);
+      await fixture.board.addUtility(
+        fixture.playerId,
+        'brudiclad_telchor_engineer',
+      );
+      final utility = fixture.player.utilities.last;
+      utility.artworkUrl = null;
+      final before = fixture.player.tokens.map((t) => t.toJson()).toList();
+      final otherSeat = fixture.controller.session.players[1].toJson();
+      await showUtility(tester, fixture, utility, size);
+      final panel = find.byKey(
+        const ValueKey('utility-detail-brudiclad_telchor_engineer'),
+      );
+      final confirm = find.byKey(const ValueKey('utility-transform-confirm'));
+      final bat = find.byKey(const ValueKey('utility-transform-existing-bat'));
+      final bear = find.byKey(
+        const ValueKey('utility-transform-existing-bear'),
+      );
+      bool ready() => tester.widget<FilledButton>(confirm).onPressed != null;
+      expect(ready(), isFalse);
+      expect(
+        find.byKey(const ValueKey('utility-transform-existing-empty')),
+        findsNothing,
+      );
+      await tap(tester, bat);
+      expect(tester.widget<ListTile>(bat).selected, isTrue);
+      expect(ready(), isTrue);
+      expect(panel, findsOneWidget);
+      expect(fixture.player.tokens.map((t) => t.toJson()).toList(), before);
+      await tap(tester, find.text('Cancel selection'));
+      expect(ready(), isFalse);
+      expect(fixture.player.tokens.map((t) => t.toJson()).toList(), before);
+      await tap(tester, bat);
+      await fixture.controller.adjustLife(fixture.playerId, -1);
+      await tester.pumpAndSettle();
+      expect(ready(), isFalse);
+      expect(
+        find.text('The board changed. Choose a token again.'),
+        findsOneWidget,
+      );
+      await tap(tester, bear);
+      expect(tester.widget<ListTile>(bear).selected, isTrue);
+      expect(tester.widget<ListTile>(bat).selected, isFalse);
+      expect(panel, findsOneWidget);
+      await capture(
+        tester,
+        'brudiclad-${size.width.toInt()}x${size.height.toInt()}',
+      );
+      await tap(tester, confirm);
+      expect(panel, findsOneWidget);
+      expect(ready(), isFalse);
+      final nonempty = fixture.player.tokens
+          .where((t) => t.amount > 0)
+          .toList();
+      expect(
+        nonempty.every(
+          (t) =>
+              t.name == 'Bear' &&
+              t.abilities == 'Vigilance' &&
+              t.summoningSick == 0,
+        ),
+        isTrue,
+      );
+      expect(nonempty.fold(0, (n, t) => n + t.amount), 10);
+      expect(fixture.controller.session.players[1].toJson(), otherSeat);
+      expect(tester.takeException(), isNull);
+      // Existing behavior: the generated Myr can be the target too, or be
+      // created alone. Both actions are explicit and the same view stays open.
+      final generated = find.byWidgetPredicate(
+        (w) =>
+            w is ListTile &&
+            w.key.toString().contains('utility-transform-preview-'),
+      );
+      await tap(tester, generated.first);
+      expect(ready(), isTrue);
+      expect(nonempty.fold(0, (n, t) => n + t.amount), 10);
+      await tap(tester, find.text('Create Myr & skip transformation'));
+      expect(ready(), isFalse);
+      expect(fixture.player.tokens.any((t) => t.name.contains('Myr')), isTrue);
+      await tap(tester, generated.first);
+      await tap(tester, confirm);
+      expect(
+        fixture.player.tokens
+            .where((t) => t.amount > 0)
+            .every((t) => t.name.contains('Myr')),
+        isTrue,
+      );
+      expect(fixture.player.tokens.fold(0, (n, t) => n + t.amount), 12);
+      await tap(tester, generated.first);
+      await closeUtility(tester);
+      expect(fixture.player.tokens.fold(0, (n, t) => n + t.amount), 12);
+    });
+  }
 
   testWidgets(
     'large action previews and transformation lists scroll independently',

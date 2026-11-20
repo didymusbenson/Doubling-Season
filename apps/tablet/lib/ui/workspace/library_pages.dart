@@ -206,7 +206,10 @@ extension _LibraryPages on _TableWorkspaceState {
     } else {
       await _directQueue;
       if (await _flushInline() && mounted && !_closing) {
-        _update(() => _itemId = null);
+        _update(() {
+          _utilityTransformDraft = null;
+          _itemId = null;
+        });
       }
     }
   }
@@ -529,7 +532,7 @@ extension _LibraryPages on _TableWorkspaceState {
         ),
         if (transforming) ...[
           const Text(
-            'Choose the token every token will become. This also creates the Myr shown above and clears summoning sickness.',
+            'Choose a token to copy, then select Create & transform. This creates the tokens shown above and clears summoning sickness from the copies.',
           ),
           const SizedBox(height: 8),
         ],
@@ -610,7 +613,8 @@ extension _LibraryPages on _TableWorkspaceState {
                       ),
               ),
             ),
-            _utilityExactValue(utility, scope),
+            if (utility.kind != 'storm_count')
+              _utilityExactValue(utility, scope),
           ],
         ),
       if (standalone && hasAction && !transforming)
@@ -649,52 +653,6 @@ extension _LibraryPages on _TableWorkspaceState {
           ],
         ),
     ];
-    final targets = transforming
-        ? ListView(
-            shrinkWrap: true,
-            primary: false,
-            key: const ValueKey('utility-transform-targets'),
-            children: [
-              for (final token in player.tokens.where(
-                (t) => t.amount > 0 && !t.isEmblem,
-              ))
-                ListTile(
-                  title: Text('${token.name} · ${token.pt}'),
-                  subtitle: Text(token.abilities, maxLines: 2),
-                  trailing: const Icon(Icons.transform),
-                  onTap: () => _confirm(
-                    'Transform into ${token.name}?',
-                    'Create the previewed Myr, then make all your tokens copies of this selected token. Other seats are unaffected.',
-                    () => _board.utilityAction(
-                      player.id,
-                      utility.id,
-                      targetTokenId: token.id,
-                      expectedRevision: revision,
-                      captured: scope,
-                    ),
-                    button: 'Create & transform',
-                  ),
-                ),
-              for (final result in preview)
-                ListTile(
-                  title: Text('${result.name} · ${result.pt} (new token)'),
-                  trailing: const Icon(Icons.transform),
-                  onTap: () => _confirm(
-                    'Transform into ${result.name}?',
-                    'Create the Myr and transform every token you control into this token.',
-                    () => _board.utilityAction(
-                      player.id,
-                      utility.id,
-                      targetTokenId: result.compositeId,
-                      expectedRevision: revision,
-                      captured: scope,
-                    ),
-                    button: 'Create & transform',
-                  ),
-                ),
-            ],
-          )
-        : null;
     return SingleChildScrollView(
       key: const ValueKey('utility-fixed-controls'),
       padding: const EdgeInsets.fromLTRB(20, 2, 20, 12),
@@ -704,30 +662,153 @@ extension _LibraryPages on _TableWorkspaceState {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ...controls,
-          if (targets != null) ...[
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 175),
-              child: targets,
-            ),
-            Center(
-              child: _button(
-                'Create Myr & skip transformation',
-                () => _run(
-                  () => _board.utilityAction(
-                    player.id,
-                    utility.id,
-                    skip: true,
-                    expectedRevision: revision,
-                    captured: scope,
-                  ),
-                ),
-              ),
-            ),
-          ],
+          if (transforming)
+            ..._brudicladControls(utility, player, scope, revision, preview),
           _utilityArtFooter(utility, definition),
         ],
       ),
     );
+  }
+
+  List<Widget> _brudicladControls(
+    UtilityState utility,
+    PlayerState player,
+    BoardScope scope,
+    int revision,
+    List<TokenCreationResult> preview,
+  ) {
+    final existing = player.tokens
+        .where((token) => token.amount > 0 && !token.isEmblem)
+        .toList();
+    final created = TokenCreationResult.aggregateForDisplay(
+      preview,
+    ).where((result) => result.quantity > 0).toList();
+    final draft = _utilityTransformDraft;
+    final isOwnDraft = draft != null && draft.$1 == utility.id;
+    final candidate = isOwnDraft ? draft.$2 : null;
+    final eligible =
+        candidate != null &&
+        (existing.any((t) => t.id == candidate) ||
+            created.any((r) => r.compositeId == candidate));
+    final selected = isOwnDraft && draft.$3 == revision && eligible
+        ? candidate
+        : null;
+    bool isSelected(String target) => selected == target;
+    void choose(String id) => _update(() {
+      _utilityTransformDraft = selected == id
+          ? null
+          : (utility.id, id, revision);
+    });
+    void clear() => _utilityTransformDraft = null;
+    final enabled = !_working && !_closing && !_navigating;
+    final entries = [
+      for (final token in existing)
+        _tokenIdentityTile(
+          key: ValueKey('utility-transform-existing-${token.id}'),
+          name: token.name,
+          pt: token.pt,
+          type: token.type,
+          abilities: token.abilities,
+          artwork: token.artworkUrl,
+          trailing: Icon(
+            isSelected(token.id)
+                ? Icons.check_circle
+                : Icons.radio_button_unchecked,
+          ),
+          selected: isSelected(token.id),
+          onTap: enabled ? () => choose(token.id) : null,
+        ),
+      for (final result in created)
+        _tokenIdentityTile(
+          key: ValueKey('utility-transform-preview-${result.compositeId}'),
+          name: result.name,
+          pt: result.pt,
+          type: result.type,
+          abilities: result.abilities,
+          artwork: catalog
+              .byId(result.tokenDatabaseId ?? result.compositeId)
+              ?.artwork
+              .firstOrNull
+              ?.url,
+          note: 'new token',
+          trailing: Icon(
+            isSelected(result.compositeId)
+                ? Icons.check_circle
+                : Icons.radio_button_unchecked,
+          ),
+          selected: isSelected(result.compositeId),
+          onTap: enabled ? () => choose(result.compositeId) : null,
+        ),
+    ];
+    return [
+      if (entries.isEmpty)
+        const Center(child: Text('No tokens are available to copy.'))
+      else
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 265),
+          child: ListView(
+            shrinkWrap: true,
+            primary: false,
+            key: const ValueKey('utility-transform-targets'),
+            children: entries,
+          ),
+        ),
+      if (isOwnDraft && selected == null)
+        const Padding(
+          padding: EdgeInsets.only(top: 6),
+          child: Text(
+            'The board changed. Choose a token again.',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            FilledButton.icon(
+              key: const ValueKey('utility-transform-confirm'),
+              onPressed: !enabled || selected == null
+                  ? null
+                  : () => _run(
+                      () => _board.utilityAction(
+                        player.id,
+                        utility.id,
+                        targetTokenId: selected,
+                        expectedRevision: revision,
+                        captured: scope,
+                      ),
+                      after: clear,
+                    ),
+              icon: const Icon(Icons.check, size: 18),
+              label: const Text('Create & transform'),
+            ),
+            OutlinedButton(
+              onPressed: !enabled
+                  ? null
+                  : () => _run(
+                      () => _board.utilityAction(
+                        player.id,
+                        utility.id,
+                        skip: true,
+                        expectedRevision: revision,
+                        captured: scope,
+                      ),
+                      after: clear,
+                    ),
+              child: const Text('Create Myr & skip transformation'),
+            ),
+            if (isOwnDraft)
+              TextButton(
+                onPressed: enabled ? () => _update(clear) : null,
+                child: const Text('Cancel selection'),
+              ),
+          ],
+        ),
+      ),
+    ];
   }
 
   Widget _ringDetail(UtilityState utility, WidgetDefinition? definition) {

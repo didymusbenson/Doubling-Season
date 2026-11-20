@@ -356,44 +356,29 @@ extension _TokenPages on _TableWorkspaceState {
                 itemCount: tokens.length,
                 itemBuilder: (context, index) {
                   final token = tokens[index];
-                  return Card(
-                    child: ListTile(
-                      leading: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: _art(
-                          token.artwork.isEmpty
-                              ? null
-                              : token.artwork.first.url,
-                          width: 58,
-                          height: 64,
-                        ),
-                      ),
-                      title: Text(
-                        '${token.name}${token.pt.isEmpty ? '' : ' · ${token.pt}'}',
-                      ),
-                      subtitle: ManaText(
-                        '${token.cleanType}${token.abilities.isEmpty ? '' : '\n${token.abilities}'}',
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: MergeSemantics(
-                        child: Semantics(
-                          label: catalog.isFavorite(token.id)
-                              ? 'Remove favorite'
-                              : 'Favorite token',
-                          child: IconButton(
-                            icon: Icon(
-                              catalog.isFavorite(token.id)
-                                  ? Icons.star
-                                  : Icons.star_border,
-                            ),
-                            onPressed: () =>
-                                _run(() => catalog.favorite(token.id)),
+                  return _tokenIdentityTile(
+                    name: token.name,
+                    pt: token.pt,
+                    type: token.type,
+                    abilities: token.abilities,
+                    artwork: token.artwork.firstOrNull?.url,
+                    trailing: MergeSemantics(
+                      child: Semantics(
+                        label: catalog.isFavorite(token.id)
+                            ? 'Remove favorite'
+                            : 'Favorite token',
+                        child: IconButton(
+                          icon: Icon(
+                            catalog.isFavorite(token.id)
+                                ? Icons.star
+                                : Icons.star_border,
                           ),
+                          onPressed: () =>
+                              _run(() => catalog.favorite(token.id)),
                         ),
                       ),
-                      onTap: () => _selectToken(token),
                     ),
+                    onTap: () => _selectToken(token),
                   );
                 },
               );
@@ -403,6 +388,44 @@ extension _TokenPages on _TableWorkspaceState {
       ],
     );
   }
+
+  // The catalog and in-play token choosers share one visual identity.
+  Widget _tokenIdentityTile({
+    Key? key,
+    required String name,
+    required String pt,
+    required String type,
+    required String abilities,
+    required String? artwork,
+    required VoidCallback? onTap,
+    Widget? trailing,
+    bool selected = false,
+    String? note,
+  }) => Card(
+    child: ListTile(
+      key: key,
+      selected: selected,
+      shape: selected
+          ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+          : null,
+      selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
+      selectedColor: Theme.of(context).colorScheme.onPrimaryContainer,
+      leading: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: _art(artwork, width: 58, height: 64),
+      ),
+      title: Text(
+        '$name${pt.isEmpty ? '' : ' · $pt'}${note == null ? '' : ' ($note)'}',
+      ),
+      subtitle: ManaText(
+        '${type.replaceAll(RegExp(r'\s+Token$', caseSensitive: false), '')}${abilities.isEmpty ? '' : '\n$abilities'}',
+        maxLines: 3,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: trailing,
+      onTap: onTap,
+    ),
+  );
 
   Widget _customTokenPage() => CustomTokenFormValidation(
     name: _field('custom.name'),
