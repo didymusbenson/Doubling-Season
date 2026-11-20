@@ -292,6 +292,40 @@ void main() {
     );
   }
 
+  testWidgets(
+    'life artwork removal saves only the selected seat and leaves its color visible',
+    (tester) async {
+      final f = TableFixture();
+      await f.initialize();
+      addTearDown(f.dispose);
+      final seat = f.player.seatId;
+      final other = f.controller.session.players[1].seatId;
+      await f.controller.updateState('Fixture artwork', (state) {
+        state.profiles.firstWhere((profile) => profile.id == seat).artworkUrl =
+            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+      });
+      final otherBefore = f.controller.profile(other).toJson();
+      final color = f.controller.profile(seat).color;
+      await open(tester, f, size: const Size(320, 640));
+      await reveal(tester, find.text('Remove life artwork'));
+      await capture(tester, 'life-artwork-current-320x640');
+      await tester.tap(find.text('Remove life artwork'));
+      await tester.pumpAndSettle();
+      await reveal(tester, find.text('Using seat color'));
+      await capture(tester, 'life-artwork-default-320x640');
+      expect(find.text('Using seat color').hitTestable(), findsOneWidget);
+      expect(find.text('Remove life artwork'), findsNothing);
+      final persisted = (await f.repository.open()).state.profiles.firstWhere(
+        (profile) => profile.id == seat,
+      );
+      expect(persisted.artworkUrl, isNull);
+      expect(persisted.color, color);
+      expect(f.controller.profile(other).toJson(), otherBefore);
+      expect(tester.takeException(), isNull);
+      await close(tester);
+    },
+  );
+
   for (final size in [const Size(1133, 744), const Size(744, 1133)]) {
     testWidgets(
       'player panels keep gameplay and contextual setup reachable at $size',
