@@ -61,17 +61,24 @@ void main() {
 
   tearDown(() => fixture.dispose());
 
-  for (final size in [const Size(320, 568), const Size(1133, 744)]) {
+  final tokenSearch = find.byWidgetPredicate(
+    (widget) =>
+        widget is PlayerField &&
+        widget.label == 'Search tokens, abilities, type, or P/T',
+  );
+  const customTokenActionKey = ValueKey('custom-token-action');
+
+  for (final size in [
+    const Size(320, 568),
+    const Size(744, 1133),
+    const Size(1133, 744),
+  ]) {
     testWidgets(
       'Token search remains usable with separate compact actions at $size',
       (tester) async {
         await initialize();
         await openWorkspace(tester, WorkspacePage.tokens, size: size);
-        final search = find.byWidgetPredicate(
-          (widget) =>
-              widget is PlayerField &&
-              widget.label == 'Search tokens, abilities, type, or P/T',
-        );
+        final search = tokenSearch;
         final searchRect = tester.getRect(search);
         final customRect = tester.getRect(
           find.widgetWithText(OutlinedButton, 'Custom token'),
@@ -89,22 +96,140 @@ void main() {
           isFalse,
         );
         expect(search.hitTestable(), findsOneWidget);
-        if (size.width == 320) {
-          expect(byControlLabel('Clear token search'), findsNothing);
-          tester.widget<PlayerField>(search).controller.text = 'Saproling';
-          await tester.pumpAndSettle();
-          expect(tester.getSize(search).width, greaterThanOrEqualTo(160));
-          expect(byControlLabel('Clear token search'), findsOneWidget);
-          await tester.tap(byControlLabel('Clear token search'));
-          await tester.pumpAndSettle();
-          expect(tester.widget<PlayerField>(search).controller.text, isEmpty);
-          expect(byControlLabel('Clear token search'), findsNothing);
-        }
+        expect(customRect.height, greaterThanOrEqualTo(44));
+        expect(searchRect.height, greaterThanOrEqualTo(44));
+        expect(byControlLabel('Clear token search'), findsNothing);
+        tester.widget<PlayerField>(search).controller.text = 'Saproling';
+        await tester.pumpAndSettle();
+        expect(tester.getRect(search), searchRect);
+        final clear = byControlLabel('Clear token search');
+        expect(clear.hitTestable(), findsOneWidget);
+        expect(tester.getSize(clear).width, greaterThanOrEqualTo(44));
+        expect(tester.getSize(clear).height, greaterThanOrEqualTo(44));
+        expect(searchRect.contains(tester.getCenter(clear)), isTrue);
+        await tester.tap(clear);
+        await tester.pumpAndSettle();
+        expect(tester.widget<PlayerField>(search).controller.text, isEmpty);
+        expect(clear, findsNothing);
         expect(tester.takeException(), isNull);
         await closeWorkspace(tester);
       },
     );
   }
+
+  for (final size in [
+    const Size(744, 1133),
+    const Size(1133, 744),
+    const Size(844, 390),
+  ]) {
+    testWidgets('Custom token stays reachable while searching at $size', (
+      tester,
+    ) async {
+      await initialize();
+      await openWorkspace(tester, WorkspacePage.tokens, size: size);
+      await tester.tap(tokenSearch);
+      await tester.pumpAndSettle();
+      final short = size.height < 400;
+      expect(
+        find.byKey(
+          ValueKey(
+            short ? 'player-focused-keyboard-scroll' : 'player-keyboard-scroll',
+          ),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('q').hitTestable());
+      await tester.pumpAndSettle();
+      if (!short) {
+        expect(find.textContaining('No matching tokens'), findsOneWidget);
+        await tester.tap(byControlLabel('Clear token search'));
+        await tester.pumpAndSettle();
+        expect(find.text('Done').hitTestable(), findsOneWidget);
+        await tester.tap(find.text('q').hitTestable());
+        await tester.pumpAndSettle();
+      }
+      final custom = find.byKey(customTokenActionKey).hitTestable();
+      expect(custom, findsOneWidget);
+      await tester.tap(custom);
+      await tester.pumpAndSettle();
+      expect(find.byKey(customTokenActionKey), findsNothing);
+      final formHeading = find.text('Custom token');
+      expect(formHeading, findsOneWidget);
+      final cancel = find.text('Cancel');
+      if (cancel.evaluate().isEmpty) {
+        await tester.scrollUntilVisible(
+          cancel,
+          100,
+          scrollable: find.byType(Scrollable).first,
+        );
+      } else {
+        await tester.ensureVisible(cancel);
+      }
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<PlayerField>(tokenSearch).controller.text, 'q');
+      expect(find.textContaining('No matching tokens'), findsOneWidget);
+      expect(fixture.player.tokens.length, 1);
+      expect(tester.takeException(), isNull);
+      await closeWorkspace(tester);
+    });
+  }
+
+  testWidgets('Very short compact split still reaches search actions', (
+    tester,
+  ) async {
+    await initialize();
+    await openWorkspace(
+      tester,
+      WorkspacePage.tokens,
+      size: const Size(320, 444),
+    );
+    await tester.tap(tokenSearch);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('player-keyboard-scroll')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+    final custom = find.byKey(customTokenActionKey);
+    await tester.ensureVisible(custom);
+    await tester.pumpAndSettle();
+    expect(custom.hitTestable(), findsOneWidget);
+    await closeWorkspace(tester);
+  });
+
+  testWidgets('Phone landscape search retains focus and action above IME', (
+    tester,
+  ) async {
+    await initialize();
+    const size = Size(844, 390);
+    tester.view.display.size = size;
+    tester.view.display.devicePixelRatio = 1;
+    addTearDown(tester.view.display.reset);
+    addTearDown(tester.view.resetViewInsets);
+    await openWorkspace(tester, WorkspacePage.tokens, size: size);
+    final field = find.descendant(
+      of: tokenSearch,
+      matching: find.byType(TextField),
+    );
+    await tester.tap(field);
+    await tester.pumpAndSettle();
+    expect(tester.testTextInput.isVisible, isTrue);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 210);
+    await tester.pumpAndSettle();
+    expect(tester.testTextInput.isVisible, isTrue);
+    await tester.enterText(field, 'missing');
+    await tester.pumpAndSettle();
+    final custom = find.byKey(customTokenActionKey);
+    expect(custom.hitTestable(), findsOneWidget);
+    expect(tester.getRect(custom).bottom, lessThanOrEqualTo(180));
+    expect(tester.takeException(), isNull);
+    // Hiding the IME leaves the same search value, with no save or form change.
+    tester.view.resetViewInsets();
+    await tester.pumpAndSettle();
+    expect(tester.widget<PlayerField>(tokenSearch).controller.text, 'missing');
+    await closeWorkspace(tester);
+  });
 
   testWidgets('Create exits search only after the save succeeds', (
     tester,

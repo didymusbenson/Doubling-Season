@@ -256,6 +256,7 @@ class PlayerKeyboardHost extends StatefulWidget {
     this.fitContentHeight = false,
     this.focusTextEntry = false,
     this.onFocusedTextChanged,
+    this.focusedFieldAction,
     this.onClose,
   });
   final Widget child;
@@ -268,6 +269,10 @@ class PlayerKeyboardHost extends StatefulWidget {
   /// A player-facing utility's keyboard replaces its form instead of squeezing it.
   final bool focusTextEntry;
   final ValueChanged<bool>? onFocusedTextChanged;
+
+  /// An optional action for an active field whose form is offstage in a
+  /// short viewport. Full forms keep their own action.
+  final Widget? Function(TextEditingController)? focusedFieldAction;
 
   static Future<bool> finishActiveEntry(BuildContext? formContext) async {
     final host = formContext
@@ -1015,7 +1020,7 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
     );
   }
 
-  Widget _focusedKeyboard() => TextFieldTapRegion(
+  Widget _focusedKeyboard(Widget? fieldAction) => TextFieldTapRegion(
     child: Material(
       color: Theme.of(context).colorScheme.surfaceContainerHigh,
       child: Column(
@@ -1097,6 +1102,14 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
               ],
             ),
           ),
+          if (fieldAction != null)
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Padding(
+                padding: const EdgeInsetsDirectional.only(end: 16, bottom: 4),
+                child: fieldAction,
+              ),
+            ),
           Expanded(
             child: _clipboardError != null
                 ? SingleChildScrollView(
@@ -1149,7 +1162,8 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
           : StackFit.expand,
       children: [
         Offstage(offstage: focused, child: widget.child),
-        if (focused) _focusedKeyboard(),
+        if (focused)
+          _focusedKeyboard(widget.focusedFieldAction?.call(_controller!)),
       ],
     ),
   );
@@ -1448,6 +1462,7 @@ class PlayerField extends StatefulWidget {
     this.errorText,
     this.prefixIcon,
     this.onExit,
+    this.decoration,
   });
   final TextEditingController controller;
   final String label;
@@ -1456,6 +1471,9 @@ class PlayerField extends StatefulWidget {
   final String? helperText;
   final String? errorText;
   final Widget? prefixIcon;
+
+  /// Overrides the generated decoration, without changing the field label.
+  final InputDecoration? decoration;
   final Future<bool> Function()? onExit;
 
   @override
@@ -1481,6 +1499,15 @@ class _PlayerFieldState extends State<PlayerField> {
     final errorText = widget.errorText;
     final prefixIcon = widget.prefixIcon;
     final onExit = widget.onExit;
+    final decoration =
+        widget.decoration ??
+        InputDecoration(
+          labelText: label,
+          helperText: helperText,
+          errorText: errorText,
+          prefixIcon: prefixIcon,
+          border: const OutlineInputBorder(),
+        );
     final input = context.dependOnInheritedWidgetOfExactType<_InputScope>();
     Future<void> activate() async {
       if (await input?.activate(
@@ -1506,7 +1533,7 @@ class _PlayerFieldState extends State<PlayerField> {
     }
 
     if (input?.nativeInput ?? usesNativePlayerInput(context)) {
-      return TextField(
+      final field = TextField(
         key: PageStorageKey<TextEditingController>(controller),
         enabled: input?.enabled ?? true,
         controller: controller,
@@ -1526,14 +1553,11 @@ class _PlayerFieldState extends State<PlayerField> {
           if (maxLines == 1) input?.finish(controller);
         },
         onTapOutside: (_) => input?.finish(controller),
-        decoration: InputDecoration(
-          labelText: label,
-          helperText: helperText,
-          errorText: errorText,
-          prefixIcon: prefixIcon,
-          border: const OutlineInputBorder(),
-        ),
+        decoration: decoration,
       );
+      return decoration.labelText == label
+          ? field
+          : Semantics(label: label, child: field);
     }
 
     return ValueListenableBuilder<TextEditingValue>(
@@ -1587,13 +1611,7 @@ class _PlayerFieldState extends State<PlayerField> {
             onTapOutside: (_) => context
                 .getInheritedWidgetOfExactType<_InputScope>()
                 ?.finish(controller),
-            decoration: InputDecoration(
-              labelText: label,
-              helperText: helperText,
-              errorText: errorText,
-              prefixIcon: prefixIcon,
-              border: const OutlineInputBorder(),
-            ),
+            decoration: decoration,
             onTap: activate,
           ),
         ),

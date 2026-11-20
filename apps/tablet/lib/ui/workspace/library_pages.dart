@@ -58,11 +58,10 @@ extension _LibraryPages on _TableWorkspaceState {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-          child: PlayerField(
+          child: _workspaceSearchField(
             key: const ValueKey('utility-picker-search'),
-            controller: query,
+            query: query,
             label: 'Search utilities',
-            prefixIcon: const Icon(Icons.search),
           ),
         ),
         Expanded(

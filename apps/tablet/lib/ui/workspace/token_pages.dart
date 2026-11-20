@@ -174,185 +174,220 @@ extension _TokenPages on _TableWorkspaceState {
       ]);
     }
     final query = _field('tokens.search');
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-          child: LayoutBuilder(
-            builder: (context, bounds) {
-              final search = PlayerField(
-                controller: query,
-                label: 'Search tokens, abilities, type, or P/T',
-              );
-              final clear = MergeSemantics(
-                child: Semantics(
-                  label: 'Clear token search',
-                  child: IconButton(
-                    onPressed: () => _update(query.clear),
-                    icon: const Icon(Icons.clear),
+    final search = _workspaceSearchField(
+      query: query,
+      label: 'Search tokens, abilities, type, or P/T',
+      displayLabel: 'Search tokens',
+      clearLabel: 'Clear token search',
+    );
+    return LayoutBuilder(
+      builder: (context, bounds) {
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        const insets = EdgeInsets.fromLTRB(16, 6, 16, 8);
+        const actionGap = 12.0;
+        // Leave room for a useful field after the corner controls and
+        // the labeled action. Set the action on its own line if needed.
+        final canShareRow =
+            bounds.maxWidth - insets.horizontal - _controlWidth >=
+            260 + 150 * textScale + actionGap;
+        final chrome = Padding(
+          padding: insets,
+          child: canShareRow
+              ? _contentTop(
+                  Row(
+                    children: [
+                      Expanded(child: search),
+                      const SizedBox(width: actionGap),
+                      _customTokenAction(),
+                    ],
                   ),
-                ),
-              );
-              final custom = _button(
-                'Custom token',
-                () => _update(() => _createCustom = true),
-                icon: Icons.add,
-              );
-              if (bounds.maxWidth < 420) {
-                return Column(
+                )
+              : Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _contentTop(search),
-                    const SizedBox(height: 4),
-                    ValueListenableBuilder<TextEditingValue>(
-                      valueListenable: query,
-                      builder: (context, value, _) => Row(
-                        children: [
-                          if (value.text.isNotEmpty) ...[
-                            clear,
-                            const SizedBox(width: 4),
-                          ],
-                          Expanded(child: custom),
-                        ],
-                      ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: _customTokenAction(),
                     ),
                   ],
-                );
-              }
-              return _contentTop(
-                Row(
-                  children: [
-                    Expanded(child: search),
-                    clear,
-                    const SizedBox(width: 4),
-                    custom,
-                  ],
                 ),
-              );
-            },
-          ),
-        ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          child: Row(
-            children: [
-              for (final tab in ['all', 'recent', 'favorites', 'custom'])
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: ChoiceChip(
-                    label: Text('${tab[0].toUpperCase()}${tab.substring(1)}'),
-                    selected: _tokenTab == tab,
-                    onSelected: (_) => _update(() => _tokenTab = tab),
+        );
+        // A native IME or a stacked header in a short split view can leave
+        // little vertical space. Keep a stable scrollable parent as the
+        // keyboard opens, so the active field and actions stay reachable.
+        if (!canShareRow || usesNativePlayerInput(context)) {
+          return _tokenSearchResults(query, leading: chrome);
+        }
+        return Column(
+          children: [
+            chrome,
+            Expanded(child: _tokenSearchResults(query)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _customTokenAction() => OutlinedButton.icon(
+    key: const ValueKey('custom-token-action'),
+    style: OutlinedButton.styleFrom(
+      minimumSize: const Size(44, 48),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    ),
+    onPressed: _working || _navigating || _closing
+        ? null
+        : () => _update(() => _createCustom = true),
+    icon: const Icon(Icons.add, size: 18),
+    label: const Text('Custom token', textAlign: TextAlign.center),
+  );
+
+  Widget _tokenSearchResults(
+    TextEditingController query, {
+    Widget? leading,
+  }) => ValueListenableBuilder<TextEditingValue>(
+    valueListenable: query,
+    builder: (context, value, _) {
+      final tokens = catalog.search(
+        value.text,
+        tab: _tokenTab,
+        category: _category,
+        colors: _tokenColors,
+      );
+      return CustomScrollView(
+        key: const PageStorageKey('token-search-results'),
+        slivers: [
+          if (leading != null) SliverToBoxAdapter(child: leading),
+          SliverToBoxAdapter(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  for (final tab in ['all', 'recent', 'favorites', 'custom'])
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: ChoiceChip(
+                        label: Text(
+                          '${tab[0].toUpperCase()}${tab.substring(1)}',
+                        ),
+                        selected: _tokenTab == tab,
+                        onSelected: (_) => _update(() => _tokenTab = tab),
+                      ),
+                    ),
+                  const SizedBox(width: 14),
+                  ChoiceChip(
+                    label: const Text('All types'),
+                    selected: _category == null,
+                    onSelected: (_) => _update(() => _category = null),
                   ),
-                ),
-              const SizedBox(width: 14),
-              ChoiceChip(
-                label: const Text('All types'),
-                selected: _category == null,
-                onSelected: (_) => _update(() => _category = null),
+                  for (final category in Category.values.where(
+                    (category) =>
+                        category != Category.dungeon &&
+                        category != Category.counter,
+                  ))
+                    Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: ChoiceChip(
+                        label: Text(category.displayName),
+                        selected: _category == category,
+                        onSelected: (_) => _update(() => _category = category),
+                      ),
+                    ),
+                ],
               ),
-              for (final category in Category.values.where(
-                (category) =>
-                    category != Category.dungeon &&
-                    category != Category.counter,
-              ))
-                Padding(
-                  padding: const EdgeInsets.only(left: 6),
-                  child: ChoiceChip(
-                    label: Text(category.displayName),
-                    selected: _category == category,
-                    onSelected: (_) => _update(() => _category = category),
-                  ),
-                ),
-            ],
+            ),
           ),
-        ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            children: [
-              for (final color in const {
-                'W': 'White',
-                'U': 'Blue',
-                'B': 'Black',
-                'R': 'Red',
-                'G': 'Green',
-                'C': 'Colorless',
-              }.entries)
-                Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: Semantics(
-                    key: ValueKey('token-color-filter-${color.key}'),
-                    label: '${color.value} tokens',
-                    button: true,
-                    selected: _tokenColors.contains(color.key),
-                    child: FilterChip(
-                      showCheckmark: false,
-                      label: ExcludeSemantics(
-                        child: ManaText(
-                          '{${color.key}}',
-                          style: const TextStyle(fontSize: 24),
+          SliverToBoxAdapter(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  for (final color in const {
+                    'W': 'White',
+                    'U': 'Blue',
+                    'B': 'Black',
+                    'R': 'Red',
+                    'G': 'Green',
+                    'C': 'Colorless',
+                  }.entries)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Semantics(
+                        key: ValueKey('token-color-filter-${color.key}'),
+                        label: '${color.value} tokens',
+                        button: true,
+                        selected: _tokenColors.contains(color.key),
+                        child: FilterChip(
+                          showCheckmark: false,
+                          label: ExcludeSemantics(
+                            child: ManaText(
+                              '{${color.key}}',
+                              style: const TextStyle(fontSize: 24),
+                            ),
+                          ),
+                          selected: _tokenColors.contains(color.key),
+                          onSelected: (selected) => _update(() {
+                            if (color.key == 'C') {
+                              _tokenColors.clear();
+                            } else {
+                              _tokenColors.remove('C');
+                            }
+                            selected
+                                ? _tokenColors.add(color.key)
+                                : _tokenColors.remove(color.key);
+                          }),
                         ),
                       ),
-                      selected: _tokenColors.contains(color.key),
-                      onSelected: (selected) => _update(() {
-                        if (color.key == 'C') {
+                    ),
+                  MergeSemantics(
+                    child: Semantics(
+                      label: 'Clear filters',
+                      child: IconButton(
+                        icon: const Icon(Icons.filter_alt_off_outlined),
+                        onPressed: () => _update(() {
                           _tokenColors.clear();
-                        } else {
-                          _tokenColors.remove('C');
-                        }
-                        selected
-                            ? _tokenColors.add(color.key)
-                            : _tokenColors.remove(color.key);
-                      }),
+                          _category = null;
+                          query.clear();
+                        }),
+                      ),
                     ),
                   ),
-                ),
-              MergeSemantics(
-                child: Semantics(
-                  label: 'Clear filters',
-                  child: IconButton(
-                    icon: const Icon(Icons.filter_alt_off_outlined),
-                    onPressed: () => _update(() {
-                      _tokenColors.clear();
-                      _category = null;
-                      query.clear();
-                    }),
+                ],
+              ),
+            ),
+          ),
+          if (catalog.error != null)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(catalog.error!),
+              ),
+            ),
+          if (!catalog.loaded && catalog.error == null)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (tokens.isEmpty)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'No matching tokens. Try another search or create a custom token.',
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
-        if (catalog.error != null)
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(catalog.error!),
-          ),
-        Expanded(
-          child: ValueListenableBuilder<TextEditingValue>(
-            valueListenable: query,
-            builder: (context, value, _) {
-              final tokens = catalog.search(
-                value.text,
-                tab: _tokenTab,
-                category: _category,
-                colors: _tokenColors,
-              );
-              if (!catalog.loaded && catalog.error == null) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (tokens.isEmpty) {
-                return const Center(
-                  child: Text(
-                    'No matching tokens. Try another search or create a custom token.',
-                  ),
-                );
-              }
-              return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+              sliver: SliverList.builder(
                 itemCount: tokens.length,
                 itemBuilder: (context, index) {
                   final token = tokens[index];
@@ -396,13 +431,12 @@ extension _TokenPages on _TableWorkspaceState {
                     ),
                   );
                 },
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
+              ),
+            ),
+        ],
+      );
+    },
+  );
 
   Widget _customTokenPage() => CustomTokenFormValidation(
     name: _field('custom.name'),
@@ -828,9 +862,13 @@ extension _TokenPages on _TableWorkspaceState {
           change: (delta) => _board.counter(player.id, t.id, entry.key, delta),
         ),
       _section('Add counter'),
-      PlayerField(
-        controller: query,
-        label: 'Search counters or enter a custom name',
+      Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: _workspaceSearchField(
+          query: query,
+          label: 'Search counters or enter a custom name',
+          displayLabel: 'Search or name a counter',
+        ),
       ),
       ValueListenableBuilder<TextEditingValue>(
         valueListenable: query,

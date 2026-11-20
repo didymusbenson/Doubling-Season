@@ -25,6 +25,7 @@ import 'player_keyboard.dart';
 import 'player_keyboard_glyphs.dart';
 import '../table_artwork.dart';
 import '../table_modal_frame.dart';
+import '../player_input_mode.dart';
 import '../game_drawer_body.dart';
 import '../table_mana_icons.dart';
 import '../half_stepper.dart';
@@ -1005,6 +1006,71 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
           ),
         );
 
+  Widget _workspaceSearchField({
+    Key? key,
+    required TextEditingController query,
+    required String label,
+    String? displayLabel,
+    String? clearLabel,
+  }) {
+    Widget field({bool withClear = false}) => PlayerField(
+      key: key,
+      controller: query,
+      label: label,
+      decoration: InputDecoration(
+        labelText: displayLabel ?? label,
+        border: const OutlineInputBorder(),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
+        prefixIcon: const Padding(
+          padding: EdgeInsetsDirectional.only(start: 4, end: 2),
+          child: Icon(Icons.search, size: 20),
+        ),
+        prefixIconConstraints: const BoxConstraints(
+          minWidth: 44,
+          minHeight: 48,
+        ),
+        // The clear action is a separate semantic control, not a child of
+        // PlayerField's synthetic text field.
+        suffixIcon: withClear ? const SizedBox.shrink() : null,
+        suffixIconConstraints: const BoxConstraints(
+          minWidth: 48,
+          minHeight: 48,
+        ),
+      ),
+    );
+    if (clearLabel == null) return field();
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: query,
+      builder: (context, value, _) => Stack(
+        alignment: AlignmentDirectional.centerEnd,
+        children: [
+          field(withClear: value.text.isNotEmpty),
+          if (value.text.isNotEmpty)
+            TextFieldTapRegion(
+              child: MergeSemantics(
+                child: Semantics(
+                  label: clearLabel,
+                  child: Tooltip(
+                    message: clearLabel,
+                    excludeFromSemantics: true,
+                    child: IconButton(
+                      icon: const Icon(Icons.clear, size: 20),
+                      onPressed: _working || _navigating || _closing
+                          ? null
+                          : query.clear,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _list(
     List<Widget> children, {
     bool controls = true,
@@ -1377,6 +1443,14 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       enabled: !_closing && !_working && !_navigating && !_utilityExactOpen,
       canEdit: () =>
           !_closing && !_working && !_navigating && !_utilityExactOpen,
+      focusedFieldAction:
+          _page == WorkspacePage.tokens &&
+              _selectedDefinition == null &&
+              !_createCustom
+          ? (field) => identical(field, _fields['tokens.search'])
+                ? _customTokenAction()
+                : null
+          : null,
       onClose: _requestClose,
       key: ValueKey(
         '$_page:$_itemId:${_selectedDefinition?.id}:$_createCustom:${_confirmation?.title}:$_closeSaveFailed',
