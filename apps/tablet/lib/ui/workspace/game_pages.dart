@@ -319,14 +319,46 @@ extension _GamePages on _TableWorkspaceState {
           ),
         ]),
         _gamePanel('Life artwork', [
-          const SizedBox(height: 12),
-          if (profile.artworkUrl != null)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: _art(profile.artworkUrl, width: 180, height: 110),
+          Semantics(
+            image: true,
+            label: profile.artworkUrl == null
+                ? 'Default seat color'
+                : 'Current life artwork',
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                width: double.infinity,
+                height: 116,
+                child: ColoredBox(
+                  color: Color(profile.color),
+                  child: TableArtwork(
+                    url: profile.artworkUrl,
+                    crop: true,
+                    showLoadStatus: true,
+                    placeholder: Center(
+                      child: Icon(
+                        profile.artworkUrl == null
+                            ? Icons.palette_outlined
+                            : Icons.image_outlined,
+                        color: Color(profile.color).computeLuminance() > .179
+                            ? Colors.black
+                            : Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            profile.artworkUrl == null ? 'Using seat color' : 'Current artwork',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 8,
+            runSpacing: 4,
             children: [
               _button(
                 'Search token art',
