@@ -166,15 +166,7 @@ void main() {
         );
         fixture.player.mana['W'] = 123456789;
         fixture.player.manaLocks.add('W');
-        utility.artworkUrl =
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
-        utility.configuration['artworkOptions'] = [
-          {
-            'url': utility.artworkUrl,
-            'artist': 'Christopher Rush',
-            'set': 'LEA',
-          },
-        ];
+        expect(utility.displayedArtworkUrl, UtilityState.manaPoolArtworkUrl);
         await showUtility(
           tester,
           fixture,

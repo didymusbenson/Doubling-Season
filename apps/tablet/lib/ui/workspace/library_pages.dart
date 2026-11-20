@@ -298,7 +298,13 @@ extension _LibraryPages on _TableWorkspaceState {
               width: side,
               child: Align(alignment: Alignment.centerLeft, child: back),
             ),
-            Expanded(child: title),
+            Expanded(
+              child: compactMana
+                  // Spend width rather than another row in the tight Mana Pool
+                  // header. Other utility titles retain their usual wrapping.
+                  ? FittedBox(fit: BoxFit.scaleDown, child: title)
+                  : title,
+            ),
             SizedBox(
               width: side,
               child: Align(alignment: Alignment.centerRight, child: close),
