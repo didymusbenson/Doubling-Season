@@ -235,12 +235,10 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Done'), findsOneWidget);
         expect(tester.getSize(shell).width, greaterThan(idleWidth));
-        if (size.width >= 760) {
-          expect(
-            find.byKey(const ValueKey('mana-shortcut-T')).hitTestable(),
-            findsOneWidget,
-          );
-        }
+        final tapKey = find.byKey(const ValueKey('mana-shortcut-T'));
+        await tester.ensureVisible(tapKey);
+        await tester.pumpAndSettle();
+        expect(tapKey.hitTestable(), findsOneWidget);
         expect(
           find.byKey(const ValueKey('utility-focused-text-entry')),
           findsOneWidget,
