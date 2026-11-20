@@ -83,7 +83,7 @@ void main() {
         );
         final add = byControlLabel('Increase White mana');
         final spend = byControlLabel('Decrease White mana');
-        expect(tester.getSize(add).height, 48);
+        expect(tester.getSize(add).height, greaterThanOrEqualTo(104));
         expect(tester.getSize(add).width, greaterThanOrEqualTo(48));
         for (final point in [
           const Offset(.02, .05),

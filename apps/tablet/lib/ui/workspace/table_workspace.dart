@@ -44,6 +44,7 @@ part 'game_pages.dart';
 part 'dice_pages.dart';
 part 'commander_page.dart';
 part 'library_pages.dart';
+part 'mana_pool_panel.dart';
 part 'utility_exact_dialog.dart';
 
 enum WorkspacePage {
