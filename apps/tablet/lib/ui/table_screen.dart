@@ -267,6 +267,13 @@ class _TableScreenState extends State<TableScreen>
                             mostSeats,
                         textScaler: MediaQuery.textScalerOf(context),
                       );
+                  // The wide four-player landscape layout reserves a real center
+                  // channel. Narrow/local-view tables already open across their
+                  // horizontal seam; other vertical drawers retain their layout.
+                  final partitionFourSeats =
+                      session.players.length == 4 &&
+                      constraints.maxWidth > constraints.maxHeight &&
+                      !horizontalDrawer;
                   final progress = drawerAnimation.value;
                   final drawerWidth = math.min(
                     480.0,
@@ -327,7 +334,10 @@ class _TableScreenState extends State<TableScreen>
                       centerNotchAtStart: two || !tokenLeft,
                       twoPlayerLayout: two,
                       interactionEpoch: interactionEpoch,
-                      drawerShift: horizontalDrawer ? 0 : gap / 2,
+                      drawerShift: horizontalDrawer || partitionFourSeats
+                          ? 0
+                          : gap / 2,
+                      keepSplitLanes: partitionFourSeats,
                       drawerOpen: drawerMounted,
                       onCloseDrawer: _closeDrawer,
                       onInputLock: setInputLock,
@@ -447,7 +457,9 @@ class _TableScreenState extends State<TableScreen>
                                       key: ValueKey(
                                         'player-river-$rowIndex-$i',
                                       ),
-                                      width: _playerRiverWidth,
+                                      width: partitionFourSeats
+                                          ? math.max(_playerRiverWidth, opening)
+                                          : _playerRiverWidth,
                                     ),
                                   Expanded(
                                     child: players[i] == null
@@ -1286,6 +1298,7 @@ class _PlayerSpace extends StatefulWidget {
   final List<Offset> seamControlCenters;
   final bool centerNotchAtStart;
   final bool twoPlayerLayout;
+  final bool keepSplitLanes;
   final double drawerShift;
   final bool drawerOpen;
   final VoidCallback onCloseDrawer;
@@ -1304,6 +1317,7 @@ class _PlayerSpace extends StatefulWidget {
     required this.seamControlCenters,
     required this.centerNotchAtStart,
     required this.twoPlayerLayout,
+    required this.keepSplitLanes,
     required this.drawerShift,
     required this.drawerOpen,
     required this.onCloseDrawer,
@@ -1500,10 +1514,14 @@ class _PlayerSpaceState extends State<_PlayerSpace>
         ),
         child: LayoutBuilder(
           builder: (context, seat) {
-            final localViews = SeatLayoutPolicy.useLocalViews(
-              width: seat.maxWidth,
-              textScaler: MediaQuery.textScalerOf(context),
-            );
+            // Drawer width is temporary, not a presentation change. Keep
+            // both lanes laid out while a wide four-seat board is partitioned.
+            final localViews =
+                !widget.keepSplitLanes &&
+                SeatLayoutPolicy.useLocalViews(
+                  width: seat.maxWidth,
+                  textScaler: MediaQuery.textScalerOf(context),
+                );
             final changed =
                 _seatSize != null &&
                 (_seatSize != seat.biggest || _localViews != localViews);
