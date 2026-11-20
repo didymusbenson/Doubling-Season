@@ -136,7 +136,10 @@ void main() {
         tester.widget<DieOutline>(key('dice-result-d6-0')).value,
         expected,
       );
-      expect(fixture.controller.state.toJson(), before);
+      expect({
+        ...fixture.controller.state.toJson(),
+        'settings': before['settings'],
+      }, before);
       expect(tester.takeException(), isNull);
       await close(tester);
       semantics.dispose();
@@ -181,7 +184,10 @@ void main() {
       rebuild(() => reducedMotion = false);
       await tester.pump();
       expect(tester.widget<Text>(key('dice-summary')).data, 'Total: $expected');
-      expect(fixture.controller.state.toJson(), before);
+      expect({
+        ...fixture.controller.state.toJson(),
+        'settings': before['settings'],
+      }, before);
       expect(tester.takeException(), isNull);
       await close(tester);
     },
@@ -239,7 +245,10 @@ void main() {
           const FakeAccessibilityFeatures();
       await tester.pump();
       expect(tester.widget<Text>(key('dice-summary')).data, 'Total: $expected');
-      expect(fixture.controller.state.toJson(), before);
+      expect({
+        ...fixture.controller.state.toJson(),
+        'settings': before['settings'],
+      }, before);
       expect(tester.takeException(), isNull);
       await close(tester);
     },
@@ -272,7 +281,10 @@ void main() {
         tester.widget<Text>(key('dice-summary')).data,
         startsWith('Total:'),
       );
-      expect(fixture.controller.state.toJson(), before);
+      expect({
+        ...fixture.controller.state.toJson(),
+        'settings': before['settings'],
+      }, before);
       expect(tester.takeException(), isNull);
       await close(tester);
     },
@@ -305,30 +317,25 @@ void main() {
     await close(tester);
   });
 
-  testWidgets(
-    'zero selected dice completes immediately without an animation lock',
-    (tester) async {
-      await open(tester);
-      await tester.tap(byControlLabel('Decrease d6'));
-      await tester.pump();
-      await start(tester);
-      expect(find.text('Select at least one die.'), findsOneWidget);
-      expect(tester.widget<Text>(key('dice-summary')).data, 'Total: 0');
-      expect(
-        tester.widget<FilledButton>(key('dice-reroll-button')).onPressed,
-        isNotNull,
-      );
-      await tester.tap(byControlLabel('Back'));
-      await tester.pumpAndSettle();
-      await tester.tap(byControlLabel('Increase d4'));
-      await tester.pump();
-      await start(tester);
-      expect(tester.widget<Text>(key('dice-summary')).data, 'Rolling…');
-      await tester.pumpAndSettle();
-      expect(key('dice-result-d4-0'), findsOneWidget);
-      expect(key('dice-result-d6-0'), findsNothing);
-      expect(tester.takeException(), isNull);
-      await close(tester);
-    },
-  );
+  testWidgets('zero selected dice disables Roll until a die is selected', (
+    tester,
+  ) async {
+    await open(tester);
+    await tester.tap(byControlLabel('Decrease d6'));
+    await tester.pump();
+    expect(key('dice-results'), findsNothing);
+    expect(
+      tester.widget<FilledButton>(key('dice-roll-button')).onPressed,
+      isNull,
+    );
+    await tester.tap(byControlLabel('Increase d4'));
+    await tester.pump();
+    await start(tester);
+    expect(tester.widget<Text>(key('dice-summary')).data, 'Rolling…');
+    await tester.pumpAndSettle();
+    expect(key('dice-result-d4-0'), findsOneWidget);
+    expect(key('dice-result-d6-0'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await close(tester);
+  });
 }

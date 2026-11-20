@@ -272,8 +272,13 @@ void main() {
         for (final die in sides) {
           expect(key('dice-result-d$die-0'), findsOneWidget);
         }
-        expect(fixture.controller.state.toJson(), before);
-        expect(fixture.repository.encoded, persisted);
+        final after = fixture.controller.state.toJson();
+        expect(fixture.controller.state.settings['lastRolledDice'], {
+          for (final die in sides) '$die': 1,
+        });
+        after['settings'] = before['settings'];
+        expect(after, before);
+        expect(fixture.repository.encoded, isNot(persisted));
         expect(tester.takeException(), isNull);
         await tap(tester, byControlLabel('Close workspace'));
         await tester.pumpWidget(const SizedBox.shrink());
@@ -315,7 +320,10 @@ void main() {
         expect(key('dice-result-d4-$i').hitTestable(), findsOneWidget);
       }
       expect(key('dice-result-d4-20'), findsNothing);
-      expect(fixture.controller.state.toJson(), before);
+      expect({
+        ...fixture.controller.state.toJson(),
+        'settings': before['settings'],
+      }, before);
       expect(tester.takeException(), isNull);
       await tap(tester, byControlLabel('Close workspace'));
       await tester.pumpWidget(const SizedBox.shrink());
@@ -354,7 +362,10 @@ void main() {
       expectCornerClear(tester, key('dice-result-d4-0'));
       await tap(tester, byControlLabel('Back'));
       expect(tester.widget<DieOutline>(key('dice-count-d4')).value, 1);
-      expect(fixture.controller.state.toJson(), before);
+      expect({
+        ...fixture.controller.state.toJson(),
+        'settings': before['settings'],
+      }, before);
       await tap(tester, byControlLabel('Close workspace'));
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
@@ -410,7 +421,10 @@ void main() {
       }
       expect(key('dice-result-d4-20'), findsNothing);
       expect(key('dice-result-d6-0'), findsNothing);
-      expect(fixture.controller.state.toJson(), before);
+      expect({
+        ...fixture.controller.state.toJson(),
+        'settings': before['settings'],
+      }, before);
       await tap(tester, byControlLabel('Back'));
       await tap(tester, key('dice-roll-button'));
       expect(key('dice-result-d4-19'), findsOneWidget);

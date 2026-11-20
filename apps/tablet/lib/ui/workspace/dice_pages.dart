@@ -12,8 +12,29 @@ bool _prefersReducedDiceMotion(BuildContext context) =>
     platformPrefersReducedDiceMotion();
 
 extension _DicePages on _TableWorkspaceState {
+  void _restoreLastDice() {
+    _diceCounts.updateAll((sides, _) => sides == 6 ? 1 : 0);
+    final saved = c.state.settings['lastRolledDice'];
+    if (saved is! Map || saved.length != _diceCounts.length) return;
+    final restored = <int, int>{};
+    for (final sides in _diceCounts.keys) {
+      final count = saved['$sides'];
+      if (count is! int || count < 0 || count > 20) return;
+      restored[sides] = count;
+    }
+    if (!restored.values.any((count) => count > 0)) return;
+    _diceCounts.addAll(restored);
+  }
+
+  bool get _hasSelectedDice => _diceCounts.values.any((count) => count > 0);
+
   Future<void> _rollSelectedDice({bool again = false}) async {
-    if (_diceRolling || _working || _closing || _navigating || !_validScope) {
+    if (!_hasSelectedDice ||
+        _diceRolling ||
+        _working ||
+        _closing ||
+        _navigating ||
+        !_validScope) {
       return;
     }
     // Lock before navigation yields: repeated taps accept just one roll.
@@ -26,7 +47,28 @@ extension _DicePages on _TableWorkspaceState {
     }
     // Only this immutable snapshot uses randomness. Animation never rerolls it.
     final roll = DiceRoll.generate(_diceCounts);
+    // Persist only an accepted roll, never selector edits or Clear. Settings
+    // use the existing acknowledged aggregate writer, without game history.
+    _update(() => _working = true);
+    final saved = await c.updateState(
+      'Remember rolled dice',
+      (state) => state.settings['lastRolledDice'] = {
+        for (final entry in _diceCounts.entries) '${entry.key}': entry.value,
+      },
+      expectedSessionId: _sessionId,
+      expectedGeneration: _sessionGeneration,
+    );
+    if (!mounted) return;
+    if (!saved) {
+      _update(() {
+        _working = false;
+        _diceRolling = false;
+        _error = c.error ?? 'The dice selection could not be saved.';
+      });
+      return;
+    }
     _update(() {
+      _working = false;
       _diceRoll = roll;
       _diceRollSerial++;
       _diceRolling =
@@ -88,14 +130,46 @@ extension _DicePages on _TableWorkspaceState {
               ),
             ),
             const SizedBox(height: 20),
-            FilledButton.icon(
-              key: const ValueKey('dice-roll-button'),
-              style: FilledButton.styleFrom(minimumSize: const Size(88, 48)),
-              onPressed: _diceRolling || _working || _navigating
-                  ? null
-                  : _rollSelectedDice,
-              icon: const Icon(Icons.casino_outlined),
-              label: Text(_diceRollLabel, textAlign: TextAlign.center),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                FilledButton.icon(
+                  key: const ValueKey('dice-roll-button'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(88, 48),
+                  ),
+                  onPressed:
+                      !_hasSelectedDice ||
+                          _diceRolling ||
+                          _working ||
+                          _navigating
+                      ? null
+                      : _rollSelectedDice,
+                  icon: const Icon(Icons.casino_outlined),
+                  label: Text(_diceRollLabel, textAlign: TextAlign.center),
+                ),
+                OutlinedButton.icon(
+                  key: const ValueKey('dice-clear-button'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(88, 48),
+                  ),
+                  onPressed:
+                      !_hasSelectedDice ||
+                          _diceRolling ||
+                          _working ||
+                          _navigating
+                      ? null
+                      : () => _update(() {
+                          for (final sides in _diceCounts.keys) {
+                            _diceCounts[sides] = 0;
+                          }
+                        }),
+                  icon: const Icon(Icons.clear_all),
+                  label: const Text('Clear'),
+                ),
+              ],
             ),
           ],
         );

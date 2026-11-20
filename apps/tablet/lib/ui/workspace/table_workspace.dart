@@ -301,6 +301,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     _sessionId = c.session.id;
     _sessionGeneration = c.session.generation;
     _page = widget.initialPage;
+    _restoreLastDice();
     if (_embedded && _page != WorkspacePage.tableHub) {
       _navigation.add((WorkspacePage.tableHub, null, 0, 0));
     }
@@ -763,6 +764,9 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
       setState(() {
         _rememberLocation();
         _typingUtilityId = null;
+        if (page == WorkspacePage.dice && _page != WorkspacePage.diceResults) {
+          _restoreLastDice();
+        }
         _page = page;
         _itemId = itemId;
         _confirmation = null;
