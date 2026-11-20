@@ -267,10 +267,9 @@ class _TableScreenState extends State<TableScreen>
                             mostSeats,
                         textScaler: MediaQuery.textScalerOf(context),
                       );
-                  // The wide four-player landscape layout reserves a real center
-                  // channel. Narrow/local-view tables already open across their
-                  // horizontal seam; other vertical drawers retain their layout.
-                  final partitionFourSeats =
+                  // Wide four-seat landscape moves both full-width halves
+                  // outward; narrower local views already use a horizontal tray.
+                  final translateFourSeats =
                       session.players.length == 4 &&
                       constraints.maxWidth > constraints.maxHeight &&
                       !horizontalDrawer;
@@ -334,10 +333,9 @@ class _TableScreenState extends State<TableScreen>
                       centerNotchAtStart: two || !tokenLeft,
                       twoPlayerLayout: two,
                       interactionEpoch: interactionEpoch,
-                      drawerShift: horizontalDrawer || partitionFourSeats
+                      drawerShift: horizontalDrawer || translateFourSeats
                           ? 0
                           : gap / 2,
-                      keepSplitLanes: partitionFourSeats,
                       drawerOpen: drawerMounted,
                       onCloseDrawer: _closeDrawer,
                       onInputLock: setInputLock,
@@ -439,12 +437,35 @@ class _TableScreenState extends State<TableScreen>
                             final opening = horizontalDrawer
                                 ? horizontalExtent * progress
                                 : gap;
+                            // The closed seats already have a river between
+                            // them. Only the portion of the opening beyond
+                            // it moves each half, keeping its inner edge
+                            // flush with the drawer without resizing any child.
+                            final halfShift = translateFourSeats
+                                ? math.max(
+                                    0.0,
+                                    (opening - _playerRiverWidth) / 2,
+                                  )
+                                : 0.0;
+                            final notchScale = horizontalDrawer
+                                ? progress.clamp(0.0, 1.0)
+                                : translateFourSeats
+                                ? 0.0
+                                : 1.0;
                             final leftWall = (table.maxWidth - gap) / 2;
                             final rightWall = (table.maxWidth + gap) / 2;
                             final twoPlayerControls =
                                 _TwoPlayerControlsGeometry(
                                   Size(table.maxWidth, table.maxHeight),
                                   opening,
+                                );
+                            Widget moveHalf(Widget child, int index) =>
+                                Transform.translate(
+                                  offset: Offset(
+                                    index == 0 ? -halfShift : halfShift,
+                                    0,
+                                  ),
+                                  child: child,
                                 );
                             Widget row(
                               List<PlayerState?> players,
@@ -457,18 +478,19 @@ class _TableScreenState extends State<TableScreen>
                                       key: ValueKey(
                                         'player-river-$rowIndex-$i',
                                       ),
-                                      width: partitionFourSeats
-                                          ? math.max(_playerRiverWidth, opening)
-                                          : _playerRiverWidth,
+                                      width: _playerRiverWidth,
                                     ),
                                   Expanded(
-                                    child: players[i] == null
-                                        ? slot(
-                                            rowIndex == 0
-                                                ? [1, 2][i]
-                                                : [0, 3][i],
-                                          )
-                                        : seat(players[i]!, opening: opening),
+                                    child: moveHalf(
+                                      players[i] == null
+                                          ? slot(
+                                              rowIndex == 0
+                                                  ? [1, 2][i]
+                                                  : [0, 3][i],
+                                            )
+                                          : seat(players[i]!, opening: opening),
+                                      i,
+                                    ),
                                   ),
                                 ],
                               ],
@@ -499,9 +521,7 @@ class _TableScreenState extends State<TableScreen>
                                           opening,
                                           Theme.of(context).colorScheme.surface,
                                           horizontal: horizontalDrawer,
-                                          notchScale: horizontalDrawer
-                                              ? progress.clamp(0.0, 1.0)
-                                              : 1,
+                                          notchScale: notchScale,
                                         ),
                                       ),
                                     ),
@@ -563,11 +583,14 @@ class _TableScreenState extends State<TableScreen>
                                     key: const ValueKey('drawer-board-mask'),
                                     clipper: _DrawerBoardClipper(
                                       gap: opening,
-                                      enabled: drawerMounted,
+                                      // Translated full seats already leave
+                                      // the opening clear. Clip only to the
+                                      // perimeter in that layout, never the
+                                      // new rounded inner edges.
+                                      enabled:
+                                          drawerMounted && !translateFourSeats,
                                       horizontal: horizontalDrawer,
-                                      notchScale: horizontalDrawer
-                                          ? progress.clamp(0.0, 1.0)
-                                          : 1,
+                                      notchScale: notchScale,
                                     ),
                                     child: Column(
                                       children: [
@@ -614,9 +637,7 @@ class _TableScreenState extends State<TableScreen>
                                           opening,
                                           Colors.black,
                                           horizontal: horizontalDrawer,
-                                          notchScale: horizontalDrawer
-                                              ? progress.clamp(0.0, 1.0)
-                                              : 1,
+                                          notchScale: notchScale,
                                         ),
                                       ),
                                     ),
@@ -914,13 +935,18 @@ class _DrawerWallPainter extends CustomPainter {
         canvas.drawPath(wall, paint);
       } else {
         final x = center.dx + side * gap / 2;
+        final radius = 30 * notchScale;
+        if (radius == 0) {
+          canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+          continue;
+        }
         final circle = Rect.fromCircle(
           center: Offset(x, center.dy),
-          radius: 30,
+          radius: radius,
         );
         final wall = Path()
           ..moveTo(x, 0)
-          ..lineTo(x, center.dy - 30)
+          ..lineTo(x, center.dy - radius)
           ..arcTo(circle, -math.pi / 2, side * math.pi, false)
           ..lineTo(x, size.height);
         canvas.drawPath(wall, paint);
@@ -947,14 +973,20 @@ Path _drawerOpeningPath(
 }) {
   final center = size.center(Offset.zero);
   if (!horizontal) {
-    return Path()
-      ..addRect(Rect.fromLTWH(center.dx - gap / 2, 0, gap, size.height))
-      ..addOval(
-        Rect.fromCircle(center: center + Offset(gap / 2, 0), radius: 30),
-      )
-      ..addOval(
-        Rect.fromCircle(center: center - Offset(gap / 2, 0), radius: 30),
-      );
+    final path = Path()
+      ..addRect(Rect.fromLTWH(center.dx - gap / 2, 0, gap, size.height));
+    final radius = 30 * notchScale;
+    if (radius > 0) {
+      for (final side in [-1, 1]) {
+        path.addOval(
+          Rect.fromCircle(
+            center: center + Offset(side * gap / 2, 0),
+            radius: radius,
+          ),
+        );
+      }
+    }
+    return path;
   }
   final path = Path()
     ..addRect(Rect.fromLTWH(0, center.dy - gap / 2, size.width, gap));
@@ -1298,7 +1330,6 @@ class _PlayerSpace extends StatefulWidget {
   final List<Offset> seamControlCenters;
   final bool centerNotchAtStart;
   final bool twoPlayerLayout;
-  final bool keepSplitLanes;
   final double drawerShift;
   final bool drawerOpen;
   final VoidCallback onCloseDrawer;
@@ -1317,7 +1348,6 @@ class _PlayerSpace extends StatefulWidget {
     required this.seamControlCenters,
     required this.centerNotchAtStart,
     required this.twoPlayerLayout,
-    required this.keepSplitLanes,
     required this.drawerShift,
     required this.drawerOpen,
     required this.onCloseDrawer,
@@ -1514,14 +1544,10 @@ class _PlayerSpaceState extends State<_PlayerSpace>
         ),
         child: LayoutBuilder(
           builder: (context, seat) {
-            // Drawer width is temporary, not a presentation change. Keep
-            // both lanes laid out while a wide four-seat board is partitioned.
-            final localViews =
-                !widget.keepSplitLanes &&
-                SeatLayoutPolicy.useLocalViews(
-                  width: seat.maxWidth,
-                  textScaler: MediaQuery.textScalerOf(context),
-                );
+            final localViews = SeatLayoutPolicy.useLocalViews(
+              width: seat.maxWidth,
+              textScaler: MediaQuery.textScalerOf(context),
+            );
             final changed =
                 _seatSize != null &&
                 (_seatSize != seat.biggest || _localViews != localViews);
@@ -2261,10 +2287,9 @@ class _PlayerSpaceState extends State<_PlayerSpace>
                                 left: 0,
                                 top: 0,
                                 bottom: 0,
-                                // The token viewport is fully visible in
-                                // every layout, including the horizontal
-                                // two-seat opening. Dismissal owns only this
-                                // viewport and consumes the closing tap.
+                                // Only the visible token region dismisses
+                                // the tray. The board perimeter clips both
+                                // paint and taps when a whole seat moves.
                                 width: tokenWidth,
                                 child: Semantics(
                                   identifier: '${p.id}-dismiss-drawer',

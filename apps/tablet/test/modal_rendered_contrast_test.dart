@@ -330,12 +330,20 @@ void main() {
             await inspect('custom-rules');
           }
           expect(tester.takeException(), isNull);
-          await tester.tap(
-            embedded
-                ? find.byKey(ValueKey('${f.playerId}-dismiss-drawer'))
-                : byControlLabel('Close workspace'),
-          );
-          await tester.pumpAndSettle();
+          if (embedded) {
+            final dismiss = find.byKey(
+              ValueKey('${f.playerId}-dismiss-drawer'),
+            );
+            final board = tester.getRect(
+              find.byKey(const ValueKey('table-surface')),
+            );
+            await tester.tapAt(tester.getRect(dismiss).intersect(board).center);
+            await tester.pumpAndSettle();
+            expect(find.byType(GameDrawerWorkspace), findsNothing);
+          } else {
+            await tester.tap(byControlLabel('Close workspace'));
+            await tester.pumpAndSettle();
+          }
           await tester.pumpWidget(const SizedBox());
           debugDisableShadows = true;
         },

@@ -82,6 +82,7 @@ void main() {
             await tester.pumpAndSettle();
             final before = jsonEncode(fixture.controller.state.toJson());
 
+            final fullSeatTranslation = seats == 4 && size.width > size.height;
             Future<void> expectSurface() async {
               final table = tester.getRect(
                 find.byKey(const ValueKey('table-surface')),
@@ -124,6 +125,11 @@ void main() {
                       Offset(table.right - 8, channel.top + 10),
                       Offset(table.left + 8, channel.top + 6),
                     ]
+                  : fullSeatTranslation
+                  ? [
+                      Offset(channel.left + 6, table.top + 16),
+                      Offset(channel.right - 6, table.bottom - 16),
+                    ]
                   : [
                       Offset(channel.left - 20, table.center.dy),
                       Offset(channel.left - 10, table.center.dy - 10),
@@ -138,7 +144,8 @@ void main() {
                 final pixels = (await image.toByteData(
                   format: ui.ImageByteFormat.rawRgba,
                 ))!;
-                // Vertical samples cover the exposed half-circle and channel.
+                // Legacy vertical samples cover the exposed half-circle.
+                // The full-seat tray has only rectangular drawer paint.
                 // The horizontal notch now belongs to Dice, whose shadow covers
                 // its exposed pixels, so verify its mask above and sample the
                 // rectangular surface here instead of the control's shadow.

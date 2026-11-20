@@ -245,13 +245,13 @@ void main() {
               skipOffstage: false,
             );
             final tokenWidth = tester.getSize(tokenLane).width;
-            final partitioned =
-                count == 4 && size.width >= 1047 && size.width > size.height;
+            final translates =
+                count == 4 && size.width >= 1048 && size.width > size.height;
             await tester.tap(menu);
             await tester.pump();
             await tester.pump(const Duration(milliseconds: 110));
             expect(tester.takeException(), isNull);
-            if (partitioned) {
+            if (translates) {
               final table = tester.getRect(
                 find.byKey(const ValueKey('table-surface')),
               );
@@ -284,10 +284,7 @@ void main() {
               find.byKey(const ValueKey('table-drawer-layer')),
               findsOneWidget,
             );
-            expect(
-              tester.getSize(tokenLane).width,
-              partitioned ? lessThan(tokenWidth) : tokenWidth,
-            );
+            expect(tester.getSize(tokenLane).width, tokenWidth);
             expect(
               find.byKey(ValueKey('${p.id}-life-surface')).hitTestable(),
               findsNothing,
@@ -308,7 +305,18 @@ void main() {
             await tester.tap(menu);
             await tester.pumpAndSettle();
             final dismissal = find.byKey(ValueKey('${p.id}-dismiss-drawer'));
-            await tester.tap(dismissal);
+            if (translates) {
+              final table = tester.getRect(
+                find.byKey(const ValueKey('table-surface')),
+              );
+              final visibleDismissal = tester
+                  .getRect(dismissal)
+                  .intersect(table);
+              expect(visibleDismissal.width, greaterThanOrEqualTo(44));
+              await tester.tapAt(visibleDismissal.center);
+            } else {
+              await tester.tap(dismissal);
+            }
             await tester.pumpAndSettle();
             expect(
               find.byKey(const ValueKey('table-drawer-layer')),
