@@ -153,8 +153,11 @@ void main() {
     const Size(1133, 744),
     const Size(744, 1133),
     const Size(1366, 1024),
+    const Size(320, 568),
   ]) {
-    for (final scene in scenes.entries) {
+    for (final scene in scenes.entries.where(
+      (scene) => size.width != 320 || scene.key == 'token-search',
+    )) {
       for (final turns in [
         0,
         if (size.width == 1133 &&
@@ -707,6 +710,20 @@ void main() {
               tester,
               '${scene.key}-${size.width.toInt()}x${size.height.toInt()}-turns$turns',
             );
+            if (_captureDirectory != null && scene.key == 'token-search') {
+              await tester.tap(find.byType(TextField));
+              await tester.pumpAndSettle();
+              await capture(
+                tester,
+                'token-search-keyboard-${size.width.toInt()}x${size.height.toInt()}',
+              );
+              expect(
+                find.byKey(const ValueKey('custom-token-action')).hitTestable(),
+                findsOneWidget,
+              );
+              await tester.tap(find.text('Done'));
+              await tester.pumpAndSettle();
+            }
             final snapshot = f.controller.session.toJson();
             await tester.tapAt(const Offset(1, 25));
             await tester.pumpAndSettle();
