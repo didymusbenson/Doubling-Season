@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:tripling_table/ui/biohazard_icon.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -490,6 +491,24 @@ void main() {
                 expect(byControlLabel('Set $name total'), findsNothing);
                 final chipFinder = find.byKey(ValueKey('player-counter-$name'));
                 await reveal(tester, chipFinder);
+                if (name == 'radiation') {
+                  expect(
+                    find.descendant(
+                      of: chipFinder,
+                      matching: find.byType(BiohazardIcon),
+                    ),
+                    findsOneWidget,
+                  );
+                }
+                if (name == 'poison') {
+                  expect(
+                    find.descendant(
+                      of: chipFinder,
+                      matching: find.byIcon(Icons.science_outlined),
+                    ),
+                    findsOneWidget,
+                  );
+                }
                 final chip = tester.renderObject<RenderBox>(chipFinder);
                 final chipRect = MatrixUtils.transformRect(
                   chip.getTransformTo(grid),

@@ -490,13 +490,15 @@ extension _GamePages on _TableWorkspaceState {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(switch (counter.key) {
-                                      'energy' => Icons.bolt,
-                                      'poison' => Icons.science_outlined,
-                                      'experience' => Icons.auto_awesome,
-                                      'radiation' => Icons.blur_circular,
-                                      _ => Icons.hexagon_outlined,
-                                    }, size: 18),
+                                    if (counter.key == 'radiation')
+                                      const BiohazardIcon(size: 18)
+                                    else
+                                      Icon(switch (counter.key) {
+                                        'energy' => Icons.bolt,
+                                        'poison' => Icons.science_outlined,
+                                        'experience' => Icons.auto_awesome,
+                                        _ => Icons.hexagon_outlined,
+                                      }, size: 18),
                                     const SizedBox(width: 3),
                                     Text(
                                       '${counter.value}',

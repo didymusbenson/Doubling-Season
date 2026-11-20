@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:tripling_table/domain/table_state.dart';
+import 'package:tripling_table/ui/biohazard_icon.dart';
 import 'package:tripling_table/ui/table_screen.dart';
 import 'package:tripling_table/ui/half_stepper.dart';
 import 'package:tripling_table/ui/table_theme.dart';
@@ -331,6 +332,39 @@ void main() {
         greaterThan(22),
       );
       expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'board Radiation uses the compact vector and keeps its accessible value',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final state = TabletState.initial();
+      final player = state.session.players.first;
+      player.counters.addAll({'radiation': 7, 'poison': 2});
+      await showTable(tester, persistedState: state);
+      final chip = find.byKey(ValueKey('${player.id}-life-counter-summary'));
+      final biohazard = find.descendant(
+        of: chip,
+        matching: find.byType(BiohazardIcon),
+      );
+      expect(biohazard, findsOneWidget);
+      expect(tester.getSize(biohazard), const Size.square(16));
+      expect(
+        find.descendant(
+          of: chip,
+          matching: find.byIcon(Icons.science_outlined),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .getSemantics(byControlLabel('Player 1, player counters'))
+            .getSemanticsData()
+            .value,
+        contains('radiation: 7'),
+      );
+      semantics.dispose();
     },
   );
 

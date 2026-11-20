@@ -22,6 +22,7 @@ import 'life_tap_feedback.dart';
 import 'board_reorder_feedback.dart';
 import 'monarch_crown.dart';
 import 'table_mana_icons.dart';
+import 'biohazard_icon.dart';
 import 'ring_inline.dart';
 import 'commander_ledger.dart';
 import 'utility_inline_actions.dart';
@@ -2668,13 +2669,15 @@ class _LifeCounterSummary extends StatelessWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(switch (counter.key) {
-              'energy' => Icons.bolt,
-              'poison' => Icons.science_outlined,
-              'experience' => Icons.auto_awesome,
-              'radiation' => Icons.blur_circular,
-              _ => Icons.hexagon_outlined,
-            }),
+            if (counter.key == 'radiation')
+              const BiohazardIcon()
+            else
+              Icon(switch (counter.key) {
+                'energy' => Icons.bolt,
+                'poison' => Icons.science_outlined,
+                'experience' => Icons.auto_awesome,
+                _ => Icons.hexagon_outlined,
+              }),
             const SizedBox(width: 2),
             Text(
               '${counter.value}',

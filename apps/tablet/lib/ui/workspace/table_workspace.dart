@@ -27,6 +27,7 @@ import '../table_artwork.dart';
 import '../table_modal_frame.dart';
 import '../game_drawer_body.dart';
 import '../table_mana_icons.dart';
+import '../biohazard_icon.dart';
 import '../half_stepper.dart';
 import '../die_outline.dart';
 import 'dice_roll.dart';
