@@ -404,10 +404,15 @@ void main() {
 
   // This regression covers the split-rail drawer, which requires wide seats.
   // Narrow local-view drawers are covered by adaptive_seat_views_test.dart.
-  for (final size in [const Size(1100, 1300), const Size(1133, 744)]) {
+  for (final size in [
+    const Size(1100, 1300),
+    const Size(1133, 744),
+    const Size(1366, 1024),
+  ]) {
     for (final seats in [3, 4]) {
+      final partitions = seats == 4 && size.width > size.height;
       testWidgets(
-        '$seats seats $size fixed tokens, moving rails and consumed dismissal',
+        '$seats seats $size vertical drawer keeps board geometry and consumes dismissal',
         (tester) async {
           final f = await show(tester, size, seats);
           final beforeState = jsonEncode(f.controller.state.toJson());
@@ -427,6 +432,63 @@ void main() {
                 find.byKey(ValueKey('${p.id}-sliding-rail')),
               ),
           };
+          void expectLaneLayout() {
+            final reveal = find
+                .descendant(
+                  of: find.byKey(const ValueKey('table-drawer-layer')),
+                  matching: find.byType(ClipRect),
+                )
+                .first;
+            final channel = tester
+                .widget<ClipRect>(reveal)
+                .clipper!
+                .getClip(tester.getSize(reveal))
+                .shift(tester.getTopLeft(reveal));
+            final table = tester.getRect(
+              find.byKey(const ValueKey('table-surface')),
+            );
+            for (final player in f.controller.session.players) {
+              final lane = tester.getRect(
+                find.byKey(ValueKey('${player.id}-token-lane')),
+              );
+              final rail = tester.getRect(
+                find.byKey(ValueKey('${player.id}-sliding-rail')),
+              );
+              if (!partitions) {
+                expect(lane, laneBounds[player.id]);
+                expect(rail.left, isNot(railBounds[player.id]!.left));
+                continue;
+              }
+              final seat = tester.getRect(
+                find.byKey(ValueKey('${player.id}-space-clip')),
+              );
+              final left = laneBounds[player.id]!.center.dx < table.center.dx;
+              expect(
+                seat.left,
+                closeTo(left ? table.left : channel.right, .001),
+              );
+              expect(
+                seat.right,
+                closeTo(left ? channel.left : table.right, .001),
+              );
+              expect(lane.left, greaterThanOrEqualTo(seat.left - .001));
+              expect(lane.right, lessThanOrEqualTo(seat.right + .001));
+              expect(rail.left, greaterThanOrEqualTo(seat.left - .001));
+              expect(rail.right, lessThanOrEqualTo(seat.right + .001));
+              expect(lane.overlaps(rail), isFalse);
+              expect(lane.overlaps(channel.deflate(.001)), isFalse);
+              expect(rail.overlaps(channel.deflate(.001)), isFalse);
+              expect(lane.width, closeTo((seat.width - 1) * .6, .001));
+              expect(rail.width, closeTo((seat.width - 1) * .4, .001));
+              expect(lane.width, lessThan(laneBounds[player.id]!.width));
+              expect(rail.width, lessThan(railBounds[player.id]!.width));
+              expect(
+                find.byKey(ValueKey('${player.id}-local-views')),
+                findsNothing,
+              );
+            }
+          }
+
           final token = f.player.tokens.first;
           final quantity = find.byKey(
             ValueKey('${token.id}-quantity-increase'),
@@ -444,16 +506,7 @@ void main() {
           expect(midHub.center.dx, greaterThan(initialHub.center.dx));
           expectRightWallControls(tester);
           expect(hub.hitTestable(), findsOneWidget);
-          for (final p in f.controller.session.players) {
-            expect(
-              tester.getRect(find.byKey(ValueKey('${p.id}-token-lane'))),
-              laneBounds[p.id],
-            );
-            expect(
-              tester.getRect(find.byKey(ValueKey('${p.id}-sliding-rail'))).left,
-              isNot(railBounds[p.id]!.left),
-            );
-          }
+          expectLaneLayout();
           await capture(tester, '$seats-${size.width.toInt()}-mid');
           // The spring briefly exceeds its settled position. Adjacent controls
           // must stay separate at the peak, including the two-seat offset lerp.
@@ -466,6 +519,7 @@ void main() {
                   tester.getSize(find.byType(GameDrawerWorkspace)).width / 2,
             ),
           );
+          expectLaneLayout();
           await capture(tester, '$seats-${size.width.toInt()}-bounce');
           await tester.pumpAndSettle();
           expect(find.byType(GameDrawerWorkspace), findsOneWidget);
@@ -485,12 +539,26 @@ void main() {
             expect(tester.getSize(control), const Size(44, 44));
             expect(control.hitTestable(), findsOneWidget);
           }
-          expect(
-            tester.getRect(find.byKey(ValueKey(token.id))),
-            initialTokenBounds,
+          expectLaneLayout();
+          final utilityTools = find.byKey(
+            ValueKey('${f.playerId}-utility-tools'),
           );
+          if (partitions) {
+            expect(utilityTools.hitTestable(), findsNothing);
+            await tester.tapAt(tester.getCenter(utilityTools));
+            await tester.pumpAndSettle();
+            expect(find.byType(GameDrawerWorkspace), findsOneWidget);
+            expect(find.byType(Dialog), findsNothing);
+          } else {
+            expect(
+              tester.getRect(find.byKey(ValueKey(token.id))),
+              initialTokenBounds,
+            );
+          }
           await capture(tester, '$seats-${size.width.toInt()}-open');
-          await tester.tapAt(tapPoint);
+          final dismiss = find.byKey(ValueKey('${f.playerId}-dismiss-drawer'));
+          expect(dismiss.hitTestable(), findsOneWidget);
+          await tester.tapAt(partitions ? tester.getCenter(dismiss) : tapPoint);
           await tester.pumpAndSettle();
           expect(find.byType(GameDrawerWorkspace), findsNothing);
           expect(tester.getRect(hub), initialHub);
@@ -520,6 +588,7 @@ void main() {
           expect(tester.getRect(hub), beforeReverse);
           await tester.pump(const Duration(milliseconds: 50));
           expectRightWallControls(tester);
+          expectLaneLayout();
           expect(
             tester.getRect(hub).center.dx,
             lessThan(beforeReverse.center.dx),
@@ -533,6 +602,7 @@ void main() {
           expect(tester.getRect(hub), initialHub);
           expect(find.byType(GameDrawerWorkspace), findsNothing);
           expect(jsonEncode(f.controller.state.toJson()), beforeState);
+          if (partitions) expect(utilityTools.hitTestable(), findsOneWidget);
           await tester.tap(quantity);
           await tester.pumpAndSettle();
           expect(
@@ -544,6 +614,55 @@ void main() {
       );
     }
   }
+
+  testWidgets('narrow four-player landscape keeps its horizontal view split', (
+    tester,
+  ) async {
+    final f = await show(tester, const Size(1024, 640), 4);
+    final before = jsonEncode(f.controller.state.toJson());
+    final table = tester.getRect(find.byKey(const ValueKey('table-surface')));
+    final seat = {
+      for (final p in f.controller.session.players)
+        p.id: tester.getRect(find.byKey(ValueKey('${p.id}-space-clip'))),
+    };
+    final hub = find.byKey(const ValueKey('central-game-controls'));
+    await tester.tap(hub);
+    await tester.pumpAndSettle();
+    final reveal = find
+        .descendant(
+          of: find.byKey(const ValueKey('table-drawer-layer')),
+          matching: find.byType(ClipRect),
+        )
+        .first;
+    final channel = tester
+        .widget<ClipRect>(reveal)
+        .clipper!
+        .getClip(tester.getSize(reveal))
+        .shift(tester.getTopLeft(reveal));
+    expect(channel.width, table.width);
+    expect(channel.height, lessThan(table.height));
+    expect(tester.getCenter(hub).dx, table.center.dx);
+    expect(tester.getCenter(hub).dy, closeTo(channel.bottom, .001));
+    for (final p in f.controller.session.players) {
+      final rect = tester.getRect(find.byKey(ValueKey('${p.id}-space-clip')));
+      final previous = seat[p.id]!;
+      expect(rect.left, closeTo(previous.left, .001));
+      expect(rect.width, closeTo(previous.width, .001));
+      expect(rect.overlaps(channel.deflate(.001)), isFalse);
+      expect(find.byKey(ValueKey('${p.id}-local-views')), findsOneWidget);
+    }
+    await tester.tap(hub);
+    await tester.pumpAndSettle();
+    expect(find.byType(GameDrawerWorkspace), findsNothing);
+    expect(jsonEncode(f.controller.state.toJson()), before);
+    for (final p in f.controller.session.players) {
+      expect(
+        tester.getRect(find.byKey(ValueKey('${p.id}-space-clip'))),
+        seat[p.id],
+      );
+    }
+    expect(tester.takeException(), isNull);
+  });
 
   for (final size in [
     const Size(650, 1024),

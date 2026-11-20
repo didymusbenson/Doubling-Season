@@ -245,11 +245,13 @@ void main() {
               skipOffstage: false,
             );
             final tokenWidth = tester.getSize(tokenLane).width;
+            final partitioned =
+                count == 4 && size.width >= 1047 && size.width > size.height;
             await tester.tap(menu);
             await tester.pump();
             await tester.pump(const Duration(milliseconds: 110));
             expect(tester.takeException(), isNull);
-            if (count == 4 && size.width >= 1048) {
+            if (partitioned) {
               final table = tester.getRect(
                 find.byKey(const ValueKey('table-surface')),
               );
@@ -264,11 +266,16 @@ void main() {
                     .widget<ClipRRect>(clipFinder)
                     .clipper!
                     .getClip(clipSize);
-                expect(rounded.width, closeTo(clipSize.width - shift, .01));
+                final seat = tester.getRect(clipFinder);
+                final onLeft = seat.center.dx < table.center.dx;
+                expect(
+                  onLeft ? seat.right : seat.left,
+                  closeTo(table.center.dx + (onLeft ? -shift : shift), .01),
+                );
+                expect(rounded.width, clipSize.width);
                 expect(rounded.height, clipSize.height);
                 expect(rounded.tlRadiusX, 14);
-                final tokenLeft = player.slot == 0 || player.slot == 2;
-                expect(rounded.left, tokenLeft ? 0 : closeTo(shift, .01));
+                expect(rounded.left, 0);
               }
             }
             await capture(tester, '$name-opening');
@@ -277,7 +284,10 @@ void main() {
               find.byKey(const ValueKey('table-drawer-layer')),
               findsOneWidget,
             );
-            expect(tester.getSize(tokenLane).width, tokenWidth);
+            expect(
+              tester.getSize(tokenLane).width,
+              partitioned ? lessThan(tokenWidth) : tokenWidth,
+            );
             expect(
               find.byKey(ValueKey('${p.id}-life-surface')).hitTestable(),
               findsNothing,
@@ -294,6 +304,7 @@ void main() {
               find.byKey(ValueKey('${p.id}-life-surface')).hitTestable(),
               findsOneWidget,
             );
+            expect(tester.getSize(tokenLane).width, tokenWidth);
             await tester.tap(menu);
             await tester.pumpAndSettle();
             final dismissal = find.byKey(ValueKey('${p.id}-dismiss-drawer'));
