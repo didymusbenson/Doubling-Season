@@ -57,3 +57,15 @@ Verified on Flutter 3.41.2:
 
 Native acceptance remains pending. Feature checkpoint only; integrate with other
 utility changes through a single assigned integrator.
+
+
+## Compact all-controls layout
+
+The dedicated Mana Pool modal drops its description and instruction line. On
+supported portrait, landscape and rotated seat widths, all six Disa-inspired
+tiles, their ±1 and ±10 halves, locks, conversion, and Empty are visible before
+any scrolling. The miniature artwork/edit affordance and artist credit share
+the footer with Empty. The ordinary artwork editor remains a separate view.
+A short, wide split view can use more columns; only extreme windows that cannot
+fit 44-pixel touch targets retain a bounded scroll fallback. No mana rules,
+numeric limits, labels, persistence, or other utility layouts changed.

@@ -221,18 +221,33 @@ extension _LibraryPages on _TableWorkspaceState {
       builder: (context, box) {
         final artwork = _field('utility.${utility.id}.panel').text == 'artwork';
         final caption = artwork ? 'Utility controls' : 'Utilities';
-        final back = TextButton.icon(
-          key: const ValueKey('utility-back'),
-          style: TextButton.styleFrom(
-            minimumSize: const Size(48, 48),
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-          ),
-          onPressed: _working || _closing || _navigating
-              ? null
-              : () => _returnFromUtility(utility),
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-          label: Text(caption),
-        );
+        final scale = MediaQuery.textScalerOf(context);
+        final compactMana =
+            utility.kind == 'mana_pool' &&
+            !artwork &&
+            box.maxWidth < scale.scale(400);
+        final canNavigate = !_working && !_closing && !_navigating;
+        final back = compactMana
+            ? IconButton(
+                key: const ValueKey('utility-back'),
+                tooltip: caption,
+                onPressed: canNavigate
+                    ? () => _returnFromUtility(utility)
+                    : null,
+                icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+              )
+            : TextButton.icon(
+                key: const ValueKey('utility-back'),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(48, 48),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                onPressed: canNavigate
+                    ? () => _returnFromUtility(utility)
+                    : null,
+                icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+                label: Text(caption),
+              );
         final close = MergeSemantics(
           child: Semantics(
             label: 'Close workspace',
@@ -255,9 +270,10 @@ extension _LibraryPages on _TableWorkspaceState {
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
           ),
         );
-        final scale = MediaQuery.textScalerOf(context);
-        final side = (artwork ? 68.0 : 44.0) + scale.scale(artwork ? 84 : 70);
-        if (box.maxWidth - 2 * side < scale.scale(150)) {
+        final side = compactMana
+            ? 48.0
+            : (artwork ? 68.0 : 44.0) + scale.scale(artwork ? 84 : 70);
+        if (box.maxWidth - 2 * side < scale.scale(compactMana ? 100 : 150)) {
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -358,7 +374,11 @@ extension _LibraryPages on _TableWorkspaceState {
     );
   }
 
-  Widget _utilityArtFooter(UtilityState utility, WidgetDefinition? definition) {
+  Widget _utilityArtFooter(
+    UtilityState utility,
+    WidgetDefinition? definition, {
+    bool compact = false,
+  }) {
     final url = utility.displayedArtworkUrl;
     final saved = (utility.configuration['artworkOptions'] as List? ?? [])
         .whereType<Map>()
@@ -373,6 +393,57 @@ extension _LibraryPages on _TableWorkspaceState {
       if (await _flushInline() && mounted && !_closing) {
         _update(() => _field('utility.${utility.id}.panel').text = 'artwork');
       }
+    }
+
+    if (compact) {
+      final credit = tabletArtworkArtist(url, artist);
+      return Row(
+        children: [
+          IconButton(
+            key: const ValueKey('utility-edit-artwork'),
+            tooltip: url == null ? 'Add artwork' : 'Edit artwork',
+            style: IconButton.styleFrom(
+              minimumSize: const Size(44, 44),
+              padding: EdgeInsets.zero,
+            ),
+            onPressed: _working ? null : edit,
+            icon: url == null
+                ? const Icon(Icons.add_photo_alternate_outlined)
+                : Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: _art(url, width: 36, height: 28),
+                      ),
+                      PositionedDirectional(
+                        end: -3,
+                        bottom: -3,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: const Icon(Icons.edit_outlined, size: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+          if (url != null)
+            Flexible(
+              child: Text(
+                credit,
+                semanticsLabel: credit == 'Artist unknown'
+                    ? credit
+                    : 'Artist $credit',
+                style: Theme.of(context).textTheme.bodySmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+        ],
+      );
     }
 
     return Padding(
@@ -472,6 +543,12 @@ extension _LibraryPages on _TableWorkspaceState {
     }
     final player = p!;
     final key = 'utility.${utility.id}';
+    if (_field('$key.panel').text == 'artwork') {
+      return _utilityArtwork(utility);
+    }
+    if (utility.kind == 'mana_pool') {
+      return _compactManaPool(utility, definition, player);
+    }
     final scope = _board.scope(player.id);
     final revision = c.session.revision;
     final currentValue = _board.utilityValue(player.id, utility.id);
@@ -500,9 +577,6 @@ extension _LibraryPages on _TableWorkspaceState {
     final preview = standalone && hasAction
         ? _board.utilityPreview(player.id, utility.id)
         : <TokenCreationResult>[];
-    if (_field('$key.panel').text == 'artwork') {
-      return _utilityArtwork(utility);
-    }
     final transforming =
         standalone && hasAction && action == 'brudiclad_telchor_engineer';
     final controls = <Widget>[
@@ -536,9 +610,7 @@ extension _LibraryPages on _TableWorkspaceState {
           const SizedBox(height: 8),
         ],
       ],
-      if (standalone && utility.kind == 'mana_pool')
-        ..._manaControls(player)
-      else if (standalone && toggle)
+      if (standalone && toggle)
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(active ? 'Active' : 'Inactive'),

@@ -146,14 +146,17 @@ void main() {
     expect(frame.height, lessThanOrEqualTo(bounds.height));
   }
 
-  for (final size in [
-    const Size(1133, 744),
-    const Size(744, 1133),
-    const Size(390, 844),
-    const Size(320, 640),
+  for (final (size, turns, scale) in [
+    (const Size(1366, 1024), 0, 1.0),
+    (const Size(1133, 744), 2, 1.0),
+    (const Size(744, 1133), 0, 1.0),
+    (const Size(390, 844), 0, 1.0),
+    (const Size(320, 640), 0, 1.5),
+    (const Size(744, 375), 0, 1.0),
+    (const Size(650, 600), 1, 1.25),
   ]) {
     testWidgets(
-      'Disa mana tiles preserve WU BR GC layout and controls at $size',
+      'Disa mana tiles show every live control without scrolling at $size, rotation $turns, text $scale',
       (tester) async {
         final fixture = TableFixture();
         await fixture.initialize();
@@ -163,12 +166,55 @@ void main() {
         );
         fixture.player.mana['W'] = 123456789;
         fixture.player.manaLocks.add('W');
-        await showUtility(tester, fixture, utility, size);
+        utility.artworkUrl =
+            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+        utility.configuration['artworkOptions'] = [
+          {
+            'url': utility.artworkUrl,
+            'artist': 'Christopher Rush',
+            'set': 'LEA',
+          },
+        ];
+        await showUtility(
+          tester,
+          fixture,
+          utility,
+          size,
+          quarterTurns: turns,
+          textScale: scale,
+        );
+        final body = find.byKey(const ValueKey('utility-detail-mana_pool'));
+        expect(
+          find.descendant(of: body, matching: find.byType(Scrollable)),
+          findsNothing,
+        );
+        expect(
+          find.text(
+            'Manual mana. Empty preserves locked colors; conversion moves every color.',
+          ),
+          findsNothing,
+        );
+        expect(
+          find.text('Tap either half for ±1; hold for ±10.'),
+          findsNothing,
+        );
+        expect(find.byTooltip('Edit artwork').hitTestable(), findsOneWidget);
+        expect(find.text('Christopher Rush').hitTestable(), findsOneWidget);
+
         final white = find.byKey(const ValueKey('utility-mana-W'));
         final blue = find.byKey(const ValueKey('utility-mana-U'));
         final black = find.byKey(const ValueKey('utility-mana-B'));
-        expect(tester.getTopLeft(white).dy, tester.getTopLeft(blue).dy);
-        expect(tester.getTopLeft(white).dx, tester.getTopLeft(black).dx);
+        final box = tester.renderObject<RenderBox>(body);
+        final first = box.globalToLocal(tester.getCenter(white));
+        final second = box.globalToLocal(tester.getCenter(blue));
+        final third = box.globalToLocal(tester.getCenter(black));
+        expect(first.dy, closeTo(second.dy, .01));
+        expect(second.dx, greaterThan(first.dx));
+        if (size.height > 375) {
+          expect(third.dx, closeTo(first.dx, .01));
+          expect(third.dy, greaterThan(first.dy));
+        }
+
         final decoration =
             tester.widget<Container>(white).decoration! as BoxDecoration;
         expect(decoration.color, const Color(0xFFF9FAF4));
@@ -193,10 +239,14 @@ void main() {
             '${name == 'White' ? 'Unlock' : 'Lock'} $name mana for Empty',
             'Convert all mana to $name',
           ]) {
-            await reachable(tester, byControlLabel(label));
+            final control = byControlLabel(label);
+            expect(control.hitTestable(), findsOneWidget, reason: label);
+            final shape = tester.getSize(control);
+            expect(shape.width, greaterThanOrEqualTo(43.5), reason: label);
+            expect(shape.height, greaterThanOrEqualTo(43.5), reason: label);
           }
         }
-        await reachable(tester, find.text('Empty unlocked mana'));
+        expect(find.text('Empty unlocked mana').hitTestable(), findsOneWidget);
         expect(tester.takeException(), isNull);
         await tap(tester, byControlLabel('Close workspace'));
       },
