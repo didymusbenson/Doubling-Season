@@ -52,6 +52,28 @@ extension _ManaPoolPanel on _TableWorkspaceState {
           tap,
           98.0,
         );
+        final denseFooter = bounds.maxWidth < textScale.scale(310);
+        final empty = OutlinedButton(
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(tap, tap),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+          ),
+          onPressed: _working || _closing || _navigating
+              ? null
+              : () => _confirm(
+                  'Empty mana pool?',
+                  'Set all unlocked colors to zero for $_seatName. Locked colors keep their values. This is undoable in game history.',
+                  () => c.emptyMana(player.id),
+                  button: 'Empty unlocked mana',
+                ),
+          child: denseFooter
+              ? Semantics(
+                  label: 'Empty unlocked mana',
+                  excludeSemantics: true,
+                  child: const Text('Empty'),
+                )
+              : const Text('Empty unlocked mana', textAlign: TextAlign.center),
+        );
         final content = Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -87,26 +109,7 @@ extension _ManaPoolPanel on _TableWorkspaceState {
                     ),
                   ),
                   const SizedBox(width: gap),
-                  Flexible(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(tap, tap),
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                      ),
-                      onPressed: _working || _closing || _navigating
-                          ? null
-                          : () => _confirm(
-                              'Empty mana pool?',
-                              'Set all unlocked colors to zero for $_seatName. Locked colors keep their values. This is undoable in game history.',
-                              () => c.emptyMana(player.id),
-                              button: 'Empty unlocked mana',
-                            ),
-                      child: const Text(
-                        'Empty unlocked mana',
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
+                  if (denseFooter) empty else Flexible(child: empty),
                 ],
               ),
             ),

@@ -246,7 +246,21 @@ void main() {
             expect(shape.height, greaterThanOrEqualTo(43.5), reason: label);
           }
         }
-        expect(find.text('Empty unlocked mana').hitTestable(), findsOneWidget);
+        final empty = find.widgetWithText(
+          OutlinedButton,
+          size.width == 320 ? 'Empty' : 'Empty unlocked mana',
+        );
+        expect(empty.hitTestable(), findsOneWidget);
+        if (size.width == 320) {
+          expect(
+            byControlLabel('Empty unlocked mana').hitTestable(),
+            findsOneWidget,
+          );
+          final buttonBounds = tester.getRect(empty);
+          final textBounds = tester.getRect(find.text('Empty'));
+          expect(buttonBounds.contains(textBounds.topLeft), isTrue);
+          expect(textBounds.bottom, lessThanOrEqualTo(buttonBounds.bottom));
+        }
         expect(tester.takeException(), isNull);
         await tap(tester, byControlLabel('Close workspace'));
       },
