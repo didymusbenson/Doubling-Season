@@ -283,35 +283,40 @@ extension _ManaPoolPanel on _TableWorkspaceState {
                     ),
                   ),
                 );
-                const iconSize = BoxConstraints.tightFor(width: 44, height: 44);
-                final lock = MergeSemantics(
-                  child: Semantics(
-                    label: '${locked ? 'Unlock' : 'Lock'} $name mana for Empty',
-                    child: IconButton(
-                      constraints: iconSize,
-                      padding: EdgeInsets.zero,
-                      color: Colors.black87,
-                      isSelected: locked,
-                      onPressed: _working
-                          ? null
-                          : () =>
-                                _run(() => c.toggleManaLock(player.id, color)),
-                      icon: const Icon(Icons.lock_open),
-                      selectedIcon: const Icon(Icons.lock),
+                final lock = SizedBox.square(
+                  dimension: 44,
+                  child: MergeSemantics(
+                    child: Semantics(
+                      label:
+                          '${locked ? 'Unlock' : 'Lock'} $name mana for Empty',
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        color: Colors.black87,
+                        isSelected: locked,
+                        onPressed: _working
+                            ? null
+                            : () => _run(
+                                () => c.toggleManaLock(player.id, color),
+                              ),
+                        icon: const Icon(Icons.lock_open),
+                        selectedIcon: const Icon(Icons.lock),
+                      ),
                     ),
                   ),
                 );
-                final convert = MergeSemantics(
-                  child: Semantics(
-                    label: 'Convert all mana to $name',
-                    child: IconButton(
-                      constraints: iconSize,
-                      padding: EdgeInsets.zero,
-                      color: Colors.black87,
-                      onPressed: _working
-                          ? null
-                          : () => _run(() => c.convertMana(player.id, color)),
-                      icon: const Icon(Icons.compare_arrows),
+                final convert = SizedBox.square(
+                  dimension: 44,
+                  child: MergeSemantics(
+                    child: Semantics(
+                      label: 'Convert all mana to $name',
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        color: Colors.black87,
+                        onPressed: _working
+                            ? null
+                            : () => _run(() => c.convertMana(player.id, color)),
+                        icon: const Icon(Icons.compare_arrows),
+                      ),
                     ),
                   ),
                 );
