@@ -692,6 +692,7 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
     Key? key,
     bool selected = false,
     bool backspace = false,
+    double? horizontalInset,
   }) {
     void perform() {
       if (!_editable) return;
@@ -763,7 +764,8 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
       height: 48,
       child: Padding(
         padding: EdgeInsets.symmetric(
-          horizontal: width != null && width >= 48 ? 2 : .25,
+          horizontal:
+              horizontalInset ?? (width != null && width >= 48 ? 2 : .25),
           vertical: 2,
         ),
         child: button,
@@ -879,10 +881,14 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
   ];
 
   Widget _manaShortcuts(double availableWidth) {
-    const keyWidth = 44.5;
-    const rowWidth = keyWidth * 16;
-    // The horizontal scrollbar and separately scrollable alphabet bank make
-    // this a single row even on the narrow face of a rotated table.
+    const keyWidth = 44.0;
+    const gap = 6.0;
+    const groupGap = 12.0;
+    const endInset = 12.0;
+    const groupBreaks = {5, 15};
+    const rowWidth = keyWidth * 16 + gap * 13 + groupGap * 2 + endInset * 2;
+    // Use real space outside the targets so each key stays 44px. Show the
+    // scrollbar whenever this strip needs more than the actual local width.
     return Semantics(
       label: 'Mana shortcuts',
       container: true,
@@ -898,18 +904,24 @@ class _PlayerKeyboardHostState extends State<PlayerKeyboardHost>
             key: const ValueKey('player-keyboard-mana-shortcuts'),
             controller: _manaScroll,
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.fromLTRB(endInset, 0, endInset, 6),
             child: Row(
               children: [
-                for (final code in _manaCodes)
+                for (final (index, code) in _manaCodes.indexed) ...[
+                  if (index > 0)
+                    SizedBox(
+                      width: groupBreaks.contains(index) ? groupGap : gap,
+                    ),
                   _key(
                     '{$code}',
                     key: ValueKey('mana-shortcut-$code'),
                     width: keyWidth,
+                    horizontalInset: 0,
                     semantics: 'Insert ${ManaSymbol.spokenLabel(code)}',
                     symbol: ManaSymbol(code: code, size: 24),
                     action: () => _replace('{$code}'),
                   ),
+                ],
               ],
             ),
           ),
