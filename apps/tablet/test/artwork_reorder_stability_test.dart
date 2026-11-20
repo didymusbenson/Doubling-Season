@@ -54,10 +54,10 @@ void main() {
     await storage.delete(recursive: true);
   });
 
-  void expectPainted(WidgetTester tester, {int? count}) {
-    final artwork = find.byType(TableArtwork);
-    if (count != null) expect(artwork, findsNWidgets(count));
-    for (final element in artwork.evaluate()) {
+  void expectPainted(WidgetTester tester, {Finder? artwork, int? count}) {
+    final visibleArtwork = artwork ?? find.byType(TableArtwork);
+    expect(visibleArtwork, count == null ? findsWidgets : findsNWidgets(count));
+    for (final element in visibleArtwork.evaluate()) {
       final images = find.descendant(
         of: find.byWidget(element.widget),
         matching: find.byType(RawImage),
@@ -223,7 +223,12 @@ void main() {
           () => Future<void>.delayed(const Duration(milliseconds: 30)),
         );
         await tester.pumpAndSettle();
-        expectPainted(tester, count: 8);
+        // Stock utility backdrops load separately. Only the uploaded token
+        // art participates in this reorder (including its lifted proxy).
+        final tokenArtwork = find.byWidgetPredicate(
+          (widget) => widget is TableArtwork && widget.url == uploaded,
+        );
+        expectPainted(tester, artwork: tokenArtwork, count: 8);
         final id = fixture.controller.session.players[seat].id;
         for (var repeat = 0; repeat < 2; repeat++) {
           final player = fixture.controller.player(id);
@@ -238,23 +243,23 @@ void main() {
           );
           final gesture = await tester.startGesture(start);
           await tester.pump(const Duration(milliseconds: 600));
-          expectPainted(tester);
+          expectPainted(tester, artwork: tokenArtwork);
           for (var step = 1; step <= 30; step++) {
             await gesture.moveTo(Offset.lerp(start, destination, step / 30)!);
             await tester.pump(const Duration(milliseconds: 16));
-            expectPainted(tester);
+            expectPainted(tester, artwork: tokenArtwork);
           }
           await gesture.up();
           for (var frame = 0; frame < 30; frame++) {
             await tester.pump(const Duration(milliseconds: 16));
-            expectPainted(tester);
+            expectPainted(tester, artwork: tokenArtwork);
           }
           await tester.pumpAndSettle();
           expect(
             fixture.controller.player(id).tokens.map((t) => t.id),
             oldIds.reversed,
           );
-          expectPainted(tester, count: 8);
+          expectPainted(tester, artwork: tokenArtwork, count: 8);
         }
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
