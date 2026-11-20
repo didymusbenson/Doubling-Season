@@ -19,6 +19,7 @@ void main() {
       final utility = state.session.players.first.utilities.firstWhere(
         (u) => u.kind == 'storm_count',
       );
+      utility.artworkUrl = null; // Pre-default save with a cleared selection.
       utility.configuration['artworkOptions'] = [
         {'url': art, 'set': 'TEST', 'artist': 'Credited Artist'},
       ];
@@ -93,7 +94,9 @@ void main() {
       );
       expect(saved.artworkUrl, art);
       expect(
-        (saved.configuration['artworkOptions'] as List).single['artist'],
+        (saved.configuration['artworkOptions'] as List).singleWhere(
+          (option) => option['url'] == art,
+        )['artist'],
         'Credited Artist',
       );
       final restored = TabletState.fromJson(

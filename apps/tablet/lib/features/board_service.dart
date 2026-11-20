@@ -1221,7 +1221,11 @@ class BoardService {
   List<WidgetDefinition> get utilityDefinitions {
     final db = WidgetDatabase();
     final list = db.filteredWidgets
-        .where((d) => isStandaloneUtilityKind(d.id) && d.id != 'commander_tax')
+        .where(
+          (d) =>
+              isStandaloneUtilityKind(d.id) &&
+              !{'commander_tax', 'storm_count'}.contains(d.id),
+        )
         .toList();
     db.dispose();
     return [
@@ -1242,6 +1246,23 @@ class BoardService {
           ),
         ],
       ),
+      // The tablet gets a dedicated Storm Crow default without changing the
+      // phone catalog or an imported widget's saved selection.
+      WidgetDefinition(
+        id: 'storm_count',
+        type: WidgetType.tracker,
+        name: 'Storm Count',
+        description: '',
+        colorIdentity: 'UR',
+        defaultValue: 0,
+        artwork: [
+          ArtworkVariant(
+            set: 'POR',
+            artist: 'Una Fricker',
+            url: UtilityState.stormArtworkUrl,
+          ),
+        ],
+      ),
       WidgetDefinition(
         id: 'mana_pool',
         type: WidgetType.special,
@@ -1250,6 +1271,13 @@ class BoardService {
             'Manual mana. Empty preserves locked colors; conversion moves every color.',
         colorIdentity: '',
         defaultValue: 0,
+        artwork: [
+          ArtworkVariant(
+            set: 'LEA',
+            artist: 'Christopher Rush',
+            url: UtilityState.manaPoolArtworkUrl,
+          ),
+        ],
       ),
       WidgetDefinition(
         id: 'the_unbeatable_squirrel_girl',
@@ -1507,9 +1535,11 @@ class BoardService {
       if (description != null) u.description = description;
       if (clearArtwork) {
         u.artworkUrl = null;
+        if (u.hasStockArtworkFallback) u.configuration['artworkCleared'] = true;
       } else if (artworkUrl != null) {
         _validateArtwork(artworkUrl);
         u.artworkUrl = artworkUrl;
+        if (u.hasStockArtworkFallback) u.configuration.remove('artworkCleared');
         final options = List<Map<String, dynamic>>.from(
           (u.configuration['artworkOptions'] as List? ?? []).map(
             (a) => Map<String, dynamic>.from(a as Map),

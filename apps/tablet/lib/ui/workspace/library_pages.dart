@@ -1002,7 +1002,7 @@ extension _LibraryPages on _TableWorkspaceState {
       final url = option['url'] as String?;
       final displayed = utility.resolveArtworkUrl(url);
       if (displayed != url) {
-        // Old saves get the new official default, not the retired token art.
+        // The official choice replaces only the exact retired built-in image.
         continue;
       }
       if ((option['artist'] as String? ?? '').isEmpty) {
@@ -1011,12 +1011,13 @@ extension _LibraryPages on _TableWorkspaceState {
       }
       options.add(option);
     }
-    final ringDefault = utility.kind == RingService.kind
-        ? known?.where((art) => art.url == RingService.artworkUrl).firstOrNull
-        : null;
-    if (ringDefault != null &&
-        !options.any((art) => art['url'] == ringDefault.url)) {
-      options.insert(0, ringDefault.toJson());
+    final catalogUrl = UtilityState.catalogArtworkUrlFor(utility.kind);
+    final catalogDefault = known
+        ?.where((art) => art.url == catalogUrl)
+        .firstOrNull;
+    if (catalogDefault != null &&
+        !options.any((art) => art['url'] == catalogDefault.url)) {
+      options.insert(0, catalogDefault.toJson());
     }
     final previewing = candidate.text.isNotEmpty;
     final shown = previewing ? candidate.text : utility.displayedArtworkUrl;
@@ -1108,7 +1109,9 @@ extension _LibraryPages on _TableWorkspaceState {
             _button('Cancel preview', () => _update(candidate.clear)),
           ],
         ),
-      if (utility.artworkUrl != null)
+      if (utility.artworkUrl != null ||
+          (utility.hasStockArtworkFallback &&
+              utility.displayedArtworkUrl != null))
         _button(
           'Remove artwork',
           () => _run(() async {

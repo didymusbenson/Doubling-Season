@@ -440,6 +440,24 @@ class UtilityState {
   static const _oldRingArtworkUrl =
       'https://cards.scryfall.io/large/front/7/2/7215460e-8c06-47d0-94e5-d1832d0218af.jpg';
 
+  // Storm Crow (POR 69) and Black Lotus (LEA 232), both text-free crops.
+  static const stormArtworkUrl =
+      'https://cards.scryfall.io/art/front/d/f/dfe87b59-b456-4532-a695-0dea3110d878.webp?1783946835';
+  static const manaPoolArtworkUrl =
+      'https://cards.scryfall.io/art/front/b/0/b0faa7f2-b547-42c4-a810-839da50dadfe.webp?1783948669';
+  static const _oldStormArtworkUrl =
+      'https://cards.scryfall.io/large/front/e/c/ec17fa3c-9033-4eab-a236-3f0068595536.jpg?1674097527';
+
+  static String? catalogArtworkUrlFor(String kind) => switch (kind) {
+    ringKind => ringArtworkUrl,
+    'storm_count' => stormArtworkUrl,
+    'mana_pool' => manaPoolArtworkUrl,
+    _ => null,
+  };
+
+  bool get hasStockArtworkFallback =>
+      kind == 'storm_count' || kind == 'mana_pool';
+
   String id;
   String kind;
   String name;
@@ -498,17 +516,38 @@ class UtilityState {
   int get legacyHoldIncrement =>
       configuration['longPressIncrement'] as int? ?? 5;
 
-  /// Retire only the exact old built-in Ring art. Never rewrite a save or
-  /// substitute for custom artwork or an explicitly cleared selection.
-  String? resolveArtworkUrl(String? url) =>
-      kind == ringKind && url == _oldRingArtworkUrl ? ringArtworkUrl : url;
-  String? get displayedArtworkUrl => resolveArtworkUrl(
-    legacySingleStepHold && configuration['type'] == 'toggle'
-        ? (configuration[isActive ? 'onArtworkUrl' : 'offArtworkUrl']
-                  as String?) ??
+  /// Retire only the exact prior stock artwork, never arbitrary user art.
+  String? resolveArtworkUrl(String? url) {
+    if (kind == ringKind && url == _oldRingArtworkUrl) return ringArtworkUrl;
+    if (kind == 'storm_count' &&
+        !legacySingleStepHold &&
+        url == _oldStormArtworkUrl) {
+      return stormArtworkUrl;
+    }
+    return url;
+  }
+
+  String? get displayedArtworkUrl {
+    final selected = legacySingleStepHold && configuration['type'] == 'toggle'
+        ? configuration[isActive ? 'onArtworkUrl' : 'offArtworkUrl']
+                  as String? ??
               artworkUrl
-        : artworkUrl,
-  );
+        : artworkUrl;
+    if (selected != null) return resolveArtworkUrl(selected);
+
+    // Prior default-on-board tools stored null and no choices. Before this
+    // flag existed a user could only remove a saved selection, which left
+    // its choices behind. In either removal case preserve the blank display.
+    final options = configuration['artworkOptions'];
+    if (hasStockArtworkFallback &&
+        !legacySingleStepHold &&
+        configuration['artworkCleared'] != true &&
+        !(options is List && options.isNotEmpty)) {
+      return catalogArtworkUrlFor(kind);
+    }
+    return null;
+  }
+
   String get displayedDescription =>
       legacySingleStepHold && configuration['type'] == 'toggle' && !isActive
       ? configuration['offDescription'] as String? ?? ''
@@ -517,8 +556,18 @@ class UtilityState {
 }
 
 List<UtilityState> defaultUtilities() => [
-  UtilityState(id: newEntityId(), kind: 'storm_count', name: 'Storm'),
-  UtilityState(id: newEntityId(), kind: 'mana_pool', name: 'Mana pool'),
+  UtilityState(
+    id: newEntityId(),
+    kind: 'storm_count',
+    name: 'Storm',
+    artworkUrl: UtilityState.stormArtworkUrl,
+  ),
+  UtilityState(
+    id: newEntityId(),
+    kind: 'mana_pool',
+    name: 'Mana pool',
+    artworkUrl: UtilityState.manaPoolArtworkUrl,
+  ),
 ];
 
 class ModifierSource {
