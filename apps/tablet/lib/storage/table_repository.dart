@@ -506,10 +506,14 @@ void validateTabletState(TabletState state) {
         }
         if (utility.kind == UtilityState.speedKind) {
           require(
-            utility.value >= 1 && utility.value <= 4,
+            utility.value >= UtilityState.speedStart &&
+                utility.value <= UtilityState.speedMax,
             'Invalid Speed value.',
           );
-          require(utility.defaultValue == 1, 'Speed starts at one.');
+          require(
+            utility.defaultValue == UtilityState.speedStart,
+            'Speed starts at zero.',
+          );
         }
         if (utility.kind == 'mana_pool' ||
             utility.kind == 'storm_count' ||

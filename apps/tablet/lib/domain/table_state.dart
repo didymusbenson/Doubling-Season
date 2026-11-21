@@ -489,12 +489,19 @@ class UtilityState {
   static const ringKind = 'the_ring';
   static const prowessKind = 'prowess';
   static const speedKind = 'speed';
+  static const speedStart = 0;
+  static const speedMax = 4;
+  static const speedDescription = 'Manually track speed from 0 to 4.';
+
+  static String speedDescriptionFor(String saved) =>
+      saved == 'Manually track speed from 1 to 4.' ? speedDescription : saved;
+
   // Mendicant Core, Guidelight (DFT 213), by Zezhou Chen.
   static const speedArtworkUrl =
       'https://cards.scryfall.io/art/front/f/4/f434b103-490f-424e-a0a1-efb1b931c8e6.webp?1783907856';
 
   String formatValue(int value) =>
-      kind == speedKind && value == 4 ? 'Max Speed!' : '$value';
+      kind == speedKind && value == speedMax ? 'Max Speed!' : '$value';
 
   // Bria, Riptide Rogue (BLB 379), by Borja Pindado.
   static const prowessArtworkUrl =
@@ -554,9 +561,14 @@ class UtilityState {
     id: json['id'] as String,
     kind: json['kind'] as String,
     name: json['name'] as String,
-    description: json['description'] as String? ?? '',
+    description: json['kind'] == speedKind
+        ? speedDescriptionFor(json['description'] as String? ?? '')
+        : json['description'] as String? ?? '',
+    // Preserve the current game count; only the fresh/reset default changed.
     value: json['value'] as int? ?? 0,
-    defaultValue: json['defaultValue'] as int? ?? 0,
+    defaultValue: json['kind'] == speedKind
+        ? speedStart
+        : json['defaultValue'] as int? ?? 0,
     isActive: json['isActive'] as bool? ?? false,
     visible: json['visible'] as bool? ?? true,
     colors: json['colors'] as String? ?? '',

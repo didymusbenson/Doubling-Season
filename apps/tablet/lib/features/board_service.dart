@@ -1283,9 +1283,9 @@ class BoardService {
         id: UtilityState.speedKind,
         type: WidgetType.tracker,
         name: 'Speed',
-        description: 'Manually track speed from 1 to 4.',
+        description: UtilityState.speedDescription,
         colorIdentity: 'WU',
-        defaultValue: 1,
+        defaultValue: UtilityState.speedStart,
         artwork: [
           ArtworkVariant(
             set: 'DFT',
@@ -1605,8 +1605,9 @@ class BoardService {
         if (u.kind == 'life_total') {
           p.life = value;
         } else if (u.kind == UtilityState.speedKind) {
-          if (value < 1 || value > 4) {
-            throw const FormatException('Speed must be between 1 and 4.');
+          if (value < UtilityState.speedStart ||
+              value > UtilityState.speedMax) {
+            throw const FormatException('Speed must be between 0 and 4.');
           }
           u.value = value;
         } else {
@@ -1666,7 +1667,10 @@ class BoardService {
       if (u.kind == 'life_total') {
         p.life += delta;
       } else if (u.kind == UtilityState.speedKind) {
-        u.value = (u.value + delta).clamp(1, 4);
+        u.value = (u.value + delta).clamp(
+          UtilityState.speedStart,
+          UtilityState.speedMax,
+        );
       } else {
         final key = _boundCounter(u.kind);
         if (key != null) {

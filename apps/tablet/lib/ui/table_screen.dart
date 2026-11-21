@@ -3014,8 +3014,12 @@ class _UtilityRow extends StatelessWidget {
             value: utility.formatValue(value),
             decreaseLabel: 'Decrease ${utility.name}',
             increaseLabel: 'Increase ${utility.name}',
-            onDecrease: speed && value <= 1 ? null : () => onChange(-step),
-            onIncrease: speed && value >= 4 ? null : () => onChange(step),
+            onDecrease: speed && value <= UtilityState.speedStart
+                ? null
+                : () => onChange(-step),
+            onIncrease: speed && value >= UtilityState.speedMax
+                ? null
+                : () => onChange(step),
             onDecreaseHold: utility.legacySingleStepHold
                 ? () => onChange(-utility.legacyHoldIncrement)
                 : null,

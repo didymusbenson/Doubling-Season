@@ -175,19 +175,23 @@ class PresetService {
               )) {
             continue;
           }
+          final defaultValue = switch (kind) {
+            RingService.kind => 0,
+            UtilityState.speedKind => UtilityState.speedStart,
+            _ => m['defaultValue'] as int? ?? 0,
+          };
+          final description = m['description'] as String? ?? '';
           p.utilities.add(
             UtilityState(
               id: newEntityId(),
               kind: kind,
               name: m['name'] as String? ?? 'Utility',
-              description: m['description'] as String? ?? '',
+              description: kind == UtilityState.speedKind
+                  ? UtilityState.speedDescriptionFor(description)
+                  : description,
               colors: m['colors'] as String? ?? '',
-              value: kind == RingService.kind
-                  ? 0
-                  : m['defaultValue'] as int? ?? 0,
-              defaultValue: kind == RingService.kind
-                  ? 0
-                  : m['defaultValue'] as int? ?? 0,
+              value: defaultValue,
+              defaultValue: defaultValue,
               visible: visible,
               artworkUrl: m['artworkUrl'] as String?,
               configuration: kind == RingService.kind

@@ -654,12 +654,10 @@ extension _LibraryPages on _TableWorkspaceState {
                 () => _runDirect(
                   () => _board.adjustUtility(player.id, utility.id, step),
                 ),
-                minimum: utility.kind == 'life_total'
-                    ? null
-                    : utility.kind == UtilityState.speedKind
-                    ? 1
-                    : 0,
-                maximum: utility.kind == UtilityState.speedKind ? 4 : null,
+                minimum: utility.kind == 'life_total' ? null : 0,
+                maximum: utility.kind == UtilityState.speedKind
+                    ? UtilityState.speedMax
+                    : null,
                 valueLabel: utility.formatValue(currentValue),
                 holdMinus: utility.legacySingleStepHold
                     ? () => _runDirect(

@@ -11,7 +11,7 @@ import 'support/control_finders.dart';
 import 'support/table_fixture.dart';
 
 void main() {
-  test('Speed is a durable seat-local singleton bounded to 1–4', () async {
+  test('Speed is a durable seat-local singleton bounded to 0–4', () async {
     final f = TableFixture(stateWithTokens([sampleToken()]));
     await f.initialize();
     addTearDown(f.dispose);
@@ -23,13 +23,15 @@ void main() {
         .toList();
     await f.board.addUtility(seat, UtilityState.speedKind);
     final speed = f.player.utilities.last;
-    expect(speed.value, 1);
+    expect(speed.value, 0);
     expect(speed.displayedArtworkUrl, UtilityState.speedArtworkUrl);
     expect(
       speed.configuration['artworkOptions'].single['artist'],
       'Zezhou Chen',
     );
     await f.board.adjustUtility(seat, speed.id, -50);
+    expect(f.board.utilityValue(seat, speed.id), 0);
+    await f.board.adjustUtility(seat, speed.id, 1);
     expect(f.board.utilityValue(seat, speed.id), 1);
     await Future.wait([
       for (var i = 0; i < 10; i++) f.board.adjustUtility(seat, speed.id, 1),
@@ -55,8 +57,42 @@ void main() {
     expect(f.board.utilityValue(seat, speed.id), 3);
     expect(speed.formatValue(3), '3');
     expect(await f.controller.resetGame(keepBoard: true), isTrue);
-    expect(f.player.utilities.singleWhere((u) => u.id == speed.id).value, 1);
+    expect(f.player.utilities.singleWhere((u) => u.id == speed.id).value, 0);
   });
+
+  test(
+    'build-23 Speed defaults normalize without changing saved live or archive counts',
+    () async {
+      final state = TabletState.initial();
+      final f = TableFixture(state);
+      addTearDown(f.dispose);
+      final oldSpeed = UtilityState(
+        id: 'prior-speed',
+        kind: UtilityState.speedKind,
+        name: 'Speed',
+        description: 'Manually track speed from 1 to 4.',
+        value: 3,
+        defaultValue: 1,
+      );
+      state.session.players.first.utilities.add(oldSpeed);
+      // Use old serialized bytes rather than constructing a new-format fixture.
+      f.repository.encoded = jsonEncode(state.toJson());
+      await f.initialize();
+      expect(f.controller.ready, isTrue);
+      final updated = f.player.utilities.last;
+      expect(updated.value, 3);
+      expect(updated.defaultValue, 0);
+      expect(updated.description, UtilityState.speedDescription);
+      expect(await f.controller.resetGame(keepBoard: true), isTrue);
+      expect(f.player.utilities.last.value, 0);
+      expect(
+        await f.controller.restoreArchive(f.controller.state.archives.last.id),
+        isTrue,
+      );
+      expect(f.player.utilities.last.value, 3);
+      expect(f.player.utilities.last.defaultValue, 0);
+    },
+  );
 
   testWidgets('Speed reads Max Speed on the board and in expanded controls', (
     tester,
@@ -86,9 +122,13 @@ void main() {
       of: surface,
       matching: find.byType(HalfStepper),
     );
-    expect(tester.widget<HalfStepper>(boardStepper).value, '1');
+    expect(tester.widget<HalfStepper>(boardStepper).value, '0');
+    expect(
+      find.descendant(of: surface, matching: find.text('0')),
+      findsOneWidget,
+    );
     expect(tester.widget<HalfStepper>(boardStepper).onDecrease, isNull);
-    for (var i = 0; i < 3; i++) {
+    for (var i = 0; i < 4; i++) {
       final increase = byControlLabel('Increase Speed');
       await tester.ensureVisible(increase);
       await tester.tap(increase);
@@ -153,6 +193,16 @@ void main() {
       findsOneWidget,
     );
     expect(f.player.utilities.single.value, 3);
+    for (final value in ['2', '1', '0']) {
+      await tester.tap(byControlLabel('Decrease Value'));
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: expanded, matching: find.text(value)),
+        findsOneWidget,
+      );
+    }
+    expect(tester.widget<HalfStepper>(expanded).onDecrease, isNull);
+    expect(f.player.utilities.single.value, 0);
     expect(tester.takeException(), isNull);
     await tester.tap(byControlLabel('Close workspace'));
     await tester.pumpAndSettle();
