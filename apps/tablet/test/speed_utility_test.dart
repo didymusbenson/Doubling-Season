@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tripling_table/domain/table_state.dart';
 import 'package:tripling_table/ui/half_stepper.dart';
 import 'package:tripling_table/ui/table_screen.dart';
+import 'package:tripling_table/ui/table_artwork.dart';
 
 import 'support/control_finders.dart';
 import 'support/table_fixture.dart';
@@ -98,13 +99,41 @@ void main() {
       findsOneWidget,
     );
     expect(tester.widget<HalfStepper>(boardStepper).onIncrease, isNull);
+    expect(
+      tester
+          .widget<Semantics>(byControlLabel('Decrease Speed'))
+          .properties
+          .value,
+      'Max Speed!',
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is TableArtworkSurface &&
+            widget.url == UtilityState.speedArtworkUrl,
+      ),
+      findsOneWidget,
+    );
+
     final detail = find.byKey(ValueKey('utility-details-$id'));
     await tester.ensureVisible(detail);
     await tester.pumpAndSettle();
-    await tester.tap(find.descendant(of: detail, matching: find.text('Speed')));
+    expect(
+      find.descendant(of: detail, matching: find.text('Speed')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: detail, matching: find.byIcon(Icons.open_in_full)),
+      findsOneWidget,
+    );
+    expect(byControlLabel('Speed, details and actions'), findsOneWidget);
+    await tester.tap(
+      find.descendant(of: detail, matching: find.byIcon(Icons.open_in_full)),
+    );
 
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('utility-detail-speed')), findsOneWidget);
+    expect(find.text('Speed'), findsOneWidget);
     final expanded = find.byWidgetPredicate(
       (widget) => widget is HalfStepper && widget.label == 'Value',
     );
@@ -129,4 +158,74 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox.shrink());
   });
+  testWidgets(
+    'compact Prowess hides its visual title without affecting Storm or details',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(390, 844);
+      addTearDown(tester.view.reset);
+      final f = TableFixture();
+      await f.initialize();
+      addTearDown(f.dispose);
+      await f.board.addUtility(f.playerId, UtilityState.prowessKind);
+      final id = f.player.utilities.last.id;
+      await f.board.setUtility(f.playerId, id, value: 3);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TableScreen(
+            controller: f.controller,
+            enablePhonePresentation: true,
+            compactPlayerOne: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final detail = find.byKey(ValueKey('utility-details-$id'));
+      await tester.ensureVisible(detail);
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: detail, matching: find.text('Prowess')),
+        findsNothing,
+      );
+      expect(find.text('Storm'), findsOneWidget);
+      expect(byControlLabel('Prowess, details and actions'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is TableArtworkSurface &&
+              widget.url == UtilityState.prowessArtworkUrl,
+        ),
+        findsOneWidget,
+      );
+
+      final surface = find.byKey(ValueKey('$id-value-surface'));
+      expect(
+        find.descendant(of: surface, matching: find.text('3')),
+        findsOneWidget,
+      );
+      final increase = byControlLabel('Increase Prowess');
+      await tester.ensureVisible(increase);
+      await tester.tap(increase);
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: surface, matching: find.text('4')),
+        findsOneWidget,
+      );
+      final icon = find.descendant(
+        of: detail,
+        matching: find.byIcon(Icons.open_in_full),
+      );
+      await tester.ensureVisible(icon);
+      await tester.tap(icon);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('utility-detail-prowess')),
+        findsOneWidget,
+      );
+      expect(find.text('Prowess'), findsOneWidget);
+      await tester.tap(byControlLabel('Close workspace'));
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 }

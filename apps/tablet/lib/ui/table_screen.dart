@@ -2958,6 +2958,9 @@ class _UtilityRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mana = utility.kind == 'mana_pool' || utility.kind == 'mana';
+    final hideCompactTitle =
+        utility.kind == UtilityState.prowessKind ||
+        utility.kind == UtilityState.speedKind;
     final step = (utility.configuration['tapIncrement'] as num?)?.toInt() ?? 1;
     final actionOnly = utility.configuration['actionOnly'] == true;
     final hasInlineAction =
@@ -3086,13 +3089,22 @@ class _UtilityRow extends StatelessWidget {
                                       vertical: 10,
                                     ),
                                     alignment: AlignmentDirectional.centerStart,
-                                    child: Text(
-                                      utility.name,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 13,
-                                      ),
-                                    ),
+                                    // Keep the artwork/details target discoverable
+                                    // and named for assistive technology without
+                                    // printing a title over these compact cards.
+                                    child: hideCompactTitle
+                                        ? Icon(
+                                            Icons.open_in_full,
+                                            size: 15,
+                                            color: color,
+                                          )
+                                        : Text(
+                                            utility.name,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                            ),
+                                          ),
                                   ),
                                 ),
                               ),
