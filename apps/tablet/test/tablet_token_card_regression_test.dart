@@ -225,10 +225,31 @@ void main() {
     },
   );
 
+  Finder actionBackplate(Finder action) => find.descendant(
+    of: action,
+    matching: find.byWidgetPredicate(
+      (widget) =>
+          widget is DecoratedBox &&
+          widget.decoration is BoxDecoration &&
+          (widget.decoration as BoxDecoration).color ==
+              Colors.black.withValues(alpha: .60) &&
+          (widget.decoration as BoxDecoration).borderRadius ==
+              BorderRadius.circular(4),
+    ),
+  );
+
   testWidgets(
     'larger token actions wrap without clipping on a narrow rotated card',
     (tester) async {
-      final fixture = TableFixture(stateWithTokens([sampleToken(amount: 5)]));
+      final fixture = TableFixture(
+        stateWithTokens([
+          sampleToken(
+            amount: 5,
+            artworkUrl:
+                'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScYAAAAASUVORK5CYII=',
+          ),
+        ]),
+      );
       await showCard(
         tester,
         fixture,
@@ -260,9 +281,44 @@ void main() {
           expect(r.deflate(.001).overlaps(previous.deflate(.001)), isFalse);
         }
       }
-      await tester.tap(targets[1]);
+      final counterAdd = byControlLabel('Manage counters');
+      for (final target in [...targets, counterAdd]) {
+        final shade = actionBackplate(target);
+        expect(tester.getSize(shade), const Size(30, 30));
+        expect(
+          tester
+              .widget<Icon>(
+                find.descendant(of: shade, matching: find.byType(Icon)),
+              )
+              .size,
+          22,
+        );
+        final touch = tester.getRect(target);
+        final paint = tester.getRect(shade);
+        expect(paint.center.dx, closeTo(touch.center.dx, .001));
+        expect(paint.center.dy, closeTo(touch.center.dy, .001));
+        expect(paint.left - touch.left, closeTo(4.5, .001));
+        expect(
+          paint.top - touch.top,
+          closeTo(target == counterAdd ? 1.5 : 5.5, .001),
+        );
+      }
+      // Adjacent rectangles touch, but the fills keep a 9px seam; taps a
+      // pixel inside either side of that seam still go to the correct action.
+      final minus = tester.renderObject<RenderBox>(targets[0]);
+      final plus = tester.renderObject<RenderBox>(targets[1]);
+      expect(
+        (minus.localToGlobal(const Offset(39, 20)) -
+                plus.localToGlobal(const Offset(0, 20)))
+            .distance,
+        lessThan(.001),
+      );
+      await tester.tapAt(minus.localToGlobal(const Offset(38, 20)));
       await tester.pumpAndSettle();
-      expect(fixture.token('source').amount, 6);
+      expect(fixture.token('source').amount, 4);
+      await tester.tapAt(plus.localToGlobal(const Offset(1, 20)));
+      await tester.pumpAndSettle();
+      expect(fixture.token('source').amount, 5);
       expect(tester.takeException(), isNull);
     },
   );
@@ -304,6 +360,7 @@ void main() {
             );
             expect(tester.getSize(decrease), const Size(39, 41));
             expect(tester.getSize(increase), const Size(39, 41));
+            expect(actionBackplate(increase), findsNothing);
             expect(
               tester.getSize(byControlLabel('Tap one; hold to tap all')),
               const Size(39, 41),

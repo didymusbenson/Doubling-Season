@@ -422,6 +422,15 @@ class _TabletTokenCardState extends State<TabletTokenCard>
     );
   }
 
+  // Grow only the paint on illustrated cards; the centered icon and the
+  // enclosing gesture rectangle keep their existing size.
+  Widget _actionBackplate(Icon icon) => _readable(
+    Padding(
+      padding: EdgeInsets.all(token.artworkUrl == null ? 3 : 4),
+      child: icon,
+    ),
+  );
+
   Widget _quantityAction({required bool increase}) {
     final enabled = !_inputOpen && (increase || token.amount > 0);
     final session = widget.board.controller.session;
@@ -451,14 +460,11 @@ class _TabletTokenCardState extends State<TabletTokenCard>
         width: _buttonWidth,
         height: _buttonHeight,
         child: Center(
-          child: _readable(
-            Padding(
-              padding: const EdgeInsets.all(3),
-              child: Icon(
-                increase ? Icons.add : Icons.remove,
-                size: _buttonIconSize,
-                color: enabled ? null : Colors.grey,
-              ),
+          child: _actionBackplate(
+            Icon(
+              increase ? Icons.add : Icons.remove,
+              size: _buttonIconSize,
+              color: enabled ? null : Colors.grey,
             ),
           ),
         ),
@@ -492,14 +498,11 @@ class _TabletTokenCardState extends State<TabletTokenCard>
             width: _buttonWidth,
             height: height,
             child: Center(
-              child: _readable(
-                Padding(
-                  padding: const EdgeInsets.all(3),
-                  child: Icon(
-                    icon,
-                    size: _buttonIconSize,
-                    color: onTap == null ? Colors.grey : null,
-                  ),
+              child: _actionBackplate(
+                Icon(
+                  icon,
+                  size: _buttonIconSize,
+                  color: onTap == null ? Colors.grey : null,
                 ),
               ),
             ),
