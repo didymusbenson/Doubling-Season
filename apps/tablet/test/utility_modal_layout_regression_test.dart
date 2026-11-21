@@ -267,7 +267,10 @@ void main() {
             await reachable(tester, byControlLabel('Increase Value'));
             await reachable(tester, byControlLabel('Decrease Value'));
             final exact = find.widgetWithText(OutlinedButton, 'Set value');
-            if (utility.kind == 'storm_count') {
+            if ({
+              'storm_count',
+              UtilityState.speedKind,
+            }.contains(utility.kind)) {
               expect(exact, findsNothing);
             } else {
               await reachable(tester, exact);
