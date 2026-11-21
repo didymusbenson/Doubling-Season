@@ -58,6 +58,13 @@ class TabletTokenCard extends StatefulWidget {
 
 class _TabletTokenCardState extends State<TabletTokenCard>
     with AutomaticKeepAliveClientMixin {
+  // Token-card icon actions share these metrics, independent of the life and
+  // utility steppers. The counter-row add button uses the shorter height.
+  static const _buttonWidth = 39.0;
+  static const _buttonHeight = 41.0;
+  static const _counterButtonHeight = 33.0;
+  static const _buttonIconSize = 22.0;
+
   // Failed drafts remain attached to this stable token ID when the keyboard is
   // dismissed. Reopening the field retries that exact raw value.
   final Map<String, String> _drafts = {};
@@ -441,15 +448,15 @@ class _TabletTokenCardState extends State<TabletTokenCard>
       onTap: enabled ? () => change(1) : null,
       onStep: enabled ? change : null,
       child: SizedBox(
-        width: 38,
-        height: 40,
+        width: _buttonWidth,
+        height: _buttonHeight,
         child: Center(
           child: _readable(
             Padding(
               padding: const EdgeInsets.all(3),
               child: Icon(
                 increase ? Icons.add : Icons.remove,
-                size: 21,
+                size: _buttonIconSize,
                 color: enabled ? null : Colors.grey,
               ),
             ),
@@ -466,7 +473,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
     VoidCallback? onHold,
     Key? key,
     bool consumeDisabled = false,
-    double height = 40,
+    double height = _buttonHeight,
   }) => Semantics(
     key: key,
     button: true,
@@ -482,7 +489,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
           onTap: _inputOpen ? null : onTap ?? (consumeDisabled ? () {} : null),
           onLongPress: _inputOpen ? null : onHold,
           child: SizedBox(
-            width: 38,
+            width: _buttonWidth,
             height: height,
             child: Center(
               child: _readable(
@@ -490,7 +497,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
                   padding: const EdgeInsets.all(3),
                   child: Icon(
                     icon,
-                    size: 21,
+                    size: _buttonIconSize,
                     color: onTap == null ? Colors.grey : null,
                   ),
                 ),
@@ -757,7 +764,7 @@ class _TabletTokenCardState extends State<TabletTokenCard>
                                             () => _open(
                                               WorkspacePage.tokenCounters,
                                             ),
-                                            height: 32,
+                                            height: _counterButtonHeight,
                                           ),
                                         ],
                                       ),

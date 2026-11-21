@@ -225,6 +225,48 @@ void main() {
     },
   );
 
+  testWidgets(
+    'larger token actions wrap without clipping on a narrow rotated card',
+    (tester) async {
+      final fixture = TableFixture(stateWithTokens([sampleToken(amount: 5)]));
+      await showCard(
+        tester,
+        fixture,
+        width: 175,
+        quarterTurns: 2,
+        expanded: true,
+      );
+      final row = find.byKey(const ValueKey('source-actions'));
+      final bounds = tester.getRect(row);
+      final targets = [
+        find.byKey(const ValueKey('source-quantity-decrease')),
+        find.byKey(const ValueKey('source-quantity-increase')),
+        byControlLabel('Untap one; hold to untap all'),
+        byControlLabel('Tap one; hold to tap all'),
+        byControlLabel('Add +1/+1 counter; hold to add ten'),
+        byControlLabel('Copy one fresh token'),
+        byControlLabel('Split stack'),
+      ];
+      final rects = targets.map(tester.getRect).toList();
+      for (var i = 0; i < rects.length; i++) {
+        final r = rects[i];
+        expect(r.width, closeTo(39, .001));
+        expect(r.height, closeTo(41, .001));
+        expect(r.left, greaterThanOrEqualTo(bounds.left - .001));
+        expect(r.top, greaterThanOrEqualTo(bounds.top - .001));
+        expect(r.right, lessThanOrEqualTo(bounds.right + .001));
+        expect(r.bottom, lessThanOrEqualTo(bounds.bottom + .001));
+        for (final previous in rects.take(i)) {
+          expect(r.deflate(.001).overlaps(previous.deflate(.001)), isFalse);
+        }
+      }
+      await tester.tap(targets[1]);
+      await tester.pumpAndSettle();
+      expect(fixture.token('source').amount, 6);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final platform in [
     TargetPlatform.android,
     TargetPlatform.iOS,
@@ -260,8 +302,37 @@ void main() {
             final increase = find.byKey(
               const ValueKey('source-quantity-increase'),
             );
-            expect(tester.getSize(decrease), const Size(38, 40));
-            expect(tester.getSize(increase), const Size(38, 40));
+            expect(tester.getSize(decrease), const Size(39, 41));
+            expect(tester.getSize(increase), const Size(39, 41));
+            expect(
+              tester.getSize(byControlLabel('Tap one; hold to tap all')),
+              const Size(39, 41),
+            );
+            expect(
+              tester
+                  .widget<Icon>(
+                    find.descendant(
+                      of: increase,
+                      matching: find.byIcon(Icons.add),
+                    ),
+                  )
+                  .size,
+              22,
+            );
+            if (expanded) {
+              expect(
+                tester.getSize(byControlLabel('Choose artwork')),
+                const Size(39, 41),
+              );
+              expect(
+                tester.getSize(byControlLabel('Token details')),
+                const Size(39, 41),
+              );
+              expect(
+                tester.getSize(byControlLabel('Manage counters')),
+                const Size(39, 33),
+              );
+            }
             expect(
               find.descendant(of: row, matching: decrease),
               findsOneWidget,
