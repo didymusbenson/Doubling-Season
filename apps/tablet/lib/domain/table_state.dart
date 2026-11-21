@@ -701,11 +701,13 @@ class CommanderSource {
   String ownerPlayerId;
   String name;
   bool active;
+  int tax;
   CommanderSource({
     required this.id,
     required this.ownerPlayerId,
     required this.name,
     this.active = true,
+    this.tax = 0,
   });
   factory CommanderSource.fromJson(Map<String, dynamic> json) =>
       CommanderSource(
@@ -713,12 +715,14 @@ class CommanderSource {
         ownerPlayerId: json['ownerPlayerId'] as String,
         name: json['name'] as String,
         active: json['active'] as bool? ?? true,
+        tax: json['tax'] as int? ?? 0,
       );
   Map<String, dynamic> toJson() => {
     'id': id,
     'ownerPlayerId': ownerPlayerId,
     'name': name,
     'active': active,
+    if (tax != 0) 'tax': tax,
   };
   CommanderSource copy() => CommanderSource.fromJson(toJson());
 }

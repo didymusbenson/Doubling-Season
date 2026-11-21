@@ -452,6 +452,10 @@ void validateTabletState(TabletState state) {
       game.commanders.every((value) => ids.contains(value.ownerPlayerId)),
       'Commander source references an unknown owner.',
     );
+    for (final source in game.commanders) {
+      bounded(source.tax, 'Commander tax');
+      require(source.tax.isEven, 'Commander tax must be a multiple of two.');
+    }
     final entityIds = <String>[];
     final ruleIds = <String>[];
     for (final player in game.players) {

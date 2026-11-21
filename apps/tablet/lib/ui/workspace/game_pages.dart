@@ -112,22 +112,27 @@ extension _GamePages on _TableWorkspaceState {
       String label,
       Widget icon,
       bool active,
-      Future<dynamic> Function() action, {
+      Future<dynamic> Function()? action, {
       Future<dynamic> Function()? clear,
+      VoidCallback? open,
     }) {
       final color = active
           ? Theme.of(context).colorScheme.primaryContainer
           : Theme.of(context).colorScheme.surfaceContainerHighest;
       return Expanded(
         child: Semantics(
-          label: '$label, ${active ? 'On' : 'Off'}',
+          label: open == null ? '$label, ${active ? 'On' : 'Off'}' : label,
           button: true,
           enabled: true,
-          toggled: active,
+          toggled: open == null ? active : null,
           excludeSemantics: true,
-          onTap: () => _runDirect(action),
+          onTap: open ?? (action == null ? null : () => _runDirect(action)),
           onLongPress: clear == null ? null : () => _runDirect(clear),
-          hint: clear == null ? null : 'Hold to clear $label',
+          hint: open != null
+              ? 'Open the commander tax controls'
+              : clear == null
+              ? null
+              : 'Hold to clear $label',
           child: Material(
             color: color,
             shape: RoundedRectangleBorder(
@@ -136,7 +141,7 @@ extension _GamePages on _TableWorkspaceState {
             ),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
-              onTap: () => _runDirect(action),
+              onTap: open ?? (action == null ? null : () => _runDirect(action)),
               onLongPress: clear == null ? null : () => _runDirect(clear),
               child: SizedBox(
                 height: _playerStatusHeight,
@@ -153,13 +158,31 @@ extension _GamePages on _TableWorkspaceState {
                       child: icon,
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: active
-                            ? Theme.of(context).colorScheme.onPrimaryContainer
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                    Flexible(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: LayoutBuilder(
+                          builder: (context, bounds) => FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              bounds.maxWidth <
+                                      MediaQuery.textScalerOf(context).scale(84)
+                                  ? label.replaceFirst(' ', '\n')
+                                  : label,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: active
+                                        ? Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimaryContainer
+                                        : Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -200,7 +223,103 @@ extension _GamePages on _TableWorkspaceState {
           ),
           clear: initiative ? () => _board.setInitiative(null) : null,
         ),
+        const SizedBox(width: 8),
+        status(
+          'Commander tax',
+          const Icon(Icons.balance),
+          false,
+          null,
+          open: () => _openCommanderTax(player.id),
+        ),
       ],
+    );
+  }
+
+  Future<void> _openCommanderTax(String ownerId) async {
+    if (_working || _closing || _navigating || !_validScope) return;
+    final controller = c;
+    final sessionId = _sessionId;
+    final generation = _sessionGeneration;
+    final turns = widget.quarterTurns;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => RotatedBox(
+        quarterTurns: turns,
+        child: ListenableBuilder(
+          listenable: controller,
+          builder: (context, _) {
+            final session = controller.session;
+            final valid =
+                session.id == sessionId && session.generation == generation;
+            final sources = valid
+                ? session.commanderTrackingSources
+                      .where((source) => source.ownerPlayerId == ownerId)
+                      .toList()
+                : <CommanderSource>[];
+            return AlertDialog(
+              title: const Text('Commander tax'),
+              content: SizedBox(
+                width: 300,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (sources.isEmpty)
+                        const Text('No active commander for this seat.'),
+                      for (final source in sources) ...[
+                        Text(_commanderSourceLabel(source)),
+                        const SizedBox(height: 4),
+                        HalfStepper(
+                          key: ValueKey('commander-tax-${source.id}'),
+                          label: '${_commanderSourceLabel(source)} tax',
+                          value: '+${source.tax}',
+                          decreaseLabel:
+                              'Decrease ${_commanderSourceLabel(source)} tax by 2',
+                          increaseLabel:
+                              'Increase ${_commanderSourceLabel(source)} tax by 2',
+                          onDecrease: controller.busy || source.tax == 0
+                              ? null
+                              : () => controller.adjustCommanderTax(
+                                  ownerId,
+                                  source.id,
+                                  increase: false,
+                                  expectedSessionId: sessionId,
+                                  expectedGeneration: generation,
+                                ),
+                          onIncrease: controller.busy
+                              ? null
+                              : () => controller.adjustCommanderTax(
+                                  ownerId,
+                                  source.id,
+                                  increase: true,
+                                  expectedSessionId: sessionId,
+                                  expectedGeneration: generation,
+                                ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      if (controller.error != null)
+                        Text(
+                          controller.error!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Done'),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 

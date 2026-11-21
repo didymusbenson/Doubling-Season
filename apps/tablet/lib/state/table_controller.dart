@@ -602,12 +602,46 @@ class TableController extends ChangeNotifier {
           'Renaming keeps recorded damage intact.',
         );
       }
+      if (game.commanders.any(
+        (source) => source.id == sourceId && source.tax > 0,
+      )) {
+        throw StateError(
+          'Set this commander’s tax to zero before removing it.',
+        );
+      }
       game.commanders.removeWhere((value) => value.id == sourceId);
       for (final player in game.players) {
         player.commanderDamage.remove(sourceId);
       }
     },
   );
+  Future<bool> adjustCommanderTax(
+    String ownerId,
+    String sourceId, {
+    required bool increase,
+    String? expectedSessionId,
+    int? expectedGeneration,
+  }) => commit(
+    'Commander tax ${increase ? '+2' : '-2'}',
+    playerId: ownerId,
+    expectedSessionId: expectedSessionId,
+    expectedGeneration: expectedGeneration,
+    mutate: (game) {
+      final projected = game.commanderTrackingSources.firstWhereOrNull(
+        (source) => source.ownerPlayerId == ownerId && source.id == sourceId,
+      );
+      if (projected == null) {
+        throw StateError('This commander is not active for this seat.');
+      }
+      if (!increase && projected.tax == 0) return;
+      final source =
+          game.commanders.firstWhereOrNull((s) => s.id == sourceId) ??
+          projected.copy();
+      if (!game.commanders.contains(source)) game.commanders.add(source);
+      source.tax += increase ? 2 : -2;
+    },
+  );
+
   Future<bool> adjustCommanderDamage(
     String recipientId,
     String sourceId,
