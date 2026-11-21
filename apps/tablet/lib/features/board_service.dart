@@ -1280,6 +1280,21 @@ class BoardService {
         ],
       ),
       WidgetDefinition(
+        id: UtilityState.speedKind,
+        type: WidgetType.tracker,
+        name: 'Speed',
+        description: 'Manually track speed from 1 to 4.',
+        colorIdentity: 'WU',
+        defaultValue: 1,
+        artwork: [
+          ArtworkVariant(
+            set: 'DFT',
+            artist: 'Zezhou Chen',
+            url: UtilityState.speedArtworkUrl,
+          ),
+        ],
+      ),
+      WidgetDefinition(
         id: 'mana_pool',
         type: WidgetType.special,
         name: 'Mana pool',
@@ -1453,7 +1468,8 @@ class BoardService {
       // Opening the picker detail must not create a duplicate or reveal a
       // concurrently added instance. The explicit add path keeps its behavior.
       if (!visible && p.utilities.any((u) => u.kind == definitionId)) return;
-      if (definitionId == UtilityState.prowessKind) {
+      if (definitionId == UtilityState.prowessKind ||
+          definitionId == UtilityState.speedKind) {
         final existing = p.utilities
             .where((u) => u.kind == definitionId)
             .firstOrNull;
@@ -1588,6 +1604,11 @@ class BoardService {
       if (value != null) {
         if (u.kind == 'life_total') {
           p.life = value;
+        } else if (u.kind == UtilityState.speedKind) {
+          if (value < 1 || value > 4) {
+            throw const FormatException('Speed must be between 1 and 4.');
+          }
+          u.value = value;
         } else {
           _quantity(value);
           final bound = _boundCounter(u.kind);
@@ -1644,6 +1665,8 @@ class BoardService {
       final u = _utility(p, id);
       if (u.kind == 'life_total') {
         p.life += delta;
+      } else if (u.kind == UtilityState.speedKind) {
+        u.value = (u.value + delta).clamp(1, 4);
       } else {
         final key = _boundCounter(u.kind);
         if (key != null) {

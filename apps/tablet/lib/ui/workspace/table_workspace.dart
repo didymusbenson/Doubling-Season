@@ -1251,6 +1251,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
     VoidCallback minus,
     VoidCallback plus, {
     String? detail,
+    String? valueLabel,
     VoidCallback? edit,
     VoidCallback? holdMinus,
     VoidCallback? holdPlus,
@@ -1269,7 +1270,7 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
           HalfStepper(
             height: 48,
             label: label,
-            value: '$value',
+            value: valueLabel ?? '$value',
             decreaseLabel: 'Decrease $label',
             increaseLabel: 'Increase $label',
             onDecrease:
@@ -1306,7 +1307,10 @@ class _TableWorkspaceState extends State<_TableWorkspace> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(label, style: Theme.of(context).textTheme.labelMedium),
-                Text('$value', style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  valueLabel ?? '$value',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
               ],
             ),
           ),

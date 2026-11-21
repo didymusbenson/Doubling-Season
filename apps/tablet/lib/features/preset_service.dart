@@ -161,6 +161,7 @@ class PresetService {
                 'mana_pool',
                 'storm_count',
                 UtilityState.prowessKind,
+                UtilityState.speedKind,
                 'life_total',
                 'poison_counters',
                 'energy_counters',

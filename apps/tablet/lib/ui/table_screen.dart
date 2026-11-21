@@ -2979,8 +2979,11 @@ class _UtilityRow extends StatelessWidget {
         : Colors.white;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final largeValue =
-            '${board.utilityValue(player.id, utility.id)}'.length > 4;
+        final value = board.utilityValue(player.id, utility.id);
+        final speed = utility.kind == UtilityState.speedKind;
+        // Reserve the full-width treatment for either Speed label so the
+        // control does not move between the 3 and Max Speed! states.
+        final largeValue = speed || '$value'.length > 4;
         final narrowStorm =
             (utility.kind == 'storm_count' && constraints.maxWidth < 180) ||
             largeValue;
@@ -3005,11 +3008,11 @@ class _UtilityRow extends StatelessWidget {
           ),
           child: HalfStepper(
             label: utility.name,
-            value: '${board.utilityValue(player.id, utility.id)}',
+            value: utility.formatValue(value),
             decreaseLabel: 'Decrease ${utility.name}',
             increaseLabel: 'Increase ${utility.name}',
-            onDecrease: () => onChange(-step),
-            onIncrease: () => onChange(step),
+            onDecrease: speed && value <= 1 ? null : () => onChange(-step),
+            onIncrease: speed && value >= 4 ? null : () => onChange(step),
             onDecreaseHold: utility.legacySingleStepHold
                 ? () => onChange(-utility.legacyHoldIncrement)
                 : null,

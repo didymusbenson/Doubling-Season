@@ -504,9 +504,17 @@ void validateTabletState(TabletState state) {
           bounded(utility.value, 'Prowess value');
           require(utility.defaultValue == 0, 'Prowess starts at zero.');
         }
+        if (utility.kind == UtilityState.speedKind) {
+          require(
+            utility.value >= 1 && utility.value <= 4,
+            'Invalid Speed value.',
+          );
+          require(utility.defaultValue == 1, 'Speed starts at one.');
+        }
         if (utility.kind == 'mana_pool' ||
             utility.kind == 'storm_count' ||
-            utility.kind == UtilityState.prowessKind) {
+            utility.kind == UtilityState.prowessKind ||
+            utility.kind == UtilityState.speedKind) {
           require(
             singletonUtilities.add(utility.kind),
             'Duplicate ${utility.kind} utility.',

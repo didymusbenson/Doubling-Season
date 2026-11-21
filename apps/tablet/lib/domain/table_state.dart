@@ -488,6 +488,14 @@ class TokenState {
 class UtilityState {
   static const ringKind = 'the_ring';
   static const prowessKind = 'prowess';
+  static const speedKind = 'speed';
+  // Mendicant Core, Guidelight (DFT 213), by Zezhou Chen.
+  static const speedArtworkUrl =
+      'https://cards.scryfall.io/art/front/f/4/f434b103-490f-424e-a0a1-efb1b931c8e6.webp?1783907856';
+
+  String formatValue(int value) =>
+      kind == speedKind && value == 4 ? 'Max Speed!' : '$value';
+
   // Bria, Riptide Rogue (BLB 379), by Borja Pindado.
   static const prowessArtworkUrl =
       'https://cards.scryfall.io/art/front/3/9/390c96b3-68da-4a42-89ab-d9ccc79ce0dd.webp?1783910745';
@@ -510,6 +518,7 @@ class UtilityState {
     ringKind => ringArtworkUrl,
     'storm_count' => stormArtworkUrl,
     prowessKind => prowessArtworkUrl,
+    speedKind => speedArtworkUrl,
     'mana_pool' => manaPoolArtworkUrl,
     _ => null,
   };
