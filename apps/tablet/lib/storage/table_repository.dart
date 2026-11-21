@@ -500,7 +500,13 @@ void validateTabletState(TabletState state) {
       for (final utility in player.utilities) {
         entityIds.add(utility.id);
         bounded(utility.value, 'Utility value', signed: true);
-        if (utility.kind == 'mana_pool' || utility.kind == 'storm_count') {
+        if (utility.kind == UtilityState.prowessKind) {
+          bounded(utility.value, 'Prowess value');
+          require(utility.defaultValue == 0, 'Prowess starts at zero.');
+        }
+        if (utility.kind == 'mana_pool' ||
+            utility.kind == 'storm_count' ||
+            utility.kind == UtilityState.prowessKind) {
           require(
             singletonUtilities.add(utility.kind),
             'Duplicate ${utility.kind} utility.',

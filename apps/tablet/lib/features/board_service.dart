@@ -1264,6 +1264,22 @@ class BoardService {
         ],
       ),
       WidgetDefinition(
+        id: UtilityState.prowessKind,
+        type: WidgetType.tracker,
+        name: 'Prowess',
+        description:
+            'Your creature tokens get +1/+1 per count. Set to zero to clear.',
+        colorIdentity: 'UR',
+        defaultValue: 0,
+        artwork: [
+          ArtworkVariant(
+            set: 'BLB',
+            artist: 'Borja Pindado',
+            url: UtilityState.prowessArtworkUrl,
+          ),
+        ],
+      ),
+      WidgetDefinition(
         id: 'mana_pool',
         type: WidgetType.special,
         name: 'Mana pool',
@@ -1437,6 +1453,15 @@ class BoardService {
       // Opening the picker detail must not create a duplicate or reveal a
       // concurrently added instance. The explicit add path keeps its behavior.
       if (!visible && p.utilities.any((u) => u.kind == definitionId)) return;
+      if (definitionId == UtilityState.prowessKind) {
+        final existing = p.utilities
+            .where((u) => u.kind == definitionId)
+            .firstOrNull;
+        if (existing != null) {
+          existing.visible = visible;
+          return;
+        }
+      }
       if ({
         'the_ring',
         'mana_pool',

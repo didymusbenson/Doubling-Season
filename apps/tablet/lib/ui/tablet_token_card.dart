@@ -290,29 +290,11 @@ class _TabletTokenCardState extends State<TabletTokenCard>
     return false;
   }
 
-  String get _powerToughness {
-    if (_drafts.containsKey('pt')) return _drafts['pt']!;
-    final parts = token.pt.split('/');
-    if (parts.length != 2) return token.pt;
-    String stat(String base, int independent) {
-      final change = token.netPlusOneCounters + independent;
-      final number = BigInt.tryParse(base.trim());
-      if (number != null) return '${number + BigInt.from(change)}';
-      return '$base${change == 0
-          ? ''
-          : change > 0
-          ? '+$change'
-          : '$change'}';
-    }
+  String get _powerToughness =>
+      _drafts['pt'] ??
+      token.effectivePowerToughness(widget.player.prowessBonus);
 
-    return '${stat(parts[0], token.counters['+1/+0'] ?? 0)}/'
-        '${stat(parts[1], token.counters['+0/+1'] ?? 0)}';
-  }
-
-  bool get _modifiedPt =>
-      token.netPlusOneCounters != 0 ||
-      (token.counters['+1/+0'] ?? 0) != 0 ||
-      (token.counters['+0/+1'] ?? 0) != 0;
+  bool get _modifiedPt => token.hasModifiedStats(widget.player.prowessBonus);
 
   // Readability belongs to the content, not a scrim across the token artwork.
   Widget _readable(Widget child, {Color? backgroundColor}) =>

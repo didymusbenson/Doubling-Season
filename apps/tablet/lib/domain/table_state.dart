@@ -258,6 +258,15 @@ class GameSession {
 }
 
 class PlayerState {
+  /// Visibility is presentation only. Set the live tracker to zero to end the
+  /// effect, even if its card is currently hidden.
+  int get prowessBonus =>
+      utilities
+          .where((utility) => utility.kind == UtilityState.prowessKind)
+          .firstOrNull
+          ?.value ??
+      0;
+
   String id;
   String seatId;
   int slot;
@@ -391,6 +400,50 @@ class TokenState {
       RegExp(r'\bhaste\b', caseSensitive: false).hasMatch(abilities);
   int get untapped => amount - tapped;
   int get netPlusOneCounters => plusOneCounters - minusOneCounters;
+  // The leading type line, not a subtype or a user-entered P/T, determines
+  // eligibility. This includes artifact/enchantment creatures and Vehicles
+  // whose token type has actually been changed to Creature.
+  bool get _getsProwess {
+    final types = type.split(RegExp(r'[—–]|\s+-\s+')).first.trim();
+    if (RegExp(r'\bemblem\b', caseSensitive: false).hasMatch(types)) {
+      return false;
+    }
+    return RegExp(r'\bcreature\b', caseSensitive: false).hasMatch(types) ||
+        (types.isEmpty && hasPowerToughness && !isEmblem);
+  }
+
+  int _statDelta(String counter, int prowess) =>
+      netPlusOneCounters +
+      (counters[counter] ?? 0) +
+      (prowess != 0 && _getsProwess ? prowess : 0);
+
+  bool hasModifiedStats(int prowess) =>
+      netPlusOneCounters != 0 ||
+      (counters['+1/+0'] ?? 0) != 0 ||
+      (counters['+0/+1'] ?? 0) != 0 ||
+      (prowess != 0 && _getsProwess);
+
+  BigInt? effectivePower(int prowess) {
+    final base = BigInt.tryParse(pt.split('/').first.trim());
+    return base == null
+        ? null
+        : base + BigInt.from(_statDelta('+1/+0', prowess));
+  }
+
+  String effectivePowerToughness(int prowess) {
+    final parts = pt.split('/');
+    if (parts.length != 2) return pt;
+    String stat(String base, String counter) {
+      final change = _statDelta(counter, prowess);
+      final number = BigInt.tryParse(base.trim());
+      if (number != null) return '${number + BigInt.from(change)}';
+      if (change == 0) return base;
+      return change > 0 ? '$base+$change' : '$base$change';
+    }
+
+    return '${stat(parts[0], '+1/+0')}/${stat(parts[1], '+0/+1')}';
+  }
+
   factory TokenState.fromJson(Map<String, dynamic> json) => TokenState(
     id: json['id'] as String,
     definitionId: json['definitionId'] as String? ?? '',
@@ -434,6 +487,11 @@ class TokenState {
 
 class UtilityState {
   static const ringKind = 'the_ring';
+  static const prowessKind = 'prowess';
+  // Bria, Riptide Rogue (BLB 379), by Borja Pindado.
+  static const prowessArtworkUrl =
+      'https://cards.scryfall.io/art/front/3/9/390c96b3-68da-4a42-89ab-d9ccc79ce0dd.webp?1783910745';
+
   // The One Ring (LTR 246). The art source contains no card frame or text.
   static const ringArtworkUrl =
       'https://cards.scryfall.io/art/front/d/5/d5806e68-1054-458e-866d-1f2470f682b2.webp?1790212038';
@@ -451,6 +509,7 @@ class UtilityState {
   static String? catalogArtworkUrlFor(String kind) => switch (kind) {
     ringKind => ringArtworkUrl,
     'storm_count' => stormArtworkUrl,
+    prowessKind => prowessArtworkUrl,
     'mana_pool' => manaPoolArtworkUrl,
     _ => null,
   };

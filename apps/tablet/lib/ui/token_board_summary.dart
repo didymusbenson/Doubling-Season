@@ -25,15 +25,11 @@ class TokenBoardSummary extends StatelessWidget {
     var power = BigInt.zero, readyPower = BigInt.zero;
     final variable = <String, int>{};
     for (final token in creatures) {
-      final parsed = BigInt.tryParse(token.pt.split('/').first.trim());
-      if (parsed == null) {
+      final modified = token.effectivePower(player.prowessBonus);
+      if (modified == null) {
         final key = '${token.name} (${token.pt})';
         variable[key] = (variable[key] ?? 0) + token.amount;
       } else {
-        final modified =
-            parsed +
-            BigInt.from(token.netPlusOneCounters) +
-            BigInt.from(token.counters['+1/+0'] ?? 0);
         power += modified * BigInt.from(token.amount);
         readyPower += modified * BigInt.from(token.untapped);
       }

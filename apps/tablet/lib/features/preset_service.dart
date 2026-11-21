@@ -160,6 +160,7 @@ class PresetService {
                 RingService.kind,
                 'mana_pool',
                 'storm_count',
+                UtilityState.prowessKind,
                 'life_total',
                 'poison_counters',
                 'energy_counters',
